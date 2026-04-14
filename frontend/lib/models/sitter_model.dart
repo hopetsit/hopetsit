@@ -28,6 +28,9 @@ class SitterModel {
   final List<DateTime> availableDates;
   final List<DateTime> unavailableDates;
 
+  /// Sprint 5 step 7 — identity verification flag exposed publicly.
+  final bool identityVerified;
+
   /// Currency code for hourly rate (e.g. USD, EUR). Defaults to EUR.
   final String currency;
   final String createdAt;
@@ -81,6 +84,7 @@ class SitterModel {
     this.defaultRateType = 'hour',
     this.availableDates = const <DateTime>[],
     this.unavailableDates = const <DateTime>[],
+    this.identityVerified = false,
     this.currency = 'EUR',
     required this.createdAt,
     required this.updatedAt,
@@ -158,6 +162,7 @@ class SitterModel {
           .map((e) => DateTime.tryParse(e.toString()))
           .whereType<DateTime>()
           .toList(),
+      identityVerified: json['identityVerified'] == true,
       currency: _parseCurrency(json['currency'] ?? json['hourlyRateCurrency']),
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',

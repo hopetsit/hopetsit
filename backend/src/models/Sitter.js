@@ -44,6 +44,20 @@ const sitterSchema = new mongoose.Schema(
     // Sprint 5 step 6 — availability calendar. Dates are stored as UTC midnight.
     availableDates: { type: [Date], default: [] },
     unavailableDates: { type: [Date], default: [] },
+    // Sprint 5 step 7 — identity verification. documentUrl is stored encrypted
+    // (AES-256-GCM via utils/encryption) and is only readable by the sitter
+    // themselves and admins. Never exposed via sanitizeUser.
+    identityVerification: {
+      status: {
+        type: String,
+        enum: ['none', 'pending', 'verified', 'rejected'],
+        default: 'none',
+      },
+      documentUrl: { type: String, default: '' },
+      submittedAt: { type: Date, default: null },
+      reviewedAt: { type: Date, default: null },
+      rejectionReason: { type: String, default: '' },
+    },
     avatar: {
       url: { type: String, default: '' },
       publicId: { type: String, default: '' },

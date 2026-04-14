@@ -2,7 +2,7 @@ const Sitter = require('../models/Sitter');
 const Review = require('../models/Review');
 const Owner = require('../models/Owner');
 const { sanitizeUser } = require('../utils/sanitize');
-const { decrypt, maskEmail } = require('../utils/encryption');
+const { decrypt, encrypt, maskEmail } = require('../utils/encryption');
 const { uploadMedia } = require('../services/cloudinary');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const {
@@ -1050,6 +1050,56 @@ const getSitterAvailability = async (req, res) => {
   }
 };
 
+// Sprint 5 step 7 — identity verification
+const submitIdentityVerification = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Identity document file is required.' });
+    const dataUri = bufferToDataUri(req.file);
+    const upload = await uploadMedia(dataUri, { folder: 'identity_verification' });
+    const sitter = await Sitter.findByIdAndUpdate(
+      req.user.id,
+      {
+        identityVerification: {
+          status: 'pending',
+          documentUrl: encrypt(upload.secure_url || upload.url),
+          submittedAt: new Date(),
+          reviewedAt: null,
+          rejectionReason: '',
+        },
+      },
+      { new: true }
+    ).select('identityVerification');
+    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    res.json({
+      identityVerification: {
+        status: sitter.identityVerification.status,
+        submittedAt: sitter.identityVerification.submittedAt,
+      },
+    });
+  } catch (e) {
+    console.error('submitIdentityVerification error', e);
+    res.status(500).json({ error: 'Unable to submit identity document.' });
+  }
+};
+
+const getMyIdentityVerification = async (req, res) => {
+  try {
+    const sitter = await Sitter.findById(req.user.id).select('identityVerification');
+    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    const iv = sitter.identityVerification || {};
+    res.json({
+      status: iv.status || 'none',
+      submittedAt: iv.submittedAt || null,
+      reviewedAt: iv.reviewedAt || null,
+      rejectionReason: iv.rejectionReason || '',
+      documentUrl: iv.documentUrl ? decrypt(iv.documentUrl) : '',
+    });
+  } catch (e) {
+    console.error('getMyIdentityVerification error', e);
+    res.status(500).json({ error: 'Unable to fetch identity verification.' });
+  }
+};
+
 module.exports = {
   listSitters,
   getSitterProfile,
@@ -1063,5 +1113,7 @@ module.exports = {
   updateMyAvailability,
   getSitterAvailability,
   getSitterPaypalEmail,
+  submitIdentityVerification,
+  getMyIdentityVerification,
 };
 

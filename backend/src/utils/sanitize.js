@@ -64,7 +64,7 @@ const sanitizeCard = (cardDoc) => {
   };
 };
 
-const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false } = {}) => {
+const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, includeIdentityDoc = false } = {}) => {
   if (!userDoc) return null;
   const sanitized = sanitizeDoc(userDoc, { omit: ['password'] });
   delete sanitized.password;
@@ -73,6 +73,17 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false } = {
   // authenticated user's own profile (or admin) must opt in with includeEmail.
   if (!includeEmail) {
     delete sanitized.email;
+  }
+
+  // Sprint 5 step 7 — redact identity-verification document URL everywhere
+  // except for the sitter themselves or the admin; expose a boolean flag only.
+  if (sanitized.identityVerification && typeof sanitized.identityVerification === 'object') {
+    sanitized.identityVerified = sanitized.identityVerification.status === 'verified';
+    if (!includeIdentityDoc) {
+      delete sanitized.identityVerification.documentUrl;
+    }
+  } else {
+    sanitized.identityVerified = false;
   }
   
   // Only include card if explicitly requested (for card endpoints)

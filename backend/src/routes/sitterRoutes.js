@@ -14,6 +14,8 @@ const {
   getMyAvailability,
   updateMyAvailability,
   getSitterAvailability,
+  submitIdentityVerification,
+  getMyIdentityVerification,
 } = require('../controllers/sitterController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
@@ -217,6 +219,16 @@ router.get('/paypal-email', requireAuth, requireRole('sitter'), getSitterPaypalE
 router.get('/me/availability', requireAuth, requireRole('sitter'), getMyAvailability);
 router.put('/me/availability', requireAuth, requireRole('sitter'), updateMyAvailability);
 router.get('/:id/availability', getSitterAvailability);
+
+// Sprint 5 step 7 — identity verification (sitter-side)
+router.post(
+  '/identity-verification',
+  requireAuth,
+  requireRole('sitter'),
+  upload.single('document'),
+  submitIdentityVerification
+);
+router.get('/me/identity-verification', requireAuth, requireRole('sitter'), getMyIdentityVerification);
 
 /**
  * @swagger

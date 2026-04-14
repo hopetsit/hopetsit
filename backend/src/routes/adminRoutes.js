@@ -185,4 +185,51 @@ router.patch('/sitters/:id/iban/verify', requireAdmin, async (req, res) => {
 // ─── RETRY PAYOUT ─────────────────────────────────────────────────────────────
 router.post('/bookings/:id/retry-payout', requireAuth, requireRole('owner'), retryBookingPayout);
 
+// Sprint 5 step 7 — identity verification admin review
+router.get('/identity-verifications', requireAdmin, async (req, res) => {
+  try {
+    const { status = 'pending' } = req.query;
+    const sitters = await Sitter.find({ 'identityVerification.status': status })
+      .select('name identityVerification')
+      .sort({ 'identityVerification.submittedAt': -1 })
+      .lean();
+    const payload = sitters.map((s) => ({
+      id: s._id.toString(),
+      name: s.name,
+      submittedAt: s.identityVerification?.submittedAt || null,
+      status: s.identityVerification?.status || 'none',
+      documentUrl: s.identityVerification?.documentUrl
+        ? decrypt(s.identityVerification.documentUrl)
+        : '',
+    }));
+    res.json({ verifications: payload });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/identity-verifications/:id', requireAdmin, async (req, res) => {
+  try {
+    const { action, reason = '' } = req.body || {};
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: "action must be 'approve' or 'reject'." });
+    }
+    const update = {
+      'identityVerification.status': action === 'approve' ? 'verified' : 'rejected',
+      'identityVerification.reviewedAt': new Date(),
+      'identityVerification.rejectionReason': action === 'reject' ? String(reason || '') : '',
+    };
+    const sitter = await Sitter.findByIdAndUpdate(req.params.id, { $set: update }, { new: true })
+      .select('identityVerification');
+    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    res.json({
+      status: sitter.identityVerification.status,
+      reviewedAt: sitter.identityVerification.reviewedAt,
+      rejectionReason: sitter.identityVerification.rejectionReason,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
