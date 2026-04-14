@@ -209,6 +209,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> Owners</div>
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> IBAN Payouts</div>
       <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> Identity verifications</div>
+      <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> Review moderation</div>
     </nav>
 
     <!-- PAGES -->
@@ -293,6 +294,32 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div id="iban-table-body">
             <div class="loading"><div class="spinner"></div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- REVIEW MODERATION (Sprint 7 step 5) -->
+      <div id="page-reviews" class="page">
+        <div class="section-title">⭐ Review moderation</div>
+        <div style="margin-bottom:12px">
+          <button class="action-btn btn-primary" onclick="loadReviewsModeration('all')">All</button>
+          <button class="action-btn" onclick="loadReviewsModeration('reported')">Reported</button>
+          <button class="action-btn" onclick="loadReviewsModeration('hidden')">Hidden</button>
+        </div>
+        <div class="table-wrap">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="text-align:left;border-bottom:1px solid #333">
+                <th style="padding:8px">★</th>
+                <th style="padding:8px">Comment</th>
+                <th style="padding:8px">Reports</th>
+                <th style="padding:8px">Status</th>
+                <th style="padding:8px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="reviews-list">
+              <tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -485,6 +512,54 @@ async function reviewIdentity(id, action) {
   }
 }
 
+// Sprint 7 step 5 — review moderation.
+async function loadReviewsModeration(status) {
+  const tb = document.getElementById('reviews-list');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>';
+  try {
+    const data = await api(`/admin/reviews?status=${encodeURIComponent(status)}`);
+    const rows = data.reviews || [];
+    if (rows.length === 0) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">No reviews.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(r => `
+      <tr>
+        <td style="padding:8px">${r.rating}★</td>
+        <td style="padding:8px">${escapeHtml((r.comment || '').slice(0, 120))}</td>
+        <td style="padding:8px">${r.reportedCount || 0}</td>
+        <td style="padding:8px">${r.hidden ? '<span style="color:var(--red)">hidden</span>' : 'visible'}</td>
+        <td style="padding:8px">
+          ${r.hidden
+            ? `<button class="action-btn btn-verify" onclick="moderateReview('${r._id}','restore')">Restore</button>`
+            : `<button class="action-btn" onclick="moderateReview('${r._id}','hide')">Hide</button>`}
+          <button class="btn-reject" onclick="moderateReview('${r._id}','delete')">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="5" style="color:var(--error)">${e.message}</td></tr>`;
+  }
+}
+
+async function moderateReview(id, action) {
+  try {
+    if (action === 'hide') {
+      const reason = prompt('Reason for hiding?') || '';
+      await api(`/admin/reviews/${id}/hide`, 'PATCH', { reason });
+    } else if (action === 'restore') {
+      await api(`/admin/reviews/${id}/restore`, 'PATCH');
+    } else if (action === 'delete') {
+      if (!confirm('Permanently delete this review?')) return;
+      await api(`/admin/reviews/${id}`, 'DELETE');
+    }
+    loadReviewsModeration('all');
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
@@ -499,6 +574,7 @@ function showPage(name) {
   event.currentTarget.classList.add('active');
   if (name === 'iban') loadIbanSitters();
   if (name === 'identity') loadIdentityVerifications();
+  if (name === 'reviews') loadReviewsModeration('all');
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────

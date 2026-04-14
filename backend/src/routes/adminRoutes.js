@@ -208,6 +208,67 @@ router.get('/identity-verifications', requireAdmin, async (req, res) => {
   }
 });
 
+// Sprint 7 step 5 — review moderation.
+const Review = require('../models/Review');
+
+router.get('/reviews', requireAdmin, async (req, res) => {
+  try {
+    const { status = 'all', page = 1, limit = 30 } = req.query;
+    const filter = {};
+    if (status === 'reported') filter.reportedCount = { $gte: 1 };
+    else if (status === 'hidden') filter.hidden = true;
+    const reviews = await Review.find(filter)
+      .sort({ reportedCount: -1, createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean();
+    const total = await Review.countDocuments(filter);
+    res.json({ reviews, total, page: Number(page), limit: Number(limit) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/reviews/:id/hide', requireAdmin, async (req, res) => {
+  try {
+    const { reason = '' } = req.body || {};
+    const review = await Review.findByIdAndUpdate(
+      req.params.id,
+      { hidden: true, hiddenReason: String(reason), hiddenAt: new Date() },
+      { new: true }
+    ).lean();
+    if (!review) return res.status(404).json({ error: 'Review not found.' });
+    res.json({ review });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/reviews/:id/restore', requireAdmin, async (req, res) => {
+  try {
+    const review = await Review.findByIdAndUpdate(
+      req.params.id,
+      { hidden: false, hiddenReason: '', hiddenAt: null },
+      { new: true }
+    ).lean();
+    if (!review) return res.status(404).json({ error: 'Review not found.' });
+    res.json({ review });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/reviews/:id', requireAdmin, async (req, res) => {
+  try {
+    const review = await Review.findByIdAndDelete(req.params.id).lean();
+    if (!review) return res.status(404).json({ error: 'Review not found.' });
+    console.log(`[admin] deleted review ${review._id} by user ${req.user?.id}`);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.patch('/identity-verifications/:id', requireAdmin, async (req, res) => {
   try {
     const { action, reason = '' } = req.body || {};

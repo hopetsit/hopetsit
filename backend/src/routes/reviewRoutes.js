@@ -1,6 +1,6 @@
 const express = require('express');
 
-const { createReview, listReviews, replyToReview } = require('../controllers/reviewController');
+const { createReview, listReviews, replyToReview, reportReview } = require('../controllers/reviewController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -57,6 +57,9 @@ router.post('/', requireAuth, createReview);
 
 // Sprint 7 step 4 — reply (once) to a review (reviewee only).
 router.post('/:id/reply', requireAuth, replyToReview);
+
+// Sprint 7 step 5 — report a review as inappropriate.
+router.post('/:id/report', requireAuth, reportReview);
 
 /**
  * @swagger

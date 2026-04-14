@@ -35,6 +35,11 @@ const reviewSchema = new mongoose.Schema(
       body: { type: String, default: '', maxlength: 500 },
       repliedAt: { type: Date, default: null },
     },
+    // Sprint 7 step 5 — admin moderation fields.
+    hidden: { type: Boolean, default: false, index: true },
+    hiddenReason: { type: String, default: '' },
+    hiddenAt: { type: Date, default: null },
+    reportedCount: { type: Number, default: 0, index: true },
   },
   { timestamps: true }
 );

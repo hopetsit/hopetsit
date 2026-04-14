@@ -155,7 +155,8 @@ const listReviews = async (req, res) => {
       return res.status(400).json({ error: 'reviewerId or revieweeId is required.' });
     }
 
-    const filter = {};
+    // Sprint 7 step 5 — hide moderated reviews from public listings.
+    const filter = { hidden: { $ne: true } };
 
     let reviewerModelName;
     if (reviewerId) {
@@ -231,9 +232,43 @@ const replyToReview = async (req, res) => {
   }
 };
 
+// Sprint 7 step 5 — user reports an inappropriate review; emails admin at 3+ reports.
+const reportReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid review id.' });
+    }
+    const review = await Review.findByIdAndUpdate(
+      id,
+      { $inc: { reportedCount: 1 } },
+      { new: true }
+    ).select('reportedCount hidden');
+    if (!review) return res.status(404).json({ error: 'Review not found.' });
+    if (review.reportedCount >= 3 && !review.hidden) {
+      try {
+        const { sendEmail } = require('../services/emailService');
+        const to = process.env.ADMIN_ALERT_EMAIL;
+        if (to) {
+          sendEmail(
+            to,
+            `[HopeTSIT] Review flagged (${review.reportedCount} reports) — #${id}`,
+            `Review ${id} reached ${review.reportedCount} reports. Please review in the admin dashboard.`
+          ).catch(() => {});
+        }
+      } catch (_) {}
+    }
+    res.json({ ok: true, reportedCount: review.reportedCount });
+  } catch (e) {
+    console.error('reportReview error', e);
+    res.status(500).json({ error: 'Unable to report review.' });
+  }
+};
+
 module.exports = {
   createReview,
   listReviews,
   replyToReview,
+  reportReview,
 };
 
