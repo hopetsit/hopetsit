@@ -27,6 +27,7 @@ const {
 } = require('../services/paypalService');
 const { sendPayoutToSitter } = require('../services/paypalPayoutService');
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
+const { countryToCurrency } = require('../utils/countryCurrency');
 const { createNotificationSafe } = require('../services/notificationService');
 const { mergeScheduleFromApplication, normalizeServiceType } = require('../utils/bookingAgreementFields');
 const {
@@ -1224,10 +1225,12 @@ const createBookingPaymentIntent = async (req, res) => {
       });
     }
 
-    // Validate and normalize booking currency for payment
+    // Validate and normalize booking currency for payment.
+    // Fallback chain: booking.pricing.currency -> sitter.country-derived -> DEFAULT.
+    const fallbackCurrency = countryToCurrency(sitter.country) || DEFAULT_CURRENCY;
     const bookingCurrency = assertSupportedCurrency(
-      booking.pricing?.currency || DEFAULT_CURRENCY,
-      'Booking currency must be USD or EUR to create a payment.'
+      booking.pricing?.currency || fallbackCurrency,
+      'Booking currency must be one of EUR/USD/GBP/CHF to create a payment.'
     );
 
     const amountInCents = Math.round(totalPrice * 100); // Convert to minor units (cents)
@@ -1254,9 +1257,16 @@ const createBookingPaymentIntent = async (req, res) => {
     booking.paymentStatus = 'pending'; // Set payment status to pending when payment intent is created
     await booking.save();
 
+    const applicationFee = Math.round(amountInCents * 0.20);
+    const netSitter = amountInCents - applicationFee;
+
     res.json({
       paymentIntentId: paymentIntent.id,
       clientSecret: paymentIntent.client_secret,
+      amount: amountInCents,
+      currency: bookingCurrency,
+      commissionAmount: applicationFee,
+      netSitterAmount: netSitter,
       booking: sanitizeBooking(booking),
       message: 'PaymentIntent created successfully. Use clientSecret with Stripe Payment Sheet.',
     });
