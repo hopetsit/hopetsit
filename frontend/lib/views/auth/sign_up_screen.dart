@@ -153,6 +153,9 @@ class SignUpScreen extends StatelessWidget {
                                                     .selectedCountryCode
                                                     .value =
                                                 country.dialCode ?? '+1';
+                                            // Sprint 6.5 step 2 — persist ISO-2 country code too.
+                                            controller.selectedCountry.value =
+                                                country.code ?? 'US';
                                             field.didChange(
                                               controller.phoneController.text,
                                             );
