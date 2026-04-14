@@ -238,11 +238,9 @@ class AuthController extends GetxController {
         );
         return;
       }
-      print("object22");
 
       // Wait briefly to ensure authenticationEvents listener populates _user
       await Future.delayed(Duration(milliseconds: 200));
-      print("object33");
       if (_user == null) {
         CustomSnackbar.showError(
           title: 'auth_google_signin_title',
@@ -250,11 +248,8 @@ class AuthController extends GetxController {
         );
         return;
       }
-      print("object44");
       final googleAuth = _user!.authentication;
       final idToken = googleAuth.idToken;
-      final accessToken = googleAuth.idToken;
-      print("object55");
       if (idToken == null) {
         CustomSnackbar.showError(
           title: 'auth_google_signin_title',
@@ -263,10 +258,7 @@ class AuthController extends GetxController {
         return;
       }
 
-      final credential = GoogleAuthProvider.credential(
-        idToken: idToken,
-        accessToken: accessToken,
-      );
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
 
       log(' [HOPETSIT] 🔐 Signing in with Google credential');
       await _auth.signInWithCredential(credential);
