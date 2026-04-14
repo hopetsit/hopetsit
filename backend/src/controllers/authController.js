@@ -282,6 +282,14 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
+    // Sprint 7 step 6 — block suspended/banned accounts at login.
+    if (result.account.status && result.account.status !== 'active') {
+      const msg = result.account.status === 'suspended'
+        ? 'Account suspended. Please contact support.'
+        : 'Account banned.';
+      return res.status(401).json({ error: msg, status: result.account.status });
+    }
+
     if (!result.account.verified) {
       const userEmail = (result.account.email || email).toString().toLowerCase();
       const verificationCode = generateVerificationCode();

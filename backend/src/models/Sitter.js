@@ -48,6 +48,10 @@ const sitterSchema = new mongoose.Schema(
     // Sprint 7 step 3 — referral program.
     referralCode: { type: String, unique: true, sparse: true, index: true },
     referredBy: { type: String, default: '' },
+    // Sprint 7 step 6 — admin moderation.
+    status: { type: String, enum: ['active', 'suspended', 'banned'], default: 'active', index: true },
+    banReason: { type: String, default: '' },
+    bannedAt: { type: Date, default: null },
     // Sprint 5 step 6 — availability calendar. Dates are stored as UTC midnight.
     availableDates: { type: [Date], default: [] },
     unavailableDates: { type: [Date], default: [] },

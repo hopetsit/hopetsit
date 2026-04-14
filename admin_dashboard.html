@@ -210,6 +210,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> IBAN Payouts</div>
       <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> Identity verifications</div>
       <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> Review moderation</div>
+      <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> User moderation</div>
     </nav>
 
     <!-- PAGES -->
@@ -294,6 +295,32 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div id="iban-table-body">
             <div class="loading"><div class="spinner"></div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- USER MODERATION (Sprint 7 step 6) -->
+      <div id="page-moderation" class="page">
+        <div class="section-title">🛡️ User moderation</div>
+        <div id="platform-stats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;"></div>
+        <div style="margin-bottom:12px">
+          <input id="user-search-q" placeholder="Search email or name…" style="padding:8px;width:260px" />
+          <button class="action-btn btn-primary" onclick="searchUsers()">Search</button>
+        </div>
+        <div class="table-wrap">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="text-align:left;border-bottom:1px solid #333">
+                <th style="padding:8px">Role</th>
+                <th style="padding:8px">Name</th>
+                <th style="padding:8px">Email</th>
+                <th style="padding:8px">Status</th>
+                <th style="padding:8px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-list">
+              <tr><td colspan="5" style="color:var(--text-muted)">Type an email or name then click Search.</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -512,6 +539,68 @@ async function reviewIdentity(id, action) {
   }
 }
 
+// Sprint 7 step 6 — platform stats + user moderation.
+async function loadPlatformStats() {
+  const box = document.getElementById('platform-stats');
+  if (!box) return;
+  try {
+    const s = await api('/admin/platform-stats');
+    box.innerHTML = `
+      <div class="stat-card">👥 Users: <strong>${s.totalUsers}</strong> (${s.totalOwners} owners + ${s.totalSitters} sitters)</div>
+      <div class="stat-card">📅 Bookings completed: <strong>${s.totalBookingsCompleted}</strong> / ${s.totalBookings}</div>
+      <div class="stat-card">💰 Platform revenue: <strong>${Number(s.platformRevenue).toFixed(2)}</strong></div>
+      <div class="stat-card">👑 Premium owners: <strong>${s.premiumCount}</strong></div>
+      <div class="stat-card">🏆 Top sitters: <strong>${s.topSitterCount}</strong></div>
+    `;
+  } catch (e) {
+    box.innerHTML = `<span style="color:var(--error)">${e.message}</span>`;
+  }
+}
+
+async function searchUsers() {
+  const q = document.getElementById('user-search-q').value.trim();
+  const tb = document.getElementById('users-list');
+  if (!q) return;
+  tb.innerHTML = '<tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>';
+  try {
+    const data = await api(`/admin/users/search?q=${encodeURIComponent(q)}`);
+    const rows = data.results || [];
+    if (rows.length === 0) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">No match.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(u => `
+      <tr>
+        <td style="padding:8px">${u.role}</td>
+        <td style="padding:8px">${escapeHtml(u.name || '')}</td>
+        <td style="padding:8px">${escapeHtml(u.email || '')}</td>
+        <td style="padding:8px">${u.status || 'active'}</td>
+        <td style="padding:8px">
+          <button class="action-btn" onclick="moderateUser('${u._id}','${u.role}','suspend')">Suspend</button>
+          <button class="action-btn btn-verify" onclick="moderateUser('${u._id}','${u.role}','reactivate')">Reactivate</button>
+          <button class="btn-reject" onclick="moderateUser('${u._id}','${u.role}','ban')">Ban</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="5" style="color:var(--error)">${e.message}</td></tr>`;
+  }
+}
+
+async function moderateUser(id, role, action) {
+  try {
+    let reason = '';
+    if (action === 'suspend' || action === 'ban') {
+      reason = prompt(`Reason to ${action}?`) || '';
+    }
+    if (action === 'ban' && !confirm('Ban definitively?')) return;
+    await api(`/admin/users/${id}/${action}`, 'POST', { role, reason });
+    searchUsers();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
 // Sprint 7 step 5 — review moderation.
 async function loadReviewsModeration(status) {
   const tb = document.getElementById('reviews-list');
@@ -575,6 +664,7 @@ function showPage(name) {
   if (name === 'iban') loadIbanSitters();
   if (name === 'identity') loadIdentityVerifications();
   if (name === 'reviews') loadReviewsModeration('all');
+  if (name === 'moderation') loadPlatformStats();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────

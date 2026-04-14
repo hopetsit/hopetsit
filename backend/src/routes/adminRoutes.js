@@ -211,6 +211,103 @@ router.get('/identity-verifications', requireAdmin, async (req, res) => {
 // Sprint 7 step 5 — review moderation.
 const Review = require('../models/Review');
 
+// Sprint 7 step 6 — platform stats + user moderation.
+router.get('/platform-stats', requireAdmin, async (req, res) => {
+  try {
+    const [totalOwners, totalSitters, totalBookings, totalBookingsCompleted, premiumCount, topSitterCount, revAgg] = await Promise.all([
+      Owner.countDocuments(),
+      Sitter.countDocuments(),
+      Booking.countDocuments(),
+      Booking.countDocuments({ status: 'completed' }),
+      Owner.countDocuments({ isPremium: true }),
+      Sitter.countDocuments({ isTopSitter: true }),
+      Booking.aggregate([
+        { $match: { paymentStatus: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$pricing.commission' } } },
+      ]).catch(() => []),
+    ]);
+    res.json({
+      totalUsers: totalOwners + totalSitters,
+      totalOwners,
+      totalSitters,
+      totalBookings,
+      totalBookingsCompleted,
+      premiumCount,
+      topSitterCount,
+      platformRevenue: revAgg?.[0]?.total ?? 0,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+const userModelFor = (role) => (role === 'sitter' ? Sitter : role === 'owner' ? Owner : null);
+
+router.post('/users/:id/suspend', requireAdmin, async (req, res) => {
+  try {
+    const { role, reason = '' } = req.body || {};
+    const Model = userModelFor(role);
+    if (!Model) return res.status(400).json({ error: "role must be 'owner' or 'sitter'." });
+    const user = await Model.findByIdAndUpdate(
+      req.params.id,
+      { status: 'suspended', banReason: String(reason) },
+      { new: true }
+    ).select('status banReason').lean();
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    console.log(`[admin] suspended ${role} ${req.params.id} by ${req.user?.id} — reason: ${reason}`);
+    res.json(user);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/users/:id/reactivate', requireAdmin, async (req, res) => {
+  try {
+    const { role } = req.body || {};
+    const Model = userModelFor(role);
+    if (!Model) return res.status(400).json({ error: "role must be 'owner' or 'sitter'." });
+    const user = await Model.findByIdAndUpdate(
+      req.params.id,
+      { status: 'active', banReason: '', bannedAt: null },
+      { new: true }
+    ).select('status').lean();
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    console.log(`[admin] reactivated ${role} ${req.params.id} by ${req.user?.id}`);
+    res.json(user);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/users/:id/ban', requireAdmin, async (req, res) => {
+  try {
+    const { role, reason = '' } = req.body || {};
+    const Model = userModelFor(role);
+    if (!Model) return res.status(400).json({ error: "role must be 'owner' or 'sitter'." });
+    const user = await Model.findByIdAndUpdate(
+      req.params.id,
+      { status: 'banned', banReason: String(reason), bannedAt: new Date() },
+      { new: true }
+    ).select('status banReason bannedAt').lean();
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    console.log(`[admin] banned ${role} ${req.params.id} by ${req.user?.id} — reason: ${reason}`);
+    res.json(user);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/users/search', requireAdmin, async (req, res) => {
+  try {
+    const { q = '' } = req.query;
+    const regex = new RegExp(String(q).trim(), 'i');
+    const [owners, sitters] = await Promise.all([
+      Owner.find({ $or: [{ email: regex }, { name: regex }] }).select('name email status').limit(20).lean(),
+      Sitter.find({ $or: [{ email: regex }, { name: regex }] }).select('name email status').limit(20).lean(),
+    ]);
+    res.json({
+      results: [
+        ...owners.map(o => ({ ...o, role: 'owner' })),
+        ...sitters.map(s => ({ ...s, role: 'sitter' })),
+      ],
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/reviews', requireAdmin, async (req, res) => {
   try {
     const { status = 'all', page = 1, limit = 30 } = req.query;

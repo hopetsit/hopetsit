@@ -19,7 +19,7 @@ const verifyToken = (token) => {
   return jwt.verify(token, secret);
 };
 
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
   try {
     const token = getTokenFromHeader(req.headers.authorization);
     if (!token) {
@@ -30,6 +30,19 @@ const requireAuth = (req, res, next) => {
       id: payload.id,
       role: payload.role,
     };
+    // Sprint 7 step 6 — block suspended/banned accounts.
+    if (payload.role === 'owner' || payload.role === 'sitter') {
+      const Model = payload.role === 'sitter'
+        ? require('../models/Sitter')
+        : require('../models/Owner');
+      const user = await Model.findById(payload.id).select('status').lean();
+      if (user && user.status && user.status !== 'active') {
+        const msg = user.status === 'suspended'
+          ? 'Account suspended. Please contact support.'
+          : 'Account banned.';
+        return res.status(401).json({ error: msg, status: user.status });
+      }
+    }
     return next();
   } catch (error) {
     console.error('Auth middleware error', error);
