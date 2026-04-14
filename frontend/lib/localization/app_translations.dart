@@ -21,6 +21,7 @@ class LocalizationService {
     'es': const Locale('es', 'ES'),
     'de': const Locale('de', 'DE'),
     'it': const Locale('it', 'IT'),
+    'pt': const Locale('pt', 'PT'),
   };
 
   /// Human‑readable language names used in selection UIs.
@@ -30,6 +31,7 @@ class LocalizationService {
     'es': 'Español',
     'de': 'Deutsch',
     'it': 'Italiano',
+    'pt': 'Português',
   };
 
   /// All supported locales for Flutter / GetX.
@@ -6463,6 +6465,16 @@ class AppTranslations extends Translations {
     'pet_photo_deleted': 'Foto eliminata con successo.',
     'pet_photo_delete_failed': 'Eliminazione non riuscita. Riprova.',
     'new_publication_button': 'Nuova pubblicazione',
-    }
+    },
+    // Sprint 4 step 7 — partial Portuguese locale. Missing keys fall back to en_US via GetX.
+    'pt_PT': <String, String>{
+      'price_per_hour': 'Preço / hora',
+      'price_per_day': 'Preço / dia',
+      'price_per_week': 'Preço / semana',
+      'price_per_month': 'Preço / mês',
+      'chat_payment_required_banner': 'O chat abre após a confirmação do pagamento.',
+      'chat_pay_now_button': 'Pagar agora',
+      'chat_share_phone_button': 'Partilhar o meu número',
+    },
   };
 }
