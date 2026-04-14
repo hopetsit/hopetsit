@@ -70,11 +70,20 @@ const emitToUser = (role, userId, event, payload) => {
   ioInstance.to(userRoom(role, userId)).emit(event, payload);
 };
 
+const walkRoom = (walkId) => `walk:${walkId}`;
+
+const emitToWalk = (walkId, event, payload) => {
+  if (!ioInstance || !walkId) return;
+  ioInstance.to(walkRoom(walkId)).emit(event, payload);
+};
+
 module.exports = {
   setSocketServer,
   getSocketServer,
   emitToConversation,
   emitToUser,
+  emitToWalk,
   userRoom,
+  walkRoom,
 };
 

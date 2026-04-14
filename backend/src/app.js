@@ -24,6 +24,7 @@ const stripeWebhookRoutes = require('./routes/stripeWebhookRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const ibanRoutes = require('./routes/ibanRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const walkRoutes = require('./routes/walkRoutes');
 const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
@@ -97,6 +98,7 @@ app.use('/stripe-connect', sensitiveLimiter, stripeConnectRoutes);
 app.use('/admin', adminRoutes);
 app.use('/sitter', ibanRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/walks', walkRoutes);
 
 module.exports = app;
 

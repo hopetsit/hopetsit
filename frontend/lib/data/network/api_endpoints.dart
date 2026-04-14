@@ -123,4 +123,10 @@ class ApiEndpoints {
   /// Sprint 4 — FCM device token registration
   /// POST / DELETE with `{ token: string, platform?: 'android'|'ios'|'web' }`
   static const String fcmToken = '/users/fcm-token';
+
+  /// Sprint 6 step 2 — live walk tracking
+  static const String walksStart = '/walks/start';
+  static const String walksEnd = '/walks'; // + /$id/end
+  static const String walksPosition = '/walks'; // + /$id/position
+  static const String walksActive = '/walks/active';
 }

@@ -4,7 +4,8 @@ const {
   assertAccessAndFetch,
 } = require('../services/conversationService');
 const { HttpError } = require('../utils/errors');
-const { emitToConversation, userRoom } = require('./emitter');
+const { emitToConversation, userRoom, walkRoom } = require('./emitter');
+const WalkSession = require('../models/WalkSession');
 const { evaluateChatAccess } = require('../middleware/chatAccess');
 
 const assertChatPaid = async (conversation) => {
@@ -61,6 +62,27 @@ const registerChatHandlers = (io, socket) => {
         callback({ status: 'error', ...asErrorPayload(error) });
       }
       socket.emit('conversation:error', asErrorPayload(error));
+    }
+  });
+
+  // Sprint 6 step 2 — join a walk room to receive live positions.
+  socket.on('walk:join', async (payload = {}, callback) => {
+    try {
+      const { walkId, role, userId } = payload;
+      if (!walkId || !role || !userId) {
+        throw new HttpError(400, 'walkId, role, userId required');
+      }
+      const walk = await WalkSession.findById(walkId).select('ownerId sitterId');
+      if (!walk) throw new HttpError(404, 'Walk not found');
+      const uid = String(userId);
+      const isParticipant =
+        (role === 'sitter' && String(walk.sitterId) === uid) ||
+        (role === 'owner' && String(walk.ownerId) === uid);
+      if (!isParticipant) throw new HttpError(403, 'Not a walk participant');
+      socket.join(walkRoom(walkId));
+      if (callback) callback({ status: 'ok' });
+    } catch (error) {
+      if (callback) callback({ status: 'error', ...asErrorPayload(error) });
     }
   });
 
