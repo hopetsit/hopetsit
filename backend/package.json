@@ -1,0 +1,52 @@
+{
+  "name": "petsinsta-backend",
+  "version": "1.0.0",
+  "description": "Backend API for the PetsInsta React Native app",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "nodemon src/index.js",
+    "dev": "nodemon src/index.js",
+    "lint": "eslint .",
+    "seed:pricing": "node src/scripts/seedPricing.js",
+    "view:seeded": "node src/scripts/viewSeededData.js",
+    "update:bookings": "node src/scripts/updateBookingsWithPricing.js",
+    "migrate:petid": "node src/scripts/migrateBookingsWithPetId.js",
+    "clear:payments": "node src/scripts/clearPaymentData.js",
+    "clear:stripe-accounts": "node src/scripts/clearInvalidStripeAccounts.js",
+    "clear:all-stripe-accounts": "node src/scripts/clearAllStripeAccounts.js",
+    "fix:payment-status": "node src/scripts/fixPaymentStatus.js",
+    "create:location-indexes": "node src/scripts/createLocationIndexes.js",
+    "check:sitters-coordinates": "node src/scripts/checkSittersWithCoordinates.js",
+    "generate:firebase-token": "node src/scripts/generateFirebaseToken.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@paypal/paypal-server-sdk": "2.2.0",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^1.41.0",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.3.2",
+    "firebase-admin": "^13.6.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.6.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.13",
+    "socket.io": "^4.8.1",
+    "stripe": "^14.25.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "nodemon": "^3.1.4"
+  }
+}

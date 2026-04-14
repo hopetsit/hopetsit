@@ -24,6 +24,7 @@ const stripeWebhookRoutes = require('./routes/stripeWebhookRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const ibanRoutes = require('./routes/ibanRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
 
@@ -82,11 +83,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 app.use('/health', healthRoutes);
-app.use('/auth', authRoutes);
+app.use('/auth', authLimiter, authRoutes);
 app.use('/users', userRoutes);
 app.use('/pets', petRoutes);
 app.use('/sitters', sitterRoutes);
-app.use('/bookings', bookingRoutes);
+app.use('/bookings', sensitiveLimiter, bookingRoutes);
 app.use('/posts', postRoutes);
 app.use('/applications', applicationRoutes);
 app.use('/conversations', conversationRoutes);
@@ -95,7 +96,7 @@ app.use('/blocks', blockRoutes);
 app.use('/reviews', reviewRoutes);
 app.use('/uploads', uploadRoutes);
 app.use('/pricing', pricingRoutes);
-app.use('/stripe-connect', stripeConnectRoutes);
+app.use('/stripe-connect', sensitiveLimiter, stripeConnectRoutes);
 app.use('/admin', adminRoutes);
 app.use('/sitter', ibanRoutes);
 app.use('/notifications', notificationRoutes);
