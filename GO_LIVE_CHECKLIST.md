@@ -229,10 +229,30 @@ Tester sur **un appareil physique** (émulateur pour backup). Compte de test : u
 - [ ] Walk tracking : sitter démarre → owner suit en temps réel sur map
 - [ ] Visit report : sitter soumet avec photos → owner voit la galerie
 - [ ] CGU accessible depuis profil + signup
+- [ ] Politique de confidentialité accessible depuis profil
+
+### Fidélité & parrainage (sprint 7)
+
+- [ ] **Petowner loyalty** : créer 3 bookings en état `completed` (admin peut forcer via `POST /bookings/:id/complete`) → vérifier qu'un crédit -10 % apparaît dans profil.
+- [ ] Créer 10 bookings completed → vérifier badge 👑 **Premium** et notification `PREMIUM_ACHIEVED`.
+- [ ] Appliquer le crédit -10 % lors du prochain paiement (checkbox "Utiliser ma réduction fidélité").
+- [ ] **Top Sitter** : créer 20 bookings completed sur un sitter + reviews avec moyenne > 4.5 → vérifier badge 🏆 et commission Stripe passée à 15 %.
+- [ ] **Parrainage** : signup utilisateur B avec le `referralCode` de l'utilisateur A → vérifier Referral `pending` → B complète sa 1ère réservation → A reçoit 5 € de crédit + notification `REFERRAL_CREDITED`.
+
+### Avis mutuels & modération (sprint 7)
+
+- [ ] Owner laisse un avis 5★ au sitter après un booking completed.
+- [ ] Sitter laisse un avis en retour → les deux avis sont visibles.
+- [ ] Owner ne peut pas laisser deux avis sur le même booking (409).
+- [ ] Reviewee peut poster une **réponse** (une seule fois) à un avis reçu.
+- [ ] Signaler un avis 3 fois → un email d'alerte arrive sur `ADMIN_ALERT_EMAIL`.
+- [ ] Admin dashboard → Review moderation → Hide/Restore/Delete.
+- [ ] Admin dashboard → User moderation → Suspend un compte → le user reçoit 401 "Account suspended" au prochain login.
 
 ### Multi-langue
 
 - [ ] Settings → Language → switch FR/EN/ES/DE/IT/PT. Vérifier que l'UI traduit.
+- [ ] En `pt`, les clés non traduites retombent sur `en_US` (GetX fallback) sans afficher `[xx_XX.key]`.
 
 ---
 
@@ -273,6 +293,31 @@ Tester sur **un appareil physique** (émulateur pour backup). Compte de test : u
 - [ ] Archive via Xcode → Distribute App → App Store Connect.
 - [ ] Remplir section *App Privacy* (important : données collectées, usage, tracking).
 - [ ] Soumettre à la review. Délai moyen : 24-72 h.
+
+---
+
+## 13. Post-sprint 8 — Relecture juridique obligatoire
+
+⚠️ **À faire avant la soumission aux stores.**
+
+Les Conditions Générales d'Utilisation (`frontend/lib/data/static/terms_of_service.dart`) et la Politique de confidentialité (`privacy_policy.dart`) ont été **rédigées en premier jet par une IA**. Elles couvrent les 22 sections imposées par les stores et les exigences RGPD de base, mais **ne remplacent pas** une relecture par un avocat spécialisé.
+
+- [ ] Faire relire **les 6 versions** (FR/EN/ES/DE/IT/PT) par un avocat spécialisé en droit du numérique, e-commerce et protection des données (RGPD + adaptation Hong Kong).
+- [ ] Vérifier que la clause de limitation de responsabilité §19 est compatible avec la législation consommateur du pays de résidence de chaque utilisateur UE.
+- [ ] Confirmer avec l'avocat le choix **arbitrage HKIAC** vs juridictions locales UE (option ouverte au consommateur dans le texte actuel).
+- [ ] Vérifier que la **politique de cookies** (§16) couvre bien toutes les libs analytics/tracking effectivement actives dans l'app.
+- [ ] Si un **DPO** (délégué à la protection des données) doit être nommé (seuil RGPD art. 37), l'indiquer dans la Privacy Policy.
+- [ ] Après validation, retirer le bandeau "AI-DRAFTED" des deux fichiers et bumper `termsVersion` + `privacyVersion` → "1.1" ou "2.0".
+
+### Pistes de cabinets (non-exhaustives, non-endossées)
+
+Les noms ci-dessous sont des cabinets français couramment cités pour les questions SaaS / marketplace / RGPD. **Vérifier les tarifs et la pertinence** avant tout engagement :
+- Aston avocats (Paris) — spécialisé numérique & RGPD.
+- Haas avocats (Paris) — droit du digital.
+- Avome — plateforme d'accès à des avocats digital/RGPD.
+- Cabinet August Debouzy — pour les aspects commerciaux plus larges.
+
+Pour Hong Kong : demander une consultation conjointe à un avocat HK afin de valider la clause HKIAC (section 20).
 
 ---
 
