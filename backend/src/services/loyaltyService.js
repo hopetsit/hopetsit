@@ -36,6 +36,18 @@ const onBookingCompleted = async (booking) => {
     recomputeSitterStatus(booking.sitterId).catch(() => {});
   }
 
+  // Sprint 7 step 3 — referral credit on referred user's 1st completed booking.
+  try {
+    const { onReferredFirstBookingCompleted } = require('./referralService');
+    await onReferredFirstBookingCompleted({
+      bookingId: booking._id,
+      userId: ownerId,
+      role: 'owner',
+    });
+  } catch (e) {
+    console.warn('referral hook failed', e.message);
+  }
+
   const count = await Booking.countDocuments({ ownerId, status: 'completed' });
 
   // Every 3rd completed booking: grant a 10% discount credit on next booking.

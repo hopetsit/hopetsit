@@ -46,5 +46,11 @@
     "body": "{{count}} servizi · voto medio {{avgRating}}/5. Commissione ridotta al 15%.",
     "emailSubject": "Stato Top Sitter sbloccato — HopeTSIT",
     "emailBody": "<p>Congratulazioni! Sei ora <strong>Top Sitter</strong>. La nostra commissione scende dal 20% al <strong>15%</strong> sulle prossime prenotazioni.</p>"
+  },
+  "REFERRAL_CREDITED": {
+    "title": "Ricompensa referral!",
+    "body": "Il tuo referral ha appena completato la 1ª prenotazione. Credito di {{amount}} {{currency}} accreditato.",
+    "emailSubject": "Hai guadagnato {{amount}} {{currency}} — HopeTSIT",
+    "emailBody": "<p>Buone notizie! Il tuo referral ha appena completato la 1ª prenotazione su HopeTSIT.</p><p>Hai guadagnato <strong>{{amount}} {{currency}}</strong> di crediti, utilizzabili sulla prossima prenotazione.</p>"
   }
 }

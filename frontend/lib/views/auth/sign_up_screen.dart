@@ -432,6 +432,15 @@ class SignUpScreen extends StatelessWidget {
                         ),
                       ],
 
+                      SizedBox(height: 20.h),
+                      // Sprint 7 step 3 — referral code (optional).
+                      CustomTextField(
+                        labelText: 'signup_referral_code_label'.tr,
+                        hintText: 'XXXXXXXX',
+                        controller: controller.referralCodeController,
+                        textInputAction: TextInputAction.next,
+                      ),
+
                       SizedBox(height: 24.h),
                       // Terms and Conditions
                       Obx(

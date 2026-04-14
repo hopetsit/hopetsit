@@ -15,6 +15,7 @@ const Block = require('../models/Block');
 const { sanitizeUser, sanitizeDoc, sanitizePet, sanitizePost, sanitizeBooking, sanitizeReview } = require('../utils/sanitize');
 const { encrypt } = require('../utils/encryption');
 const { getOwnerStats } = require('../services/loyaltyService');
+const { getMyReferrals } = require('../services/referralService');
 const { uploadMedia } = require('../services/cloudinary');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { processLocationData } = require('../utils/location');
@@ -942,7 +943,23 @@ module.exports = {
   unregisterFcmToken,
   acceptTerms,
   getMyLoyalty,
+  getMyReferralsRoute,
 };
+
+// Sprint 7 step 3 — referral program.
+async function getMyReferralsRoute(req, res) {
+  try {
+    const role = req.user?.role;
+    if (role !== 'owner' && role !== 'sitter') {
+      return res.status(403).json({ error: 'Unsupported role.' });
+    }
+    const data = await getMyReferrals(req.user.id, role);
+    res.json(data);
+  } catch (e) {
+    console.error('getMyReferrals error', e);
+    res.status(500).json({ error: 'Unable to load referrals.' });
+  }
+}
 
 // Sprint 7 step 1 — loyalty stats for owner self.
 async function getMyLoyalty(req, res) {

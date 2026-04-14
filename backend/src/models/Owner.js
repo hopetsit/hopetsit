@@ -36,6 +36,9 @@ const ownerSchema = new mongoose.Schema(
     fcmTokens: { type: [String], default: [] },
     // Sprint 7 step 1 — loyalty: true when 10+ completed bookings.
     isPremium: { type: Boolean, default: false },
+    // Sprint 7 step 3 — referral program.
+    referralCode: { type: String, unique: true, sparse: true, index: true },
+    referredBy: { type: String, default: '' },
     // Sprint 5 step 2 — where the owner is willing to have the service happen.
     servicePreferences: {
       atOwner: { type: Boolean, default: true },  // service happens at the owner's home

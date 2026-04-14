@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
-const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, getMyLoyalty } = require('../controllers/userController');
+const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, getMyLoyalty, getMyReferralsRoute } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -355,6 +355,9 @@ router.patch('/accept-terms', requireAuth, acceptTerms);
 
 // Sprint 7 step 1 — owner loyalty stats
 router.get('/me/loyalty', requireAuth, requireRole('owner'), getMyLoyalty);
+
+// Sprint 7 step 3 — referral program (owner + sitter)
+router.get('/me/referrals', requireAuth, getMyReferralsRoute);
 
 module.exports = router;
 

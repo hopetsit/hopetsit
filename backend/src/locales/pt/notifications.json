@@ -46,5 +46,11 @@
     "body": "{{count}} serviços · classificação média {{avgRating}}/5. Comissão reduzida para 15%.",
     "emailSubject": "Estatuto Top Cuidador desbloqueado — HopeTSIT",
     "emailBody": "<p>Parabéns! É agora <strong>Top Cuidador</strong>. A nossa comissão passa de 20% para <strong>15%</strong> nas próximas reservas.</p>"
+  },
+  "REFERRAL_CREDITED": {
+    "title": "Recompensa de indicação!",
+    "body": "O seu indicado acabou de completar a 1ª reserva. {{amount}} {{currency}} de crédito adicionado.",
+    "emailSubject": "Ganhou {{amount}} {{currency}} — HopeTSIT",
+    "emailBody": "<p>Boas notícias! O seu indicado acabou de completar a 1ª reserva no HopeTSIT.</p><p>Ganhou <strong>{{amount}} {{currency}}</strong> em créditos, utilizáveis na próxima reserva.</p>"
   }
 }

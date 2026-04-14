@@ -46,5 +46,11 @@
     "body": "{{count}} completed services · average rating {{avgRating}}/5. Commission reduced to 15%.",
     "emailSubject": "Top Petsitter status unlocked — HopeTSIT",
     "emailBody": "<p>Congratulations! You are now a <strong>Top Petsitter</strong>. Our platform commission is reduced from 20% to <strong>15%</strong> on your future bookings.</p>"
+  },
+  "REFERRAL_CREDITED": {
+    "title": "Referral reward!",
+    "body": "Your referral just completed their first booking. {{amount}} {{currency}} credit added.",
+    "emailSubject": "You earned {{amount}} {{currency}} — HopeTSIT",
+    "emailBody": "<p>Great news! Your referral just completed their first booking on HopeTSIT.</p><p>You have earned <strong>{{amount}} {{currency}}</strong> in credits, usable on your next reservation.</p>"
   }
 }

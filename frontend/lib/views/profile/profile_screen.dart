@@ -13,6 +13,7 @@ import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
+import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -361,6 +362,12 @@ class ProfileScreen extends StatelessWidget {
         ),
         // Sprint 7 step 1 — loyalty card
         const LoyaltyCard(),
+        // Sprint 7 step 3 — referrals tile.
+        _buildSettingsTile(
+          'referrals_title'.tr,
+          Icons.group_add,
+          () => Get.to(() => const MyReferralsScreen()),
+        ),
         // Sprint 5 step 4 — access T&C.
         _buildSettingsTile(
           'terms_read_button'.tr,

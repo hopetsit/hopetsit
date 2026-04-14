@@ -45,6 +45,9 @@ const sitterSchema = new mongoose.Schema(
     isTopSitter: { type: Boolean, default: false },
     completedServicesCount: { type: Number, default: 0 },
     averageRating: { type: Number, default: 0 },
+    // Sprint 7 step 3 — referral program.
+    referralCode: { type: String, unique: true, sparse: true, index: true },
+    referredBy: { type: String, default: '' },
     // Sprint 5 step 6 — availability calendar. Dates are stored as UTC midnight.
     availableDates: { type: [Date], default: [] },
     unavailableDates: { type: [Date], default: [] },

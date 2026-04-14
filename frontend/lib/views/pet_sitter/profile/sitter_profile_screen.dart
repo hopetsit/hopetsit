@@ -16,6 +16,7 @@ import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.d
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
+import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
@@ -323,6 +324,12 @@ class SitterProfileScreen extends StatelessWidget {
         // ),
         // Sprint 7 step 2 — Top Sitter progress card.
         const TopSitterCard(),
+        // Sprint 7 step 3 — referrals tile.
+        _buildSettingsTile(
+          'referrals_title'.tr,
+          Icons.group_add,
+          () => Get.to(() => const MyReferralsScreen()),
+        ),
         _buildStripeConnectTile(controller),
         _buildSettingsTile(
           'payout_status_screen_title'.tr,

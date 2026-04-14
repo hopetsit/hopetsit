@@ -42,6 +42,9 @@ class SignUpController extends GetxController {
   /// Sprint 6.5 step 2 — ISO 3166-1 alpha-2 country code (e.g. 'FR').
   /// Populated from CountryCodePicker.onChanged(country.code).
   final RxString selectedCountry = 'US'.obs;
+
+  /// Sprint 7 step 3 — optional referral code entered at signup.
+  final TextEditingController referralCodeController = TextEditingController();
   final RxString selectedCurrency = CurrencyHelper.eur.obs;
   final Rxn<double> userLatitude = Rxn<double>();
   final Rxn<double> userLongitude = Rxn<double>();
@@ -356,6 +359,9 @@ class SignUpController extends GetxController {
       'countryCode': selectedCountryCode.value,
       // Sprint 6.5 step 2 — ISO-2 country code for Stripe Connect + pricing.
       'country': selectedCountry.value,
+      // Sprint 7 step 3 — optional referral code (parrain).
+      if (referralCodeController.text.trim().isNotEmpty)
+        'referralCode': referralCodeController.text.trim().toUpperCase(),
       'language': selectedLanguage.value,
       'address': addressController.text.trim(),
       'acceptedTerms': agreeToTerms.value,

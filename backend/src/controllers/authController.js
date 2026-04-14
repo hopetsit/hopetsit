@@ -196,11 +196,37 @@ const signup = async (req, res) => {
       };
     }
 
+    // Sprint 7 step 3 — referral code & referrer.
+    const referralInput = (user.referralCode || user.referredBy || '').toString().toUpperCase().trim();
+    const { generateUniqueReferralCode } = require('../utils/referralCode');
+    const newReferralCode = await generateUniqueReferralCode({ Owner, Sitter }).catch(() => null);
+    if (role === 'owner') {
+      if (newReferralCode) ownerPayload.referralCode = newReferralCode;
+      if (referralInput) ownerPayload.referredBy = referralInput;
+    } else {
+      if (newReferralCode) sitterPayload.referralCode = newReferralCode;
+      if (referralInput) sitterPayload.referredBy = referralInput;
+    }
+
     let newUser;
     if (role === 'owner') {
       newUser = await Owner.create(ownerPayload);
     } else {
       newUser = await Sitter.create(sitterPayload);
+    }
+
+    // Sprint 7 step 3 — record pending Referral if a valid code was provided.
+    if (referralInput) {
+      try {
+        const { createPendingReferral } = require('../services/referralService');
+        await createPendingReferral({
+          referralCode: referralInput,
+          referredUserId: newUser._id,
+          referredRole: role,
+        });
+      } catch (e) {
+        console.warn('createPendingReferral failed', e.message);
+      }
     }
 
     const verificationCode = generateVerificationCode();

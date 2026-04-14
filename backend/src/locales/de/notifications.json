@@ -46,5 +46,11 @@
     "body": "{{count}} abgeschlossene Services · Ø Bewertung {{avgRating}}/5. Provision auf 15% reduziert.",
     "emailSubject": "Top-Sitter-Status freigeschaltet — HopeTSIT",
     "emailBody": "<p>Glückwunsch! Du bist jetzt <strong>Top-Sitter</strong>. Unsere Plattform-Provision wird von 20% auf <strong>15%</strong> reduziert.</p>"
+  },
+  "REFERRAL_CREDITED": {
+    "title": "Empfehlungsbonus!",
+    "body": "Dein Geworbener hat seine 1. Buchung abgeschlossen. {{amount}} {{currency}} Guthaben gutgeschrieben.",
+    "emailSubject": "Du hast {{amount}} {{currency}} erhalten — HopeTSIT",
+    "emailBody": "<p>Gute Neuigkeiten! Dein Geworbener hat soeben seine 1. Buchung auf HopeTSIT abgeschlossen.</p><p>Du hast <strong>{{amount}} {{currency}}</strong> Guthaben für deine nächste Reservierung gewonnen.</p>"
   }
 }
