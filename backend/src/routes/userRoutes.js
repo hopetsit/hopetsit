@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
-const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken } = require('../controllers/userController');
+const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -349,6 +349,9 @@ router.post('/switch-role', requireAuth, switchRole);
 // Sprint 4 step 1 — FCM device token registration
 router.post('/fcm-token', requireAuth, registerFcmToken);
 router.delete('/fcm-token', requireAuth, unregisterFcmToken);
+
+// Sprint 5 step 4 — accept current T&C (records date + version)
+router.patch('/accept-terms', requireAuth, acceptTerms);
 
 module.exports = router;
 

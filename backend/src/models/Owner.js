@@ -24,6 +24,9 @@ const ownerSchema = new mongoose.Schema(
     bio: { type: String, default: '' },
     skills: { type: String, default: '' },
     acceptedTerms: { type: Boolean, default: false },
+    // Sprint 5 step 4 — traceability of T&C acceptance.
+    termsAcceptedAt: { type: Date, default: null },
+    termsVersion: { type: String, default: '' },
     service: { type: [String], default: [] },
     verified: { type: Boolean, default: false },
     // External authentication information

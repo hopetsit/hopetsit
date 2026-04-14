@@ -859,6 +859,32 @@ const resolveUserModel = (role) => {
   return null;
 };
 
+const acceptTerms = async (req, res) => {
+  try {
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
+    const version = process.env.TERMS_VERSION || 'v1.0';
+    const result = await Model.findByIdAndUpdate(
+      req.user.id,
+      {
+        acceptedTerms: true,
+        termsAcceptedAt: new Date(),
+        termsVersion: version,
+      },
+      { new: true }
+    ).select('acceptedTerms termsAcceptedAt termsVersion');
+    if (!result) return res.status(404).json({ error: 'User not found.' });
+    return res.json({
+      acceptedTerms: result.acceptedTerms,
+      termsAcceptedAt: result.termsAcceptedAt,
+      termsVersion: result.termsVersion,
+    });
+  } catch (e) {
+    console.error('acceptTerms error', e);
+    return res.status(500).json({ error: 'Unable to record terms acceptance.' });
+  }
+};
+
 const registerFcmToken = async (req, res) => {
   try {
     const { token } = req.body || {};
@@ -913,5 +939,6 @@ module.exports = {
   switchRole,
   registerFcmToken,
   unregisterFcmToken,
+  acceptTerms,
 };
 

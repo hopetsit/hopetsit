@@ -26,6 +26,9 @@ const sitterSchema = new mongoose.Schema(
     skills: { type: String, default: '' },
     bio: { type: String, default: '' },
     acceptedTerms: { type: Boolean, default: false },
+    // Sprint 5 step 4 — traceability of T&C acceptance.
+    termsAcceptedAt: { type: Date, default: null },
+    termsVersion: { type: String, default: '' },
     service: { type: [String], default: [] },
     verified: { type: Boolean, default: false },
     rating: { type: Number, default: 0 },
