@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HopeTSIT — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --primary: #E8472A;
+  --primary-dark: #c23a20;
+  --bg: #0D0D0D;
+  --surface: #161616;
+  --surface2: #1E1E1E;
+  --border: #2A2A2A;
+  --text: #F0F0F0;
+  --text-muted: #888;
+  --green: #2ECC71;
+  --orange: #F39C12;
+  --red: #E74C3C;
+  --blue: #3498DB;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+/* LOGIN */
+#login-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; background: var(--bg);
+  background-image: radial-gradient(circle at 20% 50%, rgba(232,71,42,0.08) 0%, transparent 60%),
+                    radial-gradient(circle at 80% 20%, rgba(232,71,42,0.05) 0%, transparent 50%);
+}
+.login-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 48px 40px; width: 380px;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+}
+.login-logo { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--primary); margin-bottom: 6px; }
+.login-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 36px; }
+.login-label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+.login-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; color: var(--text); font-size: 15px;
+  margin-bottom: 20px; outline: none; transition: border-color .2s;
+}
+.login-input:focus { border-color: var(--primary); }
+.login-btn {
+  width: 100%; background: var(--primary); color: #fff; border: none;
+  border-radius: 10px; padding: 15px; font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700; cursor: pointer; transition: background .2s;
+}
+.login-btn:hover { background: var(--primary-dark); }
+.login-error { color: var(--red); font-size: 13px; margin-top: 10px; text-align: center; }
+
+/* MAIN LAYOUT */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 60px; display: flex; align-items: center;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100;
+}
+.header-logo { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--primary); }
+.header-badge { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; margin-left: 8px; vertical-align: middle; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.logout-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all .2s; }
+.logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+.main-content { display: flex; flex: 1; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+  padding: 24px 0; flex-shrink: 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto;
+}
+.nav-section { padding: 0 16px; margin-bottom: 8px; font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+  color: var(--text-muted); cursor: pointer; transition: all .15s; font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-item.active { color: var(--primary); background: rgba(232,71,42,0.08); border-left-color: var(--primary); }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+/* PAGES */
+.page { display: none; flex: 1; padding: 32px; overflow-y: auto; }
+.page.active { display: block; }
+
+/* STAT CARDS */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px; position: relative; overflow: hidden;
+}
+.stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; background: var(--accent, var(--primary)); opacity: .08; border-radius: 0 16px 0 60px; }
+.stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: var(--text); }
+.stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* TABLE */
+.section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 32px; }
+.table-toolbar { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.search-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 14px; color: var(--text); font-size: 13px; outline: none; width: 220px;
+}
+.search-input:focus { border-color: var(--primary); }
+.filter-select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; color: var(--text); font-size: 13px; outline: none; cursor: pointer;
+}
+table { width: 100%; border-collapse: collapse; }
+th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-green { background: rgba(46,204,113,.15); color: var(--green); }
+.badge-red { background: rgba(231,76,60,.15); color: var(--red); }
+.badge-orange { background: rgba(243,156,18,.15); color: var(--orange); }
+.badge-blue { background: rgba(52,152,219,.15); color: var(--blue); }
+.badge-gray { background: rgba(136,136,136,.15); color: var(--text-muted); }
+.badge::before { content: '●'; font-size: 8px; }
+
+/* ACTION BUTTONS */
+.action-btn {
+  padding: 6px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none; transition: all .15s;
+}
+.btn-verify { background: rgba(46,204,113,.15); color: var(--green); }
+.btn-verify:hover { background: rgba(46,204,113,.3); }
+.btn-delete { background: rgba(231,76,60,.12); color: var(--red); }
+.btn-delete:hover { background: rgba(231,76,60,.3); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+
+/* PAGINATION */
+.pagination { display: flex; gap: 6px; justify-content: center; padding: 16px; }
+.page-btn { background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 12px; border-radius: 7px; cursor: pointer; font-size: 13px; transition: all .15s; }
+.page-btn:hover, .page-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px; width: 500px; max-width: 95vw; }
+.modal-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+.modal-field { margin-bottom: 16px; }
+.modal-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; }
+.modal-value { font-size: 14px; color: var(--text); background: var(--bg); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); }
+.modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+.modal-close { background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; display: flex; align-items: center; gap: 10px; }
+.toast.show { opacity: 1; }
+.toast.success { border-left: 4px solid var(--green); }
+.toast.error { border-left: 4px solid var(--red); }
+
+/* LOADING */
+.loading { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--text-muted); gap: 12px; }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state { text-align: center; padding: 60px; color: var(--text-muted); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🐾 HopeTSIT</div>
+    <div class="login-sub">Admin Dashboard · Restricted Access</div>
+    <label class="login-label">Backend URL</label>
+    <input id="api-url" class="login-input" type="url" placeholder="https://your-api.onrender.com" value=""/>
+    <label class="login-label">Admin Email</label>
+    <input id="admin-email" class="login-input" type="email" placeholder="admin@hopetsit.local"/>
+    <label class="login-label">Admin Password</label>
+    <input id="admin-secret" class="login-input" type="password" placeholder="Enter admin password"/>
+    <button class="login-btn" onclick="login()">Access Dashboard →</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div>
+      <span class="header-logo">🐾 HopeTSIT</span>
+      <span class="header-badge">ADMIN</span>
+    </div>
+    <div class="header-right">
+      <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="nav-section" style="margin-bottom:16px;margin-top:8px">Navigation</div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
+      <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> Bookings</div>
+      <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> Sitters</div>
+      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> Owners</div>
+      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> IBAN Payouts</div>
+      <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> Identity verifications</div>
+    </nav>
+
+    <!-- PAGES -->
+    <div style="flex:1;overflow-y:auto">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div class="section-title">📊 Overview</div>
+        <div class="stats-grid" id="stats-grid">
+          <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+        <div class="section-title">💳 Recent Payments</div>
+        <div class="table-wrap" id="recent-payments-wrap">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- BOOKINGS -->
+      <div id="page-bookings" class="page">
+        <div class="section-title">📅 All Bookings</div>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <input class="search-input" id="booking-search" placeholder="🔍 Search booking ID..." oninput="filterBookings()"/>
+            <select class="filter-select" id="booking-status-filter" onchange="filterBookings()">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="agreed">Agreed</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <select class="filter-select" id="booking-payment-filter" onchange="filterBookings()">
+              <option value="">All Payments</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+          <div id="bookings-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SITTERS -->
+      <div id="page-sitters" class="page">
+        <div class="section-title">🐕 Pet Sitters</div>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <input class="search-input" id="sitter-search" placeholder="🔍 Search sitter..." oninput="renderSitters()"/>
+            <select class="filter-select" id="sitter-verified-filter" onchange="renderSitters()">
+              <option value="">All</option>
+              <option value="true">Verified ✓</option>
+              <option value="false">Not Verified</option>
+            </select>
+          </div>
+          <div id="sitters-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OWNERS -->
+      <div id="page-owners" class="page">
+        <div class="section-title">👤 Pet Owners</div>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <input class="search-input" id="owner-search" placeholder="🔍 Search owner..." oninput="renderOwners()"/>
+          </div>
+          <div id="owners-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- IBAN PAYOUTS -->
+      <div id="page-iban" class="page">
+        <div class="section-title">🏦 IBAN Payout Verification</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px">
+          Review and verify sitter bank accounts before enabling payouts — like Vinted's bank verification flow.
+        </p>
+        <div class="table-wrap">
+          <div id="iban-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- IDENTITY VERIFICATIONS (Sprint 5 step 7) -->
+      <div id="page-identity" class="page">
+        <div class="section-title">🪪 Identity verifications (pending)</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px">
+          Review sitter ID documents. Documents are confidential — accessible only to admins.
+        </p>
+        <div class="table-wrap">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="text-align:left;border-bottom:1px solid #333">
+                <th style="padding:8px">Sitter</th>
+                <th style="padding:8px">Submitted</th>
+                <th style="padding:8px">Document</th>
+                <th style="padding:8px">Action</th>
+              </tr>
+            </thead>
+            <tbody id="identity-list">
+              <tr><td colspan="4" class="loading"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadIdentityVerifications()">↻ Refresh</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Booking detail -->
+<div class="modal-overlay" id="booking-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-booking-title">Booking Detail</div>
+    <div id="modal-booking-content"></div>
+    <div class="modal-actions">
+      <button class="modal-close" onclick="closeModal('booking-modal')">Close</button>
+      <button class="action-btn btn-primary" id="modal-booking-save" onclick="saveBookingStatus()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: IBAN detail -->
+<div class="modal-overlay" id="iban-modal">
+  <div class="modal">
+    <div class="modal-title">🏦 IBAN Details</div>
+    <div id="modal-iban-content"></div>
+    <div class="modal-actions">
+      <button class="modal-close" onclick="closeModal('iban-modal')">Close</button>
+      <button class="action-btn btn-verify" id="modal-iban-verify-btn">✓ Verify IBAN</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+let API_URL = '';
+let ADMIN_TOKEN = '';
+let allBookings = [], allSitters = [], allOwners = [];
+let currentBookingId = null, currentIbanSitterId = null;
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+// Sprint 1 step 4 migration: /auth/admin/login returns a JWT with role=admin.
+async function login() {
+  const url = document.getElementById('api-url').value.trim().replace(/\/$/, '');
+  const email = document.getElementById('admin-email').value.trim();
+  const password = document.getElementById('admin-secret').value.trim();
+  if (!url || !email || !password) { showLoginError('Please fill in all fields.'); return; }
+  try {
+    const r = await fetch(`${url}/auth/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!r.ok) throw new Error('Invalid admin credentials.');
+    const data = await r.json();
+    if (!data.token) throw new Error('No token returned.');
+    API_URL = url;
+    ADMIN_TOKEN = data.token;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('api-url-display').textContent = url;
+    loadDashboard();
+    loadBookings();
+    loadSitters();
+    loadOwners();
+    loadIdentityVerifications();
+  } catch(e) { showLoginError(e.message); }
+}
+function logout() {
+  API_URL = ''; ADMIN_TOKEN = '';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+function showLoginError(msg) { document.getElementById('login-error').textContent = msg; }
+
+// ── API HELPER ────────────────────────────────────────────────────────────────
+async function api(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}`, 'Content-Type': 'application/json' },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(`${API_URL}${path}`, opts);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+// ── IDENTITY VERIFICATIONS (Sprint 5 step 7) ──────────────────────────────────
+async function loadIdentityVerifications() {
+  const container = document.getElementById('identity-list');
+  if (!container) return;
+  try {
+    const data = await api('/admin/identity-verifications?status=pending');
+    const list = data.verifications || [];
+    if (list.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-muted)">No pending verifications.</p>';
+      return;
+    }
+    container.innerHTML = list.map(v => `
+      <tr>
+        <td>${escapeHtml(v.name || '')}</td>
+        <td>${v.submittedAt ? new Date(v.submittedAt).toLocaleString() : '—'}</td>
+        <td><a href="${escapeHtml(v.documentUrl)}" target="_blank" rel="noopener">View document</a></td>
+        <td>
+          <button class="btn-approve" onclick="reviewIdentity('${v.id}', 'approve')">Approve</button>
+          <button class="btn-reject" onclick="reviewIdentity('${v.id}', 'reject')">Reject</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--error)">${e.message}</p>`;
+  }
+}
+
+async function reviewIdentity(id, action) {
+  let reason = '';
+  if (action === 'reject') {
+    reason = prompt('Rejection reason?') || '';
+    if (!reason) return;
+  }
+  try {
+    await api(`/admin/identity-verifications/${id}`, 'PATCH', { action, reason });
+    loadIdentityVerifications();
+  } catch (e) {
+    alert(`Review failed: ${e.message}`);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
+  }[c]));
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'iban') loadIbanSitters();
+  if (name === 'identity') loadIdentityVerifications();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const d = await api('/admin/stats');
+    const colors = ['var(--primary)', 'var(--green)', 'var(--blue)', 'var(--orange)', 'var(--red)', 'var(--green)', 'var(--blue)'];
+    const stats = [
+      { label: 'Total Bookings', value: d.totalBookings, sub: `${d.pendingBookings} pending`, accent: colors[0] },
+      { label: 'Paid Bookings', value: d.paidBookings, sub: 'completed payments', accent: colors[1] },
+      { label: 'Total Revenue', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'platform earnings', accent: colors[2] },
+      { label: 'Pet Sitters', value: d.totalSitters, sub: 'registered', accent: colors[3] },
+      { label: 'Pet Owners', value: d.totalOwners, sub: 'registered', accent: colors[4] },
+      { label: 'Total Pets', value: d.totalPets, sub: 'in system', accent: colors[5] },
+    ];
+    document.getElementById('stats-grid').innerHTML = stats.map(s => `
+      <div class="stat-card" style="--accent:${s.accent}">
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-value">${s.value}</div>
+        <div class="stat-sub">${s.sub}</div>
+      </div>
+    `).join('');
+  } catch(e) { showToast('Failed to load stats: ' + e.message, 'error'); }
+
+  // Recent paid bookings
+  try {
+    const d = await api('/admin/bookings?limit=5&paymentStatus=paid');
+    const html = d.bookings.length ? `
+      <table><thead><tr><th>Date</th><th>Owner</th><th>Sitter</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+      ${d.bookings.map(b => `
+        <tr>
+          <td>${fmtDate(b.createdAt)}</td>
+          <td>${b.owner?.name || '-'}</td>
+          <td>${b.sitter?.name || '-'}</td>
+          <td>€${(b.totalAmount||0).toFixed(2)}</td>
+          <td><span class="badge badge-green">Paid</span></td>
+        </tr>
+      `).join('')}</tbody></table>
+    ` : '<div class="empty-state"><div class="empty-icon">💳</div><div>No paid bookings yet.</div></div>';
+    document.getElementById('recent-payments-wrap').innerHTML = html;
+  } catch(e) {}
+}
+
+// ── BOOKINGS ──────────────────────────────────────────────────────────────────
+async function loadBookings() {
+  try {
+    const d = await api('/admin/bookings?limit=100');
+    allBookings = d.bookings || [];
+    renderBookings();
+  } catch(e) { document.getElementById('bookings-table-body').innerHTML = `<div class="empty-state"><div>Error: ${e.message}</div></div>`; }
+}
+function filterBookings() { renderBookings(); }
+function renderBookings() {
+  const search = document.getElementById('booking-search')?.value.toLowerCase() || '';
+  const statusF = document.getElementById('booking-status-filter')?.value || '';
+  const payF = document.getElementById('booking-payment-filter')?.value || '';
+  const filtered = allBookings.filter(b => {
+    const match = !search || b._id?.includes(search) || (b.owner?.name||'').toLowerCase().includes(search) || (b.sitter?.name||'').toLowerCase().includes(search);
+    const st = !statusF || b.status === statusF;
+    const pay = !payF || b.paymentStatus === payF;
+    return match && st && pay;
+  });
+  if (!filtered.length) { document.getElementById('bookings-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><div>No bookings found.</div></div>'; return; }
+  document.getElementById('bookings-table-body').innerHTML = `
+    <table><thead><tr><th>Date</th><th>Owner</th><th>Sitter</th><th>Service</th><th>Total</th><th>Status</th><th>Payment</th><th>Action</th></tr></thead>
+    <tbody>${filtered.map(b => `
+      <tr>
+        <td>${fmtDate(b.createdAt)}</td>
+        <td>${b.owner?.name || '-'}</td>
+        <td>${b.sitter?.name || '-'}</td>
+        <td>${(b.serviceType||'').replace('_',' ') || '-'}</td>
+        <td>€${(b.totalAmount||b.basePrice||0).toFixed(2)}</td>
+        <td>${statusBadge(b.status)}</td>
+        <td>${payBadge(b.paymentStatus)}</td>
+        <td><button class="action-btn btn-primary" onclick="openBookingModal('${b._id}')">Edit</button></td>
+      </tr>
+    `).join('')}</tbody></table>
+  `;
+}
+function openBookingModal(id) {
+  const b = allBookings.find(x => x._id === id);
+  if (!b) return;
+  currentBookingId = id;
+  document.getElementById('modal-booking-title').textContent = `Booking ${id.slice(-6).toUpperCase()}`;
+  document.getElementById('modal-booking-content').innerHTML = `
+    <div class="modal-field"><label class="modal-label">Owner</label><div class="modal-value">${b.owner?.name||'-'} (${b.owner?.email||'-'})</div></div>
+    <div class="modal-field"><label class="modal-label">Sitter</label><div class="modal-value">${b.sitter?.name||'-'}</div></div>
+    <div class="modal-field"><label class="modal-label">Total Amount</label><div class="modal-value">€${(b.totalAmount||0).toFixed(2)}</div></div>
+    <div class="modal-field"><label class="modal-label">Pricing Tier</label><div class="modal-value">${b.pricing?.pricingTier||'hourly'}</div></div>
+    <div class="modal-field">
+      <label class="modal-label">Booking Status</label>
+      <select id="edit-status" class="filter-select" style="width:100%;margin-top:4px">
+        ${['pending','agreed','completed','cancelled'].map(s => `<option value="${s}" ${b.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Payment Status</label>
+      <select id="edit-payment-status" class="filter-select" style="width:100%;margin-top:4px">
+        ${['pending','paid','failed'].map(s => `<option value="${s}" ${b.paymentStatus===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+  `;
+  document.getElementById('booking-modal').classList.add('open');
+}
+async function saveBookingStatus() {
+  const status = document.getElementById('edit-status').value;
+  const paymentStatus = document.getElementById('edit-payment-status').value;
+  try {
+    await api(`/admin/bookings/${currentBookingId}`, 'PATCH', { status, paymentStatus });
+    const b = allBookings.find(x => x._id === currentBookingId);
+    if (b) { b.status = status; b.paymentStatus = paymentStatus; }
+    closeModal('booking-modal');
+    renderBookings();
+    showToast('Booking updated ✓', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── SITTERS ───────────────────────────────────────────────────────────────────
+async function loadSitters() {
+  try {
+    const d = await api('/admin/sitters?limit=100');
+    allSitters = d.sitters || [];
+    renderSitters();
+  } catch(e) {}
+}
+function renderSitters() {
+  const search = (document.getElementById('sitter-search')?.value || '').toLowerCase();
+  const vf = document.getElementById('sitter-verified-filter')?.value || '';
+  const filtered = allSitters.filter(s => {
+    const match = !search || s.name?.toLowerCase().includes(search) || s.email?.toLowerCase().includes(search);
+    const v = !vf || String(s.verified) === vf;
+    return match && v;
+  });
+  if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>No sitters found.</div></div>'; return; }
+  document.getElementById('sitters-table-body').innerHTML = `
+    <table><thead><tr><th>Name</th><th>Email</th><th>Hourly Rate</th><th>Services</th><th>Verified</th><th>Payout</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(s => `
+      <tr>
+        <td><strong>${s.name||'-'}</strong></td>
+        <td style="color:var(--text-muted)">${s.email||'-'}</td>
+        <td>€${(s.hourlyRate||0).toFixed(2)}/hr</td>
+        <td style="font-size:12px">${(s.service||[]).join(', ')||'-'}</td>
+        <td>${s.verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
+        <td><span class="badge badge-blue">${s.payoutMethod||'stripe'}</span></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
+          <button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Delete</button>
+        </td>
+      </tr>
+    `).join('')}</tbody></table>
+  `;
+}
+async function verifySitter(id) {
+  try {
+    await api(`/admin/sitters/${id}/verify`, 'PATCH', { verified: true });
+    const s = allSitters.find(x => x._id === id);
+    if (s) s.verified = true;
+    renderSitters();
+    showToast('Sitter verified ✓', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+async function deleteSitter(id, name) {
+  if (!confirm(`Delete sitter "${name}"? This cannot be undone.`)) return;
+  try {
+    await api(`/admin/sitters/${id}`, 'DELETE');
+    allSitters = allSitters.filter(s => s._id !== id);
+    renderSitters();
+    showToast('Sitter deleted.', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── OWNERS ────────────────────────────────────────────────────────────────────
+async function loadOwners() {
+  try {
+    const d = await api('/admin/owners?limit=100');
+    allOwners = d.owners || [];
+    renderOwners();
+  } catch(e) {}
+}
+function renderOwners() {
+  const search = (document.getElementById('owner-search')?.value || '').toLowerCase();
+  const filtered = allOwners.filter(o => !search || o.name?.toLowerCase().includes(search) || o.email?.toLowerCase().includes(search));
+  if (!filtered.length) { document.getElementById('owners-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><div>No owners found.</div></div>'; return; }
+  document.getElementById('owners-table-body').innerHTML = `
+    <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(o => `
+      <tr>
+        <td><strong>${o.name||'-'}</strong></td>
+        <td style="color:var(--text-muted)">${o.email||'-'}</td>
+        <td>${o.mobile||'-'}</td>
+        <td>${fmtDate(o.createdAt)}</td>
+        <td><button class="action-btn btn-delete" onclick="deleteOwner('${o._id}','${o.name}')">Delete</button></td>
+      </tr>
+    `).join('')}</tbody></table>
+  `;
+}
+async function deleteOwner(id, name) {
+  if (!confirm(`Delete owner "${name}"?`)) return;
+  try {
+    await api(`/admin/owners/${id}`, 'DELETE');
+    allOwners = allOwners.filter(o => o._id !== id);
+    renderOwners();
+    showToast('Owner deleted.', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── IBAN ──────────────────────────────────────────────────────────────────────
+async function loadIbanSitters() {
+  document.getElementById('iban-table-body').innerHTML = '<div class="loading"><div class="spinner"></div> Loading IBAN data...</div>';
+  try {
+    const d = await api('/admin/sitters?limit=100');
+    const sitters = (d.sitters || []).filter(s => s.payoutMethod === 'iban' || s.ibanHolder);
+    if (!sitters.length) {
+      document.getElementById('iban-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🏦</div><div>No sitters have submitted IBAN details yet.</div></div>';
+      return;
+    }
+    document.getElementById('iban-table-body').innerHTML = `
+      <table><thead><tr><th>Sitter</th><th>Email</th><th>Account Holder</th><th>IBAN (masked)</th><th>BIC</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${sitters.map(s => `
+        <tr>
+          <td><strong>${s.name||'-'}</strong></td>
+          <td style="color:var(--text-muted)">${s.email||'-'}</td>
+          <td>${s.ibanHolder||'-'}</td>
+          <td style="font-family:monospace">${maskIban(s.ibanNumber)}</td>
+          <td>${s.ibanBic||'-'}</td>
+          <td>${s.ibanVerified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending verification</span>'}</td>
+          <td><button class="action-btn btn-verify" onclick="openIbanModal('${s._id}')">Review</button></td>
+        </tr>
+      `).join('')}</tbody></table>
+    `;
+  } catch(e) { document.getElementById('iban-table-body').innerHTML = `<div class="empty-state">Error: ${e.message}</div>`; }
+}
+function maskIban(iban) {
+  if (!iban) return '-';
+  return iban.slice(0,4) + '****' + iban.slice(-4);
+}
+async function openIbanModal(sitterId) {
+  currentIbanSitterId = sitterId;
+  try {
+    const d = await api(`/admin/sitters/${sitterId}/iban`);
+    document.getElementById('modal-iban-content').innerHTML = `
+      <div class="modal-field"><label class="modal-label">Account Holder</label><div class="modal-value">${d.ibanHolder||'-'}</div></div>
+      <div class="modal-field"><label class="modal-label">IBAN (masked)</label><div class="modal-value" style="font-family:monospace">${d.ibanNumberMasked||'-'}</div></div>
+      <div class="modal-field"><label class="modal-label">BIC / SWIFT</label><div class="modal-value">${d.ibanBic||'-'}</div></div>
+      <div class="modal-field"><label class="modal-label">Current Status</label><div class="modal-value">${d.ibanVerified ? '✅ Verified — payouts enabled' : '⏳ Pending — payouts blocked until verified'}</div></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:12px">⚠️ Once verified, this sitter will receive IBAN bank transfers after each completed booking.</p>
+    `;
+    const btn = document.getElementById('modal-iban-verify-btn');
+    btn.style.display = d.ibanVerified ? 'none' : '';
+    btn.onclick = () => verifyIban(sitterId);
+    document.getElementById('iban-modal').classList.add('open');
+  } catch(e) { showToast('Error loading IBAN: ' + e.message, 'error'); }
+}
+async function verifyIban(sitterId) {
+  try {
+    await api(`/admin/sitters/${sitterId}/iban/verify`, 'PATCH');
+    closeModal('iban-modal');
+    loadIbanSitters();
+    showToast('IBAN verified ✓ — sitter can now receive payouts!', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); }
+function statusBadge(s) {
+  const map = { pending:'badge-orange', agreed:'badge-blue', completed:'badge-green', cancelled:'badge-red' };
+  return `<span class="badge ${map[s]||'badge-gray'}">${s||'unknown'}</span>`;
+}
+function payBadge(s) {
+  const map = { paid:'badge-green', pending:'badge-orange', failed:'badge-red' };
+  return `<span class="badge ${map[s]||'badge-gray'}">${s||'pending'}</span>`;
+}
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.className = `toast ${type} show`;
+  t.innerHTML = (type === 'success' ? '✓ ' : '✕ ') + msg;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
+// Enter key on login
+document.getElementById('admin-secret').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+</script>
+</body>
+</html>
