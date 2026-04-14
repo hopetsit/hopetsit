@@ -10,6 +10,7 @@ const { HttpError } = require('../utils/errors');
 const { maskPhonesInText } = require('../utils/phoneMask');
 const { decrypt } = require('../utils/encryption');
 const { createNotificationSafe } = require('./notificationService');
+const { sendNotification } = require('./notificationSender');
 
 const normalizeId = (value) => {
   if (!value) return null;
@@ -227,19 +228,22 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   const recipientId = senderRole === 'owner' ? sitterIdForNotif : ownerIdForNotif;
 
   if (recipientId && recipientId !== senderId) {
-    await createNotificationSafe({
-      recipientRole,
-      recipientId,
-      actorRole: senderRole,
-      actorId: senderId,
-      type: 'message_new',
-      title: 'New message',
-      body: trimmedBody || conversation.lastMessage || 'New message',
+    // Sprint 4 step 3 — multilingual NEW_MESSAGE (in-app + push + email).
+    sendNotification({
+      userId: recipientId,
+      role: recipientRole,
+      type: 'NEW_MESSAGE',
       data: {
         conversationId: conversation._id.toString(),
         messageId: message._id.toString(),
+        senderName:
+          senderRole === 'owner'
+            ? conversation.ownerId?.name || ''
+            : conversation.sitterId?.name || '',
+        preview: (effectiveBody || conversation.lastMessage || '').slice(0, 120),
       },
-    });
+      actor: { role: senderRole, id: senderId },
+    }).catch(() => {});
   }
 
   return {

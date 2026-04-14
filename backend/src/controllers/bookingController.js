@@ -29,6 +29,7 @@ const { sendPayoutToSitter } = require('../services/paypalPayoutService');
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { countryToCurrency } = require('../utils/countryCurrency');
 const { createNotificationSafe } = require('../services/notificationService');
+const { sendNotification } = require('../services/notificationSender');
 const { mergeScheduleFromApplication, normalizeServiceType } = require('../utils/bookingAgreementFields');
 const {
   buildRequestFingerprint,
@@ -1133,12 +1134,36 @@ const agreeToBooking = async (req, res) => {
     // Using runValidators: false to avoid validation errors on old bookings missing new required fields
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
-      { 
+      {
         status: 'agreed',
         agreedAt: new Date(),
       },
       { new: true, runValidators: false }
     ).populate('ownerId').populate('sitterId').populate('petIds');
+
+    // Sprint 4 step 3 — notify both parties of mutual acceptance
+    const petName = Array.isArray(updatedBooking.petIds) && updatedBooking.petIds[0]?.name
+      ? updatedBooking.petIds[0].name : '';
+    const notifData = {
+      bookingId: updatedBooking._id.toString(),
+      petName,
+      ownerName: updatedBooking.ownerId?.name || '',
+      sitterName: updatedBooking.sitterId?.name || '',
+    };
+    Promise.allSettled([
+      sendNotification({
+        userId: ownerId,
+        role: 'owner',
+        type: 'BOOKING_MUTUALLY_ACCEPTED',
+        data: { ...notifData, name: notifData.ownerName },
+      }),
+      sendNotification({
+        userId: sitterId,
+        role: 'sitter',
+        type: 'BOOKING_MUTUALLY_ACCEPTED',
+        data: { ...notifData, name: notifData.sitterName },
+      }),
+    ]).catch(() => {});
 
     res.json({
       booking: sanitizeBooking(updatedBooking),
