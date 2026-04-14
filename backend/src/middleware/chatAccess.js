@@ -2,26 +2,27 @@ const Conversation = require('../models/Conversation');
 const Booking = require('../models/Booking');
 
 /**
- * Returns { blocked: false } or { blocked: true, bookingId, status, paymentStatus }.
- * Chat is blocked when the latest booking between the two parties is in status
- * 'agreed' (doubly accepted) but paymentStatus is not 'paid'.
- * If no booking exists yet, chat is allowed (pre-booking discussion).
+ * Canonical rule (sprint6.5 step 3): chat is OPEN only if there is at least
+ * one paid booking between owner and sitter. Otherwise blocked with
+ * code='PAYMENT_REQUIRED' + bookingId (most recent unpaid/agreed one if any).
  */
 const evaluateChatAccess = async ({ ownerId, sitterId }) => {
-  const booking = await Booking.findOne({ ownerId, sitterId })
+  const paidExists = await Booking.exists({
+    ownerId,
+    sitterId,
+    paymentStatus: 'paid',
+  });
+  if (paidExists) return { blocked: false };
+  const latest = await Booking.findOne({ ownerId, sitterId })
     .sort({ createdAt: -1 })
     .select('_id status paymentStatus')
     .lean();
-  if (!booking) return { blocked: false };
-  if (booking.status === 'agreed' && booking.paymentStatus !== 'paid') {
-    return {
-      blocked: true,
-      bookingId: booking._id.toString(),
-      status: booking.status,
-      paymentStatus: booking.paymentStatus,
-    };
-  }
-  return { blocked: false };
+  return {
+    blocked: true,
+    bookingId: latest?._id?.toString() || null,
+    status: latest?.status || null,
+    paymentStatus: latest?.paymentStatus || null,
+  };
 };
 
 /**

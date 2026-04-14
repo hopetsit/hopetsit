@@ -182,10 +182,13 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
     throw new HttpError(403, 'Messaging is disabled because one user has been blocked.');
   }
 
-  // Check if there's a valid paid booking between owner and sitter
+  // Sprint 6.5 step 3 — canonical rule aligned with middleware: PAYMENT_REQUIRED
+  // when no paid booking exists between owner and sitter.
   const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId);
   if (!hasPaidBooking) {
-    throw new HttpError(403, 'Chat is only available after payment is completed. Please complete a booking payment first.');
+    const err = new HttpError(403, 'Payment required');
+    err.code = 'PAYMENT_REQUIRED';
+    throw err;
   }
 
   const trimmedBody = typeof body === 'string' ? body.trim() : '';
