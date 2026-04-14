@@ -53,8 +53,14 @@ const sitterSchema = new mongoose.Schema(
       },
     ],
     hourlyRate: { type: Number, default: 0 },
+    dailyRate: { type: Number, default: 0 },
     weeklyRate: { type: Number, default: 0 },
     monthlyRate: { type: Number, default: 0 },
+    defaultRateType: {
+      type: String,
+      enum: ['hour', 'day', 'week', 'month'],
+      default: 'hour',
+    },
     // Location for geospatial queries (GeoJSON Point format). Optional.
     // Only store when valid [lng, lat] coordinates exist; otherwise field is omitted (2dsphere index).
     location: {

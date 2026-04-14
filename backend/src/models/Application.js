@@ -1,0 +1,74 @@
+const mongoose = require('mongoose');
+
+const applicationSchema = new mongoose.Schema(
+  {
+    sitterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sitter', required: true },
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner', required: true },
+    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
+    postBody: { type: String, default: '' },
+    petName: { type: String, trim: true, default: '' },
+    petIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Pet' }],
+    description: { type: String, trim: true, default: '' },
+    serviceDate: { type: Date, default: null },
+    startDate: { type: Date, default: null },
+    endDate: { type: Date, default: null },
+    timeSlot: { type: String, trim: true, default: '' },
+    serviceType: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    houseSittingVenue: {
+      type: String,
+      enum: ['owners_home', 'sitters_home'],
+      default: null,
+    },
+    requestFingerprint: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    duration: { type: Number, default: null },
+    locationType: {
+      type: String,
+      enum: ['standard', 'large_city'],
+      default: 'standard',
+    },
+    requestedRateType: {
+      type: String,
+      enum: ['hour', 'day', 'week', 'month'],
+      default: null,
+    },
+    pricing: {
+      basePrice: { type: Number, default: null },
+      pricingTier: { type: String, enum: ['hourly', 'daily', 'weekly', 'monthly'], default: 'hourly' },
+      appliedRate: { type: Number, default: 0 },
+      totalHours: { type: Number, default: 0 },
+      totalDays: { type: Number, default: 0 },
+      addOns: [
+        {
+          type: { type: String, default: '' },
+          description: { type: String, default: '' },
+          amount: { type: Number, default: 0 },
+          currency: { type: String, default: 'EUR' },
+        },
+      ],
+      addOnsTotal: { type: Number, default: 0 },
+      totalPrice: { type: Number, default: null },
+      commission: { type: Number, default: null },
+      netPayout: { type: Number, default: null },
+      commissionRate: { type: Number, default: 0.2 },
+      currency: { type: String, default: 'EUR' },
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending',
+    },
+  },
+  { timestamps: true }
+);
+
+applicationSchema.index({ ownerId: 1, sitterId: 1, status: 1, requestFingerprint: 1 });
+
+module.exports = mongoose.model('Application', applicationSchema);
+

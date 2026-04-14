@@ -170,8 +170,12 @@ const signup = async (req, res) => {
       skills: user.skills || '',
       bio: user.bio || '',
       hourlyRate: Number(user.hourlyRate) || Number(user.rate) || 0,
+      dailyRate: Number(user.dailyRate) || 0,
       weeklyRate: weeklyRate ?? 0,
       monthlyRate: monthlyRate ?? 0,
+      defaultRateType: ['hour', 'day', 'week', 'month'].includes(user.defaultRateType)
+        ? user.defaultRateType
+        : 'hour',
       acceptedTerms: !!user.acceptedTerms,
       service: Array.isArray(user.service) ? user.service : user.service ? [user.service] : [],
       verified: false,
