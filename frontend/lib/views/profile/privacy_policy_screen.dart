@@ -1,26 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get.dart';
-import 'package:hopetsit/data/static/terms_of_service.dart';
+import 'package:hopetsit/data/static/privacy_policy.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
-/// Sprint 8 step 3 — displays the full Terms of Service in the user's language.
-/// The text comes from the static constants in `data/static/terms_of_service.dart`
-/// and is prefixed with an explicit AI-drafted disclaimer banner.
-class TermsAndConditionsScreen extends StatelessWidget {
-  const TermsAndConditionsScreen({super.key});
+/// Sprint 8 step 3 — Privacy Policy screen (distinct file required by Play / App Store).
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final lang = LocalizationService.getCurrentLanguageCode();
-    final text = termsOfServiceForLocale(lang);
+    final text = privacyPolicyForLocale(lang);
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         title: PoppinsText(
-          text: 'terms_title'.tr,
+          text: 'Privacy policy',
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
         ),

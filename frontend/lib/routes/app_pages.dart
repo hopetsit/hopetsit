@@ -7,6 +7,7 @@ import 'package:hopetsit/views/auth/sign_up_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
+import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
@@ -29,6 +30,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.terms,
       page: () => const TermsAndConditionsScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.privacy,
+      page: () => const PrivacyPolicyScreen(),
     ),
     GetPage(
       name: AppRoutes.referrals,
