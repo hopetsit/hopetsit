@@ -33,6 +33,8 @@ const sitterSchema = new mongoose.Schema(
     // External authentication information
     firebaseUid: { type: String, default: null, index: true },
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },
+    // Firebase Cloud Messaging registration tokens (one per device). Deduplicated via $addToSet.
+    fcmTokens: { type: [String], default: [] },
     avatar: {
       url: { type: String, default: '' },
       publicId: { type: String, default: '' },

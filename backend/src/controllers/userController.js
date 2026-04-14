@@ -845,6 +845,54 @@ const switchRole = async (req, res) => {
   }
 };
 
+const resolveUserModel = (role) => {
+  if (role === 'sitter') return Sitter;
+  if (role === 'owner') return Owner;
+  return null;
+};
+
+const registerFcmToken = async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      return res.status(400).json({ error: 'token is required.' });
+    }
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role for FCM registration.' });
+    const result = await Model.findByIdAndUpdate(
+      req.user.id,
+      { $addToSet: { fcmTokens: token.trim() } },
+      { new: true }
+    ).select('fcmTokens');
+    if (!result) return res.status(404).json({ error: 'User not found.' });
+    return res.json({ ok: true, count: result.fcmTokens.length });
+  } catch (e) {
+    console.error('registerFcmToken error', e);
+    return res.status(500).json({ error: 'Unable to register FCM token.' });
+  }
+};
+
+const unregisterFcmToken = async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      return res.status(400).json({ error: 'token is required.' });
+    }
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role for FCM unregistration.' });
+    const result = await Model.findByIdAndUpdate(
+      req.user.id,
+      { $pull: { fcmTokens: token.trim() } },
+      { new: true }
+    ).select('fcmTokens');
+    if (!result) return res.status(404).json({ error: 'User not found.' });
+    return res.json({ ok: true, count: result.fcmTokens.length });
+  } catch (e) {
+    console.error('unregisterFcmToken error', e);
+    return res.status(500).json({ error: 'Unable to unregister FCM token.' });
+  }
+};
+
 module.exports = {
   updateService,
   updateProfile,
@@ -855,5 +903,7 @@ module.exports = {
   updateProfilePicture,
   getOwnerProfile,
   switchRole,
+  registerFcmToken,
+  unregisterFcmToken,
 };
 
