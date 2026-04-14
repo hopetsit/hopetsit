@@ -991,6 +991,65 @@ const updateSitterAvatar = async (req, res) => {
   }
 };
 
+// Sprint 5 step 6 — availability calendar
+const toUtcMidnight = (value) => {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+};
+const normalizeDateList = (list) =>
+  Array.isArray(list) ? Array.from(new Set(list.map(toUtcMidnight).filter(Boolean).map((d) => d.toISOString()))).map((s) => new Date(s)) : [];
+
+const getMyAvailability = async (req, res) => {
+  try {
+    const sitter = await Sitter.findById(req.user.id).select('availableDates unavailableDates');
+    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    res.json({
+      availableDates: sitter.availableDates || [],
+      unavailableDates: sitter.unavailableDates || [],
+    });
+  } catch (e) {
+    console.error('getMyAvailability error', e);
+    res.status(500).json({ error: 'Unable to fetch availability.' });
+  }
+};
+
+const updateMyAvailability = async (req, res) => {
+  try {
+    const { availableDates, unavailableDates } = req.body || {};
+    const update = {};
+    if (availableDates !== undefined) update.availableDates = normalizeDateList(availableDates);
+    if (unavailableDates !== undefined) update.unavailableDates = normalizeDateList(unavailableDates);
+    if (!Object.keys(update).length) {
+      return res.status(400).json({ error: 'availableDates or unavailableDates required.' });
+    }
+    const sitter = await Sitter.findByIdAndUpdate(req.user.id, update, { new: true })
+      .select('availableDates unavailableDates');
+    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    res.json({
+      availableDates: sitter.availableDates,
+      unavailableDates: sitter.unavailableDates,
+    });
+  } catch (e) {
+    console.error('updateMyAvailability error', e);
+    res.status(500).json({ error: 'Unable to update availability.' });
+  }
+};
+
+const getSitterAvailability = async (req, res) => {
+  try {
+    const sitter = await Sitter.findById(req.params.id).select('availableDates unavailableDates');
+    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    res.json({
+      availableDates: sitter.availableDates || [],
+      unavailableDates: sitter.unavailableDates || [],
+    });
+  } catch (e) {
+    console.error('getSitterAvailability error', e);
+    res.status(500).json({ error: 'Unable to fetch availability.' });
+  }
+};
+
 module.exports = {
   listSitters,
   getSitterProfile,
@@ -1000,6 +1059,9 @@ module.exports = {
   updateSitterProfile,
   updateSitterAvatar,
   updateSitterPaypalEmail,
+  getMyAvailability,
+  updateMyAvailability,
+  getSitterAvailability,
   getSitterPaypalEmail,
 };
 

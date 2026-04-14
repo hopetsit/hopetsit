@@ -24,6 +24,10 @@ class SitterModel {
   /// Preferred unit to display in the UI: 'hour' | 'day' | 'week' | 'month'.
   final String defaultRateType;
 
+  /// Sprint 5 step 6 — availability calendar.
+  final List<DateTime> availableDates;
+  final List<DateTime> unavailableDates;
+
   /// Currency code for hourly rate (e.g. USD, EUR). Defaults to EUR.
   final String currency;
   final String createdAt;
@@ -75,6 +79,8 @@ class SitterModel {
     this.weeklyRate = 0.0,
     this.monthlyRate = 0.0,
     this.defaultRateType = 'hour',
+    this.availableDates = const <DateTime>[],
+    this.unavailableDates = const <DateTime>[],
     this.currency = 'EUR',
     required this.createdAt,
     required this.updatedAt,
@@ -144,6 +150,14 @@ class SitterModel {
       weeklyRate: (json['weeklyRate'] as num?)?.toDouble() ?? 0.0,
       monthlyRate: (json['monthlyRate'] as num?)?.toDouble() ?? 0.0,
       defaultRateType: (json['defaultRateType'] as String?) ?? 'hour',
+      availableDates: ((json['availableDates'] as List?) ?? const [])
+          .map((e) => DateTime.tryParse(e.toString()))
+          .whereType<DateTime>()
+          .toList(),
+      unavailableDates: ((json['unavailableDates'] as List?) ?? const [])
+          .map((e) => DateTime.tryParse(e.toString()))
+          .whereType<DateTime>()
+          .toList(),
       currency: _parseCurrency(json['currency'] ?? json['hourlyRateCurrency']),
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',

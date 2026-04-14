@@ -41,6 +41,9 @@ const sitterSchema = new mongoose.Schema(
     // Sprint 5 step 2 — where the sitter accepts to work.
     canServiceAtOwner: { type: Boolean, default: true },
     canServiceAtSitter: { type: Boolean, default: true },
+    // Sprint 5 step 6 — availability calendar. Dates are stored as UTC midnight.
+    availableDates: { type: [Date], default: [] },
+    unavailableDates: { type: [Date], default: [] },
     avatar: {
       url: { type: String, default: '' },
       publicId: { type: String, default: '' },
