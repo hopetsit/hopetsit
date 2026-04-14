@@ -1,0 +1,1418 @@
+/// Auto-split from app_translations.dart (sprint 8 step 2).
+const Map<String, String> enUSTranslations = <String, String>{
+      // General
+      'common_yes': 'Yes',
+      'common_no': 'No',
+      'common_cancel': 'Cancel',
+      'common_error': 'Error',
+      'common_success': 'Success',
+      'common_select_value': 'Select value',
+      'label_not_available': 'N/A',
+      'common_user': 'User',
+      'common_refresh': 'Refresh',
+      'common_search': 'Search',
+
+      'Application accepted successfully': 'Application accepted successfully',
+      'Application rejected successfully': 'Application rejected successfully',
+      'Blocked users saved successfully': 'Blocked users saved successfully',
+      'Card saved successfully!': 'Card saved successfully!',
+      'Could not detect your location. Please enable location services.':
+          'Could not detect your location. Please enable location services.',
+      'Could not load nearby sitters. Please try again.':
+          'Could not load nearby sitters. Please try again.',
+      'Email verified successfully!': 'Email verified successfully!',
+      'Failed to add task. Please try again.':
+          'Failed to add task. Please try again.',
+      'Failed to change password. Please try again.':
+          'Failed to change password. Please try again.',
+      'Failed to complete profile. Please try again.':
+          'Failed to complete profile. Please try again.',
+      'Failed to fetch tasks.': 'Failed to fetch tasks.',
+      'Failed to get your location. Please try again.':
+          'Failed to get your location. Please try again.',
+      'Failed to load booking details. Using default pricing.':
+          'Failed to load booking details. Using default pricing.',
+      'Failed to load pet data. Please try again.':
+          'Failed to load pet data. Please try again.',
+      'Failed to load pets. Please try again.':
+          'Failed to load pets. Please try again.',
+      'Failed to load profile data. Please try again.':
+          'Failed to load profile data. Please try again.',
+      'Failed to load sitter details. Please try again.':
+          'Failed to load sitter details. Please try again.',
+      'Failed to pick image. Please try again.':
+          'Failed to pick image. Please try again.',
+      'Failed to pick passport image. Please try again.':
+          'Failed to pick passport image. Please try again.',
+      'Failed to pick pet pictures or videos. Please try again.':
+          'Failed to pick pet pictures or videos. Please try again.',
+      'Failed to pick pet profile image. Please try again.':
+          'Failed to pick pet profile image. Please try again.',
+      'Failed to save card. Please try again.':
+          'Failed to save card. Please try again.',
+      'Failed to start conversation. Please try again.':
+          'Failed to start conversation. Please try again.',
+      'Failed to submit review. Please try again.':
+          'Failed to submit review. Please try again.',
+      'Failed to switch role. Please try again.':
+          'Failed to switch role. Please try again.',
+      'Height is required.': 'Height is required.',
+      'Height must be greater than 0.': 'Height must be greater than 0.',
+      'Hourly rate must be greater than 0.':
+          'Hourly rate must be greater than 0.',
+      'Image uploaded successfully!': 'Image uploaded successfully!',
+      'Password changed successfully!': 'Password changed successfully!',
+      'Passwords do not match': 'Passwords do not match',
+      'Pet profile created but media upload failed. You can add media later.':
+          'Pet profile created but media upload failed. You can add media later.',
+      'Pet profile created successfully!': 'Pet profile created successfully!',
+      'Pet profile updated successfully!': 'Pet profile updated successfully!',
+      'Please accept the Terms and Conditions':
+          'Please accept the Terms and Conditions',
+      'Please agree to the Terms and Conditions':
+          'Please agree to the Terms and Conditions',
+      'Please enter a new password.': 'Please enter a new password.',
+      'Please enter the complete verification code':
+          'Please enter the complete verification code',
+      'Please enter your PayPal email.': 'Please enter your PayPal email.',
+      'Please fill in all fields correctly.':
+          'Please fill in all fields correctly.',
+      'Please fill in all required fields':
+          'Please fill in all required fields',
+      'Please fill in at least one field.':
+          'Please fill in at least one field.',
+      'Please fix the highlighted fields and try again.':
+          'Please fix the highlighted fields and try again.',
+      'Please try logging in again': 'Please try logging in again',
+      'Please verify your email to continue.':
+          'Please verify your email to continue.',
+      'Profile completed successfully!': 'Profile completed successfully!',
+      'Profile picture updated successfully!':
+          'Profile picture updated successfully!',
+      'Profile updated successfully!': 'Profile updated successfully!',
+      'Review submitted successfully!': 'Review submitted successfully!',
+      'Selected image file is not accessible. Please try again.':
+          'Selected image file is not accessible. Please try again.',
+      'Sitter blocked successfully!': 'Sitter blocked successfully!',
+      'Something went wrong. Please try again.':
+          'Something went wrong. Please try again.',
+      'Something went wrong. Please try logging in again.':
+          'Something went wrong. Please try logging in again.',
+      'Task added successfully!': 'Task added successfully!',
+      'Unknown user role. Please try again.':
+          'Unknown user role. Please try again.',
+      'Verification code has been resent to your email':
+          'Verification code has been resent to your email',
+      'Verification code resent': 'Verification code resent',
+      'Welcome back!': 'Welcome back!',
+      'You have already reviewed this sitter. You can only submit one review per sitter.':
+          'You have already reviewed this sitter. You can only submit one review per sitter.',
+      'Your city (@city) has been detected':
+          'Your city (@city) has been detected',
+      'Profile updated but image upload failed. Please try again.':
+          'Profile updated but image upload failed. Please try again.',
+      'Profile updated but image upload failed: @error':
+          'Profile updated but image upload failed: @error',
+
+      // Posts / Comments
+      'post_action_like': 'Like',
+      'post_action_comment': 'Comment',
+      'post_action_share': 'Share',
+      'post_comments_title': 'Comments',
+      'post_comments_hint': 'Add a comment...',
+      'post_comments_empty_title': 'No comments yet',
+      'post_comments_empty_subtitle': 'Be the first to comment!',
+      'post_comment_added_success': 'Comment added successfully!',
+      'post_comment_add_failed': 'Failed to add comment. Please try again.',
+      'post_comments_count_singular': '@count comment',
+      'post_comments_count_plural': '@count comments',
+
+      // Relative time
+      'time_days_ago': '@count d ago',
+      'time_hours_ago': '@count h ago',
+      'time_minutes_ago': '@count m ago',
+      'time_just_now': 'Just now',
+      'posts_empty_title': 'No posts available',
+      'posts_load_failed': 'Failed to load posts. Please try again.',
+      'posts_like_login_required': 'Please login to like posts.',
+      'posts_like_failed': 'Failed to like post. Please try again.',
+      'posts_unlike_failed': 'Failed to unlike post. Please try again.',
+      'application_accept_success': 'Application accepted successfully!',
+      'application_reject_success': 'Application rejected successfully!',
+      'application_action_failed':
+          'Failed to respond to application. Please try again.',
+      'request_card_pet_owner': 'Pet Owner: @name',
+      'sitter_reservation_requests': 'Reservation requests',
+      'sitter_filters': 'Filters',
+      'sitter_filters_on': 'Filters on',
+      'sitter_no_requests_match': 'No requests match your filters.',
+      'filter_requests_title': 'Filter requests',
+      'filter_clear': 'Clear',
+      'filter_apply': 'Apply',
+      'filter_location': 'Location',
+      'filter_service_type': 'Service type',
+      'filter_dates': 'Dates',
+      'filter_city_hint': 'City or area',
+      'filter_any_dates': 'Any dates',
+
+      // Profile: Apple connection
+      'profile_connect_with_apple': 'Connect with Apple',
+      'profile_connection_connected': 'Connected',
+
+      // Auth / Sign up
+      'sign_up_as_pet_owner': 'Sign Up as Pet Owner',
+      'sign_up_as_pet_sitter': 'Sign Up as Pet Sitter',
+      'label_name': 'Name',
+      'hint_name': 'Enter your name',
+      'label_email': 'Email',
+      'hint_email': 'Enter your email',
+      'label_mobile_number': 'Mobile Number',
+      'hint_phone': 'Enter your phone number',
+      'profile_no_phone_added': 'No phone added',
+      'profile_no_email_added': 'No email added',
+      'label_password': 'Password',
+      'hint_password': 'Create a password',
+      'password_requirement':
+          'Must be at least 8 characters and contain upper, lower case letters and a number.',
+      'label_language': 'Language',
+      'hint_language': 'Enter languages you speak',
+      'label_address': 'Address',
+      'hint_address': 'Location',
+      'label_rate_per_hour': 'Rate Per Hour',
+      'hint_rate_per_hour': 'e.g., 20',
+      'price_per_hour': 'Price / hour',
+      'price_per_day': 'Price / day',
+      'price_per_week': 'Price / week',
+      'price_per_month': 'Price / month',
+      'chat_payment_required_banner': 'Chat opens after the booking is paid.',
+      'chat_pay_now_button': 'Pay now',
+      'chat_share_phone_button': 'Share my phone',
+      'terms_read_button': 'Read the Terms & Conditions',
+      'service_prefs_at_owner_label': 'I accept service at my home',
+      'service_prefs_at_sitter_label': 'I accept service at the sitter\'s home',
+      'service_location_label': 'Where should the service happen?',
+      'service_location_at_owner': 'At my home',
+      'service_location_at_sitter': 'At the sitter\'s home',
+      'service_location_both': 'Either',
+      'profile_my_availability': 'My availability calendar',
+      'profile_verify_identity': 'Verify my identity',
+      'profile_identity_verified': 'Identity verified',
+      'theme_setting_title': 'Theme',
+      'theme_light': 'Light',
+      'theme_dark': 'Dark',
+      'theme_system': 'Follow system',
+      'common_close': 'Close',
+      'loyalty_title': 'Loyalty rewards',
+      'loyalty_premium_badge': '👑 Premium',
+      'loyalty_progress_discount': '@done/@goal bookings until next -10%',
+      'loyalty_progress_premium': '@done/@goal bookings until Premium',
+      'loyalty_credits_available': 'Credits: @amount @currency',
+      'loyalty_use_credit': 'Use my -10% loyalty discount',
+      'loyalty_discount_applied': 'Loyalty discount applied',
+      'top_sitter_badge': '🏆 Top Petsitter',
+      'top_sitter_progress': '@done/@goal services · avg @rating/5',
+      'top_sitter_achieved': 'You are a Top Petsitter!',
+      'top_sitter_commission_15': 'Commission reduced to 15% ✓',
+      'top_sitter_need_more': '@bookings more services + @rating★ needed',
+      'referrals_title': 'My referrals',
+      'referrals_my_code': 'My referral code',
+      'referrals_copy': 'Copy',
+      'referrals_share': 'Share my code',
+      'referrals_share_text': 'Join HopeTSIT with my code @code and get rewards!',
+      'referrals_list_empty': 'No referrals yet — share your code!',
+      'referrals_total_earned': 'Total earned: @amount @currency',
+      'referrals_status_pending': 'Pending',
+      'referrals_status_completed': 'Completed',
+      'signup_referral_code_label': 'Referral code (optional)',
+      'review_leave_title': 'Leave a review',
+      'review_leave_submit': 'Submit review',
+      'review_report': 'Report this review',
+      'review_reply_placeholder': 'Reply to this review (500 chars max)',
+      'label_skills': 'Skills',
+      'hint_skills': 'Veterinarian, Educator',
+      'label_bio': 'Bio',
+      'hint_bio': 'Tell us about yourself',
+      'label_terms_prefix': 'I accept the ',
+      'label_terms_title': 'Terms & Privacy Policy.',
+      'or_sign_up_with': 'Or sign up with',
+      'button_google': 'Google',
+      'button_apple': 'Apple',
+      'button_create_account': 'Create Account',
+      'button_creating_account': 'Creating Account...',
+      'button_logout': 'Logout',
+      'title_login': 'Log in',
+      'welcome_back': 'Welcome back 👋',
+      'login_subtitle': 'Log in to continue to Hopetsit.',
+      'hint_password_login': 'Enter your password',
+      'forgot_password': 'Forgot password?',
+      'forgot_password_reset_title': 'Reset your password',
+      'forgot_password_reset_message':
+          'Enter your email address and we\'ll send you a code to reset your password.',
+      'forgot_password_email_label': 'Email address',
+      'forgot_password_sending_code': 'Sending code...',
+      'forgot_password_send_code': 'Send verification code',
+      'forgot_password_remember': 'Remember your password? ',
+      'forgot_password_otp_sent_title': 'OTP Sent',
+      'forgot_password_otp_sent_message':
+          'Verification code has been sent to your email',
+      'forgot_password_request_failed': 'Request Failed',
+      'forgot_password_verified_title': 'Verified',
+      'forgot_password_verified_message': 'You can now reset your password',
+      'forgot_password_verification_failed': 'Verification Failed',
+      'forgot_password_reset_success':
+          'Your password has been reset successfully',
+      'forgot_password_reset_failed': 'Reset Failed',
+      'forgot_password_code_resent_title': 'Code Resent',
+      'forgot_password_code_resent_message':
+          'Verification code has been resent to your email',
+      'forgot_password_resend_failed': 'Resend Failed',
+      'forgot_password_verify_code_title': 'Verify code',
+      'forgot_password_enter_code_title': 'Enter verification code',
+      'forgot_password_code_sent_to': 'We\'ve sent a 6-digit code to @email',
+      'forgot_password_verifying': 'Verifying...',
+      'forgot_password_resend_in': 'Resend code in @seconds s',
+      'forgot_password_resend_code': 'Resend code',
+      'forgot_password_wrong_email': 'Wrong email? ',
+      'forgot_password_change_email': 'Change it',
+      'forgot_password_create_new_title': 'Create new password',
+      'forgot_password_set_new_title': 'Set your new password',
+      'forgot_password_set_new_message':
+          'Create a strong password to secure your account. Make sure it\'s at least 8 characters long.',
+      'forgot_password_new_hint': 'Enter new password',
+      'forgot_password_confirm_hint': 'Re-enter your password',
+      'forgot_password_resetting': 'Resetting password...',
+      'forgot_password_reset_button': 'Reset password',
+      'forgot_password_reset_success_title': 'Password reset successful!',
+      'forgot_password_reset_success_message':
+          'Your password has been successfully reset. You can now log in with your new password.',
+      'forgot_password_email_verified_title': 'Email verified',
+      'forgot_password_email_verified_subtitle': 'Your email has been verified',
+      'forgot_password_password_updated_title': 'Password updated',
+      'forgot_password_password_updated_subtitle':
+          'Your password has been changed',
+      'forgot_password_login_new_password': 'Log in with new password',
+      'forgot_password_security_warning':
+          'If you didn\'t request this change, please secure your account immediately.',
+      'logging_in': 'Logging in...',
+      'or_continue_with': 'Or continue with',
+      'dont_have_account': "Don't have an account? ",
+      'sign_up': 'Sign Up',
+      // Onboarding screen
+      'onboarding_app_title': 'Home Pets Sitting',
+      'onboarding_continue_with_google': 'Continue with Google',
+      'onboarding_continue_with_apple': 'Continue with Apple',
+      'onboarding_have_account': 'Have an account?',
+
+      // Validation / errors
+      'error_invalid_details_title': 'Invalid Details',
+      'error_invalid_details_message':
+          'Please fix the highlighted fields and try again.',
+      'error_terms_required_title': 'Terms Required',
+      'error_terms_required_message':
+          'Please agree to the Terms and Conditions',
+      'error_name_required': 'Please enter your name',
+      'error_name_length': 'Name must be at least 2 characters',
+      'error_email_required': 'Please enter your email',
+      'error_email_invalid': 'Please enter a valid email',
+      'error_phone_invalid': 'Please enter a valid phone number',
+      'error_phone_required': 'Please enter your phone number',
+      'error_password_required': 'Please enter a password',
+      'error_password_length': 'Password must be at least 8 characters long',
+      'error_password_uppercase':
+          'Password must contain at least one uppercase letter',
+      'error_password_lowercase':
+          'Password must contain at least one lowercase letter',
+      'error_password_number': 'Password must contain at least one number',
+      'error_password_confirm_required': 'Please confirm your password',
+      'error_password_match': 'Passwords do not match',
+      'error_otp_required': 'OTP is required',
+      'error_otp_length': 'OTP must be 6 digits',
+      'error_otp_numbers_only': 'OTP must contain only numbers',
+      'common_error_generic': 'Something went wrong. Please try again.',
+      'error_address_required': 'Please enter your address',
+      'error_address_length': 'Address must be at least 2 characters',
+      'error_rate_required': 'Please enter your rate per hour',
+      'error_rate_invalid': 'Please enter a valid rate',
+      'error_rate_zero': 'Hourly rate cannot be 0',
+      'error_skills_required': 'Please enter your skills',
+      'error_skills_length': 'Skills must be at least 2 characters',
+
+      // Location
+      'location_found_title': 'Location Found',
+      'location_found_message': 'Your city (@city) has been detected',
+      'location_not_found_title': 'Location Not Found',
+      'location_not_found_message':
+          'Could not detect your location. Please enable location services.',
+      'location_error_title': 'Error',
+      'location_error_message':
+          'Failed to get your location. Please try again.',
+      // Location picker
+      'label_city': 'City',
+      'location_getting': 'Getting...',
+      'location_auto': 'Auto',
+      'location_map': 'Map',
+      'location_detected': 'Detected: @city',
+      'location_enter_city': 'Enter your city',
+      'error_city_required': 'Please enter your city',
+      'location_detected_message':
+          'Your location has been detected. You\'ll be connected with service providers in this area.',
+      'location_select_title': 'Select Location',
+      'location_selected': 'Selected Location',
+      'location_selected_city': 'Selected City',
+      'location_no_city': 'No city selected',
+      'location_latitude': 'Latitude: @value',
+      'location_longitude': 'Longitude: @value',
+      'location_current': 'Current',
+      'location_confirm': 'Confirm',
+      'location_select_error': 'Please select a location',
+      'location_get_error': 'Unable to get your location',
+
+      // Signup flow
+      'signup_account_created_title': 'Account Created',
+      'signup_account_created_message': 'Please verify your email to continue.',
+      'signup_failed_title': 'Sign Up Failed',
+      'signup_failed_generic_message':
+          'Something went wrong. Please try again.',
+
+      // Profile / language
+      'language_dialog_title': 'Choose Language',
+      'language_dialog_message': 'Select your preferred language for the app.',
+      'language_updated_title': 'Language Updated',
+      'language_updated_message': 'App language has been changed.',
+      'title_profile': 'Profile',
+      'edit_profile_title': 'Edit Profile',
+      'edit_profile_button': 'Update Profile',
+      'edit_profile_button_updating': 'Updating Profile...',
+      // Choose service screen
+      'choose_service_title': 'Choose a Service',
+      'choose_service_choose_all': 'Choose all',
+      'choose_service_saving': 'Saving...',
+      'choose_service_selecting': 'Selecting...',
+      'choose_service_save': 'Save',
+      'choose_service_continue': 'Continue',
+      'choose_service_card_pet_sitting_title': 'Pet Sitting',
+      'choose_service_card_house_sitting_title': 'House Sitting',
+      'choose_service_card_day_care_title': 'Day Care',
+      'choose_service_card_dog_walking_title': 'Dog Walking',
+      'choose_service_card_subtitle_at_owners_home': "At owner's home",
+      'choose_service_card_subtitle_in_your_home': 'In your Home',
+      'choose_service_card_subtitle_in_neighborhood': 'In your neighborhood',
+      'section_settings': 'Settings',
+      'role_pet_owner': 'Pet Owner',
+      'role_pet_sitter': 'Pet Sitter',
+      'auth_role_pet_owner': 'Pet Owner',
+      'auth_role_pet_sitter': 'Pet Sitter',
+      'profile_add_tasks': 'Add Tasks',
+      'profile_view_tasks': 'View Tasks',
+      'profile_bookings_history': 'Bookings History',
+      'profile_edit_profile': 'Edit Profile',
+      'profile_edit_pets_profile': 'Edit Pets Profile',
+      'profile_choose_service': 'Choose Service',
+      'profile_change_password': 'Change Password',
+      'profile_change_language': 'Change Language',
+      'profile_blocked_users': 'Blocked Users',
+      'profile_delete_account': 'Delete Account',
+      'profile_donate_us': 'Donate Us',
+      'blocked_users_title': 'Blocked Users',
+      'blocked_users_empty_title': 'No blocked users',
+      'blocked_users_empty_message': 'Users you block will appear here',
+      'blocked_users_unblock_button': 'Unblock',
+      'blocked_users_unblock_dialog_message':
+          'Are you sure you want to unblock @name?',
+      'delete_account_dialog_message':
+          'Are you sure you want to delete your account? This action cannot be undone.',
+      'delete_account_success_title': 'Account Deleted',
+      'delete_account_success_message':
+          'Your account has been deleted successfully',
+      'delete_account_failed_title': 'Delete Failed',
+      'delete_account_failed_generic':
+          'Something went wrong. Please try again.',
+      'logout_dialog_message': 'Are you sure you want to logout?',
+      'profile_switch_role_card_title': 'Switch to @role',
+      'profile_switch_role_card_description':
+          'Switch your account to @role to start receiving requests.',
+      'dialog_switch_role_title': 'Switch Role',
+      'dialog_switch_role_switching': 'Switching to @role...\n\nPlease wait.',
+      'dialog_switch_role_confirm':
+          'Are you sure you want to switch to @role?\n\nYou will be able to switch back anytime.',
+      'dialog_switch_role_button': 'Switch to @role',
+      'profile_switch_to_sitter': 'Switch to Pet Sitter',
+      'profile_switch_to_owner': 'Switch to Pet Owner',
+      'profile_switch_to_sitter_description':
+          'Switch your account to Pet Sitter to start receiving requests.',
+      'profile_switch_to_owner_description':
+          'Switch your account to Pet Owner to start receiving requests.',
+      'profile_switch_role_dialog_title': 'Switch Role',
+      'profile_switch_to_sitter_loading':
+          'Switching to Pet Sitter...\n\nPlease wait.',
+      'profile_switch_to_owner_loading':
+          'Switching to Pet Owner...\n\nPlease wait.',
+      'profile_switch_to_sitter_confirm':
+          'Are you sure you want to switch to Pet Sitter?\n\nYou will be able to switch back anytime.',
+      'profile_switch_to_owner_confirm':
+          'Are you sure you want to switch to Pet Owner?\n\nYou will be able to switch back anytime.',
+      'common_continue': 'Continue',
+      'common_cancelled': 'Cancelled',
+      'common_coming_soon': 'Coming Soon',
+      'common_go_to_home': 'Go to Home',
+      'common_back_to_home': 'Back to Home',
+      'error_login_required': 'Please login again',
+      'error_email_not_found': 'User email not found. Please login again.',
+      'profile_load_error': 'Failed to load profile',
+      'blocked_users_unblock_success': 'User unblocked successfully',
+      'blocked_users_save_success': 'Blocked users saved successfully',
+      'donate_coming_soon': 'Donate feature will be available soon',
+      'stripe_connect_title': 'Connect Stripe Account',
+      'payout_status_screen_title': 'Payout Status',
+      'payout_connect_stripe_account': 'Connect Stripe Account',
+      'payout_paypal_email_title': 'PayPal Payout Email',
+      'payout_status_saved': 'Saved',
+      'payout_status_not_set': 'Not Set',
+      'payout_paypal_email_hint': 'Add an email to receive payouts via PayPal.',
+      'payout_add_paypal_email_title': 'Add PayPal payout email',
+      'payout_add_paypal_email_subtitle':
+          'Set the email where you want to receive payouts. You can update it later from Payout Status.',
+      'payout_update_paypal_email': 'Update PayPal Email',
+      'payout_paypal_dialog_subtitle':
+          'This email will be used for PayPal payouts. Make sure it matches your PayPal account.',
+      'payout_stripe_connect_title': 'Stripe Connect',
+      'payout_status_connected': 'Connected',
+      'payout_status_not_connected': 'Not Connected',
+      'payout_stripe_connected_message':
+          'Your Stripe account is connected and ready to receive payments.',
+      'payout_stripe_not_connected_message':
+          'Connect your Stripe account to start receiving payouts.',
+      'payout_account_id_label': 'Account ID',
+      'payout_verification_title': 'Verification Status',
+      'payout_status_title': 'Payout Status',
+      'payout_verification_step_identity': 'Identity verification',
+      'payout_verification_step_bank': 'Bank account verification',
+      'payout_verification_step_business': 'Business information',
+      'payout_next_payout_label': 'Next Payout',
+      'payout_schedule_label': 'Payout Schedule',
+      'payout_schedule_daily': 'Daily',
+      'payout_minimum_amount_label': 'Minimum Amount',
+      'payout_status_verified': 'Verified',
+      'payout_status_pending': 'Pending',
+      'payout_status_rejected': 'Rejected',
+      'payout_status_not_started': 'Not Started',
+      'payout_status_active': 'Active',
+      'payout_status_restricted': 'Restricted',
+      'payout_verification_message_verified':
+          'Your account has been verified. You can now receive payouts.',
+      'payout_verification_message_pending':
+          'Your verification is being reviewed. This usually takes 1-2 business days.',
+      'payout_verification_message_rejected':
+          'Your verification was rejected. Please update your information and try again.',
+      'payout_verification_message_not_started':
+          'Please complete the verification process to start receiving payouts.',
+      'payout_message_active':
+          'Your payouts are active. Earnings will be transferred to your bank account daily.',
+      'payout_message_pending':
+          'Your payout account is being set up. This may take a few business days.',
+      'payout_message_restricted':
+          'Your payouts are currently restricted. Please contact support for assistance.',
+      'payout_message_not_connected':
+          'Connect your Stripe account to start receiving payouts.',
+      'stripe_get_paid_title': 'Get Paid with Stripe',
+      'stripe_connect_description':
+          'Connect your Stripe account to receive payments directly from pet owners. Your earnings will be transferred to your bank account.',
+      'stripe_account_status_title': 'Account Status',
+      'stripe_continue_onboarding': 'Continue Onboarding',
+      'stripe_connect_account_button': 'Connect Stripe Account',
+      'stripe_benefit_secure': 'Secure payment processing',
+      'stripe_benefit_fast_payouts': 'Fast payouts to your bank account',
+      'stripe_benefit_no_fees': 'No setup fees',
+      'stripe_benefit_support': '24/7 customer support',
+      'stripe_benefit_required': 'Required to receive payments from pet owners',
+      'stripe_account_connected': 'Account Connected',
+      'stripe_account_created_pending': 'Account Created - Onboarding Pending',
+      'stripe_account_created': 'Account Created',
+      'stripe_account_connected_message':
+          'Your Stripe account is fully set up and ready to receive payments.',
+      'stripe_account_created_message':
+          'Your Stripe account has been created. Please complete the onboarding process to start receiving payments.',
+      'stripe_account_created_partial_message':
+          'Your payment account has been created. Some verification steps are remaining. You can complete them in your account settings.',
+      'stripe_account_id_label': 'Account ID',
+      'stripe_loading_onboarding': 'Loading Stripe onboarding...',
+      'stripe_account_connected_success':
+          'Stripe account connected successfully!',
+      'stripe_onboarding_completed': 'Stripe onboarding completed!',
+      'stripe_onboarding_cancelled': 'Stripe onboarding was cancelled.',
+      'stripe_onboarding_load_error':
+          'Failed to load Stripe onboarding page: @error',
+      'stripe_cancel_onboarding_title': 'Cancel Onboarding?',
+      'stripe_cancel_onboarding_message':
+          'Are you sure you want to cancel Stripe onboarding? You can complete it later from settings.',
+      'stripe_connect_payment_title': 'Connect Your Payment Account',
+      'stripe_connect_payment_description':
+          'To start receiving payments as a Pet Sitter, you need to connect your payment account. This is a required step to complete your profile setup.',
+      'stripe_connect_payment_partial_description':
+          'Your payment account has been created. Some verification steps are remaining. You can complete them later in your account settings.',
+      'stripe_connect_payment_partial_info':
+          'Your account is connected, but some verification steps are remaining. You can complete them in your account settings.',
+      'stripe_payment_connected_success': 'Payment Connected Successfully!',
+      'stripe_connect_now': 'Connect Now',
+      'stripe_already_connected': 'Already Connected',
+      'stripe_already_connected_message':
+          'Your Stripe account is already connected and active.',
+      'stripe_connect_error':
+          'Failed to connect Stripe account. Please try again.',
+      'stripe_no_onboarding_url':
+          'No onboarding URL available. Please create a Stripe account first.',
+      'stripe_onboarding_expired_title': 'Expired',
+      'stripe_onboarding_expired_message':
+          'The onboarding link has expired. Please create a new one.',
+      'stripe_disconnect_success': 'Stripe account disconnected successfully!',
+      'stripe_disconnect_error':
+          'Failed to disconnect Stripe account. Please try again.',
+      'payment_title': 'Payment',
+      'payment_info_message':
+          'Click "Pay" below to securely enter your payment details using Stripe\'s secure payment form.',
+      'payment_paypal_info':
+          'You will be redirected to PayPal to approve the payment, then we will confirm it here.',
+      'payment_pay_with_stripe': 'Pay with Stripe @amount',
+      'payment_pay_with_paypal': 'Pay with PayPal @amount',
+      'payment_method_paypal': 'PayPal',
+      'payment_pay_button': 'Pay @amount',
+      'payment_amount_label': 'Amount to Pay',
+      'payment_loading_page': 'Loading payment page...',
+      'payment_cancel_title': 'Cancel Payment?',
+      'payment_cancel_message': 'Are you sure you want to cancel this payment?',
+      'payment_continue': 'Continue Payment',
+      'payment_load_error': 'Failed to load payment page: @error',
+      'payment_success_title': 'Payment Successful!',
+      'payment_failed_title': 'Payment Failed',
+      'payment_success_message':
+          'Your payment has been processed successfully.',
+      'payment_rate_sitter': 'Rate the sitter',
+      'payment_try_again': 'Try Again',
+      'payment_transaction_details': 'Transaction Details',
+      'payment_transaction_id_label': 'Transaction ID',
+      'payment_date_label': 'Date',
+      'payment_error_client_secret_missing':
+          'Failed to create payment intent. Client secret is missing.',
+      'payment_error_publishable_key_missing':
+          'Stripe publishable key missing.',
+      'payment_error_invalid_publishable_key':
+          'Invalid Stripe publishable key.',
+      'payment_processing_failed':
+          'Payment processing failed. Please try again.',
+      'payment_error_title': 'Payment Error',
+      'payment_unavailable_title': 'Payment Unavailable',
+      'payment_unavailable_message':
+          'The sitter\'s Stripe account is not fully verified yet. They need to complete their account verification (including identity, bank account, and business details) before they can receive payments. Please contact the sitter to complete their Stripe account setup.',
+      'payment_invalid_amount_title': 'Invalid Amount',
+      'payment_invalid_amount_message':
+          'The payment amount is invalid. Please contact support.',
+      'payment_initiate_error': 'Failed to initiate payment. Please try again.',
+      'payment_confirmation_failed':
+          'Payment confirmation failed. Please contact support.',
+      'review_already_reviewed_title': 'Already Reviewed',
+      'review_already_reviewed_message':
+          'You have already reviewed this sitter. You can only submit one review per sitter.',
+      'sitter_applications_tab': 'Applications',
+      'sitter_no_bookings_found': 'No bookings found',
+      'sitter_application_accepted_success':
+          'Application accepted successfully',
+      'sitter_application_accept_failed':
+          'Failed to accept application. Please try again.',
+      'sitter_application_rejected_success':
+          'Application rejected successfully',
+      'sitter_application_reject_failed':
+          'Failed to reject application. Please try again.',
+      'sitter_chat_start_failed':
+          'Failed to start conversation. Please try again.',
+      'sitter_chat_with_owner': 'Chat with Owner',
+      'sitter_pet_weight': 'Weight',
+      'sitter_pet_height': 'Height',
+      'sitter_pet_color': 'Color',
+      'sitter_not_yet_available': 'Not yet available',
+      'sitter_detail_date': 'Date',
+      'sitter_detail_time': 'Time',
+      'sitter_detail_phone': 'Phone',
+      'sitter_detail_email': 'Email',
+      'sitter_detail_location': 'Location',
+      'sitter_not_available_yet': 'Not available yet',
+      'sitter_reject': 'Reject',
+      'sitter_accept': 'Accept',
+      'sitter_status_label': 'Status: @status',
+      'sitter_payment_status_label': 'Payment: @status',
+      'sitter_time_just_now': 'Just now',
+      'sitter_time_mins_ago': '@minutes mins ago',
+      'sitter_time_hours_ago': '@hours hours ago',
+      'sitter_time_days_ago': '@days days ago',
+      'sitter_weekday_mon': 'Mon',
+      'sitter_weekday_tue': 'Tue',
+      'sitter_weekday_wed': 'Wed',
+      'sitter_weekday_thu': 'Thu',
+      'sitter_weekday_fri': 'Fri',
+      'sitter_weekday_sat': 'Sat',
+      'sitter_weekday_sun': 'Sun',
+      'sitter_month_jan': 'Jan',
+      'sitter_month_feb': 'Feb',
+      'sitter_month_mar': 'Mar',
+      'sitter_month_apr': 'Apr',
+      'sitter_month_may': 'May',
+      'sitter_month_jun': 'Jun',
+      'sitter_month_jul': 'Jul',
+      'sitter_month_aug': 'Aug',
+      'sitter_month_sep': 'Sep',
+      'sitter_month_oct': 'Oct',
+      'sitter_month_nov': 'Nov',
+      'sitter_month_dec': 'Dec',
+      'sitter_service_long_term_care': 'Long Term Care',
+      'sitter_service_dog_walking': 'Dog Walking',
+      'sitter_service_overnight_stay': 'Overnight Stay',
+      'sitter_service_home_visit': 'Home Visit',
+      'sitter_request_details_title': 'Request Details',
+      'sitter_requests_section': 'Requests',
+      'sitter_info_pets': 'Pets',
+      'sitter_no_pets': 'No pets',
+      'sitter_info_service': 'Service',
+      'sitter_no_service_type': 'No service type available',
+      'sitter_info_date': 'Date',
+      'sitter_no_date_available': 'No date available',
+      'sitter_pets_section': 'Pets',
+      'sitter_note_section': 'Note',
+      'sitter_no_note_provided': 'No note provided.',
+      'sitter_decline': 'Decline',
+      'owner_booking_details_title': 'Booking Details',
+      'owner_service_provider_section': 'Service Provider',
+      'owner_info_pets': 'Pets',
+      'owner_no_pets': 'No pets',
+      'owner_info_service': 'Service',
+      'owner_no_service_type': 'No service type available',
+      'owner_info_date': 'Date',
+      'owner_no_date_available': 'No date available',
+      'owner_info_total_amount': 'Total Amount',
+      'owner_pets_section': 'Pets',
+      'owner_note_section': 'Note',
+      'owner_no_note_provided': 'No note provided.',
+      'owner_chat_with_sitter': 'Chat with Sitter',
+      'owner_pay_now': 'Pay Now',
+      'owner_pay_with_amount': 'Pay \$@amount',
+      'owner_cancel_booking': 'Cancel Booking',
+      'owner_time_just_now': 'Just now',
+      'owner_time_mins_ago': '@minutes mins ago',
+      'owner_time_hours_ago': '@hours hours ago',
+      'owner_time_days_ago': '@days days ago',
+      'owner_weekday_mon': 'Mon',
+      'owner_weekday_tue': 'Tue',
+      'owner_weekday_wed': 'Wed',
+      'owner_weekday_thu': 'Thu',
+      'owner_weekday_fri': 'Fri',
+      'owner_weekday_sat': 'Sat',
+      'owner_weekday_sun': 'Sun',
+      'owner_month_jan': 'Jan',
+      'owner_month_feb': 'Feb',
+      'owner_month_mar': 'Mar',
+      'owner_month_apr': 'Apr',
+      'owner_month_may': 'May',
+      'owner_month_jun': 'Jun',
+      'owner_month_jul': 'Jul',
+      'owner_month_aug': 'Aug',
+      'owner_month_sep': 'Sep',
+      'owner_month_oct': 'Oct',
+      'owner_month_nov': 'Nov',
+      'owner_month_dec': 'Dec',
+      'owner_service_long_term_care': 'Long Term Care',
+      'owner_service_dog_walking': 'Dog Walking',
+      'owner_service_overnight_stay': 'Overnight Stay',
+      'owner_service_home_visit': 'Home Visit',
+      'owner_rating_with_reviews': '@rating (@count reviews)',
+      'owner_pet_needs_medication': 'Needs medication / @medication',
+      // Home screen & applications
+      'home_default_user_name': 'User',
+      'home_no_sitters_message': 'No sitters available at the moment.',
+      'home_block_sitter_message':
+          'Are you sure you want to block @name? You won\'t be able to see their profile or send requests.',
+      'home_block_sitter_yes': 'Cancel',
+      'home_block_sitter_no': 'Block',
+      'status_available': 'available',
+      'applications_tab_title': 'Applications',
+      'bookings_tab_title': 'Bookings',
+      'applications_empty_message': 'No applications found',
+      'bookings_empty_message': 'No booking found',
+      'booking_cancel_dialog_message':
+          'Are you sure you want to cancel this booking?',
+      // Common UI
+      'common_select': 'Select',
+      'common_save': 'Save',
+      'common_later': 'Later',
+      'common_saving': 'Saving...',
+      // Expandable post input
+      'post_input_label': 'Post',
+      'post_input_hint': 'Write your post here...',
+      'post_button': 'Post',
+      'post_button_posting': 'Posting...',
+      'my_posts_title': 'My Posts',
+      'home_segment_sitters': 'Pet Sitters',
+      'my_posts_no_posts': 'No posts found',
+      'my_posts_delete_title': 'Delete post?',
+      'my_posts_delete_message':
+          'Are you sure you want to delete this post? This action cannot be undone.',
+      'my_posts_delete_success': 'Post deleted successfully.',
+      'my_posts_delete_failed': 'Failed to delete post. Please try again.',
+      'my_posts_sort_label': 'Sort',
+      'my_posts_sort_newest': 'Newest first',
+      'my_posts_sort_oldest': 'Oldest first',
+      'notifications_title': 'Notifications',
+      'notifications_empty_title': 'No notifications yet',
+      'notifications_empty_subtitle':
+          'When something happens, you will see it here.',
+      'notifications_mark_all_read': 'Mark all read',
+      'notifications_load_failed': 'Could not load notifications.',
+      'notifications_fallback_title': 'Notification',
+      'notifications_post_view_title': 'Post',
+      'notifications_request_view_title': 'Sitter request',
+      'notifications_application_not_found':
+          'This request is no longer available or could not be loaded.',
+      'notifications_open_sitter_profile': 'View sitter profile',
+      'notifications_loading': 'Loading notifications…',
+      'notifications_loading_more': 'Loading more…',
+      'post_action_delete': 'Delete',
+      'post_request_default': 'Looking for a pet sitter',
+      // Tasks screens
+      'view_task_title': 'View Task',
+      'view_task_empty': 'No tasks found',
+      'view_task_date_not_available': 'Date not available',
+      'add_task_title': 'Add Task',
+      'add_task_title_label': 'Title',
+      'add_task_title_hint': 'Enter title',
+      'add_task_description_label': 'Description',
+      'add_task_description_hint': 'Text...',
+      'add_task_save_button': 'Save',
+      'add_task_saving': 'Saving...',
+      // Change password
+      'change_password_title': 'Change Password',
+      'change_password_new_label': 'New Password',
+      'change_password_confirm_label': 'Confirm Password',
+      'change_password_confirm_hint': 'Confirm Password',
+      // Add card
+      'add_card_title': 'Add Card',
+      'add_card_holder_label': 'Card holder name',
+      'add_card_holder_hint': 'John Smith',
+      'add_card_number_label': 'Card Number',
+      'add_card_number_hint': '0987 0986 5543 0980',
+      'add_card_exp_label': 'Exp Date',
+      'add_card_exp_hint': '10/23',
+      'add_card_cvc_label': 'CVC',
+      'add_card_cvc_hint': '345',
+      // My pets
+      'my_pets_title': 'My Pets',
+      'my_pets_add_pet': 'Add Pet',
+      'my_pets_error_loading': 'Error loading pets',
+      'my_pets_retry': 'Retry',
+      'my_pets_empty': 'No pets found',
+      'my_pets_color_label': 'Color',
+      'my_pets_profile_label': 'Profile',
+      'my_pets_passport_label': 'Passport',
+      'my_pets_chip_label': 'Chip',
+      'my_pets_allergies_label': 'Allergies',
+      // Create pet profile
+      'create_pet_appbar_title': 'User',
+      'create_pet_skip': 'Skip',
+      'create_pet_header': 'Create a Pet profile',
+      'create_pet_name_label': 'Pet name',
+      'create_pet_name_hint': 'Enter your Pet name',
+      'create_pet_breed_label': 'Breed',
+      'create_pet_breed_hint': 'Enter your Breed',
+      'create_pet_dob_label': 'Date of Birth',
+      'create_pet_dob_hint': 'Enter your pet\'s date of birth',
+      'create_pet_weight_label': 'Weight (KG)',
+      'create_pet_weight_hint': 'eg 12kgs',
+      'create_pet_height_label': 'Height (CM)',
+      'create_pet_height_hint': 'eg 50cms',
+      'create_pet_passport_label': 'Passport number',
+      'create_pet_passport_hint': 'Enter Passport number',
+      'create_pet_chip_label': 'Chip number',
+      'create_pet_chip_hint': 'Enter Chip number',
+      'create_pet_med_allergies_label': 'Medication Allergies',
+      'create_pet_med_allergies_hint': 'Enter Medication Allergies',
+      'create_pet_category_label': 'Category',
+      'create_pet_category_dog': 'Dog',
+      'create_pet_category_cat': 'Cat',
+      'create_pet_category_bird': 'Bird',
+      'create_pet_category_rabbit': 'Rabbit',
+      'create_pet_category_other': 'Other',
+      'create_pet_vaccination_label': 'Vaccination',
+      'create_pet_vaccination_up_to_date': 'Up to Date',
+      'create_pet_vaccination_not_vaccinated': 'Not Vaccinated',
+      'create_pet_vaccination_partial': 'Partially Vaccinated',
+      'create_pet_profile_view_label': 'Profile View',
+      'create_pet_profile_view_public': 'Public',
+      'create_pet_profile_view_private': 'Private',
+      'create_pet_profile_view_friends': 'Friends Only',
+      'create_pet_upload_media_label': 'Upload pet\'s pictures and videos',
+      'create_pet_upload_media_upload': 'Upload',
+      'create_pet_upload_media_change': 'Change (@count)',
+      'create_pet_upload_media_selected': '@count file(s) selected',
+      'create_pet_upload_passport_label': 'Upload pet\'s passport picture',
+      'create_pet_upload_passport_change': 'Change',
+      'create_pet_upload_passport_upload': 'Upload',
+      'create_pet_upload_passport_selected': 'Passport image selected',
+      'create_pet_button_creating': 'Creating Profile...',
+      'create_pet_button': 'Create Pet\'s Profile',
+      // Send request screen
+      'send_request_title': 'Send Request',
+      'send_request_description_label': 'Description',
+      'send_request_description_hint': 'Enter additional details...',
+      'label_pets': 'Pets',
+      'send_request_no_pets_message': 'No pets. Add a pet to continue.',
+      'send_request_pets_select_placeholder': 'Select',
+      'send_request_dates_label': 'Dates',
+      'send_request_start_label': 'Start',
+      'send_request_end_label': 'End',
+      'send_request_select_date': 'Select date',
+      'send_request_select_time': 'Select time',
+      'send_request_service_type_label': 'Service Type',
+      'send_request_service_long_term_care': 'Long Term Care',
+      'send_request_service_dog_walking': 'Dog Walking',
+      'send_request_service_overnight_stay': 'Overnight Stay',
+      'send_request_service_home_visit': 'Home Visit',
+      'send_request_duration_label': 'Duration (minutes)',
+      'send_request_duration_minutes_label': '@minutes min',
+      'send_request_button': 'Send Request',
+      'send_request_button_sending': 'Sending...',
+      'send_request_validation_error_title': 'Validation Error',
+      'send_request_invalid_time_title': 'Invalid Time',
+      'send_request_invalid_time_message': 'End time must be after start time.',
+      // Publish reservation request (owner) - UI only
+      'publish_request_home_cta': 'Publish reservation request',
+      'publish_request_title': 'Publish Reservation Request',
+      'publish_request_select_pets': 'Select pet(s)',
+      'publish_request_selected_pets': '@count selected',
+      'publish_request_select_pets_title': 'Select pets',
+      'publish_request_notes_label': 'Additional notes',
+      'publish_request_notes_hint': 'Anything the sitter should know...',
+      'publish_request_address_label': 'Address (optional)',
+      'publish_request_address_hint': 'Street, building, etc.',
+      'publish_request_images_label': 'Images',
+      'publish_request_add_images': 'Add images',
+      'publish_request_add_more_images': 'Add more images',
+      'publish_request_publish_button': 'Publish Request',
+      'publish_request_fill_required': 'Please fill in all required fields.',
+      'publish_request_ui_only_success': 'Request UI created (not posted yet).',
+      'publish_request_success': 'Reservation request published successfully!',
+      'publish_request_service_walking': 'Walking',
+      'publish_request_service_boarding': 'Boarding',
+      'publish_request_service_daycare': 'Daycare',
+      'publish_request_service_pet_sitting': 'Pet Sitting',
+      'publish_request_service_house_sitting': 'House Sitting',
+      'house_sitting_venue_label': 'House Sitting Venue',
+      'house_sitting_venue_owners_home': "At owner's home",
+      'house_sitting_venue_sitters_home': "At sitter's home",
+      // Chat screens
+      'chat_error_loading_conversations': 'Error loading conversations',
+      'chat_retry': 'Retry',
+      'chat_no_conversations': 'No conversations yet',
+      'chat_error_loading_messages': 'Error loading messages',
+      'chat_no_messages': 'No messages yet. Start the conversation!',
+      'chat_input_hint': 'Write a message...',
+      'chat_locked_title': 'Chat locked',
+      'chat_locked_after_payment':
+          'Chat is available only after booking payment is completed.',
+      // Pets map screen
+      'map_search_hint': 'Search city or area',
+      'map_search_empty': 'Please enter a location.',
+      'map_search_not_found': 'Could not find location: @query',
+      'map_search_failed': 'Search failed. Please try again.',
+      'map_offers_near_me': 'Offers near me',
+      'map_radius_label': 'Radius:',
+      // IBAN payout
+      'iban_title': 'Bank Account (IBAN)',
+      'iban_info_message': 'Enter your bank account details to receive payouts directly. Your IBAN will be verified before first transfer.',
+      'iban_holder_label': 'Account Holder Name',
+      'iban_holder_hint': 'Full name as on your bank account',
+      'iban_holder_required': 'Account holder name is required.',
+      'iban_number_label': 'IBAN Number',
+      'iban_number_hint': 'e.g. ES91 2100 0418 4502 0005 1332',
+      'iban_number_example': 'Format: Country code + 2 digits + account number',
+      'iban_required': 'IBAN number is required.',
+      'iban_invalid_format': 'Invalid IBAN format.',
+      'iban_bic_label': 'BIC / SWIFT Code',
+      'iban_bic_hint': 'e.g. CAIXESBBXXX',
+      'iban_bic_required': 'BIC must be at least 8 characters.',
+      'iban_save_button': 'Save Bank Account',
+      'iban_saved_success': 'Bank account saved! Our team will verify it shortly.',
+      'iban_save_failed': 'Failed to save. Please try again.',
+      'iban_status_verified': 'Verified — payouts active',
+      'iban_status_pending': 'Pending admin verification',
+      'iban_security_note': 'Your data is encrypted and securely stored.',
+      // IBAN Payout
+      'payout_iban_title': 'Bank Payout (IBAN)',
+      'payout_iban_info': 'Add your bank account to receive payments directly, like Vinted. An admin will verify your IBAN before your first payout.',
+      'payout_current_iban': 'Current bank account',
+      'payout_method_label': 'Payout method',
+      'payout_add_iban': 'Add / Update IBAN',
+      'payout_iban_holder': 'Account holder name',
+      'payout_iban_holder_required': 'Account holder name is required',
+      'payout_iban_required': 'IBAN is required',
+      'payout_iban_invalid': 'Invalid IBAN format',
+      'payout_save_iban': 'Save bank account',
+      'map_distance_filter_label': 'Distance: @km km',
+      'map_no_nearby_sitters': 'No nearby sitters',
+      'map_sitter_services_distance': '@services • @distance km',
+      // Service provider detail screen
+      'sitter_detail_loading_name': 'Loading...',
+      'sitter_detail_load_error': 'Failed to load sitter details',
+      'sitter_detail_no_rating': 'No rating yet',
+      'sitter_detail_about_title': 'About @name',
+      'sitter_detail_no_bio': 'No bio available.',
+      'sitter_detail_booking_details_title': 'Booking Details',
+      'sitter_detail_availability_pricing_title': 'Availability & Pricing',
+      'sitter_detail_hourly_rate_label': 'Hourly Rate',
+      'sitter_detail_weekly_rate_label': 'Weekly Rate',
+      'sitter_detail_monthly_rate_label': 'Monthly Rate',
+      'sitter_detail_current_status_label': 'Current Status',
+      'sitter_detail_application_status_label': 'Application Status',
+      'sitter_detail_skills_title': 'Skills',
+      'sitter_detail_no_skills': 'No skills listed.',
+      'sitter_detail_reviews_title': 'Reviews',
+      'sitter_detail_no_reviews': 'No reviews yet.',
+      'sitter_detail_anonymous_reviewer': 'Anonymous',
+      'sitter_detail_starting_chat': 'Starting...',
+      'sitter_detail_unlock_after_payment': 'Unlock after payment',
+      'sitter_detail_start_chat': 'Start Chat',
+      'sitter_detail_start_chat_failed':
+          'Failed to start conversation. Please try again.',
+      'status_available_label': 'Available',
+      'status_cancelled_label': 'Cancelled',
+      'status_rejected_label': 'Rejected',
+      'status_pending_label': 'Pending',
+      'status_agreed_label': 'Agreed',
+      'status_paid_label': 'Paid',
+      'status_accepted_label': 'Accepted',
+      // Pet detail screen
+      'pet_detail_loading': 'Loading pet details...',
+      'pet_detail_about': 'About @name',
+      'pet_detail_weight': 'Weight',
+      'pet_detail_height': 'Height',
+      'pet_detail_color': 'Color',
+      'pet_detail_passport_number': 'Passport Number',
+      'pet_detail_chip_number': 'Chip Number',
+      'pet_detail_medication_allergies': 'Medication/Allergies',
+      'pet_detail_date_of_birth': 'Date of Birth',
+      'pet_detail_category': 'Category',
+      'pet_detail_vaccinations': '@name Vaccinations',
+      'pet_detail_gallery': '@name Gallery',
+      'pet_detail_no_photos': 'No photos available',
+      'pet_detail_owner_information': 'Owner Information',
+      'pet_detail_owner_name': 'Name',
+      'pet_detail_owner_created_at': 'Created At',
+      'pet_detail_owner_updated_at': 'Updated At',
+      'pet_detail_no_description': 'No description available',
+      'pet_detail_gender_unknown': 'Unknown',
+      'pet_detail_breed_unknown': 'Unknown',
+      'pet_detail_no_vaccinations': 'No vaccinations listed',
+      'pet_detail_load_error': 'Failed to load pet details. Please try again.',
+      // Sitter bookings screen
+      'sitter_bookings_title': 'My Bookings',
+      'sitter_bookings_empty_all': 'No bookings found',
+      'sitter_bookings_empty_filtered': 'No @status bookings found',
+      'sitter_bookings_pet_label': 'Pet',
+      'sitter_bookings_date_label': 'Date',
+      'sitter_bookings_time_label': 'Time',
+      'sitter_bookings_rate_label': 'Rate',
+      'sitter_bookings_description_label': 'Description',
+      'sitter_bookings_cancel_button': 'Cancel Booking',
+      'sitter_bookings_cancel_dialog_message':
+          'Are you sure you want to cancel this booking?',
+      'sitter_bookings_cancel_dialog_yes': 'Yes, Cancel',
+      'sitter_bookings_cancel_success':
+          'Cancellation request submitted successfully!',
+      'sitter_bookings_cancel_error':
+          'Failed to request cancellation. Please try again.',
+      // Owner bookings controller
+      'bookings_cancel_success': 'Booking cancelled successfully!',
+      'bookings_cancel_error': 'Failed to cancel booking. Please try again.',
+      'bookings_cancel_request_success':
+          'Cancellation request submitted successfully!',
+      'bookings_cancel_request_error':
+          'Failed to request cancellation. Please try again.',
+      'request_cancel_button': 'Cancel Request',
+      'request_cancel_button_cancelling': 'Cancelling...',
+      'request_cancel_success': 'Request cancelled successfully!',
+      'request_cancel_error': 'Failed to cancel request. Please try again.',
+      'bookings_payment_status_error':
+          'Failed to get payment status. Please try again.',
+      // Service provider card
+      'service_card_no_phone': 'No phone available',
+      'service_card_no_location': 'No location available',
+      'service_card_block': 'Block',
+      'service_card_per_hour_label': 'Per Hour @price',
+      'service_card_send_request': 'Send Request',
+      'sitter_post_pet_details': 'Pet Details',
+      'service_card_accept': 'Accept',
+      'service_card_reject': 'Reject',
+      'service_card_cancel': 'Cancel',
+      'service_card_pay_with_amount': 'Pay @amount',
+      'service_card_pay_now': 'Pay Now',
+      'service_card_chat': 'Chat',
+      // Sitter bottom sheet
+      'sitter_view_profile': 'View Profile',
+      'sitter_rating_with_count': '@rating (@count reviews)',
+      // Bookings history
+      'bookings_history_title': 'Bookings History',
+      'status_all_label': 'All',
+      'status_failed_label': 'Failed',
+      'status_refunded_label': 'Refunded',
+      'status_payment_pending_label': 'Payment pending',
+      'status_payment_failed_label': 'Payment failed',
+      'bookings_history_empty_all': 'No bookings found',
+      'bookings_history_empty_filtered': 'No @status bookings found',
+      'bookings_detail_pet_label': 'Pet',
+      'bookings_detail_date_label': 'Date',
+      'bookings_detail_time_label': 'Time',
+      'bookings_detail_total_amount_label': 'Total Amount',
+      'bookings_detail_phone_label': 'Phone',
+      'bookings_detail_location_label': 'Location',
+      'bookings_detail_rating_label': 'Rating',
+      'bookings_detail_description_label': 'Description',
+      'bookings_action_view_details': 'View Details',
+
+      // Missing profile controller translations
+      'profile_blocked_users_load_error': 'Failed to load blocked users',
+      'profile_user_not_found': 'User not found',
+      'profile_unblock_success': 'User unblocked successfully',
+      'profile_unblock_failed': 'Unblock Failed',
+      'profile_unblock_failed_generic':
+          'Something went wrong. Please try again.',
+      'profile_edit_coming_soon':
+          'Edit profile functionality will be available soon',
+      'profile_invalid_file_type': 'Invalid File Type',
+      'profile_invalid_file_type_message':
+          'Please select a JPEG, PNG, or WebP image.',
+      'profile_image_pick_failed': 'Failed to pick image. Please try again.',
+      'profile_picture_update_success': 'Profile picture updated successfully',
+      'profile_upload_failed': 'Upload Failed',
+      'profile_upload_failed_generic':
+          'Something went wrong. Please try again.',
+
+      // Missing auth controller translations
+      'auth_google_signin_title': 'Google Sign-In',
+      'auth_google_signin_web_required': 'This platform requires web sign-in.',
+      'auth_google_signin_failed': 'Google Sign-In failed. Try again.',
+      'auth_google_signin_token_missing': 'Google ID Token is missing.',
+      'auth_google_signin_firebase_token_failed':
+          'Failed to obtain Firebase ID token.',
+      'auth_google_signin_choose_services': 'Please choose your services',
+      'auth_google_signin_success': 'Successfully signed in with Google',
+      'auth_apple_signin_success': 'Successfully signed in with Apple',
+      'auth_apple_signin_failed': 'Apple Sign In Failed',
+      'auth_apple_signin_failed_generic':
+          'Something went wrong. Please try again.',
+      'auth_role_required': 'Role Required',
+      'auth_role_required_message':
+          'Please contact support to set up your account role.',
+      'auth_welcome': 'Welcome!',
+      'auth_welcome_back': 'Welcome back!',
+      'auth_role_switched': 'Role Switched',
+      'auth_role_switched_message': 'Successfully switched to @role',
+      'auth_role_switch_failed': 'Failed to switch role. Please try again.',
+
+      // Missing send request controller translations
+      'request_validation_error': 'Validation Error',
+      'request_sitter_pricing_error':
+          'Please set your hourly price first from Profile.',
+      'request_duration_required':
+          'Please select a duration for dog walking service.',
+      'request_pet_required': 'Please select at least one pet.',
+      'request_send_success': 'Request sent successfully!',
+      'request_send_failed': 'Failed to send request. Please try again.',
+
+      // Missing sitter application screen translations
+      'sitter_application_accept_success': 'Application accepted successfully',
+      'sitter_application_reject_success': 'Application rejected successfully',
+
+      // Missing choose service controller translations
+      'service_selection_required': 'Selection Required',
+      'service_selection_required_message':
+          'Please select at least one valid service for your role.',
+      'service_selection_required_single': 'Please select a service',
+      'service_selection_required_at_least_one':
+          'Please select at least one service.',
+      'service_updated': 'Service Updated',
+      'service_updated_message': 'Your services have been updated',
+      'service_selected': 'Services Selected',
+      'service_selected_message':
+          'Your services have been selected successfully',
+      'service_selection_failed': 'Selection Failed',
+      'service_selection_failed_generic':
+          'Something went wrong. Please try again.',
+
+      // Missing sign up controller translations
+      'signup_location_found': 'Location Found',
+      'signup_location_not_found': 'Location Not Found',
+      'signup_location_error': 'Failed to get your location. Please try again.',
+      'signup_failed_generic': 'Something went wrong. Please try again.',
+
+      // Missing edit profile controller translations
+      'edit_profile_load_error':
+          'Failed to load profile data. Please try again.',
+      'edit_profile_image_pick_failed':
+          'Failed to pick image. Please try again.',
+      'edit_profile_update_success': 'Profile updated successfully!',
+      'edit_profile_picture_update_success':
+          'Profile picture updated successfully!',
+      'edit_profile_location_error':
+          'Failed to get your location. Please try again.',
+      'edit_profile_invalid_hourly_rate': 'Invalid Hourly Rate',
+
+      // Missing home controller translations
+      'home_post_success': 'Post created successfully!',
+      'home_post_failed': 'Post Failed',
+      'home_post_failed_generic': 'Something went wrong. Please try again.',
+      'home_image_pick_failed': 'Failed to pick images. Please try again.',
+      'home_block_success': 'User blocked successfully',
+      'home_block_failed': 'Block Failed',
+      'home_block_failed_generic': 'Something went wrong. Please try again.',
+
+      // Missing edit pet controller translations
+      'pet_load_error': 'Failed to load pet data. Please try again.',
+      'pet_image_pick_failed': 'Failed to pick image. Please try again.',
+      'pet_profile_image_pick_failed':
+          'Failed to pick pet profile image. Please try again.',
+      'pet_passport_image_pick_failed':
+          'Failed to pick passport image. Please try again.',
+      'pet_media_pick_failed':
+          'Failed to pick pet pictures or videos. Please try again.',
+      'pet_update_success': 'Pet profile updated successfully!',
+      'pet_update_failed': 'Update Failed',
+      'pet_update_failed_generic': 'Something went wrong. Please try again.',
+      'pet_validation_error': 'Validation Error',
+      'pet_validation_error_message': 'Please fill in all required fields',
+
+      // Missing application screen translations
+      'application_chat_start_failed':
+          'Failed to start conversation. Please try again.',
+
+      // Missing booking agreement screen translations
+      'booking_agreement_load_error':
+          'Failed to load booking details. Using default pricing.',
+      'booking_agreement_title': 'Booking Agreement',
+      'booking_agreement_payment_completed': 'Payment Completed',
+      'booking_agreement_booking_cancelled': 'Booking Cancelled',
+      'booking_agreement_status_label': 'Status: @status',
+      'booking_agreement_start_date_label': 'Start Date',
+      'booking_agreement_end_date_label': 'End Date',
+      'booking_agreement_time_slot_label': 'Time Slot',
+      'booking_agreement_service_provider_label': 'Service Provider',
+      'booking_agreement_service_type_label': 'Service Type',
+      'booking_agreement_special_instructions_label': 'Special Instructions',
+      'booking_agreement_cancelled_at_label': 'Cancelled At',
+      'booking_agreement_cancellation_reason_label': 'Cancellation Reason',
+      'booking_agreement_price_breakdown_title': 'Price Breakdown',
+      'booking_agreement_pricing_tier_label': 'Pricing tier',
+      'booking_agreement_total_hours_label': 'Total hours',
+      'booking_agreement_total_days_label': 'Total days',
+      'booking_agreement_base_price_label': 'Base Price',
+      'booking_agreement_platform_fee_label': 'Platform Fee',
+      'booking_agreement_net_amount_label': 'Net Amount (to sitter)',
+      'booking_agreement_today_at': 'Today at @time',
+      'booking_agreement_yesterday_at': 'Yesterday at @time',
+      'booking_agreement_at': 'at',
+
+      // Missing add card controller translations
+      'card_save_success': 'Card saved successfully!',
+      'card_save_failed': 'Failed to save card. Please try again.',
+
+      // Missing petsitter onboarding controller translations
+      'onboarding_terms_required': 'Please accept the Terms and Conditions',
+      'onboarding_profile_complete_success': 'Profile completed successfully!',
+      'onboarding_profile_complete_failed':
+          'Failed to complete profile. Please try again.',
+
+      // Missing post comment translations
+      'comment_add_success': 'Comment added successfully!',
+      'comment_add_failed': 'Failed to add comment. Please try again.',
+
+      // Missing reviews controller translations
+      'review_submit_failed': 'Failed to submit review. Please try again.',
+
+      // Missing pets map controller translations
+      'map_load_error': 'Failed to load map data. Please try again.',
+
+      // Missing OTP verification controller translations
+      'otp_complete_code_required':
+          'Please enter the complete verification code',
+      'otp_verification_success': 'Verification successful!',
+      'otp_login_again': 'Please try logging in again',
+
+      // Missing create pet profile controller translations
+      'pet_create_validation_error': 'Validation Error',
+      'pet_create_validation_error_message':
+          'Please fill in all required fields',
+      'pet_create_success': 'Pet profile created successfully!',
+      'pet_create_failed': 'Failed to create pet profile. Please try again.',
+
+      // Missing task controller translations
+      'task_fetch_failed': 'Failed to fetch tasks.',
+      'task_fields_required': 'Please fill in at least one field.',
+      'task_add_success': 'Task added successfully!',
+      'task_add_failed': 'Failed to add task. Please try again.',
+
+      // Missing posts controller translations
+      'posts_load_error': 'Failed to load posts. Please try again.',
+
+      // Missing my pets controller translations
+      'my_pets_load_error': 'Failed to load pets. Please try again.',
+
+      // Missing email verification controller translations
+      'email_verification_success': 'Email verified successfully!',
+      'email_verification_code_required':
+          'Please enter the complete verification code',
+
+      // Missing change password controller translations
+      'change_password_validation_error': 'Validation Error',
+      'change_password_fields_required': 'Please fill in all fields correctly.',
+      'change_password_new_required': 'Please enter a new password.',
+      'change_password_success': 'Password changed successfully!',
+      'change_password_failed': 'Failed to change password. Please try again.',
+
+      // Missing applications controller translations
+      'application_action_success': 'Application @action successfully!',
+      'Email Not Verified': 'Email Not Verified',
+      'Image Error': 'Image Error',
+      'Invalid Hourly Rate': 'Invalid Hourly Rate',
+      'Location Found': 'Location Found',
+      'Location Not Found': 'Location Not Found',
+      'Required': 'Required',
+      'Role Switched': 'Role Switched',
+      'Selection Failed': 'Selection Failed',
+      'Selection Required': 'Selection Required',
+      'Service Updated': 'Service Updated',
+      'Services Selected': 'Services Selected',
+      'Success': 'Success',
+      'Switch Role Failed': 'Switch Role Failed',
+      'Verification Code Sent': 'Verification Code Sent',
+      'share_failed': 'Failed to share. Please try again.',
+      'snackbar_choose_service_controller_001':
+          'Please select valid services for your account type.',
+      'snackbar_choose_service_controller_002':
+          'Your services have been updated successfully!',
+      'snackbar_choose_service_controller_003':
+          'Your services have been selected successfully!',
+      'snackbar_choose_service_controller_004':
+          'Failed to update services. Please try again.',
+      'snackbar_choose_service_controller_005':
+          'Please select at least one service to continue.',
+      'snackbar_choose_service_controller_006':
+          'Please select a valid service to continue.',
+      'snackbar_choose_service_controller_007':
+          'Please select at least one service.',
+      'snackbar_sitter_paypal_payout_controller_001':
+          'PayPal payout email is required.',
+      'snackbar_sitter_paypal_payout_controller_002':
+          'PayPal payout email updated successfully!',
+      'snackbar_sitter_paypal_payout_controller_003':
+          'Failed to update PayPal payout email. Please try again.',
+
+      'snackbar_text_application_accepted_successfully':
+          'Application accepted successfully',
+      'snackbar_text_application_rejected_successfully':
+          'Application rejected successfully',
+      'snackbar_text_blocked_users_saved_successfully':
+          'Blocked users saved successfully',
+      'snackbar_text_card_saved_successfully': 'Card saved successfully!',
+      'snackbar_text_could_not_detect_your_location_please_enable_location_servic':
+          'Could not detect your location. Please enable location services.',
+      'snackbar_text_could_not_load_nearby_sitters_please_try_again':
+          'Could not load nearby sitters. Please try again.',
+      'snackbar_text_email_not_verified': 'Email Not Verified',
+      'snackbar_text_failed_to_complete_profile_please_try_again':
+          'Failed to complete profile. Please try again.',
+      'snackbar_text_failed_to_load_booking_details_using_default_pricing':
+          'Failed to load booking details. Using default pricing.',
+      'snackbar_text_failed_to_load_pet_data_please_try_again':
+          'Failed to load pet data. Please try again.',
+      'snackbar_text_failed_to_load_sitter_details_please_try_again':
+          'Failed to load sitter details. Please try again.',
+      'snackbar_text_failed_to_pick_passport_image_please_try_again':
+          'Failed to pick passport image. Please try again.',
+      'snackbar_text_failed_to_pick_pet_pictures_or_videos_please_try_again':
+          'Failed to pick pet pictures or videos. Please try again.',
+      'snackbar_text_failed_to_pick_pet_profile_image_please_try_again':
+          'Failed to pick pet profile image. Please try again.',
+      'snackbar_text_failed_to_save_card_please_try_again':
+          'Failed to save card. Please try again.',
+      'snackbar_text_failed_to_start_conversation_please_try_again':
+          'Failed to start conversation. Please try again.',
+      'snackbar_text_failed_to_switch_role_please_try_again':
+          'Failed to switch role. Please try again.',
+      'snackbar_text_height_is_required': 'Height is required.',
+      'snackbar_text_height_must_be_greater_than_0':
+          'Height must be greater than 0.',
+      'snackbar_text_hourly_rate_must_be_greater_than_0':
+          'Hourly rate must be greater than 0.',
+      'snackbar_text_weekly_rate_must_be_greater_than_0':
+          'Weekly rate must be greater than 0.',
+      'snackbar_text_monthly_rate_must_be_greater_than_0':
+          'Monthly rate must be greater than 0.',
+      'snackbar_text_invalid_url': 'Invalid URL',
+      'snackbar_text_unknown_error': 'Unknown error',
+      'snackbar_text_image_error': 'Image Error',
+      'snackbar_text_image_uploaded_successfully':
+          'Image uploaded successfully!',
+      'snackbar_text_invalid_hourly_rate': 'Invalid Hourly Rate',
+      'snackbar_text_location_not_found': 'Location Not Found',
+      'snackbar_text_passwords_do_not_match': 'Passwords do not match',
+      'snackbar_text_pet_profile_created_but_media_upload_failed_you_can_add_medi':
+          'Pet profile created but media upload failed. You can add media later.',
+      'snackbar_text_pet_profile_created_successfully':
+          'Pet profile created successfully!',
+      'snackbar_text_pet_profile_updated_successfully':
+          'Pet profile updated successfully!',
+      'snackbar_text_please_accept_the_terms_and_conditions':
+          'Please accept the Terms and Conditions',
+      'snackbar_text_please_enter_your_paypal_email':
+          'Please enter your PayPal email.',
+      'snackbar_text_please_fill_in_all_required_fields':
+          'Please fill in all required fields',
+      'snackbar_text_please_try_logging_in_again':
+          'Please try logging in again',
+      'snackbar_text_profile_completed_successfully':
+          'Profile completed successfully!',
+      'snackbar_text_profile_updated_but_image_upload_failed_please_try_again':
+          'Profile updated but image upload failed. Please try again.',
+      'snackbar_text_required': 'Required',
+      'snackbar_text_review_submitted_successfully':
+          'Review submitted successfully!',
+      'snackbar_text_role_switched': 'Role Switched',
+      'snackbar_text_selected_image_file_is_not_accessible_please_try_again':
+          'Selected image file is not accessible. Please try again.',
+      'snackbar_text_selection_failed': 'Selection Failed',
+      'snackbar_text_sitter_blocked_successfully':
+          'Sitter blocked successfully!',
+      'snackbar_text_something_went_wrong_please_try_logging_in_again':
+          'Something went wrong. Please try logging in again.',
+      'snackbar_text_success': 'Success',
+      'snackbar_text_successfully_switched_to_userrole_value':
+          'Successfully switched role successfully.',
+      'snackbar_text_switch_role_failed': 'Switch Role Failed',
+      'snackbar_text_unknown_user_role_please_try_again':
+          'Unknown user role. Please try again.',
+      'snackbar_text_verification_code_has_been_resent_to_your_email':
+          'Verification code has been resent to your email',
+      'snackbar_text_verification_code_resent': 'Verification code resent',
+      'snackbar_text_verification_code_sent': 'Verification Code Sent',
+      'snackbar_text_welcome_back': 'Welcome back!',
+      'snackbar_text_you_have_already_reviewed_this_sitter_you_can_only_submit_on':
+          'You have already reviewed this sitter. You can only submit one review per sitter.',
+    'post_more_options': 'More options',
+    'post_action_block_user': 'Block user',
+    'post_action_report': 'Report post',
+    'block_user_title': 'Block user',
+    'block_user_action': 'Block',
+    'block_user_confirm_message': 'Are you sure you want to block this user? You will no longer see their content.',
+    'block_user_success': 'User blocked successfully.',
+    'block_user_failed': 'Failed to block user. Please try again.',
+    'report_post_received': 'Report received. Thank you.',
+    'pet_photo_delete_title': 'Delete photo',
+    'pet_photo_delete_confirm': 'Are you sure you want to delete this photo?',
+    'pet_photo_deleted': 'Photo deleted successfully.',
+    'pet_photo_delete_failed': 'Failed to delete photo. Please try again.',
+    'new_publication_button': 'New publication',
+};
