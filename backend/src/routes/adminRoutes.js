@@ -5,6 +5,7 @@ const Booking = require('../models/Booking');
 const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
 const Pet = require('../models/Pet');
+const { decrypt } = require('../utils/encryption');
 
 const router = express.Router();
 
@@ -149,9 +150,10 @@ router.get('/sitters/:id/iban', requireAdmin, async (req, res) => {
   try {
     const sitter = await Sitter.findById(req.params.id).select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod');
     if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
-    // Mask IBAN for display: show last 4 digits only
-    const masked = sitter.ibanNumber
-      ? sitter.ibanNumber.slice(0, 4) + '****' + sitter.ibanNumber.slice(-4)
+    // Mask IBAN for display: decrypt then show first 4 + last 4
+    const iban = decrypt(sitter.ibanNumber);
+    const masked = iban
+      ? iban.slice(0, 4) + '****' + iban.slice(-4)
       : '';
     res.json({
       ibanHolder: sitter.ibanHolder,

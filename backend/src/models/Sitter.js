@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { encrypt, isEncrypted } = require('../utils/encryption');
 
 const sitterSchema = new mongoose.Schema(
   {
@@ -168,6 +169,17 @@ sitterSchema.pre('save', async function hashPassword(next) {
 sitterSchema.methods.comparePassword = function comparePassword(candidate) {
   return bcrypt.compare(candidate, this.password);
 };
+
+// Encrypt sensitive payout fields at rest (AES-256-GCM).
+sitterSchema.pre('save', function encryptSensitive(next) {
+  if (this.isModified('paypalEmail') && this.paypalEmail && !isEncrypted(this.paypalEmail)) {
+    this.paypalEmail = encrypt(this.paypalEmail);
+  }
+  if (this.isModified('ibanNumber') && this.ibanNumber && !isEncrypted(this.ibanNumber)) {
+    this.ibanNumber = encrypt(this.ibanNumber);
+  }
+  next();
+});
 
 // Create geospatial index for location queries (e.g., finding nearby sitters)
 sitterSchema.index({ 'location': '2dsphere' });

@@ -6,6 +6,7 @@ const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const Sitter = require('../models/Sitter');
 const { validateIBAN, cleanIban } = require('../utils/ibanValidator');
+const { encrypt, decrypt } = require('../utils/encryption');
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.put('/iban', requireAuth, requireRole('sitter'), async (req, res) => {
       req.user.id,
       {
         ibanHolder: ibanHolder.trim(),
-        ibanNumber: normalizedIban,
+        ibanNumber: encrypt(normalizedIban),
         ibanBic: ibanBic?.trim() ?? '',
         ibanVerified: false, // Reset verification when IBAN changes
         payoutMethod: 'iban',
@@ -46,7 +47,7 @@ router.put('/iban', requireAuth, requireRole('sitter'), async (req, res) => {
       message: 'IBAN saved successfully. It will be verified before your first payout.',
       payoutMethod: 'iban',
       ibanHolder: sitter.ibanHolder,
-      // Return masked IBAN only
+      // Return masked IBAN only (derived from plaintext before encryption)
       ibanNumberMasked: normalizedIban.slice(0, 4) + '****' + normalizedIban.slice(-4),
       ibanVerified: sitter.ibanVerified,
     });
@@ -62,8 +63,9 @@ router.get('/iban', requireAuth, requireRole('sitter'), async (req, res) => {
       .select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod');
     if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
 
-    const masked = sitter.ibanNumber
-      ? sitter.ibanNumber.slice(0, 4) + '****' + sitter.ibanNumber.slice(-4)
+    const iban = decrypt(sitter.ibanNumber);
+    const masked = iban
+      ? iban.slice(0, 4) + '****' + iban.slice(-4)
       : '';
 
     res.json({
