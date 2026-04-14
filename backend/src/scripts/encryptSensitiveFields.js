@@ -61,16 +61,25 @@ const migrateOwners = async () => {
   console.log(`Owners updated: ${count}`);
 };
 
-(async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    await migrateSitters();
-    await migrateOwners();
-    console.log('Encryption migration done.');
-  } catch (e) {
-    console.error('migration failed:', e);
-    process.exitCode = 1;
-  } finally {
-    await mongoose.disconnect();
-  }
-})();
+// Sprint 6.5 step 5 — expose function for runAllMigrations.
+const encryptSensitiveFields = async () => {
+  await migrateSitters();
+  await migrateOwners();
+  console.log('[encryptSensitiveFields] done.');
+};
+
+module.exports = { encryptSensitiveFields };
+
+if (require.main === module) {
+  (async () => {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI);
+      await encryptSensitiveFields();
+    } catch (e) {
+      console.error('migration failed:', e);
+      process.exitCode = 1;
+    } finally {
+      await mongoose.disconnect();
+    }
+  })();
+}
