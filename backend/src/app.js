@@ -66,9 +66,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
 
-// Serve static files from public directory (for test HTML page)
-app.use(express.static('public'));
-
 // Stripe webhook route must use raw body (register before JSON middleware)
 app.use('/webhooks', stripeWebhookRoutes);
 
