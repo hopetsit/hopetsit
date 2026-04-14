@@ -9,6 +9,8 @@ import 'package:hopetsit/firebase_options.dart';
 import 'package:hopetsit/helper/dependency_injection.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/views/splash/splash_screen.dart';
+import 'package:hopetsit/routes/app_routes.dart';
+import 'package:hopetsit/routes/app_pages.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -104,7 +106,10 @@ class MyApp extends StatelessWidget {
                 child: child!,
               );
             },
-            home: const SplashScreen(),
+            // Sprint 8 step 1 — named-route registry. Legacy Get.to(() => Screen())
+            // calls remain functional; new code should use Get.toNamed(AppRoutes.xxx).
+            initialRoute: AppRoutes.splash,
+            getPages: AppPages.pages,
           ),
         );
       },
