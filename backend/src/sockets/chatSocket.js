@@ -4,7 +4,7 @@ const {
   assertAccessAndFetch,
 } = require('../services/conversationService');
 const { HttpError } = require('../utils/errors');
-const { emitToConversation } = require('./emitter');
+const { emitToConversation, userRoom } = require('./emitter');
 const { evaluateChatAccess } = require('../middleware/chatAccess');
 
 const assertChatPaid = async (conversation) => {
@@ -25,6 +25,17 @@ const asErrorPayload = (error) => ({
 });
 
 const registerChatHandlers = (io, socket) => {
+  // Sprint 4 step 4 — per-user room for targeted notifications.
+  socket.on('user:identify', (payload = {}, callback) => {
+    const { role, userId } = payload;
+    if (role && userId) {
+      socket.join(userRoom(role, userId));
+      socket.data = socket.data || {};
+      socket.data.userRoom = { role, userId };
+    }
+    if (callback) callback({ status: 'ok' });
+  });
+
   socket.on('conversation:join', async (payload = {}, callback) => {
     try {
       const { conversationId, role, userId } = payload;
@@ -32,6 +43,8 @@ const registerChatHandlers = (io, socket) => {
       await assertChatPaid(conversation);
 
       socket.join(conversationId);
+      // Also ensure we're in the per-user room for targeted notifications.
+      if (role && userId) socket.join(userRoom(role, userId));
       socket.data = socket.data || {};
       socket.data.conversationMetadata = socket.data.conversationMetadata || {};
       socket.data.conversationMetadata[conversationId] = { role, userId };

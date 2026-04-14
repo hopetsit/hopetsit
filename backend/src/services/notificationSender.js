@@ -7,6 +7,7 @@ const { sendEmail } = require('./emailService');
 const { render } = require('../utils/i18nTemplate');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { decrypt } = require('../utils/encryption');
+const { emitToUser } = require('../sockets/emitter');
 
 const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt'];
 const FALLBACK_LOCALE = 'en';
@@ -89,6 +90,11 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   const emailSubject = render(tmpl.emailSubject, data);
   const emailBody = render(tmpl.emailBody, data);
   const email = decrypt(user.email || '');
+
+  // Real-time socket push for in-app badges — best-effort, no await.
+  try {
+    emitToUser(role, userId, 'notification.new', { type, title, body, data });
+  } catch (_) { /* noop */ }
 
   const results = await Promise.allSettled([
     createNotificationSafe({
