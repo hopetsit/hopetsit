@@ -40,6 +40,8 @@ class ServiceProviderCard extends StatefulWidget {
   final String currencyCode;
   /// Sprint 5 UI step 4 — show a blue verified badge next to the name.
   final bool identityVerified;
+  /// Sprint 7 step 2 — show 🏆 Top badge next to the name.
+  final bool isTopSitter;
 
   const ServiceProviderCard({
     super.key,
@@ -66,6 +68,7 @@ class ServiceProviderCard extends StatefulWidget {
     this.booking,
     this.currencyCode = CurrencyHelper.eur,
     this.identityVerified = false,
+    this.isTopSitter = false,
   });
 
   @override
@@ -213,6 +216,14 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                       color: Colors.blue,
                                       size: 16.sp,
                                     ),
+                                  ),
+                                ],
+                                // Sprint 7 step 2 — Top Sitter badge.
+                                if (widget.isTopSitter) ...[
+                                  SizedBox(width: 4.w),
+                                  Tooltip(
+                                    message: 'top_sitter_badge'.tr,
+                                    child: Text('🏆', style: TextStyle(fontSize: 14.sp)),
                                   ),
                                 ],
                               ],

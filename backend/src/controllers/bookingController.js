@@ -1284,6 +1284,8 @@ const createBookingPaymentIntent = async (req, res) => {
       ownerId: booking.ownerId._id.toString(),
       sitterId: booking.sitterId._id.toString(),
       currency: bookingCurrency.toLowerCase(),
+      // Sprint 7 step 2 — Top Sitters pay reduced commission (15%).
+      isTopSitter: sitter.isTopSitter === true,
     });
 
     // Save PaymentIntent ID and connected account ID to booking

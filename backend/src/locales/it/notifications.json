@@ -40,5 +40,11 @@
     "body": "Hai completato {{count}} prenotazioni. Goditi i vantaggi esclusivi.",
     "emailSubject": "Stato Premium sbloccato — HopeTSIT",
     "emailBody": "<p>Congratulazioni! Sei ora <strong>membro Premium</strong>. Goditi l'accesso prioritario ai migliori sitter.</p>"
+  },
+  "TOP_SITTER_ACHIEVED": {
+    "title": "Sei Top Sitter! 🏆",
+    "body": "{{count}} servizi · voto medio {{avgRating}}/5. Commissione ridotta al 15%.",
+    "emailSubject": "Stato Top Sitter sbloccato — HopeTSIT",
+    "emailBody": "<p>Congratulazioni! Sei ora <strong>Top Sitter</strong>. La nostra commissione scende dal 20% al <strong>15%</strong> sulle prossime prenotazioni.</p>"
   }
 }

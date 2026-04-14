@@ -31,6 +31,11 @@ class SitterModel {
   /// Sprint 5 step 7 — identity verification flag exposed publicly.
   final bool identityVerified;
 
+  /// Sprint 7 step 2 — Top Sitter program.
+  final bool isTopSitter;
+  final int completedServicesCount;
+  final double averageRating;
+
   /// Currency code for hourly rate (e.g. USD, EUR). Defaults to EUR.
   final String currency;
   final String createdAt;
@@ -85,6 +90,9 @@ class SitterModel {
     this.availableDates = const <DateTime>[],
     this.unavailableDates = const <DateTime>[],
     this.identityVerified = false,
+    this.isTopSitter = false,
+    this.completedServicesCount = 0,
+    this.averageRating = 0.0,
     this.currency = 'EUR',
     required this.createdAt,
     required this.updatedAt,
@@ -163,6 +171,9 @@ class SitterModel {
           .whereType<DateTime>()
           .toList(),
       identityVerified: json['identityVerified'] == true,
+      isTopSitter: json['isTopSitter'] == true,
+      completedServicesCount: (json['completedServicesCount'] as num?)?.toInt() ?? 0,
+      averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       currency: _parseCurrency(json['currency'] ?? json['hourlyRateCurrency']),
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',

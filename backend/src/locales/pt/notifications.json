@@ -40,5 +40,11 @@
     "body": "Completou {{count}} reservas. Desfrute de vantagens exclusivas.",
     "emailSubject": "Estatuto Premium desbloqueado — HopeTSIT",
     "emailBody": "<p>Parabéns! É agora <strong>membro Premium</strong>. Desfrute de acesso prioritário aos melhores cuidadores.</p>"
+  },
+  "TOP_SITTER_ACHIEVED": {
+    "title": "É Top Cuidador! 🏆",
+    "body": "{{count}} serviços · classificação média {{avgRating}}/5. Comissão reduzida para 15%.",
+    "emailSubject": "Estatuto Top Cuidador desbloqueado — HopeTSIT",
+    "emailBody": "<p>Parabéns! É agora <strong>Top Cuidador</strong>. A nossa comissão passa de 20% para <strong>15%</strong> nas próximas reservas.</p>"
   }
 }

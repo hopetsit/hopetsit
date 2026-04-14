@@ -40,5 +40,11 @@
     "body": "Du hast {{count}} Buchungen abgeschlossen. Genieße exklusive Vorteile.",
     "emailSubject": "Premium-Status freigeschaltet — HopeTSIT",
     "emailBody": "<p>Glückwunsch! Du bist jetzt <strong>Premium-Mitglied</strong>. Genieße bevorzugten Zugang zu den besten Sittern.</p>"
+  },
+  "TOP_SITTER_ACHIEVED": {
+    "title": "Du bist Top-Sitter! 🏆",
+    "body": "{{count}} abgeschlossene Services · Ø Bewertung {{avgRating}}/5. Provision auf 15% reduziert.",
+    "emailSubject": "Top-Sitter-Status freigeschaltet — HopeTSIT",
+    "emailBody": "<p>Glückwunsch! Du bist jetzt <strong>Top-Sitter</strong>. Unsere Plattform-Provision wird von 20% auf <strong>15%</strong> reduziert.</p>"
   }
 }

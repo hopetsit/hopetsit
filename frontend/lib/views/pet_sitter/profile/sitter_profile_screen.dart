@@ -15,6 +15,7 @@ import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
+import 'package:hopetsit/widgets/top_sitter_card.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
@@ -320,6 +321,8 @@ class SitterProfileScreen extends StatelessWidget {
         //   Icons.arrow_forward_ios,
         //   controller.navigateToAddCard,
         // ),
+        // Sprint 7 step 2 — Top Sitter progress card.
+        const TopSitterCard(),
         _buildStripeConnectTile(controller),
         _buildSettingsTile(
           'payout_status_screen_title'.tr,

@@ -1,5 +1,7 @@
 const Booking = require('../models/Booking');
 const Owner = require('../models/Owner');
+const Sitter = require('../models/Sitter');
+const Review = require('../models/Review');
 const OwnerCredit = require('../models/OwnerCredit');
 const { sendNotification } = require('./notificationSender');
 
@@ -28,6 +30,11 @@ const getOwnerStats = async (ownerId) => {
 const onBookingCompleted = async (booking) => {
   const ownerId = booking.ownerId;
   if (!ownerId) return;
+
+  // Sprint 7 step 2 — also recompute sitter Top status.
+  if (booking.sitterId) {
+    recomputeSitterStatus(booking.sitterId).catch(() => {});
+  }
 
   const count = await Booking.countDocuments({ ownerId, status: 'completed' });
 
@@ -77,4 +84,43 @@ const consumeLoyaltyDiscount = async (ownerId, bookingId) => {
   };
 };
 
-module.exports = { getOwnerStats, onBookingCompleted, consumeLoyaltyDiscount };
+/**
+ * Recompute Sitter.isTopSitter + completedServicesCount + averageRating.
+ * Fires TOP_SITTER_ACHIEVED when the sitter crosses the threshold.
+ */
+const recomputeSitterStatus = async (sitterId) => {
+  if (!sitterId) return null;
+  const [count, agg] = await Promise.all([
+    Booking.countDocuments({ sitterId, status: 'completed' }),
+    Review.aggregate([
+      { $match: { revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(sitterId)) } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } },
+    ]).catch(() => []),
+  ]);
+  const avgRating = (agg && agg[0]?.avg) ? Number(agg[0].avg.toFixed(2)) : 0;
+  const shouldBeTop = count >= 20 && avgRating > 4.5;
+  const sitter = await Sitter.findById(sitterId).select('isTopSitter').lean();
+  if (!sitter) return null;
+  const wasTop = sitter.isTopSitter === true;
+  await Sitter.updateOne(
+    { _id: sitterId },
+    {
+      $set: {
+        isTopSitter: shouldBeTop,
+        completedServicesCount: count,
+        averageRating: avgRating,
+      },
+    }
+  );
+  if (!wasTop && shouldBeTop) {
+    sendNotification({
+      userId: String(sitterId),
+      role: 'sitter',
+      type: 'TOP_SITTER_ACHIEVED',
+      data: { count, avgRating },
+    }).catch(() => {});
+  }
+  return { count, avgRating, isTopSitter: shouldBeTop };
+};
+
+module.exports = { getOwnerStats, onBookingCompleted, consumeLoyaltyDiscount, recomputeSitterStatus };

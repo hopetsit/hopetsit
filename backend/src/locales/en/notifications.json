@@ -40,5 +40,11 @@
     "body": "You have completed {{count}} bookings. Enjoy exclusive benefits.",
     "emailSubject": "Premium membership unlocked — HopeTSIT",
     "emailBody": "<p>Congratulations! You are now a <strong>Premium member</strong>. Enjoy priority access to top pet sitters.</p>"
+  },
+  "TOP_SITTER_ACHIEVED": {
+    "title": "You are a Top Petsitter! 🏆",
+    "body": "{{count}} completed services · average rating {{avgRating}}/5. Commission reduced to 15%.",
+    "emailSubject": "Top Petsitter status unlocked — HopeTSIT",
+    "emailBody": "<p>Congratulations! You are now a <strong>Top Petsitter</strong>. Our platform commission is reduced from 20% to <strong>15%</strong> on your future bookings.</p>"
   }
 }

@@ -427,6 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return ServiceProviderCard(
                       name: sitter.name,
                       identityVerified: sitter.identityVerified,
+                      isTopSitter: sitter.isTopSitter,
                       phoneNumber: sitter.mobile,
                       email: sitter.email,
                       status: 'status_available'.tr,

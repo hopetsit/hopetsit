@@ -30,6 +30,7 @@ const createPaymentIntent = async ({
   bookingId,
   ownerId,
   sitterId,
+  isTopSitter = false,
 }) => {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY is not configured');
@@ -43,8 +44,9 @@ const createPaymentIntent = async ({
     throw new Error('Currency is required for PaymentIntent');
   }
 
-  // Calculate commission (20% of total)
-  const applicationFeeAmount = Math.round(amount * PLATFORM_COMMISSION_RATE);
+  // Sprint 7 step 2 — Top Sitters pay reduced commission (15% instead of 20%).
+  const commissionRate = isTopSitter ? 0.15 : PLATFORM_COMMISSION_RATE;
+  const applicationFeeAmount = Math.round(amount * commissionRate);
 
   // Create PaymentIntent with destination charge
   const paymentIntent = await stripe.paymentIntents.create({

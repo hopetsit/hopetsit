@@ -5,6 +5,7 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const { sanitizeDoc, sanitizeReview } = require('../utils/sanitize');
 const { sendNotification } = require('../services/notificationSender');
+const { recomputeSitterStatus } = require('../services/loyaltyService');
 
 const ROLE_TO_MODEL = {
   owner: 'Owner',
@@ -79,6 +80,11 @@ const createReview = async (req, res) => {
       reviewee.rating = Number(newAverage.toFixed(2));
       reviewee.reviewsCount = newReviewsCount;
       await reviewee.save();
+    }
+
+    // Sprint 7 step 2 — recompute Top Sitter status if the reviewee is a sitter.
+    if (revieweeRole === 'sitter') {
+      recomputeSitterStatus(revieweeId).catch(() => {});
     }
 
     // Sprint 4 step 3 — NEW_REVIEW to reviewee
