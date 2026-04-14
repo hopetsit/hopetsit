@@ -28,5 +28,11 @@
     "body": "Deine Zahlung von {{amount}} {{currency}} konnte nicht verarbeitet werden. Bitte versuche es erneut.",
     "emailSubject": "Zahlung fehlgeschlagen — HopeTSIT",
     "emailBody": "<p>Deine Zahlung von <strong>{{amount}} {{currency}}</strong> konnte nicht verarbeitet werden. Öffne die App, um es erneut zu versuchen.</p>"
+  },
+  "VISIT_REPORT": {
+    "title": "Neuer Besuchsbericht",
+    "body": "Dein Sitter hat {{photoCount}} Fotos geteilt. Stimmung: {{mood}}.",
+    "emailSubject": "Neuer Besuchsbericht — HopeTSIT",
+    "emailBody": "<p>Dein Sitter hat einen Besuchsbericht mit <strong>{{photoCount}}</strong> Fotos gesendet. Stimmung: <em>{{mood}}</em>. Öffne die App zur Ansicht.</p>"
   }
 }

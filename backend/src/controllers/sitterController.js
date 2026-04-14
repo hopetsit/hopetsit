@@ -1055,13 +1055,13 @@ const submitIdentityVerification = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Identity document file is required.' });
     const dataUri = bufferToDataUri(req.file);
-    const upload = await uploadMedia(dataUri, { folder: 'identity_verification' });
+    const upload = await uploadMedia({ file: dataUri, folder: 'identity_verification' });
     const sitter = await Sitter.findByIdAndUpdate(
       req.user.id,
       {
         identityVerification: {
           status: 'pending',
-          documentUrl: encrypt(upload.secure_url || upload.url),
+          documentUrl: encrypt(upload.url),
           submittedAt: new Date(),
           reviewedAt: null,
           rejectionReason: '',

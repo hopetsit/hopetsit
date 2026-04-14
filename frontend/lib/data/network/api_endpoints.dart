@@ -129,4 +129,7 @@ class ApiEndpoints {
   static const String walksEnd = '/walks'; // + /$id/end
   static const String walksPosition = '/walks'; // + /$id/position
   static const String walksActive = '/walks/active';
+
+  /// Sprint 6 step 3 — visit report (base: /bookings/{id}/visit-report)
+  static const String bookingsBase = '/bookings';
 }

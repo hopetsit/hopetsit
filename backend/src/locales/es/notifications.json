@@ -28,5 +28,11 @@
     "body": "Tu pago de {{amount}} {{currency}} no pudo procesarse. Inténtalo de nuevo.",
     "emailSubject": "Pago fallido — HopeTSIT",
     "emailBody": "<p>Tu pago de <strong>{{amount}} {{currency}}</strong> no pudo procesarse. Abre la app para intentarlo de nuevo.</p>"
+  },
+  "VISIT_REPORT": {
+    "title": "Nuevo informe de visita",
+    "body": "Tu cuidador compartió {{photoCount}} fotos. Estado: {{mood}}.",
+    "emailSubject": "Nuevo informe de visita — HopeTSIT",
+    "emailBody": "<p>Tu cuidador ha enviado un informe de visita con <strong>{{photoCount}}</strong> fotos. Estado: <em>{{mood}}</em>. Abre la app para verlo.</p>"
   }
 }

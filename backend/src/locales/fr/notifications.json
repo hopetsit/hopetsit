@@ -28,5 +28,11 @@
     "body": "Votre paiement de {{amount}} {{currency}} n'a pas pu être traité. Veuillez réessayer.",
     "emailSubject": "Échec du paiement — HopeTSIT",
     "emailBody": "<p>Votre paiement de <strong>{{amount}} {{currency}}</strong> n'a pas pu être traité. Ouvrez l'application pour réessayer.</p>"
+  },
+  "VISIT_REPORT": {
+    "title": "Nouveau rapport de visite",
+    "body": "Votre petsitter a partagé {{photoCount}} photos. Humeur : {{mood}}.",
+    "emailSubject": "Nouveau rapport de visite — HopeTSIT",
+    "emailBody": "<p>Votre petsitter a envoyé un rapport de visite avec <strong>{{photoCount}}</strong> photos. Humeur : <em>{{mood}}</em>. Ouvrez l'application pour le consulter.</p>"
   }
 }

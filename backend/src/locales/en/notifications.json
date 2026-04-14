@@ -28,5 +28,11 @@
     "body": "Your payment of {{amount}} {{currency}} could not be processed. Please try again.",
     "emailSubject": "Payment failed — HopeTSIT",
     "emailBody": "<p>Your payment of <strong>{{amount}} {{currency}}</strong> could not be processed. Please open the app and try again.</p>"
+  },
+  "VISIT_REPORT": {
+    "title": "New visit report",
+    "body": "Your sitter shared {{photoCount}} photos. Mood: {{mood}}.",
+    "emailSubject": "New visit report — HopeTSIT",
+    "emailBody": "<p>Your sitter submitted a new visit report with <strong>{{photoCount}}</strong> photos. Mood: <em>{{mood}}</em>. Open the app to view details.</p>"
   }
 }

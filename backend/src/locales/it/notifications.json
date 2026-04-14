@@ -28,5 +28,11 @@
     "body": "Il tuo pagamento di {{amount}} {{currency}} non è andato a buon fine. Riprova.",
     "emailSubject": "Pagamento fallito — HopeTSIT",
     "emailBody": "<p>Il tuo pagamento di <strong>{{amount}} {{currency}}</strong> non è andato a buon fine. Apri l'app per riprovare.</p>"
+  },
+  "VISIT_REPORT": {
+    "title": "Nuovo rapporto di visita",
+    "body": "Il tuo sitter ha condiviso {{photoCount}} foto. Umore: {{mood}}.",
+    "emailSubject": "Nuovo rapporto di visita — HopeTSIT",
+    "emailBody": "<p>Il tuo sitter ha inviato un rapporto di visita con <strong>{{photoCount}}</strong> foto. Umore: <em>{{mood}}</em>. Apri l'app per consultarlo.</p>"
   }
 }
