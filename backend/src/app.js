@@ -98,25 +98,59 @@ app.use(
   })
 );
 
-app.use('/health', healthRoutes);
-app.use('/auth', authLimiter, authRoutes);
-app.use('/users', userRoutes);
-app.use('/pets', petRoutes);
-app.use('/sitters', sitterRoutes);
-app.use('/bookings', sensitiveLimiter, bookingRoutes);
-app.use('/posts', postRoutes);
-app.use('/applications', applicationRoutes);
-app.use('/conversations', conversationRoutes);
-app.use('/tasks', taskRoutes);
-app.use('/blocks', blockRoutes);
-app.use('/reviews', reviewRoutes);
-app.use('/uploads', uploadRoutes);
-app.use('/pricing', pricingRoutes);
-app.use('/stripe-connect', sensitiveLimiter, stripeConnectRoutes);
-app.use('/admin', adminRoutes);
-app.use('/sitter', ibanRoutes);
-app.use('/notifications', notificationRoutes);
-app.use('/walks', walkRoutes);
+// Sprint 8 step 9 — API versioning. All routes are mounted under /api/v1
+// AND also aliased at the root for 6-month backwards compatibility. The
+// alias logs a deprecation warning; Stripe webhooks stay at /webhooks because
+// Stripe configures them by absolute URL and moving them would break
+// existing registrations.
+const versionedRoutes = [
+  { path: '/health', mw: [], router: healthRoutes },
+  { path: '/auth', mw: [authLimiter], router: authRoutes },
+  { path: '/users', mw: [], router: userRoutes },
+  { path: '/pets', mw: [], router: petRoutes },
+  { path: '/sitters', mw: [], router: sitterRoutes },
+  { path: '/bookings', mw: [sensitiveLimiter], router: bookingRoutes },
+  { path: '/posts', mw: [], router: postRoutes },
+  { path: '/applications', mw: [], router: applicationRoutes },
+  { path: '/conversations', mw: [], router: conversationRoutes },
+  { path: '/tasks', mw: [], router: taskRoutes },
+  { path: '/blocks', mw: [], router: blockRoutes },
+  { path: '/reviews', mw: [], router: reviewRoutes },
+  { path: '/uploads', mw: [], router: uploadRoutes },
+  { path: '/pricing', mw: [], router: pricingRoutes },
+  { path: '/stripe-connect', mw: [sensitiveLimiter], router: stripeConnectRoutes },
+  { path: '/admin', mw: [], router: adminRoutes },
+  { path: '/sitter', mw: [], router: ibanRoutes },
+  { path: '/notifications', mw: [], router: notificationRoutes },
+  { path: '/walks', mw: [], router: walkRoutes },
+];
+
+// Log deprecation warning for unversioned callers.
+const deprecatedRootWarner = (req, res, next) => {
+  logger.warn(
+    { path: req.originalUrl },
+    'Deprecated unversioned API path — migrate callers to /api/v1/*'
+  );
+  next();
+};
+
+for (const r of versionedRoutes) {
+  // Primary mount under /api/v1 (canonical).
+  app.use(`/api/v1${r.path}`, ...r.mw, r.router);
+  // Backwards-compat mount at the root (WITHOUT the version prefix).
+  app.use(r.path, deprecatedRootWarner, ...r.mw, r.router);
+}
+
+// Swagger UI also exposed at the versioned path.
+app.use(
+  '/api/v1/docs',
+  swaggerGuard,
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'HopeTSIT API v1 Documentation',
+  })
+);
 
 // Sprint 8 step 6 — global Express error handler: report to Sentry then
 // fall back to a generic 500 so clients never see a stack trace.

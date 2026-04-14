@@ -34,7 +34,8 @@ class SocketService {
       }
 
       // Get socket URL from API config
-      final socketUrl = ApiConfig.baseUrl;
+      // Sprint 8 step 9 — Socket.IO mounts at the backend root, not under /api/v1.
+      final socketUrl = ApiConfig.rootUrl;
 
       AppLogger.logInfo('Connecting to socket: $socketUrl');
 
