@@ -27,7 +27,7 @@ class ProfileScreen extends StatelessWidget {
         userName: '',
         userImage: '',
       ),
-      backgroundColor: AppColors.whiteColor,
+      // Sprint 6 step 4 — theme-driven bg
       body: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.fromLTRB(

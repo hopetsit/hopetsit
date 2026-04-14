@@ -516,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        backgroundColor: AppColors.lightGrey,
+        // Sprint 6 step 4 — theme-driven bg
         body: SafeArea(
           child: Column(
             children: [

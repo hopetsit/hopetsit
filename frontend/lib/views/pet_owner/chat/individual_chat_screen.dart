@@ -142,9 +142,8 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      // Sprint 6 step 4 — theme-driven bg
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
