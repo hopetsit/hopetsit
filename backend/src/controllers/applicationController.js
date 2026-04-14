@@ -1,0 +1,621 @@
+const Application = require('../models/Application');
+const Owner = require('../models/Owner');
+const Sitter = require('../models/Sitter');
+const Booking = require('../models/Booking');
+const Pet = require('../models/Pet');
+const Conversation = require('../models/Conversation');
+const {
+  sanitizeApplication,
+  sanitizeConversation,
+  sanitizeBooking,
+} = require('../utils/sanitize');
+const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
+const { calculateTotalWithAddOns, SERVICE_TYPES, LOCATION_TYPES } = require('../utils/pricing');
+const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
+const { normalizeServiceType } = require('../utils/bookingAgreementFields');
+const { createNotificationSafe } = require('../services/notificationService');
+const {
+  buildRequestFingerprint,
+  normalizeText,
+  normalizeDate,
+  normalizeNumber,
+  normalizePetIds,
+  normalizeAddOns,
+} = require('../utils/requestFingerprint');
+const { calculateTierBasePrice } = require('../utils/tierPricing');
+
+const cancelApplication = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sitterId } = req.body || {};
+
+    if (!sitterId) {
+      return res.status(400).json({ error: 'sitterId is required to cancel an application.' });
+    }
+
+    const application = await Application.findById(id);
+
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found.' });
+    }
+
+    if (application.sitterId.toString() !== sitterId) {
+      return res.status(403).json({ error: 'You are not allowed to cancel this application.' });
+    }
+
+    if (application.status !== 'pending') {
+      return res.status(409).json({ error: `Cannot cancel an application that is ${application.status}.` });
+    }
+
+    await Application.deleteOne({ _id: application._id });
+
+    return res.json({ message: 'Application cancelled.' });
+  } catch (error) {
+    console.error('Cancel application error', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid application id.' });
+    }
+    return res.status(500).json({ error: 'Unable to cancel application. Please try again later.' });
+  }
+};
+
+/**
+ * Sitter cancels a sent application request (token-based, no body required).
+ */
+const cancelSitterSentApplicationRequest = async (req, res) => {
+  try {
+    const sitterId = req.user?.id;
+    const { id } = req.params;
+
+    if (!sitterId) {
+      return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
+    }
+
+    const application = await Application.findById(id).populate('ownerId').populate('sitterId');
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found.' });
+    }
+
+    const appSitterId = application.sitterId?._id
+      ? application.sitterId._id.toString()
+      : application.sitterId.toString();
+    if (appSitterId !== sitterId) {
+      return res.status(403).json({ error: 'You can only cancel your own sent requests.' });
+    }
+
+    if (application.status !== 'pending') {
+      return res.status(409).json({ error: `Cannot cancel an application that is ${application.status}.` });
+    }
+
+    await Application.deleteOne({ _id: application._id });
+
+    return res.json({ message: 'Sent request cancelled successfully.', applicationId: id });
+  } catch (error) {
+    console.error('Cancel sitter sent application request error', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid application id.' });
+    }
+    return res.status(500).json({ error: 'Unable to cancel sent request. Please try again later.' });
+  }
+};
+
+const createApplication = async (req, res) => {
+  try {
+    const sitterId = req.user?.id;
+    const { ownerId: ownerIdQuery } = req.query || {};
+    const body = req.body || {};
+    const {
+      petName,
+      description,
+      serviceDate,
+      startDate,
+      endDate,
+      houseSittingVenue,
+      timeSlot,
+      petIds,
+      petId,
+      duration,
+      addOns = [],
+      locationType,
+    } = body;
+
+    const ORDERED_SERVICE_TYPES = ['home_visit', 'dog_walking', 'overnight_stay', 'long_stay'];
+    let serviceType =
+      body.serviceType ??
+      body.service_type ??
+      body.type ??
+      null;
+    if (
+      (serviceType === undefined || serviceType === null || serviceType === '') &&
+      body.serviceTypeIndex !== undefined &&
+      body.serviceTypeIndex !== null
+    ) {
+      const idx = Number(body.serviceTypeIndex);
+      if (Number.isInteger(idx) && idx >= 0 && idx < ORDERED_SERVICE_TYPES.length) {
+        serviceType = ORDERED_SERVICE_TYPES[idx];
+      }
+    }
+    if (typeof serviceType === 'number' && Number.isInteger(serviceType)) {
+      if (serviceType >= 0 && serviceType < ORDERED_SERVICE_TYPES.length) {
+        serviceType = ORDERED_SERVICE_TYPES[serviceType];
+      }
+    }
+
+    if (!sitterId) {
+      return res.status(403).json({ error: 'Sitter context missing.' });
+    }
+
+    const ownerId = typeof ownerIdQuery === 'string' ? ownerIdQuery.trim() : '';
+
+    if (!ownerId) {
+      return res.status(400).json({ error: 'ownerId query parameter is required.' });
+    }
+
+    const trimmedPetName = typeof petName === 'string' ? petName.trim() : '';
+    const trimmedDescription = typeof description === 'string' ? description.trim() : '';
+    const trimmedTimeSlot = typeof timeSlot === 'string' ? timeSlot.trim() : '';
+
+    const owner = await Owner.findById(ownerId);
+    if (!owner) {
+      return res.status(404).json({ error: 'Owner not found.' });
+    }
+
+    const sitter = await Sitter.findById(sitterId);
+    if (!sitter) {
+      return res.status(404).json({ error: 'Sitter not found.' });
+    }
+
+    // Ensure sitter has configured an hourly rate before sending applications
+    if (!sitter.hourlyRate || sitter.hourlyRate <= 0) {
+      return res.status(400).json({
+        error: 'You must set your hourly rate before sending requests to owners.',
+        details: 'Update your profile with a non-zero hourly rate and try again.',
+      });
+    }
+
+    const isBlocked = await isOwnerSitterInteractionBlocked(ownerId, sitterId);
+    if (isBlocked) {
+      return res.status(403).json({ error: 'You cannot send requests to this owner.' });
+    }
+
+    // Parse and validate pet IDs. Supports legacy petId and new petIds array.
+    const mongoose = require('mongoose');
+    const incomingPetIds = Array.isArray(petIds) && petIds.length > 0
+      ? petIds
+      : petId
+        ? [petId]
+        : [];
+
+    if (incomingPetIds.length === 0) {
+      return res.status(400).json({ error: 'petIds (or petId) is required.' });
+    }
+
+    const validatedPetIds = [];
+    for (const rawPetId of incomingPetIds) {
+      if (!mongoose.Types.ObjectId.isValid(rawPetId)) {
+        return res.status(400).json({ error: `Invalid petId format: ${rawPetId}` });
+      }
+      const pet = await Pet.findOne({ _id: rawPetId, ownerId });
+      if (!pet) {
+        return res.status(404).json({ error: `Pet ${rawPetId} not found for this owner.` });
+      }
+      validatedPetIds.push(pet._id);
+    }
+    const uniquePetIds = [...new Set(validatedPetIds.map((id) => id.toString()))]
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    // Relaxed serviceType handling: accept any value from client.
+    const normalizedForInternalChecks = normalizeServiceType(serviceType);
+    const normalizedHouseSittingVenue =
+      typeof houseSittingVenue === 'string' ? houseSittingVenue.trim().toLowerCase() : '';
+    const isHouseSittingType =
+      typeof serviceType === 'string' &&
+      ['house_sitting', 'house sitting'].includes(serviceType.trim().toLowerCase());
+    if (isHouseSittingType) {
+      if (!['owners_home', 'sitters_home'].includes(normalizedHouseSittingVenue)) {
+        return res.status(400).json({
+          error: 'houseSittingVenue is required for house_sitting and must be owners_home or sitters_home.',
+        });
+      }
+    } else if (houseSittingVenue != null && normalizedHouseSittingVenue && !['owners_home', 'sitters_home'].includes(normalizedHouseSittingVenue)) {
+      return res.status(400).json({
+        error: 'houseSittingVenue must be owners_home or sitters_home when provided.',
+      });
+    }
+
+    const normalizedTimeSlot = typeof timeSlot === 'string' ? timeSlot.trim() : '';
+    if (!normalizedTimeSlot) {
+      return res.status(400).json({ error: 'timeSlot is required.' });
+    }
+
+    if (!serviceDate) {
+      return res.status(400).json({ error: 'serviceDate is required.' });
+    }
+
+    const validLocationType = locationType === LOCATION_TYPES.LARGE_CITY
+      ? LOCATION_TYPES.LARGE_CITY
+      : LOCATION_TYPES.STANDARD;
+
+    let durationNum = null;
+    if (normalizedForInternalChecks === SERVICE_TYPES.DOG_WALKING) {
+      const parsedDuration = Number(duration);
+      if (![30, 60].includes(parsedDuration)) {
+        return res.status(400).json({ error: 'duration is required for dog_walking. Valid values: 30 or 60.' });
+      }
+      durationNum = parsedDuration;
+    }
+
+    const bookingCurrency = assertSupportedCurrency(
+      owner.currency || DEFAULT_CURRENCY,
+      'Owner currency must be USD or EUR.'
+    );
+
+    const normalizedAddOns = Array.isArray(addOns)
+      ? addOns.map((addOn) => ({
+          type: typeof addOn?.type === 'string' ? addOn.type.trim() : '',
+          description: typeof addOn?.description === 'string' ? addOn.description.trim() : '',
+          amount: Number.isFinite(Number(addOn?.amount)) && Number(addOn.amount) >= 0 ? Number(addOn.amount) : 0,
+        }))
+      : [];
+
+    const parsedDate =
+      serviceDate && typeof serviceDate === 'string'
+        ? new Date(serviceDate)
+        : serviceDate instanceof Date
+          ? serviceDate
+          : null;
+    const parsedStartDate =
+      startDate && typeof startDate === 'string'
+        ? new Date(startDate)
+        : startDate instanceof Date
+          ? startDate
+          : null;
+    const parsedEndDate =
+      endDate && typeof endDate === 'string'
+        ? new Date(endDate)
+        : endDate instanceof Date
+          ? endDate
+          : null;
+
+    const tierPricing = calculateTierBasePrice({
+      hourlyRate: sitter.hourlyRate,
+      weeklyRate: sitter.weeklyRate,
+      monthlyRate: sitter.monthlyRate,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+      serviceDate: parsedDate || serviceDate,
+      durationMinutes: durationNum || duration,
+    });
+    const pricingBreakdown = calculateTotalWithAddOns(tierPricing.basePrice, normalizedAddOns, bookingCurrency);
+
+    const requestFingerprint = buildRequestFingerprint({
+      ownerId,
+      sitterId,
+      petIds: normalizePetIds(uniquePetIds),
+      serviceDate: normalizeDate(parsedDate || serviceDate),
+      startDate: normalizeDate(parsedStartDate || startDate),
+      endDate: normalizeDate(parsedEndDate || endDate),
+      timeSlot: normalizeText(trimmedTimeSlot),
+      serviceType: serviceType == null ? null : String(serviceType),
+      houseSittingVenue: normalizedHouseSittingVenue || null,
+      duration: normalizeNumber(durationNum ?? duration),
+      basePrice: normalizeNumber(tierPricing.basePrice),
+      locationType: normalizeText(validLocationType),
+      addOns: normalizeAddOns(normalizedAddOns),
+      description: normalizeText(trimmedDescription),
+    });
+
+    // Strong dedupe: a sitter should never be able to flood an owner with
+    // duplicate requests. We block BOTH exact fingerprint matches AND any
+    // pending request from the same sitter -> owner for overlapping pets.
+    // IMPORTANT: when a duplicate is detected we return the existing
+    // application WITHOUT creating a new notification (no push, no badge).
+    const dedupeOr = [{ requestFingerprint }];
+    if (Array.isArray(uniquePetIds) && uniquePetIds.length > 0) {
+      dedupeOr.push({ petIds: { $all: uniquePetIds } });
+    }
+
+    const duplicatePending = await Application.findOne({
+      ownerId,
+      sitterId,
+      status: 'pending',
+      $or: dedupeOr,
+    })
+      .sort({ createdAt: -1 })
+      .populate('ownerId')
+      .populate('sitterId');
+
+    if (duplicatePending) {
+      return res.status(200).json({
+        application: sanitizeApplication(duplicatePending),
+        duplicatePrevented: true,
+        message: 'A pending request already exists for this sitter and pet(s). No new notification was sent.',
+      });
+    }
+
+    const application = await Application.create({
+      sitterId,
+      ownerId,
+      petName: trimmedPetName,
+      petIds: uniquePetIds,
+      description: trimmedDescription,
+      serviceDate: parsedDate,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+      timeSlot: trimmedTimeSlot,
+      postBody: trimmedDescription,
+      serviceType,
+      houseSittingVenue: normalizedHouseSittingVenue || null,
+      requestFingerprint,
+      duration: durationNum,
+      locationType: validLocationType,
+      pricing: {
+        basePrice: pricingBreakdown.basePrice,
+        pricingTier: tierPricing.pricingTier,
+        appliedRate: tierPricing.appliedRate,
+        totalHours: tierPricing.totalHours,
+        totalDays: tierPricing.totalDays,
+        addOns: pricingBreakdown.addOns || [],
+        addOnsTotal: pricingBreakdown.addOnsTotal || 0,
+        totalPrice: pricingBreakdown.totalPrice,
+        commission: pricingBreakdown.commission,
+        netPayout: pricingBreakdown.netPayout,
+        commissionRate: pricingBreakdown.commissionRate,
+        currency: pricingBreakdown.currency,
+      },
+    });
+    await application.populate(['ownerId', 'sitterId']);
+
+    await createNotificationSafe({
+      recipientRole: 'owner',
+      recipientId: ownerId,
+      actorRole: 'sitter',
+      actorId: sitterId,
+      type: 'application_new',
+      title: 'New request',
+      body: trimmedDescription || 'A sitter sent you a request.',
+      data: {
+        applicationId: application._id.toString(),
+        sitterId: sitterId.toString(),
+      },
+    });
+
+    res.status(201).json({ application: sanitizeApplication(application) });
+  } catch (error) {
+    console.error('Create application error', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid sitter or owner id.' });
+    }
+    if (error.message && (error.message.includes('hourlyRate') || error.message.includes('required for pricing'))) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Unable to send application. Please try again later.' });
+  }
+};
+
+const listApplications = async (req, res) => {
+  try {
+    // Check if this is a "my" endpoint request (user authenticated)
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    
+    const { ownerId, sitterId, status } = req.query;
+    const filter = {};
+    
+    // If user is authenticated (from /my endpoint), filter by their role
+    if (userId && userRole) {
+      if (userRole === 'owner') {
+        filter.ownerId = userId;
+      } else if (userRole === 'sitter') {
+        filter.sitterId = userId;
+      }
+    } else {
+      // For regular /applications endpoint, require ownerId or sitterId
+      if (!ownerId && !sitterId) {
+        return res.status(400).json({ error: 'ownerId or sitterId is required.' });
+      }
+      if (ownerId) {
+        filter.ownerId = ownerId;
+      }
+      if (sitterId) {
+        filter.sitterId = sitterId;
+      }
+    }
+    
+    if (status) {
+      filter.status = status;
+    }
+
+    const applications = await Application.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('bookingId');
+
+    res.json({ applications: applications.map(sanitizeApplication) });
+  } catch (error) {
+    console.error('Fetch applications error', error);
+    res.status(500).json({ error: 'Unable to fetch applications. Please try again later.' });
+  }
+};
+
+const respondToApplication = async (req, res) => {
+  try {
+    const ownerId = req.user?.id;
+    const { id } = req.params;
+    const { action } = req.body || {};
+
+    if (!ownerId) {
+      return res.status(403).json({ error: 'Owner context missing.' });
+    }
+
+    const normalizedAction = typeof action === 'string' ? action.toLowerCase().trim() : '';
+
+    if (!['accept', 'reject'].includes(normalizedAction)) {
+      return res.status(400).json({ error: 'Invalid action. Expected "accept" or "reject".' });
+    }
+
+    const application = await Application.findById(id).populate('ownerId').populate('sitterId');
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found.' });
+    }
+
+    if (application.ownerId._id.toString() !== ownerId) {
+      return res.status(403).json({ error: 'You do not have permission to update this application.' });
+    }
+
+    if (application.status !== 'pending') {
+      return res.status(409).json({ error: `Application already ${application.status}.` });
+    }
+
+    if (normalizedAction === 'accept') {
+      application.status = 'accepted';
+
+      // Move accepted application into booking flow so owner can pay.
+      let booking = null;
+      if (application.bookingId) {
+        booking = await Booking.findById(application.bookingId)
+          .populate('ownerId')
+          .populate('sitterId')
+          .populate('petIds');
+      }
+
+      if (!booking) {
+        if (!Array.isArray(application.petIds) || application.petIds.length === 0) {
+          return res.status(400).json({
+            error: 'Application is missing petIds required to create booking.',
+          });
+        }
+        if (!application.serviceDate || !application.timeSlot || !application.serviceType) {
+          return res.status(400).json({
+            error: 'Application is missing required booking fields (serviceDate, timeSlot, serviceType).',
+          });
+        }
+        if (!application.pricing || typeof application.pricing.totalPrice !== 'number' || application.pricing.totalPrice <= 0) {
+          return res.status(400).json({
+            error: 'Application is missing valid pricing required to create booking.',
+          });
+        }
+
+        booking = await Booking.create({
+          ownerId: application.ownerId._id,
+          sitterId: application.sitterId._id,
+          petIds: application.petIds,
+          description: application.description || '',
+          date: application.startDate instanceof Date
+            ? application.startDate.toISOString()
+            : application.serviceDate instanceof Date
+              ? application.serviceDate.toISOString()
+              : String(application.serviceDate),
+          startDate: application.startDate instanceof Date ? application.startDate.toISOString() : null,
+          endDate: application.endDate instanceof Date ? application.endDate.toISOString() : null,
+          timeSlot: application.timeSlot || '',
+          serviceType: application.serviceType,
+          houseSittingVenue: application.houseSittingVenue || null,
+          duration: application.duration || null,
+          locationType: application.locationType || LOCATION_TYPES.STANDARD,
+          pricing: {
+            basePrice: application.pricing.basePrice,
+            pricingTier: application.pricing.pricingTier || 'hourly',
+            appliedRate: application.pricing.appliedRate || 0,
+            totalHours: application.pricing.totalHours || 0,
+            totalDays: application.pricing.totalDays || 0,
+            addOns: Array.isArray(application.pricing.addOns) ? application.pricing.addOns : [],
+            addOnsTotal: application.pricing.addOnsTotal || 0,
+            totalPrice: application.pricing.totalPrice,
+            commission: application.pricing.commission,
+            netPayout: application.pricing.netPayout,
+            commissionRate: application.pricing.commissionRate || 0.2,
+            currency: application.pricing.currency || DEFAULT_CURRENCY,
+          },
+          status: 'agreed',
+          agreedAt: new Date(),
+        });
+      }
+
+      application.bookingId = booking._id;
+      await application.save();
+      await application.populate(['ownerId', 'sitterId', 'bookingId']);
+      await booking.populate('ownerId');
+      await booking.populate('sitterId');
+      await booking.populate('petIds');
+
+      await createNotificationSafe({
+        recipientRole: 'sitter',
+        recipientId: application.sitterId?._id ? application.sitterId._id.toString() : application.sitterId.toString(),
+        actorRole: 'owner',
+        actorId: ownerId,
+        type: 'application_accepted',
+        title: 'Request accepted',
+        body: 'Your request was accepted.',
+        data: {
+          applicationId: application._id.toString(),
+          bookingId: booking._id.toString(),
+        },
+      });
+
+      let conversation = await Conversation.findOne({
+        ownerId: application.ownerId._id,
+        sitterId: application.sitterId._id,
+      })
+        .populate('ownerId')
+        .populate('sitterId');
+
+      if (!conversation) {
+        conversation = await Conversation.create({
+          ownerId: application.ownerId._id,
+          sitterId: application.sitterId._id,
+          ownerUnreadCount: 0,
+          sitterUnreadCount: 0,
+        });
+        await conversation.populate(['ownerId', 'sitterId']);
+      } else {
+        conversation.lastMessageAt = new Date();
+        conversation.ownerUnreadCount = conversation.ownerUnreadCount || 0;
+        conversation.sitterUnreadCount = conversation.sitterUnreadCount || 0;
+        await conversation.save();
+        await conversation.populate(['ownerId', 'sitterId']);
+      }
+
+      res.json({
+        application: sanitizeApplication(application),
+        booking: sanitizeBooking(booking),
+        conversation: sanitizeConversation(conversation),
+      });
+    } else {
+      application.status = 'rejected';
+      await application.save();
+      await application.populate(['ownerId', 'sitterId']);
+
+      await createNotificationSafe({
+        recipientRole: 'sitter',
+        recipientId: application.sitterId?._id ? application.sitterId._id.toString() : application.sitterId.toString(),
+        actorRole: 'owner',
+        actorId: ownerId,
+        type: 'application_rejected',
+        title: 'Request rejected',
+        body: 'Your request was rejected.',
+        data: {
+          applicationId: application._id.toString(),
+        },
+      });
+
+      res.json({ application: sanitizeApplication(application) });
+    }
+  } catch (error) {
+    console.error('Respond to application error', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid application id.' });
+    }
+    res.status(500).json({ error: 'Unable to update application. Please try again later.' });
+  }
+};
+
+module.exports = {
+  createApplication,
+  listApplications,
+  respondToApplication,
+  cancelApplication,
+  cancelSitterSentApplicationRequest,
+};
+

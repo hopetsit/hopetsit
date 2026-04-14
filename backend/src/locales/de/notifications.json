@@ -34,5 +34,11 @@
     "body": "Dein Sitter hat {{photoCount}} Fotos geteilt. Stimmung: {{mood}}.",
     "emailSubject": "Neuer Besuchsbericht — HopeTSIT",
     "emailBody": "<p>Dein Sitter hat einen Besuchsbericht mit <strong>{{photoCount}}</strong> Fotos gesendet. Stimmung: <em>{{mood}}</em>. Öffne die App zur Ansicht.</p>"
+  },
+  "PREMIUM_ACHIEVED": {
+    "title": "Willkommen Premium!",
+    "body": "Du hast {{count}} Buchungen abgeschlossen. Genieße exklusive Vorteile.",
+    "emailSubject": "Premium-Status freigeschaltet — HopeTSIT",
+    "emailBody": "<p>Glückwunsch! Du bist jetzt <strong>Premium-Mitglied</strong>. Genieße bevorzugten Zugang zu den besten Sittern.</p>"
   }
 }

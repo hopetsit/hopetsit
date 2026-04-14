@@ -34,5 +34,11 @@
     "body": "Your sitter shared {{photoCount}} photos. Mood: {{mood}}.",
     "emailSubject": "New visit report — HopeTSIT",
     "emailBody": "<p>Your sitter submitted a new visit report with <strong>{{photoCount}}</strong> photos. Mood: <em>{{mood}}</em>. Open the app to view details.</p>"
+  },
+  "PREMIUM_ACHIEVED": {
+    "title": "Welcome to Premium!",
+    "body": "You have completed {{count}} bookings. Enjoy exclusive benefits.",
+    "emailSubject": "Premium membership unlocked — HopeTSIT",
+    "emailBody": "<p>Congratulations! You are now a <strong>Premium member</strong>. Enjoy priority access to top pet sitters.</p>"
   }
 }

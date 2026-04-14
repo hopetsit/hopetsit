@@ -18,6 +18,7 @@ const {
   getBookingAgreement,
   requestCancellation,
   getPaymentStatus,
+  completeBooking,
 } = require('../controllers/bookingController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { attachOwnerFromToken, attachUserFromToken } = require('../middleware/ownerContext');
@@ -957,6 +958,9 @@ router.post(
   submitVisitReport
 );
 router.get('/:id/visit-report', requireAuth, getVisitReport);
+
+// Sprint 7 step 1 — complete a booking (owner action) triggers loyalty.
+router.post('/:id/complete', requireAuth, requireRole('owner'), completeBooking);
 
 module.exports = router;
 

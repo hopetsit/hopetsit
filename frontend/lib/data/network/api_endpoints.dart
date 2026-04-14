@@ -132,4 +132,7 @@ class ApiEndpoints {
 
   /// Sprint 6 step 3 — visit report (base: /bookings/{id}/visit-report)
   static const String bookingsBase = '/bookings';
+
+  /// Sprint 7 step 1 — owner loyalty stats
+  static const String myLoyalty = '/users/me/loyalty';
 }

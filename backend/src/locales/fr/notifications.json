@@ -34,5 +34,11 @@
     "body": "Votre petsitter a partagé {{photoCount}} photos. Humeur : {{mood}}.",
     "emailSubject": "Nouveau rapport de visite — HopeTSIT",
     "emailBody": "<p>Votre petsitter a envoyé un rapport de visite avec <strong>{{photoCount}}</strong> photos. Humeur : <em>{{mood}}</em>. Ouvrez l'application pour le consulter.</p>"
+  },
+  "PREMIUM_ACHIEVED": {
+    "title": "Bienvenue Premium !",
+    "body": "Vous avez complété {{count}} réservations. Profitez des avantages exclusifs.",
+    "emailSubject": "Statut Premium débloqué — HopeTSIT",
+    "emailBody": "<p>Félicitations ! Vous êtes désormais <strong>membre Premium</strong>. Profitez d'un accès prioritaire aux meilleurs petsitters.</p>"
   }
 }

@@ -14,6 +14,7 @@ const Task = require('../models/Task');
 const Block = require('../models/Block');
 const { sanitizeUser, sanitizeDoc, sanitizePet, sanitizePost, sanitizeBooking, sanitizeReview } = require('../utils/sanitize');
 const { encrypt } = require('../utils/encryption');
+const { getOwnerStats } = require('../services/loyaltyService');
 const { uploadMedia } = require('../services/cloudinary');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { processLocationData } = require('../utils/location');
@@ -940,5 +941,20 @@ module.exports = {
   registerFcmToken,
   unregisterFcmToken,
   acceptTerms,
+  getMyLoyalty,
 };
+
+// Sprint 7 step 1 — loyalty stats for owner self.
+async function getMyLoyalty(req, res) {
+  try {
+    if (req.user?.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners have a loyalty program.' });
+    }
+    const stats = await getOwnerStats(req.user.id);
+    return res.json(stats);
+  } catch (e) {
+    console.error('getMyLoyalty error', e);
+    return res.status(500).json({ error: 'Unable to load loyalty stats.' });
+  }
+}
 

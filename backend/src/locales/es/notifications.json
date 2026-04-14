@@ -34,5 +34,11 @@
     "body": "Tu cuidador compartió {{photoCount}} fotos. Estado: {{mood}}.",
     "emailSubject": "Nuevo informe de visita — HopeTSIT",
     "emailBody": "<p>Tu cuidador ha enviado un informe de visita con <strong>{{photoCount}}</strong> fotos. Estado: <em>{{mood}}</em>. Abre la app para verlo.</p>"
+  },
+  "PREMIUM_ACHIEVED": {
+    "title": "¡Bienvenido Premium!",
+    "body": "Has completado {{count}} reservas. Disfruta de ventajas exclusivas.",
+    "emailSubject": "Estado Premium desbloqueado — HopeTSIT",
+    "emailBody": "<p>¡Felicidades! Ahora eres <strong>miembro Premium</strong>. Disfruta de acceso prioritario a los mejores cuidadores.</p>"
   }
 }

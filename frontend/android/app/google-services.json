@@ -1,0 +1,70 @@
+{
+  "project_info": {
+    "project_number": "470089536255",
+    "project_id": "hopetsit",
+    "storage_bucket": "hopetsit.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:470089536255:android:ea538012bc440cdd34b2ca",
+        "android_client_info": {
+          "package_name": "com.hopetsit.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "470089536255-4daq7rn9l6cs1t56qpja8m5lakru31rd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hopetsit.app",
+            "certificate_hash": "31cc7125404aae22d7ad4562e4beb5fc54558150"
+          }
+        },
+        {
+          "client_id": "470089536255-rlaljjcp182iel4bghrud5va3h2rrrf7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hopetsit.app",
+            "certificate_hash": "029cc335727060a6cd564240c4351b7cf47ed53c"
+          }
+        },
+        {
+          "client_id": "470089536255-v6g9go58nvr9tnr18ts1nc8vvbcrevim.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hopetsit.app",
+            "certificate_hash": "0aa6c6d842cf29a96e65751375b5cc2fb7fed151"
+          }
+        },
+        {
+          "client_id": "470089536255-q9nrquiekrp6vmjdua2gio42r19fsrd4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqE1T8X3lmnRbFhm0fxzlXXHvBJsyem_Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "470089536255-q9nrquiekrp6vmjdua2gio42r19fsrd4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "470089536255-sedqnlp3c54m3jv0g21mcoq7a23i6487.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hopetsit.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -12,7 +12,7 @@ const bookingSchema = new mongoose.Schema(
     timeSlot: { type: String, required: true },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected', 'agreed', 'paid', 'payment_failed', 'cancelled', 'refunded'],
+      enum: ['pending', 'accepted', 'rejected', 'agreed', 'paid', 'completed', 'payment_failed', 'cancelled', 'refunded'],
       default: 'pending',
     },
     // Payment status - tracks payment state separately from booking status

@@ -396,6 +396,7 @@ class OwnerRepository {
   /// Creates a Stripe payment intent for a booking.
   Future<Map<String, dynamic>> createPaymentIntent({
     required String bookingId,
+    bool useLoyaltyCredit = false,
   }) async {
     AppLogger.logInfo(
       'Creating payment intent for booking',
@@ -405,6 +406,7 @@ class OwnerRepository {
     try {
       final response = await _apiClient.post(
         '${ApiEndpoints.bookings}/$bookingId${ApiEndpoints.createPaymentIntent}',
+        body: {'useLoyaltyCredit': useLoyaltyCredit},
         requiresAuth: true,
       );
 

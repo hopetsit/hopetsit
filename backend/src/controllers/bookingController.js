@@ -30,6 +30,7 @@ const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency
 const { countryToCurrency } = require('../utils/countryCurrency');
 const { createNotificationSafe } = require('../services/notificationService');
 const { sendNotification } = require('../services/notificationSender');
+const { onBookingCompleted, consumeLoyaltyDiscount } = require('../services/loyaltyService');
 const { mergeScheduleFromApplication, normalizeServiceType } = require('../utils/bookingAgreementFields');
 const {
   buildRequestFingerprint,
@@ -1258,7 +1259,17 @@ const createBookingPaymentIntent = async (req, res) => {
       'Booking currency must be one of EUR/USD/GBP/CHF to create a payment.'
     );
 
-    const amountInCents = Math.round(totalPrice * 100); // Convert to minor units (cents)
+    // Sprint 7 step 1 — apply loyalty discount if opted-in.
+    let loyaltyDiscountApplied = null;
+    let effectiveTotal = totalPrice;
+    if (req.body?.useLoyaltyCredit === true) {
+      const discount = await consumeLoyaltyDiscount(ownerId, booking._id);
+      if (discount.applied) {
+        effectiveTotal = Math.max(0, totalPrice - discount.discountAmount);
+        loyaltyDiscountApplied = discount;
+      }
+    }
+    const amountInCents = Math.round(effectiveTotal * 100);
     
     if (isNaN(amountInCents) || amountInCents <= 0) {
       return res.status(400).json({ 
@@ -1292,6 +1303,12 @@ const createBookingPaymentIntent = async (req, res) => {
       currency: bookingCurrency,
       commissionAmount: applicationFee,
       netSitterAmount: netSitter,
+      loyaltyDiscountApplied: loyaltyDiscountApplied
+        ? {
+            amount: loyaltyDiscountApplied.discountAmount,
+            creditId: loyaltyDiscountApplied.creditId,
+          }
+        : null,
       booking: sanitizeBooking(booking),
       message: 'PaymentIntent created successfully. Use clientSecret with Stripe Payment Sheet.',
     });
@@ -2145,6 +2162,35 @@ const processScheduledSitterPayouts = async () => {
 };
 
 
+// Sprint 7 step 1 — mark a paid booking as completed (owner action) and fire loyalty hooks.
+const completeBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (String(booking.ownerId) !== req.user.id) {
+      return res.status(403).json({ error: 'Only the owner can mark this booking as completed.' });
+    }
+    if (booking.paymentStatus !== 'paid') {
+      return res.status(400).json({ error: 'Booking must be paid before completion.' });
+    }
+    if (booking.status === 'completed') {
+      return res.json({ booking: sanitizeBooking(booking), alreadyCompleted: true });
+    }
+    booking.status = 'completed';
+    await booking.save();
+    try {
+      await onBookingCompleted(booking);
+    } catch (e) {
+      console.warn('loyalty hook failed', e.message);
+    }
+    return res.json({ booking: sanitizeBooking(booking) });
+  } catch (e) {
+    console.error('completeBooking error', e);
+    return res.status(500).json({ error: 'Unable to complete booking.' });
+  }
+};
+
 module.exports = {
   createBooking,
   listBookings,
@@ -2163,5 +2209,6 @@ module.exports = {
   getPaymentStatus,
   retryBookingPayout,
   processScheduledSitterPayouts,
+  completeBooking,
 };
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
-const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms } = require('../controllers/userController');
+const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, getMyLoyalty } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -352,6 +352,9 @@ router.delete('/fcm-token', requireAuth, unregisterFcmToken);
 
 // Sprint 5 step 4 — accept current T&C (records date + version)
 router.patch('/accept-terms', requireAuth, acceptTerms);
+
+// Sprint 7 step 1 — owner loyalty stats
+router.get('/me/loyalty', requireAuth, requireRole('owner'), getMyLoyalty);
 
 module.exports = router;
 

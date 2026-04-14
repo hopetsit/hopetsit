@@ -12,6 +12,7 @@ import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
+import 'package:hopetsit/widgets/loyalty_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -358,6 +359,8 @@ class ProfileScreen extends StatelessWidget {
           Icons.arrow_forward_ios,
           controller.navigateToBlockedUsers,
         ),
+        // Sprint 7 step 1 — loyalty card
+        const LoyaltyCard(),
         // Sprint 5 step 4 — access T&C.
         _buildSettingsTile(
           'terms_read_button'.tr,

@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
 import 'package:hopetsit/views/payment/paypal_payment_screen.dart';
 import 'package:hopetsit/utils/app_constants.dart';
+import 'package:hopetsit/controllers/loyalty_controller.dart';
 
 class BookingAgreementScreen extends StatefulWidget {
   final BookingModel booking;
@@ -287,6 +288,24 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                   if (shouldShowPayButton)
                     Column(
                       children: [
+                        // Sprint 7 step 1 — loyalty discount checkbox.
+                        Builder(
+                          builder: (context) {
+                            final ctrl = Get.isRegistered<LoyaltyController>()
+                                ? Get.find<LoyaltyController>()
+                                : Get.put(LoyaltyController());
+                            return Obx(() {
+                              if (!ctrl.hasDiscountAvailable.value) return const SizedBox.shrink();
+                              return CheckboxListTile(
+                                contentPadding: EdgeInsets.zero,
+                                value: ctrl.useLoyaltyCreditForNextPayment.value,
+                                onChanged: (v) => ctrl.useLoyaltyCreditForNextPayment.value = v ?? false,
+                                title: Text('loyalty_use_credit'.tr),
+                                controlAffinity: ListTileControlAffinity.leading,
+                              );
+                            });
+                          },
+                        ),
                         CustomButton(
                           title: 'payment_pay_with_stripe'.tr.replaceAll(
                             '@amount',

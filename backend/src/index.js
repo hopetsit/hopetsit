@@ -1,0 +1,29 @@
+require('dotenv').config();
+
+const http = require('http');
+const mongoose = require('mongoose');
+
+const app = require('./app');
+const createSocketServer = require('./sockets');
+const { startPayoutScheduler } = require('./services/payoutScheduler');
+
+const PORT = process.env.PORT || 5000;
+const MONGODB_URI = process.env.MONGODB_URI;
+
+const server = http.createServer(app);
+createSocketServer(server);
+
+async function startServer() {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    server.listen(PORT, () => {
+      console.log(`PetsInsta backend listening at http://localhost:${PORT}`);
+    });
+    startPayoutScheduler();
+  } catch (error) {
+    console.error('Failed to start server', error);
+    process.exit(1);
+  }
+}
+
+startServer();

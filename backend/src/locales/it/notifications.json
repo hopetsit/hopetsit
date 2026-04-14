@@ -34,5 +34,11 @@
     "body": "Il tuo sitter ha condiviso {{photoCount}} foto. Umore: {{mood}}.",
     "emailSubject": "Nuovo rapporto di visita — HopeTSIT",
     "emailBody": "<p>Il tuo sitter ha inviato un rapporto di visita con <strong>{{photoCount}}</strong> foto. Umore: <em>{{mood}}</em>. Apri l'app per consultarlo.</p>"
+  },
+  "PREMIUM_ACHIEVED": {
+    "title": "Benvenuto Premium!",
+    "body": "Hai completato {{count}} prenotazioni. Goditi i vantaggi esclusivi.",
+    "emailSubject": "Stato Premium sbloccato — HopeTSIT",
+    "emailBody": "<p>Congratulazioni! Sei ora <strong>membro Premium</strong>. Goditi l'accesso prioritario ai migliori sitter.</p>"
   }
 }
