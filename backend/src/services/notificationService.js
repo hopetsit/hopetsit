@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const logger = require('../utils/logger');
 
 const safeString = (value) => (typeof value === 'string' ? value : value == null ? '' : String(value));
 
@@ -32,7 +33,7 @@ const createNotificationSafe = async (payload) => {
   try {
     return await createNotification(payload);
   } catch (error) {
-    console.warn('⚠️ Unable to create notification', {
+    logger.warn('⚠️ Unable to create notification', {
       type: payload?.type,
       recipientRole: payload?.recipientRole,
       recipientId: payload?.recipientId ? String(payload.recipientId) : null,

@@ -1,6 +1,7 @@
 const WalkSession = require('../models/WalkSession');
 const Booking = require('../models/Booking');
 const { emitToWalk } = require('../sockets/emitter');
+const logger = require('../utils/logger');
 
 const startWalk = async (req, res) => {
   try {
@@ -31,7 +32,7 @@ const startWalk = async (req, res) => {
     });
     res.status(201).json({ walk });
   } catch (e) {
-    console.error('startWalk error', e);
+    logger.error('startWalk error', e);
     res.status(500).json({ error: 'Unable to start walk.' });
   }
 };
@@ -57,7 +58,7 @@ const pushPosition = async (req, res) => {
     emitToWalk(id, 'walk.position', { walkId: id, ...position });
     res.json({ ok: true, positionsCount: walk.positions.length });
   } catch (e) {
-    console.error('pushPosition error', e);
+    logger.error('pushPosition error', e);
     res.status(500).json({ error: 'Unable to push position.' });
   }
 };
@@ -76,7 +77,7 @@ const endWalk = async (req, res) => {
     emitToWalk(id, 'walk.ended', { walkId: id, endedAt: walk.endedAt });
     res.json({ walk });
   } catch (e) {
-    console.error('endWalk error', e);
+    logger.error('endWalk error', e);
     res.status(500).json({ error: 'Unable to end walk.' });
   }
 };
@@ -95,7 +96,7 @@ const getActiveWalk = async (req, res) => {
     if (!isParticipant) return res.status(403).json({ error: 'Not a participant.' });
     res.json({ walk });
   } catch (e) {
-    console.error('getActiveWalk error', e);
+    logger.error('getActiveWalk error', e);
     res.status(500).json({ error: 'Unable to fetch active walk.' });
   }
 };

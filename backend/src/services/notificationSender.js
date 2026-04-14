@@ -8,6 +8,7 @@ const { render } = require('../utils/i18nTemplate');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { decrypt } = require('../utils/encryption');
 const { emitToUser } = require('../sockets/emitter');
+const logger = require('../utils/logger');
 
 const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt'];
 const FALLBACK_LOCALE = 'en';
@@ -71,18 +72,18 @@ const sendPush = async (tokens, title, body, data) => {
  */
 const sendNotification = async ({ userId, role, type, data = {}, actor = null }) => {
   if (!userId || !role || !type) {
-    console.warn('sendNotification: missing required fields', { userId, role, type });
+    logger.warn('sendNotification: missing required fields', { userId, role, type });
     return;
   }
   const user = await resolveUser(role, userId);
   if (!user) {
-    console.warn('sendNotification: user not found', { role, userId });
+    logger.warn('sendNotification: user not found', { role, userId });
     return;
   }
   const locale = resolveLocale(user.language);
   const tmpl = pickTemplate(locale, type);
   if (!tmpl) {
-    console.warn('sendNotification: template missing', { type, locale });
+    logger.warn('sendNotification: template missing', { type, locale });
     return;
   }
   const title = render(tmpl.title, data);
@@ -114,7 +115,7 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   results.forEach((r, idx) => {
     if (r.status === 'rejected') {
       const channel = ['in-app', 'push', 'email'][idx];
-      console.warn(`notification ${channel} channel failed for ${type}`, r.reason?.message || r.reason);
+      logger.warn(`notification ${channel} channel failed for ${type}`, r.reason?.message || r.reason);
     }
   });
 };

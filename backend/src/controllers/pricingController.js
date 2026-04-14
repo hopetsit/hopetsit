@@ -9,6 +9,7 @@ const {
   getAllRecommendedRanges,
 } = require('../utils/pricing');
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
+const logger = require('../utils/logger');
 
 /**
  * Get recommended price ranges for all services
@@ -34,7 +35,7 @@ const getRecommendedPriceRanges = async (req, res) => {
       message: 'Recommended price ranges based on service type, duration, and location.',
     });
   } catch (error) {
-    console.error('Get recommended price ranges error', error);
+    logger.error('Get recommended price ranges error', error);
     if (error.message && (error.message.includes('Unsupported') || error.message.includes('currency'))) {
       return res.status(400).json({ error: error.message });
     }
@@ -91,7 +92,7 @@ const getServiceRecommendedPrice = async (req, res) => {
       commissionRate: PLATFORM_COMMISSION_RATE,
     });
   } catch (error) {
-    console.error('Get service recommended price error', error);
+    logger.error('Get service recommended price error', error);
     if (error.message && (error.message.includes('Invalid') || error.message.includes('Unsupported') || error.message.includes('currency'))) {
       return res.status(400).json({ error: error.message });
     }
@@ -123,7 +124,7 @@ const calculatePricing = async (req, res) => {
       message: 'Pricing breakdown calculated successfully.',
     });
   } catch (error) {
-    console.error('Calculate pricing error', error);
+    logger.error('Calculate pricing error', error);
     if (error.message && (error.message.includes('must be') || error.message.includes('Unsupported') || error.message.includes('currency'))) {
       return res.status(400).json({ error: error.message });
     }
@@ -183,7 +184,7 @@ const validatePrice = async (req, res) => {
       message: validation.message,
     });
   } catch (error) {
-    console.error('Validate price error', error);
+    logger.error('Validate price error', error);
     if (error.message && (error.message.includes('Invalid') || error.message.includes('Unsupported') || error.message.includes('currency'))) {
       return res.status(400).json({ error: error.message });
     }

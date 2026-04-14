@@ -14,6 +14,7 @@ const {
 const { uploadMedia } = require('../services/cloudinary');
 const { HttpError } = require('../utils/errors');
 const { emitToConversation } = require('../sockets/emitter');
+const logger = require('../utils/logger');
 
 const bufferToDataUri = (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
@@ -51,7 +52,7 @@ const listConversations = async (req, res) => {
 
     res.json({ conversations: conversations.map(sanitizeConversation) });
   } catch (error) {
-    console.error('Fetch conversations error', error);
+    logger.error('Fetch conversations error', error);
     res.status(500).json({ error: 'Unable to fetch conversations. Please try again later.' });
   }
 };
@@ -121,7 +122,7 @@ const getChatList = async (req, res) => {
       count: enhancedConversations.length,
     });
   } catch (error) {
-    console.error('Get chat list error', error);
+    logger.error('Get chat list error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid user id.' });
     }
@@ -161,7 +162,7 @@ const getConversationMessages = async (req, res) => {
 
     res.json({ messages: messages.map(sanitizeMessage) });
   } catch (error) {
-    console.error('Fetch messages error', error);
+    logger.error('Fetch messages error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid conversation id.' });
     }
@@ -190,7 +191,7 @@ const createConversationMessage = async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    console.error('Create message error', error);
+    logger.error('Create message error', error);
     if (error instanceof HttpError) {
       return res.status(error.status).json({ error: error.message });
     }
@@ -248,7 +249,7 @@ const createConversationAttachmentMessage = async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    console.error('Create attachment message error', error);
+    logger.error('Create attachment message error', error);
     if (error instanceof HttpError) {
       return res.status(error.status).json({ error: error.message });
     }
@@ -294,7 +295,7 @@ const markConversationRead = async (req, res) => {
       res.json({ updated: false });
     }
   } catch (error) {
-    console.error('Mark conversation read error', error);
+    logger.error('Mark conversation read error', error);
     if (error instanceof HttpError) {
       return res.status(error.status).json({ error: error.message });
     }
@@ -428,7 +429,7 @@ const startConversation = async (req, res) => {
       sentMessage: sanitizeMessage(newMessage),
     });
   } catch (error) {
-    console.error('Start conversation error', error);
+    logger.error('Start conversation error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid ID format.' });
     }
@@ -564,7 +565,7 @@ const startConversationBySitter = async (req, res) => {
       sentMessage: sanitizeMessage(newMessage),
     });
   } catch (error) {
-    console.error('Start conversation by sitter error', error);
+    logger.error('Start conversation by sitter error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid ID format.' });
     }

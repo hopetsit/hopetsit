@@ -13,6 +13,7 @@ const {
 } = require('../controllers/conversationController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { requirePaidBooking } = require('../middleware/chatAccess');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -457,7 +458,7 @@ router.post(
       await conversation.save();
       res.status(201).json({ message });
     } catch (e) {
-      console.error('share-phone error', e);
+      logger.error('share-phone error', e);
       res.status(500).json({ error: 'Unable to share phone number.' });
     }
   }

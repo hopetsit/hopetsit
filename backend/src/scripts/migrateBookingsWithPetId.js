@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const Booking = require('../models/Booking');
 const Pet = require('../models/Pet');
+const logger = require('../utils/logger');
 
 /**
  * Migration script to:
@@ -20,7 +21,7 @@ async function migrateBookingsWithPetId() {
     // Connect to MongoDB
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/petinsta';
     await mongoose.connect(mongoUri);
-    console.log('✅ Connected to MongoDB');
+    logger.info('✅ Connected to MongoDB');
 
     // Find all bookings without petId
     const bookings = await Booking.find({ 
@@ -30,7 +31,7 @@ async function migrateBookingsWithPetId() {
       ]
     });
 
-    console.log(`\n📊 Found ${bookings.length} bookings to migrate\n`);
+    logger.info(`\n📊 Found ${bookings.length} bookings to migrate\n`);
 
     let successCount = 0;
     let failedCount = 0;
@@ -42,7 +43,7 @@ async function migrateBookingsWithPetId() {
         const petName = booking.petName || '';
 
         if (!ownerId) {
-          console.log(`⚠️  Booking ${booking._id}: No ownerId found, skipping...`);
+          logger.info(`⚠️  Booking ${booking._id}: No ownerId found, skipping...`);
           failedCount++;
           failedBookings.push({
             bookingId: booking._id,
@@ -90,10 +91,10 @@ async function migrateBookingsWithPetId() {
             }
           );
 
-          console.log(`✅ Booking ${booking._id}: Added petId ${pet._id} (pet: "${pet.petName}")`);
+          logger.info(`✅ Booking ${booking._id}: Added petId ${pet._id} (pet: "${pet.petName}")`);
           successCount++;
         } else {
-          console.log(`⚠️  Booking ${booking._id}: No pet found for owner ${ownerId}, petName: "${petName}"`);
+          logger.info(`⚠️  Booking ${booking._id}: No pet found for owner ${ownerId}, petName: "${petName}"`);
           failedCount++;
           failedBookings.push({
             bookingId: booking._id,
@@ -103,7 +104,7 @@ async function migrateBookingsWithPetId() {
           });
         }
       } catch (error) {
-        console.error(`❌ Error processing booking ${booking._id}:`, error.message);
+        logger.error(`❌ Error processing booking ${booking._id}:`, error.message);
         failedCount++;
         failedBookings.push({
           bookingId: booking._id,
@@ -113,35 +114,35 @@ async function migrateBookingsWithPetId() {
     }
 
     // Summary
-    console.log('\n' + '='.repeat(60));
-    console.log('📈 MIGRATION SUMMARY');
-    console.log('='.repeat(60));
-    console.log(`✅ Successfully migrated: ${successCount} bookings`);
-    console.log(`⚠️  Failed: ${failedCount} bookings`);
+    logger.info('\n' + '='.repeat(60));
+    logger.info('📈 MIGRATION SUMMARY');
+    logger.info('='.repeat(60));
+    logger.info(`✅ Successfully migrated: ${successCount} bookings`);
+    logger.info(`⚠️  Failed: ${failedCount} bookings`);
     
     if (failedBookings.length > 0) {
-      console.log('\n❌ Failed Bookings:');
+      logger.info('\n❌ Failed Bookings:');
       failedBookings.forEach((failed, index) => {
-        console.log(`   ${index + 1}. Booking ID: ${failed.bookingId}`);
-        console.log(`      Reason: ${failed.reason}`);
+        logger.info(`   ${index + 1}. Booking ID: ${failed.bookingId}`);
+        logger.info(`      Reason: ${failed.reason}`);
         if (failed.ownerId) {
-          console.log(`      Owner ID: ${failed.ownerId}`);
+          logger.info(`      Owner ID: ${failed.ownerId}`);
         }
         if (failed.petName) {
-          console.log(`      Pet Name: ${failed.petName}`);
+          logger.info(`      Pet Name: ${failed.petName}`);
         }
-        console.log('');
+        logger.info('');
       });
     }
 
-    console.log('\n✅ Migration completed!');
+    logger.info('\n✅ Migration completed!');
     
   } catch (error) {
-    console.error('❌ Migration error:', error);
+    logger.error('❌ Migration error:', error);
     throw error;
   } finally {
     await mongoose.connection.close();
-    console.log('🔌 Disconnected from MongoDB');
+    logger.info('🔌 Disconnected from MongoDB');
   }
 }
 
@@ -149,11 +150,11 @@ async function migrateBookingsWithPetId() {
 if (require.main === module) {
   migrateBookingsWithPetId()
     .then(() => {
-      console.log('\n✨ Script finished successfully');
+      logger.info('\n✨ Script finished successfully');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('\n💥 Script failed:', error);
+      logger.error('\n💥 Script failed:', error);
       process.exit(1);
     });
 }

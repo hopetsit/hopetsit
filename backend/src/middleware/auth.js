@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const logger = require('../utils/logger');
 
 const getTokenFromHeader = (authorizationHeader = '') => {
   if (typeof authorizationHeader !== 'string') {
@@ -45,7 +46,7 @@ const requireAuth = async (req, res, next) => {
     }
     return next();
   } catch (error) {
-    console.error('Auth middleware error', error);
+    logger.error('Auth middleware error', error);
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired authorization token.' });
     }

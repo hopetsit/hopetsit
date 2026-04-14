@@ -5,6 +5,7 @@ const { sanitizeUser } = require('../utils/sanitize');
 const { decrypt, encrypt, maskEmail } = require('../utils/encryption');
 const { uploadMedia } = require('../services/cloudinary');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
+const logger = require('../utils/logger');
 const {
   validatePriceAgainstRecommended,
   getRecommendedPriceRange,
@@ -194,7 +195,7 @@ const findNearbySitters = async (req, res) => {
       hasRadiusLimit: radiusInMeters !== null,
     });
   } catch (error) {
-    console.error('Find nearby sitters error', error);
+    logger.error('Find nearby sitters error', error);
     if (error.message && error.message.includes('index')) {
       return res.status(500).json({
         error: 'Geospatial index not found. Please ensure location index is created.',
@@ -209,7 +210,7 @@ const listSitters = async (req, res) => {
     const sitters = await Sitter.find().sort({ rating: -1, createdAt: -1 });
     res.json({ sitters: sitters.map(sanitizeUser) });
   } catch (error) {
-    console.error('Fetch sitters error', error);
+    logger.error('Fetch sitters error', error);
     res.status(500).json({ error: 'Unable to fetch sitters. Please try again later.' });
   }
 };
@@ -293,7 +294,7 @@ const getSitterProfile = async (req, res) => {
 
     res.json({ sitter: sitterProfile });
   } catch (error) {
-    console.error('Fetch sitter profile error', error);
+    logger.error('Fetch sitter profile error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid sitter id.' });
     }
@@ -511,7 +512,7 @@ const updateSitterPricing = async (req, res) => {
       validationResults,
     });
   } catch (error) {
-    console.error('Update sitter pricing error', error);
+    logger.error('Update sitter pricing error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid sitter id.' });
     }
@@ -558,7 +559,7 @@ const getSitterPricing = async (req, res) => {
       message: 'Sitter pricing information retrieved successfully.',
     });
   } catch (error) {
-    console.error('Get sitter pricing error', error);
+    logger.error('Get sitter pricing error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid sitter id.' });
     }
@@ -605,7 +606,7 @@ const updateSitterPaypalEmail = async (req, res) => {
       paypalEmail: sitter.paypalEmail,
     });
   } catch (error) {
-    console.error('Update sitter PayPal email error', error);
+    logger.error('Update sitter PayPal email error', error);
     res.status(500).json({ error: 'Unable to update PayPal email. Please try again later.' });
   }
 };
@@ -647,7 +648,7 @@ const getSitterPaypalEmail = async (req, res) => {
       paypalEmail: maskEmail(paypalEmail),
     });
   } catch (error) {
-    console.error('Get sitter PayPal email error', error);
+    logger.error('Get sitter PayPal email error', error);
     return res.status(500).json({ error: 'Unable to fetch PayPal email. Please try again later.' });
   }
 };
@@ -890,7 +891,7 @@ const updateSitterProfile = async (req, res) => {
       sitter: sanitizeUser(updatedSitter, { includeEmail: true }),
     });
   } catch (error) {
-    console.error('Update sitter profile error', error);
+    logger.error('Update sitter profile error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid sitter id.' });
     }
@@ -958,7 +959,7 @@ const updateSitterAvatar = async (req, res) => {
         const cloudinary = require('cloudinary').v2;
         await cloudinary.uploader.destroy(sitter.avatar.publicId);
       } catch (deleteError) {
-        console.error('Error deleting old avatar:', deleteError);
+        logger.error('Error deleting old avatar:', deleteError);
         // Continue even if deletion fails
       }
     }
@@ -980,7 +981,7 @@ const updateSitterAvatar = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Update sitter avatar error', error);
+    logger.error('Update sitter avatar error', error);
     if (error.message && error.message.includes('Cloudinary')) {
       return res.status(502).json({ error: 'Media service is unavailable. Please try again later.' });
     }
@@ -1009,7 +1010,7 @@ const getMyAvailability = async (req, res) => {
       unavailableDates: sitter.unavailableDates || [],
     });
   } catch (e) {
-    console.error('getMyAvailability error', e);
+    logger.error('getMyAvailability error', e);
     res.status(500).json({ error: 'Unable to fetch availability.' });
   }
 };
@@ -1031,7 +1032,7 @@ const updateMyAvailability = async (req, res) => {
       unavailableDates: sitter.unavailableDates,
     });
   } catch (e) {
-    console.error('updateMyAvailability error', e);
+    logger.error('updateMyAvailability error', e);
     res.status(500).json({ error: 'Unable to update availability.' });
   }
 };
@@ -1045,7 +1046,7 @@ const getSitterAvailability = async (req, res) => {
       unavailableDates: sitter.unavailableDates || [],
     });
   } catch (e) {
-    console.error('getSitterAvailability error', e);
+    logger.error('getSitterAvailability error', e);
     res.status(500).json({ error: 'Unable to fetch availability.' });
   }
 };
@@ -1077,7 +1078,7 @@ const submitIdentityVerification = async (req, res) => {
       },
     });
   } catch (e) {
-    console.error('submitIdentityVerification error', e);
+    logger.error('submitIdentityVerification error', e);
     res.status(500).json({ error: 'Unable to submit identity document.' });
   }
 };
@@ -1095,7 +1096,7 @@ const getMyIdentityVerification = async (req, res) => {
       documentUrl: iv.documentUrl ? decrypt(iv.documentUrl) : '',
     });
   } catch (e) {
-    console.error('getMyIdentityVerification error', e);
+    logger.error('getMyIdentityVerification error', e);
     res.status(500).json({ error: 'Unable to fetch identity verification.' });
   }
 };

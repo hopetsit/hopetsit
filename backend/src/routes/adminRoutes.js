@@ -6,6 +6,7 @@ const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
 const Pet = require('../models/Pet');
 const { decrypt } = require('../utils/encryption');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -254,7 +255,7 @@ router.post('/users/:id/suspend', requireAdmin, async (req, res) => {
       { new: true }
     ).select('status banReason').lean();
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    console.log(`[admin] suspended ${role} ${req.params.id} by ${req.user?.id} — reason: ${reason}`);
+    logger.info(`[admin] suspended ${role} ${req.params.id} by ${req.user?.id} — reason: ${reason}`);
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -270,7 +271,7 @@ router.post('/users/:id/reactivate', requireAdmin, async (req, res) => {
       { new: true }
     ).select('status').lean();
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    console.log(`[admin] reactivated ${role} ${req.params.id} by ${req.user?.id}`);
+    logger.info(`[admin] reactivated ${role} ${req.params.id} by ${req.user?.id}`);
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -286,7 +287,7 @@ router.post('/users/:id/ban', requireAdmin, async (req, res) => {
       { new: true }
     ).select('status banReason bannedAt').lean();
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    console.log(`[admin] banned ${role} ${req.params.id} by ${req.user?.id} — reason: ${reason}`);
+    logger.info(`[admin] banned ${role} ${req.params.id} by ${req.user?.id} — reason: ${reason}`);
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -359,7 +360,7 @@ router.delete('/reviews/:id', requireAdmin, async (req, res) => {
   try {
     const review = await Review.findByIdAndDelete(req.params.id).lean();
     if (!review) return res.status(404).json({ error: 'Review not found.' });
-    console.log(`[admin] deleted review ${review._id} by user ${req.user?.id}`);
+    logger.info(`[admin] deleted review ${review._id} by user ${req.user?.id}`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -7,6 +7,7 @@ const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
 const { uploadMedia } = require('../services/cloudinary');
 const { createNotificationSafe } = require('../services/notificationService');
 const { translateToAll } = require('../services/translationService');
+const logger = require('../utils/logger');
 
 const HOUSE_SITTING_VENUES = ['owners_home', 'sitters_home'];
 
@@ -128,7 +129,7 @@ const createPost = async (req, res) => {
       postPayload.translations = translations;
       postPayload.sourceLanguage = sourceLanguage;
     } catch (e) {
-      console.warn('Post translation failed (non-blocking):', e?.message || e);
+      logger.warn('Post translation failed (non-blocking):', e?.message || e);
     }
 
     const newPost = await Post.create(postPayload);
@@ -137,7 +138,7 @@ const createPost = async (req, res) => {
 
     res.status(201).json({ post: sanitizePost(newPost) });
   } catch (error) {
-    console.error('Create post error', error);
+    logger.error('Create post error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner id.' });
     }
@@ -197,7 +198,7 @@ const listPosts = async (req, res) => {
       posts: enhancedPosts,
     });
   } catch (error) {
-    console.error('Fetch posts error', error);
+    logger.error('Fetch posts error', error);
     res.status(500).json({ error: 'Unable to fetch posts. Please try again later.' });
   }
 };
@@ -257,7 +258,7 @@ const getMediaPosts = async (req, res) => {
       count: enhancedPosts.length,
     });
   } catch (error) {
-    console.error('Fetch media posts error', error);
+    logger.error('Fetch media posts error', error);
     res.status(500).json({ error: 'Unable to fetch media posts. Please try again later.' });
   }
 };
@@ -332,7 +333,7 @@ const getRequestPosts = async (req, res) => {
       count: enhancedPosts.length,
     });
   } catch (error) {
-    console.error('Fetch request posts error', error);
+    logger.error('Fetch request posts error', error);
     res.status(500).json({ error: 'Unable to fetch request posts. Please try again later.' });
   }
 };
@@ -429,7 +430,7 @@ const toggleLike = async (req, res) => {
       message: action === 'liked' ? 'Post liked successfully' : 'Post disliked successfully'
     });
   } catch (error) {
-    console.error('Toggle like error', error);
+    logger.error('Toggle like error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid post id.' });
     }
@@ -521,7 +522,7 @@ const addComment = async (req, res) => {
       post: sanitizePost(post) 
     });
   } catch (error) {
-    console.error('Add comment error', error);
+    logger.error('Add comment error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid post id.' });
     }
@@ -562,7 +563,7 @@ const deleteComment = async (req, res) => {
 
     res.json({ post: sanitizePost(post) });
   } catch (error) {
-    console.error('Delete comment error', error);
+    logger.error('Delete comment error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid id provided.' });
     }
@@ -600,7 +601,7 @@ const deletePost = async (req, res) => {
       postId: id,
     });
   } catch (error) {
-    console.error('Delete post error', error);
+    logger.error('Delete post error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid post id.' });
     }
@@ -770,7 +771,7 @@ const createPostWithMedia = async (req, res) => {
       post: sanitizePost(newPost),
     });
   } catch (error) {
-    console.error('Create post with media error', error);
+    logger.error('Create post with media error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner id.' });
     }
@@ -867,7 +868,7 @@ const updatePost = async (req, res) => {
       post: sanitizePost(post),
     });
   } catch (error) {
-    console.error('Update post error', error);
+    logger.error('Update post error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid post id.' });
     }

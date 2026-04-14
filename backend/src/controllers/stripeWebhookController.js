@@ -9,6 +9,7 @@ const Booking = require('../models/Booking');
 const { constructWebhookEvent } = require('../services/stripeService');
 const { createNotificationSafe } = require('../services/notificationService');
 const { sendNotification } = require('../services/notificationSender');
+const logger = require('../utils/logger');
 
 /**
  * Handle Stripe webhook events
@@ -30,9 +31,9 @@ const handleStripeWebhook = async (req, res) => {
     // Construct webhook event from raw body
     event = constructWebhookEvent(rawBody, sig);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    console.error('Signature header:', sig);
-    console.error('Body type:', typeof req.body, 'Is Buffer:', Buffer.isBuffer(req.body));
+    logger.error('Webhook signature verification failed:', err.message);
+    logger.error('Signature header:', sig);
+    logger.error('Body type:', typeof req.body, 'Is Buffer:', Buffer.isBuffer(req.body));
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -52,13 +53,13 @@ const handleStripeWebhook = async (req, res) => {
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        logger.info(`Unhandled event type: ${event.type}`);
     }
 
     // Return a response to acknowledge receipt of the event
     res.json({ received: true });
   } catch (error) {
-    console.error('Error handling webhook:', error);
+    logger.error('Error handling webhook:', error);
     res.status(500).json({ error: 'Webhook handler failed' });
   }
 };
@@ -72,14 +73,14 @@ const handlePaymentIntentSucceeded = async (paymentIntent) => {
     const bookingId = paymentIntent.metadata.booking_id;
 
     if (!bookingId) {
-      console.error('No booking_id in payment intent metadata');
+      logger.error('No booking_id in payment intent metadata');
       return;
     }
 
     const booking = await Booking.findById(bookingId);
 
     if (!booking) {
-      console.error(`Booking not found: ${bookingId}`);
+      logger.error(`Booking not found: ${bookingId}`);
       return;
     }
 
@@ -96,7 +97,7 @@ const handlePaymentIntentSucceeded = async (paymentIntent) => {
     
     // Verify the payment intent ID matches
     if (booking.stripePaymentIntentId !== paymentIntent.id) {
-      console.error(`PaymentIntent ID mismatch for booking ${bookingId}`);
+      logger.error(`PaymentIntent ID mismatch for booking ${bookingId}`);
       return;
     }
 
@@ -138,9 +139,9 @@ const handlePaymentIntentSucceeded = async (paymentIntent) => {
       }),
     ]).catch(() => {});
 
-    console.log(`✅ Booking ${bookingId} marked as PAID via webhook (payment_status: paid)`);
+    logger.info(`✅ Booking ${bookingId} marked as PAID via webhook (payment_status: paid)`);
   } catch (error) {
-    console.error('Error handling payment_intent.succeeded:', error);
+    logger.error('Error handling payment_intent.succeeded:', error);
     throw error;
   }
 };
@@ -154,14 +155,14 @@ const handlePaymentIntentFailed = async (paymentIntent) => {
     const bookingId = paymentIntent.metadata.booking_id;
 
     if (!bookingId) {
-      console.error('No booking_id in payment intent metadata');
+      logger.error('No booking_id in payment intent metadata');
       return;
     }
 
     const booking = await Booking.findById(bookingId);
 
     if (!booking) {
-      console.error(`Booking not found: ${bookingId}`);
+      logger.error(`Booking not found: ${bookingId}`);
       return;
     }
 
@@ -183,9 +184,9 @@ const handlePaymentIntentFailed = async (paymentIntent) => {
       },
     }).catch(() => {});
 
-    console.log(`⚠️ Booking ${bookingId} marked as PAYMENT_FAILED via webhook`);
+    logger.info(`⚠️ Booking ${bookingId} marked as PAYMENT_FAILED via webhook`);
   } catch (error) {
-    console.error('Error handling payment_intent.payment_failed:', error);
+    logger.error('Error handling payment_intent.payment_failed:', error);
     throw error;
   }
 };
@@ -200,7 +201,7 @@ const handleChargeRefunded = async (charge) => {
     const booking = await Booking.findOne({ stripeChargeId: charge.id });
 
     if (!booking) {
-      console.error(`Booking not found for charge: ${charge.id}`);
+      logger.error(`Booking not found for charge: ${charge.id}`);
       return;
     }
 
@@ -215,9 +216,9 @@ const handleChargeRefunded = async (charge) => {
 
     await booking.save();
 
-    console.log(`💰 Booking ${booking._id} marked as REFUNDED via webhook (payment_status: refund)`);
+    logger.info(`💰 Booking ${booking._id} marked as REFUNDED via webhook (payment_status: refund)`);
   } catch (error) {
-    console.error('Error handling charge.refunded:', error);
+    logger.error('Error handling charge.refunded:', error);
     throw error;
   }
 };

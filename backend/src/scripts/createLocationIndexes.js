@@ -3,16 +3,17 @@ const mongoose = require('mongoose');
 
 const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
+const logger = require('../utils/logger');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
 async function createLocationIndexes() {
   try {
-    console.log('🔌 Connecting to MongoDB...');
+    logger.info('🔌 Connecting to MongoDB...');
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+    logger.info('✅ Connected to MongoDB');
 
-    console.log('\n📊 Checking and fixing existing location data...');
+    logger.info('\n📊 Checking and fixing existing location data...');
 
     // Fix existing Sitter documents with invalid location format
     // Remove location field from documents that don't have valid GeoJSON coordinates
@@ -26,8 +27,8 @@ async function createLocationIndexes() {
     });
 
     if (sittersWithInvalidLocation.length > 0) {
-      console.log(`   Found ${sittersWithInvalidLocation.length} sitters with invalid location format`);
-      console.log('   🔧 Fixing invalid location objects...');
+      logger.info(`   Found ${sittersWithInvalidLocation.length} sitters with invalid location format`);
+      logger.info('   🔧 Fixing invalid location objects...');
       
       // Remove location field from documents without valid coordinates
       // MongoDB 2dsphere index cannot index documents with null coordinates
@@ -38,7 +39,7 @@ async function createLocationIndexes() {
           { $unset: { location: '' } }
         );
       }
-      console.log(`   ✅ Fixed ${sittersWithInvalidLocation.length} sitter location objects`);
+      logger.info(`   ✅ Fixed ${sittersWithInvalidLocation.length} sitter location objects`);
     }
 
     // Fix existing Owner documents with invalid location format
@@ -52,8 +53,8 @@ async function createLocationIndexes() {
     });
 
     if (ownersWithInvalidLocation.length > 0) {
-      console.log(`   Found ${ownersWithInvalidLocation.length} owners with invalid location format`);
-      console.log('   🔧 Fixing invalid location objects...');
+      logger.info(`   Found ${ownersWithInvalidLocation.length} owners with invalid location format`);
+      logger.info('   🔧 Fixing invalid location objects...');
       
       // Remove location field from documents without valid coordinates
       for (const owner of ownersWithInvalidLocation) {
@@ -62,14 +63,14 @@ async function createLocationIndexes() {
           { $unset: { location: '' } }
         );
       }
-      console.log(`   ✅ Fixed ${ownersWithInvalidLocation.length} owner location objects`);
+      logger.info(`   ✅ Fixed ${ownersWithInvalidLocation.length} owner location objects`);
     }
 
-    console.log('\n📊 Creating geospatial indexes...');
+    logger.info('\n📊 Creating geospatial indexes...');
 
     // Create partial index for Sitter location (only indexes documents with valid coordinates)
     try {
-      console.log('   Creating partial index for Sitter.location...');
+      logger.info('   Creating partial index for Sitter.location...');
       await Sitter.collection.createIndex(
         { 'location': '2dsphere' },
         { 
@@ -78,10 +79,10 @@ async function createLocationIndexes() {
           partialFilterExpression: { 'location.coordinates': { $exists: true, $type: 'array' } }
         }
       );
-      console.log('   ✅ Sitter location index created (partial)');
+      logger.info('   ✅ Sitter location index created (partial)');
     } catch (error) {
       if (error.code === 85) {
-        console.log('   ⚠️  Sitter location index already exists (different options)');
+        logger.info('   ⚠️  Sitter location index already exists (different options)');
         // Drop and recreate
         try {
           await Sitter.collection.dropIndex('location_2dsphere');
@@ -96,9 +97,9 @@ async function createLocationIndexes() {
             partialFilterExpression: { 'location.coordinates': { $exists: true, $type: 'array' } }
           }
         );
-        console.log('   ✅ Sitter location index recreated');
+        logger.info('   ✅ Sitter location index recreated');
       } else if (error.code === 86) {
-        console.log('   ✅ Sitter location index already exists');
+        logger.info('   ✅ Sitter location index already exists');
       } else {
         throw error;
       }
@@ -106,7 +107,7 @@ async function createLocationIndexes() {
 
     // Create partial index for Owner location (only indexes documents with valid coordinates)
     try {
-      console.log('   Creating partial index for Owner.location...');
+      logger.info('   Creating partial index for Owner.location...');
       await Owner.collection.createIndex(
         { 'location': '2dsphere' },
         { 
@@ -115,10 +116,10 @@ async function createLocationIndexes() {
           partialFilterExpression: { 'location.coordinates': { $exists: true, $type: 'array' } }
         }
       );
-      console.log('   ✅ Owner location index created (partial)');
+      logger.info('   ✅ Owner location index created (partial)');
     } catch (error) {
       if (error.code === 85) {
-        console.log('   ⚠️  Owner location index already exists (different options)');
+        logger.info('   ⚠️  Owner location index already exists (different options)');
         // Drop and recreate
         try {
           await Owner.collection.dropIndex('location_2dsphere');
@@ -133,37 +134,37 @@ async function createLocationIndexes() {
             partialFilterExpression: { 'location.coordinates': { $exists: true, $type: 'array' } }
           }
         );
-        console.log('   ✅ Owner location index recreated');
+        logger.info('   ✅ Owner location index recreated');
       } else if (error.code === 86) {
-        console.log('   ✅ Owner location index already exists');
+        logger.info('   ✅ Owner location index already exists');
       } else {
         throw error;
       }
     }
 
     // Verify indexes
-    console.log('\n📋 Verifying indexes...');
+    logger.info('\n📋 Verifying indexes...');
     const sitterIndexes = await Sitter.collection.indexes();
     const ownerIndexes = await Owner.collection.indexes();
 
-    console.log('\n   Sitter indexes:');
+    logger.info('\n   Sitter indexes:');
     sitterIndexes.forEach(index => {
-      console.log(`     - ${index.name}: ${JSON.stringify(index.key)}`);
+      logger.info(`     - ${index.name}: ${JSON.stringify(index.key)}`);
     });
 
-    console.log('\n   Owner indexes:');
+    logger.info('\n   Owner indexes:');
     ownerIndexes.forEach(index => {
-      console.log(`     - ${index.name}: ${JSON.stringify(index.key)}`);
+      logger.info(`     - ${index.name}: ${JSON.stringify(index.key)}`);
     });
 
-    console.log('\n✅ Geospatial indexes created successfully!');
-    console.log('\n💡 You can now use the /sitters/nearby endpoint for geospatial queries.');
+    logger.info('\n✅ Geospatial indexes created successfully!');
+    logger.info('\n💡 You can now use the /sitters/nearby endpoint for geospatial queries.');
 
     await mongoose.connection.close();
-    console.log('\n🔌 Database connection closed');
+    logger.info('\n🔌 Database connection closed');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error creating indexes:', error);
+    logger.error('❌ Error creating indexes:', error);
     await mongoose.connection.close();
     process.exit(1);
   }

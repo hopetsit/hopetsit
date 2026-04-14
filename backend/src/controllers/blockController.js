@@ -4,6 +4,7 @@ const Block = require('../models/Block');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const { sanitizeDoc, sanitizeUser } = require('../utils/sanitize');
+const logger = require('../utils/logger');
 
 const ROLE_TO_MODEL = {
   owner: 'Owner',
@@ -117,7 +118,7 @@ const blockUser = async (req, res) => {
 
     res.status(201).json({ block: formatBlockResponse(block) });
   } catch (error) {
-    console.error('Block user error', error);
+    logger.error('Block user error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid id provided.' });
     }
@@ -162,7 +163,7 @@ const unblockUser = async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Unblock user error', error);
+    logger.error('Unblock user error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid id provided.' });
     }
@@ -190,7 +191,7 @@ const listBlocked = async (req, res) => {
       blocks: blocks.map(formatBlockResponse),
     });
   } catch (error) {
-    console.error('List blocked users error', error);
+    logger.error('List blocked users error', error);
     res.status(500).json({ error: 'Unable to fetch blocked users. Please try again later.' });
   }
 };

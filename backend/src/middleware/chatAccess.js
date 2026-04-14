@@ -1,5 +1,6 @@
 const Conversation = require('../models/Conversation');
 const Booking = require('../models/Booking');
+const logger = require('../utils/logger');
 
 /**
  * Canonical rule (sprint6.5 step 3): chat is OPEN only if there is at least
@@ -50,7 +51,7 @@ const requirePaidBooking = async (req, res, next) => {
     }
     return next();
   } catch (e) {
-    console.error('requirePaidBooking error', e);
+    logger.error('requirePaidBooking error', e);
     return res.status(500).json({ error: 'Chat access check failed.' });
   }
 };

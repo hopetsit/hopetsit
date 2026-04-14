@@ -8,22 +8,23 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Sitter = require('../models/Sitter');
+const logger = require('../utils/logger');
 
 async function clearAllStripeAccounts() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB\n');
+    logger.info('✅ Connected to MongoDB\n');
 
     // Find all sitters with Stripe Connect account IDs
     const sitters = await Sitter.find({
       stripeConnectAccountId: { $ne: null },
     });
 
-    console.log(`📊 Found ${sitters.length} sitters with Stripe Connect accounts\n`);
+    logger.info(`📊 Found ${sitters.length} sitters with Stripe Connect accounts\n`);
 
     if (sitters.length === 0) {
-      console.log('✅ No sitters with Stripe Connect accounts found!');
+      logger.info('✅ No sitters with Stripe Connect accounts found!');
       await mongoose.connection.close();
       return;
     }
@@ -39,13 +40,13 @@ async function clearAllStripeAccounts() {
       }
     );
 
-    console.log(`\n✅ Cleared Stripe Connect accounts from ${result.modifiedCount} sitters`);
-    console.log(`\n💡 All sitters can now create new Stripe Connect accounts when needed.\n`);
+    logger.info(`\n✅ Cleared Stripe Connect accounts from ${result.modifiedCount} sitters`);
+    logger.info(`\n💡 All sitters can now create new Stripe Connect accounts when needed.\n`);
 
     await mongoose.connection.close();
-    console.log('✅ Database connection closed');
+    logger.info('✅ Database connection closed');
   } catch (error) {
-    console.error('❌ Error:', error);
+    logger.error('❌ Error:', error);
     await mongoose.connection.close();
     process.exit(1);
   }

@@ -8,12 +8,13 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
+const logger = require('../utils/logger');
 
 async function fixPaymentStatus() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB\n');
+    logger.info('✅ Connected to MongoDB\n');
 
     // Find bookings that are paid but paymentStatus is pending or missing
     const bookings = await Booking.find({
@@ -25,10 +26,10 @@ async function fixPaymentStatus() {
       ],
     });
 
-    console.log(`📊 Found ${bookings.length} bookings with mismatched payment status\n`);
+    logger.info(`📊 Found ${bookings.length} bookings with mismatched payment status\n`);
 
     if (bookings.length === 0) {
-      console.log('✅ All bookings have correct payment status!');
+      logger.info('✅ All bookings have correct payment status!');
       await mongoose.connection.close();
       return;
     }
@@ -55,25 +56,25 @@ async function fixPaymentStatus() {
           booking.paymentStatus = newPaymentStatus;
           await booking.save();
           
-          console.log(`  ✅ Booking ${booking._id}:`);
-          console.log(`     - Status: ${booking.status}`);
-          console.log(`     - Payment Status: ${booking.paymentStatus} (updated)`);
+          logger.info(`  ✅ Booking ${booking._id}:`);
+          logger.info(`     - Status: ${booking.status}`);
+          logger.info(`     - Payment Status: ${booking.paymentStatus} (updated)`);
           
           updatedCount++;
         }
       } catch (error) {
-        console.error(`  ❌ Error updating booking ${booking._id}:`, error.message);
+        logger.error(`  ❌ Error updating booking ${booking._id}:`, error.message);
       }
     }
 
-    console.log(`\n✅ Fix payment status complete!`);
-    console.log(`   - Updated: ${updatedCount} bookings`);
-    console.log(`\n💡 All bookings now have correct payment status.\n`);
+    logger.info(`\n✅ Fix payment status complete!`);
+    logger.info(`   - Updated: ${updatedCount} bookings`);
+    logger.info(`\n💡 All bookings now have correct payment status.\n`);
 
     await mongoose.connection.close();
-    console.log('✅ Database connection closed');
+    logger.info('✅ Database connection closed');
   } catch (error) {
-    console.error('❌ Error:', error);
+    logger.error('❌ Error:', error);
     await mongoose.connection.close();
     process.exit(1);
   }

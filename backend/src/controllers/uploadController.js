@@ -1,4 +1,5 @@
 const { uploadMedia } = require('../services/cloudinary');
+const logger = require('../utils/logger');
 
 const DEFAULT_FOLDER = 'petsinsta';
 
@@ -14,7 +15,7 @@ const uploadToCloudinary = async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    console.error('Cloudinary upload error', error);
+    logger.error('Cloudinary upload error', error);
     res.status(500).json({ error: 'Unable to upload media. Please try again later.' });
   }
 };
@@ -34,7 +35,7 @@ const uploadFormDataToCloudinary = async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    console.error('Cloudinary form-data upload error', error);
+    logger.error('Cloudinary form-data upload error', error);
     res.status(500).json({ error: 'Unable to upload media. Please try again later.' });
   }
 };

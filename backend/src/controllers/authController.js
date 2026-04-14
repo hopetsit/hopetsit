@@ -10,6 +10,7 @@ const { generateVerificationCode } = require('../utils/code');
 const { sanitizeUser } = require('../utils/sanitize');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
+const logger = require('../utils/logger');
 
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
 const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
@@ -225,7 +226,7 @@ const signup = async (req, res) => {
           referredRole: role,
         });
       } catch (e) {
-        console.warn('createPendingReferral failed', e.message);
+        logger.warn('createPendingReferral failed', e.message);
       }
     }
 
@@ -245,7 +246,7 @@ const signup = async (req, res) => {
     try {
       await sendVerificationEmail(email, verificationCode);
     } catch (emailError) {
-      console.error('Failed to send verification email', emailError);
+      logger.error('Failed to send verification email', emailError);
     }
 
     res.status(201).json({
@@ -255,7 +256,7 @@ const signup = async (req, res) => {
       message: 'Account created. Please verify your email.',
     });
   } catch (error) {
-    console.error('Signup error', error);
+    logger.error('Signup error', error);
     if (error.message && error.message.includes('currency must be either USD or EUR.')) {
       return res.status(400).json({ error: error.message });
     }
@@ -307,7 +308,7 @@ const login = async (req, res) => {
       try {
         await sendVerificationEmail(userEmail, verificationCode);
       } catch (emailError) {
-        console.error('Failed to send verification email on login', emailError);
+        logger.error('Failed to send verification email on login', emailError);
       }
       return res.status(403).json({
         error: 'Email not verified. Please verify your account.',
@@ -319,7 +320,7 @@ const login = async (req, res) => {
 
     res.json({ role: result.role, token, user: sanitizeUser(result.account, { includeEmail: true }) });
   } catch (error) {
-    console.error('Login error', error);
+    logger.error('Login error', error);
     if (error.message && error.message.includes('JWT_SECRET')) {
       return res.status(500).json({ error: 'Authentication service is not configured.' });
     }
@@ -349,7 +350,7 @@ const googleAuth = async (req, res) => {
     try {
       decoded = await firebaseAdmin.auth().verifyIdToken(idToken);
     } catch (verifyError) {
-      console.error('Firebase ID token verification failed', verifyError);
+      logger.error('Firebase ID token verification failed', verifyError);
       return res.status(401).json({ error: 'Invalid or expired Firebase ID token.' });
     }
 
@@ -545,7 +546,7 @@ const googleAuth = async (req, res) => {
       user: sanitizeUser(newUser, { includeEmail: true }),
     });
   } catch (error) {
-    console.error('Google auth error', error);
+    logger.error('Google auth error', error);
     if (error.message && error.message.includes('currency must be either USD or EUR.')) {
       return res.status(400).json({ error: error.message });
     }
@@ -578,7 +579,7 @@ const appleAuth = async (req, res) => {
     try {
       decoded = await firebaseAdmin.auth().verifyIdToken(idToken);
     } catch (verifyError) {
-      console.error('Firebase ID token verification failed', verifyError);
+      logger.error('Firebase ID token verification failed', verifyError);
       return res.status(401).json({ error: 'Invalid or expired Firebase ID token.' });
     }
 
@@ -778,7 +779,7 @@ const appleAuth = async (req, res) => {
       user: sanitizeUser(newUser, { includeEmail: true }),
     });
   } catch (error) {
-    console.error('Apple auth error', error);
+    logger.error('Apple auth error', error);
     if (error.message && error.message.includes('currency must be either USD or EUR.')) {
       return res.status(400).json({ error: error.message });
     }
@@ -838,7 +839,7 @@ const verifyEmail = async (req, res) => {
       user: sanitizeUser(result.account, { includeEmail: true }),
     });
   } catch (error) {
-    console.error('Verification error', error);
+    logger.error('Verification error', error);
     res.status(500).json({ error: 'Unable to verify email. Please try again later.' });
   }
 };
@@ -872,12 +873,12 @@ const resendVerificationCode = async (req, res) => {
     try {
       await sendVerificationEmail(email.toLowerCase(), verificationCode);
     } catch (emailError) {
-      console.error('Failed to resend verification email', emailError);
+      logger.error('Failed to resend verification email', emailError);
     }
 
     res.json({ message: 'Verification code resent.', verificationCode });
   } catch (error) {
-    console.error('Resend code error', error);
+    logger.error('Resend code error', error);
     res.status(500).json({ error: 'Unable to resend verification code. Please try again later.' });
   }
 };
@@ -911,12 +912,12 @@ const forgotPassword = async (req, res) => {
     try {
       await sendPasswordResetEmail(email.toLowerCase(), resetCode);
     } catch (emailError) {
-      console.error('Failed to send password reset email', emailError);
+      logger.error('Failed to send password reset email', emailError);
     }
 
     res.json({ message: 'Password reset code sent to email.' });
   } catch (error) {
-    console.error('Forgot password error', error);
+    logger.error('Forgot password error', error);
     res.status(500).json({ error: 'Unable to process request. Please try again later.' });
   }
 };
@@ -965,7 +966,7 @@ const verifyPasswordResetOtp = async (req, res) => {
       verified: true
     });
   } catch (error) {
-    console.error('Verify password reset OTP error', error);
+    logger.error('Verify password reset OTP error', error);
     res.status(500).json({ error: 'Unable to verify OTP. Please try again later.' });
   }
 };
@@ -1017,7 +1018,7 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: 'Password reset successful.' });
   } catch (error) {
-    console.error('Reset password error', error);
+    logger.error('Reset password error', error);
     res.status(500).json({ error: 'Unable to reset password. Please try again later.' });
   }
 };
@@ -1056,7 +1057,7 @@ const changePassword = async (req, res) => {
 
     res.json({ message: 'Password updated successfully.' });
   } catch (error) {
-    console.error('Change password error', error);
+    logger.error('Change password error', error);
     res.status(500).json({ error: 'Unable to change password. Please try again later.' });
   }
 };
@@ -1101,7 +1102,7 @@ const chooseService = async (req, res) => {
       user: sanitizeUser(result.account, { includeEmail: true }),
     });
   } catch (error) {
-    console.error('Choose service error', error);
+    logger.error('Choose service error', error);
     res.status(500).json({ error: 'Unable to update service. Please try again later.' });
   }
 };
@@ -1123,7 +1124,7 @@ const adminLogin = async (req, res) => {
       admin: { id: admin._id, email: admin.email, name: admin.name },
     });
   } catch (error) {
-    console.error('adminLogin error', error);
+    logger.error('adminLogin error', error);
     return res.status(500).json({ error: 'Admin login failed.' });
   }
 };

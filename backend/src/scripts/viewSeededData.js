@@ -10,19 +10,20 @@ const mongoose = require('mongoose');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Booking = require('../models/Booking');
+const logger = require('../utils/logger');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
 async function viewSeededData() {
   try {
-    console.log('🔌 Connecting to MongoDB...');
+    logger.info('🔌 Connecting to MongoDB...');
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to MongoDB\n');
+    logger.info('✅ Connected to MongoDB\n');
 
     // View Sitters with Pricing
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log('📋 SITTERS WITH PRICING DATA');
-    console.log('═══════════════════════════════════════════════════════════════\n');
+    logger.info('═══════════════════════════════════════════════════════════════');
+    logger.info('📋 SITTERS WITH PRICING DATA');
+    logger.info('═══════════════════════════════════════════════════════════════\n');
 
     const sitters = await Sitter.find({
       $or: [
@@ -32,37 +33,37 @@ async function viewSeededData() {
     }).sort({ createdAt: -1 });
 
     if (sitters.length === 0) {
-      console.log('⚠️  No sitters with pricing data found.\n');
+      logger.info('⚠️  No sitters with pricing data found.\n');
     } else {
       sitters.forEach((sitter, index) => {
-        console.log(`${index + 1}. ${sitter.name} (${sitter.email})`);
-        console.log(`   Location: ${sitter.location?.city || 'N/A'} (${sitter.location?.locationType || 'N/A'})`);
-        console.log(`   Service: ${Array.isArray(sitter.service) ? sitter.service.join(', ') : sitter.service || 'N/A'}`);
-        console.log('   Pricing:');
+        logger.info(`${index + 1}. ${sitter.name} (${sitter.email})`);
+        logger.info(`   Location: ${sitter.location?.city || 'N/A'} (${sitter.location?.locationType || 'N/A'})`);
+        logger.info(`   Service: ${Array.isArray(sitter.service) ? sitter.service.join(', ') : sitter.service || 'N/A'}`);
+        logger.info('   Pricing:');
         
         if (sitter.servicePricing?.homeVisit?.basePrice) {
-          console.log(`     - Home Visit: ${sitter.servicePricing.homeVisit.basePrice}€`);
+          logger.info(`     - Home Visit: ${sitter.servicePricing.homeVisit.basePrice}€`);
         }
         if (sitter.servicePricing?.dogWalking30?.basePrice) {
-          console.log(`     - Dog Walking (30min): ${sitter.servicePricing.dogWalking30.basePrice}€`);
+          logger.info(`     - Dog Walking (30min): ${sitter.servicePricing.dogWalking30.basePrice}€`);
         }
         if (sitter.servicePricing?.dogWalking60?.basePrice) {
-          console.log(`     - Dog Walking (60min): ${sitter.servicePricing.dogWalking60.basePrice}€`);
+          logger.info(`     - Dog Walking (60min): ${sitter.servicePricing.dogWalking60.basePrice}€`);
         }
         if (sitter.servicePricing?.overnightStay?.basePrice) {
-          console.log(`     - Overnight Stay: ${sitter.servicePricing.overnightStay.basePrice}€`);
+          logger.info(`     - Overnight Stay: ${sitter.servicePricing.overnightStay.basePrice}€`);
         }
         if (sitter.servicePricing?.longStay?.basePrice) {
-          console.log(`     - Long Stay (3+ nights): ${sitter.servicePricing.longStay.basePrice}€`);
+          logger.info(`     - Long Stay (3+ nights): ${sitter.servicePricing.longStay.basePrice}€`);
         }
-        console.log('');
+        logger.info('');
       });
     }
 
     // View Bookings with Pricing
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log('📋 BOOKINGS WITH PRICING BREAKDOWN');
-    console.log('═══════════════════════════════════════════════════════════════\n');
+    logger.info('═══════════════════════════════════════════════════════════════');
+    logger.info('📋 BOOKINGS WITH PRICING BREAKDOWN');
+    logger.info('═══════════════════════════════════════════════════════════════\n');
 
     const bookings = await Booking.find({
       'pricing.totalPrice': { $exists: true },
@@ -72,70 +73,70 @@ async function viewSeededData() {
       .sort({ createdAt: -1 });
 
     if (bookings.length === 0) {
-      console.log('⚠️  No bookings with pricing data found.\n');
+      logger.info('⚠️  No bookings with pricing data found.\n');
     } else {
       bookings.forEach((booking, index) => {
-        console.log(`${index + 1}. Booking for ${booking.petName}`);
-        console.log(`   Owner: ${booking.ownerId?.name || 'N/A'} (${booking.ownerId?.email || 'N/A'})`);
-        console.log(`   Sitter: ${booking.sitterId?.name || 'N/A'} (${booking.sitterId?.email || 'N/A'})`);
-        console.log(`   Service: ${booking.serviceType || 'N/A'}`);
+        logger.info(`${index + 1}. Booking for ${booking.petName}`);
+        logger.info(`   Owner: ${booking.ownerId?.name || 'N/A'} (${booking.ownerId?.email || 'N/A'})`);
+        logger.info(`   Sitter: ${booking.sitterId?.name || 'N/A'} (${booking.sitterId?.email || 'N/A'})`);
+        logger.info(`   Service: ${booking.serviceType || 'N/A'}`);
         const isNightBased =
           booking.serviceType === 'overnight_stay' || booking.serviceType === 'long_stay';
-        console.log(
+        logger.info(
           `   Duration: ${booking.duration || 'N/A'} ${isNightBased ? 'night(s)' : 'minute(s)'}`
         );
-        console.log(`   Location Type: ${booking.locationType || 'N/A'}`);
-        console.log(`   Status: ${booking.status || 'N/A'}`);
-        console.log(`   Date: ${booking.date || 'N/A'} at ${booking.timeSlot || 'N/A'}`);
+        logger.info(`   Location Type: ${booking.locationType || 'N/A'}`);
+        logger.info(`   Status: ${booking.status || 'N/A'}`);
+        logger.info(`   Date: ${booking.date || 'N/A'} at ${booking.timeSlot || 'N/A'}`);
         
         if (booking.pricing) {
-          console.log('   💰 Pricing Breakdown:');
-          console.log(`      Base Price: ${booking.pricing.basePrice}€`);
+          logger.info('   💰 Pricing Breakdown:');
+          logger.info(`      Base Price: ${booking.pricing.basePrice}€`);
           
           if (booking.pricing.addOns && booking.pricing.addOns.length > 0) {
-            console.log(`      Add-ons:`);
+            logger.info(`      Add-ons:`);
             booking.pricing.addOns.forEach((addOn) => {
-              console.log(`        - ${addOn.description || addOn.type}: ${addOn.amount}€`);
+              logger.info(`        - ${addOn.description || addOn.type}: ${addOn.amount}€`);
             });
-            console.log(`      Add-ons Total: ${booking.pricing.addOnsTotal}€`);
+            logger.info(`      Add-ons Total: ${booking.pricing.addOnsTotal}€`);
           }
           
-          console.log(`      Total Price (Owner pays): ${booking.pricing.totalPrice}€`);
-          console.log(`      Platform Commission (20%): ${booking.pricing.commission}€`);
-          console.log(`      Net Payout (Sitter receives): ${booking.pricing.netPayout}€`);
+          logger.info(`      Total Price (Owner pays): ${booking.pricing.totalPrice}€`);
+          logger.info(`      Platform Commission (20%): ${booking.pricing.commission}€`);
+          logger.info(`      Net Payout (Sitter receives): ${booking.pricing.netPayout}€`);
         }
         
         if (booking.recommendedPriceRange) {
-          console.log(`   📊 Recommended Range: ${booking.recommendedPriceRange.min}€ - ${booking.recommendedPriceRange.max}€`);
+          logger.info(`   📊 Recommended Range: ${booking.recommendedPriceRange.min}€ - ${booking.recommendedPriceRange.max}€`);
         }
         
-        console.log('');
+        logger.info('');
       });
     }
 
     // Summary Statistics
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log('📊 SUMMARY STATISTICS');
-    console.log('═══════════════════════════════════════════════════════════════\n');
+    logger.info('═══════════════════════════════════════════════════════════════');
+    logger.info('📊 SUMMARY STATISTICS');
+    logger.info('═══════════════════════════════════════════════════════════════\n');
 
     const totalBookings = bookings.length;
     const totalRevenue = bookings.reduce((sum, b) => sum + (b.pricing?.totalPrice || 0), 0);
     const totalCommission = bookings.reduce((sum, b) => sum + (b.pricing?.commission || 0), 0);
     const totalPayout = bookings.reduce((sum, b) => sum + (b.pricing?.netPayout || 0), 0);
 
-    console.log(`Total Sitters with Pricing: ${sitters.length}`);
-    console.log(`Total Bookings: ${totalBookings}`);
-    console.log(`Total Revenue (Owner payments): ${totalRevenue.toFixed(2)}€`);
-    console.log(`Total Commission (Platform): ${totalCommission.toFixed(2)}€`);
-    console.log(`Total Payout (Sitters): ${totalPayout.toFixed(2)}€`);
-    console.log(`Commission Rate: 20%`);
-    console.log('');
+    logger.info(`Total Sitters with Pricing: ${sitters.length}`);
+    logger.info(`Total Bookings: ${totalBookings}`);
+    logger.info(`Total Revenue (Owner payments): ${totalRevenue.toFixed(2)}€`);
+    logger.info(`Total Commission (Platform): ${totalCommission.toFixed(2)}€`);
+    logger.info(`Total Payout (Sitters): ${totalPayout.toFixed(2)}€`);
+    logger.info(`Commission Rate: 20%`);
+    logger.info('');
 
     await mongoose.connection.close();
-    console.log('🔌 Database connection closed');
+    logger.info('🔌 Database connection closed');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error viewing data:', error);
+    logger.error('❌ Error viewing data:', error);
     await mongoose.connection.close();
     process.exit(1);
   }

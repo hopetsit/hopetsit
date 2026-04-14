@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
+const pinoHttp = require('pino-http');
+const logger = require('./utils/logger');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
@@ -72,7 +73,8 @@ app.use('/webhooks', stripeWebhookRoutes);
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
-app.use(morgan('dev'));
+// Sprint 8 step 5 — structured request logger (pino-http) with reqId + duration.
+app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 
 // Sprint 8 step 4 — Swagger UI is public in dev, protected by SWAGGER_AUTH_TOKEN in prod.
 const swaggerGuard = (req, res, next) => {

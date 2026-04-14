@@ -10,6 +10,7 @@ const mongoose = require('mongoose');
 const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
 const { encrypt, isEncrypted } = require('../utils/encryption');
+const logger = require('../utils/logger');
 
 const migrateSitters = async () => {
   const cursor = Sitter.find({
@@ -33,7 +34,7 @@ const migrateSitters = async () => {
       count++;
     }
   }
-  console.log(`Sitters updated: ${count}`);
+  logger.info(`Sitters updated: ${count}`);
 };
 
 const migrateOwners = async () => {
@@ -58,14 +59,14 @@ const migrateOwners = async () => {
       count++;
     }
   }
-  console.log(`Owners updated: ${count}`);
+  logger.info(`Owners updated: ${count}`);
 };
 
 // Sprint 6.5 step 5 — expose function for runAllMigrations.
 const encryptSensitiveFields = async () => {
   await migrateSitters();
   await migrateOwners();
-  console.log('[encryptSensitiveFields] done.');
+  logger.info('[encryptSensitiveFields] done.');
 };
 
 module.exports = { encryptSensitiveFields };
@@ -76,7 +77,7 @@ if (require.main === module) {
       await mongoose.connect(process.env.MONGODB_URI);
       await encryptSensitiveFields();
     } catch (e) {
-      console.error('migration failed:', e);
+      logger.error('migration failed:', e);
       process.exitCode = 1;
     } finally {
       await mongoose.disconnect();

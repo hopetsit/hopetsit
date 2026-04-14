@@ -23,6 +23,7 @@ const {
   normalizeAddOns,
 } = require('../utils/requestFingerprint');
 const { calculateTierBasePrice } = require('../utils/tierPricing');
+const logger = require('../utils/logger');
 
 const cancelApplication = async (req, res) => {
   try {
@@ -51,7 +52,7 @@ const cancelApplication = async (req, res) => {
 
     return res.json({ message: 'Application cancelled.' });
   } catch (error) {
-    console.error('Cancel application error', error);
+    logger.error('Cancel application error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid application id.' });
     }
@@ -91,7 +92,7 @@ const cancelSitterSentApplicationRequest = async (req, res) => {
 
     return res.json({ message: 'Sent request cancelled successfully.', applicationId: id });
   } catch (error) {
-    console.error('Cancel sitter sent application request error', error);
+    logger.error('Cancel sitter sent application request error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid application id.' });
     }
@@ -382,7 +383,7 @@ const createApplication = async (req, res) => {
 
     res.status(201).json({ application: sanitizeApplication(application) });
   } catch (error) {
-    console.error('Create application error', error);
+    logger.error('Create application error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid sitter or owner id.' });
     }
@@ -434,7 +435,7 @@ const listApplications = async (req, res) => {
 
     res.json({ applications: applications.map(sanitizeApplication) });
   } catch (error) {
-    console.error('Fetch applications error', error);
+    logger.error('Fetch applications error', error);
     res.status(500).json({ error: 'Unable to fetch applications. Please try again later.' });
   }
 };
@@ -603,7 +604,7 @@ const respondToApplication = async (req, res) => {
       res.json({ application: sanitizeApplication(application) });
     }
   } catch (error) {
-    console.error('Respond to application error', error);
+    logger.error('Respond to application error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid application id.' });
     }

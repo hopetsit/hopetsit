@@ -6,6 +6,7 @@ const Sitter = require('../models/Sitter');
 const { sanitizeDoc, sanitizeReview } = require('../utils/sanitize');
 const { sendNotification } = require('../services/notificationSender');
 const { recomputeSitterStatus } = require('../services/loyaltyService');
+const logger = require('../utils/logger');
 
 const ROLE_TO_MODEL = {
   owner: 'Owner',
@@ -134,7 +135,7 @@ const createReview = async (req, res) => {
 
     res.status(201).json({ review: sanitizeDoc(review) });
   } catch (error) {
-    console.error('Create review error', error);
+    logger.error('Create review error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid id provided.' });
     }
@@ -200,7 +201,7 @@ const listReviews = async (req, res) => {
 
     res.json({ reviews: reviews.map(sanitizeReview) });
   } catch (error) {
-    console.error('List reviews error', error);
+    logger.error('List reviews error', error);
     res.status(500).json({ error: 'Unable to fetch reviews. Please try again later.' });
   }
 };
@@ -227,7 +228,7 @@ const replyToReview = async (req, res) => {
     await review.save();
     res.json({ review: sanitizeDoc(review) });
   } catch (e) {
-    console.error('replyToReview error', e);
+    logger.error('replyToReview error', e);
     res.status(500).json({ error: 'Unable to post reply.' });
   }
 };
@@ -260,7 +261,7 @@ const reportReview = async (req, res) => {
     }
     res.json({ ok: true, reportedCount: review.reportedCount });
   } catch (e) {
-    console.error('reportReview error', e);
+    logger.error('reportReview error', e);
     res.status(500).json({ error: 'Unable to report review.' });
   }
 };

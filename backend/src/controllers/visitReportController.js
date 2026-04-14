@@ -2,6 +2,7 @@ const VisitReport = require('../models/VisitReport');
 const Booking = require('../models/Booking');
 const { uploadMedia } = require('../services/cloudinary');
 const { sendNotification } = require('./../services/notificationSender');
+const logger = require('../utils/logger');
 
 const bufferToDataUri = (file) =>
   `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
@@ -40,7 +41,7 @@ const submitVisitReport = async (req, res) => {
         });
         photos.push(up.url);
       } catch (e) {
-        console.warn('visit-report photo upload failed', e.message);
+        logger.warn('visit-report photo upload failed', e.message);
       }
     }
 
@@ -71,7 +72,7 @@ const submitVisitReport = async (req, res) => {
 
     res.status(201).json({ report });
   } catch (e) {
-    console.error('submitVisitReport error', e);
+    logger.error('submitVisitReport error', e);
     res.status(500).json({ error: 'Unable to submit visit report.' });
   }
 };
@@ -90,7 +91,7 @@ const getVisitReport = async (req, res) => {
       .lean();
     res.json({ report: report || null });
   } catch (e) {
-    console.error('getVisitReport error', e);
+    logger.error('getVisitReport error', e);
     res.status(500).json({ error: 'Unable to fetch visit report.' });
   }
 };

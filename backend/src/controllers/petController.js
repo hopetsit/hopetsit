@@ -2,6 +2,7 @@ const Owner = require('../models/Owner');
 const Pet = require('../models/Pet');
 const { uploadMedia } = require('../services/cloudinary');
 const { sanitizePet } = require('../utils/sanitize');
+const logger = require('../utils/logger');
 
 const normalizeMediaEntry = (entry) => {
   if (!entry || typeof entry !== 'object') {
@@ -118,7 +119,7 @@ const createOrUpdatePet = async (req, res) => {
 
     res.status(201).json({ pet: newPet });
   } catch (error) {
-    console.error('Create pet error', error);
+    logger.error('Create pet error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner id.' });
     }
@@ -221,7 +222,7 @@ const uploadPetMedia = async (req, res) => {
       media: uploadedMedia,
     });
   } catch (error) {
-    console.error('Upload pet media error', error);
+    logger.error('Upload pet media error', error);
     if (error.message && error.message.includes('Cloudinary')) {
       return res.status(502).json({ error: 'Media service is unavailable. Please try again later.' });
     }
@@ -236,7 +237,7 @@ const listPets = async (req, res) => {
     const pets = await Pet.find(query).sort({ createdAt: -1 });
     res.json({ pets });
   } catch (error) {
-    console.error('Fetch pets error', error);
+    logger.error('Fetch pets error', error);
     res.status(500).json({ error: 'Unable to fetch pets. Please try again later.' });
   }
 };
@@ -366,7 +367,7 @@ const getPetById = async (req, res) => {
 
     res.json({ pet: petResponse });
   } catch (error) {
-    console.error('Get pet error', error);
+    logger.error('Get pet error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid pet id.' });
     }
@@ -410,7 +411,7 @@ const getMyPets = async (req, res) => {
       count: pets.length,
     });
   } catch (error) {
-    console.error('Get my pets error', error);
+    logger.error('Get my pets error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner id.' });
     }
@@ -448,7 +449,7 @@ const getAllPets = async (req, res) => {
       count: pets.length,
     });
   } catch (error) {
-    console.error('Get all pets error', error);
+    logger.error('Get all pets error', error);
     res.status(500).json({ error: 'Unable to fetch pets. Please try again later.' });
   }
 };
@@ -567,7 +568,7 @@ const updatePetProfile = async (req, res) => {
       pet: petResponse,
     });
   } catch (error) {
-    console.error('Update pet profile error', error);
+    logger.error('Update pet profile error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid pet id or owner id.' });
     }
@@ -658,7 +659,7 @@ const updatePetMedia = async (req, res) => {
               const cloudinary = require('cloudinary').v2;
               await cloudinary.uploader.destroy(pet.avatar.publicId);
             } catch (deleteError) {
-              console.error('Error deleting old avatar:', deleteError);
+              logger.error('Error deleting old avatar:', deleteError);
             }
             pet.avatar = mediaEntry;
           } else if (detectedMediaType === 'passportImage' && pet.passportImage?.publicId) {
@@ -666,7 +667,7 @@ const updatePetMedia = async (req, res) => {
               const cloudinary = require('cloudinary').v2;
               await cloudinary.uploader.destroy(pet.passportImage.publicId);
             } catch (deleteError) {
-              console.error('Error deleting old passport image:', deleteError);
+              logger.error('Error deleting old passport image:', deleteError);
             }
             pet.passportImage = mediaEntry;
           } else if (detectedMediaType === 'photo') {
@@ -715,7 +716,7 @@ const updatePetMedia = async (req, res) => {
             : [];
         }
       } catch (deleteError) {
-        console.error('Error deleting media from Cloudinary:', deleteError);
+        logger.error('Error deleting media from Cloudinary:', deleteError);
         // Continue even if deletion fails
       }
     }
@@ -742,7 +743,7 @@ const updatePetMedia = async (req, res) => {
       uploadedMedia: uploadedMedia.length > 0 ? uploadedMedia : undefined,
     });
   } catch (error) {
-    console.error('Update pet media error', error);
+    logger.error('Update pet media error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid pet id or owner id.' });
     }

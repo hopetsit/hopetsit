@@ -8,12 +8,13 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
+const logger = require('../utils/logger');
 
 async function clearPaymentData() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB\n');
+    logger.info('✅ Connected to MongoDB\n');
 
     // Find all bookings with payment data
     const bookings = await Booking.find({
@@ -27,10 +28,10 @@ async function clearPaymentData() {
       ],
     });
 
-    console.log(`📊 Found ${bookings.length} bookings with payment data\n`);
+    logger.info(`📊 Found ${bookings.length} bookings with payment data\n`);
 
     if (bookings.length === 0) {
-      console.log('✅ No bookings with payment data found!');
+      logger.info('✅ No bookings with payment data found!');
       await mongoose.connection.close();
       return;
     }
@@ -94,32 +95,32 @@ async function clearPaymentData() {
             { runValidators: false }
           );
           
-          console.log(`  ✅ Booking ${booking._id}:`);
-          if (updates.stripePaymentIntentId === null) console.log(`     - Cleared stripePaymentIntentId`);
-          if (updates.stripeChargeId === null) console.log(`     - Cleared stripeChargeId`);
-          if (updates.petsitterConnectedAccountId === null) console.log(`     - Cleared petsitterConnectedAccountId`);
-          if (updates.paidAt === null) console.log(`     - Cleared paidAt`);
-          if (updates.paymentFailedAt === null) console.log(`     - Cleared paymentFailedAt`);
-          if (updates.status) console.log(`     - Status reset to: ${updates.status}`);
+          logger.info(`  ✅ Booking ${booking._id}:`);
+          if (updates.stripePaymentIntentId === null) logger.info(`     - Cleared stripePaymentIntentId`);
+          if (updates.stripeChargeId === null) logger.info(`     - Cleared stripeChargeId`);
+          if (updates.petsitterConnectedAccountId === null) logger.info(`     - Cleared petsitterConnectedAccountId`);
+          if (updates.paidAt === null) logger.info(`     - Cleared paidAt`);
+          if (updates.paymentFailedAt === null) logger.info(`     - Cleared paymentFailedAt`);
+          if (updates.status) logger.info(`     - Status reset to: ${updates.status}`);
           
           updatedCount++;
         } else {
           skippedCount++;
         }
       } catch (error) {
-        console.error(`  ❌ Error updating booking ${booking._id}:`, error.message);
+        logger.error(`  ❌ Error updating booking ${booking._id}:`, error.message);
       }
     }
 
-    console.log(`\n✅ Clear payment data complete!`);
-    console.log(`   - Updated: ${updatedCount} bookings`);
-    console.log(`   - Skipped: ${skippedCount} bookings`);
-    console.log(`\n💡 All bookings are now ready for payment testing.\n`);
+    logger.info(`\n✅ Clear payment data complete!`);
+    logger.info(`   - Updated: ${updatedCount} bookings`);
+    logger.info(`   - Skipped: ${skippedCount} bookings`);
+    logger.info(`\n💡 All bookings are now ready for payment testing.\n`);
 
     await mongoose.connection.close();
-    console.log('✅ Database connection closed');
+    logger.info('✅ Database connection closed');
   } catch (error) {
-    console.error('❌ Error:', error);
+    logger.error('❌ Error:', error);
     await mongoose.connection.close();
     process.exit(1);
   }

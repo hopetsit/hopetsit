@@ -9,6 +9,7 @@
  */
 
 const https = require('https');
+const logger = require('../utils/logger');
 
 const getPaypalApiBaseUrl = () => {
   const env = process.env.PAYPAL_ENVIRONMENT === 'live' ? 'live' : 'sandbox';
@@ -176,7 +177,7 @@ const sendPayoutToSitter = async ({ bookingId, sitterEmail, amount, currency }) 
     ],
   };
 
-  console.log('➡️ Sending PayPal payout', {
+  logger.info('➡️ Sending PayPal payout', {
     bookingId,
     sitterEmail: sitterEmail.trim(),
     amount: valueString,
@@ -199,7 +200,7 @@ const sendPayoutToSitter = async ({ bookingId, sitterEmail, amount, currency }) 
     body,
   });
 
-  console.log('✅ PayPal payout response', {
+  logger.info('✅ PayPal payout response', {
     bookingId,
     sitterEmail: sitterEmail.trim(),
     response,
@@ -215,7 +216,7 @@ const sendPayoutToSitter = async ({ bookingId, sitterEmail, amount, currency }) 
       const items = Array.isArray(details?.items) ? details.items : [];
       payoutItemId = items[0]?.payout_item_id || null;
     } catch (err) {
-      console.warn('⚠️ Unable to fetch PayPal payout batch details', {
+      logger.warn('⚠️ Unable to fetch PayPal payout batch details', {
         bookingId,
         batchId,
         error: err?.message || String(err),

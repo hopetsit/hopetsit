@@ -1,6 +1,7 @@
 const Task = require('../models/Task');
 const Owner = require('../models/Owner');
 const { sanitizeDoc } = require('../utils/sanitize');
+const logger = require('../utils/logger');
 
 const createTask = async (req, res) => {
   try {
@@ -32,7 +33,7 @@ const createTask = async (req, res) => {
 
     res.status(201).json({ task: sanitizeDoc(task) });
   } catch (error) {
-    console.error('Create task error', error);
+    logger.error('Create task error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner id.' });
     }
@@ -60,7 +61,7 @@ const getTasks = async (req, res) => {
       count: tasks.length,
     });
   } catch (error) {
-    console.error('Get tasks error', error);
+    logger.error('Get tasks error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner id.' });
     }

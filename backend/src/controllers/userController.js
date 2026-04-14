@@ -19,6 +19,7 @@ const { getMyReferrals } = require('../services/referralService');
 const { uploadMedia } = require('../services/cloudinary');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { processLocationData } = require('../utils/location');
+const logger = require('../utils/logger');
 
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
 const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
@@ -187,7 +188,7 @@ const updateService = async (req, res) => {
 
     res.json({ role, user: sanitizeUser(account, { includeEmail: true }) });
   } catch (error) {
-    console.error('Update service error', error);
+    logger.error('Update service error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid user id.' });
     }
@@ -276,7 +277,7 @@ const updateProfile = async (req, res) => {
 
     res.json({ role, user: sanitizeUser(account, { includeEmail: true }) });
   } catch (error) {
-    console.error('Update profile error', error);
+    logger.error('Update profile error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid user id.' });
     }
@@ -316,7 +317,7 @@ const updateCard = async (req, res) => {
 
     res.json({ role, user: sanitizeUser(account, { includeCard: true, includeEmail: true }) });
   } catch (error) {
-    console.error('Update card error', error);
+    logger.error('Update card error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid user id.' });
     }
@@ -345,7 +346,7 @@ const updateOwnerCardFromToken = async (req, res) => {
 
     res.json({ user: sanitizeUser(owner, { includeCard: true, includeEmail: true }) });
   } catch (error) {
-    console.error('Update owner card (token) error', error);
+    logger.error('Update owner card (token) error', error);
     res.status(500).json({ error: 'Unable to update card. Please try again later.' });
   }
 };
@@ -477,7 +478,7 @@ const deleteAccount = async (req, res) => {
 
     res.json({ message: 'Account and related data deleted successfully.' });
   } catch (error) {
-    console.error('Delete account error', error);
+    logger.error('Delete account error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid user id.' });
     }
@@ -504,7 +505,7 @@ const deleteAccountFromToken = async (req, res) => {
     req.params.id = userId;
     return deleteAccount(req, res);
   } catch (error) {
-    console.error('Delete account (token) error', error);
+    logger.error('Delete account (token) error', error);
     res.status(500).json({ error: 'Unable to delete account. Please try again later.' });
   }
 };
@@ -559,7 +560,7 @@ const updateProfilePicture = async (req, res) => {
         const cloudinary = require('cloudinary').v2;
         await cloudinary.uploader.destroy(user.avatar.publicId);
       } catch (deleteError) {
-        console.error('Error deleting old avatar:', deleteError);
+        logger.error('Error deleting old avatar:', deleteError);
         // Continue even if deletion fails
       }
     }
@@ -581,7 +582,7 @@ const updateProfilePicture = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Update profile picture error', error);
+    logger.error('Update profile picture error', error);
     if (error.message && error.message.includes('Cloudinary')) {
       return res.status(502).json({ error: 'Media service is unavailable. Please try again later.' });
     }
@@ -651,7 +652,7 @@ const getOwnerProfile = async (req, res) => {
 
     res.json({ profile });
   } catch (error) {
-    console.error('Get owner profile error', error);
+    logger.error('Get owner profile error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner id.' });
     }
@@ -840,7 +841,7 @@ const switchRole = async (req, res) => {
       user: sanitizeUser(newUser, { includeEmail: true }),
     });
   } catch (error) {
-    console.error('Switch role error', error);
+    logger.error('Switch role error', error);
     if (error.code === 11000) {
       // Duplicate key error (email already exists)
       return res.status(409).json({ error: 'Email already exists. Unable to switch role.' });
@@ -882,7 +883,7 @@ const acceptTerms = async (req, res) => {
       termsVersion: result.termsVersion,
     });
   } catch (e) {
-    console.error('acceptTerms error', e);
+    logger.error('acceptTerms error', e);
     return res.status(500).json({ error: 'Unable to record terms acceptance.' });
   }
 };
@@ -903,7 +904,7 @@ const registerFcmToken = async (req, res) => {
     if (!result) return res.status(404).json({ error: 'User not found.' });
     return res.json({ ok: true, count: result.fcmTokens.length });
   } catch (e) {
-    console.error('registerFcmToken error', e);
+    logger.error('registerFcmToken error', e);
     return res.status(500).json({ error: 'Unable to register FCM token.' });
   }
 };
@@ -924,7 +925,7 @@ const unregisterFcmToken = async (req, res) => {
     if (!result) return res.status(404).json({ error: 'User not found.' });
     return res.json({ ok: true, count: result.fcmTokens.length });
   } catch (e) {
-    console.error('unregisterFcmToken error', e);
+    logger.error('unregisterFcmToken error', e);
     return res.status(500).json({ error: 'Unable to unregister FCM token.' });
   }
 };
@@ -956,7 +957,7 @@ async function getMyReferralsRoute(req, res) {
     const data = await getMyReferrals(req.user.id, role);
     res.json(data);
   } catch (e) {
-    console.error('getMyReferrals error', e);
+    logger.error('getMyReferrals error', e);
     res.status(500).json({ error: 'Unable to load referrals.' });
   }
 }
@@ -970,7 +971,7 @@ async function getMyLoyalty(req, res) {
     const stats = await getOwnerStats(req.user.id);
     return res.json(stats);
   } catch (e) {
-    console.error('getMyLoyalty error', e);
+    logger.error('getMyLoyalty error', e);
     return res.status(500).json({ error: 'Unable to load loyalty stats.' });
   }
 }

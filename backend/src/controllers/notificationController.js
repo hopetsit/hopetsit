@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const {
   listNotifications,
   getUnreadCount,
@@ -45,7 +46,7 @@ const getMyNotifications = async (req, res) => {
       count: items.length,
     });
   } catch (error) {
-    console.error('Get notifications error', error);
+    logger.error('Get notifications error', error);
     res.status(500).json({ error: 'Unable to fetch notifications. Please try again later.' });
   }
 };
@@ -65,7 +66,7 @@ const getMyUnreadCount = async (req, res) => {
     const unreadCount = await getUnreadCount({ recipientRole: role, recipientId: userId });
     res.json({ unreadCount });
   } catch (error) {
-    console.error('Get unread count error', error);
+    logger.error('Get unread count error', error);
     res.status(500).json({ error: 'Unable to fetch unread count. Please try again later.' });
   }
 };
@@ -95,7 +96,7 @@ const markMyNotificationRead = async (req, res) => {
 
     res.json({ notification: mapNotification(updated) });
   } catch (error) {
-    console.error('Mark notification read error', error);
+    logger.error('Mark notification read error', error);
     res.status(500).json({ error: 'Unable to mark notification as read. Please try again later.' });
   }
 };
@@ -115,7 +116,7 @@ const markMyNotificationsReadAll = async (req, res) => {
     const updatedCount = await markAllRead({ recipientRole: role, recipientId: userId });
     res.json({ updatedCount });
   } catch (error) {
-    console.error('Mark all notifications read error', error);
+    logger.error('Mark all notifications read error', error);
     res.status(500).json({ error: 'Unable to mark notifications as read. Please try again later.' });
   }
 };

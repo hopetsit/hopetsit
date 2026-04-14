@@ -12,6 +12,7 @@ const {
 } = require('../services/stripeService');
 const { sanitizeUser } = require('../utils/sanitize');
 const { resolveCountry, ibanToCountry } = require('../utils/stripeCountry');
+const logger = require('../utils/logger');
 
 /**
  * Create Stripe Connect account for sitter
@@ -113,7 +114,7 @@ const createStripeConnectAccount = async (req, res) => {
       sitter: sanitizeUser(sitter, { includeEmail: true }),
     });
   } catch (error) {
-    console.error('Create Stripe Connect account error', error);
+    logger.error('Create Stripe Connect account error', error);
     if (error.message && error.message.includes('STRIPE_SECRET_KEY')) {
       return res.status(500).json({ error: 'Payment service is not configured.' });
     }
@@ -175,7 +176,7 @@ const createStripeAccountLink = async (req, res) => {
       message: 'Account link created. Redirect user to the URL to complete onboarding.',
     });
   } catch (error) {
-    console.error('Create account link error', error);
+    logger.error('Create account link error', error);
     if (error.message && error.message.includes('STRIPE_SECRET_KEY')) {
       return res.status(500).json({ error: 'Payment service is not configured.' });
     }
@@ -271,7 +272,7 @@ const getStripeAccountStatus = async (req, res) => {
         : 'Stripe Connect account is being set up. Complete verification to receive payouts.',
     });
   } catch (error) {
-    console.error('Get account status error', error);
+    logger.error('Get account status error', error);
     if (error.message && error.message.includes('STRIPE_SECRET_KEY')) {
       return res.status(500).json({ error: 'Payment service is not configured.' });
     }
@@ -333,7 +334,7 @@ const handleStripeConnectReturn = async (req, res) => {
           sitter.stripeConnectAccountStatus = status;
         }
       } catch (error) {
-        console.error('Error updating account status on return:', error);
+        logger.error('Error updating account status on return:', error);
         // Continue anyway - don't fail the redirect
       }
     }
@@ -347,7 +348,7 @@ const handleStripeConnectReturn = async (req, res) => {
       note: 'You can now close this window and return to the app.',
     });
   } catch (error) {
-    console.error('Handle Stripe Connect return error', error);
+    logger.error('Handle Stripe Connect return error', error);
     res.status(200).json({
       success: true,
       message: 'Redirect received from Stripe. Please check your account status in the app.',
@@ -371,7 +372,7 @@ const handleStripeConnectRefresh = async (req, res) => {
       note: 'Call the create-account endpoint again to get a new onboarding link.',
     });
   } catch (error) {
-    console.error('Handle Stripe Connect refresh error', error);
+    logger.error('Handle Stripe Connect refresh error', error);
     res.status(200).json({
       success: false,
       message: 'Onboarding session expired. Please try again.',

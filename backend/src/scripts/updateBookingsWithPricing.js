@@ -7,6 +7,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const { calculateTotalWithAddOns } = require('../utils/pricing');
+const logger = require('../utils/logger');
 
 const DEFAULT_SERVICE_TYPE = 'home_visit';
 const DEFAULT_LOCATION_TYPE = 'standard';
@@ -17,7 +18,7 @@ async function updateBookings() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+    logger.info('✅ Connected to MongoDB');
 
     // Find all bookings missing required fields
     const bookings = await Booking.find({
@@ -30,10 +31,10 @@ async function updateBookings() {
       ],
     });
 
-    console.log(`\n📊 Found ${bookings.length} bookings to update\n`);
+    logger.info(`\n📊 Found ${bookings.length} bookings to update\n`);
 
     if (bookings.length === 0) {
-      console.log('✅ All bookings already have required fields!');
+      logger.info('✅ All bookings already have required fields!');
       await mongoose.connection.close();
       return;
     }
@@ -48,7 +49,7 @@ async function updateBookings() {
         // Set serviceType if missing
         if (!booking.serviceType) {
           updates.serviceType = DEFAULT_SERVICE_TYPE;
-          console.log(`  📝 Booking ${booking._id}: Added serviceType = ${DEFAULT_SERVICE_TYPE}`);
+          logger.info(`  📝 Booking ${booking._id}: Added serviceType = ${DEFAULT_SERVICE_TYPE}`);
         }
 
         // Set locationType if missing
@@ -80,7 +81,7 @@ async function updateBookings() {
             currency: booking.pricing?.currency || 'EUR',
           };
 
-          console.log(`  💰 Booking ${booking._id}: Added pricing (Total: €${pricingBreakdown.totalPrice}, Commission: €${pricingBreakdown.commission}, Payout: €${pricingBreakdown.netPayout})`);
+          logger.info(`  💰 Booking ${booking._id}: Added pricing (Total: €${pricingBreakdown.totalPrice}, Commission: €${pricingBreakdown.commission}, Payout: €${pricingBreakdown.netPayout})`);
         } else {
           // If pricing exists but missing some fields, fill them
           if (!booking.pricing.commission || !booking.pricing.netPayout) {
@@ -98,7 +99,7 @@ async function updateBookings() {
               commissionRate: booking.pricing.commissionRate || pricingBreakdown.commissionRate,
             };
             
-            console.log(`  🔧 Booking ${booking._id}: Updated pricing fields`);
+            logger.info(`  🔧 Booking ${booking._id}: Updated pricing fields`);
           }
         }
 
@@ -114,19 +115,19 @@ async function updateBookings() {
           skippedCount++;
         }
       } catch (error) {
-        console.error(`  ❌ Error updating booking ${booking._id}:`, error.message);
+        logger.error(`  ❌ Error updating booking ${booking._id}:`, error.message);
       }
     }
 
-    console.log(`\n✅ Update complete!`);
-    console.log(`   - Updated: ${updatedCount} bookings`);
-    console.log(`   - Skipped: ${skippedCount} bookings`);
-    console.log(`\n💡 All bookings now have the required fields for payment flow.\n`);
+    logger.info(`\n✅ Update complete!`);
+    logger.info(`   - Updated: ${updatedCount} bookings`);
+    logger.info(`   - Skipped: ${skippedCount} bookings`);
+    logger.info(`\n💡 All bookings now have the required fields for payment flow.\n`);
 
     await mongoose.connection.close();
-    console.log('✅ Database connection closed');
+    logger.info('✅ Database connection closed');
   } catch (error) {
-    console.error('❌ Error:', error);
+    logger.error('❌ Error:', error);
     await mongoose.connection.close();
     process.exit(1);
   }

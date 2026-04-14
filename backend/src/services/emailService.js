@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const logger = require('../utils/logger');
 
 const transporter = (() => {
   if (!process.env.SMTP_HOST) {
@@ -25,7 +26,7 @@ const sendEmail = async (email, subject, text, html) => {
       ...(html ? { html } : {}),
     });
   } else {
-    console.log(`[PetsInsta] ${subject} for ${email}: ${text}`);
+    logger.info(`[PetsInsta] ${subject} for ${email}: ${text}`);
   }
 };
 

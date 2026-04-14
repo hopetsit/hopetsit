@@ -1,6 +1,7 @@
 require('dotenv').config();
 const admin = require('firebase-admin');
 const https = require('https'); 
+const logger = require('../utils/logger');
 /**
  * Script to generate Firebase ID token for testing Google login in Postman
  * 
@@ -17,8 +18,8 @@ const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
 
 if (!projectId || !clientEmail || !rawPrivateKey) {
-  console.error('❌ Firebase Admin environment variables are not configured.');
-  console.error('   Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in your .env file.');
+  logger.error('❌ Firebase Admin environment variables are not configured.');
+  logger.error('   Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in your .env file.');
   process.exit(1);
 }
 
@@ -32,23 +33,23 @@ try {
       privateKey,
     }),
   });
-  console.log('✅ Firebase Admin initialized');
+  logger.info('✅ Firebase Admin initialized');
 } catch (error) {
-  console.error('❌ Failed to initialize Firebase Admin:', error.message);
+  logger.error('❌ Failed to initialize Firebase Admin:', error.message);
   process.exit(1);
 }
 
 async function generateFirebaseToken(email, role = 'owner') {
   try {
-    console.log(`\n📧 Email: ${email}`);
-    console.log(`👤 Role: ${role}`);
-    console.log('\n🔄 Creating/getting user in Firebase...');
+    logger.info(`\n📧 Email: ${email}`);
+    logger.info(`👤 Role: ${role}`);
+    logger.info('\n🔄 Creating/getting user in Firebase...');
 
     let userRecord;
     try {
       // Try to get existing user
       userRecord = await admin.auth().getUserByEmail(email);
-      console.log('   ✅ User already exists in Firebase');
+      logger.info('   ✅ User already exists in Firebase');
     } catch (error) {
       if (error.code === 'auth/user-not-found') {
         // Create new user
@@ -57,36 +58,36 @@ async function generateFirebaseToken(email, role = 'owner') {
           emailVerified: true,
           displayName: `Test ${role}`,
         });
-        console.log('   ✅ Created new user in Firebase');
+        logger.info('   ✅ Created new user in Firebase');
       } else {
         throw error;
       }
     }
 
     // Create custom token
-    console.log('\n🔑 Generating custom token...');
+    logger.info('\n🔑 Generating custom token...');
     const customToken = await admin.auth().createCustomToken(userRecord.uid, {
       email: email,
       role: role,
     });
-    console.log('   ✅ Custom token generated');
+    logger.info('   ✅ Custom token generated');
 
     // Exchange custom token for ID token using Firebase REST API
-    console.log('\n🔄 Exchanging custom token for ID token...');
+    logger.info('\n🔄 Exchanging custom token for ID token...');
     
     const apiKey = process.env.FIREBASE_API_KEY || process.env.FIREBASE_WEB_API_KEY;
     
     if (!apiKey) {
-      console.log('\n⚠️  FIREBASE_API_KEY not found in .env');
-      console.log('   You can still use the custom token, but you need to exchange it manually.');
-      console.log('\n📋 Custom Token (use this in Firebase client SDK):');
-      console.log('─'.repeat(80));
-      console.log(customToken);
-      console.log('─'.repeat(80));
-      console.log('\n💡 To get ID token:');
-      console.log('   1. Use Firebase client SDK to sign in with custom token');
-      console.log('   2. Call user.getIdToken() to get the ID token');
-      console.log('   3. Use that ID token in Postman');
+      logger.info('\n⚠️  FIREBASE_API_KEY not found in .env');
+      logger.info('   You can still use the custom token, but you need to exchange it manually.');
+      logger.info('\n📋 Custom Token (use this in Firebase client SDK):');
+      logger.info('─'.repeat(80));
+      logger.info(customToken);
+      logger.info('─'.repeat(80));
+      logger.info('\n💡 To get ID token:');
+      logger.info('   1. Use Firebase client SDK to sign in with custom token');
+      logger.info('   2. Call user.getIdToken() to get the ID token');
+      logger.info('   3. Use that ID token in Postman');
       return;
     }
 
@@ -138,35 +139,35 @@ async function generateFirebaseToken(email, role = 'owner') {
 
     const idToken = tokenData.idToken;
 
-    console.log('   ✅ ID token generated successfully!');
+    logger.info('   ✅ ID token generated successfully!');
     
-    console.log('\n' + '='.repeat(80));
-    console.log('📋 FIREBASE ID TOKEN (Use this in Postman):');
-    console.log('='.repeat(80));
-    console.log(idToken);
-    console.log('='.repeat(80));
+    logger.info('\n' + '='.repeat(80));
+    logger.info('📋 FIREBASE ID TOKEN (Use this in Postman):');
+    logger.info('='.repeat(80));
+    logger.info(idToken);
+    logger.info('='.repeat(80));
 
-    console.log('\n📝 Postman Request Details:');
-    console.log('─'.repeat(80));
-    console.log('Method: POST');
-    console.log('URL: http://localhost:5000/auth/google');
-    console.log('Headers:');
-    console.log('  Content-Type: application/json');
-    console.log('Body (JSON):');
-    console.log(JSON.stringify({
+    logger.info('\n📝 Postman Request Details:');
+    logger.info('─'.repeat(80));
+    logger.info('Method: POST');
+    logger.info('URL: http://localhost:5000/auth/google');
+    logger.info('Headers:');
+    logger.info('  Content-Type: application/json');
+    logger.info('Body (JSON):');
+    logger.info(JSON.stringify({
       idToken: idToken,
       role: role
     }, null, 2));
-    console.log('─'.repeat(80));
+    logger.info('─'.repeat(80));
 
-    console.log('\n⏰ Note: This token expires in 1 hour. Generate a new one when needed.');
-    console.log('✅ Done!\n');
+    logger.info('\n⏰ Note: This token expires in 1 hour. Generate a new one when needed.');
+    logger.info('✅ Done!\n');
 
     return idToken;
   } catch (error) {
-    console.error('\n❌ Error generating token:', error.message);
+    logger.error('\n❌ Error generating token:', error.message);
     if (error.code) {
-      console.error('   Error code:', error.code);
+      logger.error('   Error code:', error.code);
     }
     process.exit(1);
   }
@@ -176,11 +177,11 @@ async function generateFirebaseToken(email, role = 'owner') {
 const args = process.argv.slice(2);
 
 if (args.length === 0) {
-  console.log('📖 Usage: node src/scripts/generateFirebaseToken.js <email> [role]');
-  console.log('\nExamples:');
-  console.log('  node src/scripts/generateFirebaseToken.js test@example.com owner');
-  console.log('  node src/scripts/generateFirebaseToken.js test@example.com sitter');
-  console.log('\nNote: Make sure FIREBASE_API_KEY is set in your .env file for automatic ID token generation.');
+  logger.info('📖 Usage: node src/scripts/generateFirebaseToken.js <email> [role]');
+  logger.info('\nExamples:');
+  logger.info('  node src/scripts/generateFirebaseToken.js test@example.com owner');
+  logger.info('  node src/scripts/generateFirebaseToken.js test@example.com sitter');
+  logger.info('\nNote: Make sure FIREBASE_API_KEY is set in your .env file for automatic ID token generation.');
   process.exit(0);
 }
 
@@ -188,12 +189,12 @@ const email = args[0];
 const role = args[1] || 'owner';
 
 if (!email || !email.includes('@')) {
-  console.error('❌ Invalid email address');
+  logger.error('❌ Invalid email address');
   process.exit(1);
 }
 
 if (role !== 'owner' && role !== 'sitter') {
-  console.error('❌ Role must be either "owner" or "sitter"');
+  logger.error('❌ Role must be either "owner" or "sitter"');
   process.exit(1);
 }
 

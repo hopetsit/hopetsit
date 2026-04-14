@@ -4,6 +4,7 @@ const Sitter = require('../models/Sitter');
 const Review = require('../models/Review');
 const OwnerCredit = require('../models/OwnerCredit');
 const { sendNotification } = require('./notificationSender');
+const logger = require('../utils/logger');
 
 const getOwnerStats = async (ownerId) => {
   const completedBookingsCount = await Booking.countDocuments({
@@ -54,7 +55,7 @@ const onBookingCompleted = async (booking) => {
       role: 'owner',
     });
   } catch (e) {
-    console.warn('referral hook failed', e.message);
+    logger.warn('referral hook failed', e.message);
   }
 
   const count = await Booking.countDocuments({ ownerId, status: 'completed' });

@@ -1,18 +1,19 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
+const logger = require('../utils/logger');
 
 // Sprint 6.5 step 5 — exposed as function so runAllMigrations can chain it.
 const seedAdmin = async () => {
   const email = process.env.ADMIN_SEED_EMAIL;
   const password = process.env.ADMIN_SEED_PASSWORD;
   if (!email || !password) {
-    console.log('[seedAdmin] ADMIN_SEED_EMAIL/PASSWORD not set — skipped.');
+    logger.info('[seedAdmin] ADMIN_SEED_EMAIL/PASSWORD not set — skipped.');
     return { skipped: true };
   }
   const existing = await Admin.findOne({ email: email.toLowerCase() });
   if (existing) {
-    console.log(`[seedAdmin] admin already exists: ${existing.email} — skipped.`);
+    logger.info(`[seedAdmin] admin already exists: ${existing.email} — skipped.`);
     return { existing: true };
   }
   const passwordHash = await Admin.hashPassword(password);
@@ -21,7 +22,7 @@ const seedAdmin = async () => {
     passwordHash,
     name: 'Root Admin',
   });
-  console.log(`[seedAdmin] admin created: ${admin.email}`);
+  logger.info(`[seedAdmin] admin created: ${admin.email}`);
   return { created: true };
 };
 
@@ -33,7 +34,7 @@ if (require.main === module) {
       await mongoose.connect(process.env.MONGODB_URI);
       await seedAdmin();
     } catch (err) {
-      console.error('seedAdmin failed:', err);
+      logger.error('seedAdmin failed:', err);
       process.exitCode = 1;
     } finally {
       await mongoose.disconnect();

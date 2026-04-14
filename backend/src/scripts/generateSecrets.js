@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 const ENV_PATH = path.join(__dirname, '..', '..', '.env');
 const TARGETS = ['ENCRYPTION_KEY', 'JWT_SECRET'];
@@ -60,27 +61,27 @@ const main = () => {
     }
   }
 
-  console.log('============================================================');
-  console.log('HopeTSIT — generateSecrets');
-  console.log('============================================================');
-  for (const [k, v] of Object.entries(kept)) console.log(`• ${k}: ${v}`);
+  logger.info('============================================================');
+  logger.info('HopeTSIT — generateSecrets');
+  logger.info('============================================================');
+  for (const [k, v] of Object.entries(kept)) logger.info(`• ${k}: ${v}`);
 
   if (Object.keys(generated).length === 0) {
-    console.log('\nAll secrets present — nothing to generate. ✅');
+    logger.info('\nAll secrets present — nothing to generate. ✅');
     return;
   }
 
-  console.log('\nNewly generated secrets (copy these into backend/.env and your secret manager):');
-  console.log('------------------------------------------------------------');
+  logger.info('\nNewly generated secrets (copy these into backend/.env and your secret manager):');
+  logger.info('------------------------------------------------------------');
   for (const [k, v] of Object.entries(generated)) {
-    console.log(`${k}=${v}`);
+    logger.info(`${k}=${v}`);
   }
-  console.log('------------------------------------------------------------');
-  console.log('\nNext steps:');
-  console.log('  1. Append the lines above to backend/.env (or replace the existing placeholder).');
-  console.log('  2. Add the same values to your deployment env (Render/Vercel/AWS Secrets Manager).');
-  console.log('  3. Rotating ENCRYPTION_KEY requires re-encrypting existing data — do NOT rotate in prod without a migration.');
-  console.log('  4. Rotating JWT_SECRET will invalidate all current sessions (expected).');
+  logger.info('------------------------------------------------------------');
+  logger.info('\nNext steps:');
+  logger.info('  1. Append the lines above to backend/.env (or replace the existing placeholder).');
+  logger.info('  2. Add the same values to your deployment env (Render/Vercel/AWS Secrets Manager).');
+  logger.info('  3. Rotating ENCRYPTION_KEY requires re-encrypting existing data — do NOT rotate in prod without a migration.');
+  logger.info('  4. Rotating JWT_SECRET will invalidate all current sessions (expected).');
 };
 
 main();

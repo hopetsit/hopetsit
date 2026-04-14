@@ -21,6 +21,7 @@ const {
   LOCATION_TYPES,
 } = require('../utils/pricing');
 const { DEFAULT_CURRENCY } = require('../utils/currency');
+const logger = require('../utils/logger');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -28,7 +29,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
  * Seed sitters with pricing data
  */
 async function seedSitters() {
-  console.log('🌱 Seeding sitters with pricing data...');
+  logger.info('🌱 Seeding sitters with pricing data...');
 
   // Find or create sitters with different location types and pricing
   const sittersData = [
@@ -204,15 +205,15 @@ async function seedSitters() {
         sitter.servicePricing = sitterData.servicePricing;
         sitter.service = Array.isArray(sitterData.service) ? sitterData.service : (sitterData.service ? [sitterData.service] : []);
         await sitter.save();
-        console.log(`✅ Updated sitter: ${sitterData.name}`);
+        logger.info(`✅ Updated sitter: ${sitterData.name}`);
       } else {
         // Create new sitter
         sitter = await Sitter.create(sitterData);
-        console.log(`✅ Created sitter: ${sitterData.name}`);
+        logger.info(`✅ Created sitter: ${sitterData.name}`);
       }
       seededSitters.push(sitter);
     } catch (error) {
-      console.error(`❌ Error seeding sitter ${sitterData.name}:`, error.message);
+      logger.error(`❌ Error seeding sitter ${sitterData.name}:`, error.message);
     }
   }
 
@@ -223,10 +224,10 @@ async function seedSitters() {
  * Seed bookings with complete pricing breakdown
  */
 async function seedBookings(sitters, owners) {
-  console.log('🌱 Seeding bookings with pricing data...');
+  logger.info('🌱 Seeding bookings with pricing data...');
 
   if (sitters.length === 0 || owners.length === 0) {
-    console.log('⚠️  No sitters or owners available. Skipping booking seed.');
+    logger.info('⚠️  No sitters or owners available. Skipping booking seed.');
     return;
   }
 
@@ -367,7 +368,7 @@ async function seedBookings(sitters, owners) {
           currency: recommended.currency,
         };
       } catch (error) {
-        console.error('Error getting recommended range:', error.message);
+        logger.error('Error getting recommended range:', error.message);
       }
 
       // Calculate pricing breakdown with commission
@@ -397,10 +398,10 @@ async function seedBookings(sitters, owners) {
         status: bookingData.status,
       });
 
-      console.log(`✅ Created booking: ${bookingData.petName} - ${bookingData.serviceType} - Total: ${pricingBreakdown.totalPrice}€ (Commission: ${pricingBreakdown.commission}€, Payout: ${pricingBreakdown.netPayout}€)`);
+      logger.info(`✅ Created booking: ${bookingData.petName} - ${bookingData.serviceType} - Total: ${pricingBreakdown.totalPrice}€ (Commission: ${pricingBreakdown.commission}€, Payout: ${pricingBreakdown.netPayout}€)`);
       seededBookings.push(booking);
     } catch (error) {
-      console.error(`❌ Error seeding booking for ${bookingData.petName}:`, error.message);
+      logger.error(`❌ Error seeding booking for ${bookingData.petName}:`, error.message);
     }
   }
 
@@ -412,9 +413,9 @@ async function seedBookings(sitters, owners) {
  */
 async function seedDatabase() {
   try {
-    console.log('🔌 Connecting to MongoDB...');
+    logger.info('🔌 Connecting to MongoDB...');
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+    logger.info('✅ Connected to MongoDB');
 
     // Clear existing pricing-related data (optional - comment out if you want to keep existing data)
     // await Booking.deleteMany({});
@@ -430,9 +431,9 @@ async function seedDatabase() {
         verified: true,
         acceptedTerms: true,
       });
-      console.log('✅ Created test owner');
+      logger.info('✅ Created test owner');
     } else {
-      console.log('✅ Using existing test owner');
+      logger.info('✅ Using existing test owner');
     }
 
     // Seed sitters
@@ -441,21 +442,21 @@ async function seedDatabase() {
     // Seed bookings
     const bookings = await seedBookings(sitters, [owner]);
 
-    console.log('\n📊 Seed Summary:');
-    console.log(`   - Sitters seeded: ${sitters.length}`);
-    console.log(`   - Bookings seeded: ${bookings.length}`);
-    console.log('\n✅ Database seeding completed successfully!');
-    console.log('\n💡 Pricing Structure:');
-    console.log('   - Platform Commission: 20%');
-    console.log('   - Service Types: home_visit, dog_walking, overnight_stay, long_stay');
-    console.log('   - Location Types: standard, large_city');
-    console.log('   - All pricing follows client requirements exactly');
+    logger.info('\n📊 Seed Summary:');
+    logger.info(`   - Sitters seeded: ${sitters.length}`);
+    logger.info(`   - Bookings seeded: ${bookings.length}`);
+    logger.info('\n✅ Database seeding completed successfully!');
+    logger.info('\n💡 Pricing Structure:');
+    logger.info('   - Platform Commission: 20%');
+    logger.info('   - Service Types: home_visit, dog_walking, overnight_stay, long_stay');
+    logger.info('   - Location Types: standard, large_city');
+    logger.info('   - All pricing follows client requirements exactly');
 
     await mongoose.connection.close();
-    console.log('\n🔌 Database connection closed');
+    logger.info('\n🔌 Database connection closed');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error seeding database:', error);
+    logger.error('❌ Error seeding database:', error);
     await mongoose.connection.close();
     process.exit(1);
   }

@@ -41,6 +41,7 @@ const {
   normalizeAddOns,
 } = require('../utils/requestFingerprint');
 const { calculateTierBasePrice } = require('../utils/tierPricing');
+const logger = require('../utils/logger');
 
 const normalizeIncomingDateString = (value) => {
   if (value == null) return '';
@@ -288,7 +289,7 @@ const createBooking = async (req, res) => {
           currency: recommended.currency,
         };
       } catch (error) {
-        console.error('Error getting recommended price range:', error);
+        logger.error('Error getting recommended price range:', error);
       }
     }
 
@@ -401,7 +402,7 @@ const createBooking = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Create booking error', error);
+    logger.error('Create booking error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner or sitter id.' });
     }
@@ -473,7 +474,7 @@ const schedulePayoutForBooking = async (booking) => {
 
   booking.payoutStatus = 'scheduled';
   await booking.save();
-  console.log(
+  logger.info(
     `🗓️  Payout scheduled for booking ${booking._id.toString()} on ${booking.scheduledPayoutAt.toISOString()}`
   );
 };
@@ -502,7 +503,7 @@ const processSitterPayoutForBooking = async (booking) => {
 
     // Idempotency: never send payout twice
     if (booking.payoutStatus === 'completed') {
-      console.log('ℹ️ Payout already completed for booking', booking._id.toString());
+      logger.info('ℹ️ Payout already completed for booking', booking._id.toString());
       return;
     }
 
@@ -510,7 +511,7 @@ const processSitterPayoutForBooking = async (booking) => {
     const currency = booking.pricing?.currency;
 
     if (typeof netPayout !== 'number' || !Number.isFinite(netPayout) || netPayout <= 0) {
-      console.warn('⚠️ Skipping payout due to invalid netPayout', {
+      logger.warn('⚠️ Skipping payout due to invalid netPayout', {
         bookingId: booking._id.toString(),
         netPayout,
       });
@@ -524,7 +525,7 @@ const processSitterPayoutForBooking = async (booking) => {
 
     const sitter = await Sitter.findById(sitterId);
     if (!sitter) {
-      console.error('❌ Unable to process payout: sitter not found for booking', booking._id.toString());
+      logger.error('❌ Unable to process payout: sitter not found for booking', booking._id.toString());
       booking.payoutStatus = 'failed';
       booking.payoutError = 'Sitter not found for payout.';
       await booking.save();
@@ -533,7 +534,7 @@ const processSitterPayoutForBooking = async (booking) => {
 
     const sitterPaypalEmail = decrypt(sitter.paypalEmail || '').trim();
     if (!sitterPaypalEmail) {
-      console.warn('⚠️ Skipping payout: sitter PayPal email missing', {
+      logger.warn('⚠️ Skipping payout: sitter PayPal email missing', {
         bookingId: booking._id.toString(),
         sitterId: sitter._id.toString(),
       });
@@ -562,13 +563,13 @@ const processSitterPayoutForBooking = async (booking) => {
     booking.payoutError = null;
     await booking.save();
   } catch (error) {
-    console.error('❌ Error while processing sitter payout for booking', booking._id.toString(), error);
+    logger.error('❌ Error while processing sitter payout for booking', booking._id.toString(), error);
     booking.payoutStatus = 'failed';
     booking.payoutError = error.message || String(error);
     try {
       await booking.save();
     } catch (saveError) {
-      console.error('❌ Failed to persist payout failure state for booking', booking._id.toString(), saveError);
+      logger.error('❌ Failed to persist payout failure state for booking', booking._id.toString(), saveError);
     }
   }
 };
@@ -613,7 +614,7 @@ const listBookings = async (req, res) => {
 
     res.json({ bookings: bookings.map(sanitizeBooking) });
   } catch (error) {
-    console.error('Fetch bookings error', error);
+    logger.error('Fetch bookings error', error);
     res.status(500).json({ error: 'Unable to fetch bookings. Please try again later.' });
   }
 };
@@ -792,7 +793,7 @@ const getMyBookings = async (req, res) => {
       count: formattedBookings.length,
     });
   } catch (error) {
-    console.error('Get my bookings error', error);
+    logger.error('Get my bookings error', error);
     res.status(500).json({ error: 'Unable to fetch bookings. Please try again later.' });
   }
 };
@@ -835,7 +836,7 @@ const cancelBooking = async (req, res) => {
 
     res.json({ booking: sanitizeBooking(booking), message: 'Booking cancelled.' });
   } catch (error) {
-    console.error('Cancel booking error', error);
+    logger.error('Cancel booking error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -937,7 +938,7 @@ const selfCancelWithRefund = async (req, res) => {
         await refundBookingPayment(booking);
       }
     } catch (refundErr) {
-      console.error('⚠️  Self-cancel refund failed', refundErr);
+      logger.error('⚠️  Self-cancel refund failed', refundErr);
       // Do not fail the cancellation — the booking is marked and admin can retry.
     }
 
@@ -946,7 +947,7 @@ const selfCancelWithRefund = async (req, res) => {
       message: 'Booking cancelled and refund initiated.',
     });
   } catch (error) {
-    console.error('Self-cancel with refund error', error);
+    logger.error('Self-cancel with refund error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -997,7 +998,7 @@ const cancelOwnerSentBookingRequest = async (req, res) => {
       message: 'Sent booking request cancelled successfully.',
     });
   } catch (error) {
-    console.error('Cancel owner sent booking request error', error);
+    logger.error('Cancel owner sent booking request error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1087,7 +1088,7 @@ const respondBooking = async (req, res) => {
 
     return res.json({ booking: sanitizeBooking(booking) });
   } catch (error) {
-    console.error('Respond booking error', error);
+    logger.error('Respond booking error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1171,7 +1172,7 @@ const agreeToBooking = async (req, res) => {
       message: 'Booking marked as agreed. Owner can now proceed with payment.',
     });
   } catch (error) {
-    console.error('Agree to booking error', error);
+    logger.error('Agree to booking error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1315,7 +1316,7 @@ const createBookingPaymentIntent = async (req, res) => {
       message: 'PaymentIntent created successfully. Use clientSecret with Stripe Payment Sheet.',
     });
   } catch (error) {
-    console.error('Create payment intent error', error);
+    logger.error('Create payment intent error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1404,7 +1405,7 @@ const createBookingPaypalOrder = async (req, res) => {
           booking: sanitizeBooking(booking),
         });
       } catch (err) {
-        console.error('Error fetching existing PayPal order, creating a new one instead:', err);
+        logger.error('Error fetching existing PayPal order, creating a new one instead:', err);
       }
     }
 
@@ -1436,7 +1437,7 @@ const createBookingPaypalOrder = async (req, res) => {
       message: 'PayPal order created successfully. Use orderId to approve and capture the payment.',
     });
   } catch (error) {
-    console.error('Create PayPal order error', error);
+    logger.error('Create PayPal order error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1544,7 +1545,7 @@ const confirmBookingPayment = async (req, res) => {
       note: 'Booking status updates are handled automatically by Stripe webhooks for security and reliability.',
     });
   } catch (error) {
-    console.error('Confirm payment error', error);
+    logger.error('Confirm payment error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1628,7 +1629,7 @@ const captureBookingPaypalPayment = async (req, res) => {
           captureId = captures[0].id;
         }
       } catch (parseError) {
-        console.warn('Unable to parse PayPal capture ID from captured order:', parseError);
+        logger.warn('Unable to parse PayPal capture ID from captured order:', parseError);
       }
 
       if (captureId) {
@@ -1672,7 +1673,7 @@ const captureBookingPaypalPayment = async (req, res) => {
           : `PayPal order status: ${orderStatus}`,
     });
   } catch (error) {
-    console.error('Capture PayPal order error', error);
+    logger.error('Capture PayPal order error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1816,7 +1817,7 @@ const getBookingAgreement = async (req, res) => {
 
     res.json({ agreement });
   } catch (error) {
-    console.error('Get booking agreement error', error);
+    logger.error('Get booking agreement error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -1900,7 +1901,7 @@ const requestCancellation = async (req, res) => {
             booking.stripeChargeId = chargeId;
           }
         } catch (error) {
-          console.error('Error retrieving payment intent for charge ID:', error);
+          logger.error('Error retrieving payment intent for charge ID:', error);
         }
       } else if (booking.stripePaymentIntentId) {
         // Check payment intent status even if we have charge ID
@@ -1908,7 +1909,7 @@ const requestCancellation = async (req, res) => {
           const paymentIntent = await getPaymentIntent(booking.stripePaymentIntentId);
           paymentIntentStatus = paymentIntent.status;
         } catch (error) {
-          console.error('Error retrieving payment intent status:', error);
+          logger.error('Error retrieving payment intent status:', error);
         }
       }
       
@@ -1920,9 +1921,9 @@ const requestCancellation = async (req, res) => {
           booking.paymentStatus = 'refund'; // Update payment status
           booking.cancellation.confirmedAt = new Date();
           refundProcessed = true;
-          console.log(`✅ Refund processed for booking ${booking._id}: ${refund.id}`);
+          logger.info(`✅ Refund processed for booking ${booking._id}: ${refund.id}`);
         } catch (refundError) {
-          console.error('Refund error:', refundError);
+          logger.error('Refund error:', refundError);
           return res.status(500).json({ 
             error: 'Unable to process refund. Please try again later.',
             details: refundError.message,
@@ -1934,7 +1935,7 @@ const requestCancellation = async (req, res) => {
         booking.status = 'cancelled';
         booking.paymentStatus = 'cancelled'; // Update payment status
         booking.cancellation.confirmedAt = new Date();
-        console.warn(`⚠️ Booking ${booking._id} cancelled but no charge ID available. Payment Intent Status: ${paymentIntentStatus || 'unknown'}`);
+        logger.warn(`⚠️ Booking ${booking._id} cancelled but no charge ID available. Payment Intent Status: ${paymentIntentStatus || 'unknown'}`);
       }
     }
 
@@ -1965,7 +1966,7 @@ const requestCancellation = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Request cancellation error', error);
+    logger.error('Request cancellation error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -2008,7 +2009,7 @@ const getPaymentStatus = async (req, res) => {
         paymentIntentDetails = await getPaymentIntent(booking.stripePaymentIntentId);
         paymentIntentStatus = paymentIntentDetails.status;
       } catch (error) {
-        console.error('Error fetching payment intent:', error);
+        logger.error('Error fetching payment intent:', error);
         // Continue without Stripe details
       }
     }
@@ -2020,7 +2021,7 @@ const getPaymentStatus = async (req, res) => {
         const order = await getPaypalOrder(booking.paypalOrderId);
         paypalOrderStatus = order.status;
       } catch (error) {
-        console.error('Error fetching PayPal order:', error);
+        logger.error('Error fetching PayPal order:', error);
       }
     }
 
@@ -2062,7 +2063,7 @@ const getPaymentStatus = async (req, res) => {
         : 'Payment status unknown.',
     });
   } catch (error) {
-    console.error('Get payment status error', error);
+    logger.error('Get payment status error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -2124,7 +2125,7 @@ const retryBookingPayout = async (req, res) => {
           : 'Payout retry attempted. Check payoutStatus and payoutError for details.',
     });
   } catch (error) {
-    console.error('Retry payout error', error);
+    logger.error('Retry payout error', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid booking id.' });
     }
@@ -2156,10 +2157,10 @@ const processScheduledSitterPayouts = async () => {
       await processSitterPayoutForBooking(booking);
       released += 1;
     } catch (err) {
-      console.error(`⚠️  processScheduledSitterPayouts: failed for booking ${booking._id}`, err);
+      logger.error(`⚠️  processScheduledSitterPayouts: failed for booking ${booking._id}`, err);
     }
   }
-  console.log(`💸 processScheduledSitterPayouts: released ${released} payout(s).`);
+  logger.info(`💸 processScheduledSitterPayouts: released ${released} payout(s).`);
   return { released };
 };
 
@@ -2184,11 +2185,11 @@ const completeBooking = async (req, res) => {
     try {
       await onBookingCompleted(booking);
     } catch (e) {
-      console.warn('loyalty hook failed', e.message);
+      logger.warn('loyalty hook failed', e.message);
     }
     return res.json({ booking: sanitizeBooking(booking) });
   } catch (e) {
-    console.error('completeBooking error', e);
+    logger.error('completeBooking error', e);
     return res.status(500).json({ error: 'Unable to complete booking.' });
   }
 };

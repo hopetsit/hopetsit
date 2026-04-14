@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 /**
  * Payout scheduler.
  *
@@ -41,7 +42,7 @@ function startPayoutScheduler({
     try {
       await processScheduledSitterPayouts();
     } catch (error) {
-      console.error('❌ Payout scheduler tick failed', error);
+      logger.error('❌ Payout scheduler tick failed', error);
     }
   };
 
@@ -56,7 +57,7 @@ function startPayoutScheduler({
     timer.unref();
   }
 
-  console.log(
+  logger.info(
     `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes).`
   );
 }

@@ -14,18 +14,19 @@ const mongoose = require('mongoose');
 const { dropMobileUniqueIndex } = require('./dropMobileUniqueIndex');
 const { encryptSensitiveFields } = require('./encryptSensitiveFields');
 const { seedAdmin } = require('./seedAdmin');
+const logger = require('../utils/logger');
 
 (async () => {
   if (!process.env.MONGODB_URI) {
-    console.error('MONGODB_URI is not set. Aborting.');
+    logger.error('MONGODB_URI is not set. Aborting.');
     process.exit(1);
   }
   let failed = 0;
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('============================================================');
-    console.log('HopeTSIT — runAllMigrations starting');
-    console.log('============================================================');
+    logger.info('============================================================');
+    logger.info('HopeTSIT — runAllMigrations starting');
+    logger.info('============================================================');
 
     const steps = [
       { name: '1/3 dropMobileUniqueIndex', run: dropMobileUniqueIndex },
@@ -34,23 +35,23 @@ const { seedAdmin } = require('./seedAdmin');
     ];
 
     for (const step of steps) {
-      console.log(`\n→ ${step.name}`);
+      logger.info(`\n→ ${step.name}`);
       try {
         await step.run();
-        console.log(`✅ ${step.name} OK`);
+        logger.info(`✅ ${step.name} OK`);
       } catch (e) {
         failed++;
-        console.error(`❌ ${step.name} failed:`, e.message || e);
+        logger.error(`❌ ${step.name} failed:`, e.message || e);
       }
     }
   } catch (e) {
-    console.error('runAllMigrations fatal:', e);
+    logger.error('runAllMigrations fatal:', e);
     failed++;
   } finally {
     await mongoose.disconnect();
-    console.log('\n============================================================');
-    console.log(failed === 0 ? 'All migrations finished successfully.' : `Finished with ${failed} failure(s).`);
-    console.log('============================================================');
+    logger.info('\n============================================================');
+    logger.info(failed === 0 ? 'All migrations finished successfully.' : `Finished with ${failed} failure(s).`);
+    logger.info('============================================================');
     process.exit(failed === 0 ? 0 : 1);
   }
 })();
