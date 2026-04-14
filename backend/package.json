@@ -7,6 +7,9 @@
     "start": "nodemon src/index.js",
     "dev": "nodemon src/index.js",
     "lint": "eslint .",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "seed:pricing": "node src/scripts/seedPricing.js",
     "view:seeded": "node src/scripts/viewSeededData.js",
     "update:bookings": "node src/scripts/updateBookingsWithPricing.js",
@@ -51,6 +54,9 @@
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
-    "nodemon": "^3.1.4"
+    "jest": "^30.3.0",
+    "mongodb-memory-server": "^10.4.3",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.2.2"
   }
 }
