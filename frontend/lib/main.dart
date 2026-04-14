@@ -14,6 +14,7 @@ import 'package:hopetsit/routes/app_pages.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -41,7 +42,23 @@ void main() async {
 
   setupDependencies();
   Get.put(ThemeController(), permanent: true);
-  runApp(MyApp());
+
+  // Sprint 8 step 6 — optional Sentry. Opt-in via SENTRY_DSN_FRONTEND in .env.
+  final sentryDsn = dotenv.env['SENTRY_DSN_FRONTEND'] ?? '';
+  if (sentryDsn.isNotEmpty) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = sentryDsn;
+        options.tracesSampleRate = double.tryParse(
+              dotenv.env['SENTRY_TRACES_SAMPLE_RATE'] ?? '0',
+            ) ??
+            0.0;
+      },
+      appRunner: () => runApp(MyApp()),
+    );
+  } else {
+    runApp(MyApp());
+  }
 }
 
 class MyApp extends StatelessWidget {

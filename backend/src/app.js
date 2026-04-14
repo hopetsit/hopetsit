@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const pinoHttp = require('pino-http');
 const logger = require('./utils/logger');
+const sentry = require('./utils/sentry');
+sentry.init();
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
@@ -115,6 +117,22 @@ app.use('/admin', adminRoutes);
 app.use('/sitter', ibanRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/walks', walkRoutes);
+
+// Sprint 8 step 6 — global Express error handler: report to Sentry then
+// fall back to a generic 500 so clients never see a stack trace.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  logger.error({ err }, 'Unhandled Express error');
+  sentry.captureException(err, {
+    path: req.path,
+    method: req.method,
+    userId: req.user?.id,
+  });
+  if (res.headersSent) return;
+  res.status(err.status || 500).json({
+    error: err.expose ? err.message : 'Internal server error',
+  });
+});
 
 module.exports = app;
 

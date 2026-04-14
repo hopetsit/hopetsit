@@ -144,6 +144,24 @@ TERMS_VERSION=v1.0
 
 ---
 
+## 5.1 Sentry (optionnel, recommandé)
+
+- [ ] Créer un compte sur https://sentry.io (gratuit jusqu'à 5k events/mois).
+- [ ] Créer **2 projets** : `hopetsit-backend` (Node.js) et `hopetsit-frontend` (Flutter).
+- [ ] Récupérer les DSN des 2 projets.
+- [ ] Backend : coller le DSN dans `SENTRY_DSN_BACKEND` (`backend/.env` + variables Render).
+- [ ] Frontend : coller le DSN dans `SENTRY_DSN_FRONTEND` (`frontend/.env`).
+- [ ] Optionnel : régler `SENTRY_TRACES_SAMPLE_RATE` entre `0` et `1` (`0.1` = 10 % des transactions tracées).
+- [ ] Déclencher une erreur de test en staging pour vérifier la réception.
+
+## 5.2 Swagger en production
+
+- [ ] Générer un token fort pour `SWAGGER_AUTH_TOKEN` (Render) :
+      ```bash
+      node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+      ```
+- [ ] Tester que `/api-docs` en prod renvoie 401 sans header, 200 avec `X-Swagger-Auth: <token>`.
+
 ## 6. Exécution des scripts de migration DB
 
 Une fois les variables d'env en place **localement** (`backend/.env` à jour), exécuter :
