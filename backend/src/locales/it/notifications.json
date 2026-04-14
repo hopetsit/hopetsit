@@ -1,1 +1,32 @@
-{}
+{
+  "BOOKING_MUTUALLY_ACCEPTED": {
+    "title": "Prenotazione accettata",
+    "body": "Ciao {{name}}, entrambe le parti hanno accettato la prenotazione. Completa il pagamento per iniziare a chattare.",
+    "emailSubject": "La tua prenotazione HopeTSIT è confermata",
+    "emailBody": "<p>Ciao {{name}},</p><p>La prenotazione è stata accettata da entrambe le parti. Completa il pagamento per sbloccare la chat e finalizzare la prenotazione.</p><p>— Il team HopeTSIT</p>"
+  },
+  "NEW_MESSAGE": {
+    "title": "Nuovo messaggio da {{senderName}}",
+    "body": "{{preview}}",
+    "emailSubject": "Nuovo messaggio su HopeTSIT",
+    "emailBody": "<p><strong>{{senderName}}</strong> ti ha inviato un nuovo messaggio:</p><blockquote>{{preview}}</blockquote><p>Apri l'app per rispondere.</p>"
+  },
+  "NEW_REVIEW": {
+    "title": "Hai ricevuto una nuova recensione",
+    "body": "Valutazione: {{rating}}/5 — {{comment}}",
+    "emailSubject": "Nuova recensione sul tuo profilo HopeTSIT",
+    "emailBody": "<p>Hai appena ricevuto una recensione <strong>{{rating}}/5</strong>:</p><blockquote>{{comment}}</blockquote>"
+  },
+  "PAYMENT_SUCCESS": {
+    "title": "Pagamento ricevuto",
+    "body": "Il pagamento di {{amount}} {{currency}} è andato a buon fine.",
+    "emailSubject": "Pagamento confermato — HopeTSIT",
+    "emailBody": "<p>Il tuo pagamento di <strong>{{amount}} {{currency}}</strong> è stato confermato. Prenotazione n. {{bookingId}}.</p>"
+  },
+  "PAYMENT_FAILED": {
+    "title": "Pagamento fallito",
+    "body": "Il tuo pagamento di {{amount}} {{currency}} non è andato a buon fine. Riprova.",
+    "emailSubject": "Pagamento fallito — HopeTSIT",
+    "emailBody": "<p>Il tuo pagamento di <strong>{{amount}} {{currency}}</strong> non è andato a buon fine. Apri l'app per riprovare.</p>"
+  }
+}

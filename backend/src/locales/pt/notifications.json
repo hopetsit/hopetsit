@@ -1,1 +1,32 @@
-{}
+{
+  "BOOKING_MUTUALLY_ACCEPTED": {
+    "title": "Reserva aceite",
+    "body": "Olá {{name}}, ambas as partes aceitaram a reserva. Conclua o pagamento para começar a conversar.",
+    "emailSubject": "A sua reserva HopeTSIT está confirmada",
+    "emailBody": "<p>Olá {{name}},</p><p>A reserva foi aceite por ambas as partes. Conclua o pagamento para desbloquear o chat e confirmar a reserva.</p><p>— A equipa HopeTSIT</p>"
+  },
+  "NEW_MESSAGE": {
+    "title": "Nova mensagem de {{senderName}}",
+    "body": "{{preview}}",
+    "emailSubject": "Nova mensagem no HopeTSIT",
+    "emailBody": "<p><strong>{{senderName}}</strong> enviou-lhe uma nova mensagem:</p><blockquote>{{preview}}</blockquote><p>Abra a aplicação para responder.</p>"
+  },
+  "NEW_REVIEW": {
+    "title": "Recebeu uma nova avaliação",
+    "body": "Classificação: {{rating}}/5 — {{comment}}",
+    "emailSubject": "Nova avaliação no seu perfil HopeTSIT",
+    "emailBody": "<p>Acabou de receber uma avaliação <strong>{{rating}}/5</strong>:</p><blockquote>{{comment}}</blockquote>"
+  },
+  "PAYMENT_SUCCESS": {
+    "title": "Pagamento recebido",
+    "body": "O pagamento de {{amount}} {{currency}} foi concluído com sucesso.",
+    "emailSubject": "Pagamento confirmado — HopeTSIT",
+    "emailBody": "<p>O seu pagamento de <strong>{{amount}} {{currency}}</strong> foi confirmado. Reserva n.º {{bookingId}}.</p>"
+  },
+  "PAYMENT_FAILED": {
+    "title": "Pagamento falhou",
+    "body": "O seu pagamento de {{amount}} {{currency}} não pôde ser processado. Tente novamente.",
+    "emailSubject": "Pagamento falhou — HopeTSIT",
+    "emailBody": "<p>O seu pagamento de <strong>{{amount}} {{currency}}</strong> não pôde ser processado. Abra a aplicação para tentar novamente.</p>"
+  }
+}

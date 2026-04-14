@@ -1,1 +1,32 @@
-{}
+{
+  "BOOKING_MUTUALLY_ACCEPTED": {
+    "title": "Booking accepted",
+    "body": "Hi {{name}}, both parties accepted the booking. Complete the payment to start chatting.",
+    "emailSubject": "Your HopeTSIT booking is confirmed",
+    "emailBody": "<p>Hi {{name}},</p><p>The booking has been accepted by both parties. Complete the payment to unlock the chat and finalize the reservation.</p><p>— The HopeTSIT team</p>"
+  },
+  "NEW_MESSAGE": {
+    "title": "New message from {{senderName}}",
+    "body": "{{preview}}",
+    "emailSubject": "New message on HopeTSIT",
+    "emailBody": "<p><strong>{{senderName}}</strong> sent you a new message:</p><blockquote>{{preview}}</blockquote><p>Open the app to reply.</p>"
+  },
+  "NEW_REVIEW": {
+    "title": "You received a new review",
+    "body": "New rating: {{rating}}/5 — {{comment}}",
+    "emailSubject": "New review on your HopeTSIT profile",
+    "emailBody": "<p>You just received a <strong>{{rating}}/5</strong> review:</p><blockquote>{{comment}}</blockquote>"
+  },
+  "PAYMENT_SUCCESS": {
+    "title": "Payment received",
+    "body": "Payment of {{amount}} {{currency}} was successful.",
+    "emailSubject": "Payment confirmed — HopeTSIT",
+    "emailBody": "<p>Your payment of <strong>{{amount}} {{currency}}</strong> was successful. Booking #{{bookingId}}.</p>"
+  },
+  "PAYMENT_FAILED": {
+    "title": "Payment failed",
+    "body": "Your payment of {{amount}} {{currency}} could not be processed. Please try again.",
+    "emailSubject": "Payment failed — HopeTSIT",
+    "emailBody": "<p>Your payment of <strong>{{amount}} {{currency}}</strong> could not be processed. Please open the app and try again.</p>"
+  }
+}
