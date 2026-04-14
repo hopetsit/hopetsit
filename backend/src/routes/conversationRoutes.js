@@ -421,5 +421,47 @@ router.post('/:id/messages/attachments', requireAuth, requirePaidBooking, upload
  */
 router.post('/:id/read', markConversationRead);
 
+// Sprint 3 step 6 — sitter shares their phone number as a special message.
+// Post-payment only (gated by requirePaidBooking).
+const Sitter = require('../models/Sitter');
+const Conversation = require('../models/Conversation');
+const Message = require('../models/Message');
+router.post(
+  '/:id/share-phone',
+  requireAuth,
+  requireRole('sitter'),
+  requirePaidBooking,
+  async (req, res) => {
+    try {
+      const conversation = await Conversation.findById(req.params.id);
+      if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+      if (conversation.sitterId.toString() !== req.user.id) {
+        return res.status(403).json({ error: 'Only the conversation sitter can share their phone.' });
+      }
+      const sitter = await Sitter.findById(req.user.id).select('mobile countryCode');
+      if (!sitter || !sitter.mobile) {
+        return res.status(400).json({ error: 'No phone number on profile to share.' });
+      }
+      const phone = [sitter.countryCode, sitter.mobile].filter(Boolean).join(' ').trim();
+      const message = await Message.create({
+        conversationId: conversation._id,
+        senderRole: 'sitter',
+        senderId: conversation.sitterId,
+        body: phone,
+        attachments: [],
+        type: 'phone_share',
+      });
+      conversation.lastMessage = phone;
+      conversation.lastMessageAt = new Date();
+      conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
+      await conversation.save();
+      res.status(201).json({ message });
+    } catch (e) {
+      console.error('share-phone error', e);
+      res.status(500).json({ error: 'Unable to share phone number.' });
+    }
+  }
+);
+
 module.exports = router;
 
