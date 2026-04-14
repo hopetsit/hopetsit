@@ -74,11 +74,25 @@ app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
 app.use(morgan('dev'));
 
-// Swagger API Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'PetsInsta API Documentation',
-}));
+// Sprint 8 step 4 — Swagger UI is public in dev, protected by SWAGGER_AUTH_TOKEN in prod.
+const swaggerGuard = (req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') return next();
+  const expected = process.env.SWAGGER_AUTH_TOKEN;
+  const provided = req.headers['x-swagger-auth'];
+  if (!expected) return res.status(404).end();
+  if (provided === expected) return next();
+  res.set('WWW-Authenticate', 'Header realm="swagger"');
+  return res.status(401).json({ error: 'Swagger access denied.' });
+};
+app.use(
+  '/api-docs',
+  swaggerGuard,
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'PetsInsta API Documentation',
+  })
+);
 
 app.use('/health', healthRoutes);
 app.use('/auth', authLimiter, authRoutes);
