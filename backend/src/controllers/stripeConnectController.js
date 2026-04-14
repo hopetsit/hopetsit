@@ -110,7 +110,7 @@ const createStripeConnectAccount = async (req, res) => {
       message: isNewAccount 
         ? 'Stripe Connect account created. Use the onboardingUrl to complete onboarding.'
         : 'Account link generated. Use the onboardingUrl to complete or update your onboarding.',
-      sitter: sanitizeUser(sitter),
+      sitter: sanitizeUser(sitter, { includeEmail: true }),
     });
   } catch (error) {
     console.error('Create Stripe Connect account error', error);

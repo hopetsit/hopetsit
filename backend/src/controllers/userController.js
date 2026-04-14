@@ -183,7 +183,7 @@ const updateService = async (req, res) => {
     account.service = normalizedServices;
     await account.save();
 
-    res.json({ role, user: sanitizeUser(account) });
+    res.json({ role, user: sanitizeUser(account, { includeEmail: true }) });
   } catch (error) {
     console.error('Update service error', error);
     if (error.name === 'CastError') {
@@ -264,7 +264,7 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    res.json({ role, user: sanitizeUser(account) });
+    res.json({ role, user: sanitizeUser(account, { includeEmail: true }) });
   } catch (error) {
     console.error('Update profile error', error);
     if (error.name === 'CastError') {
@@ -304,7 +304,7 @@ const updateCard = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    res.json({ role, user: sanitizeUser(account, { includeCard: true }) });
+    res.json({ role, user: sanitizeUser(account, { includeCard: true, includeEmail: true }) });
   } catch (error) {
     console.error('Update card error', error);
     if (error.name === 'CastError') {
@@ -333,7 +333,7 @@ const updateOwnerCardFromToken = async (req, res) => {
       return res.status(404).json({ error: 'Owner not found.' });
     }
 
-    res.json({ user: sanitizeUser(owner, { includeCard: true }) });
+    res.json({ user: sanitizeUser(owner, { includeCard: true, includeEmail: true }) });
   } catch (error) {
     console.error('Update owner card (token) error', error);
     res.status(500).json({ error: 'Unable to update card. Please try again later.' });
@@ -564,7 +564,7 @@ const updateProfilePicture = async (req, res) => {
 
     res.json({
       message: 'Profile picture updated successfully.',
-      user: sanitizeUser(user),
+      user: sanitizeUser(user, { includeEmail: true }),
       avatar: {
         url: uploadResult.url,
         publicId: uploadResult.publicId,
@@ -622,7 +622,7 @@ const getOwnerProfile = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const profile = {
-      ...sanitizeUser(owner),
+      ...sanitizeUser(owner, { includeEmail: true }),
       pets: pets.map((pet) => sanitizePet(pet)),
       bookings: bookings.map((booking) => sanitizeBooking(booking)),
       posts: posts.map((post) => sanitizePost(post)),
@@ -827,7 +827,7 @@ const switchRole = async (req, res) => {
       message: `Successfully switched from ${currentRole} to ${targetRole}.`,
       role: targetRole,
       token,
-      user: sanitizeUser(newUser),
+      user: sanitizeUser(newUser, { includeEmail: true }),
     });
   } catch (error) {
     console.error('Switch role error', error);

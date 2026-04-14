@@ -224,7 +224,7 @@ const signup = async (req, res) => {
 
     res.status(201).json({
       role,
-      user: sanitizeUser(newUser),
+      user: sanitizeUser(newUser, { includeEmail: true }),
       verificationCode,
       message: 'Account created. Please verify your email.',
     });
@@ -283,7 +283,7 @@ const login = async (req, res) => {
 
     const token = signAuthToken({ id: result.account._id.toString(), role: result.role });
 
-    res.json({ role: result.role, token, user: sanitizeUser(result.account) });
+    res.json({ role: result.role, token, user: sanitizeUser(result.account, { includeEmail: true }) });
   } catch (error) {
     console.error('Login error', error);
     if (error.message && error.message.includes('JWT_SECRET')) {
@@ -413,7 +413,7 @@ const googleAuth = async (req, res) => {
         role: result.role,
         provider: signInProvider,
         token,
-        user: sanitizeUser(account),
+        user: sanitizeUser(account, { includeEmail: true }),
       });
     }
 
@@ -508,7 +508,7 @@ const googleAuth = async (req, res) => {
       role,
       provider: signInProvider,
       token,
-      user: sanitizeUser(newUser),
+      user: sanitizeUser(newUser, { includeEmail: true }),
     });
   } catch (error) {
     console.error('Google auth error', error);
@@ -644,7 +644,7 @@ const appleAuth = async (req, res) => {
         role: result.role,
         provider: signInProvider,
         token,
-        user: sanitizeUser(account),
+        user: sanitizeUser(account, { includeEmail: true }),
       });
     }
 
@@ -741,7 +741,7 @@ const appleAuth = async (req, res) => {
       role,
       provider: signInProvider,
       token,
-      user: sanitizeUser(newUser),
+      user: sanitizeUser(newUser, { includeEmail: true }),
     });
   } catch (error) {
     console.error('Apple auth error', error);
@@ -801,7 +801,7 @@ const verifyEmail = async (req, res) => {
       message: 'Email verified successfully.',
       role: result.role,
       token,
-      user: sanitizeUser(result.account),
+      user: sanitizeUser(result.account, { includeEmail: true }),
     });
   } catch (error) {
     console.error('Verification error', error);
@@ -1064,7 +1064,7 @@ const chooseService = async (req, res) => {
     res.json({
       message: 'Service updated successfully.',
       role: result.role,
-      user: sanitizeUser(result.account),
+      user: sanitizeUser(result.account, { includeEmail: true }),
     });
   } catch (error) {
     console.error('Choose service error', error);

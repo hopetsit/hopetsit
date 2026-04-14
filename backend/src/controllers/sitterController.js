@@ -505,7 +505,7 @@ const updateSitterPricing = async (req, res) => {
 
     res.json({
       message: 'Pricing updated successfully.',
-      sitter: sanitizeUser(sitter),
+      sitter: sanitizeUser(sitter, { includeEmail: true }),
       location: sitter.location,
       servicePricing: sitter.servicePricing,
       validationResults,
@@ -881,7 +881,7 @@ const updateSitterProfile = async (req, res) => {
 
     res.json({
       message: 'Profile updated successfully.',
-      sitter: sanitizeUser(updatedSitter),
+      sitter: sanitizeUser(updatedSitter, { includeEmail: true }),
     });
   } catch (error) {
     console.error('Update sitter profile error', error);
@@ -967,7 +967,7 @@ const updateSitterAvatar = async (req, res) => {
 
     res.json({
       message: 'Avatar updated successfully.',
-      sitter: sanitizeUser(sitter),
+      sitter: sanitizeUser(sitter, { includeEmail: true }),
       avatar: {
         url: uploadResult.url,
         publicId: uploadResult.publicId,
