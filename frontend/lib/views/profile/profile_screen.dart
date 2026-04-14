@@ -11,6 +11,7 @@ import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
+import 'package:hopetsit/controllers/theme_controller.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -363,6 +364,12 @@ class ProfileScreen extends StatelessWidget {
           Icons.arrow_forward_ios,
           () => Get.to(() => const TermsAndConditionsScreen()),
         ),
+        // Sprint 6 step 1 — theme mode.
+        _buildSettingsTile(
+          'theme_setting_title'.tr,
+          Icons.brightness_6,
+          () => _showThemeDialog(),
+        ),
         // _buildSettingsTile(
         //   'Payment Method',
         //   Icons.arrow_forward_ios,
@@ -536,6 +543,47 @@ class ProfileScreen extends StatelessWidget {
           );
         });
       },
+    );
+  }
+
+  // Sprint 6 step 1 — theme picker dialog.
+  void _showThemeDialog() {
+    final tc = Get.find<ThemeController>();
+    Get.dialog(
+      AlertDialog(
+        title: Text('theme_setting_title'.tr),
+        content: Obx(
+          () => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<ThemeMode>(
+                title: Text('theme_light'.tr),
+                value: ThemeMode.light,
+                groupValue: tc.themeMode.value,
+                onChanged: (v) => v != null ? tc.setMode(v) : null,
+              ),
+              RadioListTile<ThemeMode>(
+                title: Text('theme_dark'.tr),
+                value: ThemeMode.dark,
+                groupValue: tc.themeMode.value,
+                onChanged: (v) => v != null ? tc.setMode(v) : null,
+              ),
+              RadioListTile<ThemeMode>(
+                title: Text('theme_system'.tr),
+                value: ThemeMode.system,
+                groupValue: tc.themeMode.value,
+                onChanged: (v) => v != null ? tc.setMode(v) : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('common_close'.tr),
+          ),
+        ],
+      ),
     );
   }
 }

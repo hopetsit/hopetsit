@@ -14,6 +14,7 @@ import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
+import 'package:hopetsit/controllers/theme_controller.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
@@ -347,6 +348,45 @@ class SitterProfileScreen extends StatelessWidget {
           'profile_verify_identity'.tr,
           Icons.verified_user_outlined,
           () => Get.to(() => const IdentityVerificationScreen()),
+        ),
+        // Sprint 6 step 1 — theme mode.
+        _buildSettingsTile(
+          'theme_setting_title'.tr,
+          Icons.brightness_6,
+          () => Get.dialog(
+            AlertDialog(
+              title: Text('theme_setting_title'.tr),
+              content: Obx(() {
+                final tc = Get.find<ThemeController>();
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<ThemeMode>(
+                      title: Text('theme_light'.tr),
+                      value: ThemeMode.light,
+                      groupValue: tc.themeMode.value,
+                      onChanged: (v) => v != null ? tc.setMode(v) : null,
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: Text('theme_dark'.tr),
+                      value: ThemeMode.dark,
+                      groupValue: tc.themeMode.value,
+                      onChanged: (v) => v != null ? tc.setMode(v) : null,
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: Text('theme_system'.tr),
+                      value: ThemeMode.system,
+                      groupValue: tc.themeMode.value,
+                      onChanged: (v) => v != null ? tc.setMode(v) : null,
+                    ),
+                  ],
+                );
+              }),
+              actions: [
+                TextButton(onPressed: () => Get.back(), child: Text('common_close'.tr)),
+              ],
+            ),
+          ),
         ),
         // _buildSettingsTile(
         //   'Reviews',
