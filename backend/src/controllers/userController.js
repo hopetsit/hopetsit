@@ -196,9 +196,17 @@ const updateService = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, mobile, countryCode, language, address, avatar, bio, skills, currency, location } = req.body || {};
+    const { name, mobile, countryCode, language, address, avatar, bio, skills, currency, location, servicePreferences } = req.body || {};
 
     const update = buildProfileUpdate({ name, mobile, countryCode, language, address, avatar, bio, skills, currency });
+
+    // Sprint 5 step 2 — accept owner service preferences.
+    if (servicePreferences && typeof servicePreferences === 'object') {
+      update.servicePreferences = {
+        atOwner: servicePreferences.atOwner !== false,
+        atSitter: servicePreferences.atSitter === true,
+      };
+    }
 
     // Process location if provided
     let locationUpdate = null;

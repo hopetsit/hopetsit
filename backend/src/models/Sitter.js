@@ -35,6 +35,9 @@ const sitterSchema = new mongoose.Schema(
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },
     // Firebase Cloud Messaging registration tokens (one per device). Deduplicated via $addToSet.
     fcmTokens: { type: [String], default: [] },
+    // Sprint 5 step 2 — where the sitter accepts to work.
+    canServiceAtOwner: { type: Boolean, default: true },
+    canServiceAtSitter: { type: Boolean, default: true },
     avatar: {
       url: { type: String, default: '' },
       publicId: { type: String, default: '' },

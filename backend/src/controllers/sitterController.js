@@ -687,10 +687,16 @@ const updateSitterProfile = async (req, res) => {
       monthlyRate,
       location,
       avatar,
+      canServiceAtOwner,
+      canServiceAtSitter,
     } = req.body || {};
 
     // Build update object with only provided fields
     const updateData = {};
+
+    // Sprint 5 step 2 — sitter service capability.
+    if (typeof canServiceAtOwner === 'boolean') updateData.canServiceAtOwner = canServiceAtOwner;
+    if (typeof canServiceAtSitter === 'boolean') updateData.canServiceAtSitter = canServiceAtSitter;
 
     // Update name
     if (name !== undefined) {

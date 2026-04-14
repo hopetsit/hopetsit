@@ -26,7 +26,7 @@ const includesHouseSittingService = (serviceTypes = []) => {
 
 const createPost = async (req, res) => {
   try {
-    const { body, startDate, endDate, serviceTypes, petId, location, notes, houseSittingVenue } = req.body || {};
+    const { body, startDate, endDate, serviceTypes, petId, location, notes, houseSittingVenue, serviceLocation } = req.body || {};
     const ownerId = req.user?.id;
 
     if (!ownerId) {
@@ -111,6 +111,11 @@ const createPost = async (req, res) => {
 
     if (typeof notes === 'string' && notes.trim()) {
       postPayload.notes = notes.trim();
+    }
+
+    // Sprint 5 step 2 — service location preference.
+    if (['at_owner', 'at_sitter', 'both'].includes(serviceLocation)) {
+      postPayload.serviceLocation = serviceLocation;
     }
 
     // Sprint 4 step 6 — auto-translate body to all supported locales.
@@ -264,7 +269,24 @@ const getRequestPosts = async (req, res) => {
     if (ownerId) {
       filter.ownerId = ownerId;
     }
-    
+
+    // Sprint 5 step 2 — filter requests by sitter's service preferences.
+    if (req.user?.role === 'sitter') {
+      const viewer = await Sitter.findById(req.user.id).select('canServiceAtOwner canServiceAtSitter').lean();
+      if (viewer) {
+        const allowed = [];
+        if (viewer.canServiceAtOwner) allowed.push('at_owner');
+        if (viewer.canServiceAtSitter) allowed.push('at_sitter');
+        // 'both' is always acceptable when at least one side matches, which is always true
+        // unless the sitter has disabled both (in which case we return nothing).
+        if (allowed.length === 0) {
+          return res.json({ posts: [] });
+        }
+        allowed.push('both');
+        filter.serviceLocation = { $in: allowed };
+      }
+    }
+
     const posts = await Post.find(filter).sort({ createdAt: -1 }).populate('ownerId');
     const visiblePosts = posts.filter((post) => !!post.ownerId);
     

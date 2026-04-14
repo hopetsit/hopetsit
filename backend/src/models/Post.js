@@ -94,6 +94,12 @@ const postSchema = new mongoose.Schema(
       pt: { type: String, default: '' },
     },
     sourceLanguage: { type: String, default: '' },
+    // Sprint 5 step 2 — where the owner wants the service to happen.
+    serviceLocation: {
+      type: String,
+      enum: ['at_owner', 'at_sitter', 'both'],
+      default: 'at_owner',
+    },
   },
   {
     timestamps: true,

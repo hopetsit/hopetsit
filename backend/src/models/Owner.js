@@ -31,6 +31,11 @@ const ownerSchema = new mongoose.Schema(
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },
     // Firebase Cloud Messaging registration tokens (one per device). Deduplicated via $addToSet.
     fcmTokens: { type: [String], default: [] },
+    // Sprint 5 step 2 — where the owner is willing to have the service happen.
+    servicePreferences: {
+      atOwner: { type: Boolean, default: true },  // service happens at the owner's home
+      atSitter: { type: Boolean, default: false }, // service happens at the sitter's home
+    },
     avatar: {
       url: { type: String, default: '' },
       publicId: { type: String, default: '' },
