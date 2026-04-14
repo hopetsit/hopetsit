@@ -52,5 +52,11 @@
     "body": "Il tuo referral ha appena completato la 1ª prenotazione. Credito di {{amount}} {{currency}} accreditato.",
     "emailSubject": "Hai guadagnato {{amount}} {{currency}} — HopeTSIT",
     "emailBody": "<p>Buone notizie! Il tuo referral ha appena completato la 1ª prenotazione su HopeTSIT.</p><p>Hai guadagnato <strong>{{amount}} {{currency}}</strong> di crediti, utilizzabili sulla prossima prenotazione.</p>"
+  },
+  "BOOKING_COMPLETED": {
+    "title": "Prenotazione completata",
+    "body": "La tua prenotazione è stata marcata come completata. Lascia una recensione!",
+    "emailSubject": "Prenotazione completata — HopeTSIT",
+    "emailBody": "<p>La tua prenotazione è ora <strong>completata</strong>. Lascia una recensione per aiutare la comunità.</p>"
   }
 }

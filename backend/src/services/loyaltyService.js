@@ -31,6 +31,15 @@ const onBookingCompleted = async (booking) => {
   const ownerId = booking.ownerId;
   if (!ownerId) return;
 
+  // Sprint 7 step 7 — notify both parties that the booking is completed.
+  const data = { bookingId: booking._id.toString() };
+  Promise.allSettled([
+    sendNotification({ userId: String(ownerId), role: 'owner', type: 'BOOKING_COMPLETED', data }),
+    booking.sitterId
+      ? sendNotification({ userId: String(booking.sitterId), role: 'sitter', type: 'BOOKING_COMPLETED', data })
+      : Promise.resolve(),
+  ]).catch(() => {});
+
   // Sprint 7 step 2 — also recompute sitter Top status.
   if (booking.sitterId) {
     recomputeSitterStatus(booking.sitterId).catch(() => {});

@@ -52,5 +52,11 @@
     "body": "Dein Geworbener hat seine 1. Buchung abgeschlossen. {{amount}} {{currency}} Guthaben gutgeschrieben.",
     "emailSubject": "Du hast {{amount}} {{currency}} erhalten — HopeTSIT",
     "emailBody": "<p>Gute Neuigkeiten! Dein Geworbener hat soeben seine 1. Buchung auf HopeTSIT abgeschlossen.</p><p>Du hast <strong>{{amount}} {{currency}}</strong> Guthaben für deine nächste Reservierung gewonnen.</p>"
+  },
+  "BOOKING_COMPLETED": {
+    "title": "Buchung abgeschlossen",
+    "body": "Deine Buchung ist als abgeschlossen markiert. Hinterlasse eine Bewertung!",
+    "emailSubject": "Buchung abgeschlossen — HopeTSIT",
+    "emailBody": "<p>Deine Buchung ist jetzt <strong>abgeschlossen</strong>. Bitte hinterlasse eine Bewertung, um der Community zu helfen.</p>"
   }
 }

@@ -52,5 +52,11 @@
     "body": "O seu indicado acabou de completar a 1ª reserva. {{amount}} {{currency}} de crédito adicionado.",
     "emailSubject": "Ganhou {{amount}} {{currency}} — HopeTSIT",
     "emailBody": "<p>Boas notícias! O seu indicado acabou de completar a 1ª reserva no HopeTSIT.</p><p>Ganhou <strong>{{amount}} {{currency}}</strong> em créditos, utilizáveis na próxima reserva.</p>"
+  },
+  "BOOKING_COMPLETED": {
+    "title": "Reserva concluída",
+    "body": "A sua reserva foi marcada como concluída. Deixe uma avaliação!",
+    "emailSubject": "Reserva concluída — HopeTSIT",
+    "emailBody": "<p>A sua reserva está agora <strong>concluída</strong>. Deixe uma avaliação para ajudar a comunidade.</p>"
   }
 }
