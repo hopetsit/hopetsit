@@ -1,6 +1,6 @@
 const express = require('express');
 
-const { createReview, listReviews } = require('../controllers/reviewController');
+const { createReview, listReviews, replyToReview } = require('../controllers/reviewController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -52,7 +52,11 @@ const router = express.Router();
  *       403:
  *         description: Only owners can create reviews
  */
-router.post('/', requireAuth, requireRole('owner'), createReview);
+// Sprint 7 step 4 — mutual reviews (owner or sitter can review).
+router.post('/', requireAuth, createReview);
+
+// Sprint 7 step 4 — reply (once) to a review (reviewee only).
+router.post('/:id/reply', requireAuth, replyToReview);
 
 /**
  * @swagger

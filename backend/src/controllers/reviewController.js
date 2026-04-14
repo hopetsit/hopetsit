@@ -20,17 +20,18 @@ const getModelByRole = (role) => {
 
 const createReview = async (req, res) => {
   try {
-    // Get owner ID from authenticated token
+    // Sprint 7 step 4 — mutual reviews: role determined by JWT, opposite role is the reviewee.
     const reviewerId = req.user.id;
-    const reviewerRole = 'owner';
-    
-    const { revieweeId, revieweeRole = 'sitter', rating, comment = '' } = req.body || {};
+    const reviewerRole = req.user.role;
+    const revieweeRole = reviewerRole === 'owner' ? 'sitter' : 'owner';
+
+    const { revieweeId, rating, comment = '', bookingId } = req.body || {};
 
     if (!reviewerId || !mongoose.Types.ObjectId.isValid(reviewerId)) {
       return res.status(400).json({ error: 'Valid reviewerId is required.' });
     }
     if (!revieweeId || !mongoose.Types.ObjectId.isValid(revieweeId)) {
-      return res.status(400).json({ error: 'Valid revieweeId (sitter ID) is required.' });
+      return res.status(400).json({ error: 'Valid revieweeId is required.' });
     }
     if (!ROLE_TO_MODEL[reviewerRole] || !ROLE_TO_MODEL[revieweeRole]) {
       return res.status(400).json({ error: 'Invalid roles provided.' });
@@ -38,11 +39,10 @@ const createReview = async (req, res) => {
     if (String(reviewerId) === String(revieweeId) && reviewerRole === revieweeRole) {
       return res.status(400).json({ error: 'You cannot review yourself.' });
     }
-    
-    // Support float ratings (1.5, 2.5, etc.)
+
     const numericRating = Number(rating);
     if (!Number.isFinite(numericRating) || numericRating < 1 || numericRating > 5) {
-      return res.status(400).json({ error: 'Rating must be between 1 and 5 (decimals like 1.5, 2.5 are allowed).' });
+      return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
     }
 
     const reviewerModel = getModelByRole(reviewerRole);
@@ -53,25 +53,57 @@ const createReview = async (req, res) => {
       return res.status(404).json({ error: 'Reviewer not found.' });
     }
 
-    if (reviewerRole !== 'owner' || revieweeRole !== 'sitter') {
-      return res.status(403).json({
-        error: 'Only pet owners can review pet sitters.',
+    const reviewee = await revieweeModel.findById(revieweeId);
+    if (!reviewee) {
+      return res.status(404).json({ error: 'Reviewee not found.' });
+    }
+
+    // Require a completed booking that links reviewer and reviewee.
+    const Booking = require('../models/Booking');
+    const query = { status: 'completed' };
+    if (reviewerRole === 'owner') {
+      query.ownerId = reviewerId;
+      query.sitterId = revieweeId;
+    } else {
+      query.sitterId = reviewerId;
+      query.ownerId = revieweeId;
+    }
+    if (bookingId && mongoose.Types.ObjectId.isValid(bookingId)) {
+      query._id = bookingId;
+    }
+    const booking = await Booking.findOne(query).select('_id').lean();
+    if (!booking) {
+      return res.status(400).json({
+        error: 'A completed booking between you and this user is required to leave a review.',
       });
     }
 
-    const reviewee = await revieweeModel.findById(revieweeId);
-    if (!reviewee) {
-      return res.status(404).json({ error: 'Sitter not found.' });
+    // Enforce "one review per reviewer per booking".
+    const alreadyReviewed = await Review.exists({
+      bookingId: booking._id,
+      reviewerId,
+    });
+    if (alreadyReviewed) {
+      return res.status(409).json({ error: 'You have already reviewed this booking.' });
     }
 
-    const review = await Review.create({
-      reviewerId,
-      reviewerModel: ROLE_TO_MODEL[reviewerRole],
-      revieweeId,
-      revieweeModel: ROLE_TO_MODEL[revieweeRole],
-      rating: numericRating,
-      comment: comment.trim(),
-    });
+    let review;
+    try {
+      review = await Review.create({
+        reviewerId,
+        reviewerModel: ROLE_TO_MODEL[reviewerRole],
+        revieweeId,
+        revieweeModel: ROLE_TO_MODEL[revieweeRole],
+        rating: numericRating,
+        comment: String(comment || '').trim().slice(0, 500),
+        bookingId: booking._id,
+      });
+    } catch (e) {
+      if (e.code === 11000) {
+        return res.status(409).json({ error: 'You have already reviewed this booking.' });
+      }
+      throw e;
+    }
 
     if (revieweeRole === 'sitter') {
       const previousTotal = (reviewee.rating || 0) * (reviewee.reviewsCount || 0);
@@ -172,8 +204,36 @@ const listReviews = async (req, res) => {
   }
 };
 
+// Sprint 7 step 4 — reviewee can post ONE reply to a review.
+const replyToReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { body } = req.body || {};
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid review id.' });
+    }
+    const trimmed = String(body || '').trim();
+    if (!trimmed) return res.status(400).json({ error: 'Reply body is required.' });
+    const review = await Review.findById(id);
+    if (!review) return res.status(404).json({ error: 'Review not found.' });
+    if (String(review.revieweeId) !== req.user.id) {
+      return res.status(403).json({ error: 'Only the reviewee can reply to this review.' });
+    }
+    if (review.reply && review.reply.repliedAt) {
+      return res.status(409).json({ error: 'You have already replied to this review.' });
+    }
+    review.reply = { body: trimmed.slice(0, 500), repliedAt: new Date() };
+    await review.save();
+    res.json({ review: sanitizeDoc(review) });
+  } catch (e) {
+    console.error('replyToReview error', e);
+    res.status(500).json({ error: 'Unable to post reply.' });
+  }
+};
+
 module.exports = {
   createReview,
   listReviews,
+  replyToReview,
 };
 
