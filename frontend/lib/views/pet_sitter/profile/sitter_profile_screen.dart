@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
+import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
@@ -375,8 +376,8 @@ class SitterProfileScreen extends StatelessWidget {
         ),
 
         SizedBox(height: 15.h),
-        // Switch Role Card
-        _buildSwitchRoleCard(context),
+        // Switch Role Cards — shows the 2 other roles (3-way switch).
+        _buildSwitchRoleCards(context),
         SizedBox(height: 20.h),
 
         _buildSettingsTile(
@@ -416,11 +417,10 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.group_add,
           () => Get.to(() => const MyReferralsScreen()),
         ),
-        _buildStripeConnectTile(controller),
         _buildSettingsTile(
-          'payout_status_screen_title'.tr,
-          Icons.payment_rounded,
-          controller.navigateToPayoutStatus,
+          'payment_management_title'.tr,
+          Icons.account_balance_wallet_rounded,
+          () => Get.to(() => const PaymentManagementScreen()),
         ),
         _buildSettingsTile(
           'bookings_tab_title'.tr,
@@ -486,7 +486,7 @@ class SitterProfileScreen extends StatelessWidget {
         _buildSettingsTile(
           'profile_donate_us'.tr,
           Icons.favorite_outline_rounded,
-          controller.navigateToDonate,
+          () => Get.to(() => const PaymentManagementScreen()),
         ),
         _buildSettingsTile(
           'profile_delete_account'.tr,
@@ -538,84 +538,138 @@ class SitterProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStripeConnectTile(SitterProfileController controller) {
-    return _buildSettingsTile(
-      'stripe_connect_title'.tr,
-      Icons.account_balance_wallet_rounded,
-      controller.navigateToStripeConnect,
+  /// Renders the switch cards for the 2 other roles the user can move to.
+  Widget _buildSwitchRoleCards(BuildContext context) {
+    final authController = Get.find<AuthController>();
+    final currentRole = authController.userRole.value;
+    const allRoles = ['owner', 'sitter', 'walker'];
+    final otherRoles = allRoles.where((r) => r != currentRole).toList();
+    return Column(
+      children: [
+        for (int i = 0; i < otherRoles.length; i++) ...[
+          _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
+          if (i < otherRoles.length - 1) SizedBox(height: 12.h),
+        ],
+      ],
     );
   }
 
-  Widget _buildSwitchRoleCard(BuildContext context) {
-    final authController = Get.find<AuthController>();
-    final currentRole = authController.userRole.value;
-    final switchDescription = currentRole == 'owner'
-        ? 'profile_switch_to_sitter_description'.tr
-        : 'profile_switch_to_owner_description'.tr;
+  Widget _buildSwitchRoleCard(
+    BuildContext context, {
+    required String targetRole,
+  }) {
+    // Each role has its own translation key + accent color.
+    String titleKey;
+    String descKey;
+    Color accentColor;
+    switch (targetRole) {
+      case 'owner':
+        titleKey = 'profile_switch_to_owner';
+        descKey = 'profile_switch_to_owner_description';
+        accentColor = AppColors.primaryColor;
+        break;
+      case 'walker':
+        // Reuse role_pet_walker for title; generic profile_switch description.
+        titleKey = 'role_pet_walker';
+        descKey = 'profile_switch_role_card_description';
+        accentColor = AppColors.greenColor;
+        break;
+      case 'sitter':
+      default:
+        titleKey = 'profile_switch_to_sitter';
+        descKey = 'profile_switch_to_sitter_description';
+        accentColor = AppColors.sitterAccent;
+        break;
+    }
+
+    // Walker target uses the parametrised description key; owner/sitter use
+    // their own dedicated strings (existing keys kept intact).
+    final description = descKey == 'profile_switch_role_card_description'
+        ? 'profile_switch_role_card_description'.trParams({
+            'role': titleKey.tr,
+          })
+        : descKey.tr;
 
     return GestureDetector(
-      onTap: () => _showSwitchRoleDialog(context),
+      onTap: () => _showSwitchRoleDialog(context, targetRole: targetRole),
       child: Builder(
         builder: (context) => Container(
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
             borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: AppColors.primaryColor, width: 2),
+            border: Border.all(color: accentColor, width: 2),
           ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: currentRole == 'owner'
-                        ? 'profile_switch_to_sitter'.tr
-                        : 'profile_switch_to_owner'.tr,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryColor,
-                  ),
-                  SizedBox(height: 8.h),
-                  InterText(
-                    text: switchDescription,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.greyText,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: titleKey.tr,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: accentColor,
+                    ),
+                    SizedBox(height: 8.h),
+                    InterText(
+                      text: description,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.greyText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(width: 12.w),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 20.sp,
-              color: AppColors.primaryColor,
-            ),
-          ],
-        ),
+              SizedBox(width: 12.w),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 20.sp,
+                color: accentColor,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _showSwitchRoleDialog(BuildContext context) {
+  void _showSwitchRoleDialog(
+    BuildContext context, {
+    required String targetRole,
+  }) {
     final authController = Get.find<AuthController>();
-    final currentRole = authController.userRole.value;
-    final isSwitchingToSitter = currentRole == 'owner';
+
+    String titleKey;
+    switch (targetRole) {
+      case 'owner':
+        titleKey = 'profile_switch_to_owner';
+        break;
+      case 'walker':
+        titleKey = 'role_pet_walker';
+        break;
+      case 'sitter':
+      default:
+        titleKey = 'profile_switch_to_sitter';
+        break;
+    }
+
+    // Build confirm/yes text according to target role.
+    final confirmMessage = targetRole == 'sitter'
+        ? 'profile_switch_to_sitter_confirm'.tr
+        : targetRole == 'owner'
+            ? 'profile_switch_to_owner_confirm'.tr
+            : 'dialog_switch_role_confirm'.trParams({'role': titleKey.tr});
+    final yesText = titleKey.tr;
 
     CustomConfirmationDialog.show(
       context: context,
-      message: isSwitchingToSitter
-          ? 'profile_switch_to_sitter_confirm'.tr
-          : 'profile_switch_to_owner_confirm'.tr,
-      yesText: isSwitchingToSitter
-          ? 'profile_switch_to_sitter'.tr
-          : 'profile_switch_to_owner'.tr,
+      message: confirmMessage,
+      yesText: yesText,
       cancelText: 'common_cancel'.tr,
       onYes: () async {
         // Show loading dialog while switching role
@@ -627,7 +681,7 @@ class SitterProfileScreen extends StatelessWidget {
           ),
         );
 
-        await authController.switchRole();
+        await authController.switchRole(targetRole: targetRole);
 
         if (Get.isDialogOpen == true) {
           Navigator.of(context).pop();

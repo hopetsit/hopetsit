@@ -47,6 +47,10 @@ class ServiceProviderCard extends StatefulWidget {
   final bool isTopSitter;
   /// Coin boost — show 🔥 Boosted badge.
   final bool isBoosted;
+  /// Estimated total cost for the owner's active post (optional).
+  final double? estimatedCost;
+  /// Number of days for the estimation.
+  final int? estimatedDays;
 
   const ServiceProviderCard({
     super.key,
@@ -78,6 +82,8 @@ class ServiceProviderCard extends StatefulWidget {
     this.identityVerified = false,
     this.isTopSitter = false,
     this.isBoosted = false,
+    this.estimatedCost,
+    this.estimatedDays,
   });
 
   @override
@@ -620,6 +626,38 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                 ),
               ),
             ),
+            // Estimated cost for owner's active post
+            if (widget.estimatedCost != null && widget.estimatedDays != null && widget.estimatedDays! > 0) ...[
+              SizedBox(height: 8.h),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 12.w),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.calculate_outlined, size: 16.sp, color: AppColors.primaryColor),
+                    SizedBox(width: 6.w),
+                    InterText(
+                      text: '${'estimated_cost_label'.tr}: ${CurrencyHelper.symbol(widget.currencyCode)}${widget.estimatedCost!.toStringAsFixed(0)}',
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryColor,
+                    ),
+                    SizedBox(width: 4.w),
+                    InterText(
+                      text: '(${'for_x_days'.trParams({'days': widget.estimatedDays.toString()})})',
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             SizedBox(height: 10.h),
             // Send request button
             GestureDetector(

@@ -417,10 +417,40 @@ class SignUpController extends GetxController {
       }
     }
 
+    // Walker-specific signup payload. At signup the walker only provides base
+    // account info + currency. Detailed walkRates (per duration pricing) and
+    // coverage preferences are configured later in the walker onboarding flow.
+    if (userType == 'pet_walker') {
+      data['currency'] = selectedCurrency.value;
+      // The walker service is always seeded with dog_walking by default —
+      // the backend will fill this if it's empty.
+      data['service'] = ['dog_walking'];
+
+      final paypal = paypalEmailController.text.trim();
+      if (paypal.isNotEmpty) {
+        data['paypalEmail'] = paypal;
+      }
+    }
+
     return data;
   }
 
-  String get _apiRole => userType == 'pet_owner' ? 'owner' : 'sitter';
+  /// Maps the frontend userType (used across the auth UI) to the backend role
+  /// string expected by the /auth/signup endpoint.
+  /// - pet_owner  -> owner
+  /// - pet_sitter -> sitter
+  /// - pet_walker -> walker
+  String get _apiRole {
+    switch (userType) {
+      case 'pet_owner':
+        return 'owner';
+      case 'pet_walker':
+        return 'walker';
+      case 'pet_sitter':
+      default:
+        return 'sitter';
+    }
+  }
 
   /// Handles signup with navigation logic
   Future<void> handleSignUpWithNavigation({required String email}) async {

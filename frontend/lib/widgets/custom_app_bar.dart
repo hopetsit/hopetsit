@@ -229,11 +229,26 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       final role = authController.userRole.value;
       if (role == null || role.isEmpty) return const SizedBox.shrink();
 
-      final isOwner = role.toLowerCase() == 'owner';
-      final badgeColor = isOwner
-          ? AppColors.primaryColor           // orange
-          : const Color(0xFF2196F3);         // bleu
-      final badgeLabel = isOwner ? 'Pet Owner' : 'Pet Sitter';
+      final lower = role.toLowerCase();
+      // Color + translation key by role (3 roles supported).
+      Color badgeColor;
+      String badgeKey;
+      switch (lower) {
+        case 'walker':
+          badgeColor = AppColors.greenColor;
+          badgeKey = 'role_pet_walker';
+          break;
+        case 'sitter':
+          badgeColor = const Color(0xFF2196F3); // bleu
+          badgeKey = 'role_pet_sitter';
+          break;
+        case 'owner':
+        default:
+          badgeColor = AppColors.primaryColor; // orange
+          badgeKey = 'role_pet_owner';
+          break;
+      }
+      final badgeLabel = badgeKey.tr;
 
       return Container(
         padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),

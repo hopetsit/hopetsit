@@ -12,16 +12,21 @@ const generateReferralCode = (length = 8) => {
 };
 
 /**
- * Try up to N times to get a unique code across Owner + Sitter collections.
+ * Try up to N times to get a unique code across Owner + Sitter (+ Walker) collections.
+ * Walker is optional to keep backwards compatibility with callers that pre-date the walker role.
  */
-const generateUniqueReferralCode = async ({ Owner, Sitter, attempts = 5 }) => {
+const generateUniqueReferralCode = async ({ Owner, Sitter, Walker = null, attempts = 5 }) => {
   for (let i = 0; i < attempts; i += 1) {
     const code = generateReferralCode(8);
-    const [o, s] = await Promise.all([
+    const checks = [
       Owner.exists({ referralCode: code }),
       Sitter.exists({ referralCode: code }),
-    ]);
-    if (!o && !s) return code;
+    ];
+    if (Walker) {
+      checks.push(Walker.exists({ referralCode: code }));
+    }
+    const results = await Promise.all(checks);
+    if (results.every((r) => !r)) return code;
   }
   throw new Error('Failed to generate a unique referral code after several attempts.');
 };

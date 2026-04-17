@@ -24,6 +24,7 @@ import 'package:hopetsit/views/auth/otp_verification_screen.dart';
 import 'package:hopetsit/views/auth/choose_service_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/widgets/paypal_email_dialog.dart';
@@ -507,6 +508,9 @@ class AuthController extends GetxController {
       Get.offAll(() => const BottomNavWrapper());
     } else if (role == 'sitter') {
       Get.offAll(() => const SitterNavWrapper());
+    } else if (role == 'walker') {
+      // Walker role — uses its own nav shell, defined next to the sitter shell.
+      Get.offAll(() => const WalkerNavWrapper());
     } else {
       // Fallback: go back if role is not recognized
       Get.back();
@@ -643,8 +647,11 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Switches between pet owner and pet sitter roles via API.
-  Future<void> switchRole() async {
+  /// Switches between the 3 roles (owner / sitter / walker) via API.
+  /// [targetRole] is optional — when omitted the backend does the legacy
+  /// binary toggle owner<->sitter. For walker, a targetRole must be passed
+  /// (e.g. 'walker', 'owner', 'sitter').
+  Future<void> switchRole({String? targetRole}) async {
     isSwitchingRole.value = true;
     final repo =
         _userRepository ??
@@ -652,13 +659,13 @@ class AuthController extends GetxController {
             ? Get.find<UserRepository>()
             : null);
     if (repo == null) {
-      _switchRoleLocalOnly();
+      _switchRoleLocalOnly(targetRole: targetRole);
       isSwitchingRole.value = false;
       return;
     }
 
     try {
-      final response = await repo.switchRole();
+      final response = await repo.switchRole(targetRole: targetRole);
       final newRole = _extractRole(response);
 
       // Backend may return a new token with updated role claim – save it so
@@ -681,9 +688,10 @@ class AuthController extends GetxController {
       }
 
       if (newRole == null || newRole.isEmpty) {
-        // API did not return role; fallback to local toggle
+        // API did not return role; fall back to targetRole hint, or legacy toggle.
         final currentRole = userRole.value;
-        final toggled = currentRole == 'owner' ? 'sitter' : 'owner';
+        final toggled = targetRole ??
+            (currentRole == 'owner' ? 'sitter' : 'owner');
         await _storage.write(StorageKeys.userRole, toggled);
         userRole.value = toggled;
         debugPrint('[HOPETSIT] ✅ Role switched to: $toggled (local fallback)');
@@ -693,13 +701,24 @@ class AuthController extends GetxController {
         debugPrint('[HOPETSIT] ✅ Role switched to: $newRole');
       }
 
+      // Build a user-facing role label for the 3 possible roles.
+      String _roleLabel(String r) {
+        switch (r) {
+          case 'owner':
+            return 'auth_role_pet_owner'.tr;
+          case 'walker':
+            return 'auth_role_pet_walker'.tr;
+          case 'sitter':
+          default:
+            return 'auth_role_pet_sitter'.tr;
+        }
+      }
+
       CustomSnackbar.showSuccess(
         title: 'snackbar_text_role_switched',
         message: 'auth_role_switched_message'.tr.replaceAll(
           '@role',
-          userRole.value == 'owner'
-              ? 'auth_role_pet_owner'.tr
-              : 'auth_role_pet_sitter'.tr,
+          _roleLabel(userRole.value ?? ''),
         ),
       );
 
@@ -722,19 +741,34 @@ class AuthController extends GetxController {
     }
   }
 
-  void _switchRoleLocalOnly() {
+  void _switchRoleLocalOnly({String? targetRole}) {
     try {
       final currentRole = userRole.value;
-      final newRole = currentRole == 'owner' ? 'sitter' : 'owner';
+      // Use explicit targetRole when provided; otherwise fall back to the
+      // legacy binary toggle owner<->sitter (walker cannot toggle without an
+      // explicit target).
+      final newRole = targetRole ??
+          (currentRole == 'owner' ? 'sitter' : 'owner');
       _storage.write(StorageKeys.userRole, newRole);
       userRole.value = newRole;
+
+      String _roleLabel(String r) {
+        switch (r) {
+          case 'owner':
+            return 'auth_role_pet_owner'.tr;
+          case 'walker':
+            return 'auth_role_pet_walker'.tr;
+          case 'sitter':
+          default:
+            return 'auth_role_pet_sitter'.tr;
+        }
+      }
+
       CustomSnackbar.showSuccess(
         title: 'auth_role_switched',
         message: 'auth_role_switched_message'.tr.replaceAll(
           '@role',
-          newRole == 'owner'
-              ? 'auth_role_pet_owner'.tr
-              : 'auth_role_pet_sitter'.tr,
+          _roleLabel(newRole),
         ),
       );
       _navigateToHome();

@@ -4,32 +4,37 @@ import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
-/// Filter state for reservation requests (location, dates, service type).
+/// Filter state for reservation requests (location, dates, service type, distance).
 class ReservationRequestFilterState {
   const ReservationRequestFilterState({
     this.city,
     this.dateRange,
     this.serviceType,
+    this.maxDistanceKm,
   });
 
   final String? city;
   final DateTimeRange? dateRange;
   final String? serviceType;
+  final double? maxDistanceKm;
 
   bool get hasActiveFilters =>
       (city != null && city!.trim().isNotEmpty) ||
       dateRange != null ||
-      (serviceType != null && serviceType!.isNotEmpty);
+      (serviceType != null && serviceType!.isNotEmpty) ||
+      (maxDistanceKm != null && maxDistanceKm! > 0);
 
   ReservationRequestFilterState copyWith({
     String? city,
     DateTimeRange? dateRange,
     String? serviceType,
+    double? maxDistanceKm,
   }) {
     return ReservationRequestFilterState(
       city: city ?? this.city,
       dateRange: dateRange ?? this.dateRange,
       serviceType: serviceType ?? this.serviceType,
+      maxDistanceKm: maxDistanceKm ?? this.maxDistanceKm,
     );
   }
 }
@@ -84,6 +89,7 @@ class _ReservationRequestFilterDialogState
   late TextEditingController _cityController;
   DateTimeRange? _dateRange;
   String? _serviceType;
+  double _maxDistanceKm = 0;
 
   @override
   void initState() {
@@ -93,6 +99,7 @@ class _ReservationRequestFilterDialogState
     );
     _dateRange = widget.initialState.dateRange;
     _serviceType = widget.initialState.serviceType;
+    _maxDistanceKm = widget.initialState.maxDistanceKm ?? 0;
   }
 
   @override
@@ -106,76 +113,77 @@ class _ReservationRequestFilterDialogState
     return Dialog(
       insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 40.h),
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: 400.w),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(24.r),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.blackColor.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Padding(
-                padding: EdgeInsets.fromLTRB(24.w, 20.h, 16.w, 16.h),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InterText(
-                      text: 'filter_requests_title'.tr,
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.blackColor,
-                    ),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => Navigator.of(context).pop(),
-                        borderRadius: BorderRadius.circular(20.r),
-                        child: Padding(
-                          padding: EdgeInsets.all(8.w),
-                          child: Icon(
-                            Icons.close_rounded,
-                            size: 24.sp,
-                            color: AppColors.grey500Color,
+      child: Builder(
+        builder: (context) => Container(
+          constraints: BoxConstraints(maxWidth: 400.w),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(24.r),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.textPrimary(context).withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Padding(
+                  padding: EdgeInsets.fromLTRB(24.w, 20.h, 16.w, 16.h),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InterText(
+                        text: 'filter_requests_title'.tr,
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary(context),
+                      ),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Navigator.of(context).pop(),
+                          borderRadius: BorderRadius.circular(20.r),
+                          child: Padding(
+                            padding: EdgeInsets.all(8.w),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 24.sp,
+                              color: AppColors.textSecondary(context),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Divider(height: 1, color: AppColors.grey300Color),
+                Divider(height: 1, color: AppColors.divider(context)),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildSectionLabel('filter_location'.tr),
+                    _buildSectionLabel('filter_location'.tr, context),
                     SizedBox(height: 10.h),
                     TextField(
                       controller: _cityController,
                       style: TextStyle(
                         fontSize: 15.sp,
-                        color: AppColors.blackColor,
+                        color: AppColors.textPrimary(context),
                       ),
                       decoration: InputDecoration(
                         hintText: 'filter_city_hint'.tr,
                         hintStyle: TextStyle(
                           fontSize: 15.sp,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                         ),
                         filled: true,
-                        fillColor: AppColors.chatFieldColor,
+                        fillColor: AppColors.inputFill(context),
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: 18.w,
                           vertical: 14.h,
@@ -198,7 +206,7 @@ class _ReservationRequestFilterDialogState
                       ),
                     ),
                     SizedBox(height: 24.h),
-                    _buildSectionLabel('filter_service_type'.tr),
+                    _buildSectionLabel('filter_service_type'.tr, context),
                     SizedBox(height: 10.h),
                     Wrap(
                       spacing: 10.w,
@@ -223,12 +231,12 @@ class _ReservationRequestFilterDialogState
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? AppColors.primaryColor
-                                    : AppColors.chatFieldColor,
+                                    : AppColors.inputFill(context),
                                 borderRadius: BorderRadius.circular(20.r),
                                 border: Border.all(
                                   color: isSelected
                                       ? AppColors.primaryColor
-                                      : AppColors.grey300Color,
+                                      : AppColors.divider(context),
                                 ),
                               ),
                               child: InterText(
@@ -237,7 +245,7 @@ class _ReservationRequestFilterDialogState
                                 fontWeight: FontWeight.w500,
                                 color: isSelected
                                     ? AppColors.whiteColor
-                                    : AppColors.grey700Color,
+                                    : AppColors.textPrimary(context),
                               ),
                             ),
                           ),
@@ -245,7 +253,7 @@ class _ReservationRequestFilterDialogState
                       }).toList(),
                     ),
                     SizedBox(height: 24.h),
-                    _buildSectionLabel('filter_dates'.tr),
+                    _buildSectionLabel('filter_dates'.tr, context),
                     SizedBox(height: 10.h),
                     Material(
                       color: Colors.transparent,
@@ -259,7 +267,7 @@ class _ReservationRequestFilterDialogState
                             vertical: 14.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.chatFieldColor,
+                            color: AppColors.inputFill(context),
                             borderRadius: BorderRadius.circular(16.r),
                           ),
                           child: Row(
@@ -267,7 +275,7 @@ class _ReservationRequestFilterDialogState
                               Icon(
                                 Icons.calendar_today_rounded,
                                 size: 20.sp,
-                                color: AppColors.grey500Color,
+                                color: AppColors.textSecondary(context),
                               ),
                               SizedBox(width: 12.w),
                               Expanded(
@@ -278,19 +286,50 @@ class _ReservationRequestFilterDialogState
                                   fontSize: 15.sp,
                                   fontWeight: FontWeight.w500,
                                   color: _dateRange == null
-                                      ? AppColors.greyText
-                                      : AppColors.blackColor,
+                                      ? AppColors.textSecondary(context)
+                                      : AppColors.textPrimary(context),
                                 ),
                               ),
                               Icon(
                                 Icons.chevron_right_rounded,
                                 size: 22.sp,
-                                color: AppColors.greyText,
+                                color: AppColors.textSecondary(context),
                               ),
                             ],
                           ),
                         ),
                       ),
+                    ),
+                    SizedBox(height: 24.h),
+                    _buildSectionLabel('filter_distance'.tr, context),
+                    SizedBox(height: 10.h),
+                    Column(
+                      children: [
+                        Slider(
+                          value: _maxDistanceKm,
+                          min: 0,
+                          max: 500,
+                          divisions: 50,
+                          label: _maxDistanceKm == 0
+                              ? 'filter_all_distances'.tr
+                              : '${_maxDistanceKm.toInt()} km',
+                          onChanged: (value) {
+                            setState(() => _maxDistanceKm = value);
+                          },
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 18.w),
+                          child: InterText(
+                            text: _maxDistanceKm == 0
+                                ? 'filter_all_distances'.tr
+                                : 'filter_distance_km'
+                                    .trParams({'km': _maxDistanceKm.toInt().toString()}),
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary(context),
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(height: 28.h),
                     // Clear (text) + Apply (full-width primary button)
@@ -302,13 +341,13 @@ class _ReservationRequestFilterDialogState
                             Navigator.of(context).pop();
                           },
                           style: TextButton.styleFrom(
-                            foregroundColor: AppColors.greyText,
+                            foregroundColor: AppColors.textSecondary(context),
                           ),
                           child: InterText(
                             text: 'filter_clear'.tr,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.greyText,
+                            color: AppColors.textSecondary(context),
                           ),
                         ),
                         const Spacer(),
@@ -332,6 +371,8 @@ class _ReservationRequestFilterDialogState
                                       : _cityController.text.trim(),
                                   dateRange: _dateRange,
                                   serviceType: _serviceType,
+                                  maxDistanceKm:
+                                      _maxDistanceKm > 0 ? _maxDistanceKm : null,
                                 ),
                               );
                               Navigator.of(context).pop();
@@ -349,19 +390,20 @@ class _ReservationRequestFilterDialogState
                   ],
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(String label, BuildContext context) {
     return InterText(
       text: label,
       fontSize: 13.sp,
       fontWeight: FontWeight.w500,
-      color: AppColors.greyText,
+      color: AppColors.textSecondary(context),
     );
   }
 

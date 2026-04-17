@@ -42,8 +42,8 @@ class ProfileScreen extends StatelessWidget {
                   _buildQuickActions(controller),
                   SizedBox(height: 20.h),
 
-                  // Switch Role Card
-                  _buildSwitchRoleCard(context),
+                  // Switch Role Cards — shows the 2 other roles the user can switch to.
+                  _buildSwitchRoleCards(context),
                   SizedBox(height: 20.h),
 
                   // Settings Section
@@ -413,74 +413,126 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSwitchRoleCard(BuildContext context) {
+  /// Builds a column of switch-role cards — one per role the user is NOT in.
+  /// Each card opens a confirm dialog, then calls switchRole with the target.
+  Widget _buildSwitchRoleCards(BuildContext context) {
     final authController = Get.find<AuthController>();
     final currentRole = authController.userRole.value;
-    final newRoleKey = currentRole == 'owner'
-        ? 'role_pet_sitter'
-        : 'role_pet_owner';
-    final newRoleText = newRoleKey.tr;
+
+    // Compute the 2 other roles the user can switch to.
+    const allRoles = ['owner', 'sitter', 'walker'];
+    final otherRoles = allRoles.where((r) => r != currentRole).toList();
+
+    return Column(
+      children: [
+        for (int i = 0; i < otherRoles.length; i++) ...[
+          _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
+          if (i < otherRoles.length - 1) SizedBox(height: 12.h),
+        ],
+      ],
+    );
+  }
+
+  /// Single switch-role card targeting a specific role.
+  Widget _buildSwitchRoleCard(
+    BuildContext context, {
+    required String targetRole,
+  }) {
+    // Map role -> translation key + accent color.
+    String roleLabelKey;
+    Color accentColor;
+    switch (targetRole) {
+      case 'owner':
+        roleLabelKey = 'role_pet_owner';
+        accentColor = AppColors.primaryColor;
+        break;
+      case 'walker':
+        roleLabelKey = 'role_pet_walker';
+        accentColor = AppColors.greenColor;
+        break;
+      case 'sitter':
+      default:
+        roleLabelKey = 'role_pet_sitter';
+        accentColor = AppColors.sitterAccent;
+        break;
+    }
+
+    final newRoleText = roleLabelKey.tr;
     final switchDescription = 'profile_switch_role_card_description'.trParams({
       'role': newRoleText,
     });
 
     return GestureDetector(
-      onTap: () => _showSwitchRoleDialog(context),
+      onTap: () => _showSwitchRoleDialog(context, targetRole: targetRole),
       child: Builder(
         builder: (context) => Container(
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
             borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: AppColors.primaryColor, width: 2),
+            border: Border.all(color: accentColor, width: 2),
           ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: 'profile_switch_role_card_title'.trParams({
-                      'role': newRoleText,
-                    }),
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryColor,
-                  ),
-                  SizedBox(height: 8.h),
-                  InterText(
-                    text: switchDescription,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.greyText,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: 'profile_switch_role_card_title'.trParams({
+                        'role': newRoleText,
+                      }),
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: accentColor,
+                    ),
+                    SizedBox(height: 8.h),
+                    InterText(
+                      text: switchDescription,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.greyText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(width: 12.w),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 20.sp,
-              color: AppColors.primaryColor,
-            ),
-          ],
-        ),
+              SizedBox(width: 12.w),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 20.sp,
+                color: accentColor,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _showSwitchRoleDialog(BuildContext context) {
+  void _showSwitchRoleDialog(
+    BuildContext context, {
+    required String targetRole,
+  }) {
     final authController = Get.find<AuthController>();
-    final currentRole = authController.userRole.value;
-    final newRoleKey = currentRole == 'owner'
-        ? 'role_pet_sitter'
-        : 'role_pet_owner';
-    final newRoleText = newRoleKey.tr;
+
+    // Map role -> translation key for the confirm dialog text.
+    String roleLabelKey;
+    switch (targetRole) {
+      case 'owner':
+        roleLabelKey = 'role_pet_owner';
+        break;
+      case 'walker':
+        roleLabelKey = 'role_pet_walker';
+        break;
+      case 'sitter':
+      default:
+        roleLabelKey = 'role_pet_sitter';
+        break;
+    }
+    final newRoleText = roleLabelKey.tr;
 
     showDialog(
       context: context,
@@ -525,7 +577,7 @@ class ProfileScreen extends StatelessWidget {
                 onPressed: isLoading
                     ? null
                     : () async {
-                        await authController.switchRole();
+                        await authController.switchRole(targetRole: targetRole);
                         if (Get.isDialogOpen == true) {
                           Navigator.of(dialogContext).pop();
                         }

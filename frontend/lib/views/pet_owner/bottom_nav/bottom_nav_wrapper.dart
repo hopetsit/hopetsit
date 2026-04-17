@@ -4,6 +4,7 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/views/pet_owner/booking-application/application_screen.dart';
 import 'package:hopetsit/views/pet_owner/home/home_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
+import 'package:hopetsit/views/map/pets_map_screen.dart';
 import 'package:hopetsit/views/profile/profile_screen.dart';
 import 'package:hopetsit/widgets/stacked_navigation_wrapper.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
@@ -17,10 +18,11 @@ class BottomNavWrapper extends StatefulWidget {
 
 class _BottomNavWrapperState extends State<BottomNavWrapper> {
   final List<Widget> _screens = const [
-    HomeScreen(),
-    ChatScreen(),
-    ApplicationScreen(),
-    ProfileScreen(),
+    HomeScreen(),       // 0 — Home
+    ChatScreen(),       // 1 — Chat
+    PetsMapScreen(),    // 2 — Map (center button)
+    ApplicationScreen(),// 3 — Bookings
+    ProfileScreen(),    // 4 — Profile
   ];
 
   @override

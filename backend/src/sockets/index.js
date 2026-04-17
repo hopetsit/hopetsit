@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const registerChatHandlers = require('./chatSocket');
+const registerMapHandlers = require('./mapSocket');
 const { setSocketServer } = require('./emitter');
 
 const createSocketServer = (httpServer) => {
@@ -13,6 +14,7 @@ const createSocketServer = (httpServer) => {
 
   io.on('connection', (socket) => {
     registerChatHandlers(io, socket);
+    registerMapHandlers(io, socket);
   });
 
   return io;

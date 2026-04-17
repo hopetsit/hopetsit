@@ -132,4 +132,47 @@ class PostRepository {
 
     throw ApiException('Unexpected delete post response.', details: response);
   }
+
+  /// Updates an existing post. Owner-only (enforced by the backend).
+  ///
+  /// PATCH /posts/:id — backend whitelists editable fields: body, startDate,
+  /// endDate, serviceTypes, petId, location, notes, houseSittingVenue.
+  Future<Map<String, dynamic>> updatePost(
+    String postId, {
+    String? body,
+    DateTime? startDate,
+    DateTime? endDate,
+    List<String>? serviceTypes,
+    String? petId,
+    Map<String, dynamic>? location,
+    String? notes,
+    String? houseSittingVenue,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (body != null) payload['body'] = body;
+    if (startDate != null) payload['startDate'] = startDate.toIso8601String();
+    if (endDate != null) payload['endDate'] = endDate.toIso8601String();
+    if (serviceTypes != null) payload['serviceTypes'] = serviceTypes;
+    if (petId != null) payload['petId'] = petId;
+    if (location != null) payload['location'] = location;
+    if (notes != null) payload['notes'] = notes;
+    if (houseSittingVenue != null) {
+      payload['houseSittingVenue'] = houseSittingVenue;
+    }
+
+    final response = await _apiClient.patch(
+      '/posts/$postId',
+      body: payload,
+      requiresAuth: true,
+    );
+
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    if (response is Map) {
+      return Map<String, dynamic>.from(response);
+    }
+
+    throw ApiException('Unexpected update post response.', details: response);
+  }
 }

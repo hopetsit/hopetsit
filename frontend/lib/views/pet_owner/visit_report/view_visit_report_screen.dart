@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 
 /// Sprint 6 step 3 — owner views the latest visit report for a booking.
 class ViewVisitReportScreen extends StatefulWidget {
@@ -62,43 +64,63 @@ class _ViewVisitReportScreenState extends State<ViewVisitReportScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text('Visit report', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
+        title: PoppinsText(
+          text: 'Visit report',
+          fontSize: 18.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _report == null
-              ? Center(child: Text(_error ?? 'No report yet.'))
+              ? Center(
+                  child: InterText(
+                    text: _error ?? 'No report yet.',
+                    fontSize: 14.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
+                )
               : ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16.w),
                   children: [
-                    Text(
-                      '${_moodIcon((_report!['mood'] ?? 'calm').toString())}  ${(_report!['mood'] ?? '').toString().toUpperCase()}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    InterText(
+                      text: '${_moodIcon((_report!['mood'] ?? 'calm').toString())}  ${(_report!['mood'] ?? '').toString().toUpperCase()}',
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary(context),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12.h),
                     if ((_report!['notes'] ?? '').toString().isNotEmpty)
-                      Text(_report!['notes'].toString()),
-                    const SizedBox(height: 12),
+                      InterText(
+                        text: _report!['notes'].toString(),
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textPrimary(context),
+                      ),
+                    SizedBox(height: 12.h),
                     if (_report!['activities'] is List &&
                         (_report!['activities'] as List).isNotEmpty)
-                      Text('Activities: ${(_report!['activities'] as List).join(", ")}'),
-                    const SizedBox(height: 16),
+                      InterText(
+                        text: 'Activities: ${(_report!['activities'] as List).join(", ")}',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textPrimary(context),
+                      ),
+                    SizedBox(height: 16.h),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 8.w,
+                      runSpacing: 8.h,
                       children: [
                         for (final url in (_report!['photos'] as List? ?? []))
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12.r),
                             child: CachedNetworkImage(
                               imageUrl: url.toString(),
-                              width: 110,
-                              height: 110,
+                              width: 110.w,
+                              height: 110.h,
                               fit: BoxFit.cover,
                             ),
                           ),

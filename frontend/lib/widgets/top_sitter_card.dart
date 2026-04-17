@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// Sprint 7 step 2 — Top Sitter status card for the sitter's own profile.
 class TopSitterCard extends StatefulWidget {
@@ -56,8 +57,9 @@ class _TopSitterCardState extends State<TopSitterCard> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.cardShadow(context),
         border: Border.all(
           color: _isTop ? Colors.amber : Colors.transparent,
           width: _isTop ? 2 : 0,

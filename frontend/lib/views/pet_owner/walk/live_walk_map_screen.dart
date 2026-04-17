@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:get_storage/get_storage.dart';
@@ -6,6 +7,8 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 
 /// Sprint 6 step 2 — owner watches a live walk on a map.
 class LiveWalkMapScreen extends StatefulWidget {
@@ -87,9 +90,27 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Live walk')),
+      backgroundColor: AppColors.scaffold(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: PoppinsText(
+          text: 'Live walk',
+          fontSize: 18.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
+        ),
+      ),
       body: _current == null
-          ? Center(child: Text(_status))
+          ? Center(
+              child: InterText(
+                text: _status,
+                fontSize: 14.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            )
           : GoogleMap(
               initialCameraPosition: CameraPosition(target: _current!, zoom: 16),
               onMapCreated: (c) => _mapController = c,

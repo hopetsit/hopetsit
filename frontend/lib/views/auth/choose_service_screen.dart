@@ -18,19 +18,44 @@ class ChooseServiceScreen extends StatelessWidget {
     this.isFromProfile = false,
   });
 
+  /// Map service value to a Material icon
+  IconData _serviceIcon(String value) {
+    switch (value) {
+      case 'dog_walking':
+        return Icons.pets_rounded;
+      case 'pet_sitting':
+        return Icons.home_rounded;
+      case 'house_sitting':
+        return Icons.house_rounded;
+      case 'day_care':
+        return Icons.child_care_rounded;
+      default:
+        return Icons.miscellaneous_services_rounded;
+    }
+  }
+
+  /// Map service value to an accent color
+  Color _serviceColor(String value) {
+    switch (value) {
+      case 'dog_walking':
+        return const Color(0xFF4CAF50);
+      case 'pet_sitting':
+        return const Color(0xFF2196F3);
+      case 'house_sitting':
+        return const Color(0xFF9C27B0);
+      case 'day_care':
+        return const Color(0xFFFF9800);
+      default:
+        return AppColors.primaryColor;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Validate email is provided
     if (email.isEmpty) {
       debugPrint('[HOPETSIT] ⚠️ ChooseServiceScreen: Empty email provided');
     }
-    debugPrint(
-      '[HOPETSIT] ChooseServiceScreen: email=$email, userType=$userType',
-    );
 
-    // Check if controller is already registered, if not create it
-    // For profile flow, create a new controller instance without tag
-    // For signup flow, always ensure controller has correct email - delete and recreate if needed
     ChooseServiceController controller;
     if (isFromProfile) {
       controller = Get.put(
@@ -41,12 +66,10 @@ class ChooseServiceScreen extends StatelessWidget {
         ),
       );
     } else {
-      // For signup flow: if controller exists but email might be different, delete and recreate
       if (Get.isRegistered<ChooseServiceController>(tag: userType)) {
         final existingController = Get.find<ChooseServiceController>(
           tag: userType,
         );
-        // If email is different or empty, recreate controller with correct email
         if (existingController.email != email ||
             existingController.email.isEmpty) {
           Get.delete<ChooseServiceController>(tag: userType, force: true);
@@ -70,7 +93,7 @@ class ChooseServiceScreen extends StatelessWidget {
             isFromProfile: isFromProfile,
           ),
           tag: userType,
-          permanent: true, // Prevents disposal during navigation
+          permanent: true,
         );
       }
     }
@@ -79,64 +102,65 @@ class ChooseServiceScreen extends StatelessWidget {
       backgroundColor: AppColors.scaffold(context),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-            backgroundColor: AppColors.appBar(context),
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            surfaceTintColor: Colors.transparent,
-            leading: isFromProfile
-                ? IconButton(
-                    icon: Icon(Icons.arrow_back, color: AppColors.textPrimary(context)),
-                    onPressed: () => Get.back(),
-                  )
-                : null,
-            title: PoppinsText(
-              text: 'choose_service_title'.tr,
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-            actions: [
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Center(
-                  child: GestureDetector(
-                    onTap: controller.selectAllServices,
-                    child: PoppinsText(
-                      text: 'choose_service_choose_all'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primaryColor,
-                    ),
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: isFromProfile
+            ? IconButton(
+                icon: Icon(Icons.arrow_back, color: AppColors.textPrimary(context)),
+                onPressed: () => Get.back(),
+              )
+            : null,
+        title: PoppinsText(
+          text: 'choose_service_title'.tr,
+          fontSize: 18.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
+        ),
+        actions: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            child: Center(
+              child: GestureDetector(
+                onTap: controller.selectAllServices,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20.r),
+                  ),
+                  child: PoppinsText(
+                    text: 'choose_service_choose_all'.tr,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryColor,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-      // : null,
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 20.w),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // if (!isFromProfile) SizedBox(height: 30.h),
+              SizedBox(height: 8.h),
 
-              // if (!isFromProfile)
-              //   // Title
-              //   PoppinsText(
-              //     text: 'Choose a Service',
-              //     fontSize: 20.sp,
-              //     fontWeight: FontWeight.w600,
-              //     color: AppColors.blackColor,
-              //   ),
+              // Subtitle
+              InterText(
+                text: 'choose_service_subtitle'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textSecondary(context),
+              ),
 
-              // if (!isFromProfile) SizedBox(height: 32.h),
-              // if (isFromProfile)
               SizedBox(height: 20.h),
 
-              SizedBox(height: 32.h),
-
-              // Service Options (multi-select in both flows)
+              // Service Options — modern grid-style cards
               Expanded(
                 child: SingleChildScrollView(
                   child: Obx(
@@ -145,40 +169,100 @@ class ChooseServiceScreen extends StatelessWidget {
                         final isSelected = controller.selectedServices.contains(
                           service.value,
                         );
+                        final color = _serviceColor(service.value);
+                        final icon = _serviceIcon(service.value);
 
                         return Padding(
-                          padding: EdgeInsets.only(bottom: 16.h),
+                          padding: EdgeInsets.only(bottom: 12.h),
                           child: GestureDetector(
-                            onTap: () =>
-                                controller.selectService(service.value),
-                            child: Container(
+                            onTap: () => controller.selectService(service.value),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
                               width: double.infinity,
-                              padding: EdgeInsets.all(20.w),
+                              padding: EdgeInsets.all(16.w),
                               decoration: BoxDecoration(
+                                color: isSelected
+                                    ? color.withOpacity(0.06)
+                                    : AppColors.card(context),
+                                borderRadius: BorderRadius.circular(16.r),
                                 border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.primaryColor
-                                      : AppColors.divider(context),
+                                  color: isSelected ? color : AppColors.divider(context),
                                   width: isSelected ? 2 : 1,
                                 ),
-                                borderRadius: BorderRadius.circular(20.r),
-                                color: AppColors.card(context),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: color.withOpacity(0.15),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ]
+                                    : AppColors.cardShadow(context),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  PoppinsText(
-                                    text: service.titleKey.tr,
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary(context),
+                                  // Service icon
+                                  Container(
+                                    width: 52.w,
+                                    height: 52.w,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? color.withOpacity(0.15)
+                                          : color.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(14.r),
+                                    ),
+                                    child: Icon(
+                                      icon,
+                                      size: 26.sp,
+                                      color: isSelected ? color : color.withOpacity(0.6),
+                                    ),
                                   ),
-                                  SizedBox(height: 4.h),
-                                  InterText(
-                                    text: service.subtitleKey.tr,
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.textSecondary(context).withOpacity(0.6),
+                                  SizedBox(width: 14.w),
+
+                                  // Title + subtitle
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        PoppinsText(
+                                          text: service.titleKey.tr,
+                                          fontSize: 15.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: isSelected
+                                              ? color
+                                              : AppColors.textPrimary(context),
+                                        ),
+                                        SizedBox(height: 2.h),
+                                        InterText(
+                                          text: service.subtitleKey.tr,
+                                          fontSize: 12.sp,
+                                          fontWeight: FontWeight.w400,
+                                          color: AppColors.textSecondary(context),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Checkmark
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    width: 28.w,
+                                    height: 28.w,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSelected ? color : Colors.transparent,
+                                      border: Border.all(
+                                        color: isSelected ? color : AppColors.greyColor.withOpacity(0.3),
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: isSelected
+                                        ? Icon(
+                                            Icons.check_rounded,
+                                            size: 16.sp,
+                                            color: Colors.white,
+                                          )
+                                        : null,
                                   ),
                                 ],
                               ),
@@ -190,6 +274,25 @@ class ChooseServiceScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
+              // Selected count
+              Obx(() {
+                final count = controller.selectedServices.length;
+                if (count > 0) {
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 8.h),
+                    child: Center(
+                      child: InterText(
+                        text: '$count ${'choose_service_selected_count'.tr}',
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
 
               // Continue/Save Button
               Obx(
@@ -209,7 +312,7 @@ class ChooseServiceScreen extends StatelessWidget {
                 ),
               ),
 
-              SizedBox(height: 40.h),
+              SizedBox(height: 30.h),
             ],
           ),
         ),

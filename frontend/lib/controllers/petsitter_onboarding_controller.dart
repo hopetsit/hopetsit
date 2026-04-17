@@ -142,8 +142,10 @@ class PetsitterOnboardingController extends GetxController {
       try {
         final weekly = (rate * 40).roundToDouble();
         final monthly = (rate * 160).roundToDouble();
+        final daily = (rate * 8).roundToDouble();
         await sitterRepository.setMyRates(
           hourlyRate: rate,
+          dailyRate: daily,
           weeklyRate: weekly,
           monthlyRate: monthly,
         );

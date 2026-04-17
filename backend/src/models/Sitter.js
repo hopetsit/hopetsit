@@ -52,7 +52,11 @@ const sitterSchema = new mongoose.Schema(
       purchasedAt: { type: Date, default: Date.now },
       paymentProvider: { type: String },
       paymentId: { type: String },
+      kind: { type: String, default: 'profile' }, // 'profile' | 'map'
     }],
+    // Phase 5 — PawMap boost (pin highlighted on the map)
+    mapBoostExpiry: { type: Date, default: null },
+    mapBoostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },
     // Sprint 7 step 2 — Top sitter flag (completed>=20 && avgRating>4.5).
     isTopSitter: { type: Boolean, default: false },
     completedServicesCount: { type: Number, default: 0 },

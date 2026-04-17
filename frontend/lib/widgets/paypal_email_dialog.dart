@@ -51,15 +51,9 @@ class PayPalEmailDialog extends StatelessWidget {
               width: 1.sw - 64.w,
               padding: EdgeInsets.all(22.w),
               decoration: BoxDecoration(
-                color: AppColors.whiteColor,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+                boxShadow: AppColors.cardShadow(context),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -86,7 +80,7 @@ class PayPalEmailDialog extends StatelessWidget {
                           text: title,
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                       ),
                     ],
@@ -106,18 +100,18 @@ class PayPalEmailDialog extends StatelessWidget {
                     decoration: InputDecoration(
                       hintText: 'sitter-payments@example.com',
                       filled: true,
-                      fillColor: AppColors.lightGrey,
+                      fillColor: AppColors.inputFill(context),
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 16.w,
                         vertical: 14.h,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14.r),
-                        borderSide: BorderSide(color: AppColors.grey300Color),
+                        borderSide: BorderSide(color: AppColors.divider(context)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14.r),
-                        borderSide: BorderSide(color: AppColors.grey300Color),
+                        borderSide: BorderSide(color: AppColors.divider(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14.r),
@@ -131,9 +125,9 @@ class PayPalEmailDialog extends StatelessWidget {
                       Expanded(
                         child: CustomButton(
                           title: secondaryText,
-                          bgColor: AppColors.whiteColor,
-                          textColor: AppColors.blackColor,
-                          borderColor: AppColors.grey300Color,
+                          bgColor: AppColors.card(context),
+                          textColor: AppColors.textPrimary(context),
+                          borderColor: AppColors.divider(context),
                           height: 46.h,
                           radius: 14.r,
                           onTap: isLoading ? null : onSecondary,

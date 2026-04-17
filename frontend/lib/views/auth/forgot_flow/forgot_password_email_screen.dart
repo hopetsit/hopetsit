@@ -16,16 +16,17 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
     final controller = Get.put(ForgotPasswordController(Get.find()));
     final formKey = GlobalKey<FormState>(); // Local form key for this screen
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         automaticallyImplyLeading: true,
         title: PoppinsText(
           text: 'forgot_password'.tr,
           fontSize: 20,
           fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,

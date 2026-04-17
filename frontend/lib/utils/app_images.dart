@@ -14,6 +14,10 @@ class AppImages {
   // sign up as
   static const String petOwner = 'assets/images/pet_owner.png';
   static const String petSitter = 'assets/images/pet_sitter.png';
+  // Walker illustration — falls back to petSitter image until a dedicated
+  // asset `assets/images/pet_walker.png` is added. Swap this path when the
+  // real asset is available; the rest of the code references AppImages.petWalker.
+  static const String petWalker = 'assets/images/pet_sitter.png';
 
   //pet profile icon
   static const String petProfileEditIcon = 'assets/icons/pet_profile.png';

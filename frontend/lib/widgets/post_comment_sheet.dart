@@ -103,7 +103,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
       child: Container(
         height: MediaQuery.of(context).size.height * 0.75,
         decoration: BoxDecoration(
-          color: AppColors.whiteColor,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24.r),
             topRight: Radius.circular(24.r),
@@ -131,7 +131,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                     text: 'post_comments_title'.tr,
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                   const Spacer(),
                   IconButton(
@@ -213,10 +213,10 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                         hintText: 'post_comments_hint'.tr,
                         hintStyle: TextStyle(
                           fontSize: 14.sp,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                         ),
                         filled: true,
-                        fillColor: AppColors.lightGrey,
+                        fillColor: AppColors.inputFill(context),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24.r),
                           borderSide: BorderSide.none,
@@ -228,7 +228,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                       ),
                       style: TextStyle(
                         fontSize: 14.sp,
-                        color: AppColors.blackColor,
+                        color: AppColors.textPrimary(context),
                       ),
                     ),
                   ),
@@ -311,7 +311,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                       text: comment.authorName,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.blackColor,
+                      color: AppColors.textPrimary(context),
                     ),
                     if (comment.userRole.isNotEmpty) ...[
                       SizedBox(width: 6.w),
@@ -341,7 +341,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                   text: comment.body,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
                 SizedBox(height: 4.h),
 

@@ -34,6 +34,12 @@ class ApiEndpoints {
 
   /// Find nearby sitters by owner's location (GET with query lat, lng, optional radiusInMeters).
   static const String sittersNearby = '/sitters/nearby';
+
+  // Walker endpoints (third role — dog walkers).
+  static const String walkers = '/walkers';
+  static const String walkersNearby = '/walkers/nearby';
+  static const String walkersMe = '/walkers/me';
+  static const String walkersMyRates = '/walkers/me/rates';
   static const String bookings = '/bookings';
   static const String myBookings = '/bookings/my';
   static const String myApplications = '/applications/my';

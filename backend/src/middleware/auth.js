@@ -32,10 +32,15 @@ const requireAuth = async (req, res, next) => {
       role: payload.role,
     };
     // Sprint 7 step 6 — block suspended/banned accounts.
-    if (payload.role === 'owner' || payload.role === 'sitter') {
-      const Model = payload.role === 'sitter'
-        ? require('../models/Sitter')
-        : require('../models/Owner');
+    // Extended to cover the walker role alongside owner and sitter.
+    const ROLE_TO_MODEL_PATH = {
+      owner: '../models/Owner',
+      sitter: '../models/Sitter',
+      walker: '../models/Walker',
+    };
+    const modelPath = ROLE_TO_MODEL_PATH[payload.role];
+    if (modelPath) {
+      const Model = require(modelPath);
       const user = await Model.findById(payload.id).select('status').lean();
       if (user && user.status && user.status !== 'active') {
         const msg = user.status === 'suspended'

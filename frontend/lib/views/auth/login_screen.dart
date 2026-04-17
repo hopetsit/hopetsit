@@ -20,88 +20,125 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<AuthController>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: PoppinsText(
-          text: 'title_login'.tr,
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.language_outlined,
-              color: AppColors.textPrimary(context),
-            ),
-            onPressed: () {
-              final currentCode = LocalizationService.getCurrentLanguageCode();
-              final entries = LocalizationService.languageLabels.entries
-                  .toList();
-
-              Get.defaultDialog(
-                title: 'language_dialog_title'.tr,
-                backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceDark : AppColors.whiteColor,
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: entries.map((entry) {
-                    final isSelected = entry.key == currentCode;
-                    return ListTile(
-                      title: InterText(
-                        text: entry.value,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : null,
-                      onTap: () async {
-                        await LocalizationService.updateLocale(entry.key);
-                        Get.back();
-                        CustomSnackbar.showSuccess(
-                          title: 'language_updated_title'.tr,
-                          message: 'language_updated_message'.tr,
-                        );
-                      },
-                    );
-                  }).toList(),
-                ),
-                textCancel: 'common_cancel'.tr,
-              );
-            },
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.scaffold(context),
       body: Stack(
         children: [
           SafeArea(
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 32.h),
+              padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: Form(
                 key: controller.formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PoppinsText(
-                      text: 'welcome_back'.tr,
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary(context),
+                    SizedBox(height: 12.h),
+
+                    // ── Top bar: dark mode toggle + language ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Dark mode toggle
+                        GestureDetector(
+                          onTap: () {
+                            final currentMode = Get.isDarkMode;
+                            Get.changeThemeMode(
+                              currentMode ? ThemeMode.light : ThemeMode.dark,
+                            );
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(10.w),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.surfaceDark
+                                  : AppColors.grey300Color.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Icon(
+                              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                              size: 22.sp,
+                              color: isDark ? Colors.amber : AppColors.grey700Color,
+                            ),
+                          ),
+                        ),
+
+                        // Language selector
+                        GestureDetector(
+                          onTap: () => _showLanguageDialog(context),
+                          child: Container(
+                            padding: EdgeInsets.all(10.w),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.surfaceDark
+                                  : AppColors.grey300Color.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Icon(
+                              Icons.language_rounded,
+                              size: 22.sp,
+                              color: AppColors.textPrimary(context),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 8.h),
-                    InterText(
-                      text: 'login_subtitle'.tr,
-                      fontSize: 14.sp,
-                      color: AppColors.textSecondary(context),
+
+                    SizedBox(height: 28.h),
+
+                    // ── Logo + Welcome ──
+                    Center(
+                      child: Container(
+                        width: 64.w,
+                        height: 64.h,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primaryColor,
+                              AppColors.primaryColor.withOpacity(0.8),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20.r),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryColor.withOpacity(0.3),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.pets,
+                          size: 34.sp,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
+
+                    SizedBox(height: 20.h),
+
+                    Center(
+                      child: PoppinsText(
+                        text: 'welcome_back'.tr,
+                        fontSize: 26.sp,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary(context),
+                      ),
+                    ),
+                    SizedBox(height: 6.h),
+                    Center(
+                      child: InterText(
+                        text: 'login_subtitle'.tr,
+                        fontSize: 14.sp,
+                        color: AppColors.textSecondary(context),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
                     SizedBox(height: 32.h),
+
+                    // ── Email field ──
                     CustomTextField(
                       labelText: 'label_email'.tr,
                       hintText: 'hint_email'.tr,
@@ -110,7 +147,9 @@ class LoginScreen extends StatelessWidget {
                       textInputAction: TextInputAction.next,
                       validator: controller.validateEmail,
                     ),
-                    SizedBox(height: 24.h),
+                    SizedBox(height: 20.h),
+
+                    // ── Password field ──
                     CustomTextField(
                       labelText: 'label_password'.tr,
                       hintText: 'hint_password_login'.tr,
@@ -120,7 +159,8 @@ class LoginScreen extends StatelessWidget {
                       textInputAction: TextInputAction.done,
                       validator: controller.validatePassword,
                     ),
-                    SizedBox(height: 12.h),
+                    SizedBox(height: 8.h),
+
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -130,15 +170,20 @@ class LoginScreen extends StatelessWidget {
                         ),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primaryColor,
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: InterText(
                           text: 'forgot_password'.tr,
-                          fontSize: 13,
+                          fontSize: 13.sp,
                           fontWeight: FontWeight.w600,
+                          color: AppColors.primaryColor,
                         ),
                       ),
                     ),
-                    SizedBox(height: 40.h),
+                    SizedBox(height: 28.h),
+
+                    // ── Login button ──
                     Obx(
                       () => CustomButton(
                         title: controller.isLoading.value
@@ -151,12 +196,14 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 24.h),
 
-                    // Social Sign In Options
+                    // ── Divider ──
                     Row(
                       children: [
                         Expanded(
                           child: Divider(
-                            color: AppColors.textSecondary(context).withOpacity(0.2),
+                            color: isDark
+                                ? AppColors.dividerDark
+                                : AppColors.grey300Color,
                             thickness: 1,
                           ),
                         ),
@@ -170,7 +217,9 @@ class LoginScreen extends StatelessWidget {
                         ),
                         Expanded(
                           child: Divider(
-                            color: AppColors.textSecondary(context).withOpacity(0.2),
+                            color: isDark
+                                ? AppColors.dividerDark
+                                : AppColors.grey300Color,
                             thickness: 1,
                           ),
                         ),
@@ -178,83 +227,39 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 24.h),
 
-                    // Social Sign In Buttons
+                    // ── Social buttons ──
                     Row(
                       children: [
                         Expanded(
-                          child: OutlinedButton(
-                            onPressed:
-                                controller.isLoading.value ||
+                          child: _SocialLoginButton(
+                            onTap: controller.isLoading.value ||
                                     controller.isSocialLoginLoading.value
                                 ? null
                                 : () => controller.loginWithGoogle(),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: AppColors.textSecondary(context).withOpacity(0.2)),
-                              padding: EdgeInsets.symmetric(vertical: 12.h),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14.r),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Image.asset(
-                                  AppImages.googleIcon,
-                                  height: 20.sp,
-                                  width: 20.sp,
-                                  fit: BoxFit.cover,
-                                ),
-                                SizedBox(width: 8.w),
-                                InterText(
-                                  text: 'button_google'.tr,
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary(context),
-                                ),
-                              ],
-                            ),
+                            imagePath: AppImages.googleIcon,
+                            label: 'button_google'.tr,
+                            isDark: isDark,
                           ),
                         ),
                         if (Platform.isIOS) ...[
                           SizedBox(width: 12.w),
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed:
-                                  controller.isLoading.value ||
+                            child: _SocialLoginButton(
+                              onTap: controller.isLoading.value ||
                                       controller.isSocialLoginLoading.value
                                   ? null
                                   : () => controller.loginWithApple(),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.textSecondary(context).withOpacity(0.2)),
-                                padding: EdgeInsets.symmetric(vertical: 12.h),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14.r),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.apple,
-                                    size: 20.sp,
-                                    color: AppColors.textPrimary(context),
-                                  ),
-                                  SizedBox(width: 8.w),
-                                  InterText(
-                                    text: 'button_apple'.tr,
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textPrimary(context),
-                                  ),
-                                ],
-                              ),
+                              icon: Icons.apple,
+                              label: 'button_apple'.tr,
+                              isDark: isDark,
                             ),
                           ),
                         ],
                       ],
                     ),
-                    SizedBox(height: 24.h),
+                    SizedBox(height: 28.h),
 
+                    // ── Sign up link ──
                     Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -281,11 +286,14 @@ class LoginScreen extends StatelessWidget {
                         ],
                       ),
                     ),
+                    SizedBox(height: 20.h),
                   ],
                 ),
               ),
             ),
           ),
+
+          // ── Loading overlay ──
           Obx(
             () => controller.isSocialLoginLoading.value
                 ? Positioned.fill(
@@ -303,6 +311,99 @@ class LoginScreen extends StatelessWidget {
                 : const SizedBox.shrink(),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentCode = LocalizationService.getCurrentLanguageCode();
+    final entries = LocalizationService.languageLabels.entries.toList();
+
+    Get.defaultDialog(
+      title: 'language_dialog_title'.tr,
+      titleStyle: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: isDark ? AppColors.textPrimaryDark : AppColors.blackColor,
+      ),
+      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.whiteColor,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: entries.map((entry) {
+          final isSelected = entry.key == currentCode;
+          return ListTile(
+            title: InterText(
+              text: entry.value,
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w500,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.blackColor,
+            ),
+            trailing: isSelected
+                ? Icon(Icons.check, color: AppColors.primaryColor)
+                : null,
+            onTap: () async {
+              await LocalizationService.updateLocale(entry.key);
+              Get.back();
+              CustomSnackbar.showSuccess(
+                title: 'language_updated_title'.tr,
+                message: 'language_updated_message'.tr,
+              );
+            },
+          );
+        }).toList(),
+      ),
+      textCancel: 'common_cancel'.tr,
+      cancelTextColor: AppColors.primaryColor,
+    );
+  }
+}
+
+/// Clean social login button with icon + label.
+class _SocialLoginButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final String? imagePath;
+  final IconData? icon;
+  final String label;
+  final bool isDark;
+
+  const _SocialLoginButton({
+    this.onTap,
+    this.imagePath,
+    this.icon,
+    required this.label,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14.r),
+      child: Container(
+        height: 52.h,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: isDark ? AppColors.dividerDark : AppColors.grey300Color,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (imagePath != null)
+              Image.asset(imagePath!, height: 20.sp, width: 20.sp, fit: BoxFit.cover)
+            else if (icon != null)
+              Icon(icon, size: 22.sp, color: AppColors.textPrimary(context)),
+            SizedBox(width: 8.w),
+            InterText(
+              text: label,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary(context),
+            ),
+          ],
+        ),
       ),
     );
   }

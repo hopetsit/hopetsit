@@ -131,15 +131,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   // ─── LOGIN SCREEN ──────────────────────────────────────────────────────────
   Widget _buildLoginScreen() {
     return Scaffold(
-      backgroundColor: AppColors.primaryColor,
+      backgroundColor: AppColors.scaffold(context),
       body: Center(
         child: Container(
           margin: EdgeInsets.symmetric(horizontal: 32.w),
           padding: EdgeInsets.all(28.w),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(20.r),
-            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20)],
+            boxShadow: AppColors.cardShadow(context),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -151,7 +151,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 text: 'HopeTSIT Admin',
                 fontSize: 22.sp,
                 fontWeight: FontWeight.w700,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 24.h),
               TextField(
@@ -390,28 +390,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     if (!_authenticated) return _buildLoginScreen();
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary(context),
         title: Row(
           children: [
             Icon(Icons.admin_panel_settings, size: 22.sp),
             SizedBox(width: 8.w),
-            InterText(text: 'Admin Dashboard', fontSize: 18.sp, fontWeight: FontWeight.w700, color: Colors.white),
+            InterText(text: 'Admin Dashboard', fontSize: 18.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: const Icon(Icons.refresh),
             onPressed: _loadAll,
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
+          indicatorColor: AppColors.primaryColor,
+          labelColor: AppColors.textPrimary(context),
+          unselectedLabelColor: AppColors.textSecondary(context),
           tabs: const [
             Tab(icon: Icon(Icons.dashboard), text: 'Stats'),
             Tab(icon: Icon(Icons.book), text: 'Bookings'),

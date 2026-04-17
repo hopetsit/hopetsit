@@ -413,8 +413,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     final String displayPrice = sitter.hourlyRate > 0
                         ? sitter.hourlyRate.toStringAsFixed(1)
                         : '0';
-                    final String? displayDaily = sitter.dailyRate > 0
-                        ? sitter.dailyRate.toStringAsFixed(1)
+                    // Daily rate fallback: if the sitter didn't set a daily rate
+                    // but has an hourly rate, display (hourly × 8) as the day rate
+                    // so owners always see a comparable per-day figure.
+                    final double effectiveDailyRate = sitter.dailyRate > 0
+                        ? sitter.dailyRate
+                        : (sitter.hourlyRate > 0 ? sitter.hourlyRate * 8 : 0);
+                    final String? displayDaily = effectiveDailyRate > 0
+                        ? effectiveDailyRate.toStringAsFixed(1)
                         : null;
                     final String? displayWeekly = sitter.weeklyRate > 0
                         ? sitter.weeklyRate.toStringAsFixed(0)
@@ -428,6 +434,37 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (sitter.distanceKm != null)
                         '${sitter.distanceKm!.toStringAsFixed(1)} km',
                     ].join(' · ');
+
+                    // Calculate estimated cost from owner's latest reservation post.
+                    // Uses the sitter's best available rate: daily > effective-daily
+                    // (hourly × 8) > weekly / 7 > monthly / 30. Always shows at
+                    // least 1 day so same-day start/end doesn't hide the figure.
+                    double? estCost;
+                    int? estDays;
+                    if (_userId != null) {
+                      final myPosts = _postsController.postsWithoutMedia
+                          .where((p) => p.owner.id == _userId && p.startDate != null && p.endDate != null)
+                          .toList();
+                      if (myPosts.isNotEmpty) {
+                        myPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                        final latestPost = myPosts.first;
+                        final rawDays = latestPost.endDate!
+                            .difference(latestPost.startDate!)
+                            .inDays;
+                        // Treat same-day requests as 1 day (avoid hiding total).
+                        final days = rawDays > 0 ? rawDays : 1;
+                        estDays = days;
+                        if (sitter.dailyRate > 0) {
+                          estCost = sitter.dailyRate * days;
+                        } else if (sitter.hourlyRate > 0) {
+                          estCost = sitter.hourlyRate * 8 * days; // 8h/day
+                        } else if (sitter.weeklyRate > 0) {
+                          estCost = (sitter.weeklyRate / 7) * days;
+                        } else if (sitter.monthlyRate > 0) {
+                          estCost = (sitter.monthlyRate / 30) * days;
+                        }
+                      }
+                    }
 
                     return ServiceProviderCard(
                       name: sitter.name,
@@ -447,6 +484,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       pricePerWeek: displayWeekly,
                       pricePerMonth: displayMonthly,
                       currencyCode: sitter.currency,
+                      estimatedCost: estCost,
+                      estimatedDays: estDays,
                       profileImagePath: sitter.avatar.url.isNotEmpty
                           ? sitter.avatar.url
                           : null,

@@ -41,6 +41,7 @@ class EditSitterProfileController extends GetxController {
   final hourlyRateController = TextEditingController();
   final weeklyRateController = TextEditingController();
   final monthlyRateController = TextEditingController();
+  final dailyRateController = TextEditingController();
   final languageController = TextEditingController();
 
   // Observable state
@@ -51,6 +52,7 @@ class EditSitterProfileController extends GetxController {
   final RxString currentAvatarUrl = ''.obs;
   final RxString selectedCountryCode = '+1'.obs;
   final RxString selectedCurrency = CurrencyHelper.eur.obs;
+  final RxList<String> selectedLanguages = <String>[].obs;
 
   // Location state (mirrors EditOwnerProfileController)
   final LocationService _locationService = LocationService();
@@ -93,6 +95,7 @@ class EditSitterProfileController extends GetxController {
     hourlyRateController.dispose();
     weeklyRateController.dispose();
     monthlyRateController.dispose();
+    dailyRateController.dispose();
     languageController.dispose();
     super.onClose();
   }
@@ -198,6 +201,7 @@ class EditSitterProfileController extends GetxController {
       hourlyRateController.text = _fmtRate(profileData['hourlyRate']);
       weeklyRateController.text = _fmtRate(profileData['weeklyRate']);
       monthlyRateController.text = _fmtRate(profileData['monthlyRate']);
+      dailyRateController.text = _fmtRate(profileData['dailyRate']);
 
       // Primary rates endpoint: GET /sitters/me/rates.
       try {
@@ -222,6 +226,8 @@ class EditSitterProfileController extends GetxController {
         if (fetchedHourly != null) hourlyRateController.text = _fmt(fetchedHourly);
         if (fetchedWeekly != null) weeklyRateController.text = _fmt(fetchedWeekly);
         if (fetchedMonthly != null) monthlyRateController.text = _fmt(fetchedMonthly);
+        final fetchedDaily = ratesData['dailyRate'];
+        if (fetchedDaily != null) dailyRateController.text = _fmt(fetchedDaily);
       } catch (error) {
         AppLogger.logError('Failed to load sitter rates', error: error);
       }
@@ -243,6 +249,14 @@ class EditSitterProfileController extends GetxController {
         languageController.text = rawLanguage.join(', ');
       } else {
         languageController.text = rawLanguage?.toString() ?? '';
+      }
+
+      // Populate language chips from the language string
+      final langText = languageController.text;
+      if (langText.isNotEmpty) {
+        selectedLanguages.value = langText.split(RegExp(r'[,;]\s*')).where((s) => s.isNotEmpty).toList();
+      } else {
+        selectedLanguages.clear();
       }
 
       // Set current avatar URL
@@ -344,9 +358,14 @@ class EditSitterProfileController extends GetxController {
 
       // Parse hourly rate (similar to signup controller)
       double? hourlyRate;
+      double? dailyRate;
       double? weeklyRate;
       double? monthlyRate;
       final hourlyRateText = hourlyRateController.text.replaceAll(
+        RegExp(r'[^\d.]'),
+        '',
+      );
+      final dailyRateText = dailyRateController.text.replaceAll(
         RegExp(r'[^\d.]'),
         '',
       );
@@ -361,6 +380,9 @@ class EditSitterProfileController extends GetxController {
       if (hourlyRateText.isNotEmpty) {
         hourlyRate = double.tryParse(hourlyRateText);
       }
+      if (dailyRateText.isNotEmpty) {
+        dailyRate = double.tryParse(dailyRateText);
+      }
       if (weeklyRateText.isNotEmpty) {
         weeklyRate = double.tryParse(weeklyRateText);
       }
@@ -373,6 +395,13 @@ class EditSitterProfileController extends GetxController {
         CustomSnackbar.showError(
           title: 'snackbar_text_invalid_hourly_rate',
           message: 'snackbar_text_hourly_rate_must_be_greater_than_0',
+        );
+        return false;
+      }
+      if (dailyRate != null && dailyRate <= 0) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'error_rate_zero'.tr,
         );
         return false;
       }
@@ -415,9 +444,12 @@ class EditSitterProfileController extends GetxController {
       );
 
       // Primary rates endpoint: PUT /sitters/me/rates.
-      if (hourlyRate != null || weeklyRate != null || monthlyRate != null) {
+      if (hourlyRate != null || dailyRate != null || weeklyRate != null || monthlyRate != null) {
         final currentHourly = double.tryParse(
           hourlyRateController.text.replaceAll(RegExp(r'[^\d.]'), ''),
+        );
+        final currentDaily = double.tryParse(
+          dailyRateController.text.replaceAll(RegExp(r'[^\d.]'), ''),
         );
         final currentWeekly = double.tryParse(
           weeklyRateController.text.replaceAll(RegExp(r'[^\d.]'), ''),
@@ -427,6 +459,7 @@ class EditSitterProfileController extends GetxController {
         );
         await _sitterRepository.setMyRates(
           hourlyRate: hourlyRate ?? currentHourly ?? 0,
+          dailyRate: dailyRate ?? currentDaily ?? 0,
           weeklyRate: weeklyRate ?? currentWeekly ?? 0,
           monthlyRate: monthlyRate ?? currentMonthly ?? 0,
         );

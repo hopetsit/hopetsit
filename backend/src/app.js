@@ -13,6 +13,7 @@ const healthRoutes = require('./routes/healthRoutes');
 const userRoutes = require('./routes/userRoutes');
 const petRoutes = require('./routes/petRoutes');
 const sitterRoutes = require('./routes/sitterRoutes');
+const walkerRoutes = require('./routes/walkerRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const postRoutes = require('./routes/postRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
@@ -31,6 +32,11 @@ const walkRoutes = require('./routes/walkRoutes');
 const termsRoutes = require('./routes/termsRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const boostRoutes = require('./routes/boostRoutes');
+const mapPoiRoutes = require('./routes/mapPoiRoutes');
+const mapReportRoutes = require('./routes/mapReportRoutes');
+const mapBoostRoutes = require('./routes/mapBoostRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
@@ -112,6 +118,7 @@ const versionedRoutes = [
   { path: '/users', mw: [], router: userRoutes },
   { path: '/pets', mw: [], router: petRoutes },
   { path: '/sitters', mw: [], router: sitterRoutes },
+  { path: '/walkers', mw: [], router: walkerRoutes },
   { path: '/bookings', mw: [sensitiveLimiter], router: bookingRoutes },
   { path: '/posts', mw: [], router: postRoutes },
   { path: '/applications', mw: [], router: applicationRoutes },
@@ -129,6 +136,11 @@ const versionedRoutes = [
   { path: '/terms', mw: [], router: termsRoutes },
   { path: '/reports', mw: [], router: reportRoutes },
   { path: '/boost', mw: [], router: boostRoutes },
+  { path: '/map-pois', mw: [], router: mapPoiRoutes },
+  { path: '/map-reports', mw: [], router: mapReportRoutes },
+  { path: '/map-boost', mw: [sensitiveLimiter], router: mapBoostRoutes },
+  { path: '/subscriptions', mw: [sensitiveLimiter], router: subscriptionRoutes },
+  { path: '/friends', mw: [], router: friendRoutes },
 ];
 
 // Log deprecation warning for unversioned callers.

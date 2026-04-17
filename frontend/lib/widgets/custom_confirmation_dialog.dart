@@ -38,16 +38,9 @@ class CustomConfirmationDialog extends StatelessWidget {
               margin: EdgeInsets.symmetric(horizontal: 40.w),
               padding: EdgeInsets.all(24.w),
               decoration: BoxDecoration(
-                color: AppColors.whiteColor,
-                borderRadius: BorderRadius.circular(12.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 2,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(16.r),
+                boxShadow: AppColors.cardShadow(context),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -57,7 +50,7 @@ class CustomConfirmationDialog extends StatelessWidget {
                     text: message,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                     textAlign: TextAlign.center,
                   ),
 
@@ -88,9 +81,9 @@ class CustomConfirmationDialog extends StatelessWidget {
                         height: 48.h,
                         radius: 48.r,
                         title: cancelText,
-                        bgColor: cancelButtonColor ?? AppColors.whiteColor,
-                        textColor: AppColors.blackColor,
-                        borderColor: AppColors.blackColor,
+                        bgColor: cancelButtonColor ?? AppColors.card(context),
+                        textColor: AppColors.textPrimary(context),
+                        borderColor: AppColors.divider(context),
                         onTap: () {
                           Navigator.of(context).pop();
                           onCancel?.call();

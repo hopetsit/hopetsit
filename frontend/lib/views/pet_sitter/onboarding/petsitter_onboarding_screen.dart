@@ -31,10 +31,12 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: _currentStep > 0
             ? IconButton(
@@ -50,7 +52,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
           text: 'Complete Your Profile',
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -122,13 +124,13 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
           text: 'Personal Information',
           fontSize: 20.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 8.h),
         InterText(
           text: 'Tell us about yourself',
           fontSize: 14.sp,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         SizedBox(height: 24.h),
 
@@ -171,16 +173,16 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
               vertical: 12.h,
             ),
             decoration: CustomDropdownDecoration(
-              closedBorder: Border.all(color: AppColors.grey300Color),
+              closedBorder: Border.all(color: AppColors.divider(context)),
               closedBorderRadius: BorderRadius.circular(30.r),
               headerStyle: GoogleFonts.inter(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
             ),
             disabledDecoration: CustomDropdownDisabledDecoration(
-              border: Border.all(color: AppColors.grey300Color),
+              border: Border.all(color: AppColors.divider(context)),
             ),
           ),
         ),
@@ -196,13 +198,13 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
           text: 'Service Details',
           fontSize: 20.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 8.h),
         InterText(
           text: 'What services do you offer?',
           fontSize: 14.sp,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         SizedBox(height: 24.h),
 
@@ -215,7 +217,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
           text: 'Availability',
           fontSize: 16.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 12.h),
         _buildAvailabilitySection(),
@@ -231,13 +233,13 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
           text: 'Verification',
           fontSize: 20.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 8.h),
         InterText(
           text: 'Complete your profile to start receiving bookings',
           fontSize: 14.sp,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         SizedBox(height: 24.h),
 
@@ -258,7 +260,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
                   text:
                       'I agree to the Terms and Conditions and Privacy Policy',
                   fontSize: 12.sp,
-                  color: AppColors.grey700Color,
+                  color: AppColors.textSecondary(context),
                 ),
               ),
             ],
@@ -304,7 +306,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
           text: 'Service Types',
           fontSize: 16.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 12.h),
         Obx(
@@ -323,12 +325,12 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primaryColor
-                        : AppColors.whiteColor,
+                        : AppColors.card(context),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
                       color: isSelected
                           ? AppColors.primaryColor
-                          : AppColors.grey300Color,
+                          : AppColors.divider(context),
                       width: 1,
                     ),
                   ),
@@ -338,7 +340,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
                     fontWeight: FontWeight.w500,
                     color: isSelected
                         ? AppColors.whiteColor
-                        : AppColors.grey700Color,
+                        : AppColors.textSecondary(context),
                   ),
                 ),
               );
@@ -357,9 +359,9 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
             margin: EdgeInsets.only(bottom: 12.h),
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
-              color: AppColors.whiteColor,
+              color: AppColors.card(context),
               borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: AppColors.grey300Color, width: 1),
+              border: Border.all(color: AppColors.divider(context), width: 1),
             ),
             child: Row(
               children: [
@@ -368,7 +370,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
                     text: day,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
                 Switch(
@@ -390,14 +392,8 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, -2),
-          ),
-        ],
+        color: AppColors.card(context),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
         children: [

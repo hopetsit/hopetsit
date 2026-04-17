@@ -17,6 +17,10 @@ class AppColors {
   static const greyText = Color(0xFF707070);
   static const chatFieldColor = Color(0xFFF3F2EF);
   static const greenColor = Color(0xFF008000);
+  // Role accents — used on SignUp cards and per-role profile screens.
+  // Sitter accent = blue (matches the blue palette already used in
+  // sitter_profile_screen). Walker accent = the existing greenColor above.
+  static const sitterAccent = Color(0xFF1A73E8);
 
   // Detail box color
   static const detailBoxColor = Color(0x1AFFBC11); // #FFBC11 with 0.1 opacity

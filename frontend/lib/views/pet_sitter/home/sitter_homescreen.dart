@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
@@ -45,11 +46,37 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   ReservationRequestFilterState _filterState =
       const ReservationRequestFilterState();
   SitterFeedSortOrder _sortOrder = SitterFeedSortOrder.newestFirst;
+  Position? _userPosition;
 
   @override
   void initState() {
     super.initState();
     _loadPendingApplications();
+    _loadUserPosition();
+  }
+
+  Future<void> _loadUserPosition() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        final requested = await Geolocator.requestPermission();
+        if (requested == LocationPermission.denied ||
+            requested == LocationPermission.deniedForever) {
+          AppLogger.logDebug('Location permission denied');
+          return;
+        }
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        timeLimit: const Duration(seconds: 10),
+      );
+      if (mounted) {
+        setState(() => _userPosition = position);
+      }
+    } catch (e) {
+      AppLogger.logError('Failed to load user position', error: e);
+    }
   }
 
   List<PostModel> _applyRequestFilters(List<PostModel> source) {
@@ -86,6 +113,28 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         final postEnd = end ?? start!;
         final range = _filterState.dateRange!;
         if (postEnd.isBefore(range.start) || postStart.isAfter(range.end)) {
+          return false;
+        }
+      }
+
+      if (_filterState.maxDistanceKm != null &&
+          _filterState.maxDistanceKm! > 0 &&
+          _userPosition != null) {
+        final postLat = post.location?.lat;
+        final postLng = post.location?.lng;
+        if (postLat == null || postLng == null) {
+          return false;
+        }
+
+        final distanceInMeters = Geolocator.distanceBetween(
+          _userPosition!.latitude,
+          _userPosition!.longitude,
+          postLat,
+          postLng,
+        );
+        final distanceInKm = distanceInMeters / 1000;
+
+        if (distanceInKm > _filterState.maxDistanceKm!) {
           return false;
         }
       }
@@ -291,6 +340,85 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     );
   }
 
+  void _showNearMeBottomSheet(BuildContext context) {
+    double tempDistance = _filterState.maxDistanceKm ?? 0;
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setBottomSheetState) => Container(
+          color: AppColors.card(context),
+          padding: EdgeInsets.fromLTRB(24.w, 20.h, 24.w, 30.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InterText(
+                text: 'filter_near_me'.tr,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary(context),
+              ),
+              SizedBox(height: 20.h),
+              Slider(
+                value: tempDistance,
+                min: 0,
+                max: 500,
+                divisions: 50,
+                label: tempDistance == 0
+                    ? 'filter_all_distances'.tr
+                    : '${tempDistance.toInt()} km',
+                onChanged: (value) {
+                  setBottomSheetState(() => tempDistance = value);
+                },
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 18.w),
+                child: InterText(
+                  text: tempDistance == 0
+                      ? 'filter_all_distances'.tr
+                      : 'filter_distance_km'
+                          .trParams({'km': tempDistance.toInt().toString()}),
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary(context),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              SizedBox(height: 24.h),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  foregroundColor: AppColors.whiteColor,
+                  elevation: 0,
+                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _filterState = _filterState.copyWith(
+                      maxDistanceKm:
+                          tempDistance > 0 ? tempDistance : null,
+                    );
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: InterText(
+                  text: 'filter_apply'.tr,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.whiteColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final PostsController postsController = Get.put(PostsController());
@@ -392,64 +520,122 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
 
                     return Column(
                       children: [
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: GestureDetector(
-                            onTap: () {
-                              ReservationRequestFilterDialog.show(
-                                context,
-                                initialState: _filterState,
-                                onApply: (state) {
-                                  setState(() => _filterState = state);
-                                },
-                                onClear: () {
-                                  setState(() {
-                                    _filterState =
-                                        const ReservationRequestFilterState();
-                                  });
-                                },
-                              );
-                            },
-                            child: Builder(
-                              builder: (context) => Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 14.w,
-                                  vertical: 10.h,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.card(context),
-                                  borderRadius: BorderRadius.circular(24.r),
-                                  border: Border.all(
-                                    color: _filterState.hasActiveFilters
-                                        ? AppColors.primaryColor
-                                        : AppColors.divider(context),
-                                    width: 1.2,
+                        // Near me and Filters row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            // Near me button
+                            GestureDetector(
+                              onTap: () => _showNearMeBottomSheet(context),
+                              child: Builder(
+                                builder: (context) => Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 14.w,
+                                    vertical: 10.h,
                                   ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.tune_rounded,
-                                      size: 20.sp,
-                                      color: _filterState.hasActiveFilters
+                                  decoration: BoxDecoration(
+                                    color: AppColors.card(context),
+                                    borderRadius: BorderRadius.circular(24.r),
+                                    border: Border.all(
+                                      color: (_filterState.maxDistanceKm !=
+                                              null &&
+                                          _filterState.maxDistanceKm! > 0)
                                           ? AppColors.primaryColor
-                                          : AppColors.textSecondary(context),
+                                          : AppColors.divider(context),
+                                      width: 1.2,
                                     ),
-                                    SizedBox(width: 8.w),
-                                    InterText(
-                                      text: _filterState.hasActiveFilters
-                                          ? 'sitter_filters_on'.tr
-                                          : 'sitter_filters'.tr,
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary(context),
-                                    ),
-                                  ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.near_me_rounded,
+                                        size: 20.sp,
+                                        color: (_filterState.maxDistanceKm !=
+                                                null &&
+                                            _filterState.maxDistanceKm! > 0)
+                                            ? AppColors.primaryColor
+                                            : AppColors.textSecondary(
+                                                context,
+                                              ),
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      InterText(
+                                        text: 'filter_near_me'.tr,
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary(
+                                          context,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                            SizedBox(width: 8.w),
+                            // Filters button
+                            GestureDetector(
+                              onTap: () {
+                                ReservationRequestFilterDialog.show(
+                                  context,
+                                  initialState: _filterState,
+                                  onApply: (state) {
+                                    setState(() => _filterState = state);
+                                  },
+                                  onClear: () {
+                                    setState(() {
+                                      _filterState =
+                                          const ReservationRequestFilterState();
+                                    });
+                                  },
+                                );
+                              },
+                              child: Builder(
+                                builder: (context) => Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 14.w,
+                                    vertical: 10.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.card(context),
+                                    borderRadius: BorderRadius.circular(24.r),
+                                    border: Border.all(
+                                      color: _filterState.hasActiveFilters
+                                          ? AppColors.primaryColor
+                                          : AppColors.divider(context),
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.tune_rounded,
+                                        size: 20.sp,
+                                        color: _filterState.hasActiveFilters
+                                            ? AppColors.primaryColor
+                                            : AppColors.textSecondary(
+                                                context,
+                                              ),
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      InterText(
+                                        text: _filterState.hasActiveFilters
+                                            ? 'sitter_filters_on'.tr
+                                            : 'sitter_filters'.tr,
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary(
+                                          context,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         if (_filterState.hasActiveFilters) ...[
                           SizedBox(height: 10.h),
@@ -476,6 +662,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                 _activeFilterChip(
                                   '${_formatDateShort(_filterState.dateRange!.start)} – ${_formatDateShort(_filterState.dateRange!.end)}',
                                   Icons.calendar_today_outlined,
+                                ),
+                              if (_filterState.maxDistanceKm != null &&
+                                  _filterState.maxDistanceKm! > 0)
+                                _activeFilterChip(
+                                  '< ${_filterState.maxDistanceKm!.toInt()} km',
+                                  Icons.near_me_outlined,
                                 ),
                             ],
                           ),

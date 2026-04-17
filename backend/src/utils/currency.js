@@ -31,7 +31,7 @@ const normalizeCurrency = (value, { required = false } = {}) => {
   }
 
   if (required) {
-    throw new Error('currency must be either USD or EUR.');
+    throw new Error(`currency must be one of: ${SUPPORTED_CURRENCIES.join(', ')}.`);
   }
 
   // Fallback to default (backwards compatibility) when not required

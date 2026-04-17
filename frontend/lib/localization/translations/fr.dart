@@ -162,6 +162,10 @@ const Map<String, String> frFRTranslations = <String, String>{
       'filter_dates': 'Dates',
       'filter_city_hint': 'Ville ou zone',
       'filter_any_dates': 'Toutes dates',
+      'filter_distance': 'Distance',
+      'filter_all_distances': 'Toutes distances',
+      'filter_near_me': 'Près de moi',
+      'filter_distance_km': '@km km',
 
       // Profile: Apple connection
       'profile_connect_with_apple': 'Se connecter avec Apple',
@@ -410,6 +414,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       // Choose service screen
       'choose_service_title': 'Choisir un service',
       'choose_service_choose_all': 'Tout choisir',
+      'choose_service_subtitle': 'Sélectionnez les services que vous proposez',
+      'choose_service_selected_count': 'service(s) sélectionné(s)',
       'choose_service_saving': 'Enregistrement...',
       'choose_service_selecting': 'Sélection en cours...',
       'choose_service_save': 'Enregistrer',
@@ -425,8 +431,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'role_pet_owner': 'Propriétaire',
       'role_pet_sitter': 'Garde d\'animaux',
       'sign_up_as_subtitle': 'Comment souhaitez-vous utiliser HopeTSIT ?',
-      'role_pet_owner_desc': 'Trouvez un gardien de confiance pour votre animal',
-      'role_pet_sitter_desc': 'Proposez vos services de garde d\'animaux',
+      'role_pet_owner_desc': 'Je possède un animal et je cherche un gardien ou un promeneur de confiance près de chez moi.',
+      'role_pet_sitter_desc': 'J\'accueille ou je garde des animaux — chez leur propriétaire, chez moi, ou en journée.',
       'auth_role_pet_owner': 'Propriétaire',
       'auth_role_pet_sitter': 'Garde d\'animaux',
       'profile_add_tasks': 'Ajouter des tâches',
@@ -465,21 +471,21 @@ const Map<String, String> frFRTranslations = <String, String>{
       'dialog_switch_role_confirm':
           'Voulez-vous vraiment passer en @role ?\n\nVous pourrez revenir en arrière à tout moment.',
       'dialog_switch_role_button': 'Passer à @role',
-      'profile_switch_to_sitter': 'Passer à Pet Sitter',
-      'profile_switch_to_owner': 'Passer à Propriétaire d\'Animal',
+      'profile_switch_to_sitter': 'Passer à Gardien',
+      'profile_switch_to_owner': 'Passer à Propriétaire',
       'profile_switch_to_sitter_description':
-          'Passez votre compte en Pet Sitter pour commencer à recevoir des demandes.',
+          'Passez votre compte en Gardien pour commencer à recevoir des demandes.',
       'profile_switch_to_owner_description':
-          'Passez votre compte en Propriétaire d\'Animal pour commencer à recevoir des demandes.',
+          'Passez votre compte en Propriétaire pour commencer à recevoir des demandes.',
       'profile_switch_role_dialog_title': 'Changer de rôle',
       'profile_switch_to_sitter_loading':
-          'Changement pour Pet Sitter...\n\nVeuillez patienter.',
+          'Changement pour Gardien...\n\nVeuillez patienter.',
       'profile_switch_to_owner_loading':
-          'Changement pour Propriétaire d\'Animal...\n\nVeuillez patienter.',
+          'Changement pour Propriétaire...\n\nVeuillez patienter.',
       'profile_switch_to_sitter_confirm':
-          'Voulez-vous vraiment passer en Pet Sitter ?\n\nVous pourrez revenir en arrière à tout moment.',
+          'Voulez-vous vraiment passer en Gardien ?\n\nVous pourrez revenir en arrière à tout moment.',
       'profile_switch_to_owner_confirm':
-          'Voulez-vous vraiment passer en Propriétaire d\'Animal ?\n\nVous pourrez revenir en arrière à tout moment.',
+          'Voulez-vous vraiment passer en Propriétaire ?\n\nVous pourrez revenir en arrière à tout moment.',
       'common_continue': 'Continuer',
       'common_cancelled': 'Annulé',
       'common_coming_soon': 'Bientôt disponible',
@@ -581,7 +587,7 @@ const Map<String, String> frFRTranslations = <String, String>{
           'Voulez-vous vraiment annuler l\'intégration Stripe ? Vous pourrez la compléter plus tard depuis les paramètres.',
       'stripe_connect_payment_title': 'Connectez votre compte de paiement',
       'stripe_connect_payment_description':
-          'Pour commencer à recevoir des paiements en tant que Pet Sitter, vous devez connecter votre compte de paiement. C\'est une étape requise pour compléter la configuration de votre profil.',
+          'Pour commencer à recevoir des paiements en tant que Gardien, vous devez connecter votre compte de paiement. C\'est une étape requise pour compléter la configuration de votre profil.',
       'stripe_connect_payment_partial_description':
           'Votre compte de paiement a été créé. Certaines étapes de vérification restent à compléter. Vous pouvez les compléter plus tard dans les paramètres de votre compte.',
       'stripe_connect_payment_partial_info':
@@ -788,6 +794,15 @@ const Map<String, String> frFRTranslations = <String, String>{
       'bookings_tab_title': 'Réservations',
       'applications_empty_message': 'Aucune candidature trouvée',
       'bookings_empty_message': 'Aucune réservation trouvée',
+      'unified_filter_all': 'Tout',
+      'unified_filter_pending': 'En attente',
+      'unified_filter_accepted': 'Acceptée',
+      'unified_filter_paid': 'Payée',
+      'unified_filter_cancelled': 'Annulée',
+      'unified_empty_all': 'Aucune candidature ni réservation',
+      'unified_empty_filtered': 'Aucun résultat pour ce filtre',
+      'unified_type_application': 'Candidature',
+      'unified_type_booking': 'Réservation',
       'booking_cancel_dialog_message':
           'Voulez-vous vraiment annuler cette réservation ?',
       // Common UI
@@ -1023,8 +1038,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'sitter_detail_booking_details_title': 'Détails de la réservation',
       'sitter_detail_availability_pricing_title': 'Disponibilités et tarifs',
       'sitter_detail_hourly_rate_label': 'Tarif horaire',
+      'sitter_detail_daily_rate_label': 'Tarif journalier',
       'sitter_detail_weekly_rate_label': 'Tarif hebdomadaire',
       'sitter_detail_monthly_rate_label': 'Tarif mensuel',
+      'estimated_cost_label': 'Coût estimé',
+      'for_x_days': 'pour @days jours',
       'sitter_detail_current_status_label': 'Statut actuel',
       'sitter_detail_application_status_label': 'Statut de la demande',
       'sitter_detail_skills_title': 'Compétences',
@@ -1391,6 +1409,25 @@ const Map<String, String> frFRTranslations = <String, String>{
     'payout_chip_iban': 'Banque (IBAN)',
     'payout_iban_hint': 'ex. FR76 3000 6000 0112 3456 7890 189',
     'payout_bic_label': 'BIC / SWIFT (optionnel)',
+    'payment_management_title': 'Gérer mes paiements',
+    'payment_methods_section': 'Méthodes de paiement',
+    'payment_stripe_connected': 'Compte connecté et actif',
+    'payment_stripe_not_connected': 'Non connecté — appuyez pour configurer',
+    'payment_paypal_not_set': 'Aucun e-mail PayPal configuré',
+    'payment_iban_title': 'Compte bancaire (IBAN)',
+    'payment_iban_subtitle': 'Recevoir les paiements par virement',
+    'payment_connect': 'Connecter',
+    'payment_manage': 'Gérer',
+    'payment_configure': 'Configurer',
+    'payment_verification_section': 'Vérification & Statut',
+    'payment_identity_title': 'Vérification d\'identité',
+    'payment_identity_desc': 'Passeport ou carte d\'identité requis',
+    'payment_payout_status_title': 'Statut des versements',
+    'payment_payout_active_desc': 'Vos versements sont actifs',
+    'payment_payout_inactive_desc': 'Connectez un moyen de paiement pour recevoir les versements',
+    'payment_donate_title': 'Soutenir HopeTSIT',
+    'payment_donate_desc': 'Aidez-nous à améliorer l\'application',
+    'payment_donate_coming_soon': 'Les dons seront bientôt disponibles',
     'earnings_title': 'Mes revenus',
     'earnings_history_label': 'Historique des virements',
     'earnings_empty': 'Aucun revenu pour le moment.',
@@ -1439,4 +1476,24 @@ const Map<String, String> frFRTranslations = <String, String>{
     'boost_purchase_success_msg': 'Votre profil est maintenant boosté en haut du feed \!',
     'boost_purchase_error': 'Erreur lors de l\'achat du boost.',
     'boost_service_unavailable': 'Ce service n\'est pas encore disponible. Bientôt disponible !',
+
+    // ── Bottom Navigation Bar ──
+    'nav_home': 'Accueil',
+    'nav_chat': 'Chat',
+    'nav_bookings': 'Réservations',
+    'nav_profile': 'Profil',
+
+    // ── Walker role (third role — dog walkers) ──
+    'role_pet_walker': 'Promeneur',
+    'role_pet_walker_desc': 'Je propose des promenades à la demande ou régulières pour chiens et chats du quartier.',
+    'sign_up_as_pet_walker': 'Inscription comme promeneur',
+    'auth_role_pet_walker': 'Promeneur',
+    'walker_home_title': 'Accueil Promeneur',
+    'walker_home_welcome_title': 'Bienvenue, Promeneur !',
+    'walker_home_welcome_body': 'Configure tes tarifs de promenade et tes zones de couverture pour commencer à recevoir des demandes.',
+    'walker_home_coming_soon': 'Les fonctionnalités dédiées aux promeneurs arrivent très bientôt.',
+    'walker_profile_title': 'Mon profil',
+    'walker_profile_welcome': 'Profil promeneur',
+    'walker_profile_subtitle': 'Gère ton profil, tes tarifs et tes disponibilités',
+    'walker_profile_coming_soon': 'Édition du profil bientôt disponible.',
 };

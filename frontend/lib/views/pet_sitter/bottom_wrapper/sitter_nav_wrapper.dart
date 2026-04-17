@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
+import 'package:hopetsit/views/map/pets_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking-application/sitter_application_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/sitter_profile_screen.dart';
 import 'package:hopetsit/widgets/stacked_navigation_wrapper.dart';
@@ -24,10 +25,11 @@ class _SitterNavWrapperState extends State<SitterNavWrapper> {
   }
 
   final List<Widget> _screens = const [
-    SitterHomescreen(),
-    SitterChatScreen(),
-    SitterApplicationScreen(),
-    SitterProfileScreen(),
+    SitterHomescreen(),          // 0 — Home
+    SitterChatScreen(),          // 1 — Chat
+    PetsMapScreen(),             // 2 — Map (center button)
+    SitterApplicationScreen(),   // 3 — Bookings
+    SitterProfileScreen(),       // 4 — Profile
   ];
 
   @override

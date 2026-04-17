@@ -863,4 +863,262 @@ router.get('/boosts', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── PREMIUM SUBSCRIPTIONS — aggregated stats ───────────────────────────────
+// GET /admin/subscriptions/stats
+// Returns totals per plan and per user role (Owner / Sitter / Walker), plus
+// a currency breakdown and the number of currently active subscriptions.
+router.get('/subscriptions/stats', requireAdmin, async (req, res) => {
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+
+    const now = new Date();
+    const all = await UserSubscription.find({}).lean();
+
+    const breakdown = {
+      active: 0,
+      expired: 0,
+      canceled: 0,
+      pending: 0,
+      byPlan: { monthly: 0, yearly: 0, none: 0 },
+      byRole: { Owner: 0, Sitter: 0, Walker: 0 },
+      byCurrency: {},
+      totalRevenueByCurrency: {},
+      totalPayments: 0,
+    };
+
+    for (const sub of all) {
+      const isActive = sub.status === 'active' && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now;
+      if (isActive) breakdown.active += 1;
+      else if (sub.status === 'expired') breakdown.expired += 1;
+      else if (sub.status === 'canceled') breakdown.canceled += 1;
+      else breakdown.pending += 1;
+
+      if (breakdown.byPlan[sub.plan] !== undefined) breakdown.byPlan[sub.plan] += 1;
+      if (breakdown.byRole[sub.userModel] !== undefined) breakdown.byRole[sub.userModel] += 1;
+
+      for (const p of sub.payments || []) {
+        const cur = (p.currency || 'EUR').toUpperCase();
+        breakdown.byCurrency[cur] = (breakdown.byCurrency[cur] || 0) + 1;
+        breakdown.totalRevenueByCurrency[cur] = +(
+          (breakdown.totalRevenueByCurrency[cur] || 0) + (p.amount || 0)
+        ).toFixed(2);
+        breakdown.totalPayments += 1;
+      }
+    }
+
+    res.json({ stats: breakdown, totalSubscriptions: all.length });
+  } catch (e) {
+    logger.error('[admin/subscriptions/stats]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /admin/subscriptions — paginated list of all subs (latest first)
+router.get('/subscriptions', requireAdmin, async (req, res) => {
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '25', 10)));
+    const filter = {};
+    if (req.query.role && ['Owner', 'Sitter', 'Walker'].includes(req.query.role)) {
+      filter.userModel = req.query.role;
+    }
+    if (req.query.status) filter.status = req.query.status;
+
+    const [items, total] = await Promise.all([
+      UserSubscription.find(filter)
+        .sort({ updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      UserSubscription.countDocuments(filter),
+    ]);
+
+    res.json({
+      items,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (e) {
+    logger.error('[admin/subscriptions]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /admin/walkers — list walker accounts with boost + premium summary
+router.get('/walkers', requireAdmin, async (req, res) => {
+  try {
+    const Walker = require('../models/Walker');
+    const UserSubscription = require('../models/UserSubscription');
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '25', 10)));
+
+    const [walkers, total] = await Promise.all([
+      Walker.find({})
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .select('-password -paypalEmail -ibanNumber -insuranceCertUrl')
+        .lean(),
+      Walker.countDocuments(),
+    ]);
+
+    // Enrich with subscription status
+    const walkerIds = walkers.map((w) => w._id);
+    const subs = await UserSubscription.find({
+      userModel: 'Walker',
+      userId: { $in: walkerIds },
+    }).lean();
+    const subByUser = new Map(subs.map((s) => [String(s.userId), s]));
+
+    const enriched = walkers.map((w) => {
+      const sub = subByUser.get(String(w._id));
+      const now = new Date();
+      const isPremium = sub && sub.status === 'active' && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now;
+      return {
+        ...w,
+        subscription: sub
+          ? {
+              plan: sub.plan,
+              status: sub.status,
+              isPremium,
+              currentPeriodEnd: sub.currentPeriodEnd,
+              totalPayments: (sub.payments || []).length,
+            }
+          : null,
+      };
+    });
+
+    res.json({
+      items: enriched,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (e) {
+    logger.error('[admin/walkers]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── MAP POI MODERATION ────────────────────────────────────────────────────
+// GET /admin/map-pois?status=pending|active|rejected
+router.get('/map-pois', requireAdmin, async (req, res) => {
+  try {
+    const MapPOI = require('../models/MapPOI');
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '25', 10)));
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.category) filter.category = req.query.category;
+
+    const [items, total] = await Promise.all([
+      MapPOI.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      MapPOI.countDocuments(filter),
+    ]);
+    res.json({
+      items,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (e) {
+    logger.error('[admin/map-pois]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /admin/map-pois/:id/validate — approve a pending submission
+router.post('/map-pois/:id/validate', requireAdmin, async (req, res) => {
+  try {
+    const MapPOI = require('../models/MapPOI');
+    const poi = await MapPOI.findById(req.params.id);
+    if (!poi) return res.status(404).json({ error: 'POI not found.' });
+    poi.status = 'active';
+    poi.validatedBy = req.user.id;
+    poi.validatedAt = new Date();
+    await poi.save();
+    res.json({ poi });
+  } catch (e) {
+    logger.error('[admin/map-pois/validate]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /admin/map-pois/:id/reject — reject a pending submission
+router.post('/map-pois/:id/reject', requireAdmin, async (req, res) => {
+  try {
+    const MapPOI = require('../models/MapPOI');
+    const poi = await MapPOI.findById(req.params.id);
+    if (!poi) return res.status(404).json({ error: 'POI not found.' });
+    poi.status = 'rejected';
+    poi.rejectionReason = req.body.reason || '';
+    poi.validatedBy = req.user.id;
+    poi.validatedAt = new Date();
+    await poi.save();
+    res.json({ poi });
+  } catch (e) {
+    logger.error('[admin/map-pois/reject]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── MAP REPORT MODERATION ─────────────────────────────────────────────────
+// GET /admin/map-reports?hidden=true|false
+router.get('/map-reports', requireAdmin, async (req, res) => {
+  try {
+    const MapReport = require('../models/MapReport');
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '25', 10)));
+    const filter = {};
+    if (req.query.hidden === 'true') filter.hidden = true;
+    if (req.query.hidden === 'false') filter.hidden = false;
+    if (req.query.type) filter.type = req.query.type;
+
+    const [items, total] = await Promise.all([
+      MapReport.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      MapReport.countDocuments(filter),
+    ]);
+    res.json({
+      items,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (e) {
+    logger.error('[admin/map-reports]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /admin/map-reports/:id — hard-delete (admin override)
+router.delete('/map-reports/:id', requireAdmin, async (req, res) => {
+  try {
+    const MapReport = require('../models/MapReport');
+    const r = await MapReport.findByIdAndDelete(req.params.id);
+    if (!r) return res.status(404).json({ error: 'Not found.' });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('[admin/map-reports/delete]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /admin/map-reports/:id/restore — unhide a flagged report
+router.post('/map-reports/:id/restore', requireAdmin, async (req, res) => {
+  try {
+    const MapReport = require('../models/MapReport');
+    const r = await MapReport.findById(req.params.id);
+    if (!r) return res.status(404).json({ error: 'Not found.' });
+    r.hidden = false;
+    r.flags = []; // clear flag log after moderator review
+    await r.save();
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('[admin/map-reports/restore]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

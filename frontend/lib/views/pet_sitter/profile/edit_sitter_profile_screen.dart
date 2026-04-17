@@ -383,6 +383,24 @@ class EditSitterProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
+                    // Daily Rate Field
+                    CustomTextField(
+                      labelText: 'sitter_detail_daily_rate_label'.tr,
+                      hintText: '0.00',
+                      controller: controller.dailyRateController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      textInputAction: TextInputAction.next,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) return null;
+                        final cleaned = value.replaceAll(RegExp(r'[^\d.]'), '');
+                        final rate = double.tryParse(cleaned);
+                        if (rate == null) return 'error_rate_invalid'.tr;
+                        if (rate <= 0) return 'error_rate_zero'.tr;
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 20.h),
+
                     // Weekly Rate Field
                     CustomTextField(
                       labelText: 'sitter_detail_weekly_rate_label'.tr,
@@ -468,13 +486,57 @@ class EditSitterProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
-                    // Language Field
-                    CustomTextField(
-                      labelText: 'label_language'.tr,
-                      hintText: 'hint_language'.tr,
-                      controller: controller.languageController,
-                      textInputAction: TextInputAction.done,
+                    // Language Field — multi-select chips
+                    InterText(
+                      text: 'label_language'.tr,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary(context),
                     ),
+                    SizedBox(height: 8.h),
+                    Obx(() {
+                      final selected = controller.selectedLanguages;
+                      const languages = [
+                        'Français', 'English', 'Deutsch', 'Español',
+                        'Italiano', 'Português', 'العربية', '中文',
+                        '日本語', '한국어', 'Русский', 'Türkçe',
+                        'Nederlands', 'Polski', 'हिन्दी',
+                      ];
+                      return Wrap(
+                        spacing: 8.w,
+                        runSpacing: 8.h,
+                        children: languages.map((lang) {
+                          final isSelected = selected.contains(lang);
+                          return GestureDetector(
+                            onTap: () {
+                              if (isSelected) {
+                                selected.remove(lang);
+                              } else {
+                                selected.add(lang);
+                              }
+                              // Sync to controller text for API
+                              controller.languageController.text = selected.join(', ');
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primaryColor : AppColors.inputFill(context),
+                                borderRadius: BorderRadius.circular(20.r),
+                                border: Border.all(
+                                  color: isSelected ? AppColors.primaryColor : AppColors.divider(context),
+                                ),
+                              ),
+                              child: InterText(
+                                text: lang,
+                                fontSize: 13.sp,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                color: isSelected ? Colors.white : AppColors.textPrimary(context),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }),
 
                     SizedBox(height: 40.h),
 

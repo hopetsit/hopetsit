@@ -45,7 +45,11 @@ const ownerSchema = new mongoose.Schema(
       purchasedAt: { type: Date, default: Date.now },
       paymentProvider: { type: String },
       paymentId: { type: String },
+      kind: { type: String, default: 'profile' }, // 'profile' | 'map'
     }],
+    // Phase 5 — PawMap boost (pin highlighted on the map)
+    mapBoostExpiry: { type: Date, default: null },
+    mapBoostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },
     // Sprint 7 step 1 — loyalty: true when 10+ completed bookings.
     isPremium: { type: Boolean, default: false },
     // Sprint 7 step 3 — referral program.

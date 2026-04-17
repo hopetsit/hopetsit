@@ -144,12 +144,16 @@ class ChooseServiceController extends GetxController {
   }
 
   /// Allowed internal service values per role.
-  /// Owner: pet_sitting, house_sitting, day_care, long_stay
-  /// Sitter: dog_walking, pet_sitting, house_sitting, day_care, long_stay
+  /// Owner: can request sitting (chez leur domicile), house-sitting (chez le
+  ///        sitter), day-care, AND dog-walking (bridges to Walker role).
+  /// Sitter: offers sitting + walking.
+  /// Walker: offers walking only (this controller is not used for Walker role
+  ///        yet — Walker onboarding handles its own service flow).
   static const List<String> _ownerAllowedServiceValues = <String>[
     'pet_sitting',
     'house_sitting',
     'day_care',
+    'dog_walking',
   ];
 
   static const List<String> _sitterAllowedServiceValues = <String>[
@@ -178,6 +182,11 @@ class ChooseServiceController extends GetxController {
       titleKey: 'choose_service_card_day_care_title',
       subtitleKey: 'choose_service_card_subtitle_at_owners_home',
       value: 'day_care',
+    ),
+    ServiceOption(
+      titleKey: 'choose_service_card_dog_walking_title',
+      subtitleKey: 'choose_service_card_subtitle_in_neighborhood',
+      value: 'dog_walking',
     ),
   ];
 

@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const app = require('./app');
 const createSocketServer = require('./sockets');
 const { startPayoutScheduler } = require('./services/payoutScheduler');
+const { startMapTtlScheduler } = require('./services/mapReportTtlScheduler');
 const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 5000;
@@ -21,6 +22,7 @@ async function startServer() {
       logger.info(`PetsInsta backend listening at http://localhost:${PORT}`);
     });
     startPayoutScheduler();
+    startMapTtlScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

@@ -819,6 +819,7 @@ class SitterRepository {
   /// Sets current sitter rates using PUT /sitters/me/rates.
   Future<Map<String, dynamic>> setMyRates({
     required double hourlyRate,
+    required double dailyRate,
     required double weeklyRate,
     required double monthlyRate,
   }) async {
@@ -826,6 +827,7 @@ class SitterRepository {
       '${ApiEndpoints.sitters}/me/rates',
       body: {
         'hourlyRate': hourlyRate,
+        'dailyRate': dailyRate,
         'weeklyRate': weeklyRate,
         'monthlyRate': monthlyRate,
       },

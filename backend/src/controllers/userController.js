@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const Pet = require('../models/Pet');
 const Post = require('../models/Post');
 const Booking = require('../models/Booking');
@@ -659,6 +660,9 @@ const signAuthToken = (payload, options = {}) => {
   });
 };
 
+const ROLE_MODELS = { owner: Owner, sitter: Sitter, walker: Walker };
+const VALID_SWITCH_ROLES = Object.keys(ROLE_MODELS);
+
 const switchRole = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -668,16 +672,38 @@ const switchRole = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    // Determine target role
-    const targetRole = currentRole === 'owner' ? 'sitter' : 'owner';
-
-    // Find current user
-    let currentUser;
-    if (currentRole === 'owner') {
-      currentUser = await Owner.findById(userId);
-    } else {
-      currentUser = await Sitter.findById(userId);
+    // Determine target role.
+    // Backwards compatible: if client sends no `targetRole` and current role is
+    // owner/sitter, fall back to the legacy binary toggle. If client sends a
+    // specific `targetRole`, use that (enables 3-way switching including walker).
+    let targetRole = (req.body?.targetRole || '').toString().toLowerCase().trim();
+    if (!targetRole) {
+      if (currentRole === 'owner') {
+        targetRole = 'sitter';
+      } else if (currentRole === 'sitter') {
+        targetRole = 'owner';
+      } else {
+        // walker has no implicit target — client must specify.
+        return res.status(400).json({
+          error: 'targetRole is required when switching from walker. Expected one of: owner, sitter.',
+        });
+      }
     }
+    if (!VALID_SWITCH_ROLES.includes(targetRole)) {
+      return res.status(400).json({
+        error: `Invalid targetRole. Expected one of: ${VALID_SWITCH_ROLES.join(', ')}.`,
+      });
+    }
+    if (targetRole === currentRole) {
+      return res.status(400).json({ error: 'targetRole must be different from the current role.' });
+    }
+
+    // Find current user across 3 possible collections.
+    const CurrentModel = ROLE_MODELS[currentRole];
+    if (!CurrentModel) {
+      return res.status(400).json({ error: 'Unsupported current role.' });
+    }
+    const currentUser = await CurrentModel.findById(userId);
 
     if (!currentUser) {
       return res.status(404).json({ error: 'User not found.' });
@@ -735,8 +761,9 @@ const switchRole = async (req, res) => {
         typeof originalLocation.coordinates[1] === 'number';
     
     if (hasValidCoordinates) {
-      // Valid coordinates array exists
-      if (targetRole === 'sitter') {
+      // Valid coordinates array exists.
+      // Sitter and Walker both use a richer location schema with `locationType`.
+      if (targetRole === 'sitter' || targetRole === 'walker') {
         newUserData.location = {
           type: 'Point',
           coordinates: originalLocation.coordinates,
@@ -773,17 +800,30 @@ const switchRole = async (req, res) => {
       };
       newUserData.stripeConnectAccountId = null;
       newUserData.stripeConnectAccountStatus = 'not_connected';
+    } else if (targetRole === 'walker') {
+      // Walker-specific defaults for a fresh role.
+      newUserData.service = Array.isArray(userData.service) && userData.service.length
+        ? userData.service
+        : ['dog_walking'];
+      newUserData.rating = 0;
+      newUserData.reviewsCount = 0;
+      newUserData.feedback = [];
+      newUserData.acceptedPetTypes = ['dog_small', 'dog_medium', 'dog_large'];
+      newUserData.maxPetsPerWalk = 1;
+      newUserData.hasInsurance = false;
+      newUserData.coverageCity = (originalLocation?.city || '').toString();
+      newUserData.coverageRadiusKm = 3;
+      newUserData.walkRates = [];
+      newUserData.defaultWalkDurationMinutes = 30;
+      newUserData.stripeConnectAccountId = null;
+      newUserData.stripeConnectAccountStatus = 'not_connected';
     }
 
     // Create new user in target role using collection.insertOne to bypass Mongoose defaults
     // This prevents Mongoose from applying location defaults with null coordinates
     let insertedResult;
-    if (targetRole === 'sitter') {
-      // When switching to sitter we let MongoDB assign a new _id,
-      // but we keep oldId pointing to the original owner id.
-      insertedResult = await Sitter.collection.insertOne(newUserData);
-      newUser = await Sitter.findById(insertedResult.insertedId);
-    } else {
+    let newUser;
+    if (targetRole === 'owner') {
       // When switching back to owner, reuse the stable oldId as _id
       // so the owner keeps the same identifier across switches.
       const ownerInsertData = {
@@ -793,6 +833,13 @@ const switchRole = async (req, res) => {
       };
       insertedResult = await Owner.collection.insertOne(ownerInsertData);
       newUser = await Owner.findById(insertedResult.insertedId);
+    } else if (targetRole === 'sitter') {
+      insertedResult = await Sitter.collection.insertOne(newUserData);
+      newUser = await Sitter.findById(insertedResult.insertedId);
+    } else {
+      // walker — let MongoDB assign a new _id, keep oldId for traceability.
+      insertedResult = await Walker.collection.insertOne(newUserData);
+      newUser = await Walker.findById(insertedResult.insertedId);
     }
 
     // Restore the original password hash using updateOne (bypasses pre-save hook)
@@ -803,21 +850,14 @@ const switchRole = async (req, res) => {
       updateOps.$unset = { location: '' };
     }
 
-    if (targetRole === 'sitter') {
-      await Sitter.updateOne({ _id: newUser._id }, updateOps);
-      // Refresh the document
-      newUser = await Sitter.findById(newUser._id);
-    } else {
-      await Owner.updateOne({ _id: newUser._id }, updateOps);
-      // Refresh the document
-      newUser = await Owner.findById(newUser._id);
-    }
+    const TargetModel = ROLE_MODELS[targetRole];
+    await TargetModel.updateOne({ _id: newUser._id }, updateOps);
+    newUser = await TargetModel.findById(newUser._id);
 
-    // Delete old user
-    if (currentRole === 'owner') {
-      await Owner.findByIdAndDelete(userId);
-    } else {
-      await Sitter.findByIdAndDelete(userId);
+    // Delete old user from the correct collection.
+    const OldModel = ROLE_MODELS[currentRole];
+    if (OldModel) {
+      await OldModel.findByIdAndDelete(userId);
     }
 
     // Generate new token with new role and new user ID

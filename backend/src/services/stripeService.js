@@ -23,6 +23,40 @@ const PLATFORM_COMMISSION_RATE = 0.2; // 20%
  * @param {string} params.sitterId - Sitter ID for metadata
  * @returns {Promise<Object>} PaymentIntent object
  */
+/**
+ * Create a PLATFORM-only PaymentIntent (no Stripe Connect destination).
+ * Used by: boost, subscription (Premium), map-boost.
+ *
+ * @param {Object} params
+ * @param {number} params.amount   — total in cents (minor units)
+ * @param {string} params.currency — ISO lowercase ('eur','gbp','chf','usd')
+ * @param {Object} [params.metadata] — freeform tracking metadata
+ */
+const createPlatformPaymentIntent = async ({ amount, currency, metadata = {} }) => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  if (!currency || typeof currency !== 'string' || !currency.trim()) {
+    throw new Error('Currency is required for PaymentIntent');
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Amount must be a positive integer in cents');
+  }
+
+  // Convert metadata values to strings (Stripe requires string values).
+  const stripeMetadata = {};
+  for (const [k, v] of Object.entries(metadata || {})) {
+    if (v !== undefined && v !== null) stripeMetadata[k] = String(v);
+  }
+
+  return stripe.paymentIntents.create({
+    amount: Math.round(amount),
+    currency: currency.toLowerCase(),
+    automatic_payment_methods: { enabled: true },
+    metadata: stripeMetadata,
+  });
+};
+
 const createPaymentIntent = async ({
   amount,
   currency,
@@ -347,6 +381,7 @@ const sendPayoutToIBAN = async ({
 module.exports = {
   PLATFORM_COMMISSION_RATE,
   createPaymentIntent,
+  createPlatformPaymentIntent,
   createConnectAccount,
   createAccountLink,
   getAccountStatus,

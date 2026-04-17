@@ -191,7 +191,7 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
                             text: _maskedIban,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.blackColor,
+                            color: AppColors.textPrimary(context),
                           ),
                           InterText(
                             text: _ibanVerified

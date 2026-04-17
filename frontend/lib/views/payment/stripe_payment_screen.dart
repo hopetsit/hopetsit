@@ -39,7 +39,7 @@ class StripePaymentScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      // Sprint 6 step 4 — theme-driven bg
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
         elevation: 0,

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 import '../controllers/auth_controller.dart';
+import '../controllers/subscription_controller.dart';
 import '../controllers/user_controller.dart';
 import '../data/network/api_client.dart';
 import '../repositories/auth_repository.dart';
@@ -106,5 +107,12 @@ void setupDependencies() {
       ),
       permanent: true,
     );
+  }
+
+  // SubscriptionController is lazy-loaded — it calls GET /subscriptions/status
+  // which requires an auth token. Registering it lazily means it only kicks in
+  // when the user opens the Boutique / Premium tab or other premium-gated UI.
+  if (!Get.isRegistered<SubscriptionController>()) {
+    Get.lazyPut<SubscriptionController>(() => SubscriptionController(), fenix: true);
   }
 }

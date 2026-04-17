@@ -86,7 +86,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
     }
     setState(() => _isSaving = true);
     try {
-      final repo = PostRepository(apiClient: Get.find<ApiClient>());
+      final repo = PostRepository(Get.find<ApiClient>());
       await repo.updatePost(
         widget.post.id,
         body: _bodyCtrl.text.trim(),

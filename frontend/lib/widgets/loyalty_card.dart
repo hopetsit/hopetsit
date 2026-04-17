@@ -19,8 +19,9 @@ class LoyaltyCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow(context),
           border: Border.all(color: Colors.amber, width: ctrl.isPremium.value ? 2 : 0),
         ),
         child: Column(

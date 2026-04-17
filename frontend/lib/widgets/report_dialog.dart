@@ -36,11 +36,12 @@ class ReportDialog {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppColors.whiteColor,
+          backgroundColor: AppColors.card(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
           title: Text(
             'report_dialog_title'.tr,
-            style: const TextStyle(
-              color: AppColors.blackColor,
+            style: TextStyle(
+              color: AppColors.textPrimary(context),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -52,8 +53,8 @@ class ReportDialog {
               children: [
                 Text(
                   'report_dialog_subtitle'.tr,
-                  style: const TextStyle(
-                    color: AppColors.grey700Color,
+                  style: TextStyle(
+                    color: AppColors.textSecondary(context),
                     fontSize: 13,
                   ),
                 ),
@@ -72,8 +73,8 @@ class ReportDialog {
                         activeColor: AppColors.primaryColor,
                         title: Text(
                           r.value,
-                          style: const TextStyle(
-                            color: AppColors.blackColor,
+                          style: TextStyle(
+                            color: AppColors.textPrimary(context),
                             fontSize: 13,
                           ),
                         ),
@@ -85,9 +86,24 @@ class ReportDialog {
                   controller: detailsCtrl,
                   maxLines: 3,
                   maxLength: 500,
+                  style: TextStyle(color: AppColors.textPrimary(context)),
                   decoration: InputDecoration(
                     hintText: 'report_dialog_details_hint'.tr,
-                    border: const OutlineInputBorder(),
+                    hintStyle: TextStyle(color: AppColors.textSecondary(context)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(color: AppColors.divider(context)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(color: AppColors.divider(context)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(color: AppColors.primaryColor),
+                    ),
+                    filled: true,
+                    fillColor: AppColors.inputFill(context),
                     isDense: true,
                   ),
                 ),
@@ -99,13 +115,13 @@ class ReportDialog {
               onPressed: () => Navigator.of(ctx).pop(),
               child: Text(
                 'common_cancel'.tr,
-                style: const TextStyle(color: AppColors.grey700Color),
+                style: TextStyle(color: AppColors.textSecondary(ctx)),
               ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryColor,
-                foregroundColor: AppColors.whiteColor,
+                foregroundColor: Colors.white,
               ),
               onPressed: () async {
                 try {

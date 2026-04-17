@@ -1,0 +1,275 @@
+/**
+ * Map Boost Routes — Phase 5 Couche 4 of the PawMap.
+ *
+ * Different from the profile boost (boostRoutes.js): this boost highlights the
+ * user's PIN on PawMap so nearby owners/sitters/walkers see them first.
+ *
+ * Tiers (multi-currency — same shape as profile boost, cheaper tiers):
+ *   bronze   → 3 days
+ *   silver   → 7 days
+ *   gold     → 15 days
+ *   platinum → 30 days
+ *
+ * Premium users can claim 1 free monthly map-boost day via the
+ * mapBoostCreditsRemaining field on UserSubscription (yearly = 12 credits).
+ */
+
+const express = require('express');
+const { requireAuth } = require('../middleware/auth');
+const Owner = require('../models/Owner');
+const Sitter = require('../models/Sitter');
+const { createPlatformPaymentIntent } = require('../services/stripeService');
+const UserSubscription = require('../models/UserSubscription');
+const { normalizeCurrency } = require('../utils/currency');
+const logger = require('../utils/logger');
+
+const router = express.Router();
+
+const MAP_BOOST_PACKAGES = {
+  bronze: { days: 3, label: '3 days' },
+  silver: { days: 7, label: '1 week' },
+  gold: { days: 15, label: '2 weeks' },
+  platinum: { days: 30, label: '1 month' },
+};
+
+const MAP_BOOST_PRICING = {
+  EUR: { bronze: 15, silver: 30, gold: 60, platinum: 120 },
+  GBP: { bronze: 13, silver: 26, gold: 53, platinum: 105 },
+  CHF: { bronze: 15, silver: 29, gold: 59, platinum: 119 },
+  USD: { bronze: 16, silver: 32, gold: 65, platinum: 129 },
+};
+
+function getMapBoostPricing(tier, currency = 'EUR') {
+  const pkg = MAP_BOOST_PACKAGES[tier];
+  if (!pkg) return null;
+  const upper = String(currency || 'EUR').toUpperCase();
+  const row = MAP_BOOST_PRICING[upper] || MAP_BOOST_PRICING.EUR;
+  return {
+    tier,
+    amount: row[tier],
+    currency: MAP_BOOST_PRICING[upper] ? upper : 'EUR',
+    days: pkg.days,
+    label: pkg.label,
+  };
+}
+
+function roleToModel(role) {
+  if (role === 'walker') return require('../models/Walker');
+  if (role === 'sitter') return Sitter;
+  return Owner;
+}
+
+function roleToModelName(role) {
+  if (role === 'walker') return 'Walker';
+  if (role === 'sitter') return 'Sitter';
+  return 'Owner';
+}
+
+// ── GET /packages — multi-currency pricing ─────────────────────────────────
+router.get('/packages', (req, res) => {
+  const currency = normalizeCurrency(req.query.currency);
+  const packages = Object.keys(MAP_BOOST_PACKAGES).map((tier) =>
+    getMapBoostPricing(tier, currency),
+  );
+  res.json({
+    packages,
+    currency,
+    supportedCurrencies: Object.keys(MAP_BOOST_PRICING),
+  });
+});
+
+// ── GET /status — current map boost status ─────────────────────────────────
+router.get('/status', requireAuth, async (req, res) => {
+  try {
+    const Model = roleToModel(req.user.role);
+    const user = await Model.findById(req.user.id)
+      .select('mapBoostExpiry mapBoostTier boostPurchases')
+      .lean();
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const now = new Date();
+    const isActive = user.mapBoostExpiry && new Date(user.mapBoostExpiry) > now;
+    const remainingMs = isActive
+      ? new Date(user.mapBoostExpiry).getTime() - now.getTime()
+      : 0;
+    const remainingDays = Math.max(0, Math.ceil(remainingMs / 86_400_000));
+
+    // Check premium credits
+    const sub = await UserSubscription.findOne({
+      userId: req.user.id,
+      userModel: roleToModelName(req.user.role),
+    }).lean();
+    const mapBoostCreditsRemaining = sub?.mapBoostCreditsRemaining || 0;
+
+    res.json({
+      isActive,
+      tier: isActive ? user.mapBoostTier : null,
+      expiresAt: isActive ? user.mapBoostExpiry : null,
+      remainingDays,
+      mapBoostCreditsRemaining,
+      purchaseHistory: (user.boostPurchases || [])
+        .filter((p) => p.kind === 'map')
+        .slice(-10)
+        .reverse(),
+    });
+  } catch (e) {
+    logger.error('[mapBoost/status]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /purchase — Stripe PaymentIntent ──────────────────────────────────
+router.post('/purchase', requireAuth, async (req, res) => {
+  try {
+    const { tier } = req.body;
+    const currency = normalizeCurrency(req.body.currency);
+    const pricing = getMapBoostPricing(tier, currency);
+    if (!pricing) {
+      return res.status(400).json({
+        error: `Invalid tier. Choose from: ${Object.keys(MAP_BOOST_PACKAGES).join(', ')}`,
+      });
+    }
+
+    const amountCents = Math.round(pricing.amount * 100);
+    const paymentIntent = await createPlatformPaymentIntent({
+      amount: amountCents,
+      currency: pricing.currency.toLowerCase(),
+      metadata: {
+        type: 'map_boost_purchase',
+        userId: String(req.user.id),
+        role: req.user.role,
+        tier,
+        currency: pricing.currency,
+        days: String(pricing.days),
+      },
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      tier,
+      amount: pricing.amount,
+      currency: pricing.currency,
+      days: pricing.days,
+    });
+  } catch (e) {
+    logger.error('[mapBoost/purchase]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /confirm — after Stripe succeeds, extend the user's mapBoostExpiry ─
+router.post('/confirm', requireAuth, async (req, res) => {
+  try {
+    const { tier, paymentIntentId } = req.body;
+    const currency = normalizeCurrency(req.body.currency);
+    const pricing = getMapBoostPricing(tier, currency);
+    if (!pricing) return res.status(400).json({ error: 'Invalid tier.' });
+
+    const Model = roleToModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const now = new Date();
+    const currentExpiry = user.mapBoostExpiry && new Date(user.mapBoostExpiry) > now
+      ? new Date(user.mapBoostExpiry)
+      : now;
+    const newExpiry = new Date(currentExpiry.getTime() + pricing.days * 86_400_000);
+
+    user.mapBoostExpiry = newExpiry;
+    user.mapBoostTier = tier;
+    if (!user.boostPurchases) user.boostPurchases = [];
+    user.boostPurchases.push({
+      tier,
+      amount: pricing.amount,
+      currency: pricing.currency,
+      days: pricing.days,
+      purchasedAt: now,
+      paymentProvider: 'stripe',
+      paymentId: paymentIntentId || '',
+      kind: 'map',
+    });
+    await user.save();
+
+    logger.info(
+      `[mapBoost] ${req.user.role} ${req.user.id} activated ${tier} (${pricing.days}d, ${pricing.currency} ${pricing.amount}) → ${newExpiry.toISOString()}`,
+    );
+
+    res.json({
+      message: 'Map boost activated!',
+      tier,
+      days: pricing.days,
+      amount: pricing.amount,
+      currency: pricing.currency,
+      expiresAt: newExpiry,
+    });
+  } catch (e) {
+    logger.error('[mapBoost/confirm]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /claim-credit — Premium users redeem 1 monthly map-boost credit ───
+router.post('/claim-credit', requireAuth, async (req, res) => {
+  try {
+    const sub = await UserSubscription.findOne({
+      userId: req.user.id,
+      userModel: roleToModelName(req.user.role),
+    });
+    if (!sub) {
+      return res.status(402).json({
+        error: 'Premium subscription required.',
+        code: 'PREMIUM_REQUIRED',
+      });
+    }
+    if (!sub.mapBoostCreditsRemaining || sub.mapBoostCreditsRemaining <= 0) {
+      return res.status(400).json({
+        error: 'No map-boost credits remaining this period.',
+      });
+    }
+
+    // 1 credit = 3 days (bronze-equivalent) on the map.
+    const CREDIT_DAYS = 3;
+    const Model = roleToModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const now = new Date();
+    const currentExpiry = user.mapBoostExpiry && new Date(user.mapBoostExpiry) > now
+      ? new Date(user.mapBoostExpiry)
+      : now;
+    user.mapBoostExpiry = new Date(currentExpiry.getTime() + CREDIT_DAYS * 86_400_000);
+    user.mapBoostTier = user.mapBoostTier || 'bronze';
+    user.boostPurchases = user.boostPurchases || [];
+    user.boostPurchases.push({
+      tier: 'bronze',
+      amount: 0,
+      currency: 'EUR',
+      days: CREDIT_DAYS,
+      purchasedAt: now,
+      paymentProvider: 'premium_credit',
+      paymentId: '',
+      kind: 'map',
+    });
+    await user.save();
+
+    sub.mapBoostCreditsRemaining -= 1;
+    await sub.save();
+
+    logger.info(
+      `[mapBoost] ${req.user.role} ${req.user.id} redeemed Premium credit → expires ${user.mapBoostExpiry.toISOString()}`,
+    );
+
+    res.json({
+      message: 'Premium credit redeemed.',
+      daysAdded: CREDIT_DAYS,
+      expiresAt: user.mapBoostExpiry,
+      mapBoostCreditsRemaining: sub.mapBoostCreditsRemaining,
+    });
+  } catch (e) {
+    logger.error('[mapBoost/claim-credit]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+module.exports = router;

@@ -19,71 +19,81 @@ class CustomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      height: 68.h,
-      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      height: 78.h,
+      margin: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(
-        color: AppColors.primaryColor,
-        borderRadius: BorderRadius.circular(20.r),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryColor.withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildNavItem(0, AppImages.pawIcon, 'Home'),
-          _buildNavItem(1, AppImages.chatIcon, 'Chat'),
-          _buildNavItem(2, AppImages.calendarIcon, 'Calendar'),
-          _buildNavItem(3, AppImages.personIcon, 'Profile'),
+          // Home
+          _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark),
+          // Chat
+          _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1),
+          // Center MAP button (elevated)
+          _buildCenterMapButton(context, isDark),
+          // Calendar / Bookings
+          _buildNavItem(context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark, badgeIndex: 2),
+          // Profile
+          _buildNavItem(context, 4, AppImages.personIcon, 'nav_profile'.tr, isDark),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(int index, String iconPath, String label) {
+  Widget _buildNavItem(
+    BuildContext context,
+    int index,
+    String iconPath,
+    String label,
+    bool isDark, {
+    int? badgeIndex,
+  }) {
     final isSelected = currentIndex == index;
+    final activeColor = AppColors.primaryColor;
+    final inactiveColor = isDark
+        ? Colors.white.withOpacity(0.45)
+        : const Color(0xFF9E9E9E);
 
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        // Sprint 4 step 4 — clear the corresponding badge when the user opens the tab.
         if (Get.isRegistered<NotificationsController>()) {
           final nc = Get.find<NotificationsController>();
           if (index == 1) nc.clearChatBadge();
-          if (index == 2) nc.clearBookingsBadge();
+          if (index == 3) nc.clearBookingsBadge();
         }
         onTap(index);
       },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              width: 4,
-              color: isSelected
-                  ? AppColors.purpleLineNavigation
-                  : Colors.transparent,
-            ),
-          ),
-        ),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 56.w,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Stack(
               clipBehavior: Clip.none,
               children: [
                 Image.asset(
                   iconPath,
-                  width: 24.w,
-                  height: 24.h,
-                  color: isSelected ? AppColors.whiteColor : AppColors.whiteColor,
+                  width: 22.w,
+                  height: 22.h,
+                  color: isSelected ? activeColor : inactiveColor,
                 ),
-                if (index == 1 || index == 2)
+                if (badgeIndex != null)
                   Positioned(
                     top: -6.h,
                     right: -8.w,
@@ -92,7 +102,7 @@ class CustomNavigationBar extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       final nc = Get.find<NotificationsController>();
-                      final count = index == 1
+                      final count = badgeIndex == 1
                           ? nc.unreadChat.value
                           : nc.unreadBookings.value;
                       return NotificationBadge(count: count);
@@ -100,18 +110,71 @@ class CustomNavigationBar extends StatelessWidget {
                   ),
               ],
             ),
-            // SizedBox(height: 4.h),
-            // Text(
-            //   label,
-            //   style: TextStyle(
-            //     fontSize: 10.sp,
-            //     fontWeight: FontWeight.w500,
-            //     color: isSelected
-            //         ? AppColors.whiteColor
-            //         : AppColors.whiteColor.withOpacity(0.7),
-            //   ),
-            // ),
+            SizedBox(height: 4.h),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9.sp,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            // Selected indicator dot
+            SizedBox(height: 3.h),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: isSelected ? 5.w : 0,
+              height: isSelected ? 5.w : 0,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: activeColor,
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCenterMapButton(BuildContext context, bool isDark) {
+    final isSelected = currentIndex == 2;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        onTap(2);
+      },
+      child: Container(
+        width: 54.w,
+        height: 54.w,
+        transform: Matrix4.translationValues(0, -14.h, 0),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isSelected
+                ? [AppColors.primaryColor, const Color(0xFFFF6B4A)]
+                : [AppColors.primaryColor.withOpacity(0.85), AppColors.primaryColor],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryColor.withOpacity(0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            width: 3,
+          ),
+        ),
+        child: Icon(
+          Icons.map_rounded,
+          size: 24.sp,
+          color: Colors.white,
         ),
       ),
     );

@@ -21,7 +21,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
       height: 50.h,
       textStyle: TextStyle(
         fontSize: 24.sp,
-        color: AppColors.blackColor,
+        color: AppColors.textPrimary(context),
         fontWeight: FontWeight.w500,
       ),
       decoration: BoxDecoration(
@@ -52,16 +52,17 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         automaticallyImplyLeading: true,
         title: PoppinsText(
           text: 'forgot_password_verify_code_title'.tr,
           fontSize: 20,
           fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,

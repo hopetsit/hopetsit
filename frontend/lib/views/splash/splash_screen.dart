@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -17,70 +18,73 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeIn;
+  late Animation<double> _scale;
+  late Animation<Offset> _slideUp;
+
   @override
   void initState() {
     super.initState();
+
+    // Immersive status bar
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _scale = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+    );
+    _slideUp = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    _controller.forward();
     _checkAuthentication();
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   Future<void> _checkAuthentication() async {
-    // Wait a bit for the app to initialize
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 2000));
 
     final storage = GetStorage();
     final token = storage.read<String>(StorageKeys.authToken);
     final role = storage.read<String>(StorageKeys.userRole);
-    final userProfile = storage.read<Map<String, dynamic>>(
-      StorageKeys.userProfile,
-    );
 
-    // Debug: Print all saved data
     debugPrint(
       '[HOPETSIT] ========== SPLASH SCREEN - CHECKING AUTH ==========',
     );
     debugPrint('[HOPETSIT] Token exists: ${token != null && token.isNotEmpty}');
-    if (token != null && token.isNotEmpty) {
-      final tokenPreview = token.length > 20
-          ? '${token.substring(0, 20)}...'
-          : token;
-      debugPrint('[HOPETSIT] Token: $tokenPreview');
-    }
     debugPrint('[HOPETSIT] Role: $role');
-    if (userProfile != null) {
-      debugPrint('[HOPETSIT] User Profile:');
-      debugPrint('[HOPETSIT]   - Name: ${userProfile['name'] ?? 'N/A'}');
-      debugPrint('[HOPETSIT]   - Email: ${userProfile['email'] ?? 'N/A'}');
-      debugPrint('[HOPETSIT]   - Mobile: ${userProfile['mobile'] ?? 'N/A'}');
-      debugPrint('[HOPETSIT]   - Address: ${userProfile['address'] ?? 'N/A'}');
-      debugPrint(
-        '[HOPETSIT]   - Verified: ${userProfile['verified'] ?? 'N/A'}',
-      );
-      debugPrint('[HOPETSIT]   - Role: ${userProfile['role'] ?? 'N/A'}');
-      debugPrint('[HOPETSIT]   - ID: ${userProfile['id'] ?? 'N/A'}');
-    } else {
-      debugPrint('[HOPETSIT] User Profile: Not found');
-    }
-    debugPrint(
-      '[HOPETSIT] ====================================================',
-    );
 
     if (token != null && token.isNotEmpty) {
-      // User is logged in, navigate based on role
       if (role == 'owner') {
-        debugPrint('[HOPETSIT] ✅ Navigating to Owner Home');
+        debugPrint('[HOPETSIT] Navigating to Owner Home');
         Get.offAll(() => const BottomNavWrapper());
       } else if (role == 'sitter') {
-        debugPrint('[HOPETSIT] ✅ Navigating to Sitter Home');
+        debugPrint('[HOPETSIT] Navigating to Sitter Home');
         Get.offAll(() => const SitterNavWrapper());
       } else {
-        // Role not found, go to onboarding
-        debugPrint('[HOPETSIT] ⚠️ Role not found, navigating to Onboarding');
+        debugPrint('[HOPETSIT] Role not found, navigating to Onboarding');
         Get.offAll(() => const OnboardingScreen());
       }
     } else {
-      // No token, go to onboarding
-      debugPrint('[HOPETSIT] ⚠️ No token found, navigating to Onboarding');
+      debugPrint('[HOPETSIT] No token found, navigating to Onboarding');
       Get.offAll(() => const OnboardingScreen());
     }
   }
@@ -88,50 +92,97 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryColor,
-      body: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          width: double.infinity,
-          child: Stack(
-            children: [
-              // Background decoration
-              Container(
-                decoration: BoxDecoration(color: AppColors.primaryColor),
-              ),
-              // Main content
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(height: 20.h),
-                    // App Logo
-                    Image.asset(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFEF4324), // primaryColor
+              Color(0xFFFF6B4A), // lighter accent
+              Color(0xFFEF4324),
+            ],
+            stops: [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeIn,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(flex: 3),
+
+                // Logo with scale animation
+                ScaleTransition(
+                  scale: _scale,
+                  child: Container(
+                    width: 130.w,
+                    height: 130.w,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(32.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(20.w),
+                    child: Image.asset(
                       AppImages.bgRemovedLogo,
-                      color: AppColors.whiteColor,
-                      height: 100.h,
-                      width: 100.w,
                       fit: BoxFit.contain,
                     ),
-                    SizedBox(height: 20.h),
-                    // App Name
-                    PoppinsText(
-                      text: 'Home Pets Sitting',
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.whiteColor,
-                    ),
-                    SizedBox(height: 40.h),
-                    // Loading indicator
-                    const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.whiteColor,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+
+                SizedBox(height: 28.h),
+
+                // App name with slide animation
+                SlideTransition(
+                  position: _slideUp,
+                  child: Column(
+                    children: [
+                      PoppinsText(
+                        text: 'HoPetSit',
+                        fontSize: 32.sp,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 1.2,
+                      ),
+                      SizedBox(height: 6.h),
+                      InterText(
+                        text: 'Home Pets Sitting',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.8),
+                        letterSpacing: 0.5,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Spacer(flex: 3),
+
+                // Modern loading indicator
+                SizedBox(
+                  width: 28.w,
+                  height: 28.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 40.h),
+              ],
+            ),
           ),
         ),
       ),

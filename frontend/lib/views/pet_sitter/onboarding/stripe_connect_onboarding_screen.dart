@@ -15,17 +15,19 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
     final controller = Get.put(StripeConnectController());
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'stripe_connect_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -40,15 +42,9 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
                   width: 80.w,
                   height: 80.h,
                   decoration: BoxDecoration(
-                    color: AppColors.whiteColor,
+                    color: AppColors.card(context),
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
+                    boxShadow: AppColors.cardShadow(context),
                   ),
                   child: Icon(
                     Icons.account_balance_wallet,
@@ -66,7 +62,7 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
                   text: 'stripe_get_paid_title'.tr,
                   fontSize: 24.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -77,30 +73,30 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
               InterText(
                 text: 'stripe_connect_description'.tr,
                 fontSize: 14.sp,
-                color: AppColors.grey700Color,
+                color: AppColors.textSecondary(context),
                 textAlign: TextAlign.center,
               ),
 
               SizedBox(height: 10.h),
 
               // Benefits List
-              _buildBenefitsList(),
+              _buildBenefitsList(context),
 
               SizedBox(height: 10.h),
               PoppinsText(
                 text: 'stripe_account_status_title'.tr,
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 10.h),
 
               // Account Status Card (with shimmer loading)
               Obx(() {
                 if (controller.isLoadingStatus.value) {
-                  return _buildAccountStatusShimmer();
+                  return _buildAccountStatusShimmer(context);
                 } else if (controller.stripeAccountId.value.isNotEmpty) {
-                  return _buildAccountStatusCard(controller);
+                  return _buildAccountStatusCard(context, controller);
                 } else {
                   return const SizedBox.shrink();
                 }
@@ -184,7 +180,7 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBenefitsList() {
+  Widget _buildBenefitsList(BuildContext context) {
     final benefits = [
       'stripe_benefit_secure'.tr,
       'stripe_benefit_fast_payouts'.tr,
@@ -198,9 +194,9 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
           margin: EdgeInsets.only(bottom: 5.h),
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: AppColors.whiteColor,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: AppColors.grey300Color, width: 1),
+            border: Border.all(color: AppColors.divider(context), width: 1),
           ),
           child: Row(
             children: [
@@ -211,7 +207,7 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
                   text: benefit,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
             ],
@@ -221,16 +217,16 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAccountStatusShimmer() {
+  Widget _buildAccountStatusShimmer(BuildContext context) {
     return Shimmer.fromColors(
       baseColor: AppColors.grey300Color,
-      highlightColor: AppColors.whiteColor,
+      highlightColor: AppColors.card(context),
       child: Container(
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
-          color: AppColors.whiteColor,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: AppColors.grey300Color, width: 1),
+          border: Border.all(color: AppColors.divider(context), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,12 +300,12 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAccountStatusCard(StripeConnectController controller) {
+  Widget _buildAccountStatusCard(BuildContext context, StripeConnectController controller) {
     return Obx(
       () => Container(
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
-          color: AppColors.whiteColor,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: controller.isConnected.value ? Colors.green : Colors.orange,
@@ -338,7 +334,7 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
                         : 'stripe_account_created_pending'.tr,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
               ],
@@ -349,11 +345,11 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
                   ? 'stripe_account_connected_message'.tr
                   : 'stripe_account_created_message'.tr,
               fontSize: 14.sp,
-              color: AppColors.grey700Color,
+              color: AppColors.textSecondary(context),
             ),
             if (controller.stripeAccountId.value.isNotEmpty) ...[
               SizedBox(height: 12.h),
-              _buildDetailRow('stripe_account_id_label'.tr, controller.stripeAccountId.value),
+              _buildDetailRow(context, 'stripe_account_id_label'.tr, controller.stripeAccountId.value),
             ],
           ],
         ),
@@ -361,7 +357,7 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -369,13 +365,13 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
           text: '$label: ',
           fontSize: 12.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         Expanded(
           child: InterText(
             text: value,
             fontSize: 12.sp,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],

@@ -19,6 +19,23 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 
+/// Represents a unified item that can be either an application or a booking.
+class _UnifiedItem {
+  final String type; // 'application' or 'booking'
+  final dynamic data; // ApplicationModel or BookingModel
+  final String sitterName;
+  final String status;
+  final String sitterId;
+
+  _UnifiedItem({
+    required this.type,
+    required this.data,
+    required this.sitterName,
+    required this.status,
+    required this.sitterId,
+  });
+}
+
 class ApplicationScreen extends StatefulWidget {
   const ApplicationScreen({super.key});
 
@@ -27,7 +44,7 @@ class ApplicationScreen extends StatefulWidget {
 }
 
 class _ApplicationScreenState extends State<ApplicationScreen> {
-  int _selectedTabIndex = 0;
+  String _selectedFilter = 'all';
   late BookingsController _bookingsController;
   late ApplicationsController _applicationsController;
 
@@ -37,6 +54,79 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
     _bookingsController = Get.put(BookingsController());
     _applicationsController = Get.put(ApplicationsController());
     Get.put(ProfileController());
+  }
+
+  /// Merge applications + bookings into one unified list
+  List<_UnifiedItem> _buildUnifiedList() {
+    final items = <_UnifiedItem>[];
+
+    // Add applications
+    for (final app in _applicationsController.applications) {
+      items.add(_UnifiedItem(
+        type: 'application',
+        data: app,
+        sitterName: app.sitter.name,
+        status: app.status.toLowerCase().trim(),
+        sitterId: app.sitter.id,
+      ));
+    }
+
+    // Add bookings
+    for (final booking in _bookingsController.bookings) {
+      items.add(_UnifiedItem(
+        type: 'booking',
+        data: booking,
+        sitterName: booking.sitter.name,
+        status: booking.status.toLowerCase().trim(),
+        sitterId: booking.sitter.id,
+      ));
+    }
+
+    // Filter by selected status
+    if (_selectedFilter != 'all') {
+      return items.where((item) {
+        switch (_selectedFilter) {
+          case 'pending':
+            return item.status == 'pending';
+          case 'accepted':
+            return item.status == 'accepted' || item.status == 'agreed' || item.status == 'confirmed';
+          case 'paid':
+            if (item.type == 'booking') {
+              final b = item.data as BookingModel;
+              return b.paymentStatus?.toLowerCase() == 'paid';
+            }
+            return false;
+          case 'cancelled':
+            return item.status == 'cancelled' || item.status == 'rejected';
+          default:
+            return true;
+        }
+      }).toList();
+    }
+
+    return items;
+  }
+
+  int _countByFilter(String filter) {
+    final allItems = <_UnifiedItem>[];
+    for (final app in _applicationsController.applications) {
+      allItems.add(_UnifiedItem(type: 'application', data: app, sitterName: '', status: app.status.toLowerCase().trim(), sitterId: ''));
+    }
+    for (final b in _bookingsController.bookings) {
+      allItems.add(_UnifiedItem(type: 'booking', data: b, sitterName: '', status: b.status.toLowerCase().trim(), sitterId: ''));
+    }
+    if (filter == 'all') return allItems.length;
+    return allItems.where((item) {
+      switch (filter) {
+        case 'pending': return item.status == 'pending';
+        case 'accepted': return item.status == 'accepted' || item.status == 'agreed' || item.status == 'confirmed';
+        case 'paid':
+          if (item.type == 'booking') return (item.data as BookingModel).paymentStatus?.toLowerCase() == 'paid';
+          return false;
+        case 'cancelled': return item.status == 'cancelled' || item.status == 'rejected';
+        default: return true;
+      }
+    }).length;
   }
 
   @override
@@ -51,102 +141,63 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
           userImage: profileController.profileImageUrl.value.isNotEmpty
               ? profileController.profileImageUrl.value
               : '',
-          showNotificationIcon:
-              false, // Hide notification icon on application screen
-          onProfileTap: () {
-            // Handle profile tap
-            // debug removed
-          },
+          showNotificationIcon: false,
+          onProfileTap: () {},
         ),
         backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: Column(
             children: [
-              // Tab Navigation
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
+              // ── Summary cards ──
+              Padding(
+                padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedTabIndex = 0;
-                          });
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 12.h),
-                          child: Column(
-                            children: [
-                              InterText(
-                                text: 'applications_tab_title'.tr,
-                                fontSize: 16.sp,
-                                fontWeight: _selectedTabIndex == 0
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: _selectedTabIndex == 0
-                                    ? AppColors.textPrimary(context)
-                                    : AppColors.textSecondary(context),
-                              ),
-                              if (_selectedTabIndex == 0)
-                                Container(
-                                  margin: EdgeInsets.only(top: 8.h),
-                                  height: 3.h,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryColor,
-                                    borderRadius: BorderRadius.circular(1.r),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    _summaryCard(
+                      context,
+                      icon: Icons.send_rounded,
+                      label: 'applications_tab_title'.tr,
+                      count: _applicationsController.applications.length,
+                      color: const Color(0xFF1A73E8),
                     ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedTabIndex = 1;
-                          });
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 12.h),
-                          child: Column(
-                            children: [
-                              InterText(
-                                text: 'bookings_tab_title'.tr,
-                                fontSize: 16.sp,
-                                fontWeight: _selectedTabIndex == 1
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: _selectedTabIndex == 1
-                                    ? AppColors.textPrimary(context)
-                                    : AppColors.textSecondary(context),
-                              ),
-                              if (_selectedTabIndex == 1)
-                                Container(
-                                  margin: EdgeInsets.only(top: 8.h),
-                                  height: 3.h,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryColor,
-                                    borderRadius: BorderRadius.circular(1.r),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    SizedBox(width: 10.w),
+                    _summaryCard(
+                      context,
+                      icon: Icons.event_note_rounded,
+                      label: 'bookings_tab_title'.tr,
+                      count: _bookingsController.bookings.length,
+                      color: AppColors.primaryColor,
                     ),
                   ],
                 ),
               ),
 
-              // Content based on selected tab
-              Expanded(
-                child: _selectedTabIndex == 0
-                    ? _buildApplicationsTab()
-                    : _buildBookingTab(),
+              SizedBox(height: 12.h),
+
+              // ── Status filter chips ──
+              SizedBox(
+                height: 38.h,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  children: [
+                    _filterChip(context, 'all', 'unified_filter_all'.tr),
+                    SizedBox(width: 8.w),
+                    _filterChip(context, 'pending', 'unified_filter_pending'.tr),
+                    SizedBox(width: 8.w),
+                    _filterChip(context, 'accepted', 'unified_filter_accepted'.tr),
+                    SizedBox(width: 8.w),
+                    _filterChip(context, 'paid', 'unified_filter_paid'.tr),
+                    SizedBox(width: 8.w),
+                    _filterChip(context, 'cancelled', 'unified_filter_cancelled'.tr),
+                  ],
+                ),
               ),
+
+              SizedBox(height: 8.h),
+
+              // ── Unified list ──
+              Expanded(child: _buildUnifiedContent()),
             ],
           ),
         ),
@@ -154,9 +205,109 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
     );
   }
 
-  Widget _buildApplicationsTab() {
+  Widget _summaryCard(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 12.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14.r),
+          boxShadow: AppColors.cardShadow(context),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38.w,
+              height: 38.w,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Icon(icon, size: 18.sp, color: color),
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PoppinsText(
+                    text: count.toString(),
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                  InterText(
+                    text: label,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filterChip(BuildContext context, String filter, String label) {
+    final isSelected = _selectedFilter == filter;
+    final count = _countByFilter(filter);
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFilter = filter),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryColor : AppColors.card(context),
+          borderRadius: BorderRadius.circular(20.r),
+          border: isSelected ? null : Border.all(color: AppColors.divider(context)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InterText(
+              text: label,
+              fontSize: 12.sp,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? Colors.white : AppColors.textSecondary(context),
+            ),
+            if (count > 0) ...[
+              SizedBox(width: 6.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white.withOpacity(0.2) : AppColors.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: InterText(
+                  text: count.toString(),
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : AppColors.primaryColor,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnifiedContent() {
     return Obx(() {
-      if (_applicationsController.isLoading.value) {
+      final isLoading = _applicationsController.isLoading.value ||
+          _bookingsController.isLoading.value;
+
+      if (isLoading) {
         return const Center(
           child: CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
@@ -164,160 +315,83 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
         );
       }
 
-      if (_applicationsController.applications.isEmpty) {
+      final items = _buildUnifiedList();
+
+      if (items.isEmpty) {
         return Center(
-          child: Padding(
-            padding: EdgeInsets.all(20.w),
-            child: InterText(
-              text: 'applications_empty_message'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary(context),
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.inbox_rounded,
+                size: 48.sp,
+                color: AppColors.greyColor.withOpacity(0.4),
+              ),
+              SizedBox(height: 12.h),
+              InterText(
+                text: _selectedFilter == 'all'
+                    ? 'unified_empty_all'.tr
+                    : 'unified_empty_filtered'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textSecondary(context),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         );
       }
 
       return RefreshIndicator(
         color: AppColors.primaryColor,
-        onRefresh: () => _applicationsController.loadApplications(),
+        onRefresh: () async {
+          await Future.wait([
+            _applicationsController.loadApplications(),
+            _bookingsController.loadBookings(),
+          ]);
+        },
         child: ListView.builder(
-          padding: EdgeInsets.fromLTRB(
-            20.w,
-            16.h,
-            20.w,
-            100.h,
-          ), // Extra bottom padding for navigation bar
-          itemCount: _applicationsController.applications.length,
+          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 100.h),
+          itemCount: items.length,
           itemBuilder: (context, index) {
-            final application = _applicationsController.applications[index];
-            return ServiceProviderCard(
-              name: application.sitter.name,
-              phoneNumber: application.sitter.mobile,
-              email: application.sitter.email,
-              rating: application.sitter.rating,
-              status: application.status,
-              reviewsCount: application.sitter.reviewsCount,
-              location: application.sitter.city ?? '',
-              pricePerHour: PricingDisplayHelper.serviceProviderCardPriceTail(
-                pricing: application.pricing,
-                hourlyRate: application.sitter.hourlyRate,
-              ),
-              currencyCode: application.sitter.currency,
-              profileImagePath: application.sitter.avatar.url.isNotEmpty
-                  ? application.sitter.avatar.url
-                  : null,
-              sitterId: application.sitter.id,
-              isBlurred: true,
-              cardType: ServiceProviderCardType.application,
-              onAccept: () async {
-                // One-tap Accept & Pay. Flow:
-                //  1) respond accept (backend may already include payment)
-                //  2) if no clientSecret, force-create one via createPaymentIntent
-                //  3) open Stripe PaymentSheet directly — no detour via Reservations
-                final response = await _applicationsController
-                    .respondToApplicationFull(
-                      applicationId: application.id,
-                      action: 'accept',
-                    );
-                if (response == null || !mounted) return;
+            final item = items[index];
 
-                await _bookingsController.loadBookings();
-
-                BookingModel? booking;
-                String? clientSecret;
-
-                final bookingJson = response['booking'];
-                final payment = response['payment'];
-                if (bookingJson is Map) {
-                  try {
-                    booking = BookingModel.fromJson(
-                      Map<String, dynamic>.from(bookingJson as Map),
-                    );
-                  } catch (e) {
-                    AppLogger.logError('Accept&Pay: failed to parse booking', error: e);
-                  }
-                }
-                if (payment is Map) {
-                  final cs = payment['clientSecret'] ?? payment['client_secret'];
-                  if (cs is String && cs.isNotEmpty) clientSecret = cs;
-                }
-
-                // If the accept didn't include a booking (older backend),
-                // reload bookings and pick the freshly-agreed one for this sitter.
-                if (booking == null) {
-                  await _bookingsController.loadBookings();
-                  try {
-                    booking = _bookingsController.bookings.firstWhere(
-                      (b) =>
-                          b.sitter.id == application.sitter.id &&
-                          (b.status.toLowerCase() == 'agreed' ||
-                              b.status.toLowerCase() == 'accepted' ||
-                              b.status.toLowerCase() == 'confirmed') &&
-                          (b.paymentStatus?.toLowerCase() ?? '') != 'paid',
-                    );
-                  } catch (_) {
-                    booking = null;
-                  }
-                }
-
-                // Fallback: backend didn't prepare a PaymentIntent. Ask it to
-                // create one now so we never force the owner to hunt for a
-                // "Pay" button in the Reservations tab.
-                if (booking != null && (clientSecret == null || clientSecret.isEmpty)) {
-                  try {
-                    final ownerRepository = Get.find<OwnerRepository>();
-                    final piResp = await ownerRepository.createPaymentIntent(
-                      bookingId: booking.id,
-                    );
-                    final cs = piResp['clientSecret'] ?? piResp['client_secret'];
-                    if (cs is String && cs.isNotEmpty) clientSecret = cs;
-                  } catch (e) {
-                    AppLogger.logError('Accept&Pay: createPaymentIntent failed', error: e);
-                  }
-                }
-
-                if (booking != null && clientSecret != null && clientSecret.isNotEmpty) {
-                  final pricing = booking.pricing;
-                  final base = (pricing?.totalPrice
-                      ?? pricing?.resolvedBaseAmount
-                      ?? booking.totalAmount
-                      ?? booking.basePrice) ?? 0.0;
-                  if (!mounted) return;
-                  await Get.to(
-                    () => StripePaymentScreen(
-                      booking: booking!,
-                      totalAmount: base,
-                      currency: pricing?.currency ?? booking.sitter.currency,
-                    ),
-                  );
-                  return;
-                }
-
-                // True last-resort fallback: sitter has no Stripe Connect
-                // configured. Warn clearly and switch to Reservations.
-                if (payment is Map && payment['error'] != null) {
-                  CustomSnackbar.showError(
-                    title: 'payment_unavailable_title'.tr,
-                    message: 'payment_unavailable_message'.tr,
-                  );
-                } else {
-                  CustomSnackbar.showError(
-                    title: 'common_error'.tr,
-                    message: 'payment_unavailable_message'.tr,
-                  );
-                }
-                if (!mounted) return;
-                setState(() {
-                  _selectedTabIndex = 1;
-                });
-              },
-              onReject: () async {
-                await _applicationsController.respondToApplication(
-                  applicationId: application.id,
-                  action: 'reject',
-                );
-              },
+            // ── Type badge above the card ──
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Type label
+                Padding(
+                  padding: EdgeInsets.only(left: 4.w, bottom: 4.h),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                        decoration: BoxDecoration(
+                          color: item.type == 'application'
+                              ? const Color(0xFF1A73E8).withOpacity(0.1)
+                              : AppColors.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        child: InterText(
+                          text: item.type == 'application'
+                              ? 'unified_type_application'.tr
+                              : 'unified_type_booking'.tr,
+                          fontSize: 10.sp,
+                          fontWeight: FontWeight.w600,
+                          color: item.type == 'application'
+                              ? const Color(0xFF1A73E8)
+                              : AppColors.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // The card
+                item.type == 'application'
+                    ? _buildApplicationCard(item.data)
+                    : _buildBookingCard(item.data),
+              ],
             );
           },
         ),
@@ -325,123 +399,195 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
     });
   }
 
-  Widget _buildBookingTab() {
-    return Obx(() {
-      if (_bookingsController.isLoading.value) {
-        return const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
-          ),
-        );
-      }
-
-      if (_bookingsController.bookings.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.all(20.w),
-            child: InterText(
-              text: 'bookings_empty_message'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary(context),
-            ),
-          ),
-        );
-      }
-
-      return RefreshIndicator(
-        color: AppColors.primaryColor,
-        onRefresh: () => _bookingsController.loadBookings(),
-        child: ListView.builder(
-          padding: EdgeInsets.fromLTRB(
-            20.w,
-            16.h,
-            20.w,
-            100.h,
-          ), // Extra bottom padding for navigation bar
-          itemCount: _bookingsController.bookings.length,
-          itemBuilder: (context, index) {
-            final booking = _bookingsController.bookings[index];
-            return ServiceProviderCard(
-              name: booking.sitter.name,
-              phoneNumber: booking.sitter.mobile,
-              email: booking.sitter.email,
-              rating: booking.sitter.rating,
-              status: booking.status,
-              reviewsCount: booking.sitter.reviewsCount,
-              location: booking.sitter.city ?? '',
-              isBlurred: true,
-              pricePerHour: PricingDisplayHelper.serviceProviderCardPriceTail(
-                pricing: booking.pricing,
-                hourlyRate: booking.sitter.hourlyRate,
-              ),
-              currencyCode: booking.sitter.currency,
-              profileImagePath: booking.sitter.avatar.url.isNotEmpty
-                  ? booking.sitter.avatar.url
-                  : null,
-              sitterId: booking.sitter.id,
-              cardType: ServiceProviderCardType.booking,
-              booking: booking,
-              onCancel: () {
-                _showCancelBookingDialog(
-                  context,
-                  booking.id,
-                  booking.sitter.id,
-                );
-              },
-              onPay: () async {
-                // Skip the intermediate "Booking agreement" screen — go
-                // straight to Stripe PaymentSheet. Create the PaymentIntent
-                // on the fly if the booking doesn't already have one.
-                try {
-                  final ownerRepository = Get.find<OwnerRepository>();
-                  final piResp = await ownerRepository.createPaymentIntent(
-                    bookingId: booking.id,
-                  );
-                  final cs = piResp['clientSecret'] ?? piResp['client_secret'];
-                  if (cs is String && cs.isNotEmpty) {
-                    final pricing = booking.pricing;
-                    final base = (pricing?.totalPrice
-                        ?? pricing?.resolvedBaseAmount
-                        ?? booking.totalAmount
-                        ?? booking.basePrice) ?? 0.0;
-                    if (!mounted) return;
-                    await Get.to(
-                      () => StripePaymentScreen(
-                        booking: booking,
-                        totalAmount: base,
-                        currency: pricing?.currency ?? booking.sitter.currency,
-                      ),
-                    );
-                    return;
-                  }
-                } catch (e) {
-                  AppLogger.logError('onPay: createPaymentIntent failed', error: e);
-                }
-                // Fallback — old behaviour if PI creation fails.
-                Get.to(
-                  () => BookingAgreementScreen(
-                    booking: booking,
-                    totalPrice: booking.totalAmount ?? booking.basePrice,
-                  ),
-                );
-              },
-              onStartChat: booking.paymentStatus == 'paid'
-                  ? () async {
-                      await _handleStartChatForBooking(
-                        booking.sitter.id,
-                        booking.sitter.name,
-                        booking.sitter.avatar.url.isNotEmpty
-                            ? booking.sitter.avatar.url
-                            : '',
-                      );
-                    }
-                  : null,
+  Widget _buildApplicationCard(dynamic application) {
+    return ServiceProviderCard(
+      name: application.sitter.name,
+      phoneNumber: application.sitter.mobile,
+      email: application.sitter.email,
+      rating: application.sitter.rating,
+      status: application.status,
+      reviewsCount: application.sitter.reviewsCount,
+      location: application.sitter.city ?? '',
+      pricePerHour: PricingDisplayHelper.serviceProviderCardPriceTail(
+        pricing: application.pricing,
+        hourlyRate: application.sitter.hourlyRate,
+      ),
+      currencyCode: application.sitter.currency,
+      profileImagePath: application.sitter.avatar.url.isNotEmpty
+          ? application.sitter.avatar.url
+          : null,
+      sitterId: application.sitter.id,
+      isBlurred: true,
+      cardType: ServiceProviderCardType.application,
+      onAccept: () async {
+        final response = await _applicationsController
+            .respondToApplicationFull(
+              applicationId: application.id,
+              action: 'accept',
             );
-          },
-        ),
-      );
-    });
+        if (response == null || !mounted) return;
+
+        await _bookingsController.loadBookings();
+
+        BookingModel? booking;
+        String? clientSecret;
+
+        final bookingJson = response['booking'];
+        final payment = response['payment'];
+        if (bookingJson is Map) {
+          try {
+            booking = BookingModel.fromJson(
+              Map<String, dynamic>.from(bookingJson as Map),
+            );
+          } catch (e) {
+            AppLogger.logError('Accept&Pay: failed to parse booking', error: e);
+          }
+        }
+        if (payment is Map) {
+          final cs = payment['clientSecret'] ?? payment['client_secret'];
+          if (cs is String && cs.isNotEmpty) clientSecret = cs;
+        }
+
+        if (booking == null) {
+          await _bookingsController.loadBookings();
+          try {
+            booking = _bookingsController.bookings.firstWhere(
+              (b) =>
+                  b.sitter.id == application.sitter.id &&
+                  (b.status.toLowerCase() == 'agreed' ||
+                      b.status.toLowerCase() == 'accepted' ||
+                      b.status.toLowerCase() == 'confirmed') &&
+                  (b.paymentStatus?.toLowerCase() ?? '') != 'paid',
+            );
+          } catch (_) {
+            booking = null;
+          }
+        }
+
+        if (booking != null && (clientSecret == null || clientSecret.isEmpty)) {
+          try {
+            final ownerRepository = Get.find<OwnerRepository>();
+            final piResp = await ownerRepository.createPaymentIntent(
+              bookingId: booking.id,
+            );
+            final cs = piResp['clientSecret'] ?? piResp['client_secret'];
+            if (cs is String && cs.isNotEmpty) clientSecret = cs;
+          } catch (e) {
+            AppLogger.logError('Accept&Pay: createPaymentIntent failed', error: e);
+          }
+        }
+
+        if (booking != null && clientSecret != null && clientSecret.isNotEmpty) {
+          final pricing = booking.pricing;
+          final base = (pricing?.totalPrice
+              ?? pricing?.resolvedBaseAmount
+              ?? booking.totalAmount
+              ?? booking.basePrice) ?? 0.0;
+          if (!mounted) return;
+          await Get.to(
+            () => StripePaymentScreen(
+              booking: booking!,
+              totalAmount: base,
+              currency: pricing?.currency ?? booking.sitter.currency,
+            ),
+          );
+          return;
+        }
+
+        if (payment is Map && payment['error'] != null) {
+          CustomSnackbar.showError(
+            title: 'payment_unavailable_title'.tr,
+            message: 'payment_unavailable_message'.tr,
+          );
+        } else {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'payment_unavailable_message'.tr,
+          );
+        }
+      },
+      onReject: () async {
+        await _applicationsController.respondToApplication(
+          applicationId: application.id,
+          action: 'reject',
+        );
+      },
+    );
+  }
+
+  Widget _buildBookingCard(BookingModel booking) {
+    return ServiceProviderCard(
+      name: booking.sitter.name,
+      phoneNumber: booking.sitter.mobile,
+      email: booking.sitter.email,
+      rating: booking.sitter.rating,
+      status: booking.status,
+      reviewsCount: booking.sitter.reviewsCount,
+      location: booking.sitter.city ?? '',
+      isBlurred: true,
+      pricePerHour: PricingDisplayHelper.serviceProviderCardPriceTail(
+        pricing: booking.pricing,
+        hourlyRate: booking.sitter.hourlyRate,
+      ),
+      currencyCode: booking.sitter.currency,
+      profileImagePath: booking.sitter.avatar.url.isNotEmpty
+          ? booking.sitter.avatar.url
+          : null,
+      sitterId: booking.sitter.id,
+      cardType: ServiceProviderCardType.booking,
+      booking: booking,
+      onCancel: () {
+        _showCancelBookingDialog(
+          context,
+          booking.id,
+          booking.sitter.id,
+        );
+      },
+      onPay: () async {
+        try {
+          final ownerRepository = Get.find<OwnerRepository>();
+          final piResp = await ownerRepository.createPaymentIntent(
+            bookingId: booking.id,
+          );
+          final cs = piResp['clientSecret'] ?? piResp['client_secret'];
+          if (cs is String && cs.isNotEmpty) {
+            final pricing = booking.pricing;
+            final base = (pricing?.totalPrice
+                ?? pricing?.resolvedBaseAmount
+                ?? booking.totalAmount
+                ?? booking.basePrice) ?? 0.0;
+            if (!mounted) return;
+            await Get.to(
+              () => StripePaymentScreen(
+                booking: booking,
+                totalAmount: base,
+                currency: pricing?.currency ?? booking.sitter.currency,
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          AppLogger.logError('onPay: createPaymentIntent failed', error: e);
+        }
+        Get.to(
+          () => BookingAgreementScreen(
+            booking: booking,
+            totalPrice: booking.totalAmount ?? booking.basePrice,
+          ),
+        );
+      },
+      onStartChat: booking.paymentStatus == 'paid'
+          ? () async {
+              await _handleStartChatForBooking(
+                booking.sitter.id,
+                booking.sitter.name,
+                booking.sitter.avatar.url.isNotEmpty
+                    ? booking.sitter.avatar.url
+                    : '',
+              );
+            }
+          : null,
+    );
   }
 
   void _showCancelBookingDialog(
@@ -469,7 +615,6 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
     String sitterImage,
   ) async {
     try {
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -485,19 +630,14 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
         sitterId: sitterId,
       );
 
-      // Close loading dialog
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      if (mounted) Navigator.pop(context);
 
-      // Extract conversation ID from response
       String? conversationId;
       if (response['conversation'] != null && response['conversation'] is Map) {
         conversationId = response['conversation']['id']?.toString();
       }
 
       if (conversationId != null && conversationId.isNotEmpty) {
-        // Navigate to chat screen
         if (mounted) {
           Get.to(
             () => IndividualChatScreen(
@@ -516,22 +656,13 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
         }
       }
     } on ApiException catch (e) {
-      // Close loading dialog if still open
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      if (mounted) Navigator.pop(context);
       AppLogger.logError('Failed to start conversation', error: e.message);
       if (mounted) {
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: e.message,
-        );
+        CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
       }
     } catch (e) {
-      // Close loading dialog if still open
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      if (mounted) Navigator.pop(context);
       AppLogger.logError('Failed to start conversation', error: e);
       if (mounted) {
         CustomSnackbar.showError(

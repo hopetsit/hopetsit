@@ -159,13 +159,7 @@ class BlockedUsersScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(10.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          )
-        ],
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
         children: [

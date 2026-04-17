@@ -82,13 +82,22 @@ class UserRepository {
     return response;
   }
 
-  /// Switches user role (Owner to Sitter or Sitter to Owner).
-  /// Calls POST /users/switch-role.
-  Future<Map<String, dynamic>> switchRole() async {
+  /// Switches user role between owner / sitter / walker.
+  /// Calls POST /users/switch-role with an optional targetRole body param.
+  /// - If targetRole is omitted, backend falls back to the legacy binary
+  ///   toggle (owner <-> sitter).
+  /// - If targetRole is provided, backend switches to that specific role
+  ///   (required when switching from walker, or when going owner -> walker
+  ///   or sitter -> walker).
+  Future<Map<String, dynamic>> switchRole({String? targetRole}) async {
+    final body = <String, dynamic>{};
+    if (targetRole != null && targetRole.isNotEmpty) {
+      body['targetRole'] = targetRole;
+    }
     final response =
         await _apiClient.post(
               ApiEndpoints.switchRole,
-              body: <String, dynamic>{},
+              body: body,
               requiresAuth: true,
             )
             as Map?;

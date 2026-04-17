@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const Owner = require('../models/Owner');
 const Admin = require('../models/Admin');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const VerificationCode = require('../models/VerificationCode');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 const { generateVerificationCode } = require('../utils/code');
@@ -14,6 +15,10 @@ const logger = require('../utils/logger');
 
 const OWNER_SERVICES = ['Pet Sitting', 'House Sitting', 'Day Care', 'Long Stay'];
 const SITTER_SERVICES = [...OWNER_SERVICES, 'Dog Walking'];
+// Walker services focused on walking variants.
+const WALKER_SERVICES = ['Dog Walking', 'Solo Walk', 'Group Walk', 'Puppy Walk'];
+// Shared list of all valid roles across the platform.
+const VALID_ROLES = ['owner', 'sitter', 'walker'];
 
 const isValidEmail = (value) => {
   if (!value || typeof value !== 'string') return false;
@@ -49,6 +54,10 @@ const findAccountByEmail = async (email) => {
   const sitter = await Sitter.findOne({ email: lower });
   if (sitter) {
     return { role: 'sitter', account: sitter };
+  }
+  const walker = await Walker.findOne({ email: lower });
+  if (walker) {
+    return { role: 'walker', account: walker };
   }
   return null;
 };
@@ -99,8 +108,10 @@ const signup = async (req, res) => {
   try {
     const { role, user } = req.body;
 
-    if (!role || !['owner', 'sitter'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Expected "owner" or "sitter".' });
+    if (!role || !VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        error: `Invalid role. Expected one of: ${VALID_ROLES.map((r) => `"${r}"`).join(', ')}.`,
+      });
     }
 
     if (!user?.email || !user?.password || !user?.name) {
@@ -115,9 +126,11 @@ const signup = async (req, res) => {
       paypalEmailRaw && typeof paypalEmailRaw === 'string' && paypalEmailRaw.trim()
         ? paypalEmailRaw.trim().toLowerCase()
         : '';
+    // Email must be unique across all three roles.
     const existingOwner = await Owner.findOne({ email });
     const existingSitter = await Sitter.findOne({ email });
-    if (existingOwner || existingSitter) {
+    const existingWalker = await Walker.findOne({ email });
+    if (existingOwner || existingSitter || existingWalker) {
       return res.status(409).json({ error: 'User with this email already exists.' });
     }
 
@@ -197,23 +210,90 @@ const signup = async (req, res) => {
       };
     }
 
+    // ── Walker payload (role === 'walker') ────────────────────────────
+    // Walkers share most of the Sitter structure (auth, payout, moderation,
+    // boost) but have their own pricing model (walkRates, per-duration) and
+    // walker-specific fields (acceptedPetTypes, coverageRadiusKm, insurance).
+    const walkerCurrency = sitterCurrency; // same normalization as sitter
+    const walkerPayload = {
+      name: user.name,
+      email,
+      mobile,
+      countryCode,
+      password: user.password,
+      language: user.language || '',
+      address: user.address || '',
+      currency: walkerCurrency,
+      skills: user.skills || '',
+      bio: user.bio || '',
+      acceptedTerms: !!user.acceptedTerms,
+      service: Array.isArray(user.service)
+        ? user.service
+        : user.service
+          ? [user.service]
+          : ['dog_walking'],
+      verified: false,
+      acceptedPetTypes: Array.isArray(user.acceptedPetTypes)
+        ? user.acceptedPetTypes
+        : ['dog_small', 'dog_medium', 'dog_large'],
+      maxPetsPerWalk:
+        Number.isInteger(user.maxPetsPerWalk) && user.maxPetsPerWalk >= 1 && user.maxPetsPerWalk <= 10
+          ? user.maxPetsPerWalk
+          : 1,
+      hasInsurance: !!user.hasInsurance,
+      coverageCity: (user.coverageCity || user.location?.city || '').toString().trim(),
+      coverageRadiusKm:
+        Number.isFinite(Number(user.coverageRadiusKm)) &&
+        Number(user.coverageRadiusKm) >= 1 &&
+        Number(user.coverageRadiusKm) <= 50
+          ? Number(user.coverageRadiusKm)
+          : 3,
+      walkRates: Array.isArray(user.walkRates) ? user.walkRates : [],
+      defaultWalkDurationMinutes:
+        Number.isInteger(user.defaultWalkDurationMinutes) &&
+        user.defaultWalkDurationMinutes >= 15 &&
+        user.defaultWalkDurationMinutes <= 300 &&
+        user.defaultWalkDurationMinutes % 15 === 0
+          ? user.defaultWalkDurationMinutes
+          : 30,
+      feedback: [],
+    };
+    if (paypalEmail) {
+      // paypalEmail was already validated above for sitter payload.
+      walkerPayload.paypalEmail = paypalEmail;
+    }
+    if (location) {
+      walkerPayload.location = {
+        ...location,
+        locationType: user.location?.locationType || 'standard',
+      };
+    }
+
     // Sprint 7 step 3 — referral code & referrer.
     const referralInput = (user.referralCode || user.referredBy || '').toString().toUpperCase().trim();
     const { generateUniqueReferralCode } = require('../utils/referralCode');
-    const newReferralCode = await generateUniqueReferralCode({ Owner, Sitter }).catch(() => null);
+    // Extend referral uniqueness check to include Walker model.
+    const newReferralCode = await generateUniqueReferralCode({ Owner, Sitter, Walker }).catch(() => null);
     if (role === 'owner') {
       if (newReferralCode) ownerPayload.referralCode = newReferralCode;
       if (referralInput) ownerPayload.referredBy = referralInput;
-    } else {
+    } else if (role === 'sitter') {
       if (newReferralCode) sitterPayload.referralCode = newReferralCode;
       if (referralInput) sitterPayload.referredBy = referralInput;
+    } else {
+      // walker
+      if (newReferralCode) walkerPayload.referralCode = newReferralCode;
+      if (referralInput) walkerPayload.referredBy = referralInput;
     }
 
     let newUser;
     if (role === 'owner') {
       newUser = await Owner.create(ownerPayload);
-    } else {
+    } else if (role === 'sitter') {
       newUser = await Sitter.create(sitterPayload);
+    } else {
+      // walker
+      newUser = await Walker.create(walkerPayload);
     }
 
     // Sprint 7 step 3 — record pending Referral if a valid code was provided.
@@ -421,8 +501,13 @@ const googleAuth = async (req, res) => {
       }
 
       if (Object.keys(updateOps).length > 0) {
-        const Model = result.role === 'owner' ? Owner : Sitter;
-        await Model.updateOne({ _id: account._id }, updateOps);
+        // Pick the right collection based on the existing user's role.
+        const RoleModel = {
+          owner: Owner,
+          sitter: Sitter,
+          walker: Walker,
+        }[result.role] || Sitter;
+        await RoleModel.updateOne({ _id: account._id }, updateOps);
 
         // Reflect updates in memory for response
         if (updates.firebaseUid) {
@@ -453,9 +538,9 @@ const googleAuth = async (req, res) => {
     }
 
     // New user creation requires a role so we know which collection to use.
-    if (!role || !['owner', 'sitter'].includes(role)) {
+    if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({
-        error: 'Role is required for new Google users and must be "owner" or "sitter".',
+        error: `Role is required for new Google users and must be one of: ${VALID_ROLES.map((r) => `"${r}"`).join(', ')}.`,
       });
     }
 
@@ -495,7 +580,7 @@ const googleAuth = async (req, res) => {
     let newUser;
     if (role === 'owner') {
       newUser = await Owner.create(baseFields);
-    } else {
+    } else if (role === 'sitter') {
       const paypalEmailRaw = user?.paypalEmail;
       const paypalEmail =
         paypalEmailRaw && typeof paypalEmailRaw === 'string' && paypalEmailRaw.trim()
@@ -534,6 +619,56 @@ const googleAuth = async (req, res) => {
         };
       }
       newUser = await Sitter.create(sitterFields);
+    } else {
+      // walker
+      const paypalEmailRaw = user?.paypalEmail;
+      const paypalEmail =
+        paypalEmailRaw && typeof paypalEmailRaw === 'string' && paypalEmailRaw.trim()
+          ? paypalEmailRaw.trim().toLowerCase()
+          : '';
+      if (paypalEmail && !isValidEmail(paypalEmail)) {
+        return res.status(400).json({ error: 'paypalEmail must be a valid email address.' });
+      }
+      const walkerFields = {
+        ...baseFields,
+        service: Array.isArray(user?.service) && user.service.length ? user.service : ['dog_walking'],
+        skills: '',
+        bio: '',
+        acceptedPetTypes: Array.isArray(user?.acceptedPetTypes)
+          ? user.acceptedPetTypes
+          : ['dog_small', 'dog_medium', 'dog_large'],
+        maxPetsPerWalk:
+          Number.isInteger(user?.maxPetsPerWalk) && user.maxPetsPerWalk >= 1 && user.maxPetsPerWalk <= 10
+            ? user.maxPetsPerWalk
+            : 1,
+        hasInsurance: !!user?.hasInsurance,
+        coverageCity: (user?.coverageCity || user?.location?.city || '').toString().trim(),
+        coverageRadiusKm:
+          Number.isFinite(Number(user?.coverageRadiusKm)) &&
+          Number(user?.coverageRadiusKm) >= 1 &&
+          Number(user?.coverageRadiusKm) <= 50
+            ? Number(user.coverageRadiusKm)
+            : 3,
+        walkRates: Array.isArray(user?.walkRates) ? user.walkRates : [],
+        defaultWalkDurationMinutes:
+          Number.isInteger(user?.defaultWalkDurationMinutes) &&
+          user.defaultWalkDurationMinutes >= 15 &&
+          user.defaultWalkDurationMinutes <= 300 &&
+          user.defaultWalkDurationMinutes % 15 === 0
+            ? user.defaultWalkDurationMinutes
+            : 30,
+        rating: 0,
+        reviewsCount: 0,
+        feedback: [],
+        ...(paypalEmail ? { paypalEmail } : {}),
+      };
+      if (location) {
+        walkerFields.location = {
+          ...location,
+          locationType: user?.location?.locationType || 'standard',
+        };
+      }
+      newUser = await Walker.create(walkerFields);
     }
 
     const token = signAuthToken({ id: newUser._id.toString(), role });
@@ -652,8 +787,13 @@ const appleAuth = async (req, res) => {
       }
 
       if (Object.keys(updateOps).length > 0) {
-        const Model = result.role === 'owner' ? Owner : Sitter;
-        await Model.updateOne({ _id: account._id }, updateOps);
+        // Pick the right collection based on the existing user's role (3-role aware).
+        const RoleModel = {
+          owner: Owner,
+          sitter: Sitter,
+          walker: Walker,
+        }[result.role] || Sitter;
+        await RoleModel.updateOne({ _id: account._id }, updateOps);
 
         // Reflect updates in memory for response
         if (updates.firebaseUid) {
@@ -684,9 +824,9 @@ const appleAuth = async (req, res) => {
     }
 
     // New user creation requires a role so we know which collection to use.
-    if (!role || !['owner', 'sitter'].includes(role)) {
+    if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({
-        error: 'Role is required for new Apple users and must be "owner" or "sitter".',
+        error: `Role is required for new Apple users and must be one of: ${VALID_ROLES.map((r) => `"${r}"`).join(', ')}.`,
       });
     }
 
@@ -728,7 +868,7 @@ const appleAuth = async (req, res) => {
     let newUser;
     if (role === 'owner') {
       newUser = await Owner.create(baseFields);
-    } else {
+    } else if (role === 'sitter') {
       const paypalEmailRaw = user?.paypalEmail;
       const paypalEmail =
         paypalEmailRaw && typeof paypalEmailRaw === 'string' && paypalEmailRaw.trim()
@@ -767,6 +907,56 @@ const appleAuth = async (req, res) => {
         };
       }
       newUser = await Sitter.create(sitterFields);
+    } else {
+      // walker
+      const paypalEmailRaw = user?.paypalEmail;
+      const paypalEmail =
+        paypalEmailRaw && typeof paypalEmailRaw === 'string' && paypalEmailRaw.trim()
+          ? paypalEmailRaw.trim().toLowerCase()
+          : '';
+      if (paypalEmail && !isValidEmail(paypalEmail)) {
+        return res.status(400).json({ error: 'paypalEmail must be a valid email address.' });
+      }
+      const walkerFields = {
+        ...baseFields,
+        service: Array.isArray(user?.service) && user.service.length ? user.service : ['dog_walking'],
+        skills: '',
+        bio: '',
+        acceptedPetTypes: Array.isArray(user?.acceptedPetTypes)
+          ? user.acceptedPetTypes
+          : ['dog_small', 'dog_medium', 'dog_large'],
+        maxPetsPerWalk:
+          Number.isInteger(user?.maxPetsPerWalk) && user.maxPetsPerWalk >= 1 && user.maxPetsPerWalk <= 10
+            ? user.maxPetsPerWalk
+            : 1,
+        hasInsurance: !!user?.hasInsurance,
+        coverageCity: (user?.coverageCity || user?.location?.city || '').toString().trim(),
+        coverageRadiusKm:
+          Number.isFinite(Number(user?.coverageRadiusKm)) &&
+          Number(user?.coverageRadiusKm) >= 1 &&
+          Number(user?.coverageRadiusKm) <= 50
+            ? Number(user.coverageRadiusKm)
+            : 3,
+        walkRates: Array.isArray(user?.walkRates) ? user.walkRates : [],
+        defaultWalkDurationMinutes:
+          Number.isInteger(user?.defaultWalkDurationMinutes) &&
+          user.defaultWalkDurationMinutes >= 15 &&
+          user.defaultWalkDurationMinutes <= 300 &&
+          user.defaultWalkDurationMinutes % 15 === 0
+            ? user.defaultWalkDurationMinutes
+            : 30,
+        rating: 0,
+        reviewsCount: 0,
+        feedback: [],
+        ...(paypalEmail ? { paypalEmail } : {}),
+      };
+      if (location) {
+        walkerFields.location = {
+          ...location,
+          locationType: user?.location?.locationType || 'standard',
+        };
+      }
+      newUser = await Walker.create(walkerFields);
     }
 
     const token = signAuthToken({ id: newUser._id.toString(), role });
@@ -1045,7 +1235,8 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ error: 'Passwords do not match.' });
     }
 
-    const Model = role === 'sitter' ? Sitter : Owner;
+    // 3-role aware model dispatch.
+    const Model = { owner: Owner, sitter: Sitter, walker: Walker }[role] || Owner;
     const account = await Model.findById(userId);
 
     if (!account) {

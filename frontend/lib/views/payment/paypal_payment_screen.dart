@@ -37,17 +37,19 @@ class PayPalPaymentScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: const BackButton(),
         title: PoppinsText(
           text: 'payment_method_paypal'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -62,8 +64,9 @@ class PayPalPaymentScreen extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.all(20.w),
                       decoration: BoxDecoration(
-                        color: AppColors.whiteColor,
-                        borderRadius: BorderRadius.circular(12.r),
+                        color: AppColors.card(context),
+                        borderRadius: BorderRadius.circular(16.r),
+                        boxShadow: AppColors.cardShadow(context),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,7 +75,7 @@ class PayPalPaymentScreen extends StatelessWidget {
                             text: 'payment_amount_label'.tr,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.grey700Color,
+                            color: AppColors.textSecondary(context),
                           ),
                           SizedBox(height: 8.h),
                           PoppinsText(
@@ -106,7 +109,7 @@ class PayPalPaymentScreen extends StatelessWidget {
                             child: InterText(
                               text: 'payment_paypal_info'.tr,
                               fontSize: 14.sp,
-                              color: AppColors.grey700Color,
+                              color: AppColors.textSecondary(context),
                               fontWeight: FontWeight.w400,
                             ),
                           ),

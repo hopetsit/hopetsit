@@ -47,13 +47,13 @@ class SignUpScreen extends StatelessWidget {
           );
 
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         automaticallyImplyLeading: true,
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
+        backgroundColor: AppColors.appBar(context),
         leading: BackButton(
           color: AppColors.textPrimary(context),
           onPressed: () => Get.back(),
@@ -61,7 +61,9 @@ class SignUpScreen extends StatelessWidget {
         title: PoppinsText(
           text: userType == 'pet_owner'
               ? 'sign_up_as_pet_owner'.tr
-              : 'sign_up_as_pet_sitter'.tr,
+              : userType == 'pet_walker'
+                  ? 'sign_up_as_pet_walker'.tr
+                  : 'sign_up_as_pet_sitter'.tr,
           fontSize: 20,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
@@ -265,7 +267,7 @@ class SignUpScreen extends StatelessWidget {
 
                           Get.defaultDialog(
                             title: 'language_dialog_title'.tr,
-                            backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceDark : AppColors.whiteColor,
+                            backgroundColor: AppColors.scaffold(context),
                             content: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: entries.map((entry) {
@@ -526,11 +528,15 @@ class SignUpScreen extends StatelessWidget {
                                       authController.isSocialLoginLoading.value
                                   ? null
                                   : () {
-                                      // Map userType to API role format
-                                      // 'pet_owner' -> 'owner', 'pet_sitter' -> 'sitter'
+                                      // Map userType to API role format.
+                                      // 'pet_owner'  -> 'owner'
+                                      // 'pet_sitter' -> 'sitter'
+                                      // 'pet_walker' -> 'walker'
                                       final role = userType == 'pet_owner'
                                           ? 'owner'
-                                          : 'sitter';
+                                          : userType == 'pet_walker'
+                                              ? 'walker'
+                                              : 'sitter';
                                       authController.loginWithGoogle(
                                         role: role,
                                       );
@@ -576,7 +582,9 @@ class SignUpScreen extends StatelessWidget {
                                     : () {
                                         final role = userType == 'pet_owner'
                                             ? 'owner'
-                                            : 'sitter';
+                                            : userType == 'pet_walker'
+                                                ? 'walker'
+                                                : 'sitter';
                                         Get.find<AuthController>()
                                             .loginWithApple(role: role);
                                       },
