@@ -18,6 +18,7 @@ const Owner = require('../models/Owner');
 const { createPlatformPaymentIntent } = require('../services/stripeService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
+const pricingService = require('../services/pricingService');
 
 const router = express.Router();
 
@@ -30,22 +31,35 @@ const BOOST_PACKAGES = {
   platinum: { days: 30, label: '1 month' },
 };
 
+// Phase-1 price cut (session avril 2026) — previous prices (25/50/100/200 EUR)
+// were too aggressive and killed conversion. Lowered to a .99 psychological
+// range to make the boost much more attractive. Phase 2 will move these into
+// DB-backed PricingConfig so admin can tweak from the dashboard without code
+// changes; these values remain as fallback defaults.
 const BOOST_PRICING = {
-  EUR: { bronze: 25,  silver: 50,  gold: 100, platinum: 200 },
-  GBP: { bronze: 22,  silver: 44,  gold: 89,  platinum: 179 },
-  CHF: { bronze: 25,  silver: 49,  gold: 99,  platinum: 199 },
-  USD: { bronze: 27,  silver: 54,  gold: 109, platinum: 219 },
+  EUR: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
+  GBP: { bronze: 4.39,  silver: 8.79,  gold: 13.29, platinum: 21.99 },
+  CHF: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
+  USD: { bronze: 5.49,  silver: 10.99, gold: 16.49, platinum: 27.49 },
 };
 
 function getBoostPricing(tier, currency = 'EUR') {
   const pkg = BOOST_PACKAGES[tier];
   if (!pkg) return null;
   const upper = String(currency || 'EUR').toUpperCase();
-  const row = BOOST_PRICING[upper] || BOOST_PRICING.EUR;
+  // Pull live prices from pricingService (DB-backed, admin-editable). The
+  // hardcoded BOOST_PRICING constant above is now just a last-resort fallback
+  // if the service somehow has no row for this currency.
+  const servicePricing = pricingService.get('boost') || {};
+  const row =
+    servicePricing[upper] ||
+    servicePricing.EUR ||
+    BOOST_PRICING[upper] ||
+    BOOST_PRICING.EUR;
   return {
     tier,
     amount: row[tier],
-    currency: BOOST_PRICING[upper] ? upper : 'EUR',
+    currency: servicePricing[upper] || BOOST_PRICING[upper] ? upper : 'EUR',
     days: pkg.days,
     label: pkg.label,
   };
@@ -55,10 +69,13 @@ function getBoostPricing(tier, currency = 'EUR') {
 router.get('/packages', (req, res) => {
   const currency = normalizeCurrency(req.query.currency);
   const packages = Object.keys(BOOST_PACKAGES).map((tier) => getBoostPricing(tier, currency));
+  const servicePricing = pricingService.get('boost');
   res.json({
     packages,
     currency,
-    supportedCurrencies: Object.keys(BOOST_PRICING),
+    supportedCurrencies: servicePricing
+      ? Object.keys(servicePricing)
+      : Object.keys(BOOST_PRICING),
   });
 });
 

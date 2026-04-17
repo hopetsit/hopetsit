@@ -21,6 +21,8 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/views/map/pets_map_screen.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
@@ -411,6 +413,12 @@ class SitterProfileScreen extends StatelessWidget {
         // ),
         // Sprint 7 step 2 — Top Sitter progress card.
         const TopSitterCard(),
+        // Carte — menu qui réunit Ma map classique + PawMap.
+        _buildSettingsTile(
+          'Carte',
+          Icons.map_rounded,
+          () => _showMapMenu(),
+        ),
         // Sprint 7 step 3 — referrals tile.
         _buildSettingsTile(
           'referrals_title'.tr,
@@ -533,6 +541,142 @@ class SitterProfileScreen extends StatelessWidget {
             Icon(Icons.arrow_forward_ios, size: 14.sp, color: AppColors.textSecondary(context)),
           ],
         ),
+        ),
+      ),
+    );
+  }
+
+  /// Carte menu — bottom sheet exposing both map experiences for sitters.
+  /// Mirrors the owner profile's map menu but uses the sitter blue accent.
+  void _showMapMenu() {
+    const sitterAccent = Color(0xFF1A73E8);
+    Get.bottomSheet(
+      Builder(
+        builder: (context) => Container(
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24.r),
+              topRight: Radius.circular(24.r),
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 28.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 16.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.divider(context),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              PoppinsText(
+                text: 'Choisis ta carte',
+                fontSize: 17.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+              SizedBox(height: 4.h),
+              InterText(
+                text: 'Deux vues disponibles — l\'une pour tes clients, l\'autre pour explorer les alentours.',
+                fontSize: 12.sp,
+                color: AppColors.textSecondary(context),
+              ),
+              SizedBox(height: 16.h),
+              _mapMenuOption(
+                context,
+                accent: sitterAccent,
+                icon: Icons.pets_rounded,
+                title: 'Ma map classique',
+                subtitle: 'Owners & animaux à proximité',
+                onTap: () {
+                  Get.back();
+                  Get.to(() => const PetsMapScreen());
+                },
+              ),
+              SizedBox(height: 10.h),
+              _mapMenuOption(
+                context,
+                accent: sitterAccent,
+                icon: Icons.explore_rounded,
+                title: 'PawMap',
+                subtitle: 'POIs, reports 48h, amis en live',
+                onTap: () {
+                  Get.back();
+                  Get.to(() => const PawMapScreen());
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: false,
+    );
+  }
+
+  Widget _mapMenuOption(
+    BuildContext context, {
+    required Color accent,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+        decoration: BoxDecoration(
+          color: accent.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: accent.withOpacity(0.18),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38.w,
+              height: 38.w,
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Icon(icon, size: 18.sp, color: accent),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PoppinsText(
+                    text: title,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary(context),
+                  ),
+                  SizedBox(height: 2.h),
+                  InterText(
+                    text: subtitle,
+                    fontSize: 11.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 13.sp,
+              color: AppColors.textSecondary(context),
+            ),
+          ],
         ),
       ),
     );

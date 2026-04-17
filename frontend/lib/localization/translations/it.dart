@@ -953,6 +953,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'publish_request_service_daycare': 'Asilo diurno',
       'publish_request_service_pet_sitting': 'Pet sitting',
       'publish_request_service_house_sitting': 'House sitting',
+      'publish_request_city_label': 'Posizione',
       'house_sitting_venue_label': 'Luogo del house sitting',
       'house_sitting_venue_owners_home': 'A casa del proprietario',
       'house_sitting_venue_sitters_home': 'A casa del pet sitter',

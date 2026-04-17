@@ -973,6 +973,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'publish_request_notes_label': 'Notas adicionales',
       'publish_request_notes_hint':
           'Cualquier cosa que el cuidador deba saber...',
+      'publish_request_city_label': 'Ubicación',
       'publish_request_address_label': 'Dirección (opcional)',
       'publish_request_address_hint': 'Calle, edificio, etc.',
       'publish_request_images_label': 'Imágenes',

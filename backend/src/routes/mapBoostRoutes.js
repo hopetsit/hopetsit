@@ -22,6 +22,7 @@ const { createPlatformPaymentIntent } = require('../services/stripeService');
 const UserSubscription = require('../models/UserSubscription');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
+const pricingService = require('../services/pricingService');
 
 const router = express.Router();
 
@@ -32,22 +33,34 @@ const MAP_BOOST_PACKAGES = {
   platinum: { days: 30, label: '1 month' },
 };
 
+// Phase-1 price cut (session avril 2026) — original prices (15/30/60/120 EUR)
+// were priced like profile boost, but map-pin highlight has a narrower value
+// prop. Lowered aggressively to a .99 psychological range so early adopters
+// actually try it. Phase 2 will move these into DB-backed PricingConfig.
 const MAP_BOOST_PRICING = {
-  EUR: { bronze: 15, silver: 30, gold: 60, platinum: 120 },
-  GBP: { bronze: 13, silver: 26, gold: 53, platinum: 105 },
-  CHF: { bronze: 15, silver: 29, gold: 59, platinum: 119 },
-  USD: { bronze: 16, silver: 32, gold: 65, platinum: 129 },
+  EUR: { bronze: 2.99, silver: 5.99,  gold: 9.99,  platinum: 14.99 },
+  GBP: { bronze: 2.59, silver: 5.29,  gold: 8.79,  platinum: 12.99 },
+  CHF: { bronze: 2.99, silver: 5.99,  gold: 9.99,  platinum: 14.99 },
+  USD: { bronze: 3.29, silver: 6.59,  gold: 10.99, platinum: 16.49 },
 };
 
 function getMapBoostPricing(tier, currency = 'EUR') {
   const pkg = MAP_BOOST_PACKAGES[tier];
   if (!pkg) return null;
   const upper = String(currency || 'EUR').toUpperCase();
-  const row = MAP_BOOST_PRICING[upper] || MAP_BOOST_PRICING.EUR;
+  // Live prices via pricingService (DB-backed); MAP_BOOST_PRICING stays as
+  // a compile-time fallback if the service is not initialized yet.
+  const servicePricing = pricingService.get('mapBoost') || {};
+  const row =
+    servicePricing[upper] ||
+    servicePricing.EUR ||
+    MAP_BOOST_PRICING[upper] ||
+    MAP_BOOST_PRICING.EUR;
   return {
     tier,
     amount: row[tier],
-    currency: MAP_BOOST_PRICING[upper] ? upper : 'EUR',
+    currency:
+      servicePricing[upper] || MAP_BOOST_PRICING[upper] ? upper : 'EUR',
     days: pkg.days,
     label: pkg.label,
   };
@@ -71,10 +84,13 @@ router.get('/packages', (req, res) => {
   const packages = Object.keys(MAP_BOOST_PACKAGES).map((tier) =>
     getMapBoostPricing(tier, currency),
   );
+  const servicePricing = pricingService.get('mapBoost');
   res.json({
     packages,
     currency,
-    supportedCurrencies: Object.keys(MAP_BOOST_PRICING),
+    supportedCurrencies: servicePricing
+      ? Object.keys(servicePricing)
+      : Object.keys(MAP_BOOST_PRICING),
   });
 });
 

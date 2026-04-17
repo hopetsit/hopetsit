@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
-import 'package:hopetsit/views/map/pets_map_screen.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking-application/sitter_application_screen.dart';
 import 'package:hopetsit/views/pet_walker/home/walker_homescreen.dart';
@@ -35,7 +35,7 @@ class _WalkerNavWrapperState extends State<WalkerNavWrapper> {
   final List<Widget> _screens = const [
     WalkerHomescreen(), // 0 — Home
     SitterChatScreen(), // 1 — Chat (shared)
-    PetsMapScreen(), // 2 — Map (shared)
+    PawMapScreen(), // 2 — PawMap (shared) — POIs + Reports 48h + Amis live
     SitterApplicationScreen(), // 3 — Bookings (shared; to be forked later)
     WalkerProfileScreen(), // 4 — Profile
   ];

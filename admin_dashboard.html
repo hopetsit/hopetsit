@@ -215,6 +215,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> Terms &amp; Conditions</div>
       <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> Reports</div>
       <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Boosts</div>
+      <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> Pricing</div>
     </nav>
 
     <!-- PAGES -->
@@ -489,6 +490,24 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </div>
         </div>
         <div id="boosts-pagination" class="pagination"></div>
+      </div>
+
+      <!-- PRICING -->
+      <div id="page-pricing" class="page">
+        <div class="section-title">💶 Shop Pricing</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
+          Edit the live price grid for Boost, Map Boost, and Premium subscriptions across the 4 supported currencies.
+          Changes take effect immediately in the mobile app — no server restart required.
+          Use "Reset defaults" to restore the baseline values from code.
+        </p>
+        <div id="pricing-editor">
+          <div class="loading"><div class="spinner"></div> Loading pricing…</div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap">
+          <button class="action-btn btn-primary" onclick="savePricing()" id="pricing-save-btn">💾 Save changes</button>
+          <button class="action-btn" onclick="loadPricing()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Reload</button>
+          <button class="action-btn" onclick="resetPricing()" style="background:var(--surface2);color:var(--red);border:1px solid var(--red)">↺ Reset defaults</button>
+        </div>
       </div>
 
     </div>
@@ -786,6 +805,120 @@ function showPage(name) {
   if (name === 'terms') initTermsPage();
   if (name === 'reports') initReportsPage();
   if (name === 'boosts') loadBoosts();
+  if (name === 'pricing') loadPricing();
+}
+
+// ── PRICING ──────────────────────────────────────────────────────────────────
+// Editable grid backed by /admin/pricing (GET/PATCH/reset). Same shape the
+// service returns: { pricing: {boost, mapBoost, premium}, defaults, currencies }.
+let _pricingState = null;          // current server snapshot + local edits
+const PRICING_CATS = [
+  { key: 'boost',    label: '🚀 Boost',     tiers: ['bronze','silver','gold','platinum'] },
+  { key: 'mapBoost', label: '🗺️ Map Boost', tiers: ['bronze','silver','gold','platinum'] },
+  { key: 'premium',  label: '⭐ Premium',    tiers: ['monthly','yearly'] },
+];
+
+async function loadPricing() {
+  const editor = document.getElementById('pricing-editor');
+  editor.innerHTML = '<div class="loading"><div class="spinner"></div> Loading pricing…</div>';
+  try {
+    const data = await api('/admin/pricing');
+    _pricingState = JSON.parse(JSON.stringify(data));
+    renderPricing();
+  } catch (e) {
+    editor.innerHTML = `<div style="color:var(--red);padding:16px">Error loading pricing: ${e.message}</div>`;
+  }
+}
+
+function renderPricing() {
+  const editor = document.getElementById('pricing-editor');
+  const currencies = _pricingState.currencies || ['EUR','GBP','CHF','USD'];
+  const pricing = _pricingState.pricing;
+
+  const cards = PRICING_CATS.map((cat) => {
+    const rows = cat.tiers.map((tier) => {
+      const cells = currencies.map((cur) => {
+        const val = (pricing[cat.key] && pricing[cat.key][cur] && pricing[cat.key][cur][tier]) ?? '';
+        return `
+          <td style="padding:8px">
+            <input type="number" step="0.01" min="0"
+              class="pricing-input"
+              data-cat="${cat.key}" data-cur="${cur}" data-tier="${tier}"
+              value="${val}"
+              style="width:90px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;text-align:right"
+              onchange="onPricingEdit(this)"
+            />
+          </td>`;
+      }).join('');
+      return `
+        <tr>
+          <td style="padding:8px;color:var(--text-muted);font-size:13px;text-transform:capitalize">${tier}</td>
+          ${cells}
+        </tr>`;
+    }).join('');
+
+    const headerCells = currencies.map((c) => `<th style="padding:8px;color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:right">${c}</th>`).join('');
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:14px">${cat.label}</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="padding:8px;color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:left">TIER</th>
+              ${headerCells}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  editor.innerHTML = cards;
+}
+
+function onPricingEdit(input) {
+  const cat = input.dataset.cat;
+  const cur = input.dataset.cur;
+  const tier = input.dataset.tier;
+  const raw = input.value;
+  const num = raw === '' ? 0 : parseFloat(raw);
+  if (Number.isNaN(num) || num < 0) {
+    input.style.borderColor = 'var(--red)';
+    return;
+  }
+  input.style.borderColor = 'var(--border)';
+  _pricingState.pricing[cat] = _pricingState.pricing[cat] || {};
+  _pricingState.pricing[cat][cur] = _pricingState.pricing[cat][cur] || {};
+  _pricingState.pricing[cat][cur][tier] = num;
+}
+
+async function savePricing() {
+  const btn = document.getElementById('pricing-save-btn');
+  const prev = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Saving…';
+  try {
+    const res = await api('/admin/pricing', 'PATCH', _pricingState.pricing);
+    _pricingState.pricing = res.pricing || _pricingState.pricing;
+    showToast('✅ Pricing updated. Mobile app sees new prices immediately.');
+  } catch (e) {
+    showToast('❌ ' + (e.message || 'Save failed'));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = prev;
+  }
+}
+
+async function resetPricing() {
+  if (!confirm('Reset all prices to hardcoded defaults? Your custom values will be lost.')) return;
+  try {
+    const res = await api('/admin/pricing/reset', 'POST', {});
+    _pricingState.pricing = res.pricing;
+    renderPricing();
+    showToast('↺ Pricing reset to defaults.');
+  } catch (e) {
+    showToast('❌ ' + (e.message || 'Reset failed'));
+  }
 }
 
 // ── REPORTS ──────────────────────────────────────────────────────────────────

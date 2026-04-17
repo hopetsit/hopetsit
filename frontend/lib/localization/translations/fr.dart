@@ -977,6 +977,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'publish_request_select_pets_title': 'Sélectionner des animaux',
       'publish_request_notes_label': 'Notes supplémentaires',
       'publish_request_notes_hint': 'Tout ce que le pet sitter doit savoir...',
+      'publish_request_city_label': 'Localisation',
       'publish_request_address_label': 'Adresse (optionnelle)',
       'publish_request_address_hint': 'Rue, bâtiment, etc.',
       'publish_request_images_label': 'Images',

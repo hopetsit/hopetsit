@@ -200,7 +200,11 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       }
     } catch (e) {
       String errorMsg = e.toString();
-      if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html')) {
+      if (errorMsg.contains('StripeConfigException') ||
+          errorMsg.contains('Stripe has not been correctly initialized')) {
+        errorMsg =
+            'Erreur de configuration Stripe. Ferme et relance l\'application, puis réessaie.';
+      } else if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html')) {
         errorMsg = 'boost_service_unavailable'.tr;
       } else if (errorMsg.contains('404')) {
         errorMsg = 'boost_service_unavailable'.tr;
@@ -992,7 +996,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     } catch (e) {
       if (!mounted) return;
       String msg = e.toString();
-      if (msg.contains('<!DOCTYPE') || msg.contains('<html')) {
+      if (msg.contains('StripeConfigException') ||
+          msg.contains('Stripe has not been correctly initialized')) {
+        msg =
+            'Erreur de configuration Stripe. Ferme et relance l\'application, puis réessaie.';
+      } else if (msg.contains('<!DOCTYPE') || msg.contains('<html')) {
         msg = 'Service indisponible.';
       }
       CustomSnackbar.showError(title: 'common_error'.tr, message: msg);
@@ -1470,9 +1478,17 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
       );
     } catch (e) {
       if (!mounted) return;
+      String msg = e.toString();
+      if (msg.contains('StripeConfigException') ||
+          msg.contains('Stripe has not been correctly initialized')) {
+        msg =
+            'Erreur de configuration Stripe. Ferme et relance l\'application, puis réessaie.';
+      } else if (msg.contains('<!DOCTYPE') || msg.contains('<html')) {
+        msg = 'Service indisponible.';
+      }
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: e.toString(),
+        message: msg,
       );
     }
   }

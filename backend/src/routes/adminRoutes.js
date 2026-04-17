@@ -7,6 +7,7 @@ const Owner = require('../models/Owner');
 const Pet = require('../models/Pet');
 const { decrypt } = require('../utils/encryption');
 const { sendTestEmail } = require('../services/emailService');
+const pricingService = require('../services/pricingService');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -1117,6 +1118,67 @@ router.post('/map-reports/:id/restore', requireAdmin, async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     logger.error('[admin/map-reports/restore]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  PRICING — shop price grid (Boost / Map Boost / Premium) x 4 currencies
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /admin/pricing — returns the current pricing grid used by the shop.
+ * Shape:
+ *   {
+ *     pricing: {
+ *       boost:    { EUR: {bronze,silver,gold,platinum}, GBP: {...}, CHF: {...}, USD: {...} },
+ *       mapBoost: { same shape },
+ *       premium:  { EUR: {monthly,yearly}, GBP: {...}, CHF: {...}, USD: {...} }
+ *     },
+ *     defaults: { same shape },          // what "Reset" would restore to
+ *     currencies: ['EUR','GBP','CHF','USD']
+ *   }
+ */
+router.get('/pricing', requireAdmin, (req, res) => {
+  try {
+    res.json({
+      pricing: pricingService.getAll(),
+      defaults: pricingService.DEFAULTS,
+      currencies: pricingService.CURRENCIES,
+    });
+  } catch (e) {
+    logger.error('[admin/pricing:get]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * PATCH /admin/pricing — partial update of the pricing grid.
+ * Accepts the same shape as GET.pricing; only provided keys are updated.
+ * Example body:
+ *   { "boost": { "EUR": { "bronze": 5.99 } } }
+ */
+router.patch('/pricing', requireAdmin, async (req, res) => {
+  try {
+    const patch = req.body || {};
+    const updated = await pricingService.update(patch);
+    res.json({ ok: true, pricing: updated });
+  } catch (e) {
+    logger.warn('[admin/pricing:patch]', e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+/**
+ * POST /admin/pricing/reset — wipes any admin customizations and restores the
+ * hardcoded defaults. Useful if the grid gets fat-fingered.
+ */
+router.post('/pricing/reset', requireAdmin, async (req, res) => {
+  try {
+    const restored = await pricingService.resetToDefaults();
+    res.json({ ok: true, pricing: restored });
+  } catch (e) {
+    logger.error('[admin/pricing:reset]', e);
     res.status(500).json({ error: e.message });
   }
 });

@@ -968,6 +968,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'publish_request_select_pets_title': 'Haustiere auswählen',
       'publish_request_notes_label': 'Zusätzliche Hinweise',
       'publish_request_notes_hint': 'Alles, was der Sitter wissen sollte...',
+      'publish_request_city_label': 'Standort',
       'publish_request_address_label': 'Adresse (optional)',
       'publish_request_address_hint': 'Straße, Gebäude usw.',
       'publish_request_images_label': 'Bilder',

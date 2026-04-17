@@ -1,4 +1,16 @@
 const mongoose = require('mongoose');
+// Lazy-required inside getPlanPricing to avoid circular dependencies — this
+// model is imported by pricingService's transitive dependencies at boot.
+let pricingService = null;
+function loadPricingService() {
+  if (pricingService) return pricingService;
+  try {
+    pricingService = require('../services/pricingService');
+  } catch (e) {
+    pricingService = null;
+  }
+  return pricingService;
+}
 
 /**
  * UserSubscription — Tracks Premium subscription for Owners / Sitters / Walkers.
@@ -30,15 +42,27 @@ const PREMIUM_PRICING = {
   USD: { monthly: 4.29, yearly: 32.99 },
 };
 
-/** Returns { amount, currency, intervalDays, label } for a (plan, currency) pair. */
+/** Returns { amount, currency, intervalDays, label } for a (plan, currency) pair.
+ *
+ * Resolves the amount via pricingService first (DB-backed, editable from
+ * admin), then falls back to the hardcoded PREMIUM_PRICING above if the
+ * service is not initialized or doesn't have the row.
+ */
 function getPlanPricing(plan, currency = 'EUR') {
   const interval = PREMIUM_PLAN_INTERVALS[plan];
   if (!interval) return null;
   const upper = String(currency || 'EUR').toUpperCase();
-  const currencyRow = PREMIUM_PRICING[upper] || PREMIUM_PRICING.EUR;
+  const svc = loadPricingService();
+  const servicePricing = svc && svc.get ? svc.get('premium') || {} : {};
+  const currencyRow =
+    servicePricing[upper] ||
+    servicePricing.EUR ||
+    PREMIUM_PRICING[upper] ||
+    PREMIUM_PRICING.EUR;
   return {
     amount: currencyRow[plan],
-    currency: PREMIUM_PRICING[upper] ? upper : 'EUR',
+    currency:
+      servicePricing[upper] || PREMIUM_PRICING[upper] ? upper : 'EUR',
     intervalDays: interval.intervalDays,
     label: interval.label,
   };

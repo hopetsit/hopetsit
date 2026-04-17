@@ -927,6 +927,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'publish_request_select_pets_title': 'Select pets',
       'publish_request_notes_label': 'Additional notes',
       'publish_request_notes_hint': 'Anything the sitter should know...',
+      'publish_request_city_label': 'Location',
       'publish_request_address_label': 'Address (optional)',
       'publish_request_address_hint': 'Street, building, etc.',
       'publish_request_images_label': 'Images',

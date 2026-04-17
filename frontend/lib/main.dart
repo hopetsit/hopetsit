@@ -14,6 +14,7 @@ import 'package:hopetsit/routes/app_pages.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -42,6 +43,31 @@ void main() async {
 
   setupDependencies();
   Get.put(ThemeController(), permanent: true);
+
+  // ── Stripe init (fix StripeConfigException on first PaymentSheet call) ───
+  // We set the publishable key ONCE at startup. Before this fix, each payment
+  // flow (Boost / Premium / Map Boost) tried to lazy-init Stripe right before
+  // presenting the sheet, which left a race window where initPaymentSheet
+  // could throw StripeConfigException if applySettings() hadn't finished.
+  final stripePk = dotenv.env['STRIPE_PUBLISHABLE_KEY']?.trim() ?? '';
+  if (stripePk.isNotEmpty && stripePk.startsWith('pk_')) {
+    try {
+      Stripe.publishableKey = stripePk;
+      await Stripe.instance.applySettings();
+      debugPrint(
+        '[Stripe] initialized at boot with key '
+        '${stripePk.substring(0, 7)}…${stripePk.substring(stripePk.length - 4)}',
+      );
+    } catch (e) {
+      debugPrint('[Stripe] boot init failed: $e');
+    }
+  } else {
+    debugPrint(
+      '[Stripe] no publishable key found in .env — payments will fail until '
+      'STRIPE_PUBLISHABLE_KEY is set. Current value: '
+      '${stripePk.isEmpty ? '(empty)' : '(invalid format)'}',
+    );
+  }
 
   // Sprint 8 step 6 — optional Sentry. Opt-in via SENTRY_DSN_FRONTEND in .env.
   final sentryDsn = dotenv.env['SENTRY_DSN_FRONTEND'] ?? '';
