@@ -50,7 +50,7 @@ class PetSitterRequestCard extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
-          color: AppColors.whiteColor,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(17.r),
         ),
         child: Column(
@@ -101,7 +101,7 @@ class PetSitterRequestCard extends StatelessWidget {
                         text: petName,
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.blackColor,
+                        color: AppColors.textPrimary(context),
                       ),
                       SizedBox(height: 2.h),
                       InterText(
@@ -110,7 +110,7 @@ class PetSitterRequestCard extends StatelessWidget {
                         }),
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w300,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ],
                   ),
@@ -144,13 +144,13 @@ class PetSitterRequestCard extends StatelessWidget {
                               text: 'service_card_send_request'.tr,
                               fontSize: 10.sp,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                             ),
                     ),
                   ),
               ],
             ),
-            Divider(color: AppColors.greyText.withValues(alpha: 0.2)),
+            Divider(color: AppColors.divider(context).withValues(alpha: 0.2)),
             SizedBox(height: 12.h),
 
             // Description
@@ -158,7 +158,7 @@ class PetSitterRequestCard extends StatelessWidget {
               text: description,
               fontSize: 14.sp,
               fontWeight: FontWeight.w400,
-              color: AppColors.grey500Color,
+              color: AppColors.textSecondary(context),
             ),
 
             // Optional details (location, dates, service type)
@@ -195,26 +195,28 @@ class PetSitterRequestCard extends StatelessWidget {
     );
   }
 
-  static Widget _detailChip({required IconData icon, required String label}) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: AppColors.chatFieldColor,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.grey300Color),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14.sp, color: AppColors.greyText),
-          SizedBox(width: 6.w),
-          InterText(
-            text: label,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w400,
-            color: AppColors.grey700Color,
-          ),
-        ],
+  static Widget _detailChip({required IconData icon, required String label, BuildContext? context}) {
+    return Builder(
+      builder: (context) => Container(
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+        decoration: BoxDecoration(
+          color: AppColors.inputFill(context),
+          borderRadius: BorderRadius.circular(16.r),
+          boxShadow: AppColors.cardShadow(context),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14.sp, color: AppColors.textSecondary(context)),
+            SizedBox(width: 6.w),
+            InterText(
+              text: label,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textPrimary(context),
+            ),
+          ],
+        ),
       ),
     );
   }

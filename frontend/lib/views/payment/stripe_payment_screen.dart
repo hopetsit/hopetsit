@@ -41,14 +41,17 @@ class StripePaymentScreen extends StatelessWidget {
     return Scaffold(
       // Sprint 6 step 4 — theme-driven bg
       appBar: AppBar(
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'payment_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -61,7 +64,7 @@ class StripePaymentScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Amount Summary Card
-                    _buildAmountSummaryCard(),
+                    _buildAmountSummaryCard(context),
                     SizedBox(height: 40.h),
 
                     // Information Card
@@ -82,7 +85,7 @@ class StripePaymentScreen extends StatelessWidget {
                           Expanded(
                             child: InterText(
                               text:
-                                  'Click "Pay" below to securely enter your payment details using Stripe\'s secure payment form.',
+                                  'payment_stripe_info'.tr,
                               fontSize: 14.sp,
                               color: AppColors.primaryColor,
                               fontWeight: FontWeight.w400,
@@ -137,12 +140,13 @@ class StripePaymentScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAmountSummaryCard() {
+  Widget _buildAmountSummaryCard(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +155,7 @@ class StripePaymentScreen extends StatelessWidget {
             text: 'payment_amount_label'.tr,
             fontSize: 14.sp,
             fontWeight: FontWeight.w500,
-            color: AppColors.grey700Color,
+            color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 8.h),
           PoppinsText(

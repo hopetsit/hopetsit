@@ -240,19 +240,8 @@ const updateProfile = async (req, res) => {
 
     if (trimmedMobile) {
       update.mobile = trimmedMobile;
-      const existingOwner = await Owner.findOne({
-        mobile: trimmedMobile,
-        _id: { $ne: id },
-      });
-      const existingSitter = await Sitter.findOne({
-        mobile: trimmedMobile,
-        _id: { $ne: id },
-      });
-      if (existingOwner || existingSitter) {
-        return res
-          .status(409)
-          .json({ error: 'This mobile number is already associated with another account.' });
-      }
+      // Allow same phone on multiple accounts as long as emails differ.
+      // No uniqueness check on mobile — email is the unique identifier.
     }
 
     const updateOps = {};

@@ -14,6 +14,7 @@ const { calculateTotalWithAddOns, SERVICE_TYPES, LOCATION_TYPES } = require('../
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { normalizeServiceType } = require('../utils/bookingAgreementFields');
 const { createNotificationSafe } = require('../services/notificationService');
+const { _prepareOwnerPaymentForAgreedBooking } = require('./bookingController');
 const {
   buildRequestFingerprint,
   normalizeText,
@@ -578,10 +579,27 @@ const respondToApplication = async (req, res) => {
         await conversation.populate(['ownerId', 'sitterId']);
       }
 
+      // ── UX simplification (Sprint payment-flow) ────────────────────────────
+      // The booking is already in 'agreed' state, so we can immediately prepare
+      // a Stripe PaymentIntent for the owner. The Flutter client will use the
+      // returned clientSecret to open Stripe PaymentSheet directly, without
+      // detouring through the "Reservations" tab.
+      // Best-effort: if the sitter has no active Stripe Connect account (or any
+      // other error), we swallow it and return payment:null — the UI will
+      // fall back to the legacy two-step flow.
+      let payment = null;
+      try {
+        payment = await _prepareOwnerPaymentForAgreedBooking(booking, ownerId, {});
+      } catch (payErr) {
+        logger.warn('[respondToApplication] auto PaymentIntent creation failed, owner will need to retry later', payErr?.message || payErr);
+        payment = { error: payErr?.message || 'payment_unavailable' };
+      }
+
       res.json({
         application: sanitizeApplication(application),
         booking: sanitizeBooking(booking),
         conversation: sanitizeConversation(conversation),
+        payment, // { clientSecret, paymentIntentId, ... } | { error } | null
       });
     } else {
       application.status = 'rejected';

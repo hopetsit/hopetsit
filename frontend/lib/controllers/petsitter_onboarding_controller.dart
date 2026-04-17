@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -107,7 +108,9 @@ class PetsitterOnboardingController extends GetxController {
         return;
       }
 
-      // TODO: Implement API call to save petsitter profile
+      // Persist the onboarding data on the backend so it survives app
+      // reinstall / rebuild. Previously this was a simulated delay which
+      // caused the owner to lose their bio/rate/services every time.
       AppLogger.logUserAction(
         'Completing Petsitter Onboarding',
         data: {
@@ -120,8 +123,33 @@ class PetsitterOnboardingController extends GetxController {
         },
       );
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
+      final sitterRepository = Get.find<SitterRepository>();
+
+      // 1) Save bio + skills + hourly rate + currency on the sitter profile.
+      try {
+        await sitterRepository.updateMyBioAndSkills(
+          bio: bioController.text.trim(),
+          skills: skillsController.text.trim(),
+          hourlyRate: rate,
+          currency: selectedCurrency.value,
+        );
+      } catch (e) {
+        AppLogger.logError('Onboarding: profile save failed', error: e);
+        rethrow;
+      }
+
+      // 2) Save rates (hourly = rate, weekly = 5 days * 8h * rate, monthly = 4x weekly).
+      try {
+        final weekly = (rate * 40).roundToDouble();
+        final monthly = (rate * 160).roundToDouble();
+        await sitterRepository.setMyRates(
+          hourlyRate: rate,
+          weeklyRate: weekly,
+          monthlyRate: monthly,
+        );
+      } catch (e) {
+        AppLogger.logError('Onboarding: rates save failed (non-blocking)', error: e);
+      }
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,

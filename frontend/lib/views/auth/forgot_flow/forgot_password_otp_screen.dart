@@ -25,9 +25,9 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
         fontWeight: FontWeight.w500,
       ),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.grey300Color),
+        border: Border.all(color: AppColors.textSecondary(context).withOpacity(0.2)),
         borderRadius: BorderRadius.circular(16.r),
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
       ),
     );
 
@@ -52,17 +52,19 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: true,
         title: PoppinsText(
           text: 'forgot_password_verify_code_title'.tr,
           fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
         centerTitle: true,
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 32.h),
@@ -74,7 +76,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
               text: 'forgot_password_enter_code_title'.tr,
               fontSize: 26.sp,
               fontWeight: FontWeight.w600,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
             SizedBox(height: 8.h),
             Obx(
@@ -82,7 +84,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
                 text: 'forgot_password_code_sent_to'.tr
                     .replaceAll('@email', controller.currentEmail.value),
                 fontSize: 14.sp,
-                color: AppColors.greyColor,
+                color: AppColors.textSecondary(context),
               ),
             ),
             SizedBox(height: 40.h),
@@ -134,7 +136,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
                             text: 'forgot_password_resend_in'.tr
                                 .replaceAll('@seconds', controller.countdownSeconds.value.toString()),
                             fontSize: 13.sp,
-                            color: AppColors.greyColor,
+                            color: AppColors.textSecondary(context),
                           ),
                         ],
                       )
@@ -193,7 +195,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
                     InterText(
                       text: 'forgot_password_wrong_email'.tr,
                       fontSize: 13.sp,
-                      color: AppColors.greyColor,
+                      color: AppColors.textSecondary(context),
                     ),
                     PoppinsText(
                       text: 'forgot_password_change_email'.tr,

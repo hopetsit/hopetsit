@@ -56,17 +56,19 @@ class BlockedUsersScreen extends StatelessWidget {
     controller.loadBlockedUsers();
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'blocked_users_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -155,9 +157,15 @@ class BlockedUsersScreen extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 12.h),
       padding: EdgeInsets.all(10.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: AppColors.textFieldBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          )
+        ],
       ),
       child: Row(
         children: [
@@ -220,13 +228,13 @@ class BlockedUsersScreen extends StatelessWidget {
                   text: user.name,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
 
                 PoppinsText(
                   text: user.company,
                   fontSize: 11.sp,
-                  color: AppColors.grey500Color,
+                  color: AppColors.textSecondary(context),
                   fontWeight: FontWeight.w400,
                 ),
               ],

@@ -14,27 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "470089536255-4daq7rn9l6cs1t56qpja8m5lakru31rd.apps.googleusercontent.com",
+          "client_id": "470089536255-3lc70geg1cublh2umtmo374pbrjomttb.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.hopetsit.app",
-            "certificate_hash": "31cc7125404aae22d7ad4562e4beb5fc54558150"
-          }
-        },
-        {
-          "client_id": "470089536255-rlaljjcp182iel4bghrud5va3h2rrrf7.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.hopetsit.app",
-            "certificate_hash": "029cc335727060a6cd564240c4351b7cf47ed53c"
-          }
-        },
-        {
-          "client_id": "470089536255-v6g9go58nvr9tnr18ts1nc8vvbcrevim.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.hopetsit.app",
-            "certificate_hash": "0aa6c6d842cf29a96e65751375b5cc2fb7fed151"
+            "certificate_hash": "2b08f1dc402a6999f5fb7312ecb0c7524da10d6b"
           }
         },
         {

@@ -8,6 +8,7 @@ import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:intl/intl.dart';
 
 class PostCommentSheet extends StatefulWidget {
@@ -344,12 +345,51 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                 ),
                 SizedBox(height: 4.h),
 
-                // Comment time
-                InterText(
-                  text: formatDateTime(comment.createdAt),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.greyText,
+                // Comment time + report button
+                Row(
+                  children: [
+                    InterText(
+                      text: formatDateTime(comment.createdAt),
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.greyText,
+                    ),
+                    const Spacer(),
+                    InkWell(
+                      onTap: () {
+                        ReportDialog.show(
+                          context: context,
+                          targetType: 'comment',
+                          targetId: comment.id,
+                          snapshot: comment.body,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 6.w,
+                          vertical: 2.h,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.flag_outlined,
+                              size: 12.sp,
+                              color: AppColors.greyText,
+                            ),
+                            SizedBox(width: 3.w),
+                            InterText(
+                              text: 'report_short_label'.tr,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.greyText,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

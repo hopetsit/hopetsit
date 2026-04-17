@@ -28,6 +28,9 @@ const adminRoutes = require('./routes/adminRoutes');
 const ibanRoutes = require('./routes/ibanRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const walkRoutes = require('./routes/walkRoutes');
+const termsRoutes = require('./routes/termsRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const boostRoutes = require('./routes/boostRoutes');
 const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
@@ -123,6 +126,9 @@ const versionedRoutes = [
   { path: '/sitter', mw: [], router: ibanRoutes },
   { path: '/notifications', mw: [], router: notificationRoutes },
   { path: '/walks', mw: [], router: walkRoutes },
+  { path: '/terms', mw: [], router: termsRoutes },
+  { path: '/reports', mw: [], router: reportRoutes },
+  { path: '/boost', mw: [], router: boostRoutes },
 ];
 
 // Log deprecation warning for unversioned callers.

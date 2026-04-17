@@ -264,16 +264,16 @@ class _HomeScreenState extends State<HomeScreen> {
           DropdownButtonHideUnderline(
             child: DropdownButton<HomeMyPostsSortOrder>(
               value: _myPostsSortOrder,
-              icon: Icon(Icons.sort, size: 18.sp, color: AppColors.greyText),
+              icon: Icon(Icons.sort, size: 18.sp, color: AppColors.textSecondary(context)),
               style: TextStyle(
-                  fontSize: 13.sp, color: AppColors.blackColor),
+                  fontSize: 13.sp, color: AppColors.textPrimary(context)),
               items: [
                 DropdownMenuItem(
                   value: HomeMyPostsSortOrder.newestFirst,
                   child: InterText(
                     text: 'my_posts_sort_newest'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
                 DropdownMenuItem(
@@ -281,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: InterText(
                     text: 'my_posts_sort_oldest'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
               ],
@@ -316,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       backgroundColor:
                           _homeController.offersNearMeEnabled.value
                               ? AppColors.primaryColor
-                              : AppColors.whiteColor,
+                              : AppColors.card(context),
                       foregroundColor:
                           _homeController.offersNearMeEnabled.value
                               ? AppColors.whiteColor
@@ -409,14 +409,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, index) {
                     final sitter = _homeController.sitters[index];
 
-                    // FIX #1: show best available rate + distance badge
+                    // FIX #1: show best available rate
                     final String displayPrice = sitter.hourlyRate > 0
                         ? sitter.hourlyRate.toStringAsFixed(1)
-                        : sitter.weeklyRate > 0
-                            ? '${sitter.weeklyRate.toStringAsFixed(0)}/wk'
-                            : sitter.monthlyRate > 0
-                                ? '${sitter.monthlyRate.toStringAsFixed(0)}/mo'
-                                : '0';
+                        : '0';
+                    final String? displayDaily = sitter.dailyRate > 0
+                        ? sitter.dailyRate.toStringAsFixed(1)
+                        : null;
+                    final String? displayWeekly = sitter.weeklyRate > 0
+                        ? sitter.weeklyRate.toStringAsFixed(0)
+                        : null;
+                    final String? displayMonthly = sitter.monthlyRate > 0
+                        ? sitter.monthlyRate.toStringAsFixed(0)
+                        : null;
 
                     final String locationLabel = [
                       if (sitter.displayCity.isNotEmpty) sitter.displayCity,
@@ -428,6 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       name: sitter.name,
                       identityVerified: sitter.identityVerified,
                       isTopSitter: sitter.isTopSitter,
+                      isBoosted: sitter.isBoosted,
                       phoneNumber: sitter.mobile,
                       email: sitter.email,
                       status: 'status_available'.tr,
@@ -437,6 +443,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       reviewsCount: sitter.reviewsCount,
                       location: locationLabel,
                       pricePerHour: displayPrice,
+                      pricePerDay: displayDaily,
+                      pricePerWeek: displayWeekly,
+                      pricePerMonth: displayMonthly,
                       currencyCode: sitter.currency,
                       profileImagePath: sitter.avatar.url.isNotEmpty
                           ? sitter.avatar.url
@@ -483,6 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Obx(
       () => Scaffold(
+        backgroundColor: AppColors.scaffold(context),
         appBar: CustomAppBar(
           userName: _profileController.userName.value.isNotEmpty
               ? _profileController.userName.value
@@ -501,23 +511,22 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             IconButton(
               icon: Container(
-                width: 40.w,
-                height: 40.h,
+                width: 38.w,
+                height: 38.h,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
-                  shape: BoxShape.circle,
+                  gradient: AppColors.linearGradient,
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Icon(
                   Icons.map_outlined,
                   color: AppColors.whiteColor,
-                  size: 24.sp,
+                  size: 20.sp,
                 ),
               ),
               onPressed: () => Get.to(() => const PetsMapScreen()),
             ),
           ],
         ),
-        // Sprint 6 step 4 — theme-driven bg
         body: SafeArea(
           child: Column(
             children: [
@@ -560,21 +569,35 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: AppColors.primaryColor,
-          foregroundColor: AppColors.whiteColor,
-          icon: Icon(Icons.add, size: 22.sp),
-          label: InterText(
-            text: 'new_publication_button'.tr,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.whiteColor,
+        floatingActionButton: Container(
+          decoration: BoxDecoration(
+            gradient: AppColors.linearGradient,
+            borderRadius: BorderRadius.circular(16.r),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryColor.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          onPressed: () {
-            Get.to(() => const PublishReservationRequestScreen())?.then((_) {
-              _postsController.refreshPosts();
-            });
-          },
+          child: FloatingActionButton.extended(
+            backgroundColor: Colors.transparent,
+            foregroundColor: AppColors.whiteColor,
+            elevation: 0,
+            icon: Icon(Icons.add_rounded, size: 22.sp),
+            label: InterText(
+              text: 'new_publication_button'.tr,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.whiteColor,
+            ),
+            onPressed: () {
+              Get.to(() => const PublishReservationRequestScreen())?.then((_) {
+                _postsController.refreshPosts();
+              });
+            },
+          ),
         ),
       ),
     );

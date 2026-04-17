@@ -51,17 +51,19 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'bookings_history_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: Column(
@@ -208,7 +210,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
       margin: EdgeInsets.only(bottom: 16.h),
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: AppColors.grey300Color, width: 1),
       ),
@@ -275,7 +277,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                           text: booking.sitter.name,
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -334,7 +336,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                   ),
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
             ],
@@ -357,8 +359,8 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w500,
                   color: booking.sitter.mobile.isNotEmpty
-                      ? AppColors.blackColor
-                      : AppColors.greyText,
+                      ? AppColors.textPrimary(context)
+                      : AppColors.textSecondary(context),
                 ),
               ),
             ],
@@ -385,8 +387,8 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                   color:
                       booking.sitter.city != null &&
                           booking.sitter.city!.isNotEmpty
-                      ? AppColors.blackColor
-                      : AppColors.greyText,
+                      ? AppColors.textPrimary(context)
+                      : AppColors.textSecondary(context),
                 ),
               ),
             ],
@@ -416,8 +418,8 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                   color:
                       (booking.sitter.rating > 0 &&
                           booking.sitter.reviewsCount > 0)
-                      ? AppColors.blackColor
-                      : AppColors.greyText,
+                      ? AppColors.textPrimary(context)
+                      : AppColors.textSecondary(context),
                 ),
               ),
             ],
@@ -553,7 +555,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
             text: value,
             fontSize: 12.sp,
             fontWeight: FontWeight.w500,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],
@@ -564,7 +566,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: AppColors.lightGrey,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(8.r),
       ),
       child: Column(
@@ -581,7 +583,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
             text: description,
             fontSize: 12.sp,
             fontWeight: FontWeight.w400,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
         ],
       ),

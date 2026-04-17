@@ -17,7 +17,7 @@ class ViewTaskScreen extends StatelessWidget {
     final ProfileController profileController = Get.put(ProfileController());
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primaryColor,
         elevation: 0,
@@ -28,15 +28,17 @@ class ViewTaskScreen extends StatelessWidget {
         child: Icon(Icons.add, color: AppColors.whiteColor),
       ),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'view_task_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -51,7 +53,7 @@ class ViewTaskScreen extends StatelessWidget {
                 text: 'view_task_empty'.tr,
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.greyColor,
+                color: AppColors.textSecondary(context),
               ),
             );
           }
@@ -82,58 +84,60 @@ class ViewTaskScreen extends StatelessWidget {
         ? DateFormat('MMM dd, yyyy • hh:mm a').format(createdAt)
         : 'view_task_date_not_available'.tr;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 16.h),
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        borderRadius: BorderRadius.circular(12.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.blackColor.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title
-          PoppinsText(
-            text: task.title,
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.blackColor,
-          ),
-          SizedBox(height: 8.h),
-          // Description
-          if (task.description.isNotEmpty)
-            PoppinsText(
-              text: task.description,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: AppColors.greyText,
+    return Builder(
+      builder: (context) => Container(
+        margin: EdgeInsets.only(bottom: 16.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(12.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.textPrimary(context).withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          if (task.description.isNotEmpty) SizedBox(height: 12.h),
-          // Date
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today,
-                size: 14.sp,
-                color: AppColors.greyText,
-              ),
-              SizedBox(width: 6.w),
-              InterText(
-                text: formattedDate,
-                fontSize: 12.sp,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title
+            PoppinsText(
+              text: task.title,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary(context),
+            ),
+            SizedBox(height: 8.h),
+            // Description
+            if (task.description.isNotEmpty)
+              PoppinsText(
+                text: task.description,
+                fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
-            ],
-          ),
-        ],
+            if (task.description.isNotEmpty) SizedBox(height: 12.h),
+            // Date
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 14.sp,
+                  color: AppColors.textSecondary(context),
+                ),
+                SizedBox(width: 6.w),
+                InterText(
+                  text: formattedDate,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary(context),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

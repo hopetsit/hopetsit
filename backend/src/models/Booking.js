@@ -82,6 +82,10 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Self-cancellation (72h window)
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: String, enum: ['owner', 'sitter', null], default: null },
+    cancellationReason: { type: String, default: null },
     // Cancellation tracking (for mutual agreement requirement)
     cancellation: {
       ownerRequested: { type: Boolean, default: false },

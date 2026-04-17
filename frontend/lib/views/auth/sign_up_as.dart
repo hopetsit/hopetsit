@@ -12,89 +12,127 @@ class SignUpAsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       body: SafeArea(
-        child: Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24.w),
           child: Column(
-            // mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [BackButton()]),
-              SizedBox(height: 60.h),
-              PoppinsText(
-                text: 'sign_up'.tr,
-                fontSize: 26.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.blackColor,
+              SizedBox(height: 8.h),
+              BackButton(color: AppColors.textPrimary(context)),
+              SizedBox(height: 32.h),
+              Center(
+                child: PoppinsText(
+                  text: 'sign_up'.tr,
+                  fontSize: 28.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Center(
+                child: InterText(
+                  text: 'sign_up_as_subtitle'.tr,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary(context),
+                ),
               ),
               SizedBox(height: 40.h),
-              GestureDetector(
+              _buildRoleCard(
+                context: context,
+                image: AppImages.petOwner,
+                titleKey: 'role_pet_owner',
+                subtitleKey: 'role_pet_owner_desc',
                 onTap: () => Get.off(() => SignUpScreen(userType: 'pet_owner')),
-                child: Container(
-                  height: 200.h,
-                  width: 200.w,
-                  padding: EdgeInsets.all(16.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.whiteColor,
-                    border: Border.all(color: AppColors.primaryColor, width: 1),
-                    borderRadius: BorderRadius.circular(20.r),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryColor.withOpacity(0.2),
-                        spreadRadius: 1,
-                        offset: Offset(0, 4),
-                        blurRadius: 2,
-                      ),
-                    ],
-                  ),
-
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        AppImages.petOwner,
-                        height: 130.h,
-                        fit: BoxFit.cover,
-                      ),
-                      PoppinsText(text: 'role_pet_owner'.tr),
-                    ],
-                  ),
-                ),
               ),
-              SizedBox(height: 30.h),
-              GestureDetector(
-                onTap: () =>
-                    Get.off(() => SignUpScreen(userType: 'pet_sitter')),
-                child: Container(
-                  height: 200.h,
-                  width: 200.w,
-                  padding: EdgeInsets.all(16.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.whiteColor,
-                    border: Border.all(color: AppColors.primaryColor, width: 1),
-                    borderRadius: BorderRadius.circular(20.r),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryColor.withOpacity(0.2),
-                        spreadRadius: 1,
-                        offset: Offset(0, 4),
-                        blurRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        AppImages.petSitter,
-                        height: 130.h,
-                        fit: BoxFit.cover,
-                      ),
-                      PoppinsText(text: 'role_pet_sitter'.tr),
-                    ],
-                  ),
-                ),
+              SizedBox(height: 20.h),
+              _buildRoleCard(
+                context: context,
+                image: AppImages.petSitter,
+                titleKey: 'role_pet_sitter',
+                subtitleKey: 'role_pet_sitter_desc',
+                onTap: () => Get.off(() => SignUpScreen(userType: 'pet_sitter')),
               ),
               const Spacer(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleCard({
+    required BuildContext context,
+    required String image,
+    required String titleKey,
+    required String subtitleKey,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: AppColors.divider(context),
+            width: 1,
+          ),
+          boxShadow: AppColors.cardShadow(context),
+        ),
+        child: Row(
+          children: [
+            // Image
+            Container(
+              width: 100.w,
+              height: 100.h,
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16.r),
+                child: Image.asset(
+                  image,
+                  width: 100.w,
+                  height: 100.h,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            SizedBox(width: 16.w),
+            // Text content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PoppinsText(
+                    text: titleKey.tr,
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary(context),
+                  ),
+                  SizedBox(height: 6.h),
+                  InterText(
+                    text: subtitleKey.tr,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ],
+              ),
+            ),
+            // Arrow
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 20.sp,
+              color: AppColors.primaryColor,
+            ),
+          ],
         ),
       ),
     );

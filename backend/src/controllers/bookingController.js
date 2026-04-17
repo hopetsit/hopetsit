@@ -19,11 +19,13 @@ const {
   getPaymentIntent,
   confirmPaymentIntent,
   createRefund,
+  sendPayoutToIBAN,
 } = require('../services/stripeService');
 const {
   createPaypalOrder,
   capturePaypalOrder,
   getPaypalOrder,
+  refundPaypalCapture,
 } = require('../services/paypalService');
 const { sendPayoutToSitter } = require('../services/paypalPayoutService');
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
@@ -487,23 +489,24 @@ const schedulePayoutForBooking = async (booking) => {
  */
 const processSitterPayoutForBooking = async (booking) => {
   try {
-    if (!booking) {
-      return;
-    }
+    if (!booking) return;
 
     // Ensure booking is in a valid state for payout
-    if (booking.status !== 'paid' || booking.paymentStatus !== 'paid') {
-      return;
-    }
-
-    if (booking.paymentProvider !== 'paypal') {
-      // Only process payouts for PayPal-based payments
-      return;
-    }
+    if (booking.status !== 'paid' || booking.paymentStatus !== 'paid') return;
 
     // Idempotency: never send payout twice
     if (booking.payoutStatus === 'completed') {
       logger.info('ℹ️ Payout already completed for booking', booking._id.toString());
+      return;
+    }
+
+    // Stripe destination-charge payments are auto-transferred to the sitter's
+    // connected account at capture time — no manual payout needed.
+    if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
+      booking.payoutStatus = 'completed';
+      booking.payoutAt = booking.payoutAt || new Date();
+      await booking.save();
+      logger.info('✅ Stripe destination-charge payout auto-completed for booking', booking._id.toString());
       return;
     }
 
@@ -532,35 +535,104 @@ const processSitterPayoutForBooking = async (booking) => {
       return;
     }
 
-    const sitterPaypalEmail = decrypt(sitter.paypalEmail || '').trim();
-    if (!sitterPaypalEmail) {
-      logger.warn('⚠️ Skipping payout: sitter PayPal email missing', {
+    // Determine payout method: use sitter's preference, fallback to paypal
+    const payoutMethod = sitter.payoutMethod || 'paypal';
+
+    // ── IBAN payout (via Stripe transfer to external bank) ──
+    if (payoutMethod === 'iban') {
+      const ibanNumber = decrypt(sitter.ibanNumber || '').trim();
+      const holderName = (sitter.ibanHolder || sitter.name || '').trim();
+
+      if (!ibanNumber || !sitter.ibanVerified) {
+        logger.warn('⚠️ Skipping IBAN payout: IBAN missing or not verified', {
+          bookingId: booking._id.toString(),
+          sitterId: sitter._id.toString(),
+        });
+        booking.payoutStatus = 'failed';
+        booking.payoutError = 'Sitter IBAN is missing or not verified by admin.';
+        await booking.save();
+        return;
+      }
+
+      booking.payoutStatus = 'processing';
+      await booking.save();
+
+      // Amount in cents for Stripe
+      const amountCents = Math.round(netPayout * 100);
+      const result = await sendPayoutToIBAN({
+        iban: ibanNumber,
+        holderName,
+        email: sitter.email,
+        amount: amountCents,
+        currency: (currency || 'eur').toLowerCase(),
         bookingId: booking._id.toString(),
         sitterId: sitter._id.toString(),
       });
-      booking.payoutStatus = 'failed';
-      booking.payoutError = 'Sitter PayPal email is missing.';
+
+      booking.payoutStatus = 'completed';
+      booking.payoutId = result.transfer.id;
+      booking.payoutAt = new Date();
+      booking.payoutError = null;
       await booking.save();
+      logger.info('✅ IBAN payout completed for booking', booking._id.toString());
       return;
     }
 
-    // Mark as processing before calling external API
-    booking.payoutStatus = 'processing';
-    booking.sitterPaypalEmail = sitterPaypalEmail;
-    await booking.save();
+    // ── PayPal payout ──
+    if (payoutMethod === 'paypal' || booking.paymentProvider === 'paypal') {
+      const sitterPaypalEmail = decrypt(sitter.paypalEmail || '').trim();
+      if (!sitterPaypalEmail) {
+        logger.warn('⚠️ Skipping payout: sitter PayPal email missing', {
+          bookingId: booking._id.toString(),
+          sitterId: sitter._id.toString(),
+        });
+        booking.payoutStatus = 'failed';
+        booking.payoutError = 'Sitter PayPal email is missing.';
+        await booking.save();
+        return;
+      }
 
-    const payoutResult = await sendPayoutToSitter({
-      bookingId: booking._id.toString(),
-      sitterEmail: sitterPaypalEmail,
-      amount: netPayout,
-      currency,
-    });
+      booking.payoutStatus = 'processing';
+      booking.sitterPaypalEmail = sitterPaypalEmail;
+      await booking.save();
 
-    booking.payoutStatus = 'completed';
-    booking.payoutBatchId = payoutResult.batchId;
-    booking.payoutId = payoutResult.payoutItemId;
-    booking.payoutAt = new Date();
-    booking.payoutError = null;
+      const payoutResult = await sendPayoutToSitter({
+        bookingId: booking._id.toString(),
+        sitterEmail: sitterPaypalEmail,
+        amount: netPayout,
+        currency,
+      });
+
+      booking.payoutStatus = 'completed';
+      booking.payoutBatchId = payoutResult.batchId;
+      booking.payoutId = payoutResult.payoutItemId;
+      booking.payoutAt = new Date();
+      booking.payoutError = null;
+      await booking.save();
+      logger.info('✅ PayPal payout completed for booking', booking._id.toString());
+      return;
+    }
+
+    // ── Stripe Connect payout (sitter chose stripe as payout method) ──
+    if (payoutMethod === 'stripe') {
+      // Stripe Connect destination charges handle the transfer automatically,
+      // but if paymentProvider was paypal, we can't stripe-payout. Flag it.
+      if (booking.paymentProvider === 'paypal') {
+        logger.warn('⚠️ Sitter payout method is stripe but payment was via PayPal — falling back to PayPal payout');
+        // Recursive call with paypal override
+        sitter.payoutMethod = 'paypal';
+        return processSitterPayoutForBooking(booking);
+      }
+      booking.payoutStatus = 'completed';
+      booking.payoutAt = new Date();
+      await booking.save();
+      logger.info('✅ Stripe Connect payout auto-completed for booking', booking._id.toString());
+      return;
+    }
+
+    logger.warn('⚠️ Unknown payout method for sitter', { payoutMethod, sitterId: sitter._id.toString() });
+    booking.payoutStatus = 'failed';
+    booking.payoutError = `Unknown payout method: ${payoutMethod}`;
     await booking.save();
   } catch (error) {
     logger.error('❌ Error while processing sitter payout for booking', booking._id.toString(), error);
@@ -842,6 +914,25 @@ const cancelBooking = async (req, res) => {
     }
     res.status(500).json({ error: 'Unable to cancel booking. Please try again later.' });
   }
+};
+
+/**
+ * Refund the payment for a booking, regardless of provider.
+ * Stripe → createRefund (by chargeId or paymentIntentId)
+ * PayPal → refundPaypalCapture (by captureId)
+ */
+const refundBookingPayment = async (booking) => {
+  if (booking.paymentProvider === 'stripe') {
+    const chargeId = booking.stripeChargeId || booking.stripePaymentIntentId;
+    if (!chargeId) throw new Error('No Stripe charge/PI ID to refund.');
+    return createRefund(chargeId);
+  }
+  if (booking.paymentProvider === 'paypal') {
+    const captureId = booking.paypalCaptureId;
+    if (!captureId) throw new Error('No PayPal capture ID to refund.');
+    return refundPaypalCapture(captureId);
+  }
+  throw new Error(`Unknown payment provider: ${booking.paymentProvider}`);
 };
 
 /**
@@ -1167,9 +1258,26 @@ const agreeToBooking = async (req, res) => {
       }),
     ]).catch(() => {});
 
+    // ── UX simplification (Sprint payment-flow) ────────────────────────────────
+    // When the OWNER is the one agreeing, auto-create the Stripe PaymentIntent
+    // and return its clientSecret in the same response, so the Flutter app can
+    // open Stripe PaymentSheet immediately (no detour via "Reservations").
+    // This is best-effort: any failure is swallowed so the agree response stays
+    // successful and the owner can still pay via the legacy endpoint.
+    let payment = null;
+    if (userRole === 'owner') {
+      try {
+        payment = await _prepareOwnerPaymentForAgreedBooking(updatedBooking, ownerId, req.body || {});
+      } catch (payErr) {
+        logger.warn('[agreeToBooking] auto PaymentIntent creation failed, owner will need to retry via /create-payment-intent', payErr?.message || payErr);
+        payment = { error: payErr?.message || 'payment_unavailable' };
+      }
+    }
+
     res.json({
       booking: sanitizeBooking(updatedBooking),
-      message: 'Booking marked as agreed. Owner can now proceed with payment.',
+      message: 'Booking marked as agreed.' + (payment?.clientSecret ? ' Payment ready.' : ' Owner can now proceed with payment.'),
+      payment, // null (not owner) | { clientSecret, paymentIntentId, amount, currency, ... } | { error }
     });
   } catch (error) {
     logger.error('Agree to booking error', error);
@@ -1178,6 +1286,98 @@ const agreeToBooking = async (req, res) => {
     }
     res.status(500).json({ error: 'Unable to update booking. Please try again later.' });
   }
+};
+
+/**
+ * Helper used by `agreeToBooking` when the OWNER is the acceptor: prepares
+ * (reuses or creates) a Stripe PaymentIntent for the freshly agreed booking
+ * and returns the data the mobile client needs to open Stripe PaymentSheet.
+ *
+ * Mirrors the core logic of `createBookingPaymentIntent` but without the
+ * Express req/res coupling.  Throws on validation failure so the caller can
+ * decide whether to surface the error to the client or degrade gracefully.
+ *
+ * @param {Object} booking   - populated Booking document (ownerId/sitterId/petIds populated)
+ * @param {string} ownerId   - authenticated owner id
+ * @param {Object} body      - the original req.body (for useLoyaltyCredit flag)
+ * @returns {Promise<{paymentIntentId, clientSecret, amount, currency, commissionAmount, netSitterAmount, loyaltyDiscountApplied}>}
+ */
+const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {}) => {
+  if (!booking.pricing || typeof booking.pricing.totalPrice !== 'number' || booking.pricing.totalPrice <= 0) {
+    throw new Error('Booking is missing valid pricing information.');
+  }
+  const sitter = booking.sitterId;
+  if (!sitter.stripeConnectAccountId || sitter.stripeConnectAccountStatus !== 'active') {
+    throw new Error('Sitter must have an active Stripe Connect account to receive payments.');
+  }
+
+  // If a PaymentIntent already exists for this booking, return it (unless already paid).
+  if (booking.stripePaymentIntentId) {
+    const existing = await getPaymentIntent(booking.stripePaymentIntentId);
+    if (existing.status === 'succeeded') {
+      throw new Error('Payment already completed for this booking.');
+    }
+    return {
+      paymentIntentId: existing.id,
+      clientSecret: existing.client_secret,
+      amount: existing.amount,
+      currency: (existing.currency || 'eur').toUpperCase(),
+      reused: true,
+    };
+  }
+
+  const totalPrice = Number(booking.pricing.totalPrice);
+  if (isNaN(totalPrice) || totalPrice <= 0) throw new Error('Invalid booking price.');
+
+  const fallbackCurrency = countryToCurrency(sitter.country) || DEFAULT_CURRENCY;
+  const bookingCurrency = assertSupportedCurrency(
+    booking.pricing?.currency || fallbackCurrency,
+    'Booking currency must be one of EUR/USD/GBP/CHF to create a payment.'
+  );
+
+  let loyaltyDiscountApplied = null;
+  let effectiveTotal = totalPrice;
+  if (body?.useLoyaltyCredit === true) {
+    const discount = await consumeLoyaltyDiscount(ownerId, booking._id);
+    if (discount.applied) {
+      effectiveTotal = Math.max(0, totalPrice - discount.discountAmount);
+      loyaltyDiscountApplied = discount;
+    }
+  }
+
+  const amountInCents = Math.round(effectiveTotal * 100);
+  if (isNaN(amountInCents) || amountInCents <= 0) throw new Error('Invalid payment amount.');
+
+  const paymentIntent = await createPaymentIntent({
+    amount: amountInCents,
+    connectedAccountId: sitter.stripeConnectAccountId,
+    bookingId: booking._id.toString(),
+    ownerId: booking.ownerId._id.toString(),
+    sitterId: booking.sitterId._id.toString(),
+    currency: bookingCurrency.toLowerCase(),
+    isTopSitter: sitter.isTopSitter === true,
+  });
+
+  booking.stripePaymentIntentId = paymentIntent.id;
+  booking.petsitterConnectedAccountId = sitter.stripeConnectAccountId;
+  booking.paymentProvider = 'stripe';
+  booking.paymentStatus = 'pending';
+  await booking.save();
+
+  const applicationFee = Math.round(amountInCents * 0.20);
+  const netSitter = amountInCents - applicationFee;
+
+  return {
+    paymentIntentId: paymentIntent.id,
+    clientSecret: paymentIntent.client_secret,
+    amount: amountInCents,
+    currency: bookingCurrency,
+    commissionAmount: applicationFee,
+    netSitterAmount: netSitter,
+    loyaltyDiscountApplied: loyaltyDiscountApplied
+      ? { amount: loyaltyDiscountApplied.discountAmount, creditId: loyaltyDiscountApplied.creditId }
+      : null,
+  };
 };
 
 /**
@@ -2213,5 +2413,8 @@ module.exports = {
   retryBookingPayout,
   processScheduledSitterPayouts,
   completeBooking,
+  // Shared helper — used by applicationController to offer the owner an
+  // immediate Stripe PaymentSheet right after accepting an application.
+  _prepareOwnerPaymentForAgreedBooking,
 };
 

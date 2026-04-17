@@ -294,6 +294,21 @@ class SitterRepository {
     }
   }
 
+  /// Self-cancel a paid booking (72h free cancellation window).
+  Future<Map<String, dynamic>> selfCancelBooking({
+    required String bookingId,
+    String? reason,
+  }) async {
+    final response = await _apiClient.post(
+      '${ApiEndpoints.bookings}/$bookingId/self-cancel',
+      body: reason != null ? {'reason': reason} : {},
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected self-cancel response.', details: response);
+  }
+
   /// Creates an application (sends request to owner).
   /// POST /applications?ownerId={ownerId}
   Future<Map<String, dynamic>> createApplication({
@@ -741,6 +756,38 @@ class SitterRepository {
     if (response is Map) {
       return Map<String, dynamic>.from(response);
     }
+
+    throw ApiException(
+      'Unexpected update sitter profile response.',
+      details: response,
+    );
+  }
+
+  /// Lightweight profile update used by the sitter onboarding flow.
+  /// Only sends the fields the onboarding actually collects so we never wipe
+  /// name/email/mobile just because the user hasn't filled them yet.
+  Future<Map<String, dynamic>> updateMyBioAndSkills({
+    String? bio,
+    String? skills,
+    double? hourlyRate,
+    String? currency,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (bio != null && bio.isNotEmpty) payload['bio'] = bio;
+    if (skills != null && skills.isNotEmpty) payload['skills'] = skills;
+    if (hourlyRate != null) payload['hourlyRate'] = hourlyRate;
+    if (currency != null && currency.isNotEmpty) payload['currency'] = currency;
+
+    if (payload.isEmpty) return <String, dynamic>{};
+
+    final response = await _apiClient.put(
+      '${ApiEndpoints.sitters}/me/profile',
+      body: payload,
+      requiresAuth: true,
+    );
+
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
 
     throw ApiException(
       'Unexpected update sitter profile response.',

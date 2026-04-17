@@ -23,17 +23,19 @@ class PayoutStatusScreen extends StatelessWidget {
     final payPalController = Get.put(SitterPayPalPayoutController());
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'payout_status_screen_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -44,23 +46,23 @@ class PayoutStatusScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Stripe Connect Status Card
-                _buildStripeConnectStatusCard(controller),
+                _buildStripeConnectStatusCard(controller, context),
                 SizedBox(height: 24.h),
 
                 // PayPal Payout Email Card — hidden for new sitters (feature flag),
                 // but kept visible for legacy accounts that already have a PayPal email.
                 if (AppConstants.showPayPalOption ||
                     payPalController.paypalEmail.value.isNotEmpty) ...[
-                  _buildPayPalPayoutEmailCard(payPalController),
+                  _buildPayPalPayoutEmailCard(payPalController, context),
                   SizedBox(height: 24.h),
                 ],
 
                 // Verification Status Card
-                _buildVerificationStatusCard(),
+                _buildVerificationStatusCard(context),
                 SizedBox(height: 24.h),
 
                 // Payout Status Card
-                _buildPayoutStatusCard(),
+                _buildPayoutStatusCard(context),
                 SizedBox(height: 24.h),
 
                 // Action Buttons
@@ -83,12 +85,13 @@ class PayoutStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPayPalPayoutEmailCard(SitterPayPalPayoutController controller) {
+  Widget _buildPayPalPayoutEmailCard(SitterPayPalPayoutController controller, BuildContext context) {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,7 +109,7 @@ class PayoutStatusScreen extends StatelessWidget {
                   text: 'payout_paypal_email_title'.tr,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
               Obx(
@@ -126,7 +129,7 @@ class PayoutStatusScreen extends StatelessWidget {
                   ? controller.paypalEmail.value
                   : 'payout_paypal_email_hint'.tr,
               fontSize: 14.sp,
-              color: AppColors.grey700Color,
+              color: AppColors.textSecondary(context),
             ),
           ),
           SizedBox(height: 16.h),
@@ -183,14 +186,15 @@ class PayoutStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStripeConnectStatusCard(StripeConnectController controller) {
+  Widget _buildStripeConnectStatusCard(StripeConnectController controller, BuildContext context) {
     final isConnected = controller.isConnected.value;
 
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +212,7 @@ class PayoutStatusScreen extends StatelessWidget {
                   text: 'payout_stripe_connect_title'.tr,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
               _buildStatusBadge(
@@ -225,13 +229,14 @@ class PayoutStatusScreen extends StatelessWidget {
                 ? 'payout_stripe_connected_message'.tr
                 : 'payout_stripe_not_connected_message'.tr,
             fontSize: 14.sp,
-            color: AppColors.grey700Color,
+            color: AppColors.textSecondary(context),
           ),
           if (isConnected && controller.stripeAccountId.value.isNotEmpty) ...[
             SizedBox(height: 12.h),
             _buildDetailRow(
               'payout_account_id_label'.tr,
               controller.stripeAccountId.value,
+              context,
             ),
           ],
         ],
@@ -239,15 +244,16 @@ class PayoutStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildVerificationStatusCard() {
+  Widget _buildVerificationStatusCard(BuildContext context) {
     // TODO: Get actual verification status from API
     final status = VerificationStatus.pending;
 
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +271,7 @@ class PayoutStatusScreen extends StatelessWidget {
                   text: 'payout_verification_title'.tr,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
               _buildStatusBadge(
@@ -278,26 +284,27 @@ class PayoutStatusScreen extends StatelessWidget {
           InterText(
             text: _getVerificationMessage(status),
             fontSize: 14.sp,
-            color: AppColors.grey700Color,
+            color: AppColors.textSecondary(context),
           ),
           if (status == VerificationStatus.pending) ...[
             SizedBox(height: 16.h),
-            _buildVerificationSteps(),
+            _buildVerificationSteps(context),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildPayoutStatusCard() {
+  Widget _buildPayoutStatusCard(BuildContext context) {
     // TODO: Get actual payout status from API
     final status = PayoutStatus.pending;
 
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +322,7 @@ class PayoutStatusScreen extends StatelessWidget {
                   text: 'payout_status_title'.tr,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
               _buildStatusBadge(
@@ -328,11 +335,11 @@ class PayoutStatusScreen extends StatelessWidget {
           InterText(
             text: _getPayoutMessage(status),
             fontSize: 14.sp,
-            color: AppColors.grey700Color,
+            color: AppColors.textSecondary(context),
           ),
           if (status == PayoutStatus.active) ...[
             SizedBox(height: 16.h),
-            _buildPayoutInfo(),
+            _buildPayoutInfo(context),
           ],
         ],
       ),
@@ -357,7 +364,7 @@ class PayoutStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -365,19 +372,19 @@ class PayoutStatusScreen extends StatelessWidget {
           text: label,
           fontSize: 12.sp,
           fontWeight: FontWeight.w400,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         InterText(
           text: value,
           fontSize: 12.sp,
           fontWeight: FontWeight.w500,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
       ],
     );
   }
 
-  Widget _buildVerificationSteps() {
+  Widget _buildVerificationSteps(BuildContext context) {
     final steps = [
       'payout_verification_step_identity'.tr,
       'payout_verification_step_bank'.tr,
@@ -390,7 +397,7 @@ class PayoutStatusScreen extends StatelessWidget {
           margin: EdgeInsets.only(bottom: 12.h),
           padding: EdgeInsets.all(12.w),
           decoration: BoxDecoration(
-            color: AppColors.lightGrey,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Row(
@@ -405,7 +412,7 @@ class PayoutStatusScreen extends StatelessWidget {
                 child: InterText(
                   text: step,
                   fontSize: 12.sp,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
             ],
@@ -415,11 +422,11 @@ class PayoutStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPayoutInfo() {
+  Widget _buildPayoutInfo(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: AppColors.lightGrey,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(8.r),
       ),
       child: Column(
@@ -427,14 +434,16 @@ class PayoutStatusScreen extends StatelessWidget {
           _buildDetailRow(
             'payout_next_payout_label'.tr,
             'payout_status_pending'.tr,
+            context,
           ),
           SizedBox(height: 8.h),
           _buildDetailRow(
             'payout_schedule_label'.tr,
             'payout_schedule_daily'.tr,
+            context,
           ),
           SizedBox(height: 8.h),
-          _buildDetailRow('payout_minimum_amount_label'.tr, '\$10.00'),
+          _buildDetailRow('payout_minimum_amount_label'.tr, '\$10.00', context),
         ],
       ),
     );

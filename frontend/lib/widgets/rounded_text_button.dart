@@ -41,10 +41,27 @@ class CustomButton extends StatelessWidget {
         height: height ?? 50.h,
         width: width ?? double.infinity,
         decoration: BoxDecoration(
-          gradient: isGradient ? AppColors.linearGradient : null,
-          color: isGradient ? null : bgColor ?? AppColors.primaryColor,
-          border: Border.all(color: borderColor ?? Colors.transparent),
-          borderRadius: BorderRadius.circular(radius ?? 48.0.r),
+          gradient: isGradient
+              ? AppColors.linearGradient
+              : LinearGradient(
+                  colors: [
+                    bgColor ?? AppColors.primaryColor,
+                    (bgColor ?? AppColors.primaryColor).withOpacity(0.85),
+                  ],
+                ),
+          border: borderColor != null
+              ? Border.all(color: borderColor!)
+              : null,
+          borderRadius: BorderRadius.circular(radius ?? 16.0.r),
+          boxShadow: onTap != null
+              ? [
+                  BoxShadow(
+                    color: (bgColor ?? AppColors.primaryColor).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Center(
           child:
@@ -52,8 +69,8 @@ class CustomButton extends StatelessWidget {
               InterText(
                 text: title ?? '',
                 fontSize: fontSize ?? 16,
-                fontWeight: fontWeight ?? FontWeight.w500,
-                color: textColor ?? AppColors.whiteColor,
+                fontWeight: fontWeight ?? FontWeight.w600,
+                color: textColor ?? Colors.white,
               ),
         ),
       ),

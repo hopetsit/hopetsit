@@ -166,7 +166,7 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
       canPop:
           false, // Prevent back navigation - payment connection is mandatory
       child: Scaffold(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.all(24.w),
@@ -200,7 +200,7 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
                     text: 'stripe_connect_payment_title'.tr,
                     fontSize: 24.sp,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -426,9 +426,9 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
           margin: EdgeInsets.only(bottom: 12.h),
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: AppColors.lightGrey,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: AppColors.grey300Color, width: 1),
+            border: Border.all(color: AppColors.divider(context), width: 1),
           ),
           child: Row(
             children: [
@@ -443,7 +443,7 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
                   text: benefit,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
             ],
@@ -454,16 +454,17 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
   }
 
   Widget _buildAccountStatusShimmer() {
-    return Shimmer.fromColors(
-      baseColor: AppColors.grey300Color,
-      highlightColor: AppColors.whiteColor,
-      child: Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: AppColors.grey300Color, width: 1),
-        ),
+    return Builder(
+      builder: (context) => Shimmer.fromColors(
+        baseColor: AppColors.grey300Color,
+        highlightColor: AppColors.card(context),
+        child: Container(
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: AppColors.divider(context), width: 1),
+          ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -501,57 +502,60 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
           ],
         ),
       ),
+      ),
     );
   }
 
   Widget _buildAccountStatusCard() {
     return Obx(
-      () => Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: _controller.isConnected.value ? Colors.green : Colors.orange,
-            width: 2,
+      () => Builder(
+        builder: (context) => Container(
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(
+              color: _controller.isConnected.value ? Colors.green : Colors.orange,
+              width: 2,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _controller.isConnected.value
-                      ? Icons.check_circle
-                      : Icons.pending,
-                  color: _controller.isConnected.value
-                      ? Colors.green
-                      : Colors.orange,
-                  size: 24.sp,
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: PoppinsText(
-                    text: _controller.isConnected.value
-                        ? 'stripe_account_connected'.tr
-                        : 'stripe_account_created'.tr,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.blackColor,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    _controller.isConnected.value
+                        ? Icons.check_circle
+                        : Icons.pending,
+                    color: _controller.isConnected.value
+                        ? Colors.green
+                        : Colors.orange,
+                    size: 24.sp,
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 12.h),
-            InterText(
-              text: _controller.isConnected.value
-                  ? 'stripe_account_connected_message'.tr
-                  : 'stripe_account_created_partial_message'.tr,
-              fontSize: 14.sp,
-              color: AppColors.grey700Color,
-            ),
-          ],
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: PoppinsText(
+                      text: _controller.isConnected.value
+                          ? 'stripe_account_connected'.tr
+                          : 'stripe_account_created'.tr,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary(context),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12.h),
+              InterText(
+                text: _controller.isConnected.value
+                    ? 'stripe_account_connected_message'.tr
+                    : 'stripe_account_created_partial_message'.tr,
+                fontSize: 14.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            ],
+          ),
         ),
       ),
     );

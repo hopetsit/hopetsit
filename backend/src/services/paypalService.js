@@ -164,9 +164,55 @@ const getPaypalOrder = async (orderId) => {
   return response.result;
 };
 
+/**
+ * Refund a captured PayPal payment (full refund).
+ * Uses the PayPal REST API v2 /v2/payments/captures/{captureId}/refund
+ * since the SDK's PaymentsController may not be available in all builds.
+ */
+const refundPaypalCapture = async (captureId) => {
+  if (!captureId) throw new Error('PayPal capture ID is required for refund.');
+
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  if (!clientId || !clientSecret) throw new Error('PayPal credentials not configured.');
+
+  const isLive = process.env.PAYPAL_ENVIRONMENT === 'live';
+  const baseUrl = isLive
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  // Get access token
+  const tokenRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) throw new Error('Failed to get PayPal access token for refund.');
+
+  // Issue refund
+  const refundRes = await fetch(`${baseUrl}/v2/payments/captures/${captureId}/refund`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}), // empty body = full refund
+  });
+  const refundData = await refundRes.json();
+  if (refundData.status === 'COMPLETED' || refundData.status === 'PENDING') {
+    return refundData;
+  }
+  throw new Error(`PayPal refund failed: ${JSON.stringify(refundData)}`);
+};
+
 module.exports = {
   createPaypalOrder,
   capturePaypalOrder,
   getPaypalOrder,
+  refundPaypalCapture,
 };
 

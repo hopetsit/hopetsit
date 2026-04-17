@@ -41,6 +41,18 @@ const sitterSchema = new mongoose.Schema(
     // Sprint 5 step 2 — where the sitter accepts to work.
     canServiceAtOwner: { type: Boolean, default: true },
     canServiceAtSitter: { type: Boolean, default: true },
+    // Coin Boost — profile boosting system
+    boostExpiry: { type: Date, default: null },
+    boostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },
+    boostPurchases: [{
+      tier: { type: String },
+      amount: { type: Number },
+      currency: { type: String, default: 'EUR' },
+      days: { type: Number },
+      purchasedAt: { type: Date, default: Date.now },
+      paymentProvider: { type: String },
+      paymentId: { type: String },
+    }],
     // Sprint 7 step 2 — Top sitter flag (completed>=20 && avgRating>4.5).
     isTopSitter: { type: Boolean, default: false },
     completedServicesCount: { type: Number, default: 0 },

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -145,17 +146,19 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
             paymentStatusLower == 'failed');
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         title: PoppinsText(
           text: 'owner_booking_details_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -174,17 +177,17 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
               InterText(
                 text: 'owner_service_provider_section'.tr,
                 fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 12.h),
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.all(16.w),
                 decoration: BoxDecoration(
-                  color: AppColors.whiteColor,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: AppColors.grey300Color),
+                  boxShadow: AppColors.cardShadow(context),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +215,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                             text: sitter.name,
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.blackColor,
+                            color: AppColors.textPrimary(context),
                           ),
                           if (city != null && city.isNotEmpty) ...[
                             SizedBox(height: 4.h),
@@ -220,7 +223,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                               text: city,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.greyText,
+                              color: AppColors.textSecondary(context),
                             ),
                           ],
                           if (phone.isNotEmpty) ...[
@@ -237,7 +240,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                                   text: maskPhoneNumber(phone),
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w500,
-                                  color: AppColors.blackColor,
+                                  color: AppColors.textPrimary(context),
                                 ),
                               ],
                             ),
@@ -264,7 +267,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                                       ),
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w500,
-                                  color: AppColors.blackColor,
+                                  color: AppColors.textPrimary(context),
                                 ),
                               ],
                             ),
@@ -276,7 +279,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       text: _timeAgo(booking.createdAt),
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                     ),
                   ],
                 ),
@@ -289,9 +292,9 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
                 decoration: BoxDecoration(
-                  color: AppColors.whiteColor,
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: AppColors.grey300Color),
+                  color: AppColors.card(context),
+                  borderRadius: BorderRadius.circular(14.r),
+                  boxShadow: AppColors.cardShadow(context),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,8 +346,8 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
               InterText(
                 text: 'owner_pets_section'.tr,
                 fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 12.h),
               if (booking.pets.isEmpty)
@@ -390,17 +393,17 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
               InterText(
                 text: 'owner_note_section'.tr,
                 fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 12.h),
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.all(14.w),
                 decoration: BoxDecoration(
-                  color: AppColors.whiteColor,
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: AppColors.grey300Color),
+                  color: AppColors.card(context),
+                  borderRadius: BorderRadius.circular(14.r),
+                  boxShadow: AppColors.cardShadow(context),
                 ),
                 child: InterText(
                   text: booking.description.isNotEmpty
@@ -409,8 +412,8 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
                   color: booking.description.isNotEmpty
-                      ? AppColors.blackColor
-                      : AppColors.greyText,
+                      ? AppColors.textPrimary(context)
+                      : AppColors.textSecondary(context),
                 ),
               ),
 
@@ -425,10 +428,19 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       onTap: widget.onStartChat,
                       child: Container(
                         width: double.infinity,
-                        height: 48.h,
+                        height: 50.h,
                         decoration: BoxDecoration(
-                          color: AppColors.primaryColor,
-                          borderRadius: BorderRadius.circular(24.r),
+                          gradient: LinearGradient(
+                            colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.85)],
+                          ),
+                          borderRadius: BorderRadius.circular(16.r),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryColor.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -462,10 +474,19 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       child: GestureDetector(
                         onTap: widget.onPay,
                         child: Container(
-                          height: 48.h,
+                          height: 50.h,
                           decoration: BoxDecoration(
-                            color: AppColors.primaryColor,
-                            borderRadius: BorderRadius.circular(24.r),
+                            gradient: LinearGradient(
+                              colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.85)],
+                            ),
+                            borderRadius: BorderRadius.circular(16.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           alignment: Alignment.center,
                           child: Row(
@@ -504,10 +525,10 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       child: GestureDetector(
                         onTap: widget.onCancel,
                         child: Container(
-                          height: 48.h,
+                          height: 50.h,
                           decoration: BoxDecoration(
-                            color: AppColors.grey300Color,
-                            borderRadius: BorderRadius.circular(24.r),
+                            color: const Color(0xFFF0F0F2),
+                            borderRadius: BorderRadius.circular(16.r),
                           ),
                           alignment: Alignment.center,
                           child: InterText(
@@ -522,11 +543,180 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                   ],
                 ),
 
+              // ── 72h free cancellation for paid bookings ──
+              if (isPaid && statusLower != 'cancelled' && statusLower != 'completed' && statusLower != 'refunded')
+                Padding(
+                  padding: EdgeInsets.only(top: 12.h),
+                  child: _buildSelfCancelButton(context, booking),
+                ),
+
               SizedBox(height: 40.h),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSelfCancelButton(BuildContext context, BookingModel booking) {
+    // Calculate if we're within the 72h window
+    final startDateStr = booking.date;
+    DateTime? startDate;
+    try {
+      startDate = DateTime.parse(startDateStr ?? '');
+    } catch (_) {}
+
+    final hoursUntilStart = startDate != null
+        ? startDate.difference(DateTime.now()).inHours
+        : 0;
+    final canFreeCancelation = hoursUntilStart > 72;
+
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                  title: Row(
+                    children: [
+                      Icon(
+                        canFreeCancelation ? Icons.cancel_outlined : Icons.warning_amber_rounded,
+                        color: canFreeCancelation ? Colors.red : Colors.orange,
+                        size: 24.sp,
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: InterText(
+                          text: 'cancel_72h_title'.tr,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InterText(
+                        text: canFreeCancelation
+                            ? 'cancel_72h_free_message'.tr
+                            : 'cancel_72h_closed_message'.tr,
+                        fontSize: 14.sp,
+                        color: AppColors.greyText,
+                      ),
+                      SizedBox(height: 12.h),
+                      Container(
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: canFreeCancelation
+                              ? Colors.green.shade50
+                              : Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              size: 16.sp,
+                              color: canFreeCancelation
+                                  ? Colors.green
+                                  : Colors.orange,
+                            ),
+                            SizedBox(width: 8.w),
+                            Expanded(
+                              child: InterText(
+                                text: 'cancel_72h_hours_left'.tr.replaceAll(
+                                  '@hours',
+                                  hoursUntilStart.toString(),
+                                ),
+                                fontSize: 12.sp,
+                                color: canFreeCancelation
+                                    ? Colors.green.shade800
+                                    : Colors.orange.shade800,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: InterText(
+                        text: 'common_cancel'.tr,
+                        fontSize: 14.sp,
+                        color: AppColors.greyText,
+                      ),
+                    ),
+                    if (canFreeCancelation)
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          final controller = Get.find<BookingsController>();
+                          controller.selfCancelBooking(bookingId: booking.id);
+                        },
+                        child: InterText(
+                          text: 'cancel_72h_confirm'.tr,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+            child: Container(
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(24.r),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.cancel_outlined, color: Colors.red, size: 18.sp),
+                  SizedBox(width: 8.w),
+                  InterText(
+                    text: canFreeCancelation
+                        ? 'cancel_72h_free_button'.tr
+                        : 'cancel_72h_not_free_button'.tr,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 6.h),
+        InterText(
+          text: canFreeCancelation
+              ? 'cancel_72h_free_hint'.tr
+              : 'cancel_72h_closed_hint'.tr,
+          fontSize: 11.sp,
+          color: AppColors.greyText,
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 
@@ -539,7 +729,15 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20.sp, color: AppColors.primaryColor),
+        Container(
+          width: 36.w,
+          height: 36.w,
+          decoration: BoxDecoration(
+            color: AppColors.primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          child: Icon(icon, size: 18.sp, color: AppColors.primaryColor),
+        ),
         SizedBox(width: 10.w),
         Expanded(
           child: Column(
@@ -549,7 +747,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                 text: '$label:',
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
               SizedBox(height: 2.h),
               InterText(
@@ -558,7 +756,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                 fontWeight: FontWeight.w500,
                 color: isPlaceholder
                     ? AppColors.greyColor
-                    : AppColors.blackColor,
+                    : AppColors.textPrimary(context),
               ),
             ],
           ),
@@ -584,9 +782,9 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
       width: double.infinity,
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.grey300Color),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -610,7 +808,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                   text: petName,
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
                 if (typeBreed.isNotEmpty) ...[
                   SizedBox(height: 4.h),
@@ -618,7 +816,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                     text: typeBreed,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ],
                 if (details.isNotEmpty) ...[
@@ -627,7 +825,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                     text: details,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ],
                 if (traits.isNotEmpty) ...[
@@ -636,7 +834,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                     text: traits,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ],
                 if (medication.isNotEmpty) ...[

@@ -22,22 +22,24 @@ class LoginScreen extends StatelessWidget {
     final controller = Get.find<AuthController>();
 
     return Scaffold(
-      // Sprint 6 step 4 — let ThemeData.scaffoldBackgroundColor drive so dark mode works.
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: PoppinsText(
           text: 'title_login'.tr,
           fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
         centerTitle: true,
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.language_outlined,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
             onPressed: () {
               final currentCode = LocalizationService.getCurrentLanguageCode();
@@ -46,7 +48,7 @@ class LoginScreen extends StatelessWidget {
 
               Get.defaultDialog(
                 title: 'language_dialog_title'.tr,
-                backgroundColor: AppColors.whiteColor,
+                backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceDark : AppColors.whiteColor,
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: entries.map((entry) {
@@ -90,14 +92,14 @@ class LoginScreen extends StatelessWidget {
                     PoppinsText(
                       text: 'welcome_back'.tr,
                       fontSize: 26.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.blackColor,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
                     ),
                     SizedBox(height: 8.h),
                     InterText(
                       text: 'login_subtitle'.tr,
                       fontSize: 14.sp,
-                      color: AppColors.greyColor,
+                      color: AppColors.textSecondary(context),
                     ),
                     SizedBox(height: 32.h),
                     CustomTextField(
@@ -154,7 +156,7 @@ class LoginScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Divider(
-                            color: AppColors.grey300Color,
+                            color: AppColors.textSecondary(context).withOpacity(0.2),
                             thickness: 1,
                           ),
                         ),
@@ -163,12 +165,12 @@ class LoginScreen extends StatelessWidget {
                           child: InterText(
                             text: 'or_continue_with'.tr,
                             fontSize: 12.sp,
-                            color: AppColors.greyColor,
+                            color: AppColors.textSecondary(context),
                           ),
                         ),
                         Expanded(
                           child: Divider(
-                            color: AppColors.grey300Color,
+                            color: AppColors.textSecondary(context).withOpacity(0.2),
                             thickness: 1,
                           ),
                         ),
@@ -187,10 +189,10 @@ class LoginScreen extends StatelessWidget {
                                 ? null
                                 : () => controller.loginWithGoogle(),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: AppColors.grey300Color),
+                              side: BorderSide(color: AppColors.textSecondary(context).withOpacity(0.2)),
                               padding: EdgeInsets.symmetric(vertical: 12.h),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.r),
+                                borderRadius: BorderRadius.circular(14.r),
                               ),
                             ),
                             child: Row(
@@ -207,7 +209,7 @@ class LoginScreen extends StatelessWidget {
                                   text: 'button_google'.tr,
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w500,
-                                  color: AppColors.blackColor,
+                                  color: AppColors.textPrimary(context),
                                 ),
                               ],
                             ),
@@ -223,10 +225,10 @@ class LoginScreen extends StatelessWidget {
                                   ? null
                                   : () => controller.loginWithApple(),
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.grey300Color),
+                                side: BorderSide(color: AppColors.textSecondary(context).withOpacity(0.2)),
                                 padding: EdgeInsets.symmetric(vertical: 12.h),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8.r),
+                                  borderRadius: BorderRadius.circular(14.r),
                                 ),
                               ),
                               child: Row(
@@ -235,14 +237,14 @@ class LoginScreen extends StatelessWidget {
                                   Icon(
                                     Icons.apple,
                                     size: 20.sp,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                                   SizedBox(width: 8.w),
                                   InterText(
                                     text: 'button_apple'.tr,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w500,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                                 ],
                               ),
@@ -260,7 +262,7 @@ class LoginScreen extends StatelessWidget {
                           InterText(
                             text: 'dont_have_account'.tr,
                             fontSize: 13.sp,
-                            color: AppColors.greyColor,
+                            color: AppColors.textSecondary(context),
                           ),
                           TextButton(
                             onPressed: () =>

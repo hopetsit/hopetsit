@@ -7,6 +7,7 @@ import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:hopetsit/widgets/report_dialog.dart';
 
 class PetPostCard extends StatelessWidget {
   final String userName;
@@ -65,19 +66,13 @@ class PetPostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(19.r),
         border: Border.all(
-          color: AppColors.textFieldBorder.withValues(alpha: 0.35),
+          color: AppColors.divider(context).withValues(alpha: 0.35),
           width: 1.w,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 14.r,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,7 +81,7 @@ class PetPostCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
-              color: AppColors.lightGrey.withValues(alpha: 0.55),
+              color: AppColors.inputFill(context),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(19.r),
                 topRight: Radius.circular(19.r),
@@ -116,7 +111,7 @@ class PetPostCard extends StatelessWidget {
                         text: userName,
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.blackColor,
+                        color: AppColors.textPrimary(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -125,7 +120,7 @@ class PetPostCard extends StatelessWidget {
                         text: 'role_pet_owner'.tr,
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.grey500Color,
+                        color: AppColors.textSecondary(context),
                       ),
                     ],
                   ),
@@ -142,7 +137,7 @@ class PetPostCard extends StatelessWidget {
                   ),
                 if (onBlockUser != null || onReportPost != null)
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 20.sp, color: AppColors.greyColor),
+                    icon: Icon(Icons.more_vert, size: 20.sp, color: AppColors.textSecondary(context)),
                     tooltip: 'post_more_options'.tr,
                     onSelected: (value) {
                       if (value == 'block' && onBlockUser != null) {
@@ -168,7 +163,7 @@ class PetPostCard extends StatelessWidget {
                           value: 'report',
                           child: Row(
                             children: [
-                              Icon(Icons.flag_outlined, color: AppColors.greyColor, size: 18.sp),
+                              Icon(Icons.flag_outlined, color: AppColors.textSecondary(context), size: 18.sp),
                               SizedBox(width: 8.w),
                               Text('post_action_report'.tr),
                             ],
@@ -201,10 +196,10 @@ class PetPostCard extends StatelessWidget {
                 children: [
                   if ((postBody ?? '').trim().isNotEmpty) ...[
                     InterText(
-                      text: postBody!.trim(),
+                      text: _localizePostBody(postBody!.trim()),
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.grey700Color,
+                      color: AppColors.textSecondary(context),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -214,14 +209,9 @@ class PetPostCard extends StatelessWidget {
                     width: double.infinity,
                     padding: EdgeInsets.all(10.w),
                     decoration: BoxDecoration(
-                      color: AppColors.lightGrey.withValues(alpha: 0.9),
+                      color: AppColors.inputFill(context),
                       borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                        color: AppColors.textFieldBorder.withValues(
-                          alpha: 0.35,
-                        ),
-                        width: 1.w,
-                      ),
+                      boxShadow: AppColors.cardShadow(context),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +221,7 @@ class PetPostCard extends StatelessWidget {
                         if ((serviceTypes ?? '').trim().isNotEmpty)
                           _buildDetailRow(
                             Icons.volunteer_activism_outlined,
-                            serviceTypes!.trim(),
+                            _localizedServices(serviceTypes!.trim()),
                           ),
                         if ((dateRange ?? '').trim().isNotEmpty)
                           _buildDetailRow(
@@ -292,7 +282,7 @@ class PetPostCard extends StatelessWidget {
                   text: likeCount.toString(),
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                 ),
                 // GestureDetector(
                 //   onTap: onComment,
@@ -314,7 +304,7 @@ class PetPostCard extends StatelessWidget {
           ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.w),
-            child: Divider(color: AppColors.greyText.withValues(alpha: 0.2)),
+            child: Divider(color: AppColors.divider(context).withValues(alpha: 0.2)),
           ),
 
           // Action buttons (comment hidden — keep like + share balanced)
@@ -326,6 +316,7 @@ class PetPostCard extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: _buildActionButton(
+                      context: context,
                       icon: AppImages.likeIcon,
                       label: 'post_action_like'.tr,
                       isActive: isLiked,
@@ -345,6 +336,7 @@ class PetPostCard extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: _buildActionButton(
+                      context: context,
                       icon: AppImages.sendIcon,
                       label: 'post_action_share'.tr,
                       onTap: onShare,
@@ -361,6 +353,7 @@ class PetPostCard extends StatelessWidget {
   }
 
   Widget _buildActionButton({
+    required BuildContext context,
     required String icon,
     required String label,
     bool isActive = false,
@@ -374,39 +367,85 @@ class PetPostCard extends StatelessWidget {
             icon,
             width: 20.w,
             height: 20.h,
-            color: isActive ? AppColors.primaryColor : AppColors.grey500Color,
+            color: isActive ? AppColors.primaryColor : AppColors.textSecondary(context),
           ),
           SizedBox(height: 4.h),
           InterText(
             text: label,
             fontSize: 12.sp,
             fontWeight: FontWeight.w400,
-            color: isActive ? AppColors.primaryColor : AppColors.greyText,
+            color: isActive ? AppColors.primaryColor : AppColors.textSecondary(context),
           ),
         ],
       ),
     );
   }
 
+  // Maps known English post body strings from backend to localized versions.
+  String _localizePostBody(String body) {
+    switch (body.toLowerCase()) {
+      case 'reservation request':
+        return 'post_card_reservation_request'.tr;
+      default:
+        return body;
+    }
+  }
+
+  // Maps raw backend service strings (e.g. "house sitting", "dog walking")
+  // to localized labels. Preserves unknown values verbatim.
+  String _localizedServices(String raw) {
+    final items = raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
+    String map(String s) {
+      switch (s.toLowerCase()) {
+        case 'house sitting':
+        case 'house_sitting':
+          return 'post_card_service_house_sitting'.tr;
+        case 'dog walking':
+        case 'dog_walking':
+          return 'post_card_service_dog_walking'.tr;
+        case 'pet sitting':
+        case 'pet_sitting':
+          return 'post_card_service_pet_sitting'.tr;
+        case 'pet grooming':
+        case 'pet_grooming':
+          return 'post_card_service_pet_grooming'.tr;
+        case 'pet training':
+        case 'pet_training':
+          return 'post_card_service_pet_training'.tr;
+        case 'overnight care':
+        case 'overnight_care':
+          return 'post_card_service_overnight_care'.tr;
+        case 'pet boarding':
+        case 'pet_boarding':
+          return 'post_card_service_pet_boarding'.tr;
+        default:
+          return s;
+      }
+    }
+    return items.map(map).join(', ');
+  }
+
   Widget _buildDetailRow(IconData icon, String text, {bool isLast = false}) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 6.h),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 14.sp, color: AppColors.grey700Color),
-          SizedBox(width: 7.w),
-          Expanded(
-            child: InterText(
-              text: text,
-              fontSize: 11.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.grey700Color,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+    return Builder(
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: isLast ? 0 : 6.h),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 14.sp, color: AppColors.textSecondary(context)),
+            SizedBox(width: 7.w),
+            Expanded(
+              child: InterText(
+                text: text,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary(context),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -458,61 +497,63 @@ class PetPostCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18.r),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
-        decoration: BoxDecoration(
-          color: isCancelRequest
-              ? AppColors.whiteColor
-              : AppColors.primaryColor,
-          borderRadius: BorderRadius.circular(18.r),
-          border: Border.all(
+      child: Builder(
+        builder: (context) => Container(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 9.h),
+          decoration: BoxDecoration(
             color: isCancelRequest
-                ? AppColors.errorColor
+                ? AppColors.card(context)
                 : AppColors.primaryColor,
-            width: 1.2,
+            borderRadius: BorderRadius.circular(18.r),
+            border: Border.all(
+              color: isCancelRequest
+                  ? AppColors.errorColor
+                  : AppColors.primaryColor,
+              width: 1.2,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (isLoading) ...[
-              SizedBox(
-                width: 14.w,
-                height: 14.h,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isCancelRequest ? AppColors.errorColor : Colors.white,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isLoading) ...[
+                SizedBox(
+                  width: 14.w,
+                  height: 14.h,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isCancelRequest ? AppColors.errorColor : Colors.white,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 6.w),
+              ] else ...[
+                Icon(
+                  isCancelRequest ? Icons.cancel_outlined : Icons.send_outlined,
+                  size: 16.sp,
+                  color: isCancelRequest ? AppColors.errorColor : Colors.white,
+                ),
+                SizedBox(width: 6.w),
+              ],
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: InterText(
+                    text: isLoading
+                        ? (isCancelRequest
+                              ? 'request_cancel_button_cancelling'.tr
+                              : 'send_request_button_sending'.tr)
+                        : buttonText,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    color: isCancelRequest ? AppColors.errorColor : Colors.white,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              SizedBox(width: 6.w),
-            ] else ...[
-              Icon(
-                isCancelRequest ? Icons.cancel_outlined : Icons.send_outlined,
-                size: 16.sp,
-                color: isCancelRequest ? AppColors.errorColor : Colors.white,
-              ),
-              SizedBox(width: 6.w),
             ],
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: InterText(
-                  text: isLoading
-                      ? (isCancelRequest
-                            ? 'request_cancel_button_cancelling'.tr
-                            : 'send_request_button_sending'.tr)
-                      : buttonText,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
-                  color: isCancelRequest ? AppColors.errorColor : Colors.white,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -649,6 +690,12 @@ class PetPostCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => _openPhotoViewer(context, index),
+      onLongPress: () => ReportDialog.show(
+        context: context,
+        targetType: 'photo',
+        targetId: '',
+        photoUrl: imageUrl,
+      ),
       child: Container(
         height: height,
         decoration: BoxDecoration(
@@ -740,7 +787,7 @@ class PetPostCard extends StatelessWidget {
           Icon(
             Icons.broken_image_outlined,
             size: 26.sp,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 8.h),
           TextButton.icon(

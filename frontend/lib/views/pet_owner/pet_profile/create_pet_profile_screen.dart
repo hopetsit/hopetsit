@@ -75,10 +75,10 @@ class CreatePetProfileScreen extends StatelessWidget {
           ],
           onProfileTap: () {
             // Handle profile tap
-            print('Profile tapped');
+            // debug removed
           },
         ),
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: Column(
             children: [
@@ -87,12 +87,21 @@ class CreatePetProfileScreen extends StatelessWidget {
                 padding: EdgeInsets.all(15),
                 height: 54.h,
                 width: double.infinity,
-                decoration: BoxDecoration(color: AppColors.whiteColor),
+                decoration: BoxDecoration(
+                  color: AppColors.card(context),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
+                ),
                 child: PoppinsText(
                   text: 'create_pet_header'.tr,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
 

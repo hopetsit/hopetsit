@@ -35,13 +35,13 @@ class EmailVerificationScreen extends StatelessWidget {
       height: 60.h,
       textStyle: TextStyle(
         fontSize: 32.sp,
-        color: AppColors.blackColor,
+        color: AppColors.textPrimary(context),
         fontWeight: FontWeight.w400,
       ),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.grey300Color),
+        border: Border.all(color: AppColors.divider(context)),
         borderRadius: BorderRadius.circular(16.r),
-        color: AppColors.whiteColor,
+        color: AppColors.inputFill(context),
       ),
     );
 
@@ -54,7 +54,7 @@ class EmailVerificationScreen extends StatelessWidget {
     final submittedPinTheme = defaultPinTheme.copyWith(
       decoration: defaultPinTheme.decoration!.copyWith(
         border: Border.all(color: AppColors.primaryColor),
-        color: AppColors.whiteColor,
+        color: AppColors.inputFill(context),
       ),
     );
 
@@ -67,7 +67,7 @@ class EmailVerificationScreen extends StatelessWidget {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -80,7 +80,7 @@ class EmailVerificationScreen extends StatelessWidget {
                   text: 'Email Verification',
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
 
                 SizedBox(height: 5.h),
@@ -90,7 +90,7 @@ class EmailVerificationScreen extends StatelessWidget {
                   text: 'Enter verification code send on',
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
 
                 // Masked Email
@@ -98,7 +98,7 @@ class EmailVerificationScreen extends StatelessWidget {
                   text: controller.getMaskedEmail(),
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.greyColor.withOpacity(0.6),
+                  color: AppColors.textSecondary(context).withOpacity(0.6),
                 ),
 
                 SizedBox(height: 48.h),
@@ -127,7 +127,7 @@ class EmailVerificationScreen extends StatelessWidget {
                         text: 'Resent code in: ',
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
-                        color: AppColors.blackColor,
+                        color: AppColors.textPrimary(context),
                       ),
                       GestureDetector(
                         onTap: controller.isResendEnabled.value

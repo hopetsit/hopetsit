@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Sprint 6 step 2 — sitter live walk tracking screen.
@@ -111,7 +112,14 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
   Widget build(BuildContext context) {
     final active = _walkId != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Walk tracking')),
+      backgroundColor: AppColors.scaffold(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Walk tracking', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

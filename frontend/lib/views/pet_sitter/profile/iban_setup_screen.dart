@@ -112,19 +112,21 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.blackColor),
+          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary(context)),
           onPressed: () => Get.back(),
         ),
         title: InterText(
           text: 'iban_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         centerTitle: true,
       ),

@@ -86,8 +86,14 @@ const handlePaymentIntentSucceeded = async (paymentIntent) => {
 
     // Update booking status to PAID
     booking.status = 'paid';
-    booking.paymentStatus = 'paid'; // Update payment status
+    booking.paymentStatus = 'paid';
     booking.paidAt = new Date();
+    // Stripe destination charges automatically transfer funds to sitter's
+    // connected account, so mark payout as completed for Stripe payments.
+    if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
+      booking.payoutStatus = 'completed';
+      booking.payoutAt = new Date();
+    }
     // Store charge ID (can be a string or Charge object)
     if (paymentIntent.latest_charge) {
       booking.stripeChargeId = typeof paymentIntent.latest_charge === 'string' 

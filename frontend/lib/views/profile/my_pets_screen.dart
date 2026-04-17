@@ -30,17 +30,19 @@ class MyPetsScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'my_pets_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
         actions: [
           Padding(
@@ -110,7 +112,7 @@ class MyPetsScreen extends StatelessWidget {
               itemCount: controller.pets.length,
               itemBuilder: (context, index) {
                 final pet = controller.pets[index];
-                return _buildPetCard(pet);
+                return _buildPetCard(context, pet);
               },
             ),
           );
@@ -119,22 +121,15 @@ class MyPetsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPetCard(PetModel pet) {
+  Widget _buildPetCard(BuildContext context, PetModel pet) {
     final imageUrl = pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
 
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.blackColor.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-            spreadRadius: 0,
-          ),
-        ],
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

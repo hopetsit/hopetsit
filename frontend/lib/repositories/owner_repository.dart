@@ -393,6 +393,22 @@ class OwnerRepository {
     );
   }
 
+  /// Self-cancel a paid booking (72h free cancellation window).
+  /// Calls POST /bookings/:id/self-cancel
+  Future<Map<String, dynamic>> selfCancelBooking({
+    required String bookingId,
+    String? reason,
+  }) async {
+    final response = await _apiClient.post(
+      '${ApiEndpoints.bookings}/$bookingId/self-cancel',
+      body: reason != null ? {'reason': reason} : {},
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected self-cancel response.', details: response);
+  }
+
   /// Creates a Stripe payment intent for a booking.
   Future<Map<String, dynamic>> createPaymentIntent({
     required String bookingId,

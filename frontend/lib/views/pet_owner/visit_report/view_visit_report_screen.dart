@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// Sprint 6 step 3 — owner views the latest visit report for a booking.
 class ViewVisitReportScreen extends StatefulWidget {
@@ -57,7 +58,14 @@ class _ViewVisitReportScreenState extends State<ViewVisitReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Visit report')),
+      backgroundColor: AppColors.scaffold(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Visit report', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _report == null

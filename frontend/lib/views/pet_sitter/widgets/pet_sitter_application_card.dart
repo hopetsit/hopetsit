@@ -73,9 +73,9 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
       margin: EdgeInsets.only(bottom: 16.h),
       padding: EdgeInsets.fromLTRB(20.w, 20.w, 0, 20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(17.r),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +229,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
             text: title,
             fontSize: 10.sp,
             fontWeight: FontWeight.w400,
-            color: AppColors.greyColor,
+            color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 4.h),
           Flexible(
@@ -256,7 +256,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
           text: application.petName,
           fontSize: 16.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 12.h),
         _buildDetailRow(
@@ -311,7 +311,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                 text: displayValue,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w400,
-                color: value.isEmpty ? AppColors.greyColor : AppColors.greyText,
+                color: value.isEmpty ? AppColors.textSecondary(context) : AppColors.textSecondary(context),
               ),
             ],
           ),
@@ -340,7 +340,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
               child: Container(
                 height: 48.h,
                 decoration: BoxDecoration(
-                  color: AppColors.whiteColor,
+                  color: AppColors.card(context),
                   border: Border.all(color: AppColors.primaryColor),
                   borderRadius: BorderRadius.circular(24.r),
                 ),

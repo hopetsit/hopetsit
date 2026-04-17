@@ -267,7 +267,8 @@ class PublishReservationRequestController extends GetxController {
     }
 
     final notes = notesController.text.trim();
-    final body = notes.isEmpty ? 'Reservation request' : notes;
+    // Localized default body — was 'Reservation request' in English only.
+    final body = notes.isEmpty ? 'post_card_reservation_request'.tr : notes;
     final city = cityController.text.trim();
     final petId = selectedPetId.value!;
 

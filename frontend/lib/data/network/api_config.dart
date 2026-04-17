@@ -6,7 +6,7 @@ class ApiConfig {
 
   /// Base URLs for each environment.
   static const String _devBaseUrl =
-      'https://petinsta-backend-g7jn.onrender.com';
+      'https://hopetsit-backend.onrender.com';
 
   //  static const String _devBaseUrl = 'https://petinsta-backend.onrender.com';
   // static const String _localBaseUrl = 'http://localhost:5000';

@@ -8,6 +8,7 @@ import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/report_dialog.dart';
 
 class IndividualChatScreen extends StatefulWidget {
   final String conversationId;
@@ -142,9 +143,12 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Sprint 6 step 4 — theme-driven bg
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.appBar(context),
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
@@ -156,21 +160,29 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         title: Row(
           children: [
             // Contact Avatar
-            CircleAvatar(
-              radius: 25.r,
-              backgroundColor: AppColors.grey300Color,
-              backgroundImage:
-                  widget.contactImage.isNotEmpty &&
+            Container(
+              width: 42.w,
+              height: 42.h,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14.r),
+                color: AppColors.grey300Color,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: widget.contactImage.isNotEmpty &&
                       (widget.contactImage.startsWith('http://') ||
                           widget.contactImage.startsWith('https://'))
-                  ? CachedNetworkImageProvider(widget.contactImage)
-                  : null,
-              child:
-                  widget.contactImage.isEmpty ||
-                      (!widget.contactImage.startsWith('http://') &&
-                          !widget.contactImage.startsWith('https://'))
-                  ? Icon(Icons.person, size: 20.sp, color: AppColors.greyColor)
-                  : null,
+                  ? CachedNetworkImage(
+                      imageUrl: widget.contactImage,
+                      width: 42.w,
+                      height: 42.h,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => Icon(
+                        Icons.person,
+                        size: 20.sp,
+                        color: AppColors.greyColor,
+                      ),
+                    )
+                  : Icon(Icons.person, size: 20.sp, color: AppColors.greyColor),
             ),
             SizedBox(width: 12.w),
             // Contact Name
@@ -178,8 +190,8 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               child: PoppinsText(
                 text: widget.contactName,
                 fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
               ),
             ),
           ],
@@ -201,14 +213,14 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                     text: 'chat_error_loading_messages'.tr,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.greyColor,
+                    color: AppColors.textSecondary(context),
                   ),
                   SizedBox(height: 8.h),
                   InterText(
                     text: chatController.errorMessage.value,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w300,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ],
               ),
@@ -229,7 +241,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                             text: 'chat_no_messages'.tr,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w400,
-                            color: AppColors.greyColor,
+                            color: AppColors.textSecondary(context),
                           ),
                         ),
                       )
@@ -262,7 +274,20 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   }
 
   Widget _buildMessageItem(ChatMessage message, ChatController controller) {
-    return Container(
+    return GestureDetector(
+      // Long-press a message (own or received) to open "Signaler" dialog.
+      onLongPress: message.isFromCurrentUser
+          ? null
+          : () {
+              ReportDialog.show(
+                context: context,
+                targetType: 'message',
+                targetId: message.id,
+                conversationId: widget.conversationId,
+                snapshot: message.message,
+              );
+            },
+      child: Container(
       margin: EdgeInsets.only(bottom: 15.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,14 +320,14 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                 text: message.senderName,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(width: 8.w),
               InterText(
                 text: '• ${controller.formatMessageTime(message.timestamp)}',
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w300,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
             ],
           ),
@@ -318,6 +343,15 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                   return GestureDetector(
                     onTap: () {
                       // TODO: Open full screen image viewer
+                    },
+                    onLongPress: () {
+                      ReportDialog.show(
+                        context: context,
+                        targetType: 'photo',
+                        targetId: message.id,
+                        conversationId: widget.conversationId,
+                        photoUrl: attachmentUrl,
+                      );
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.r),
@@ -364,25 +398,27 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                 text: message.message,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w400,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
             ),
         ],
+      ),
       ),
     );
   }
 
   Widget _buildMessageInput(ChatController controller) {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.greyColor.withOpacity(0.3),
-            width: 1.w,
+        color: AppColors.card(context),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
-        ),
+        ],
       ),
       child: Obx(() {
         if (controller.isPaymentRequired.value) {
@@ -515,15 +551,15 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                     vertical: 3.h,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.chatFieldColor,
-                    borderRadius: BorderRadius.circular(10.r),
+                    color: AppColors.inputFill(context),
+                    borderRadius: BorderRadius.circular(16.r),
                   ),
                   child: TextField(
                     controller: _localMessageController,
                     decoration: InputDecoration(
                       hintText: 'chat_input_hint'.tr,
                       hintStyle: TextStyle(
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
                       ),
@@ -531,7 +567,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                       contentPadding: EdgeInsets.zero,
                     ),
                     style: TextStyle(
-                      color: AppColors.blackColor,
+                      color: AppColors.textPrimary(context),
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w400,
                     ),
@@ -588,10 +624,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         border: Border(
           top: BorderSide(
-            color: AppColors.greyColor.withOpacity(0.3),
+            color: AppColors.divider(context),
             width: 1.w,
           ),
         ),
@@ -600,7 +636,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         text: 'chat_locked_after_payment'.tr,
         fontSize: 13.sp,
         fontWeight: FontWeight.w500,
-        color: AppColors.greyText,
+        color: AppColors.textSecondary(context),
       ),
     );
   }

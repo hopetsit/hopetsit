@@ -42,6 +42,33 @@ class SitterBookingsController extends GetxController {
     }
   }
 
+  /// Self-cancel a paid booking with automatic refund (72h window).
+  Future<void> selfCancelBooking({
+    required String bookingId,
+    String? reason,
+  }) async {
+    try {
+      await _sitterRepository.selfCancelBooking(
+        bookingId: bookingId,
+        reason: reason,
+      );
+
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'cancel_72h_success'.tr,
+      );
+
+      await loadBookings();
+    } on ApiException catch (error) {
+      CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);
+    } catch (error) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'cancel_72h_error'.tr,
+      );
+    }
+  }
+
   /// Requests cancellation for a booking (rejects/cancels the booking)
   Future<void> requestCancellation({required String bookingId}) async {
     try {

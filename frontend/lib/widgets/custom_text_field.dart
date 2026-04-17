@@ -55,7 +55,7 @@ class CustomTextField extends StatefulWidget {
     this.errorText,
     this.showPasswordToggle = false,
     this.contentPadding,
-      this.radius = 30,
+      this.radius = 14,
   });
 
   @override
@@ -100,7 +100,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             text: widget.labelText!,
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: AppColors.grey700Color,
+            color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 8.h),
         ],
@@ -137,7 +137,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             style: GoogleFonts.inter(
               fontSize: 14.sp,
               fontWeight: FontWeight.w400,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
             decoration: InputDecoration(
               hintText: widget.hintText,
@@ -173,39 +173,39 @@ class _CustomTextFieldState extends State<CustomTextField> {
                   widget.contentPadding ??
                   EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
               filled: true,
-              fillColor: AppColors.whiteColor,
+              fillColor: AppColors.inputFill(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(widget.radius.r),
-                borderSide: BorderSide(color: AppColors.grey300Color, width: 1),
+                borderSide: BorderSide(color: AppColors.divider(context), width: 1),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.r),
-                borderSide: BorderSide(color: AppColors.grey300Color, width: 1),
+                borderRadius: BorderRadius.circular(14.r),
+                borderSide: BorderSide(color: AppColors.divider(context), width: 1),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.r),
+                borderRadius: BorderRadius.circular(14.r),
                 borderSide: const BorderSide(
                   color: AppColors.primaryColor,
                   width: 1.5,
                 ),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.r),
+                borderRadius: BorderRadius.circular(14.r),
                 borderSide: const BorderSide(
                   color: AppColors.primaryColor,
                   width: 1,
                 ),
               ),
               focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.r),
+                borderRadius: BorderRadius.circular(14.r),
                 borderSide: const BorderSide(
                   color: AppColors.primaryColor,
                   width: 1.5,
                 ),
               ),
               disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.r),
-                borderSide: BorderSide(color: AppColors.grey300Color, width: 1),
+                borderRadius: BorderRadius.circular(14.r),
+                borderSide: BorderSide(color: AppColors.divider(context), width: 1),
               ),
               counterText: '',
             ),

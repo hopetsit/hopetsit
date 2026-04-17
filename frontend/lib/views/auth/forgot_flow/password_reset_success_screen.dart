@@ -43,7 +43,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -77,7 +77,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                   text: 'forgot_password_reset_success_title'.tr,
                   fontSize: 26.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 16.h),
@@ -86,7 +86,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                 InterText(
                   text: 'forgot_password_reset_success_message'.tr,
                   fontSize: 14.sp,
-                  color: AppColors.greyColor,
+                  color: AppColors.textSecondary(context),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 60.h),
@@ -95,9 +95,9 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                 Container(
                   padding: EdgeInsets.all(20.w),
                   decoration: BoxDecoration(
-                    color: AppColors.lightGrey,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(16.r),
-                    border: Border.all(color: AppColors.textFieldBorder),
+                    border: Border.all(color: AppColors.divider(context)),
                   ),
                   child: Column(
                     children: [
@@ -105,15 +105,17 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                         icon: Icons.mail_outline,
                         title: 'forgot_password_email_verified_title'.tr,
                         subtitle: 'forgot_password_email_verified_subtitle'.tr,
+                        context: context,
                       ),
                       SizedBox(height: 16.h),
-                      Divider(color: AppColors.grey300Color),
+                      Divider(color: AppColors.divider(context)),
                       SizedBox(height: 16.h),
                       _buildCheckpoint(
                         icon: Icons.lock_outline,
                         title: 'forgot_password_password_updated_title'.tr,
                         subtitle:
                             'forgot_password_password_updated_subtitle'.tr,
+                        context: context,
                       ),
                     ],
                   ),
@@ -133,7 +135,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                 Container(
                   padding: EdgeInsets.all(16.w),
                   decoration: BoxDecoration(
-                    color: AppColors.detailBoxColor,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
                       color: const Color(0xFFFFBC11).withOpacity(0.2),
@@ -151,7 +153,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                         child: InterText(
                           text: 'forgot_password_security_warning'.tr,
                           fontSize: 12.sp,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                         ),
                       ),
                     ],
@@ -169,6 +171,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
     required IconData icon,
     required String title,
     required String subtitle,
+    required BuildContext context,
   }) {
     return Row(
       children: [
@@ -190,13 +193,13 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                 text: title,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 2.h),
               InterText(
                 text: subtitle,
                 fontSize: 12.sp,
-                color: AppColors.greyColor,
+                color: AppColors.textSecondary(context),
               ),
             ],
           ),

@@ -14,12 +14,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
     final lang = LocalizationService.getCurrentLanguageCode();
     final text = privacyPolicyForLocale(lang);
     return Scaffold(
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
+        backgroundColor: AppColors.appBar(context),
         centerTitle: true,
         title: PoppinsText(
           text: 'Privacy policy',
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -30,7 +33,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 13.sp,
               height: 1.45,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ),
         ),

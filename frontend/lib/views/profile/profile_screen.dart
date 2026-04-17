@@ -14,6 +14,7 @@ import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -23,281 +24,259 @@ class ProfileScreen extends StatelessWidget {
     final ProfileController controller = Get.put(ProfileController());
 
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'title_profile'.tr,
-        showNotificationIcon: false,
-        userName: '',
-        userImage: '',
-      ),
-      // Sprint 6 step 4 — theme-driven bg
+      backgroundColor: AppColors.scaffold(context),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            16.w,
-            0.w,
-            16.w,
-            100.h,
-          ), // Extra bottom padding for navigation bar
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 10.h),
+        child: Column(
+          children: [
+            // ── OWNER HERO HEADER ──────────────────────
+            _buildOwnerHero(controller),
 
-              // Profile Information Section
-              _buildProfileInfo(controller),
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 100.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 16.h),
 
-              SizedBox(height: 10.h),
+                  // Quick Actions Row
+                  _buildQuickActions(controller),
+                  SizedBox(height: 20.h),
 
-              // Switch Role Card
-              _buildSwitchRoleCard(context),
-              SizedBox(height: 20.h),
+                  // Switch Role Card
+                  _buildSwitchRoleCard(context),
+                  SizedBox(height: 20.h),
 
-              // Settings Section
-              _buildSettingsSection(context, controller),
+                  // Settings Section
+                  _buildSettingsSection(context, controller),
 
-              SizedBox(height: 30.h),
+                  SizedBox(height: 30.h),
 
-              // Logout Button
-              Center(
-                child: CustomButton(
-                  width: 305.w,
-                  radius: 48.r,
-                  isGradient: false,
-                  title: 'button_logout'.tr,
-                  bgColor: AppColors.primaryColor,
-                  textColor: AppColors.whiteColor,
-                  onTap: () => controller.showLogoutDialog(context),
-                ),
+                  // Logout Button
+                  Center(
+                    child: CustomButton(
+                      width: 305.w,
+                      radius: 16.r,
+                      isGradient: false,
+                      title: 'button_logout'.tr,
+                      bgColor: Colors.grey.shade200,
+                      textColor: AppColors.primaryColor,
+                      onTap: () => controller.showLogoutDialog(context),
+                    ),
+                  ),
+
+                  SizedBox(height: 20.h),
+                ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              SizedBox(height: 20.h),
+  /// Owner-specific hero: warm gradient header with centered avatar.
+  Widget _buildOwnerHero(ProfileController controller) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Gradient background
+        Container(
+          width: double.infinity,
+          height: 200.h,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primaryColor,
+                AppColors.primaryColor.withOpacity(0.8),
+                const Color(0xFFFF6B4A),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.pets, color: Colors.white.withOpacity(0.9), size: 20.sp),
+                          SizedBox(width: 8.w),
+                          PoppinsText(
+                            text: 'role_pet_owner'.tr,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 6.h),
+                      Obx(() => PoppinsText(
+                        text: controller.userName.value,
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      )),
+                      SizedBox(height: 4.h),
+                      Obx(() => InterText(
+                        text: controller.email.value,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.85),
+                      )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Avatar overlay
+        Positioned(
+          right: 20.w,
+          top: 80.h,
+          child: _buildOwnerAvatar(controller),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOwnerAvatar(ProfileController controller) {
+    return Stack(
+      children: [
+        Obx(() {
+          final imageUrl = controller.profileImageUrl.value;
+          final isUploading = controller.isUploadingImage.value;
+          return Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(55.r),
+              child: Container(
+                width: 100.w,
+                height: 100.w,
+                color: AppColors.lightGrey,
+                child: isUploading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                        ),
+                      )
+                    : imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        width: 100.w,
+                        height: 100.w,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: AppColors.lightGrey,
+                          child: Icon(Icons.person, size: 50.sp, color: AppColors.primaryColor),
+                        ),
+                        errorWidget: (context, url, error) =>
+                            Icon(Icons.person, size: 50.sp, color: AppColors.primaryColor),
+                      )
+                    : Icon(Icons.person, size: 50.sp, color: AppColors.primaryColor),
+              ),
+            ),
+          );
+        }),
+        Obx(() {
+          if (controller.isUploadingImage.value) return const SizedBox.shrink();
+          return Positioned(
+            bottom: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: controller.pickAndUploadProfilePicture,
+              child: Container(
+                width: 30.w,
+                height: 30.w,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Icon(Icons.camera_alt_rounded, size: 14.sp, color: Colors.white),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  /// Quick action cards row for owner.
+  Widget _buildQuickActions(ProfileController controller) {
+    return Row(
+      children: [
+        _quickAction(Icons.pets, 'profile_edit_pets_profile'.tr,
+            controller.navigateToEditPetProfile),
+        SizedBox(width: 10.w),
+        _quickAction(Icons.history, 'profile_bookings_history'.tr,
+            controller.navigateToBookingsHistory),
+        SizedBox(width: 10.w),
+        _quickAction(Icons.rocket_launch, 'boost_shop_title'.tr,
+            () => Get.to(() => const CoinShopScreen())),
+      ],
+    );
+  }
+
+  Widget _quickAction(IconData icon, String label, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Builder(
+          builder: (context) => Container(
+            padding: EdgeInsets.symmetric(vertical: 14.h),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(14.r),
+              boxShadow: AppColors.cardShadow(context),
+            ),
+          child: Column(
+            children: [
+              Container(
+                width: 38.w,
+                height: 38.w,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, size: 18.sp, color: AppColors.primaryColor),
+              ),
+              SizedBox(height: 6.h),
+              InterText(
+                text: label,
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.grey700Color,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
+          ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildProfileInfo(ProfileController controller) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        borderRadius: BorderRadius.circular(12.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.blackColor.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Large Profile Picture with Edit Icon
-          Stack(
-            children: [
-              Obx(() {
-                final imageUrl = controller.profileImageUrl.value;
-                final isUploading = controller.isUploadingImage.value;
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(70.r),
-                  child: Container(
-                    width: 120.w,
-                    height: 120.h,
-                    color: AppColors.lightGrey,
-                    child: isUploading
-                        ? Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primaryColor,
-                              ),
-                            ),
-                          )
-                        : imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            width: 140.w,
-                            height: 140.h,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: AppColors.lightGrey,
-                              child: Icon(
-                                Icons.person,
-                                size: 70.sp,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Icon(
-                              Icons.person,
-                              size: 70.sp,
-                              color: AppColors.primaryColor,
-                            ),
-                          )
-                        : Icon(
-                            Icons.person,
-                            size: 70.sp,
-                            color: AppColors.primaryColor,
-                          ),
-                  ),
-                );
-              }),
-              Obx(() {
-                if (controller.isUploadingImage.value) {
-                  return const SizedBox.shrink();
-                }
-                return Positioned(
-                  bottom: 0,
-                  right: 13.w,
-                  child: Container(
-                    width: 24.w,
-                    height: 24.h,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.whiteColor, width: 2),
-                    ),
-                    child: GestureDetector(
-                      onTap: controller.pickAndUploadProfilePicture,
-                      child: SvgPicture.asset(
-                        AppImages.editIcon,
-                        height: 28.h,
-                        width: 28.w,
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-
-          SizedBox(width: 20.w),
-
-          // Contact Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Obx(
-                  () => InterText(
-                    text: controller.userName.value,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.blackColor,
-                  ),
-                ),
-
-                SizedBox(height: 12.h),
-
-                // Phone
-                Row(
-                  children: [
-                    Image.asset(AppImages.callIcon),
-                    SizedBox(width: 8.w),
-                    Obx(
-                      () => InterText(
-                        text: controller.phoneNumber.value.trim().isEmpty
-                            ? 'profile_no_phone_added'.tr
-                            : controller.phoneNumber.value,
-                        fontSize: 14.sp,
-                        color: AppColors.grey500Color,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 8.h),
-
-                // Email
-                Row(
-                  children: [
-                    Image.asset(AppImages.addressIcon),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Obx(
-                          () => InterText(
-                            text: controller.email.value.trim().isEmpty
-                                ? 'profile_no_email_added'.tr
-                                : controller.email.value,
-                            fontSize: 14.sp,
-                            color: AppColors.grey500Color,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 8.h),
-
-                // Role
-                Row(
-                  children: [
-                    Icon(
-                      Icons.person_outline,
-                      size: 20.sp,
-                      color: AppColors.primaryColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    Obx(() {
-                      final role = Get.find<AuthController>().userRole.value;
-                      String displayRole = 'label_not_available'.tr;
-                      if (role == 'owner') {
-                        displayRole = 'role_pet_owner'.tr;
-                      } else if (role == 'sitter') {
-                        displayRole = 'role_pet_sitter'.tr;
-                      }
-                      return InterText(
-                        text: displayRole,
-                        fontSize: 14.sp,
-                        color: AppColors.grey500Color,
-                        fontWeight: FontWeight.w400,
-                      );
-                    }),
-                  ],
-                ),
-
-                SizedBox(height: 8.h),
-
-                // Service
-                Row(
-                  children: [
-                    Icon(
-                      Icons.work_outline,
-                      size: 20.sp,
-                      color: AppColors.primaryColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Obx(
-                          () => InterText(
-                            text:
-                                controller.profile.value?.service.isNotEmpty ==
-                                    true
-                                ? controller.profile.value!.service.join(', ')
-                                : 'label_not_available'.tr,
-                            fontSize: 14.sp,
-                            color: AppColors.grey500Color,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // _buildProfileInfo removed — replaced by _buildOwnerHero + _buildOwnerAvatar.
 
   Widget _buildSettingsSection(
     BuildContext context,
@@ -317,47 +296,37 @@ class ProfileScreen extends StatelessWidget {
 
         _buildSettingsTile(
           'profile_add_tasks'.tr,
-          Icons.arrow_forward_ios,
+          Icons.add_task_rounded,
           controller.navigateToAddTasks,
         ),
         _buildSettingsTile(
           'profile_view_tasks'.tr,
-          Icons.arrow_forward_ios,
+          Icons.task_alt_rounded,
           controller.navigateToViewTask,
         ),
         _buildSettingsTile(
-          'profile_bookings_history'.tr,
-          Icons.arrow_forward_ios,
-          controller.navigateToBookingsHistory,
-        ),
-        _buildSettingsTile(
           'profile_edit_profile'.tr,
-          Icons.arrow_forward_ios,
+          Icons.person_outline_rounded,
           controller.navigateToEditProfile,
         ),
         _buildSettingsTile(
-          'profile_edit_pets_profile'.tr,
-          Icons.arrow_forward_ios,
-          controller.navigateToEditPetProfile,
-        ),
-        _buildSettingsTile(
           'profile_choose_service'.tr,
-          Icons.arrow_forward_ios,
+          Icons.work_outline_rounded,
           controller.navigateToChooseService,
         ),
         _buildSettingsTile(
           'profile_change_password'.tr,
-          Icons.arrow_forward_ios,
+          Icons.lock_outline_rounded,
           controller.navigateToChangePassword,
         ),
         _buildSettingsTile(
           'profile_change_language'.tr,
-          Icons.keyboard_arrow_down,
+          Icons.language_rounded,
           controller.showLanguageDialog,
         ),
         _buildSettingsTile(
           'profile_blocked_users'.tr,
-          Icons.arrow_forward_ios,
+          Icons.block_rounded,
           controller.navigateToBlockedUsers,
         ),
         // Sprint 7 step 1 — loyalty card
@@ -371,7 +340,7 @@ class ProfileScreen extends StatelessWidget {
         // Sprint 5 step 4 — access T&C.
         _buildSettingsTile(
           'terms_read_button'.tr,
-          Icons.arrow_forward_ios,
+          Icons.description_outlined,
           () => Get.to(() => const TermsAndConditionsScreen()),
         ),
         // Sprint 6 step 1 — theme mode.
@@ -397,7 +366,7 @@ class ProfileScreen extends StatelessWidget {
         // ),
         _buildSettingsTile(
           'profile_delete_account'.tr,
-          Icons.arrow_forward_ios,
+          Icons.delete_outline_rounded,
           () => controller.showDeleteAccountDialog(context),
         ),
       ],
@@ -407,25 +376,38 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildSettingsTile(String title, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8.h),
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: AppColors.textFieldBorder),
-        ),
+      child: Builder(
+        builder: (context) => Container(
+          margin: EdgeInsets.only(bottom: 6.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
+          ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            InterText(
-              text: title,
-              fontSize: 14.sp,
-              color: AppColors.greyText,
-              fontWeight: FontWeight.w500,
+            Container(
+              width: 34.w,
+              height: 34.w,
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(9.r),
+              ),
+              child: Icon(icon, size: 16.sp, color: AppColors.primaryColor),
             ),
-            Icon(icon, size: 20.sp, color: AppColors.greyText),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: InterText(
+                text: title,
+                fontSize: 14.sp,
+                color: AppColors.grey700Color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14.sp, color: AppColors.textSecondary(context)),
           ],
+        ),
         ),
       ),
     );
@@ -444,13 +426,14 @@ class ProfileScreen extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => _showSwitchRoleDialog(context),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: AppColors.primaryColor, width: 2),
-        ),
+      child: Builder(
+        builder: (context) => Container(
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: AppColors.primaryColor, width: 2),
+          ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -486,6 +469,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -505,8 +489,11 @@ class ProfileScreen extends StatelessWidget {
         return Obx(() {
           final isLoading = authController.isSwitchingRole.value;
           return AlertDialog(
-            backgroundColor: AppColors.whiteColor,
-            title: Text('dialog_switch_role_title'.tr),
+            backgroundColor: AppColors.card(dialogContext),
+            title: Text(
+              'dialog_switch_role_title'.tr,
+              style: TextStyle(color: AppColors.textPrimary(dialogContext)),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -523,6 +510,7 @@ class ProfileScreen extends StatelessWidget {
                       : 'dialog_switch_role_confirm'.trParams({
                           'role': newRoleText,
                         }),
+                  style: TextStyle(color: AppColors.textPrimary(dialogContext)),
                 ),
               ],
             ),
@@ -531,7 +519,7 @@ class ProfileScreen extends StatelessWidget {
                 onPressed: isLoading
                     ? null
                     : () => Navigator.of(dialogContext).pop(),
-                child: Text('common_cancel'.tr),
+                child: Text('common_cancel'.tr, style: TextStyle(color: AppColors.textSecondary(dialogContext))),
               ),
               TextButton(
                 onPressed: isLoading
@@ -545,7 +533,7 @@ class ProfileScreen extends StatelessWidget {
                 child: Text(
                   'dialog_switch_role_button'.trParams({'role': newRoleText}),
                   style: TextStyle(
-                    color: isLoading ? Colors.grey : Colors.blue,
+                    color: isLoading ? AppColors.textSecondary(dialogContext) : Colors.blue,
                   ),
                 ),
               ),

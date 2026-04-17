@@ -11,6 +11,8 @@ import 'package:hopetsit/views/service_provider/widgets/service_provider_card.da
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
+import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -53,10 +55,10 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               false, // Hide notification icon on application screen
           onProfileTap: () {
             // Handle profile tap
-            print('Profile tapped');
+            // debug removed
           },
         ),
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: Column(
             children: [
@@ -83,8 +85,8 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
                                     ? FontWeight.w600
                                     : FontWeight.w400,
                                 color: _selectedTabIndex == 0
-                                    ? AppColors.blackColor
-                                    : AppColors.greyText,
+                                    ? AppColors.textPrimary(context)
+                                    : AppColors.textSecondary(context),
                               ),
                               if (_selectedTabIndex == 0)
                                 Container(
@@ -118,8 +120,8 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
                                     ? FontWeight.w600
                                     : FontWeight.w400,
                                 color: _selectedTabIndex == 1
-                                    ? AppColors.blackColor
-                                    : AppColors.greyText,
+                                    ? AppColors.textPrimary(context)
+                                    : AppColors.textSecondary(context),
                               ),
                               if (_selectedTabIndex == 1)
                                 Container(
@@ -170,7 +172,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               text: 'applications_empty_message'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w400,
-              color: AppColors.greyColor,
+              color: AppColors.textSecondary(context),
             ),
           ),
         );
@@ -209,18 +211,106 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               isBlurred: true,
               cardType: ServiceProviderCardType.application,
               onAccept: () async {
-                final isSuccess = await _applicationsController
-                    .respondToApplication(
+                // One-tap Accept & Pay. Flow:
+                //  1) respond accept (backend may already include payment)
+                //  2) if no clientSecret, force-create one via createPaymentIntent
+                //  3) open Stripe PaymentSheet directly — no detour via Reservations
+                final response = await _applicationsController
+                    .respondToApplicationFull(
                       applicationId: application.id,
                       action: 'accept',
                     );
-                if (!isSuccess || !mounted) return;
+                if (response == null || !mounted) return;
 
-                // After successful accept, move to bookings tab and refresh list.
+                await _bookingsController.loadBookings();
+
+                BookingModel? booking;
+                String? clientSecret;
+
+                final bookingJson = response['booking'];
+                final payment = response['payment'];
+                if (bookingJson is Map) {
+                  try {
+                    booking = BookingModel.fromJson(
+                      Map<String, dynamic>.from(bookingJson as Map),
+                    );
+                  } catch (e) {
+                    AppLogger.logError('Accept&Pay: failed to parse booking', error: e);
+                  }
+                }
+                if (payment is Map) {
+                  final cs = payment['clientSecret'] ?? payment['client_secret'];
+                  if (cs is String && cs.isNotEmpty) clientSecret = cs;
+                }
+
+                // If the accept didn't include a booking (older backend),
+                // reload bookings and pick the freshly-agreed one for this sitter.
+                if (booking == null) {
+                  await _bookingsController.loadBookings();
+                  try {
+                    booking = _bookingsController.bookings.firstWhere(
+                      (b) =>
+                          b.sitter.id == application.sitter.id &&
+                          (b.status.toLowerCase() == 'agreed' ||
+                              b.status.toLowerCase() == 'accepted' ||
+                              b.status.toLowerCase() == 'confirmed') &&
+                          (b.paymentStatus?.toLowerCase() ?? '') != 'paid',
+                    );
+                  } catch (_) {
+                    booking = null;
+                  }
+                }
+
+                // Fallback: backend didn't prepare a PaymentIntent. Ask it to
+                // create one now so we never force the owner to hunt for a
+                // "Pay" button in the Reservations tab.
+                if (booking != null && (clientSecret == null || clientSecret.isEmpty)) {
+                  try {
+                    final ownerRepository = Get.find<OwnerRepository>();
+                    final piResp = await ownerRepository.createPaymentIntent(
+                      bookingId: booking.id,
+                    );
+                    final cs = piResp['clientSecret'] ?? piResp['client_secret'];
+                    if (cs is String && cs.isNotEmpty) clientSecret = cs;
+                  } catch (e) {
+                    AppLogger.logError('Accept&Pay: createPaymentIntent failed', error: e);
+                  }
+                }
+
+                if (booking != null && clientSecret != null && clientSecret.isNotEmpty) {
+                  final pricing = booking.pricing;
+                  final base = (pricing?.totalPrice
+                      ?? pricing?.resolvedBaseAmount
+                      ?? booking.totalAmount
+                      ?? booking.basePrice) ?? 0.0;
+                  if (!mounted) return;
+                  await Get.to(
+                    () => StripePaymentScreen(
+                      booking: booking!,
+                      totalAmount: base,
+                      currency: pricing?.currency ?? booking.sitter.currency,
+                    ),
+                  );
+                  return;
+                }
+
+                // True last-resort fallback: sitter has no Stripe Connect
+                // configured. Warn clearly and switch to Reservations.
+                if (payment is Map && payment['error'] != null) {
+                  CustomSnackbar.showError(
+                    title: 'payment_unavailable_title'.tr,
+                    message: 'payment_unavailable_message'.tr,
+                  );
+                } else {
+                  CustomSnackbar.showError(
+                    title: 'common_error'.tr,
+                    message: 'payment_unavailable_message'.tr,
+                  );
+                }
+                if (!mounted) return;
                 setState(() {
                   _selectedTabIndex = 1;
                 });
-                await _bookingsController.loadBookings();
               },
               onReject: () async {
                 await _applicationsController.respondToApplication(
@@ -253,7 +343,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               text: 'bookings_empty_message'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w400,
-              color: AppColors.greyColor,
+              color: AppColors.textSecondary(context),
             ),
           ),
         );
@@ -299,8 +389,36 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
                   booking.sitter.id,
                 );
               },
-              onPay: () {
-                // Navigate to booking agreement/payment screen
+              onPay: () async {
+                // Skip the intermediate "Booking agreement" screen — go
+                // straight to Stripe PaymentSheet. Create the PaymentIntent
+                // on the fly if the booking doesn't already have one.
+                try {
+                  final ownerRepository = Get.find<OwnerRepository>();
+                  final piResp = await ownerRepository.createPaymentIntent(
+                    bookingId: booking.id,
+                  );
+                  final cs = piResp['clientSecret'] ?? piResp['client_secret'];
+                  if (cs is String && cs.isNotEmpty) {
+                    final pricing = booking.pricing;
+                    final base = (pricing?.totalPrice
+                        ?? pricing?.resolvedBaseAmount
+                        ?? booking.totalAmount
+                        ?? booking.basePrice) ?? 0.0;
+                    if (!mounted) return;
+                    await Get.to(
+                      () => StripePaymentScreen(
+                        booking: booking,
+                        totalAmount: base,
+                        currency: pricing?.currency ?? booking.sitter.currency,
+                      ),
+                    );
+                    return;
+                  }
+                } catch (e) {
+                  AppLogger.logError('onPay: createPaymentIntent failed', error: e);
+                }
+                // Fallback — old behaviour if PI creation fails.
                 Get.to(
                   () => BookingAgreementScreen(
                     booking: booking,

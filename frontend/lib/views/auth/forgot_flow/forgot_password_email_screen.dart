@@ -16,17 +16,19 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
     final controller = Get.put(ForgotPasswordController(Get.find()));
     final formKey = GlobalKey<FormState>(); // Local form key for this screen
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: true,
         title: PoppinsText(
           text: 'forgot_password'.tr,
           fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
         centerTitle: true,
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 32.h),
@@ -40,13 +42,13 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
                 text: 'forgot_password_reset_title'.tr,
                 fontSize: 26.sp,
                 fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 8.h),
               InterText(
                 text: 'forgot_password_reset_message'.tr,
                 fontSize: 14.sp,
-                color: AppColors.greyColor,
+                color: AppColors.textSecondary(context),
               ),
               SizedBox(height: 40.h),
 
@@ -96,7 +98,7 @@ class ForgotPasswordEmailScreen extends StatelessWidget {
                     InterText(
                       text: 'forgot_password_remember'.tr,
                       fontSize: 13.sp,
-                      color: AppColors.greyColor,
+                      color: AppColors.textSecondary(context),
                     ),
                     TextButton(
                       onPressed: () => Get.back(),

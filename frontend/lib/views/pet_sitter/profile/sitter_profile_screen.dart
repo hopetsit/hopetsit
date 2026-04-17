@@ -12,14 +12,33 @@ import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
+import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
+import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
+
+  String _localizeService(String s) {
+    switch (s.toLowerCase().trim()) {
+      case 'dog walking':
+      case 'dog_walking':
+        return 'sitter_service_dog_walking'.tr;
+      case 'pet sitting':
+      case 'pet_sitting':
+        return 'choose_service_card_pet_sitting_title'.tr;
+      case 'house sitting':
+      case 'house_sitting':
+        return 'choose_service_card_house_sitting_title'.tr;
+      default:
+        return s;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,239 +50,312 @@ class SitterProfileScreen extends StatelessWidget {
       controller = Get.put(SitterProfileController());
     }
 
+    // Sitter accent color — distinct from owner
+    const sitterAccent = Color(0xFF1A73E8);
+    const sitterAccentLight = Color(0xFFE8F0FE);
+
     return Scaffold(
-      backgroundColor: AppColors.white38Color,
-      appBar: CustomAppBar(
-        title: 'title_profile'.tr,
-        showNotificationIcon: false,
-        userName: '',
-        userImage: '',
-      ),
+      backgroundColor: AppColors.scaffold(context),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            16.w,
-            0,
-            16.w,
-            100.h,
-          ), // Extra bottom padding for navigation bar
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 10.h),
-              // Profile Information Section
-              _buildProfileInfo(controller),
+        child: Column(
+          children: [
+            // ── SITTER HERO HEADER ──────────────────────
+            _buildSitterHero(controller, sitterAccent),
 
-              SizedBox(height: 10.h),
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 100.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 16.h),
 
-              // Settings Section
-              _buildSettingsSection(context, controller),
+                  // Sitter Stats Row
+                  _buildSitterStatsRow(controller, sitterAccent),
+                  SizedBox(height: 16.h),
 
-              SizedBox(height: 30.h),
+                  // Quick Pro Actions
+                  _buildSitterQuickActions(controller, sitterAccent, sitterAccentLight),
+                  SizedBox(height: 20.h),
 
-              // Logout Button
-              Center(
-                child: CustomButton(
-                  width: 305.w,
-                  radius: 48.r,
-                  isGradient: false,
-                  title: 'button_logout'.tr,
-                  bgColor: AppColors.primaryColor,
-                  textColor: AppColors.whiteColor,
-                  onTap: () => controller.showLogoutDialog(context),
-                ),
-              ),
+                  // Settings Section
+                  _buildSettingsSection(context, controller),
 
-              SizedBox(height: 20.h),
+                  SizedBox(height: 30.h),
+
+                  // Logout Button
+                  Center(
+                    child: CustomButton(
+                      width: 305.w,
+                      radius: 16.r,
+                      isGradient: false,
+                      title: 'button_logout'.tr,
+                      bgColor: Colors.grey.shade200,
+                      textColor: const Color(0xFF1A73E8),
+                      onTap: () => controller.showLogoutDialog(context),
+                    ),
+                  ),
+
+                  SizedBox(height: 20.h),
             ],
           ),
+        ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileInfo(SitterProfileController controller) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        borderRadius: BorderRadius.circular(12.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.blackColor.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+  /// Sitter-specific hero: blue/professional gradient.
+  Widget _buildSitterHero(SitterProfileController controller, Color accent) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 200.h,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF0D47A1),
+                accent,
+                const Color(0xFF42A5F5),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Large Profile Picture with Edit Icon
-          Stack(
-            children: [
-              Obx(
-                () => CircleAvatar(
-                  radius: 55.r,
-                  backgroundColor: AppColors.grey300Color,
-                  backgroundImage: controller.profileImageUrl.value.isNotEmpty
-                      ? CachedNetworkImageProvider(
-                          controller.profileImageUrl.value,
-                        )
-                      : null,
-                  child: controller.profileImageUrl.value.isEmpty
-                      ? Icon(
-                          Icons.person,
-                          size: 50.sp,
-                          color: AppColors.greyColor,
-                        )
-                      : null,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 13.w,
-                child: Container(
-                  width: 24.w,
-                  height: 24.h,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.whiteColor, width: 2),
-                  ),
-                  child: GestureDetector(
-                    onTap: controller.editProfile,
-                    child: SvgPicture.asset(
-                      AppImages.editIcon,
-                      height: 28.h,
-                      width: 28.w,
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Avatar
+                  _buildSitterAvatar(controller, accent),
+                  SizedBox(width: 16.w),
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(height: 4.h),
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.verified_outlined, color: Colors.white, size: 12.sp),
+                                  SizedBox(width: 4.w),
+                                  InterText(
+                                    text: 'role_pet_sitter'.tr,
+                                    fontSize: 10.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8.h),
+                        Obx(() => PoppinsText(
+                          text: controller.userName.value,
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        )),
+                        SizedBox(height: 4.h),
+                        Obx(() => InterText(
+                          text: controller.email.value,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withOpacity(0.85),
+                        )),
+                        SizedBox(height: 6.h),
+                        Obx(() {
+                          final services = controller.profile.value?.service ?? [];
+                          if (services.isEmpty) return const SizedBox.shrink();
+                          return Wrap(
+                            spacing: 4.w,
+                            children: services.take(3).map((s) => Container(
+                              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(4.r),
+                              ),
+                              child: InterText(
+                                text: _localizeService(s),
+                                fontSize: 10.sp,
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            )).toList(),
+                          );
+                        }),
+                      ],
                     ),
                   ),
-                ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSitterAvatar(SitterProfileController controller, Color accent) {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-
-          SizedBox(width: 20.w),
-
-          // Contact Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Obx(
-                  () => InterText(
-                    text: controller.userName.value,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.blackColor,
-                  ),
-                ),
-
-                SizedBox(height: 12.h),
-
-                // Phone
-                Row(
-                  children: [
-                    Image.asset(AppImages.callIcon),
-                    SizedBox(width: 8.w),
-                    Obx(
-                      () => InterText(
-                        text: controller.phoneNumber.value.trim().isEmpty
-                            ? 'profile_no_phone_added'.tr
-                            : controller.phoneNumber.value,
-                        fontSize: 14.sp,
-                        color: AppColors.grey500Color,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 8.h),
-
-                // Email
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      Image.asset(AppImages.addressIcon),
-                      SizedBox(width: 8.w),
-                      Obx(
-                        () => InterText(
-                          text: controller.email.value.trim().isEmpty
-                              ? 'profile_no_email_added'.tr
-                              : controller.email.value,
-                          fontSize: 14.sp,
-                          color: AppColors.grey500Color,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 8.h),
-
-                // Role
-                Row(
-                  children: [
-                    Icon(
-                      Icons.person_outline,
-                      size: 20.sp,
-                      color: AppColors.primaryColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    Obx(() {
-                      final role = Get.find<AuthController>().userRole.value;
-                      String displayRole = 'label_not_available'.tr;
-                      if (role == 'owner') {
-                        displayRole = 'role_pet_owner'.tr;
-                      } else if (role == 'sitter') {
-                        displayRole = 'role_pet_sitter'.tr;
-                      }
-                      return InterText(
-                        text: displayRole,
-                        fontSize: 14.sp,
-                        color: AppColors.grey500Color,
-                        fontWeight: FontWeight.w400,
-                      );
-                    }),
-                  ],
-                ),
-
-                SizedBox(height: 8.h),
-
-                // Service
-                Row(
-                  children: [
-                    Icon(
-                      Icons.work_outline,
-                      size: 20.sp,
-                      color: AppColors.primaryColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Obx(
-                          () => InterText(
-                            text:
-                                controller.profile.value?.service.isNotEmpty ==
-                                    true
-                                ? controller.profile.value!.service.join(', ')
-                                : 'N/A',
-                            fontSize: 14.sp,
-                            color: AppColors.grey500Color,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          child: Obx(
+            () => CircleAvatar(
+              radius: 42.r,
+              backgroundColor: AppColors.grey300Color,
+              backgroundImage: controller.profileImageUrl.value.isNotEmpty
+                  ? CachedNetworkImageProvider(controller.profileImageUrl.value)
+                  : null,
+              child: controller.profileImageUrl.value.isEmpty
+                  ? Icon(Icons.person, size: 40.sp, color: AppColors.greyColor)
+                  : null,
             ),
           ),
+        ),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: GestureDetector(
+            onTap: controller.editProfile,
+            child: Container(
+              width: 28.w,
+              height: 28.w,
+              decoration: BoxDecoration(
+                color: accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Icon(Icons.camera_alt_rounded, size: 13.sp, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Stats row for sitter — rating, reviews, services.
+  Widget _buildSitterStatsRow(SitterProfileController controller, Color accent) {
+    return Obx(() {
+      final profile = controller.profile.value;
+      return Builder(
+        builder: (context) => Container(
+          padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 16.w),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
+          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _statItem('0.0', 'Rating', Icons.star_rounded, Colors.amber),
+            Container(width: 1, height: 32.h, color: AppColors.divider(context)),
+            _statItem('0', 'Avis', Icons.reviews_outlined, accent),
+            Container(width: 1, height: 32.h, color: AppColors.divider(context)),
+            _statItem('${profile?.service.length ?? 0}', 'Services', Icons.work_outline_rounded, AppColors.greenColor),
+          ],
+        ),
+        ),
+      );
+    });
+  }
+
+  Widget _statItem(String value, String label, IconData icon, Color color) {
+    return Builder(
+      builder: (context) => Column(
+        children: [
+          Icon(icon, size: 18.sp, color: color),
+          SizedBox(height: 4.h),
+          PoppinsText(text: value, fontSize: 16.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
+          InterText(text: label, fontSize: 10.sp, color: AppColors.textSecondary(context), fontWeight: FontWeight.w500),
         ],
+      ),
+    );
+  }
+
+  /// Quick actions: Earnings, Availability, Boost, IBAN.
+  Widget _buildSitterQuickActions(SitterProfileController controller, Color accent, Color accentLight) {
+    return Row(
+      children: [
+        _sitterQuickAction(Icons.bar_chart_rounded, 'earnings_title'.tr, accent, accentLight,
+            () => Get.to(() => const EarningsHistoryScreen())),
+        SizedBox(width: 8.w),
+        _sitterQuickAction(Icons.calendar_month_rounded, 'profile_my_availability'.tr, accent, accentLight,
+            () => Get.to(() => const AvailabilityCalendarScreen())),
+        SizedBox(width: 8.w),
+        _sitterQuickAction(Icons.rocket_launch_rounded, 'boost_shop_title'.tr, accent, accentLight,
+            () => Get.to(() => const CoinShopScreen())),
+        SizedBox(width: 8.w),
+        _sitterQuickAction(Icons.account_balance_rounded, 'iban_title'.tr, accent, accentLight,
+            () => Get.to(() => const IbanSetupScreen())),
+      ],
+    );
+  }
+
+  Widget _sitterQuickAction(IconData icon, String label, Color accent, Color accentLight, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Builder(
+          builder: (context) => Container(
+            padding: EdgeInsets.symmetric(vertical: 14.h),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(14.r),
+              boxShadow: AppColors.cardShadow(context),
+            ),
+          child: Column(
+            children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: accentLight,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, size: 17.sp, color: accent),
+              ),
+              SizedBox(height: 6.h),
+              InterText(
+                text: label,
+                fontSize: 9.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.grey700Color,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          ),
+        ),
       ),
     );
   }
@@ -279,7 +371,7 @@ class SitterProfileScreen extends StatelessWidget {
           text: 'section_settings'.tr,
           fontSize: 14.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
 
         SizedBox(height: 15.h),
@@ -289,28 +381,22 @@ class SitterProfileScreen extends StatelessWidget {
 
         _buildSettingsTile(
           'profile_edit_profile'.tr,
-          Icons.arrow_forward_ios,
+          Icons.person_outline_rounded,
           controller.navigateToEditProfile,
         ),
-        // Complete Profile - commented out
-        // _buildSettingsTile(
-        //   'Complete Profile',
-        //   Icons.arrow_forward_ios,
-        //   controller.navigateToPetsitterOnboarding,
-        // ),
         _buildSettingsTile(
           'profile_choose_service'.tr,
-          Icons.arrow_forward_ios,
+          Icons.work_outline_rounded,
           controller.navigateToChooseService,
         ),
         _buildSettingsTile(
           'profile_change_password'.tr,
-          Icons.arrow_forward_ios,
+          Icons.lock_outline_rounded,
           controller.navigateToChangePassword,
         ),
         _buildSettingsTile(
           'profile_change_language'.tr,
-          Icons.keyboard_arrow_down,
+          Icons.language_rounded,
           controller.showLanguageDialog,
         ),
         //   'Blocked Users',
@@ -333,25 +419,13 @@ class SitterProfileScreen extends StatelessWidget {
         _buildStripeConnectTile(controller),
         _buildSettingsTile(
           'payout_status_screen_title'.tr,
-          Icons.payment,
+          Icons.payment_rounded,
           controller.navigateToPayoutStatus,
-        ),
-        // FIX: IBAN bank payout (like Vinted)
-        _buildSettingsTile(
-          'iban_title'.tr,
-          Icons.account_balance_outlined,
-          () => Get.to(() => const IbanSetupScreen()),
         ),
         _buildSettingsTile(
           'bookings_tab_title'.tr,
-          Icons.event,
+          Icons.event_rounded,
           controller.navigateToBookings,
-        ),
-        // Sprint 5 UI step 3 — availability calendar
-        _buildSettingsTile(
-          'profile_my_availability'.tr,
-          Icons.calendar_month,
-          () => Get.to(() => const AvailabilityCalendarScreen()),
         ),
         // Sprint 5 UI step 4 — identity verification
         _buildSettingsTile(
@@ -403,14 +477,20 @@ class SitterProfileScreen extends StatelessWidget {
         //   Icons.arrow_forward_ios,
         //   controller.navigateToReviews,
         // ),
+        // Terms & Conditions (was missing on sitter profile)
+        _buildSettingsTile(
+          'terms_read_button'.tr,
+          Icons.description_outlined,
+          () => Get.to(() => const TermsAndConditionsScreen()),
+        ),
         _buildSettingsTile(
           'profile_donate_us'.tr,
-          Icons.arrow_forward_ios,
+          Icons.favorite_outline_rounded,
           controller.navigateToDonate,
         ),
         _buildSettingsTile(
           'profile_delete_account'.tr,
-          Icons.arrow_forward_ios,
+          Icons.delete_outline_rounded,
           () => controller.showDeleteAccountDialog(context),
         ),
       ],
@@ -418,70 +498,51 @@ class SitterProfileScreen extends StatelessWidget {
   }
 
   Widget _buildSettingsTile(String title, IconData icon, VoidCallback onTap) {
+    const sitterAccent = Color(0xFF1A73E8);
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8.h),
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: AppColors.textFieldBorder),
-        ),
+      child: Builder(
+        builder: (context) => Container(
+          margin: EdgeInsets.only(bottom: 6.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
+          ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            InterText(
-              text: title,
-              fontSize: 14.sp,
-              color: AppColors.greyText,
-              fontWeight: FontWeight.w500,
+            Container(
+              width: 34.w,
+              height: 34.w,
+              decoration: BoxDecoration(
+                color: sitterAccent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(9.r),
+              ),
+              child: Icon(icon, size: 16.sp, color: sitterAccent),
             ),
-            Icon(icon, size: 20.sp, color: AppColors.greyText),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: InterText(
+                text: title,
+                fontSize: 14.sp,
+                color: AppColors.textSecondary(context),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14.sp, color: AppColors.textSecondary(context)),
           ],
+        ),
         ),
       ),
     );
   }
 
   Widget _buildStripeConnectTile(SitterProfileController controller) {
-    return GestureDetector(
-      onTap: controller.navigateToStripeConnect,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8.h),
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: AppColors.textFieldBorder),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.account_balance_wallet,
-                  size: 20.sp,
-                  color: AppColors.greyText,
-                ),
-                SizedBox(width: 12.w),
-                InterText(
-                  text: 'stripe_connect_title'.tr,
-                  fontSize: 14.sp,
-                  color: AppColors.greyText,
-                  fontWeight: FontWeight.w500,
-                ),
-              ],
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 20.sp,
-              color: AppColors.greyText,
-            ),
-          ],
-        ),
-      ),
+    return _buildSettingsTile(
+      'stripe_connect_title'.tr,
+      Icons.account_balance_wallet_rounded,
+      controller.navigateToStripeConnect,
     );
   }
 
@@ -494,13 +555,14 @@ class SitterProfileScreen extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => _showSwitchRoleDialog(context),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: AppColors.primaryColor, width: 2),
-        ),
+      child: Builder(
+        builder: (context) => Container(
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: AppColors.primaryColor, width: 2),
+          ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -535,6 +597,7 @@ class SitterProfileScreen extends StatelessWidget {
               color: AppColors.primaryColor,
             ),
           ],
+        ),
         ),
       ),
     );

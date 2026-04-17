@@ -41,9 +41,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.scaffold(context),
         elevation: 0,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
@@ -51,7 +51,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           text: 'send_request_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -179,9 +179,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           child: Container(
             height: 50.h,
             decoration: BoxDecoration(
-              color: AppColors.whiteColor,
+              color: AppColors.inputFill(context),
               borderRadius: BorderRadius.circular(30.r),
-              border: Border.all(color: AppColors.grey300Color, width: 1),
+              border: Border.all(color: AppColors.divider(context), width: 1),
             ),
             child: const Center(child: CircularProgressIndicator()),
           ),
@@ -195,7 +195,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               text: 'label_pets'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-              color: AppColors.grey700Color,
+              color: AppColors.textSecondary(context),
             ),
             SizedBox(height: 8.h),
             GestureDetector(
@@ -204,9 +204,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 height: 50.h,
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
                 decoration: BoxDecoration(
-                  color: AppColors.whiteColor,
+                  color: AppColors.inputFill(context),
                   borderRadius: BorderRadius.circular(30.r),
-                  border: Border.all(color: AppColors.grey300Color, width: 1),
+                  border: Border.all(color: AppColors.divider(context), width: 1),
                 ),
                 child: Row(
                   children: [
@@ -340,16 +340,16 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             text: 'send_request_dates_label'.tr,
             fontSize: 14.sp,
             fontWeight: FontWeight.w500,
-            color: AppColors.grey700Color,
+            color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 8.h),
           // Single container with border and decoration containing Start + End
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
-              color: AppColors.whiteColor,
+              color: AppColors.inputFill(context),
               borderRadius: BorderRadius.circular(21.r),
-              border: Border.all(color: AppColors.grey300Color, width: 1),
+              border: Border.all(color: AppColors.divider(context), width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,7 +382,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   text: 'send_request_end_label'.tr,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.grey700Color,
+                  color: AppColors.textSecondary(context),
                 ),
                 SizedBox(height: 8.h),
                 _buildDateTimeRow(
@@ -436,9 +436,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       height: 50.h,
       padding: EdgeInsets.symmetric(horizontal: 12.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.inputFill(context),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.grey300Color, width: 1),
+        border: Border.all(color: AppColors.divider(context), width: 1),
       ),
       child: Row(
         children: [
@@ -452,8 +452,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
                   color: isDatePlaceholder
-                      ? AppColors.greyColor
-                      : AppColors.blackColor,
+                      ? AppColors.textSecondary(context)
+                      : AppColors.textPrimary(context),
                 ),
               ),
             ),
@@ -462,7 +462,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             width: 1,
             height: 24.h,
             margin: EdgeInsets.symmetric(horizontal: 12.w),
-            color: AppColors.grey300Color,
+            color: AppColors.divider(context),
           ),
           Expanded(
             child: GestureDetector(
@@ -474,8 +474,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
                   color: isTimePlaceholder
-                      ? AppColors.greyColor
-                      : AppColors.blackColor,
+                      ? AppColors.textSecondary(context)
+                      : AppColors.textPrimary(context),
                 ),
               ),
             ),
@@ -567,17 +567,43 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: initialTime,
+      initialEntryMode: TimePickerEntryMode.input,
       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.primaryColor,
-              onPrimary: AppColors.whiteColor,
-              surface: AppColors.whiteColor,
-              onSurface: AppColors.blackColor,
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              timePickerTheme: TimePickerThemeData(
+                backgroundColor: AppColors.whiteColor,
+                hourMinuteShape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                hourMinuteColor: WidgetStateColor.resolveWith((states) =>
+                    states.contains(WidgetState.selected)
+                        ? AppColors.primaryColor
+                        : AppColors.lightGrey),
+                hourMinuteTextColor: WidgetStateColor.resolveWith((states) =>
+                    states.contains(WidgetState.selected)
+                        ? AppColors.whiteColor
+                        : AppColors.blackColor),
+                dialHandColor: AppColors.primaryColor,
+                dialBackgroundColor: AppColors.lightGrey,
+                entryModeIconColor: AppColors.primaryColor,
+                helpTextStyle: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.grey700Color,
+                ),
+              ),
+              colorScheme: ColorScheme.light(
+                primary: AppColors.primaryColor,
+                onPrimary: AppColors.whiteColor,
+                surface: AppColors.whiteColor,
+                onSurface: AppColors.blackColor,
+              ),
             ),
+            child: child!,
           ),
-          child: child!,
         );
       },
     );
@@ -661,12 +687,12 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? AppColors.primaryColor
-                              : AppColors.whiteColor,
+                              : AppColors.inputFill(context),
                           borderRadius: BorderRadius.circular(20.r),
                           border: Border.all(
                             color: isSelected
                                 ? AppColors.primaryColor
-                                : AppColors.greyColor.withOpacity(0.3),
+                                : AppColors.divider(context),
                             width: 1,
                           ),
                         ),
@@ -676,7 +702,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                           fontWeight: FontWeight.w500,
                           color: isSelected
                               ? AppColors.whiteColor
-                              : AppColors.greyColor,
+                              : AppColors.textSecondary(context),
                         ),
                       ),
                     );
@@ -698,7 +724,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           text: 'send_request_duration_label'.tr,
           fontSize: 14.sp,
           fontWeight: FontWeight.w500,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         SizedBox(height: 12.h),
         Obx(
@@ -720,12 +746,12 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primaryColor
-                        : AppColors.whiteColor,
+                        : AppColors.inputFill(context),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
                       color: isSelected
                           ? AppColors.primaryColor
-                          : AppColors.greyColor.withOpacity(0.3),
+                          : AppColors.divider(context),
                       width: 1,
                     ),
                   ),
@@ -737,7 +763,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                     fontWeight: FontWeight.w500,
                     color: isSelected
                         ? AppColors.whiteColor
-                        : AppColors.greyColor,
+                        : AppColors.textSecondary(context),
                   ),
                 ),
               );
@@ -760,7 +786,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           text: 'house_sitting_venue_label'.tr,
           fontSize: 14.sp,
           fontWeight: FontWeight.w500,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         SizedBox(height: 12.h),
         Obx(
@@ -775,12 +801,12 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primaryColor : AppColors.whiteColor,
+                    color: selected ? AppColors.primaryColor : AppColors.inputFill(context),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
                       color: selected
                           ? AppColors.primaryColor
-                          : AppColors.greyColor.withOpacity(0.3),
+                          : AppColors.divider(context),
                       width: 1,
                     ),
                   ),
@@ -788,7 +814,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                     text: opt['label']!.tr,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
-                    color: selected ? AppColors.whiteColor : AppColors.greyColor,
+                    color: selected ? AppColors.whiteColor : AppColors.textSecondary(context),
                   ),
                 ),
               );

@@ -41,8 +41,23 @@ class ApplicationsController extends GetxController {
     required String applicationId,
     required String action, // 'accept' or 'reject'
   }) async {
+    final result = await respondToApplicationFull(
+      applicationId: applicationId,
+      action: action,
+    );
+    return result != null;
+  }
+
+  /// Richer variant used by the one-tap accept-and-pay flow.
+  /// Returns the raw backend response on success (so the caller can inspect the
+  /// `booking` + `payment` fields to open Stripe PaymentSheet directly) or
+  /// null on failure.
+  Future<Map<String, dynamic>?> respondToApplicationFull({
+    required String applicationId,
+    required String action, // 'accept' or 'reject'
+  }) async {
     try {
-      await _ownerRepository.respondToApplication(
+      final response = await _ownerRepository.respondToApplication(
         applicationId: applicationId,
         action: action,
       );
@@ -56,16 +71,16 @@ class ApplicationsController extends GetxController {
 
       // Refresh the applications list
       await loadApplications();
-      return true;
+      return response;
     } on ApiException catch (error) {
       CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);
-      return false;
+      return null;
     } catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'application_action_failed'.tr,
       );
-      return false;
+      return null;
     }
   }
 }

@@ -132,13 +132,13 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Get.back(),
           child: Icon(
             Icons.arrow_back_ios_new,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
             size: 20.sp,
           ),
         ),
@@ -146,7 +146,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
           text: 'location_select_title'.tr,
           fontSize: 16.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         centerTitle: true,
       ),
@@ -206,7 +206,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
               right: 0,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(20.r),
                   ),
@@ -227,7 +227,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                     Container(
                       padding: EdgeInsets.all(16.w),
                       decoration: BoxDecoration(
-                        color: AppColors.lightGrey,
+                        color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Row(
@@ -241,7 +241,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                                   text: 'location_selected_city'.tr,
                                   fontSize: 12.sp,
                                   fontWeight: FontWeight.w400,
-                                  color: AppColors.greyColor,
+                                  color: AppColors.textSecondary(context),
                                 ),
                                 SizedBox(height: 4.h),
                                 if (isLoadingCity)
@@ -260,7 +260,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                                     text: selectedCity ?? 'location_no_city'.tr,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                               ],
                             ),
@@ -281,7 +281,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                       Container(
                         padding: EdgeInsets.all(12.w),
                         decoration: BoxDecoration(
-                          color: AppColors.lightGrey,
+                          color: AppColors.card(context),
                           borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Column(
@@ -292,7 +292,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                                         'location_latitude'.tr.replaceAll('@value', selectedLocation!.latitude.toStringAsFixed(4)),
                                     fontSize: 11.sp,
                                     fontWeight: FontWeight.w400,
-                                    color: AppColors.greyColor,
+                                    color: AppColors.textSecondary(context),
                                   ),
                                   SizedBox(height: 4.h),
                                   InterText(
@@ -300,7 +300,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                                         'location_longitude'.tr.replaceAll('@value', selectedLocation!.longitude.toStringAsFixed(4)),
                                     fontSize: 11.sp,
                                     fontWeight: FontWeight.w400,
-                                    color: AppColors.greyColor,
+                                    color: AppColors.textSecondary(context),
                                   ),
                           ],
                         ),
@@ -319,7 +319,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                                 vertical: 12.h,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.lightGrey,
+                                color: AppColors.inputFill(context),
                                 borderRadius: BorderRadius.circular(12.r),
                                 border: Border.all(
                                   color: AppColors.primaryColor,
@@ -358,7 +358,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                               decoration: BoxDecoration(
                                 color: selectedCity != null
                                     ? AppColors.primaryColor
-                                    : AppColors.lightGrey,
+                                    : AppColors.inputFill(context),
                                 borderRadius: BorderRadius.circular(12.r),
                               ),
                               child: Row(
@@ -368,7 +368,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                                     Icons.check,
                                     color: selectedCity != null
                                         ? Colors.white
-                                        : AppColors.greyColor,
+                                        : AppColors.textSecondary(context),
                                     size: 16.sp,
                                   ),
                                   SizedBox(width: 8.w),
@@ -378,7 +378,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
                                     fontWeight: FontWeight.w500,
                                     color: selectedCity != null
                                         ? Colors.white
-                                        : AppColors.greyColor,
+                                        : AppColors.textSecondary(context),
                                   ),
                                 ],
                               ),

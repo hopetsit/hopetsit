@@ -126,26 +126,27 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   }
 
   Widget _buildSortBar() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: AppColors.grey300Color.withValues(alpha: 0.5),
+    return Builder(
+      builder: (context) => Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: AppColors.divider(context).withValues(alpha: 0.5),
+          ),
         ),
-      ),
       child: Row(
         children: [
-          Icon(Icons.sort_rounded, size: 20.sp, color: AppColors.grey700Color),
+          Icon(Icons.sort_rounded, size: 20.sp, color: AppColors.textSecondary(context)),
           SizedBox(width: 8.w),
           Expanded(
             child: InterText(
               text: 'my_posts_sort_label'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ),
           DropdownButtonHideUnderline(
@@ -158,7 +159,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               ),
               style: TextStyle(
                 fontSize: 14.sp,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
                 fontWeight: FontWeight.w500,
               ),
               items: [
@@ -167,7 +168,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                   child: InterText(
                     text: 'my_posts_sort_newest'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
                 DropdownMenuItem(
@@ -175,7 +176,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                   child: InterText(
                     text: 'my_posts_sort_oldest'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
               ],
@@ -185,6 +186,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -303,7 +305,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
 
     return Obx(
       () => Scaffold(
-        backgroundColor: AppColors.white38Color,
+        backgroundColor: AppColors.scaffold(context),
         appBar: CustomAppBar(
           userName: profileController.userName.value.isNotEmpty
               ? profileController.userName.value
@@ -408,41 +410,43 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                 },
                               );
                             },
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14.w,
-                                vertical: 10.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.whiteColor,
-                                borderRadius: BorderRadius.circular(24.r),
-                                border: Border.all(
-                                  color: _filterState.hasActiveFilters
-                                      ? AppColors.primaryColor
-                                      : AppColors.grey300Color,
-                                  width: 1.2,
+                            child: Builder(
+                              builder: (context) => Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 14.w,
+                                  vertical: 10.h,
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.tune_rounded,
-                                    size: 20.sp,
+                                decoration: BoxDecoration(
+                                  color: AppColors.card(context),
+                                  borderRadius: BorderRadius.circular(24.r),
+                                  border: Border.all(
                                     color: _filterState.hasActiveFilters
                                         ? AppColors.primaryColor
-                                        : AppColors.greyText,
+                                        : AppColors.divider(context),
+                                    width: 1.2,
                                   ),
-                                  SizedBox(width: 8.w),
-                                  InterText(
-                                    text: _filterState.hasActiveFilters
-                                        ? 'sitter_filters_on'.tr
-                                        : 'sitter_filters'.tr,
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.grey700Color,
-                                  ),
-                                ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.tune_rounded,
+                                      size: 20.sp,
+                                      color: _filterState.hasActiveFilters
+                                          ? AppColors.primaryColor
+                                          : AppColors.textSecondary(context),
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    InterText(
+                                      text: _filterState.hasActiveFilters
+                                          ? 'sitter_filters_on'.tr
+                                          : 'sitter_filters'.tr,
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary(context),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -966,7 +970,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         child: Container(
           padding: EdgeInsets.all(20.w),
           decoration: BoxDecoration(
-            color: AppColors.whiteColor,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Column(
@@ -982,7 +986,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                 text: 'pet_detail_loading'.tr,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
             ],
           ),
@@ -1130,16 +1134,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.card(dialogContext),
         title: InterText(
           text: 'block_user_title'.tr,
           fontSize: 16.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(dialogContext),
         ),
         content: InterText(
           text: 'block_user_confirm_message'.tr.replaceAll('{name}', ownerName),
           fontSize: 14.sp,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(dialogContext),
         ),
         actions: [
           TextButton(
@@ -1147,7 +1152,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             child: InterText(
               text: 'common_cancel'.tr,
               fontSize: 14.sp,
-              color: AppColors.grey700Color,
+              color: AppColors.textSecondary(dialogContext),
             ),
           ),
           TextButton(

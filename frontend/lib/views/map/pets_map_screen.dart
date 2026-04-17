@@ -28,7 +28,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       body: SafeArea(
         child: Obx(() {
           final userLoc = controller.userLocation.value;
@@ -78,7 +78,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                       height: 48.h,
                       width: 48.h,
                       decoration: BoxDecoration(
-                        color: AppColors.whiteColor,
+                        color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(12.r),
                         boxShadow: [
                           BoxShadow(color: Colors.black12, blurRadius: 8),
@@ -87,7 +87,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                       child: IconButton(
                         icon: Icon(
                           Icons.arrow_back_outlined,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                         onPressed: () => Get.back(),
                       ),
@@ -98,7 +98,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                         height: 48.h,
                         padding: EdgeInsets.symmetric(horizontal: 12.w),
                         decoration: BoxDecoration(
-                          color: AppColors.whiteColor,
+                          color: AppColors.card(context),
                           borderRadius: BorderRadius.circular(12.r),
                           boxShadow: [
                             BoxShadow(color: Colors.black12, blurRadius: 8),
@@ -106,7 +106,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.search, color: AppColors.greyText),
+                            Icon(Icons.search, color: AppColors.textSecondary(context)),
                             SizedBox(width: 8.w),
                             Expanded(
                               child: TextField(
@@ -161,7 +161,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                             vertical: 8.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.whiteColor,
+                            color: AppColors.card(context),
                             borderRadius: BorderRadius.circular(12.r),
                             boxShadow: [
                               BoxShadow(color: Colors.black12, blurRadius: 8),
@@ -174,7 +174,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                   Icon(
                                     Icons.tune_rounded,
                                     size: 18.sp,
-                                    color: AppColors.grey700Color,
+                                    color: AppColors.textSecondary(context),
                                   ),
                                   SizedBox(width: 8.w),
                                   Expanded(
@@ -186,7 +186,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                       }),
                                       fontSize: 13.sp,
                                       fontWeight: FontWeight.w500,
-                                      color: AppColors.blackColor,
+                                      color: AppColors.textPrimary(context),
                                     ),
                                   ),
                                 ],
@@ -224,7 +224,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                   children: [
                     FloatingActionButton(
                       heroTag: 'centerUser',
-                      backgroundColor: AppColors.whiteColor,
+                      backgroundColor: AppColors.card(context),
                       onPressed: () async {
                         await controller.centerToUser();
                       },
@@ -236,7 +236,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                     SizedBox(height: 8.h),
                     FloatingActionButton(
                       heroTag: 'refresh',
-                      backgroundColor: AppColors.whiteColor,
+                      backgroundColor: AppColors.card(context),
                       onPressed: () async {
                         await controller.loadNearbySitters(
                           radiusKm: controller.selectedRadiusKm.value.round(),
@@ -258,7 +258,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                   top: false,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: AppColors.whiteColor,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(20.r),
                       ),
@@ -285,7 +285,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                             width: 40.w,
                             height: 4.h,
                             decoration: BoxDecoration(
-                              color: AppColors.grey300Color,
+                              color: AppColors.divider(context),
                               borderRadius: BorderRadius.circular(2.r),
                             ),
                           ),
@@ -306,7 +306,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                     child: Text(
                                       'map_no_nearby_sitters'.tr,
                                       style: TextStyle(
-                                        color: AppColors.greyText,
+                                        color: AppColors.textSecondary(context),
                                         fontSize: 14.sp,
                                       ),
                                     ),
@@ -321,13 +321,13 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                           width: 200.w,
                                           padding: EdgeInsets.all(12.w),
                                           decoration: BoxDecoration(
-                                            color: AppColors.lightGrey
+                                            color: AppColors.card(context)
                                                 .withOpacity(0.6),
                                             borderRadius: BorderRadius.circular(
                                               14.r,
                                             ),
                                             border: Border.all(
-                                              color: AppColors.grey300Color
+                                              color: AppColors.divider(context)
                                                   .withOpacity(0.5),
                                               width: 1,
                                             ),
@@ -346,7 +346,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                               CircleAvatar(
                                                 radius: 28.r,
                                                 backgroundColor:
-                                                    AppColors.whiteColor,
+                                                    AppColors.card(context),
                                                 backgroundImage:
                                                     sitter.avatar.url.isNotEmpty
                                                     ? NetworkImage(
@@ -358,7 +358,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                                         Icons.person,
                                                         size: 28.sp,
                                                         color:
-                                                            AppColors.greyText,
+                                                            AppColors.textSecondary(context),
                                                       )
                                                     : null,
                                               ),
@@ -377,7 +377,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                                             FontWeight.w600,
                                                         fontSize: 14.sp,
                                                         color: AppColors
-                                                            .blackColor,
+                                                            .textPrimary(context),
                                                       ),
                                                       maxLines: 1,
                                                       overflow:
@@ -405,7 +405,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                                       }),
                                                       style: TextStyle(
                                                         color:
-                                                            AppColors.greyText,
+                                                            AppColors.textSecondary(context),
                                                         fontSize: 12.sp,
                                                       ),
                                                       maxLines: 1,
@@ -439,25 +439,26 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
   }
 
   Widget _buildSitterCardsShimmer() {
-    return Shimmer.fromColors(
-      baseColor: AppColors.grey300Color,
-      highlightColor: AppColors.whiteColor,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: 3,
-        separatorBuilder: (_, __) => SizedBox(width: 12.w),
-        itemBuilder: (_, __) => Container(
-          width: 200.w,
-          padding: EdgeInsets.all(12.w),
-          decoration: BoxDecoration(
-            color: AppColors.lightGrey.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(
-              color: AppColors.grey300Color.withOpacity(0.5),
-              width: 1,
+    return Builder(
+      builder: (context) => Shimmer.fromColors(
+        baseColor: AppColors.grey300Color,
+        highlightColor: AppColors.card(context),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 3,
+          separatorBuilder: (_, __) => SizedBox(width: 12.w),
+          itemBuilder: (_, __) => Container(
+            width: 200.w,
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: AppColors.card(context).withOpacity(0.6),
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(
+                color: AppColors.divider(context).withOpacity(0.5),
+                width: 1,
+              ),
             ),
-          ),
           child: Row(
             children: [
               Container(
@@ -498,6 +499,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -507,7 +509,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.card(context),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16.r),
         ),
@@ -515,7 +517,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
           text: 'map_search_hint'.tr,
           fontSize: 16.sp,
           fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
         content: TextField(
           controller: _searchCtrl,
@@ -523,7 +525,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
             hintText: 'map_search_hint'.tr,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.r),
-              borderSide: BorderSide(color: AppColors.grey300Color),
+              borderSide: BorderSide(color: AppColors.divider(context)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.r),

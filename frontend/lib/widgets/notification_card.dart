@@ -58,6 +58,44 @@ class NotificationCard extends StatelessWidget {
     return DateFormat.yMMMd().add_Hm().format(local);
   }
 
+  /// Maps known English notification strings from the backend to localized keys.
+  static const _titleMap = {
+    'new request': 'notif_title_new_request',
+    'new application': 'notif_title_new_application',
+    'application accepted': 'notif_title_application_accepted',
+    'application rejected': 'notif_title_application_rejected',
+    'new message': 'notif_title_new_message',
+    'new like': 'notif_title_new_like',
+    'new comment': 'notif_title_new_comment',
+    'booking confirmed': 'notif_title_booking_confirmed',
+    'booking cancelled': 'notif_title_booking_cancelled',
+    'payment received': 'notif_title_payment_received',
+  };
+
+  static const _bodyMap = {
+    'a sitter sent you a request.': 'notif_body_sitter_sent_request',
+    'an owner sent you a request.': 'notif_body_owner_sent_request',
+    'your application was accepted.': 'notif_body_application_accepted',
+    'your application was rejected.': 'notif_body_application_rejected',
+    'you have a new message.': 'notif_body_new_message',
+    'someone liked your post.': 'notif_body_post_liked',
+    'someone commented on your post.': 'notif_body_post_commented',
+  };
+
+  String _localizedTitle(String raw) {
+    final key = _titleMap[raw.toLowerCase().trim()];
+    if (key == null) return raw;
+    final translated = key.tr;
+    return translated == key ? raw : translated;
+  }
+
+  String _localizedBody(String raw) {
+    final key = _bodyMap[raw.toLowerCase().trim()];
+    if (key == null) return raw;
+    final translated = key.tr;
+    return translated == key ? raw : translated;
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = _accentForType(notification.type);
@@ -147,7 +185,7 @@ class NotificationCard extends StatelessWidget {
                                   Expanded(
                                     child: InterText(
                                       text: notification.title.isNotEmpty
-                                          ? notification.title
+                                          ? _localizedTitle(notification.title)
                                           : 'notifications_fallback_title'
                                               .tr,
                                       fontSize: 15.sp,
@@ -173,7 +211,7 @@ class NotificationCard extends StatelessWidget {
                               ),
                               SizedBox(height: 6.h),
                               InterText(
-                                text: notification.body,
+                                text: _localizedBody(notification.body),
                                 fontSize: 13.sp,
                                 fontWeight: FontWeight.w400,
                                 color: AppColors.grey700Color,

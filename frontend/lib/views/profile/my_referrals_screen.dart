@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 
 /// Sprint 7 step 3 — user-facing referral program screen.
 class MyReferralsScreen extends StatefulWidget {
@@ -46,7 +47,14 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('referrals_title'.tr)),
+      backgroundColor: AppColors.scaffold(context),
+      appBar: AppBar(
+        title: Text('referrals_title'.tr),
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -57,9 +65,15 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    border: Border.all(color: Colors.orange),
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      )
+                    ],
                   ),
                   child: Row(
                     children: [

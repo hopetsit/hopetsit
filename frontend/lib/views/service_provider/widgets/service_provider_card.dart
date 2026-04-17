@@ -23,6 +23,9 @@ class ServiceProviderCard extends StatefulWidget {
   final String location;
   final String status;
   final String pricePerHour;
+  final String? pricePerDay;
+  final String? pricePerWeek;
+  final String? pricePerMonth;
   final String? profileImagePath;
   final bool? isBlurred;
   final bool? showStatusChip;
@@ -42,6 +45,8 @@ class ServiceProviderCard extends StatefulWidget {
   final bool identityVerified;
   /// Sprint 7 step 2 — show 🏆 Top badge next to the name.
   final bool isTopSitter;
+  /// Coin boost — show 🔥 Boosted badge.
+  final bool isBoosted;
 
   const ServiceProviderCard({
     super.key,
@@ -55,6 +60,9 @@ class ServiceProviderCard extends StatefulWidget {
     required this.location,
     required this.status,
     required this.pricePerHour,
+    this.pricePerDay,
+    this.pricePerWeek,
+    this.pricePerMonth,
     this.profileImagePath,
     this.sitterId,
     this.onSendRequest,
@@ -69,6 +77,7 @@ class ServiceProviderCard extends StatefulWidget {
     this.currencyCode = CurrencyHelper.eur,
     this.identityVerified = false,
     this.isTopSitter = false,
+    this.isBoosted = false,
   });
 
   @override
@@ -131,9 +140,9 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
         margin: EdgeInsets.only(bottom: 16.h),
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
-          color: AppColors.whiteColor,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(11.r),
-          border: Border.all(color: AppColors.textFieldBorder, width: 1.w),
+          boxShadow: AppColors.cardShadow(context),
         ),
         child: Stack(
           children: [
@@ -202,7 +211,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                     text: widget.name,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -224,6 +233,32 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                   Tooltip(
                                     message: 'top_sitter_badge'.tr,
                                     child: Text('🏆', style: TextStyle(fontSize: 14.sp)),
+                                  ),
+                                ],
+                                // Coin Boost badge.
+                                if (widget.isBoosted) ...[
+                                  SizedBox(width: 4.w),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [Colors.orange, Colors.red.shade400],
+                                      ),
+                                      borderRadius: BorderRadius.circular(8.r),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('🔥', style: TextStyle(fontSize: 10.sp)),
+                                        SizedBox(width: 2.w),
+                                        InterText(
+                                          text: 'boost_badge'.tr,
+                                          fontSize: 9.sp,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ],
@@ -286,14 +321,14 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                         text: widget.rating.toStringAsFixed(1),
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ] else ...[
                       InterText(
                         text: 'sitter_detail_no_rating'.tr,
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ],
 
@@ -318,7 +353,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                             : 'service_card_no_location'.tr,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w400,
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                       ),
                     ),
                   ],
@@ -353,14 +388,14 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                               '${CurrencyHelper.symbol(widget.currencyCode)}${widget.pricePerHour}',
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                       )
                     : PopupMenuButton<String>(
                         icon: Container(
                           padding: EdgeInsets.all(8.w),
                           decoration: BoxDecoration(
-                            color: AppColors.whiteColor,
+                            color: AppColors.card(context),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -373,7 +408,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                           borderRadius: BorderRadius.circular(16.r),
                         ),
                         elevation: 8,
-                        color: AppColors.whiteColor,
+                        color: AppColors.card(context),
                         itemBuilder: (BuildContext context) => [
                           PopupMenuItem<String>(
                             value: 'block',
@@ -536,7 +571,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
             text: displayText,
             fontSize: 14.sp,
             fontWeight: FontWeight.w400,
-            color: AppColors.greyColor,
+            color: AppColors.textSecondary(context),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -554,53 +589,60 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
   Widget _buildActionButtons() {
     switch (widget.cardType) {
       case ServiceProviderCardType.home:
-        final priceString =
-            '${CurrencyHelper.symbol(widget.currencyCode)}${widget.pricePerHour}';
-        return Row(
+        final sym = CurrencyHelper.symbol(widget.currencyCode);
+        final rates = <String>[
+          if (widget.pricePerHour.isNotEmpty && widget.pricePerHour != '0')
+            '$sym${widget.pricePerHour}/${'price_per_hour_short'.tr}',
+          if (widget.pricePerDay != null && widget.pricePerDay!.isNotEmpty && widget.pricePerDay != '0')
+            '$sym${widget.pricePerDay}/${'price_per_day_short'.tr}',
+          if (widget.pricePerWeek != null && widget.pricePerWeek!.isNotEmpty && widget.pricePerWeek != '0')
+            '$sym${widget.pricePerWeek}/${'price_per_week_short'.tr}',
+          if (widget.pricePerMonth != null && widget.pricePerMonth!.isNotEmpty && widget.pricePerMonth != '0')
+            '$sym${widget.pricePerMonth}/${'price_per_month_short'.tr}',
+        ];
+        final priceLabel = rates.isNotEmpty ? rates.join(' · ') : '$sym${widget.pricePerHour}/${'price_per_hour_short'.tr}';
+        return Column(
           children: [
-            Expanded(
+            // Price row
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.primaryColor),
+                borderRadius: BorderRadius.circular(48.r),
+              ),
+              child: Center(
+                child: InterText(
+                  text: priceLabel,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+            ),
+            SizedBox(height: 10.h),
+            // Send request button
+            GestureDetector(
+              onTap:
+                  widget.onSendRequest ??
+                  () {
+                    // Default navigation to send request screen
+                  },
               child: Container(
+                width: double.infinity,
                 height: 48.h,
                 padding: EdgeInsets.symmetric(vertical: 12.h),
                 decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.primaryColor),
+                  color: AppColors.primaryColor,
                   borderRadius: BorderRadius.circular(48.r),
                 ),
                 child: Center(
                   child: InterText(
-                    text: 'service_card_per_hour_label'.trParams({
-                      'price': priceString,
-                    }),
+                    text: 'service_card_send_request'.tr,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.greyText,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: GestureDetector(
-                onTap:
-                    widget.onSendRequest ??
-                    () {
-                      // Default navigation to send request screen
-                    },
-                child: Container(
-                  height: 48.h,
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor,
-                    borderRadius: BorderRadius.circular(48.r),
-                  ),
-                  child: Center(
-                    child: InterText(
-                      text: 'service_card_send_request'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.whiteColor,
-                      textAlign: TextAlign.center,
-                    ),
+                    color: AppColors.whiteColor,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),

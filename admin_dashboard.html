@@ -207,10 +207,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> Bookings</div>
       <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> Sitters</div>
       <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> Owners</div>
+      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💰</span> Payments</div>
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> IBAN Payouts</div>
       <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> Identity verifications</div>
       <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> Review moderation</div>
       <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> User moderation</div>
+      <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> Terms &amp; Conditions</div>
+      <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> Reports</div>
+      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Boosts</div>
     </nav>
 
     <!-- PAGES -->
@@ -283,6 +287,57 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <div class="loading"><div class="spinner"></div></div>
           </div>
         </div>
+      </div>
+
+      <!-- PAYMENTS -->
+      <div id="page-payments" class="page">
+        <div class="section-title">💰 Payment & Payout Overview</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">
+          Complete view of all platform transactions — payments received, commissions earned, and sitter payouts.
+        </p>
+
+        <!-- Summary cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="payment-summary-cards">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <!-- Provider + Payout breakdown -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="payment-breakdown-row">
+        </div>
+
+        <!-- Filters -->
+        <div class="table-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+          <select class="filter-select" id="pay-filter-status" onchange="loadPayments()">
+            <option value="">All Payment Status</option>
+            <option value="paid">Paid</option>
+            <option value="failed">Failed</option>
+            <option value="refunded">Refunded</option>
+          </select>
+          <select class="filter-select" id="pay-filter-payout" onchange="loadPayments()">
+            <option value="">All Payout Status</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+          </select>
+          <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
+            <option value="">All Providers</option>
+            <option value="stripe">Stripe</option>
+            <option value="paypal">PayPal</option>
+          </select>
+          <input type="date" class="filter-select" id="pay-filter-from" onchange="loadPayments()" title="From date" />
+          <input type="date" class="filter-select" id="pay-filter-to" onchange="loadPayments()" title="To date" />
+        </div>
+
+        <!-- Payments table -->
+        <div class="table-wrap">
+          <div id="payments-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:12px" id="payments-pagination"></div>
       </div>
 
       <!-- IBAN PAYOUTS -->
@@ -372,6 +427,68 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </table>
         </div>
         <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadIdentityVerifications()">↻ Refresh</button>
+      </div>
+
+      <!-- TERMS & CONDITIONS (admin-editable) -->
+      <div id="page-terms" class="page">
+        <div class="section-title">📜 Terms &amp; Conditions</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+          Edit the Terms of Service shown inside the mobile app, per language. Changes take effect immediately — users see the new text next time they open the Terms screen. If a language has no document, the app falls back to the text bundled with the APK.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="terms-lang-tabs"></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+          <label style="font-size:12px;color:var(--text-muted)">Version</label>
+          <input id="terms-version-input" class="search-input" style="width:120px" value="1.0" />
+          <span id="terms-meta" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+        <textarea id="terms-content" style="width:100%;min-height:440px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5" placeholder="Write the Terms of Service here (Markdown-like plain text is fine)..."></textarea>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="action-btn btn-primary" onclick="saveTermsDocument()">💾 Save</button>
+          <button class="action-btn" onclick="loadTermsDocument(currentTermsLang)">↻ Reload</button>
+          <button class="action-btn" style="border-color:var(--red);color:var(--red)" onclick="revertTermsDocument()">↩ Revert to bundled default</button>
+        </div>
+      </div>
+
+      <!-- REPORTS (signalements) -->
+      <div id="page-reports" class="page">
+        <div class="section-title">🚩 Reports</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+          User-submitted reports (signalements) from profiles, comments, chat messages and photos. Use the filters below to triage.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="reports-status-tabs"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="reports-type-tabs"></div>
+        <div id="reports-list" style="display:grid;gap:10px"></div>
+        <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadReports()">↻ Refresh</button>
+      </div>
+
+      <!-- BOOSTS -->
+      <div id="page-boosts" class="page">
+        <div class="section-title">🚀 Boost Activity</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+          All coin shop purchases across sitters and owners. Track boost revenue, active boosts, and purchase history.
+        </p>
+        <div class="stats-grid" id="boosts-stats-grid"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <select class="filter-select" id="boost-tier-filter" onchange="loadBoosts()">
+            <option value="">All Tiers</option>
+            <option value="bronze">🥉 Bronze (3d)</option>
+            <option value="silver">🥈 Silver (7d)</option>
+            <option value="gold">🥇 Gold (15d)</option>
+            <option value="platinum">💎 Platinum (30d)</option>
+          </select>
+          <select class="filter-select" id="boost-role-filter" onchange="loadBoosts()">
+            <option value="">All Roles</option>
+            <option value="sitter">🐕 Sitters</option>
+            <option value="owner">👤 Owners</option>
+          </select>
+          <button class="action-btn btn-primary" onclick="loadBoosts()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <div id="boosts-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+        <div id="boosts-pagination" class="pagination"></div>
       </div>
 
     </div>
@@ -661,10 +778,184 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${name}`).classList.add('active');
   event.currentTarget.classList.add('active');
+  if (name === 'payments') loadPayments();
   if (name === 'iban') loadIbanSitters();
   if (name === 'identity') loadIdentityVerifications();
   if (name === 'reviews') loadReviewsModeration('all');
   if (name === 'moderation') loadPlatformStats();
+  if (name === 'terms') initTermsPage();
+  if (name === 'reports') initReportsPage();
+  if (name === 'boosts') loadBoosts();
+}
+
+// ── REPORTS ──────────────────────────────────────────────────────────────────
+const REPORT_STATUSES = ['open', 'reviewing', 'resolved', 'dismissed', 'all'];
+const REPORT_TYPES = ['all', 'profile', 'comment', 'message', 'photo', 'post', 'review'];
+let reportsStatusFilter = 'open';
+let reportsTypeFilter = 'all';
+
+function initReportsPage() {
+  const s = document.getElementById('reports-status-tabs');
+  s.innerHTML = REPORT_STATUSES.map(st => `
+    <button class="action-btn ${st === reportsStatusFilter ? 'btn-primary' : ''}" id="rep-stat-${st}" onclick="setReportsStatus('${st}')">${st.toUpperCase()}</button>
+  `).join('');
+  const t = document.getElementById('reports-type-tabs');
+  t.innerHTML = REPORT_TYPES.map(ty => `
+    <button class="action-btn ${ty === reportsTypeFilter ? 'btn-primary' : ''}" id="rep-type-${ty}" onclick="setReportsType('${ty}')" style="font-size:11px;padding:6px 10px">${ty}</button>
+  `).join('');
+  loadReports();
+}
+
+function setReportsStatus(st) {
+  reportsStatusFilter = st;
+  REPORT_STATUSES.forEach(x => {
+    const el = document.getElementById(`rep-stat-${x}`);
+    if (el) el.className = 'action-btn ' + (x === st ? 'btn-primary' : '');
+  });
+  loadReports();
+}
+
+function setReportsType(ty) {
+  reportsTypeFilter = ty;
+  REPORT_TYPES.forEach(x => {
+    const el = document.getElementById(`rep-type-${x}`);
+    if (el) el.className = 'action-btn ' + (x === ty ? 'btn-primary' : '') + ' ';
+  });
+  loadReports();
+}
+
+async function loadReports() {
+  const list = document.getElementById('reports-list');
+  list.innerHTML = '<div style="color:var(--text-muted)">Loading…</div>';
+  try {
+    const qs = [];
+    if (reportsStatusFilter && reportsStatusFilter !== 'all') qs.push(`status=${reportsStatusFilter}`);
+    if (reportsTypeFilter && reportsTypeFilter !== 'all') qs.push(`targetType=${reportsTypeFilter}`);
+    const d = await api('/admin/reports' + (qs.length ? '?' + qs.join('&') : ''));
+    const items = Array.isArray(d) ? d : (d.reports || []);
+    if (!items.length) {
+      list.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">No reports.</div>';
+      return;
+    }
+    list.innerHTML = items.map(r => renderReportCard(r)).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--red)">Load failed: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderReportCard(r) {
+  const statusColors = { open: 'var(--orange)', reviewing: 'var(--blue)', resolved: 'var(--green)', dismissed: 'var(--text-muted)' };
+  const col = statusColors[r.status] || 'var(--text-muted)';
+  const when = r.createdAt ? new Date(r.createdAt).toLocaleString() : '';
+  return `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <span style="background:rgba(232,71,42,0.12);color:var(--primary);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">${escapeHtml(r.targetType || '?')}</span>
+        <span style="background:rgba(0,0,0,0.25);padding:2px 8px;border-radius:6px;font-size:11px">${escapeHtml(r.reason || '?')}</span>
+        <span style="color:${col};font-size:11px;font-weight:600">● ${escapeHtml(r.status || 'open')}</span>
+        <span style="color:var(--text-muted);font-size:11px;margin-left:auto">${escapeHtml(when)}</span>
+      </div>
+      <div style="font-size:13px;margin-bottom:6px"><b>Reporter:</b> ${escapeHtml(r.reporterRole || '?')} <code style="font-size:11px;color:var(--text-muted)">${escapeHtml(r.reporterId || '')}</code></div>
+      <div style="font-size:13px;margin-bottom:6px"><b>Target:</b> <code style="font-size:11px;color:var(--text-muted)">${escapeHtml(r.targetId || '')}</code></div>
+      ${r.snapshot ? `<div style="font-size:13px;margin:6px 0;padding:8px;background:var(--bg);border-radius:6px;max-height:80px;overflow:auto">${escapeHtml(r.snapshot)}</div>` : ''}
+      ${r.details ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px"><b>Details:</b> ${escapeHtml(r.details)}</div>` : ''}
+      ${r.contextIds && r.contextIds.photoUrl ? `<div style="margin:6px 0"><a href="${escapeHtml(r.contextIds.photoUrl)}" target="_blank" style="color:var(--primary);font-size:12px">View photo ↗</a></div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="action-btn" onclick="updateReportStatus('${r._id}','reviewing')">👀 Reviewing</button>
+        <button class="action-btn btn-verify" onclick="updateReportStatus('${r._id}','resolved')">✓ Resolved</button>
+        <button class="action-btn" onclick="updateReportStatus('${r._id}','dismissed')">✕ Dismiss</button>
+        <button class="action-btn" style="border-color:var(--red);color:var(--red);margin-left:auto" onclick="deleteReport('${r._id}')">🗑 Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+async function updateReportStatus(id, status) {
+  try {
+    await api(`/admin/reports/${id}`, 'PATCH', { status });
+    showToast(`Report marked ${status}`, 'success');
+    loadReports();
+  } catch (e) {
+    showToast('Update failed: ' + e.message, 'error');
+  }
+}
+
+async function deleteReport(id) {
+  if (!confirm('Permanently delete this report?')) return;
+  try {
+    await api(`/admin/reports/${id}`, 'DELETE');
+    showToast('Report deleted', 'success');
+    loadReports();
+  } catch (e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+// ── TERMS & CONDITIONS ───────────────────────────────────────────────────────
+const TERMS_LANGS = ['en', 'fr', 'es', 'it', 'de', 'pt'];
+let currentTermsLang = 'fr';
+let termsDocsCache = {};
+
+function initTermsPage() {
+  const tabs = document.getElementById('terms-lang-tabs');
+  tabs.innerHTML = TERMS_LANGS.map(l => `
+    <button class="action-btn ${l === currentTermsLang ? 'btn-primary' : ''}" id="terms-tab-${l}" onclick="switchTermsLang('${l}')">${l.toUpperCase()}</button>
+  `).join('');
+  loadTermsDocument(currentTermsLang);
+}
+
+function switchTermsLang(lang) {
+  currentTermsLang = lang;
+  TERMS_LANGS.forEach(l => {
+    const el = document.getElementById(`terms-tab-${l}`);
+    if (el) el.className = 'action-btn ' + (l === lang ? 'btn-primary' : '');
+  });
+  loadTermsDocument(lang);
+}
+
+async function loadTermsDocument(lang) {
+  const ta = document.getElementById('terms-content');
+  const ver = document.getElementById('terms-version-input');
+  const meta = document.getElementById('terms-meta');
+  if (ta) ta.value = 'Loading…';
+  if (meta) meta.textContent = '';
+  try {
+    const d = await api(`/admin/terms/${lang}`);
+    termsDocsCache[lang] = d;
+    ta.value = d.content || '';
+    ver.value = d.version || '1.0';
+    meta.textContent = d.exists
+      ? `Last updated ${d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ''} by ${d.updatedBy || 'admin'}`
+      : 'No document yet — app is showing the bundled default.';
+  } catch (e) {
+    ta.value = '';
+    showToast('Failed to load terms: ' + e.message, 'error');
+  }
+}
+
+async function saveTermsDocument() {
+  const lang = currentTermsLang;
+  const content = document.getElementById('terms-content').value;
+  const version = document.getElementById('terms-version-input').value || '1.0';
+  try {
+    await api(`/admin/terms/${lang}`, 'PUT', { content, version });
+    showToast(`Terms saved for ${lang.toUpperCase()}`, 'success');
+    loadTermsDocument(lang);
+  } catch (e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function revertTermsDocument() {
+  const lang = currentTermsLang;
+  if (!confirm(`Delete the stored ${lang.toUpperCase()} document? The app will fall back to the text bundled in the APK.`)) return;
+  try {
+    await api(`/admin/terms/${lang}`, 'DELETE');
+    showToast(`Reverted ${lang.toUpperCase()} to bundled default`, 'success');
+    loadTermsDocument(lang);
+  } catch (e) {
+    showToast('Revert failed: ' + e.message, 'error');
+  }
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -800,21 +1091,25 @@ function renderSitters() {
   });
   if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>No sitters found.</div></div>'; return; }
   document.getElementById('sitters-table-body').innerHTML = `
-    <table><thead><tr><th>Name</th><th>Email</th><th>Hourly Rate</th><th>Services</th><th>Verified</th><th>Payout</th><th>Actions</th></tr></thead>
-    <tbody>${filtered.map(s => `
+    <table><thead><tr><th>Name</th><th>Email</th><th>Hourly Rate</th><th>Services</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(s => {
+      const boosted = s.boostExpiry && new Date(s.boostExpiry) > new Date();
+      const boostDays = boosted ? Math.ceil((new Date(s.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
+      return `
       <tr>
         <td><strong>${s.name||'-'}</strong></td>
         <td style="color:var(--text-muted)">${s.email||'-'}</td>
         <td>€${(s.hourlyRate||0).toFixed(2)}/hr</td>
         <td style="font-size:12px">${(s.service||[]).join(', ')||'-'}</td>
         <td>${s.verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
+        <td>${boosted ? `<span class="badge badge-orange">🔥 ${s.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${s.payoutMethod||'stripe'}</span></td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
           <button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Delete</button>
         </td>
       </tr>
-    `).join('')}</tbody></table>
+    `;}).join('')}</tbody></table>
   `;
 }
 async function verifySitter(id) {
@@ -871,6 +1166,306 @@ async function deleteOwner(id, name) {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
+// ── PAYMENTS ─────────────────────────────────────────────────────────────────
+let paymentsPage = 1;
+const paymentsLimit = 30;
+
+async function loadPayments(page) {
+  if (page) paymentsPage = page;
+  const tbody = document.getElementById('payments-table-body');
+  tbody.innerHTML = '<div class="loading"><div class="spinner"></div> Loading payments...</div>';
+
+  const ps = document.getElementById('pay-filter-status')?.value || '';
+  const po = document.getElementById('pay-filter-payout')?.value || '';
+  const pp = document.getElementById('pay-filter-provider')?.value || '';
+  const from = document.getElementById('pay-filter-from')?.value || '';
+  const to = document.getElementById('pay-filter-to')?.value || '';
+
+  let qs = `?page=${paymentsPage}&limit=${paymentsLimit}`;
+  if (ps) qs += `&paymentStatus=${ps}`;
+  if (po) qs += `&payoutStatus=${po}`;
+  if (pp) qs += `&paymentProvider=${pp}`;
+  if (from) qs += `&from=${from}`;
+  if (to) qs += `&to=${to}`;
+
+  try {
+    const d = await api(`/admin/payments${qs}`);
+    renderPaymentSummary(d.summary, d.providerBreakdown, d.payoutBreakdown);
+    renderPaymentsTable(d.payments, d.total);
+    renderPaymentsPagination(d.total);
+  } catch (e) {
+    tbody.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+  }
+}
+
+function renderPaymentSummary(summary, providers, payouts) {
+  const fmt = (v) => `€${Number(v || 0).toFixed(2)}`;
+  document.getElementById('payment-summary-cards').innerHTML = `
+    <div class="stat-card" style="border-left:4px solid #22c55e">
+      <div style="font-size:13px;color:var(--text-muted)">Total Revenue</div>
+      <div style="font-size:22px;font-weight:700;color:#22c55e">${fmt(summary.totalRevenue)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${summary.paidCount || 0} paid bookings</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #8b5cf6">
+      <div style="font-size:13px;color:var(--text-muted)">Platform Commission</div>
+      <div style="font-size:22px;font-weight:700;color:#8b5cf6">${fmt(summary.totalCommission)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">~20% of revenue</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #3b82f6">
+      <div style="font-size:13px;color:var(--text-muted)">Sitter Payouts</div>
+      <div style="font-size:22px;font-weight:700;color:#3b82f6">${fmt(summary.totalPayouts)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">~80% to sitters</div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #f59e0b">
+      <div style="font-size:13px;color:var(--text-muted)">Pending Payouts</div>
+      <div style="font-size:22px;font-weight:700;color:#f59e0b">${fmt(payouts?.pending?.total || 0)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${payouts?.pending?.count || 0} awaiting</div>
+    </div>
+  `;
+
+  // Provider + Payout breakdown
+  const provHtml = Object.entries(providers || {}).map(([name, v]) => `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span>${name === 'stripe' ? '💳 Stripe' : name === 'paypal' ? '🅿️ PayPal' : '❓ ' + name}</span>
+      <span><strong>${v.count}</strong> txn · ${fmt(v.total)} · comm ${fmt(v.commission)}</span>
+    </div>
+  `).join('');
+
+  const payoutHtml = Object.entries(payouts || {}).map(([status, v]) => {
+    const colors = { completed: '#22c55e', processing: '#3b82f6', failed: '#ef4444', pending: '#f59e0b' };
+    return `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:${colors[status] || 'inherit'}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+        <span><strong>${v.count}</strong> · ${fmt(v.total)}</span>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('payment-breakdown-row').innerHTML = `
+    <div style="background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border)">
+      <div style="font-weight:600;margin-bottom:8px">Provider Breakdown</div>
+      ${provHtml || '<div style="color:var(--text-muted)">No data yet</div>'}
+    </div>
+    <div style="background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border)">
+      <div style="font-weight:600;margin-bottom:8px">Payout Status</div>
+      ${payoutHtml || '<div style="color:var(--text-muted)">No data yet</div>'}
+    </div>
+  `;
+}
+
+function renderPaymentsTable(payments, total) {
+  const tbody = document.getElementById('payments-table-body');
+  if (!payments || payments.length === 0) {
+    tbody.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><div>No payments found matching filters.</div></div>';
+    return;
+  }
+  const fmt = (c, v) => `${c === 'EUR' ? '€' : c}${Number(v || 0).toFixed(2)}`;
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+
+  const payBadge = (s) => {
+    const c = { paid: 'green', failed: 'red', refunded: 'orange', refund: 'orange', pending: 'yellow' };
+    return `<span class="badge badge-${c[s] || 'blue'}">${s}</span>`;
+  };
+  const payoutBadge = (s) => {
+    const c = { completed: 'green', processing: 'blue', failed: 'red', pending: 'orange' };
+    return `<span class="badge badge-${c[s] || 'blue'}">${s}</span>`;
+  };
+  const provIcon = (p) => p === 'stripe' ? '💳' : p === 'paypal' ? '🅿️' : '❓';
+
+  tbody.innerHTML = `
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${total} transaction${total !== 1 ? 's' : ''} found</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Owner</th>
+          <th>Sitter</th>
+          <th>Service</th>
+          <th>Total</th>
+          <th>Commission</th>
+          <th>Sitter Gets</th>
+          <th>Provider</th>
+          <th>Payment</th>
+          <th>Payout</th>
+          <th>Payout Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${payments.map(p => `
+          <tr>
+            <td>${fmtDate(p.paidAt || p.date)}</td>
+            <td title="${escapeHtml(p.ownerEmail)}">${escapeHtml(p.ownerName)}</td>
+            <td title="${escapeHtml(p.sitterEmail)}">${escapeHtml(p.sitterName)}</td>
+            <td>${escapeHtml(typeof p.serviceType === 'object' ? (p.serviceType?.type || '-') : String(p.serviceType || '-'))}</td>
+            <td style="font-weight:600">${fmt(p.currency, p.totalPrice)}</td>
+            <td style="color:#8b5cf6">${fmt(p.currency, p.commission)}</td>
+            <td style="color:#22c55e;font-weight:600">${fmt(p.currency, p.netPayout)}</td>
+            <td>${provIcon(p.paymentProvider)} ${p.paymentProvider || '-'}</td>
+            <td>${payBadge(p.paymentStatus)}</td>
+            <td>${payoutBadge(p.payoutStatus)}</td>
+            <td>${fmtDate(p.payoutAt)}</td>
+            <td>
+              <button class="action-btn" onclick="openPaymentDetail('${p._id}')" title="Manage" style="font-size:11px">⚙️</button>
+              ${p.payoutStatus === 'failed' || p.payoutStatus === 'pending' ? `<button class="action-btn btn-verify" onclick="retryPayout('${p._id}')" title="Retry payout" style="font-size:11px">🔄</button>` : ''}
+              ${p.paymentStatus === 'paid' ? `<button class="action-btn" onclick="adminRefund('${p._id}')" title="Refund" style="font-size:11px;color:var(--red)">💸</button>` : ''}
+              ${p.payoutError ? `<span title="${escapeHtml(p.payoutError)}" style="cursor:help">⚠️</span>` : ''}
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderPaymentsPagination(total) {
+  const pages = Math.ceil(total / paymentsLimit);
+  const container = document.getElementById('payments-pagination');
+  if (pages <= 1) { container.innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= pages && i <= 10; i++) {
+    html += `<button class="action-btn ${i === paymentsPage ? 'btn-primary' : ''}" onclick="loadPayments(${i})" style="min-width:32px">${i}</button>`;
+  }
+  if (pages > 10) html += `<span style="color:var(--text-muted)">... ${pages} pages</span>`;
+  container.innerHTML = html;
+}
+
+async function retryPayout(bookingId) {
+  if (!confirm('Retry payout for this booking?')) return;
+  try {
+    await api(`/admin/payments/${bookingId}/retry-payout`, 'POST');
+    showToast('Payout retry queued — status will update shortly.', 'success');
+    loadPayments();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── PAYMENT DETAIL / CONFLICT MANAGEMENT ─────────────────────────────────────
+let paymentDetailCache = {};
+
+function openPaymentDetail(bookingId) {
+  // Find the payment in cached data
+  const tbody = document.getElementById('payments-table-body');
+  // Re-fetch for freshest data
+  api(`/admin/payments?page=1&limit=1000`).then(d => {
+    const p = (d.payments || []).find(x => x._id === bookingId);
+    if (!p) { showToast('Payment not found', 'error'); return; }
+    paymentDetailCache = p;
+    showPaymentModal(p);
+  }).catch(e => showToast('Error: ' + e.message, 'error'));
+}
+
+function showPaymentModal(p) {
+  const fmt = (v) => `€${Number(v || 0).toFixed(2)}`;
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+  const statusColors = { paid: '#22c55e', failed: '#ef4444', refunded: '#f59e0b', pending: '#94a3b8' };
+  const payoutColors = { completed: '#22c55e', processing: '#3b82f6', failed: '#ef4444', pending: '#f59e0b', cancelled: '#94a3b8' };
+
+  const modalHtml = `
+    <div id="payment-detail-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--card);border-radius:16px;padding:24px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;border:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0">⚙️ Payment Management</h3>
+          <button onclick="this.closest('#payment-detail-modal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">✕</button>
+        </div>
+
+        <!-- Transaction info -->
+        <div style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+            <div><span style="color:var(--text-muted)">Owner:</span> <strong>${escapeHtml(p.ownerName)}</strong></div>
+            <div><span style="color:var(--text-muted)">Sitter:</span> <strong>${escapeHtml(p.sitterName)}</strong></div>
+            <div><span style="color:var(--text-muted)">Total:</span> <strong>${fmt(p.totalPrice)}</strong></div>
+            <div><span style="color:var(--text-muted)">Commission:</span> <strong style="color:#8b5cf6">${fmt(p.commission)}</strong></div>
+            <div><span style="color:var(--text-muted)">Sitter net:</span> <strong style="color:#22c55e">${fmt(p.netPayout)}</strong></div>
+            <div><span style="color:var(--text-muted)">Provider:</span> <strong>${p.paymentProvider || '-'}</strong></div>
+            <div><span style="color:var(--text-muted)">Paid:</span> ${fmtDate(p.paidAt)}</div>
+            <div><span style="color:var(--text-muted)">Payout:</span> ${fmtDate(p.payoutAt)}</div>
+            ${p.stripePaymentIntentId ? `<div style="grid-column:span 2"><span style="color:var(--text-muted)">Stripe PI:</span> <code style="font-size:11px">${p.stripePaymentIntentId}</code></div>` : ''}
+            ${p.paypalOrderId ? `<div style="grid-column:span 2"><span style="color:var(--text-muted)">PayPal Order:</span> <code style="font-size:11px">${p.paypalOrderId}</code></div>` : ''}
+            ${p.payoutError ? `<div style="grid-column:span 2;color:var(--red)"><span style="color:var(--text-muted)">Error:</span> ${escapeHtml(p.payoutError)}</div>` : ''}
+          </div>
+        </div>
+
+        <!-- Status controls -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Payment Status</label>
+            <select id="pm-payment-status" class="filter-select" style="width:100%">
+              ${['pending','paid','failed','refunded','cancelled'].map(s => `<option value="${s}" ${p.paymentStatus===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Payout Status</label>
+            <select id="pm-payout-status" class="filter-select" style="width:100%">
+              ${['pending','processing','completed','failed','cancelled'].map(s => `<option value="${s}" ${(p.payoutStatus||'pending')===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <!-- Reason field -->
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Admin note / reason</label>
+          <input id="pm-reason" type="text" placeholder="Reason for change (optional)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)" />
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="action-btn btn-primary" onclick="savePaymentStatusOverride('${p._id}')" style="flex:1">💾 Save Status</button>
+          ${p.paymentStatus === 'paid' ? `<button class="action-btn" onclick="adminRefundFromModal('${p._id}')" style="flex:1;background:#ef4444;color:white;border-color:#ef4444">💸 Full Refund</button>` : ''}
+          ${p.payoutStatus === 'failed' || p.payoutStatus === 'pending' ? `<button class="action-btn btn-verify" onclick="retryPayoutFromModal('${p._id}')" style="flex:1">🔄 Retry Payout</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  // Remove existing if any
+  document.getElementById('payment-detail-modal')?.remove();
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+async function savePaymentStatusOverride(bookingId) {
+  const paymentStatus = document.getElementById('pm-payment-status').value;
+  const payoutStatus = document.getElementById('pm-payout-status').value;
+  try {
+    await api(`/admin/bookings/${bookingId}`, 'PATCH', { paymentStatus, payoutStatus });
+    document.getElementById('payment-detail-modal')?.remove();
+    showToast('Status updated ✓', 'success');
+    loadPayments();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function adminRefund(bookingId) {
+  const reason = prompt('Reason for refund (optional):');
+  if (reason === null) return; // cancelled
+  if (!confirm('⚠️ Issue a FULL REFUND for this booking? This will refund the owner and cancel the sitter payout.')) return;
+  try {
+    const result = await api(`/admin/bookings/${bookingId}/refund`, 'POST', { reason: reason || 'admin_manual' });
+    showToast('Refund processed ✓ ' + (result.message || ''), 'success');
+    loadPayments();
+  } catch (e) { showToast('Refund error: ' + e.message, 'error'); }
+}
+
+async function adminRefundFromModal(bookingId) {
+  const reason = document.getElementById('pm-reason')?.value || 'admin_manual';
+  if (!confirm('⚠️ Issue a FULL REFUND? The owner will be refunded and sitter payout cancelled.')) return;
+  try {
+    await api(`/admin/bookings/${bookingId}/refund`, 'POST', { reason });
+    document.getElementById('payment-detail-modal')?.remove();
+    showToast('Refund processed ✓', 'success');
+    loadPayments();
+  } catch (e) { showToast('Refund error: ' + e.message, 'error'); }
+}
+
+async function retryPayoutFromModal(bookingId) {
+  if (!confirm('Retry payout for this booking?')) return;
+  try {
+    await api(`/admin/payments/${bookingId}/retry-payout`, 'POST');
+    document.getElementById('payment-detail-modal')?.remove();
+    showToast('Payout retry queued ✓', 'success');
+    loadPayments();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
 // ── IBAN ──────────────────────────────────────────────────────────────────────
 async function loadIbanSitters() {
   document.getElementById('iban-table-body').innerHTML = '<div class="loading"><div class="spinner"></div> Loading IBAN data...</div>';
@@ -925,6 +1520,89 @@ async function verifyIban(sitterId) {
     loadIbanSitters();
     showToast('IBAN verified ✓ — sitter can now receive payouts!', 'success');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── BOOSTS ──────────────────────────────────────────────────────────────────
+let boostsPage = 1;
+const TIER_LABELS = { bronze: '🥉 Bronze', silver: '🥈 Silver', gold: '🥇 Gold', platinum: '💎 Platinum' };
+const TIER_COLORS = { bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700', platinum: '#B9F2FF' };
+
+async function loadBoosts(page) {
+  if (page) boostsPage = page;
+  const tier = document.getElementById('boost-tier-filter')?.value || '';
+  const role = document.getElementById('boost-role-filter')?.value || '';
+  const params = new URLSearchParams({ page: boostsPage, limit: 30 });
+  if (tier) params.set('tier', tier);
+  if (role) params.set('role', role);
+  try {
+    const data = await api(`/admin/boosts?${params}`);
+    renderBoostStats(data.summary);
+    renderBoostsTable(data.purchases, data.total);
+    renderBoostsPagination(data.total);
+  } catch (e) {
+    document.getElementById('boosts-table-body').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
+  }
+}
+
+function renderBoostStats(summary) {
+  const grid = document.getElementById('boosts-stats-grid');
+  const tb = summary.tierBreakdown || {};
+  let tierHtml = '';
+  for (const t of ['bronze', 'silver', 'gold', 'platinum']) {
+    if (tb[t]) {
+      tierHtml += `<div class="stat-card" style="--accent:${TIER_COLORS[t]}"><div class="stat-label">${TIER_LABELS[t]}</div><div class="stat-value">${tb[t].count}</div><div class="stat-sub">€${(tb[t].revenue||0).toFixed(0)} revenue</div></div>`;
+    }
+  }
+  grid.innerHTML = `
+    <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">Total Boost Revenue</div><div class="stat-value" style="color:var(--green)">€${(summary.totalRevenue||0).toFixed(2)}</div><div class="stat-sub">${summary.totalPurchases||0} purchases</div></div>
+    <div class="stat-card" style="--accent:var(--orange)"><div class="stat-label">Active Boosts</div><div class="stat-value" style="color:var(--orange)">${summary.activeBoostsCount||0}</div><div class="stat-sub">Users currently boosted</div></div>
+    ${tierHtml}
+  `;
+}
+
+function renderBoostsTable(purchases, total) {
+  const container = document.getElementById('boosts-table-body');
+  if (!purchases || !purchases.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🚀</div>No boost purchases yet</div>';
+    return;
+  }
+  let rows = '';
+  for (const p of purchases) {
+    const now = new Date();
+    const expiry = p.boostExpiry ? new Date(p.boostExpiry) : null;
+    const isActive = expiry && expiry > now;
+    const remaining = isActive ? Math.ceil((expiry - now) / 86400000) : 0;
+    const statusHtml = isActive
+      ? `<span class="badge badge-green">Active · ${remaining}d left</span>`
+      : `<span class="badge badge-gray">Expired</span>`;
+    const tierBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${TIER_COLORS[p.tier]||'#555'}22;color:${TIER_COLORS[p.tier]||'#888'}">${TIER_LABELS[p.tier]||p.tier} · ${p.days}d</span>`;
+    const roleBadge = p.role === 'sitter'
+      ? '<span class="badge badge-blue">🐕 Sitter</span>'
+      : '<span class="badge badge-orange">👤 Owner</span>';
+    rows += `<tr>
+      <td>${fmtDate(p.purchasedAt)}</td>
+      <td><strong>${p.userName||'-'}</strong><br><span style="font-size:11px;color:var(--text-muted)">${p.userEmail||''}</span></td>
+      <td>${roleBadge}</td>
+      <td>${tierBadge}</td>
+      <td style="font-weight:600">€${(p.amount||0).toFixed(2)}</td>
+      <td>${p.paymentProvider}</td>
+      <td>${statusHtml}</td>
+    </tr>`;
+  }
+  container.innerHTML = `<table><thead><tr>
+    <th>Date</th><th>User</th><th>Role</th><th>Tier</th><th>Amount</th><th>Provider</th><th>Status</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderBoostsPagination(total) {
+  const container = document.getElementById('boosts-pagination');
+  const totalPages = Math.ceil(total / 30);
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= totalPages; i++) {
+    html += `<button class="page-btn ${i === boostsPage ? 'active' : ''}" onclick="loadBoosts(${i})">${i}</button>`;
+  }
+  container.innerHTML = html;
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────

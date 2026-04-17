@@ -14,6 +14,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/report_dialog.dart';
 
 class Review {
   final String reviewerName;
@@ -70,10 +71,12 @@ class _ServiceProviderDetailContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: Obx(
@@ -82,11 +85,25 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                 controller.sitter.value?.name ??
                 'sitter_detail_loading_name'.tr,
             fontSize: 18.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.blackColor,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
           ),
         ),
-        // actions: [
+        actions: [
+          IconButton(
+            tooltip: 'report_dialog_title'.tr,
+            icon: const Icon(Icons.flag_outlined, color: AppColors.primaryColor),
+            onPressed: () {
+              ReportDialog.show(
+                context: context,
+                targetType: 'profile',
+                targetId: sitterId,
+                snapshot: controller.sitter.value?.name ?? '',
+              );
+            },
+          ),
+        ],
+        // actionsLegacy: [
         //   Obx(
         //     () => Padding(
         //       padding: EdgeInsets.only(right: 16.w),
@@ -162,7 +179,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
             child: Column(
               children: [
                 // Hero Section
-                _buildHeroSection(sitter),
+                _buildHeroSection(sitter, context),
 
                 // Content Sections
                 Padding(
@@ -175,19 +192,19 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                       SizedBox(height: 16.h),
 
                       // Booking/Application Details Section
-                      _buildBookingDetailsSection(sitter, status),
+                      _buildBookingDetailsSection(sitter, status, context),
                       SizedBox(height: 24.h),
 
                       // About Section
-                      _buildAboutSection(sitter),
+                      _buildAboutSection(sitter, context),
                       SizedBox(height: 24.h),
 
                       // Skills Section
-                      _buildSkillsSection(sitter),
+                      _buildSkillsSection(sitter, context),
                       SizedBox(height: 24.h),
 
                       // Reviews Section
-                      _buildReviewsSection(sitter),
+                      _buildReviewsSection(sitter, context),
                     ],
                   ),
                 ),
@@ -199,7 +216,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroSection(sitter) {
+  Widget _buildHeroSection(sitter, BuildContext context) {
     final imageUrl =
         sitter.avatar.url.isNotEmpty &&
             (sitter.avatar.url.startsWith('http://') ||
@@ -263,7 +280,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
             child: Container(
               height: 110.h,
               decoration: BoxDecoration(
-                color: AppColors.lightGrey.withOpacity(0.9),
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.all(Radius.circular(26.r)),
               ),
               padding: EdgeInsets.all(20.w),
@@ -274,7 +291,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                     text: sitter.name,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                   SizedBox(height: 8.h),
                   Row(
@@ -309,7 +326,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                           text: sitter.rating.toStringAsFixed(1),
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                       ] else ...[
                         InterText(
@@ -330,7 +347,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _buildAboutSection(sitter) {
+  Widget _buildAboutSection(sitter, BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -340,14 +357,14 @@ class _ServiceProviderDetailContent extends StatelessWidget {
               AppImages.pawIcon,
               width: 20.w,
               height: 20.h,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
             SizedBox(width: 8.w),
             PoppinsText(
               text: 'sitter_detail_about_title'.trParams({'name': sitter.name}),
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),
@@ -364,7 +381,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _buildBookingDetailsSection(SitterModel sitter, String status) {
+  Widget _buildBookingDetailsSection(SitterModel sitter, String status, BuildContext context) {
     final hourlyRate = sitter.hourlyRate;
     final hasBooking =
         status.toLowerCase() != 'available' &&
@@ -388,7 +405,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                   : 'sitter_detail_availability_pricing_title'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),
@@ -396,71 +413,45 @@ class _ServiceProviderDetailContent extends StatelessWidget {
         Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: AppColors.lightGrey,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Hourly Rate
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  InterText(
-                    text: 'sitter_detail_hourly_rate_label'.tr,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.grey700Color,
-                  ),
-                  PoppinsText(
-                    text:
-                        '${CurrencyHelper.format(sitter.currency, hourlyRate)}/hour',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryColor,
-                  ),
-                ],
-              ),
-              if (sitter.weeklyRate > 0) ...[
-                SizedBox(height: 12.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InterText(
-                      text: 'sitter_detail_weekly_rate_label'.tr,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.grey700Color,
-                    ),
-                    PoppinsText(
-                      text:
-                          '${CurrencyHelper.format(sitter.currency, sitter.weeklyRate)}/wk',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryColor,
-                    ),
-                  ],
+              if (hourlyRate > 0) ...[
+                _buildRateRow(
+                  'price_per_hour'.tr,
+                  CurrencyHelper.format(sitter.currency, hourlyRate),
+                  context,
                 ),
               ],
+              // Daily Rate
+              if (sitter.dailyRate > 0) ...[
+                if (hourlyRate > 0) SizedBox(height: 12.h),
+                _buildRateRow(
+                  'price_per_day'.tr,
+                  CurrencyHelper.format(sitter.currency, sitter.dailyRate),
+                  context,
+                ),
+              ],
+              // Weekly Rate
+              if (sitter.weeklyRate > 0) ...[
+                SizedBox(height: 12.h),
+                _buildRateRow(
+                  'price_per_week'.tr,
+                  CurrencyHelper.format(sitter.currency, sitter.weeklyRate),
+                  context,
+                ),
+              ],
+              // Monthly Rate
               if (sitter.monthlyRate > 0) ...[
                 SizedBox(height: 12.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InterText(
-                      text: 'sitter_detail_monthly_rate_label'.tr,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.grey700Color,
-                    ),
-                    PoppinsText(
-                      text:
-                          '${CurrencyHelper.format(sitter.currency, sitter.monthlyRate)}/mo',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryColor,
-                    ),
-                  ],
+                _buildRateRow(
+                  'price_per_month'.tr,
+                  CurrencyHelper.format(sitter.currency, sitter.monthlyRate),
+                  context,
                 ),
               ],
               SizedBox(height: 12.h),
@@ -535,7 +526,27 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _buildSkillsSection(sitter) {
+  Widget _buildRateRow(String label, String value, BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        InterText(
+          text: label,
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w400,
+          color: AppColors.grey700Color,
+        ),
+        PoppinsText(
+          text: value,
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primaryColor,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkillsSection(sitter, BuildContext context) {
     final skillsList = sitter.skillsList;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -548,7 +559,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
               text: 'sitter_detail_skills_title'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),
@@ -558,7 +569,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
             spacing: 8.w,
             runSpacing: 8.h,
             children: skillsList
-                .map<Widget>((skill) => _buildSkillTag(skill))
+                .map<Widget>((skill) => _buildSkillTag(skill, context))
                 .toList(),
           )
         else
@@ -572,7 +583,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _buildSkillTag(String skill) {
+  Widget _buildSkillTag(String skill, BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
       decoration: BoxDecoration(
@@ -583,12 +594,12 @@ class _ServiceProviderDetailContent extends StatelessWidget {
         text: skill,
         fontSize: 14.sp,
         fontWeight: FontWeight.w400,
-        color: AppColors.greyColor,
+        color: AppColors.textSecondary(context),
       ),
     );
   }
 
-  Widget _buildReviewsSection(sitter) {
+  Widget _buildReviewsSection(sitter, BuildContext context) {
     final reviewsList = sitter.reviews as List<dynamic>? ?? [];
     final List<Widget> reviewWidgets = reviewsList.isEmpty
         ? [
@@ -603,7 +614,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
               .map<Widget>(
                 (review) => Column(
                   children: [
-                    _buildReviewItem(review),
+                    _buildReviewItem(review, context),
                     SizedBox(height: 16.h),
                   ],
                 ),
@@ -621,7 +632,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
               text: 'sitter_detail_reviews_title'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),
@@ -631,7 +642,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     );
   }
 
-  Widget _buildReviewItem(dynamic review) {
+  Widget _buildReviewItem(dynamic review, BuildContext context) {
     final reviewerName =
         review['reviewer']['name'] as String? ??
         'sitter_detail_anonymous_reviewer'.tr;
@@ -642,9 +653,9 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.grey300Color),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,7 +708,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                   text: reviewerName,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
                 SizedBox(height: 4.h),
                 Row(
@@ -731,7 +742,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                           text: rating.toStringAsFixed(1),
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                       ],
                     ),
@@ -742,7 +753,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                   text: reviewText,
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.greyColor,
+                  color: AppColors.textSecondary(context),
                 ),
               ],
             ),
@@ -778,8 +789,10 @@ class _ServiceProviderDetailContent extends StatelessWidget {
           width: double.infinity,
           height: 48.h,
           decoration: BoxDecoration(
-            color: isLocked ? AppColors.grey300Color : AppColors.primaryColor,
-            borderRadius: BorderRadius.circular(24.r),
+            gradient: isLocked ? null : LinearGradient(colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.85)]),
+            color: isLocked ? AppColors.grey300Color : null,
+            borderRadius: BorderRadius.circular(16.r),
+            boxShadow: isLocked ? null : [BoxShadow(color: AppColors.primaryColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

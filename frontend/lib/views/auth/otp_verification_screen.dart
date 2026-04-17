@@ -47,13 +47,13 @@ class OtpVerificationScreen extends StatelessWidget {
       padding: EdgeInsets.zero,
       textStyle: TextStyle(
         fontSize: 24.sp,
-        color: AppColors.blackColor,
+        color: AppColors.textPrimary(context),
         fontWeight: FontWeight.w400,
       ),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.grey300Color),
+        border: Border.all(color: AppColors.divider(context)),
         borderRadius: BorderRadius.circular(12.r),
-        color: AppColors.whiteColor,
+        color: AppColors.inputFill(context),
       ),
     );
 
@@ -66,7 +66,7 @@ class OtpVerificationScreen extends StatelessWidget {
     final submittedPinTheme = defaultPinTheme.copyWith(
       decoration: defaultPinTheme.decoration!.copyWith(
         border: Border.all(color: AppColors.primaryColor),
-        color: AppColors.whiteColor,
+        color: AppColors.inputFill(context),
       ),
     );
 
@@ -79,7 +79,7 @@ class OtpVerificationScreen extends StatelessWidget {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 12.w),
@@ -94,7 +94,7 @@ class OtpVerificationScreen extends StatelessWidget {
                   text: 'Email Verification',
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
 
                 SizedBox(height: 5.h),
@@ -104,7 +104,7 @@ class OtpVerificationScreen extends StatelessWidget {
                   text: 'Enter verification code send on',
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.blackColor,
+                  color: AppColors.textPrimary(context),
                 ),
 
                 // Masked Email
@@ -112,7 +112,7 @@ class OtpVerificationScreen extends StatelessWidget {
                   text: controller.getMaskedEmail(),
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.greyText,
+                  color: AppColors.textSecondary(context),
                 ),
 
                 SizedBox(height: 40.h),
@@ -142,7 +142,7 @@ class OtpVerificationScreen extends StatelessWidget {
                           text: 'Resend code in: ',
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                       GestureDetector(
                         onTap:

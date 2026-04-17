@@ -25,17 +25,19 @@ class EditPetScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'Edit Pet Profile',
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: Obx(() {
@@ -447,8 +449,8 @@ class EditPetScreen extends StatelessWidget {
                     Obx(
                       () => CustomButton(
                         title: controller.isLoading.value
-                            ? 'Updating Profile...'
-                            : "Update Pet's Profile",
+                            ? 'edit_pet_updating_profile'.tr
+                            : 'edit_pet_update_profile_button'.tr,
                         onTap: controller.isLoading.value
                             ? null
                             : () => controller
@@ -481,16 +483,16 @@ class EditPetScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ExpansionTile(
-          title: const Text('Age & behavior'),
+          title: Text('edit_pet_age_behavior'.tr),
           childrenPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           children: [
-            tf(controller.ageController, 'Age (years)', kb: TextInputType.number),
+            tf(controller.ageController, 'edit_pet_age_years'.tr, kb: TextInputType.number),
             const SizedBox(height: 12),
-            tf(controller.behaviorController, 'Behavior (max 500 chars)', maxLines: 4),
+            tf(controller.behaviorController, 'edit_pet_behavior_max'.tr, maxLines: 4),
           ],
         ),
         ExpansionTile(
-          title: const Text('Vaccinations'),
+          title: Text('edit_pet_vaccinations'.tr),
           children: [
             Obx(
               () => Column(
@@ -507,7 +509,7 @@ class EditPetScreen extends StatelessWidget {
                               ),
                               onChanged: (v) =>
                                   controller.setVaccinationField(i, 'name', v),
-                              decoration: const InputDecoration(labelText: 'Name'),
+                              decoration: InputDecoration(labelText: 'common_name'.tr),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -531,7 +533,7 @@ class EditPetScreen extends StatelessWidget {
                     ),
                   TextButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Add vaccination'),
+                    label: Text('edit_pet_add_vaccination'.tr),
                     onPressed: controller.addVaccination,
                   ),
                 ],
@@ -540,36 +542,36 @@ class EditPetScreen extends StatelessWidget {
           ],
         ),
         ExpansionTile(
-          title: const Text('Regular vet'),
+          title: Text('edit_pet_regular_vet'.tr),
           children: [
-            tf(controller.regularVetNameController, 'Name'),
+            tf(controller.regularVetNameController, 'common_name'.tr),
             const SizedBox(height: 8),
-            tf(controller.regularVetPhoneController, 'Phone',
+            tf(controller.regularVetPhoneController, 'common_phone'.tr,
                 kb: TextInputType.phone),
             const SizedBox(height: 8),
-            tf(controller.regularVetAddressController, 'Address'),
+            tf(controller.regularVetAddressController, 'common_address'.tr),
           ],
         ),
         ExpansionTile(
-          title: const Text('Emergency vet'),
+          title: Text('edit_pet_emergency_vet'.tr),
           children: [
-            tf(controller.emergencyVetNameController, 'Name'),
+            tf(controller.emergencyVetNameController, 'common_name'.tr),
             const SizedBox(height: 8),
-            tf(controller.emergencyVetPhoneController, 'Phone',
+            tf(controller.emergencyVetPhoneController, 'common_phone'.tr,
                 kb: TextInputType.phone),
             const SizedBox(height: 8),
-            tf(controller.emergencyVetAddressController, 'Address'),
+            tf(controller.emergencyVetAddressController, 'common_address'.tr),
           ],
         ),
         ExpansionTile(
-          title: const Text('Emergency intervention authorization'),
+          title: Text('edit_pet_emergency_auth'.tr),
           children: [
             Obx(
               () => CheckboxListTile(
                 value: controller.emergencyAuthAccepted.value,
                 onChanged: (v) =>
                     controller.emergencyAuthAccepted.value = v ?? false,
-                title: const Text('I authorize emergency intervention'),
+                title: Text('edit_pet_emergency_auth_checkbox'.tr),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ),

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_config.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -79,7 +80,14 @@ class _SubmitVisitReportScreenState extends State<SubmitVisitReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Visit report')),
+      backgroundColor: AppColors.scaffold(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Visit report', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

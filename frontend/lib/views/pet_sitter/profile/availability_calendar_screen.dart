@@ -101,8 +101,13 @@ class _AvailabilityCalendarScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        title: Text('Availability'),
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Availability', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
         actions: [
           IconButton(
             onPressed: _saving ? null : _save,

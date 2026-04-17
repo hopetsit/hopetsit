@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -27,19 +28,19 @@ class NotificationBellAction extends StatelessWidget {
         children: [
           Material(
             color: AppColors.primaryColor,
-            shape: const CircleBorder(),
+            borderRadius: BorderRadius.circular(12),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onTap,
-              customBorder: const CircleBorder(),
+              borderRadius: BorderRadius.circular(12),
               child: SizedBox(
-                width: 40.w,
-                height: 40.h,
+                width: 38.w,
+                height: 38.h,
                 child: Center(
                   child: Image.asset(
                     AppImages.bellIcon,
-                    width: 20.w,
-                    height: 20.h,
+                    width: 18.w,
+                    height: 18.h,
                     color: AppColors.whiteColor,
                   ),
                 ),
@@ -142,52 +143,58 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return AppBar(
       elevation: 0,
+      scrolledUnderElevation: 0.5,
+      surfaceTintColor: Colors.transparent,
       toolbarHeight: 70.h,
       automaticallyImplyLeading: automaticallyImplyLeading,
       leading: leading,
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.appBar(context),
       title: title != null
           ? InterText(
               text: title!,
               fontSize: 18.sp,
-              fontWeight: FontWeight.w600,
-              color: AppColors.blackColor,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
             )
           : Row(
               children: [
                 GestureDetector(
                   onTap: onProfileTap,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20.r),
-                    child: Container(
-                      width: 40.w,
-                      height: 40.h,
-                      color: AppColors.lightGrey,
+                  child: Container(
+                    width: 42.w,
+                    height: 42.h,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14.r),
+                      color: AppColors.inputFill(context),
+                      border: Border.all(color: AppColors.divider(context), width: 1),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(13.r),
                       child:
                           userImage.startsWith('http://') ||
                               userImage.startsWith('https://')
                           ? CachedNetworkImage(
                               imageUrl: userImage,
-                              width: 40.w,
-                              height: 40.h,
+                              width: 42.w,
+                              height: 42.h,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
                                 color: AppColors.lightGrey,
                                 child: Icon(
                                   Icons.person,
-                                  size: 24.sp,
+                                  size: 22.sp,
                                   color: AppColors.primaryColor,
                                 ),
                               ),
                               errorWidget: (context, url, error) => Icon(
                                 Icons.person,
-                                size: 24.sp,
+                                size: 22.sp,
                                 color: AppColors.primaryColor,
                               ),
                             )
                           : Icon(
                               Icons.person,
-                              size: 24.sp,
+                              size: 22.sp,
                               color: AppColors.primaryColor,
                             ),
                     ),
@@ -195,17 +202,58 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 SizedBox(width: 12.w),
                 Expanded(
-                  child: InterText(
-                    text: userName,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.blackColor,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: InterText(
+                          text: userName,
+                          fontSize: 17.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(context),
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      _buildRoleBadge(),
+                    ],
                   ),
                 ),
               ],
             ),
       actions: mergedActions.isEmpty ? null : mergedActions,
     );
+  }
+
+  Widget _buildRoleBadge() {
+    try {
+      final authController = Get.find<AuthController>();
+      final role = authController.userRole.value;
+      if (role == null || role.isEmpty) return const SizedBox.shrink();
+
+      final isOwner = role.toLowerCase() == 'owner';
+      final badgeColor = isOwner
+          ? AppColors.primaryColor           // orange
+          : const Color(0xFF2196F3);         // bleu
+      final badgeLabel = isOwner ? 'Pet Owner' : 'Pet Sitter';
+
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+        decoration: BoxDecoration(
+          color: badgeColor,
+          borderRadius: BorderRadius.circular(8.r),
+        ),
+        child: Text(
+          badgeLabel,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+      );
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
   }
 
   @override

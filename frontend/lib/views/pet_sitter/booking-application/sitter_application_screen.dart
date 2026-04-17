@@ -51,10 +51,10 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
               false, // Hide notification icon on application screen
           onProfileTap: () {
             // Handle profile tap
-            print('Profile tapped');
+            // debug removed
           },
         ),
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: Column(
             children: [
@@ -81,8 +81,8 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                                     ? FontWeight.w600
                                     : FontWeight.w400,
                                 color: _selectedTabIndex == 0
-                                    ? AppColors.blackColor
-                                    : AppColors.greyText,
+                                    ? AppColors.textPrimary(context)
+                                    : AppColors.textSecondary(context),
                               ),
                               if (_selectedTabIndex == 0)
                                 Container(
@@ -171,7 +171,7 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
               text: 'sitter_no_bookings_found'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w400,
-              color: AppColors.greyColor,
+              color: AppColors.textSecondary(context),
             ),
           ),
         );

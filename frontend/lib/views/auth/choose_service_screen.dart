@@ -76,22 +76,24 @@ class ChooseServiceScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-            backgroundColor: AppColors.whiteColor,
+            backgroundColor: AppColors.appBar(context),
             elevation: 0,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
             leading: isFromProfile
                 ? IconButton(
-                    icon: Icon(Icons.arrow_back, color: AppColors.blackColor),
+                    icon: Icon(Icons.arrow_back, color: AppColors.textPrimary(context)),
                     onPressed: () => Get.back(),
                   )
                 : null,
             title: PoppinsText(
               text: 'choose_service_title'.tr,
               fontSize: 18.sp,
-              fontWeight: FontWeight.w600,
-              color: AppColors.blackColor,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
             ),
             actions: [
               Padding(
@@ -156,11 +158,11 @@ class ChooseServiceScreen extends StatelessWidget {
                                 border: Border.all(
                                   color: isSelected
                                       ? AppColors.primaryColor
-                                      : AppColors.grey300Color,
+                                      : AppColors.divider(context),
                                   width: isSelected ? 2 : 1,
                                 ),
                                 borderRadius: BorderRadius.circular(20.r),
-                                color: AppColors.whiteColor,
+                                color: AppColors.card(context),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,14 +171,14 @@ class ChooseServiceScreen extends StatelessWidget {
                                     text: service.titleKey.tr,
                                     fontSize: 16.sp,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                                   SizedBox(height: 4.h),
                                   InterText(
                                     text: service.subtitleKey.tr,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w400,
-                                    color: AppColors.greyColor.withOpacity(0.6),
+                                    color: AppColors.textSecondary(context).withOpacity(0.6),
                                   ),
                                 ],
                               ),

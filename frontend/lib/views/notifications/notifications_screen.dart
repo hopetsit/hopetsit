@@ -285,16 +285,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: AppColors.whiteColor,
+        scrolledUnderElevation: 0.5,
+        backgroundColor: AppColors.appBar(context),
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         title: InterText(
           text: 'notifications_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
         actions: [
           Obx(() {

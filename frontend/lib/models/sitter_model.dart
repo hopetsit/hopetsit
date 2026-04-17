@@ -36,6 +36,10 @@ class SitterModel {
   final int completedServicesCount;
   final double averageRating;
 
+  /// Coin Boost — profile boosting.
+  final bool isBoosted;
+  final String? boostTier;
+
   /// Currency code for hourly rate (e.g. USD, EUR). Defaults to EUR.
   final String currency;
   final String createdAt;
@@ -93,6 +97,8 @@ class SitterModel {
     this.isTopSitter = false,
     this.completedServicesCount = 0,
     this.averageRating = 0.0,
+    this.isBoosted = false,
+    this.boostTier,
     this.currency = 'EUR',
     required this.createdAt,
     required this.updatedAt,
@@ -172,6 +178,8 @@ class SitterModel {
           .toList(),
       identityVerified: json['identityVerified'] == true,
       isTopSitter: json['isTopSitter'] == true,
+      isBoosted: json['isBoosted'] == true,
+      boostTier: json['boostTier'] as String?,
       completedServicesCount: (json['completedServicesCount'] as num?)?.toInt() ?? 0,
       averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       currency: _parseCurrency(json['currency'] ?? json['hourlyRateCurrency']),

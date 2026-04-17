@@ -254,6 +254,96 @@ const constructWebhookEvent = (rawBody, signature) => {
   return stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
 };
 
+/**
+ * Create a Stripe Customer + Bank-Account (IBAN) token, then send a payout
+ * via Stripe Transfers to an external bank account.
+ *
+ * Flow: Platform balance ──Transfer──> sitter's external bank (IBAN/SEPA).
+ *
+ * @param {Object} params
+ * @param {string} params.iban        - IBAN of the sitter
+ * @param {string} params.holderName  - Account holder name
+ * @param {string} params.email       - Sitter email (for Stripe Customer)
+ * @param {number} params.amount      - Amount in cents (minor units)
+ * @param {string} params.currency    - e.g. 'eur'
+ * @param {string} params.bookingId   - For metadata
+ * @param {string} params.sitterId    - For metadata
+ * @returns {Promise<Object>} { transfer, customerId, bankAccountId }
+ */
+const sendPayoutToIBAN = async ({
+  iban,
+  holderName,
+  email,
+  amount,
+  currency = 'eur',
+  bookingId,
+  sitterId,
+}) => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+
+  // 1. Create (or retrieve) a Stripe Customer for the sitter
+  const customers = await stripe.customers.list({ email, limit: 1 });
+  let customer;
+  if (customers.data.length > 0) {
+    customer = customers.data[0];
+  } else {
+    customer = await stripe.customers.create({
+      email,
+      name: holderName,
+      metadata: { sitterId, type: 'iban_payout' },
+    });
+  }
+
+  // 2. Create a bank-account token via IBAN
+  const token = await stripe.tokens.create({
+    bank_account: {
+      country: iban.substring(0, 2).toUpperCase(), // first 2 chars = country
+      currency: currency.toLowerCase(),
+      account_holder_name: holderName,
+      account_holder_type: 'individual',
+      account_number: iban,
+    },
+  });
+
+  // 3. Attach bank account to customer (if not already attached)
+  let bankAccount;
+  try {
+    bankAccount = await stripe.customers.createSource(customer.id, {
+      source: token.id,
+    });
+  } catch (err) {
+    // If already attached, Stripe will error — try to find existing
+    if (err.code === 'bank_account_exists') {
+      const sources = await stripe.customers.listSources(customer.id, {
+        object: 'bank_account',
+        limit: 10,
+      });
+      bankAccount = sources.data.find((s) => s.last4 === iban.slice(-4));
+    }
+    if (!bankAccount) throw err;
+  }
+
+  // 4. Create a Transfer from platform to the customer's bank account
+  const transfer = await stripe.transfers.create({
+    amount,
+    currency: currency.toLowerCase(),
+    destination: customer.id,
+    metadata: {
+      bookingId,
+      sitterId,
+      payoutMethod: 'iban',
+    },
+  });
+
+  return {
+    transfer,
+    customerId: customer.id,
+    bankAccountId: bankAccount.id,
+  };
+};
+
 module.exports = {
   PLATFORM_COMMISSION_RATE,
   createPaymentIntent,
@@ -264,5 +354,6 @@ module.exports = {
   getPaymentIntent,
   confirmPaymentIntent,
   constructWebhookEvent,
+  sendPayoutToIBAN,
 };
 

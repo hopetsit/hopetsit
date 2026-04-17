@@ -73,7 +73,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
       setState(() => _currentIban = result as Map<String, dynamic>);
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: 'IBAN saved! Pending admin verification before first payout.',
+        message: 'payout_iban_saved_success'.tr,
       );
       await _loadCurrentIban();
     } catch (e) {
@@ -90,7 +90,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
         body: {'payoutMethod': method},
       );
       setState(() => _payoutMethod = method);
-      CustomSnackbar.showSuccess(title: 'common_success'.tr, message: 'Payout method updated.');
+      CustomSnackbar.showSuccess(title: 'common_success'.tr, message: 'payout_method_updated'.tr);
     } catch (e) {
       CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
     }
@@ -99,11 +99,13 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
-        foregroundColor: Colors.white,
-        title: InterText(text: 'payout_iban_title'.tr, fontSize: 18.sp, fontWeight: FontWeight.w700, color: Colors.white),
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        title: InterText(text: 'payout_iban_title'.tr, fontSize: 18.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -141,9 +143,9 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                     Container(
                       padding: EdgeInsets.all(16.w),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(color: AppColors.grey300Color),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +161,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                                   borderRadius: BorderRadius.circular(20.r),
                                 ),
                                 child: InterText(
-                                  text: _currentIban!['ibanVerified'] == true ? '✓ Verified' : '⏳ Pending',
+                                  text: _currentIban!['ibanVerified'] == true ? 'payout_iban_verified'.tr : 'payout_iban_pending'.tr,
                                   fontSize: 11.sp,
                                   color: _currentIban!['ibanVerified'] == true ? Colors.green : Colors.orange,
                                   fontWeight: FontWeight.w600,
@@ -168,10 +170,10 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                             ],
                           ),
                           SizedBox(height: 10.h),
-                          _infoRow(Icons.person_outline, 'Holder', _currentIban!['ibanHolder'] ?? ''),
+                          _infoRow(Icons.person_outline, 'payout_label_holder'.tr, _currentIban!['ibanHolder'] ?? ''),
                           _infoRow(Icons.account_balance, 'IBAN', _currentIban!['ibanNumberMasked'] ?? ''),
                           if ((_currentIban!['ibanBic'] as String? ?? '').isNotEmpty)
-                            _infoRow(Icons.code, 'BIC/SWIFT', _currentIban!['ibanBic']),
+                            _infoRow(Icons.code, 'payout_label_bic'.tr, _currentIban!['ibanBic']),
                         ],
                       ),
                     ),
@@ -183,11 +185,11 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                   SizedBox(height: 8.h),
                   Row(
                     children: [
-                      _methodChip('stripe', 'Stripe Card', Icons.credit_card),
+                      _methodChip('stripe', 'payout_chip_stripe'.tr, Icons.credit_card),
                       SizedBox(width: 8.w),
                       _methodChip('paypal', 'PayPal', Icons.paypal),
                       SizedBox(width: 8.w),
-                      _methodChip('iban', 'Bank (IBAN)', Icons.account_balance),
+                      _methodChip('iban', 'payout_chip_iban'.tr, Icons.account_balance),
                     ],
                   ),
                   SizedBox(height: 24.h),
@@ -210,7 +212,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                           controller: _ibanCtrl,
                           label: 'IBAN',
                           icon: Icons.account_balance,
-                          hint: 'e.g. FR76 3000 6000 0112 3456 7890 189',
+                          hint: 'payout_iban_hint'.tr,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 ]')),
                             _IbanFormatter(),
@@ -225,7 +227,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                         SizedBox(height: 14.h),
                         _textField(
                           controller: _bicCtrl,
-                          label: 'BIC / SWIFT (optional)',
+                          label: 'payout_bic_label'.tr,
                           icon: Icons.code,
                         ),
                         SizedBox(height: 24.h),
@@ -269,19 +271,22 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
     final selected = _payoutMethod == method;
     return GestureDetector(
       onTap: () => _setPayoutMethod(method),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryColor : Colors.white,
-          borderRadius: BorderRadius.circular(10.r),
-          border: Border.all(color: selected ? AppColors.primaryColor : AppColors.grey300Color),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 18.sp, color: selected ? Colors.white : AppColors.greyText),
-            SizedBox(height: 4.h),
-            InterText(text: label, fontSize: 10.sp, color: selected ? Colors.white : AppColors.greyText, fontWeight: FontWeight.w500),
-          ],
+      child: Builder(
+        builder: (context) => Container(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryColor : AppColors.card(context),
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(color: selected ? AppColors.primaryColor : Colors.transparent),
+            boxShadow: selected ? null : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 18.sp, color: selected ? Colors.white : AppColors.textSecondary(context)),
+              SizedBox(height: 4.h),
+              InterText(text: label, fontSize: 10.sp, color: selected ? Colors.white : AppColors.textSecondary(context), fontWeight: FontWeight.w500),
+            ],
+          ),
         ),
       ),
     );
@@ -308,7 +313,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
         borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.inputFill(context),
     ),
   );
 }

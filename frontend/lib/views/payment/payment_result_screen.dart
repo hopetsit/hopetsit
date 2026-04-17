@@ -33,7 +33,7 @@ class PaymentResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(20.w),
@@ -66,7 +66,7 @@ class PaymentResultScreen extends StatelessWidget {
                 text: isSuccess ? 'payment_success_title'.tr : 'payment_failed_title'.tr,
                 fontSize: 24.sp,
                 fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
                 textAlign: TextAlign.center,
               ),
 
@@ -78,7 +78,7 @@ class PaymentResultScreen extends StatelessWidget {
                   text: message!,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.grey700Color,
+                  color: AppColors.textSecondary(context),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 32.h),
@@ -86,7 +86,7 @@ class PaymentResultScreen extends StatelessWidget {
 
               // Transaction Details Card
               if (isSuccess && (transactionId != null || amount != null))
-                _buildTransactionDetailsCard(),
+                _buildTransactionDetailsCard(context),
 
               if (!isSuccess) SizedBox(height: 32.h),
 
@@ -173,12 +173,13 @@ class PaymentResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionDetailsCard() {
+  Widget _buildTransactionDetailsCard(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,11 +188,11 @@ class PaymentResultScreen extends StatelessWidget {
             text: 'payment_transaction_details'.tr,
             fontSize: 16.sp,
             fontWeight: FontWeight.w600,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
           SizedBox(height: 16.h),
           if (transactionId != null) ...[
-            _buildDetailRow('payment_transaction_id_label'.tr, transactionId!),
+            _buildDetailRow('payment_transaction_id_label'.tr, transactionId!, context),
             SizedBox(height: 12.h),
           ],
           if (amount != null) ...[
@@ -204,16 +205,17 @@ class PaymentResultScreen extends StatelessWidget {
                     booking?.sitter.currency ??
                     CurrencyHelper.eur,
               ),
+              context,
             ),
             SizedBox(height: 12.h),
           ],
-          _buildDetailRow('payment_date_label'.tr, _formatDate(DateTime.now())),
+          _buildDetailRow('payment_date_label'.tr, _formatDate(DateTime.now()), context),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -221,7 +223,7 @@ class PaymentResultScreen extends StatelessWidget {
           text: label,
           fontSize: 14.sp,
           fontWeight: FontWeight.w400,
-          color: AppColors.grey700Color,
+          color: AppColors.textSecondary(context),
         ),
         Expanded(
           child: Align(
@@ -230,7 +232,7 @@ class PaymentResultScreen extends StatelessWidget {
               text: value,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ),
         ),

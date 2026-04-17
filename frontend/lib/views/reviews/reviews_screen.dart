@@ -29,17 +29,19 @@ class ReviewsScreen extends StatelessWidget {
     final TextEditingController descriptionController = TextEditingController();
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'Reviews',
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -52,8 +54,9 @@ class ReviewsScreen extends StatelessWidget {
                   child: Container(
                     padding: EdgeInsets.all(20.w),
                     decoration: BoxDecoration(
-                      color: AppColors.whiteColor,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(11.r),
+                      boxShadow: AppColors.cardShadow(context),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +85,7 @@ class ReviewsScreen extends StatelessWidget {
                                     text: serviceProviderName,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                                   SizedBox(height: 8.h),
                                   // Phone Number
@@ -141,7 +144,7 @@ class ReviewsScreen extends StatelessWidget {
                           text: 'Rate',
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 12.h),
                         // Star Rating
@@ -176,19 +179,16 @@ class ReviewsScreen extends StatelessWidget {
                           text: 'Description',
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 12.h),
                         // Text Input Field
                         Container(
                           padding: EdgeInsets.all(16.w),
                           decoration: BoxDecoration(
-                            color: AppColors.whiteColor,
+                            color: AppColors.inputFill(context),
                             borderRadius: BorderRadius.circular(20.r),
-                            border: Border.all(
-                              color: AppColors.grey300Color,
-                              width: 1,
-                            ),
+                            boxShadow: AppColors.cardShadow(context),
                           ),
                           child: TextField(
                             controller: descriptionController,
@@ -209,7 +209,7 @@ class ReviewsScreen extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.blackColor,
+                              color: AppColors.textPrimary(context),
                             ),
                           ),
                         ),

@@ -8,7 +8,10 @@ class ThemeController extends GetxController {
   static const String _storageKey = 'theme_mode';
   final GetStorage _storage = GetStorage();
 
-  final Rx<ThemeMode> themeMode = ThemeMode.system.obs;
+  // Default to LIGHT so the app never accidentally renders in dark mode
+  // just because the user's OS is set to dark (reported bug: dark mode
+  // bleeding through on the availability calendar, dialogs, etc.).
+  final Rx<ThemeMode> themeMode = ThemeMode.light.obs;
 
   @override
   void onInit() {
@@ -23,8 +26,10 @@ class ThemeController extends GetxController {
         return ThemeMode.light;
       case 'dark':
         return ThemeMode.dark;
-      default:
+      case 'system':
         return ThemeMode.system;
+      default:
+        return ThemeMode.light;
     }
   }
 

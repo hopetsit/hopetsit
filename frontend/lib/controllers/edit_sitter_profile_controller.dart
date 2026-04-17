@@ -178,27 +178,26 @@ class EditSitterProfileController extends GetxController {
         skillsController.text = rawSkills?.toString() ?? '';
       }
 
-      // Hourly rate
-      final rawHourlyRate = profileData['hourlyRate'];
-      if (rawHourlyRate is num) {
-        hourlyRateController.text = rawHourlyRate.toString();
-      } else {
-        hourlyRateController.text = rawHourlyRate?.toString() ?? '';
+      // Small helper: show an empty field instead of "0" / "0.0" so the user
+      // can type directly without having to erase the placeholder.
+      String _fmtRate(dynamic v) {
+        if (v == null) return '';
+        if (v is num) {
+          if (v <= 0) return '';
+          // Drop trailing ".0" for integer-valued rates.
+          return v == v.truncate() ? v.truncate().toString() : v.toString();
+        }
+        final s = v.toString();
+        final parsed = double.tryParse(s);
+        if (parsed == null || parsed <= 0) return s == '0' || s == '0.0' ? '' : s;
+        return parsed == parsed.truncate()
+            ? parsed.truncate().toString()
+            : parsed.toString();
       }
 
-      // Weekly/monthly rates from profile response as fallback.
-      final rawWeeklyRate = profileData['weeklyRate'];
-      if (rawWeeklyRate is num) {
-        weeklyRateController.text = rawWeeklyRate.toString();
-      } else {
-        weeklyRateController.text = rawWeeklyRate?.toString() ?? '';
-      }
-      final rawMonthlyRate = profileData['monthlyRate'];
-      if (rawMonthlyRate is num) {
-        monthlyRateController.text = rawMonthlyRate.toString();
-      } else {
-        monthlyRateController.text = rawMonthlyRate?.toString() ?? '';
-      }
+      hourlyRateController.text = _fmtRate(profileData['hourlyRate']);
+      weeklyRateController.text = _fmtRate(profileData['weeklyRate']);
+      monthlyRateController.text = _fmtRate(profileData['monthlyRate']);
 
       // Primary rates endpoint: GET /sitters/me/rates.
       try {
@@ -208,21 +207,21 @@ class EditSitterProfileController extends GetxController {
         final fetchedHourly = ratesData['hourlyRate'];
         final fetchedWeekly = ratesData['weeklyRate'];
         final fetchedMonthly = ratesData['monthlyRate'];
-        if (fetchedHourly is num) {
-          hourlyRateController.text = fetchedHourly.toString();
-        } else if (fetchedHourly != null) {
-          hourlyRateController.text = fetchedHourly.toString();
+        String _fmt(dynamic v) {
+          if (v == null) return '';
+          if (v is num) {
+            if (v <= 0) return '';
+            return v == v.truncate() ? v.truncate().toString() : v.toString();
+          }
+          final parsed = double.tryParse(v.toString());
+          if (parsed == null || parsed <= 0) return '';
+          return parsed == parsed.truncate()
+              ? parsed.truncate().toString()
+              : parsed.toString();
         }
-        if (fetchedWeekly is num) {
-          weeklyRateController.text = fetchedWeekly.toString();
-        } else if (fetchedWeekly != null) {
-          weeklyRateController.text = fetchedWeekly.toString();
-        }
-        if (fetchedMonthly is num) {
-          monthlyRateController.text = fetchedMonthly.toString();
-        } else if (fetchedMonthly != null) {
-          monthlyRateController.text = fetchedMonthly.toString();
-        }
+        if (fetchedHourly != null) hourlyRateController.text = _fmt(fetchedHourly);
+        if (fetchedWeekly != null) weeklyRateController.text = _fmt(fetchedWeekly);
+        if (fetchedMonthly != null) monthlyRateController.text = _fmt(fetchedMonthly);
       } catch (error) {
         AppLogger.logError('Failed to load sitter rates', error: error);
       }

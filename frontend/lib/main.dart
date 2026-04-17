@@ -90,10 +90,86 @@ class MyApp extends StatelessWidget {
               colorScheme: ColorScheme.fromSeed(
                 seedColor: AppColors.primaryColor,
                 brightness: Brightness.light,
+              ).copyWith(
+                // Force readable text on surfaces everywhere (fixes the almost
+                // invisible Radio / Checkbox / ListTile labels we had in the
+                // "Publier une demande" screen and other forms).
+                onSurface: AppColors.blackColor,
+                onSurfaceVariant: AppColors.grey700Color,
               ),
               primaryColor: AppColors.primaryColor,
-              scaffoldBackgroundColor: AppColors.whiteColor,
+              scaffoldBackgroundColor: AppColors.scaffoldLight,
+              appBarTheme: const AppBarTheme(
+                backgroundColor: AppColors.whiteColor,
+                elevation: 0,
+                scrolledUnderElevation: 0.5,
+                surfaceTintColor: Colors.transparent,
+                iconTheme: IconThemeData(color: AppColors.primaryColor),
+                titleTextStyle: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  color: AppColors.blackColor,
+                ),
+              ),
+              cardColor: AppColors.whiteColor,
               useMaterial3: true,
+              textTheme: Typography.blackMountainView.apply(
+                bodyColor: AppColors.blackColor,
+                displayColor: AppColors.blackColor,
+              ),
+              listTileTheme: const ListTileThemeData(
+                textColor: AppColors.blackColor,
+                iconColor: AppColors.grey700Color,
+              ),
+              radioTheme: RadioThemeData(
+                fillColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppColors.primaryColor;
+                  }
+                  return AppColors.grey700Color;
+                }),
+              ),
+              checkboxTheme: CheckboxThemeData(
+                fillColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppColors.primaryColor;
+                  }
+                  return AppColors.whiteColor;
+                }),
+                checkColor: WidgetStateProperty.all(AppColors.whiteColor),
+                side: const BorderSide(color: AppColors.grey700Color, width: 1.5),
+              ),
+              switchTheme: SwitchThemeData(
+                thumbColor: WidgetStateProperty.resolveWith((states) =>
+                    states.contains(WidgetState.selected)
+                        ? AppColors.primaryColor
+                        : AppColors.greyColor),
+                trackColor: WidgetStateProperty.resolveWith((states) =>
+                    states.contains(WidgetState.selected)
+                        ? AppColors.primaryColor.withValues(alpha: 0.4)
+                        : AppColors.greyColor.withValues(alpha: 0.3)),
+              ),
+              inputDecorationTheme: const InputDecorationTheme(
+                labelStyle: TextStyle(color: AppColors.grey700Color),
+                hintStyle: TextStyle(color: AppColors.greyColor),
+              ),
+              // Fixes the "Changer de rôle" dialog where title/body text was
+              // nearly invisible (light grey on white).
+              dialogTheme: const DialogThemeData(
+                backgroundColor: AppColors.whiteColor,
+                surfaceTintColor: AppColors.whiteColor,
+                titleTextStyle: TextStyle(
+                  color: AppColors.blackColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                contentTextStyle: TextStyle(
+                  color: AppColors.blackColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
             ),
             darkTheme: ThemeData(
               brightness: Brightness.dark,
@@ -106,9 +182,58 @@ class MyApp extends StatelessWidget {
               canvasColor: AppColors.backgroundDark,
               cardColor: AppColors.cardDark,
               dividerColor: AppColors.dividerDark,
-              textTheme: const TextTheme().apply(
+              appBarTheme: const AppBarTheme(
+                backgroundColor: AppColors.surfaceDark,
+                elevation: 0,
+                scrolledUnderElevation: 0.5,
+                surfaceTintColor: Colors.transparent,
+                iconTheme: IconThemeData(color: AppColors.primaryColor),
+                titleTextStyle: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  color: AppColors.textPrimaryDark,
+                ),
+              ),
+              textTheme: Typography.whiteMountainView.apply(
                 bodyColor: AppColors.textPrimaryDark,
                 displayColor: AppColors.textPrimaryDark,
+              ),
+              listTileTheme: const ListTileThemeData(
+                textColor: AppColors.textPrimaryDark,
+                iconColor: AppColors.textPrimaryDark,
+              ),
+              inputDecorationTheme: InputDecorationTheme(
+                labelStyle: const TextStyle(color: AppColors.textSecondaryDark),
+                hintStyle: const TextStyle(color: AppColors.textSecondaryDark),
+                filled: true,
+                fillColor: AppColors.cardDark,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.dividerDark),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.dividerDark),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.primaryColor, width: 1.5),
+                ),
+              ),
+              dialogTheme: const DialogThemeData(
+                backgroundColor: AppColors.cardDark,
+                surfaceTintColor: AppColors.cardDark,
+                titleTextStyle: TextStyle(
+                  color: AppColors.textPrimaryDark,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                contentTextStyle: TextStyle(
+                  color: AppColors.textPrimaryDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
               useMaterial3: true,
             ),

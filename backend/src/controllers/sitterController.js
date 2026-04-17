@@ -154,8 +154,10 @@ const findNearbySitters = async (req, res) => {
     const sitters = await Sitter.aggregate(aggregationPipeline);
 
     // Format response with sitter details
+    const now = new Date();
     const nearbySitters = sitters.map((sitter) => {
       const skills = parseSkills(sitter.skills);
+      const isBoosted = sitter.boostExpiry && new Date(sitter.boostExpiry) > now;
 
       return {
         id: sitter._id.toString(),
@@ -169,6 +171,7 @@ const findNearbySitters = async (req, res) => {
         service: Array.isArray(sitter.service) ? sitter.service : sitter.service ? [sitter.service] : [],
         skills: skills,
         hourlyRate: sitter.hourlyRate || 0,
+        dailyRate: sitter.dailyRate || 0,
         weeklyRate: sitter.weeklyRate || 0,
         monthlyRate: sitter.monthlyRate || 0,
         bio: sitter.bio || '',
@@ -176,10 +179,19 @@ const findNearbySitters = async (req, res) => {
           coordinates: sitter.location?.coordinates || null,
           city: sitter.location?.city || '',
         },
-        distance: sitter.distance ? (sitter.distance / 1000).toFixed(2) : null, // Convert to km, 2 decimal places
+        distance: sitter.distance ? (sitter.distance / 1000).toFixed(2) : null,
         distanceInMeters: sitter.distance || null,
         verified: sitter.verified || false,
+        isBoosted: isBoosted || false,
+        boostTier: isBoosted ? (sitter.boostTier || null) : null,
       };
+    });
+
+    // Sort: boosted profiles first, then by distance
+    nearbySitters.sort((a, b) => {
+      if (a.isBoosted && !b.isBoosted) return -1;
+      if (!a.isBoosted && b.isBoosted) return 1;
+      return 0; // keep original distance order within each group
     });
 
     res.json({
@@ -207,8 +219,16 @@ const findNearbySitters = async (req, res) => {
 
 const listSitters = async (req, res) => {
   try {
-    const sitters = await Sitter.find().sort({ rating: -1, createdAt: -1 });
-    res.json({ sitters: sitters.map(sanitizeUser) });
+    // Boosted profiles first, then by rating
+    const sitters = await Sitter.find().sort({ boostExpiry: -1, rating: -1, createdAt: -1 });
+    const now = new Date();
+    res.json({ sitters: sitters.map(s => {
+      const sanitized = sanitizeUser(s);
+      const isBoosted = s.boostExpiry && new Date(s.boostExpiry) > now;
+      sanitized.isBoosted = isBoosted || false;
+      sanitized.boostTier = isBoosted ? (s.boostTier || null) : null;
+      return sanitized;
+    }) });
   } catch (error) {
     logger.error('Fetch sitters error', error);
     res.status(500).json({ error: 'Unable to fetch sitters. Please try again later.' });
@@ -263,6 +283,7 @@ const getSitterProfile = async (req, res) => {
       address: sitter.address || '',
       rate: sitter.rate || '',
       hourlyRate: sitter.hourlyRate || 0,
+      dailyRate: sitter.dailyRate || 0,
       weeklyRate: sitter.weeklyRate || 0,
       monthlyRate: sitter.monthlyRate || 0,
       // Main profile image
@@ -288,6 +309,9 @@ const getSitterProfile = async (req, res) => {
       } : null,
       // Reviews array
       reviews: formattedReviews,
+      // Boost status
+      isBoosted: sitter.boostExpiry && new Date(sitter.boostExpiry) > new Date() ? true : false,
+      boostTier: sitter.boostExpiry && new Date(sitter.boostExpiry) > new Date() ? (sitter.boostTier || null) : null,
       createdAt: sitter.createdAt,
       updatedAt: sitter.updatedAt,
     };
@@ -552,6 +576,7 @@ const getSitterPricing = async (req, res) => {
     res.json({
       location: sitter.location,
       hourlyRate: sitter.hourlyRate || 0,
+      dailyRate: sitter.dailyRate || 0,
       weeklyRate: sitter.weeklyRate || 0,
       monthlyRate: sitter.monthlyRate || 0,
       servicePricing: sitter.servicePricing,
@@ -728,23 +753,9 @@ const updateSitterProfile = async (req, res) => {
       updateData.email = trimmedEmail;
     }
 
-    // Update mobile (check uniqueness)
+    // Update mobile — allow same phone on different accounts (email is the unique key)
     if (mobile !== undefined) {
       const trimmedMobile = typeof mobile === 'string' ? mobile.trim() : '';
-      
-      if (trimmedMobile) {
-        // Check if mobile is already taken by another user
-        const existingOwner = await Owner.findOne({ mobile: trimmedMobile });
-        const existingSitter = await Sitter.findOne({ 
-          mobile: trimmedMobile, 
-          _id: { $ne: sitterId } 
-        });
-        
-        if (existingOwner || existingSitter) {
-          return res.status(409).json({ error: 'This mobile number is already associated with another account.' });
-        }
-      }
-      
       updateData.mobile = trimmedMobile;
     }
 

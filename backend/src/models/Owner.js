@@ -34,6 +34,18 @@ const ownerSchema = new mongoose.Schema(
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },
     // Firebase Cloud Messaging registration tokens (one per device). Deduplicated via $addToSet.
     fcmTokens: { type: [String], default: [] },
+    // Coin Boost — profile boosting system
+    boostExpiry: { type: Date, default: null },
+    boostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },
+    boostPurchases: [{
+      tier: { type: String },
+      amount: { type: Number },
+      currency: { type: String, default: 'EUR' },
+      days: { type: Number },
+      purchasedAt: { type: Date, default: Date.now },
+      paymentProvider: { type: String },
+      paymentId: { type: String },
+    }],
     // Sprint 7 step 1 — loyalty: true when 10+ completed bookings.
     isPremium: { type: Boolean, default: false },
     // Sprint 7 step 3 — referral program.

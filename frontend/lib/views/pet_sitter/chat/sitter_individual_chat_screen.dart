@@ -102,10 +102,12 @@ class _SitterIndividualChatScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
@@ -117,21 +119,29 @@ class _SitterIndividualChatScreenState
         title: Row(
           children: [
             // Contact Avatar
-            CircleAvatar(
-              radius: 25.r,
-              backgroundColor: AppColors.grey300Color,
-              backgroundImage:
-                  widget.contactImage.isNotEmpty &&
+            Container(
+              width: 42.w,
+              height: 42.h,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14.r),
+                color: AppColors.grey300Color,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: widget.contactImage.isNotEmpty &&
                       (widget.contactImage.startsWith('http://') ||
                           widget.contactImage.startsWith('https://'))
-                  ? CachedNetworkImageProvider(widget.contactImage)
-                  : null,
-              child:
-                  widget.contactImage.isEmpty ||
-                      (!widget.contactImage.startsWith('http://') &&
-                          !widget.contactImage.startsWith('https://'))
-                  ? Icon(Icons.person, size: 20.sp, color: AppColors.greyColor)
-                  : null,
+                  ? CachedNetworkImage(
+                      imageUrl: widget.contactImage,
+                      width: 42.w,
+                      height: 42.h,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => Icon(
+                        Icons.person,
+                        size: 20.sp,
+                        color: AppColors.greyColor,
+                      ),
+                    )
+                  : Icon(Icons.person, size: 20.sp, color: AppColors.greyColor),
             ),
             SizedBox(width: 12.w),
             // Contact Name
@@ -139,8 +149,8 @@ class _SitterIndividualChatScreenState
               child: PoppinsText(
                 text: widget.contactName,
                 fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
               ),
             ),
           ],
@@ -162,14 +172,14 @@ class _SitterIndividualChatScreenState
                     text: 'chat_error_loading_messages'.tr,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.greyColor,
+                    color: AppColors.textSecondary(context),
                   ),
                   SizedBox(height: 8.h),
                   InterText(
                     text: chatController.errorMessage.value,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w300,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                   ),
                 ],
               ),
@@ -190,7 +200,7 @@ class _SitterIndividualChatScreenState
                             text: 'chat_no_messages'.tr,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w400,
-                            color: AppColors.greyColor,
+                            color: AppColors.textSecondary(context),
                           ),
                         ),
                       )
@@ -259,14 +269,14 @@ class _SitterIndividualChatScreenState
                 text: message.senderName,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(width: 8.w),
               InterText(
                 text: '• ${controller.formatMessageTime(message.timestamp)}',
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w300,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
             ],
           ),
@@ -328,7 +338,7 @@ class _SitterIndividualChatScreenState
                 text: message.message,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w400,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
             ),
         ],
@@ -338,15 +348,16 @@ class _SitterIndividualChatScreenState
 
   Widget _buildMessageInput(SitterChatController controller) {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.greyColor.withOpacity(0.3),
-            width: 1.w,
+        color: AppColors.card(context),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
-        ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -465,7 +476,7 @@ class _SitterIndividualChatScreenState
                     vertical: 3.h,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.chatFieldColor,
+                    color: AppColors.inputFill(context),
                     borderRadius: BorderRadius.circular(10.r),
                   ),
                   child: TextField(
@@ -473,7 +484,7 @@ class _SitterIndividualChatScreenState
                     decoration: InputDecoration(
                       hintText: 'chat_input_hint'.tr,
                       hintStyle: TextStyle(
-                        color: AppColors.greyText,
+                        color: AppColors.textSecondary(context),
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
                       ),
@@ -481,7 +492,7 @@ class _SitterIndividualChatScreenState
                       contentPadding: EdgeInsets.zero,
                     ),
                     style: TextStyle(
-                      color: AppColors.blackColor,
+                      color: AppColors.textPrimary(context),
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w400,
                     ),
@@ -525,10 +536,10 @@ class _SitterIndividualChatScreenState
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         border: Border(
           top: BorderSide(
-            color: AppColors.greyColor.withOpacity(0.3),
+            color: AppColors.divider(context),
             width: 1.w,
           ),
         ),
@@ -537,7 +548,7 @@ class _SitterIndividualChatScreenState
         text: 'chat_locked_after_payment'.tr,
         fontSize: 13.sp,
         fontWeight: FontWeight.w500,
-        color: AppColors.greyText,
+        color: AppColors.textSecondary(context),
       ),
     );
   }

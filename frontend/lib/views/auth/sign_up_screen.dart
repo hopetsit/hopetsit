@@ -47,12 +47,15 @@ class SignUpScreen extends StatelessWidget {
           );
 
     return Scaffold(
-      // Sprint 6 step 4 — let theme drive scaffold bg for dark mode.
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: true,
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.white,
         leading: BackButton(
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
           onPressed: () => Get.back(),
         ),
         title: PoppinsText(
@@ -60,8 +63,8 @@ class SignUpScreen extends StatelessWidget {
               ? 'sign_up_as_pet_owner'.tr
               : 'sign_up_as_pet_sitter'.tr,
           fontSize: 20,
-          fontWeight: FontWeight.w500,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: Stack(
@@ -114,7 +117,7 @@ class SignUpScreen extends StatelessWidget {
                             text: 'label_mobile_number'.tr,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.blackColor,
+                            color: AppColors.textPrimary(context),
                           ),
                           SizedBox(height: 8.h),
                           FormField<String>(
@@ -130,11 +133,11 @@ class SignUpScreen extends StatelessWidget {
                                   Container(
                                     height: 50.h,
                                     decoration: BoxDecoration(
-                                      color: AppColors.whiteColor,
+                                      color: AppColors.card(context),
                                       border: Border.all(
                                         color: hasError
                                             ? AppColors.errorColor
-                                            : AppColors.grey300Color,
+                                            : AppColors.textSecondary(context).withOpacity(0.2),
                                         width: 1,
                                       ),
                                       borderRadius: BorderRadius.circular(30.r),
@@ -146,7 +149,7 @@ class SignUpScreen extends StatelessWidget {
                                             borderRadius: BorderRadius.circular(
                                               16.r,
                                             ),
-                                            color: AppColors.whiteColor,
+                                            color: AppColors.card(context),
                                           ),
                                           onChanged: (country) {
                                             controller
@@ -169,12 +172,12 @@ class SignUpScreen extends StatelessWidget {
                                           textStyle: GoogleFonts.inter(
                                             fontSize: 14.sp,
                                             fontWeight: FontWeight.w400,
-                                            color: AppColors.blackColor,
+                                            color: AppColors.textPrimary(context),
                                           ),
                                           dialogTextStyle: GoogleFonts.inter(
                                             fontSize: 14.sp,
                                             fontWeight: FontWeight.w400,
-                                            color: AppColors.blackColor,
+                                            color: AppColors.textPrimary(context),
                                           ),
                                         ),
                                         Expanded(
@@ -202,7 +205,7 @@ class SignUpScreen extends StatelessWidget {
                                             style: GoogleFonts.inter(
                                               fontSize: 14.sp,
                                               fontWeight: FontWeight.w400,
-                                              color: AppColors.blackColor,
+                                              color: AppColors.textPrimary(context),
                                             ),
                                           ),
                                         ),
@@ -262,7 +265,7 @@ class SignUpScreen extends StatelessWidget {
 
                           Get.defaultDialog(
                             title: 'language_dialog_title'.tr,
-                            backgroundColor: AppColors.whiteColor,
+                            backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceDark : AppColors.whiteColor,
                             content: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: entries.map((entry) {
@@ -302,7 +305,7 @@ class SignUpScreen extends StatelessWidget {
                             vertical: 12.h,
                           ),
                           decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.grey300Color),
+                            border: Border.all(color: AppColors.textSecondary(context).withOpacity(0.2)),
                             borderRadius: BorderRadius.circular(30.r),
                           ),
                           child: Builder(
@@ -320,11 +323,11 @@ class SignUpScreen extends StatelessWidget {
                                         'English',
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w400,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                                   Icon(
                                     Icons.keyboard_arrow_down,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                     size: 20.sp,
                                   ),
                                 ],
@@ -466,7 +469,7 @@ class SignUpScreen extends StatelessWidget {
                                     text: 'label_terms_prefix'.tr,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                                   GestureDetector(
                                     onTap: () {},
@@ -491,7 +494,7 @@ class SignUpScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Divider(
-                              color: AppColors.grey300Color,
+                              color: AppColors.textSecondary(context).withOpacity(0.2),
                               thickness: 1,
                             ),
                           ),
@@ -500,12 +503,12 @@ class SignUpScreen extends StatelessWidget {
                             child: InterText(
                               text: 'or_sign_up_with'.tr,
                               fontSize: 12.sp,
-                              color: AppColors.greyColor,
+                              color: AppColors.textSecondary(context),
                             ),
                           ),
                           Expanded(
                             child: Divider(
-                              color: AppColors.grey300Color,
+                              color: AppColors.textSecondary(context).withOpacity(0.2),
                               thickness: 1,
                             ),
                           ),
@@ -533,7 +536,7 @@ class SignUpScreen extends StatelessWidget {
                                       );
                                     },
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.grey300Color),
+                                side: BorderSide(color: AppColors.textSecondary(context).withOpacity(0.2)),
                                 padding: EdgeInsets.symmetric(vertical: 12.h),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8.r),
@@ -554,7 +557,7 @@ class SignUpScreen extends StatelessWidget {
                                     text: 'button_google'.tr,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w500,
-                                    color: AppColors.blackColor,
+                                    color: AppColors.textPrimary(context),
                                   ),
                                 ],
                               ),
@@ -579,7 +582,7 @@ class SignUpScreen extends StatelessWidget {
                                       },
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
-                                    color: AppColors.grey300Color,
+                                    color: AppColors.textSecondary(context).withOpacity(0.2),
                                   ),
                                   padding: EdgeInsets.symmetric(vertical: 12.h),
                                   shape: RoundedRectangleBorder(
@@ -592,14 +595,14 @@ class SignUpScreen extends StatelessWidget {
                                     Icon(
                                       Icons.apple,
                                       size: 20.sp,
-                                      color: AppColors.blackColor,
+                                      color: AppColors.textPrimary(context),
                                     ),
                                     SizedBox(width: 8.w),
                                     InterText(
                                       text: 'button_apple'.tr,
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.w500,
-                                      color: AppColors.blackColor,
+                                      color: AppColors.textPrimary(context),
                                     ),
                                   ],
                                 ),

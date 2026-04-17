@@ -246,17 +246,19 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
     final isCancelled = bookingStatus == 'cancelled';
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'booking_agreement_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: _isLoading
@@ -268,7 +270,14 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
               ),
             )
           : SingleChildScrollView(
-              padding: EdgeInsets.all(20.w),
+              // Extra bottom padding so the Pay button never sits under the
+              // system navigation gesture bar on devices with no physical nav.
+              padding: EdgeInsets.fromLTRB(
+                20.w,
+                20.h,
+                20.w,
+                40.h + MediaQuery.of(context).padding.bottom,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -561,8 +570,9 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,7 +581,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
             text: 'owner_booking_details_title'.tr,
             fontSize: 16.sp,
             fontWeight: FontWeight.w600,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
           SizedBox(height: 16.h),
           _buildDetailRow(
@@ -683,7 +693,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
             text: value,
             fontSize: 14.sp,
             fontWeight: FontWeight.w400,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],
@@ -704,8 +714,9 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12.r),
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,7 +725,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
             text: 'booking_agreement_price_breakdown_title'.tr,
             fontSize: 16.sp,
             fontWeight: FontWeight.w600,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
           SizedBox(height: 20.h),
           if (effectivePricing?.pricingTier != null &&
@@ -785,13 +796,13 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
           text: label,
           fontSize: isTotal ? 16.sp : 14.sp,
           fontWeight: isTotal ? FontWeight.w600 : FontWeight.w400,
-          color: isSecondary ? AppColors.grey500Color : AppColors.blackColor,
+          color: isSecondary ? AppColors.grey500Color : AppColors.textPrimary(context),
         ),
         PoppinsText(
           text: value,
           fontSize: isTotal ? 18.sp : 14.sp,
           fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-          color: isTotal ? AppColors.primaryColor : AppColors.blackColor,
+          color: isTotal ? AppColors.primaryColor : AppColors.textPrimary(context),
         ),
       ],
     );

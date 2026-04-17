@@ -44,10 +44,10 @@ class ChatScreen extends StatelessWidget {
                   false, // Hide notification icon on chat screen
               onProfileTap: () {
                 // Handle profile tap
-                print('Profile tapped');
+                // debug removed
               },
             ),
-            backgroundColor: AppColors.whiteColor,
+            backgroundColor: AppColors.scaffold(context),
             body: SafeArea(
               child: Obx(() {
                 if (controller.isLoading.value) {
@@ -63,14 +63,14 @@ class ChatScreen extends StatelessWidget {
                           text: 'chat_error_loading_conversations'.tr,
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 8.h),
                         PoppinsText(
                           text: controller.errorMessage.value,
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 16.h),
@@ -89,49 +89,22 @@ class ChatScreen extends StatelessWidget {
                       text: 'chat_no_conversations'.tr,
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.greyText,
+                      color: AppColors.textSecondary(context),
                     ),
                   );
                 }
 
-                return Column(
-                  children: [
-                    // Chat List
-                    Expanded(
-                      child: ListView.builder(
-                        padding: EdgeInsets.fromLTRB(
-                          0,
-                          8.h,
-                          0,
-                          100.h,
-                        ), // Extra bottom padding for navigation bar
-                        itemCount:
-                            controller.conversations.length *
-                            2, // conversations + dividers
-                        itemBuilder: (context, index) {
-                          if (index.isOdd) {
-                            // Add divider after each conversation
-                            return Divider(
-                              height: 1.h,
-                              thickness: 1.w,
-                              color: AppColors.greyColor.withOpacity(0.3),
-                              indent: 20.w,
-                              endIndent: 20.w,
-                            );
-                          }
-                          // Show conversation item
-                          final conversationIndex = index ~/ 2;
-                          final conversation =
-                              controller.conversations[conversationIndex];
-                          return _buildConversationItem(
-                            context,
-                            conversation,
-                            controller,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                return ListView.builder(
+                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 100.h),
+                  itemCount: controller.conversations.length,
+                  itemBuilder: (context, index) {
+                    final conversation = controller.conversations[index];
+                    return _buildConversationItem(
+                      context,
+                      conversation,
+                      controller,
+                    );
+                  },
                 );
               }),
             ),
@@ -157,7 +130,13 @@ class ChatScreen extends StatelessWidget {
         );
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+        margin: EdgeInsets.only(bottom: 10.h),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14.r),
+          boxShadow: AppColors.cardShadow(context),
+        ),
         child: Row(
           children: [
             // Avatar with online indicator
@@ -254,7 +233,7 @@ class ChatScreen extends StatelessWidget {
                     text: conversation.contactName,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
 
                   SizedBox(height: 4.h),
@@ -264,7 +243,7 @@ class ChatScreen extends StatelessWidget {
                     text: conversation.lastMessage,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.greyText,
+                    color: AppColors.textSecondary(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -277,7 +256,7 @@ class ChatScreen extends StatelessWidget {
               text: controller.formatTime(conversation.lastMessageTime),
               fontSize: 12.sp,
               fontWeight: FontWeight.w400,
-              color: AppColors.greyText,
+              color: AppColors.textSecondary(context),
             ),
           ],
         ),

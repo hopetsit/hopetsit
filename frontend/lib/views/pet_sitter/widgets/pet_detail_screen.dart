@@ -77,17 +77,19 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.lightGrey,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: InterText(
           text: widget.petName,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
         actions: [
           Padding(
@@ -205,7 +207,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             child: Container(
               height: 110.h,
               decoration: BoxDecoration(
-                color: AppColors.lightGrey.withOpacity(0.9),
+                color: AppColors.card(context).withOpacity(0.9),
                 borderRadius: BorderRadius.all(Radius.circular(26.r)),
               ),
               padding: EdgeInsets.all(26.w),
@@ -222,14 +224,14 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                           text: widget.petName,
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 4.h),
                         PoppinsText(
                           text: '${widget.breed} . ${widget.age}',
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.greyText,
+                          color: AppColors.textSecondary(context),
                         ),
                       ],
                     ),
@@ -271,14 +273,14 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               AppImages.pawIcon,
               width: 20.w,
               height: 20.h,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
             SizedBox(width: 8.w),
             PoppinsText(
               text: 'pet_detail_about'.tr.replaceAll('@name', widget.petName),
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),
@@ -296,7 +298,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           text: widget.description,
           fontSize: 12.sp,
           fontWeight: FontWeight.w400,
-          color: AppColors.greyColor,
+          color: AppColors.textSecondary(context),
         ),
         // Additional pet details
         if (widget.passportNumber != null &&
@@ -514,14 +516,14 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               AppImages.pawIcon,
               width: 20.w,
               height: 20.h,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
             SizedBox(width: 8.w),
             PoppinsText(
               text: 'pet_detail_owner_information'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),
@@ -529,20 +531,21 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: AppColors.whiteColor,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: AppColors.grey300Color),
+            boxShadow: AppColors.cardShadow(context),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (widget.ownerName != null && widget.ownerName!.isNotEmpty) ...[
-                _buildOwnerDetailRow('pet_detail_owner_name'.tr, widget.ownerName!),
+                _buildOwnerDetailRow(context, 'pet_detail_owner_name'.tr, widget.ownerName!),
                 SizedBox(height: 12.h),
               ],
               if (widget.ownerCreatedAt != null &&
                   widget.ownerCreatedAt!.isNotEmpty) ...[
                 _buildOwnerDetailRow(
+                  context,
                   'pet_detail_owner_created_at'.tr,
                   _formatDate(widget.ownerCreatedAt!),
                 ),
@@ -551,6 +554,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               if (widget.ownerUpdatedAt != null &&
                   widget.ownerUpdatedAt!.isNotEmpty)
                 _buildOwnerDetailRow(
+                  context,
                   'pet_detail_owner_updated_at'.tr,
                   _formatDate(widget.ownerUpdatedAt!),
                 ),
@@ -561,7 +565,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     );
   }
 
-  Widget _buildOwnerDetailRow(String label, String value) {
+  Widget _buildOwnerDetailRow(BuildContext context, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -571,7 +575,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             text: '$label:',
             fontSize: 13.sp,
             fontWeight: FontWeight.w500,
-            color: AppColors.greyText,
+            color: AppColors.textSecondary(context),
           ),
         ),
         Expanded(
@@ -580,7 +584,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             text: value,
             fontSize: 13.sp,
             fontWeight: FontWeight.w400,
-            color: AppColors.blackColor,
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],

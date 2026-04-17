@@ -30,10 +30,58 @@ class AppColors {
   static const Color textSecondaryDark = Color(0xFFB0B0B0);
   static const Color dividerDark = Color(0xFF333333);
 
+  // ── Modern light palette ──
+  static const Color scaffoldLight = Color(0xFFF7F7F8);
+  static const Color cardLight = Color(0xFFFFFFFF);
+
   // Gradient
   static const LinearGradient linearGradient = LinearGradient(
     colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  // ── Theme-aware helpers ──────────────────────────────────────────
+  static bool _isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+
+  /// Scaffold / page background
+  static Color scaffold(BuildContext context) =>
+      _isDark(context) ? backgroundDark : scaffoldLight;
+
+  /// AppBar background
+  static Color appBar(BuildContext context) =>
+      _isDark(context) ? surfaceDark : whiteColor;
+
+  /// Card / container surface
+  static Color card(BuildContext context) =>
+      _isDark(context) ? cardDark : cardLight;
+
+  /// Primary text (titles, body)
+  static Color textPrimary(BuildContext context) =>
+      _isDark(context) ? textPrimaryDark : blackColor;
+
+  /// Secondary text (subtitles, hints)
+  static Color textSecondary(BuildContext context) =>
+      _isDark(context) ? textSecondaryDark : greyText;
+
+  /// Divider / border
+  static Color divider(BuildContext context) =>
+      _isDark(context) ? dividerDark : grey300Color;
+
+  /// Chat field / input background
+  static Color inputFill(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF2A2A2A) : scaffoldLight;
+
+  /// Subtle shadow that works in dark mode (invisible) and light mode
+  static List<BoxShadow> cardShadow(BuildContext context) =>
+      _isDark(context)
+          ? []  // no shadow in dark mode — use border or elevation
+          : [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ];
 }

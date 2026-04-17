@@ -20,17 +20,19 @@ class EditOwnerProfileScreen extends StatelessWidget {
     final controller = Get.put(EditOwnerProfileController());
 
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'edit_profile_title'.tr,
           fontSize: 18.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.blackColor,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: Obx(() {
@@ -159,7 +161,7 @@ class EditOwnerProfileScreen extends StatelessWidget {
                           text: 'label_mobile_number'.tr,
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.blackColor,
+                          color: AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 8.h),
                         FormField<String>(
@@ -192,14 +194,23 @@ class EditOwnerProfileScreen extends StatelessWidget {
                                 Container(
                                   height: 50.h,
                                   decoration: BoxDecoration(
-                                    color: AppColors.whiteColor,
-                                    border: Border.all(
-                                      color: hasError
-                                          ? AppColors.errorColor
-                                          : AppColors.grey300Color,
-                                      width: 1,
-                                    ),
+                                    color: AppColors.inputFill(context),
+                                    border: hasError
+                                        ? Border.all(
+                                            color: AppColors.errorColor,
+                                            width: 1,
+                                          )
+                                        : null,
                                     borderRadius: BorderRadius.circular(30.r),
+                                    boxShadow: AppColors.cardShadow(context).isEmpty
+                                        ? []
+                                        : [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.04),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 2),
+                                            )
+                                          ],
                                   ),
                                   child: Row(
                                     children: [
@@ -219,17 +230,17 @@ class EditOwnerProfileScreen extends StatelessWidget {
                                         boxDecoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(16.r),
-                                          color: AppColors.whiteColor,
+                                          color: AppColors.inputFill(context),
                                         ),
                                         textStyle: TextStyle(
                                           fontSize: 14.sp,
                                           fontWeight: FontWeight.w400,
-                                          color: AppColors.blackColor,
+                                          color: AppColors.textPrimary(context),
                                         ),
                                         dialogTextStyle: TextStyle(
                                           fontSize: 14.sp,
                                           fontWeight: FontWeight.w400,
-                                          color: AppColors.blackColor,
+                                          color: AppColors.textPrimary(context),
                                         ),
                                       ),
                                       Expanded(
@@ -246,7 +257,7 @@ class EditOwnerProfileScreen extends StatelessWidget {
                                             hintStyle: TextStyle(
                                               fontSize: 14.sp,
                                               fontWeight: FontWeight.w400,
-                                              color: AppColors.greyColor,
+                                              color: AppColors.textSecondary(context),
                                             ),
                                             border: InputBorder.none,
                                             contentPadding: EdgeInsets.symmetric(
@@ -257,7 +268,7 @@ class EditOwnerProfileScreen extends StatelessWidget {
                                           style: TextStyle(
                                             fontSize: 14.sp,
                                             fontWeight: FontWeight.w400,
-                                            color: AppColors.blackColor,
+                                            color: AppColors.textPrimary(context),
                                           ),
                                         ),
                                       ),

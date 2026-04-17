@@ -115,16 +115,18 @@ class _EditPostScreenState extends State<EditPostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.whiteColor,
+        backgroundColor: AppColors.appBar(context),
         elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         title: InterText(
           text: 'edit_post_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
-          color: AppColors.blackColor,
+          color: AppColors.textPrimary(context),
         ),
       ),
       body: SafeArea(
@@ -135,7 +137,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
               InterText(
                 text: 'edit_post_body_label'.tr,
                 fontSize: 13.sp,
-                color: AppColors.greyText,
+                color: AppColors.textSecondary(context),
               ),
               SizedBox(height: 8.h),
               TextField(
@@ -184,7 +186,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                 text: 'house_sitting_venue_title'.tr,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w600,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 8.h),
               RadioListTile<String>(

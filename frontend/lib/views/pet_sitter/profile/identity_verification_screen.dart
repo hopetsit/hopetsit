@@ -117,7 +117,14 @@ class _IdentityVerificationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Identity verification')),
+      backgroundColor: AppColors.scaffold(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Identity verification', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
+      ),
       body: Padding(
         padding: EdgeInsets.all(16.w),
         child: Column(
@@ -127,7 +134,7 @@ class _IdentityVerificationScreenState
             SizedBox(height: 16.h),
             Text(
               'Upload a photo of your ID document (passport or ID card). Only admins and you will be able to see it.',
-              style: TextStyle(color: AppColors.grey700Color),
+              style: TextStyle(color: AppColors.textSecondary(context)),
             ),
             SizedBox(height: 24.h),
             ElevatedButton.icon(

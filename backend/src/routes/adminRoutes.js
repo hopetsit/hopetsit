@@ -6,6 +6,7 @@ const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
 const Pet = require('../models/Pet');
 const { decrypt } = require('../utils/encryption');
+const { sendTestEmail } = require('../services/emailService');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -14,6 +15,41 @@ const router = express.Router();
 // JWT-based: requireAuth verifies token, requireRole('admin') checks payload.role.
 // Admin JWTs are issued by POST /auth/admin/login (see authController.adminLogin).
 const requireAdmin = [requireAuth, requireRole('admin')];
+
+// ─── SMTP TEST ───────────────────────────────────────────────────────────────
+// POST /admin/test-email?to=someone@example.com
+// Lets admins verify the SMTP configuration by sending a test email.
+// Reports success, or returns the underlying SMTP error so it can be diagnosed
+// from the admin dashboard without SSH access to Render.
+router.post('/test-email', requireAdmin, async (req, res) => {
+  const to = req.body?.to || req.query?.to;
+  if (!to || !/^\S+@\S+\.\S+$/.test(String(to))) {
+    return res.status(400).json({ error: 'Provide a valid recipient email as ?to=... or { to: ... }' });
+  }
+  const smtpConfigured = Boolean(process.env.SMTP_HOST);
+  try {
+    const result = await sendTestEmail(to);
+    return res.json({
+      ok: true,
+      smtpConfigured,
+      host: process.env.SMTP_HOST || null,
+      from: process.env.SMTP_FROM || process.env.SMTP_USER || null,
+      messageId: result?.messageId || null,
+      skipped: result?.skipped || false,
+      reason: result?.reason || null,
+    });
+  } catch (err) {
+    logger.error('[admin/test-email] failed', err);
+    return res.status(500).json({
+      ok: false,
+      smtpConfigured,
+      host: process.env.SMTP_HOST || null,
+      error: err?.message || String(err),
+      code: err?.code || null,
+      response: err?.response || null,
+    });
+  }
+});
 
 // ─── DASHBOARD STATS ─────────────────────────────────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
@@ -134,13 +170,62 @@ router.delete('/owners/:id', requireAdmin, async (req, res) => {
 // ─── UPDATE BOOKING STATUS ────────────────────────────────────────────────────
 router.patch('/bookings/:id', requireAdmin, async (req, res) => {
   try {
-    const { status, paymentStatus } = req.body;
+    const { status, paymentStatus, payoutStatus } = req.body;
     const update = {};
     if (status) update.status = status;
     if (paymentStatus) update.paymentStatus = paymentStatus;
+    if (payoutStatus) update.payoutStatus = payoutStatus;
     const booking = await Booking.findByIdAndUpdate(req.params.id, update, { new: true }).lean();
     if (!booking) return res.status(404).json({ error: 'Booking not found.' });
     res.json({ booking });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── ADMIN MANUAL REFUND ─────────────────────────────────────────────────────
+// Allows admin to issue a full refund for any paid booking (conflict resolution).
+router.post('/bookings/:id/refund', requireAdmin, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (booking.paymentStatus === 'refunded') {
+      return res.status(409).json({ error: 'Booking already refunded.' });
+    }
+    if (booking.paymentStatus !== 'paid') {
+      return res.status(409).json({ error: `Cannot refund — payment status is "${booking.paymentStatus}".` });
+    }
+
+    // Attempt provider-specific refund
+    let refundResult = null;
+    try {
+      if (booking.paymentProvider === 'stripe') {
+        const { createRefund } = require('../services/stripeService');
+        const chargeId = booking.stripeChargeId || booking.stripePaymentIntentId;
+        if (chargeId) refundResult = await createRefund(chargeId);
+      } else if (booking.paymentProvider === 'paypal') {
+        const { refundPaypalCapture } = require('../services/paypalService');
+        if (booking.paypalCaptureId) refundResult = await refundPaypalCapture(booking.paypalCaptureId);
+      }
+    } catch (refundErr) {
+      logger.error('[admin/refund] Provider refund failed', refundErr);
+      // Still mark as refunded in DB even if provider call fails — admin can reconcile manually
+    }
+
+    booking.paymentStatus = 'refunded';
+    booking.status = 'cancelled';
+    booking.payoutStatus = 'cancelled';
+    booking.cancelledAt = new Date();
+    booking.cancelledBy = 'admin';
+    booking.cancellationReason = req.body?.reason || 'admin_manual_refund';
+    await booking.save();
+
+    logger.info(`[admin] Manual refund for booking ${req.params.id} by admin ${req.user?.id}`);
+    res.json({
+      message: 'Refund processed.',
+      refundResult,
+      booking: { _id: booking._id, paymentStatus: booking.paymentStatus, status: booking.status },
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -385,6 +470,393 @@ router.patch('/identity-verifications/:id', requireAdmin, async (req, res) => {
       status: sitter.identityVerification.status,
       reviewedAt: sitter.identityVerification.reviewedAt,
       rejectionReason: sitter.identityVerification.rejectionReason,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── REPORTS (abuse signals from users) ──────────────────────────────────────
+// Daniel's request: centralize "Signaler" reports from profile / comment /
+// message / photo into a single admin queue with status transitions.
+const Report = require('../models/Report');
+
+router.get('/reports', requireAdmin, async (req, res) => {
+  try {
+    const { status = 'open', targetType, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (status && status !== 'all') filter.status = status;
+    if (targetType) filter.targetType = targetType;
+    const reports = await Report.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean();
+    const total = await Report.countDocuments(filter);
+    const openCount = await Report.countDocuments({ status: 'open' });
+    res.json({
+      reports,
+      total,
+      openCount,
+      page: Number(page),
+      limit: Number(limit),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/reports/:id', requireAdmin, async (req, res) => {
+  try {
+    const { status, resolution = '' } = req.body || {};
+    if (!['open', 'reviewing', 'resolved', 'dismissed'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status.' });
+    }
+    const resolvedBy = req.user?.email || req.user?.id || 'admin';
+    const update = {
+      status,
+      resolution: String(resolution || ''),
+    };
+    if (status === 'resolved' || status === 'dismissed') {
+      update.resolvedAt = new Date();
+      update.resolvedBy = resolvedBy;
+    }
+    const report = await Report.findByIdAndUpdate(
+      req.params.id,
+      { $set: update },
+      { new: true }
+    ).lean();
+    if (!report) return res.status(404).json({ error: 'Report not found.' });
+    logger.info(
+      `[admin] report ${report._id} -> ${status} by ${resolvedBy}`
+    );
+    res.json({ report });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/reports/:id', requireAdmin, async (req, res) => {
+  try {
+    const r = await Report.findByIdAndDelete(req.params.id).lean();
+    if (!r) return res.status(404).json({ error: 'Report not found.' });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── TERMS & CONDITIONS (admin-editable) ─────────────────────────────────────
+// Daniel's request: let admin edit the T&C text from the dashboard instead of
+// re-building the app every time. The public GET /terms/:lang endpoint is
+// served by routes/termsRoutes.js; these admin endpoints let us list and
+// upsert documents per language.
+const TermsDocument = require('../models/TermsDocument');
+const TERMS_LANGS = ['en', 'fr', 'es', 'it', 'de', 'pt'];
+
+router.get('/terms', requireAdmin, async (req, res) => {
+  try {
+    const docs = await TermsDocument.find().lean();
+    const byLang = {};
+    for (const d of docs) byLang[d.language] = d;
+    const payload = TERMS_LANGS.map((lang) => ({
+      language: lang,
+      content: byLang[lang]?.content ?? '',
+      version: byLang[lang]?.version ?? '',
+      updatedAt: byLang[lang]?.updatedAt ?? null,
+      updatedBy: byLang[lang]?.updatedBy ?? '',
+      exists: Boolean(byLang[lang]),
+    }));
+    res.json({ languages: TERMS_LANGS, documents: payload });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/terms/:lang', requireAdmin, async (req, res) => {
+  try {
+    const lang = String(req.params.lang || '').toLowerCase();
+    if (!TERMS_LANGS.includes(lang)) {
+      return res.status(400).json({ error: 'Unsupported language.' });
+    }
+    const doc = await TermsDocument.findOne({ language: lang }).lean();
+    if (!doc) return res.json({ language: lang, content: '', version: '', updatedAt: null, exists: false });
+    res.json({ ...doc, exists: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put('/terms/:lang', requireAdmin, async (req, res) => {
+  try {
+    const lang = String(req.params.lang || '').toLowerCase();
+    if (!TERMS_LANGS.includes(lang)) {
+      return res.status(400).json({ error: 'Unsupported language.' });
+    }
+    const { content = '', version = '' } = req.body || {};
+    if (typeof content !== 'string') {
+      return res.status(400).json({ error: 'content must be a string.' });
+    }
+    const updatedBy = req.user?.email || req.user?.id || 'admin';
+    const doc = await TermsDocument.findOneAndUpdate(
+      { language: lang },
+      {
+        $set: {
+          content,
+          version: String(version || '1.0'),
+          updatedBy,
+        },
+        $setOnInsert: { language: lang },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
+    logger.info(`[admin] terms updated lang=${lang} by ${updatedBy} (len=${content.length})`);
+    res.json({ ...doc, exists: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/terms/:lang', requireAdmin, async (req, res) => {
+  try {
+    const lang = String(req.params.lang || '').toLowerCase();
+    if (!TERMS_LANGS.includes(lang)) {
+      return res.status(400).json({ error: 'Unsupported language.' });
+    }
+    await TermsDocument.deleteOne({ language: lang });
+    res.json({ ok: true, language: lang, reverted: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── PAYMENT ANALYTICS ───────────────────────────────────────────────────────
+// Full payment/payout overview for admin dashboard
+router.get('/payments', requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 30, paymentStatus, payoutStatus, paymentProvider, from, to } = req.query;
+    const filter = { paymentStatus: { $in: ['paid', 'failed', 'refunded', 'refund'] } };
+    if (paymentStatus) filter.paymentStatus = paymentStatus;
+    if (payoutStatus) filter.payoutStatus = payoutStatus;
+    if (paymentProvider) filter.paymentProvider = paymentProvider;
+    if (from || to) {
+      filter.paidAt = {};
+      if (from) filter.paidAt.$gte = new Date(from);
+      if (to) filter.paidAt.$lte = new Date(to);
+    }
+
+    const [bookings, total, aggregates] = await Promise.all([
+      Booking.find(filter)
+        .sort({ paidAt: -1, createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit))
+        .populate('ownerId', 'name email')
+        .populate('sitterId', 'name email payoutMethod')
+        .lean(),
+      Booking.countDocuments(filter),
+      Booking.aggregate([
+        { $match: { paymentStatus: 'paid' } },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$pricing.totalPrice' },
+            totalCommission: { $sum: '$pricing.commission' },
+            totalPayouts: { $sum: '$pricing.netPayout' },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    // Provider breakdown
+    const providerBreakdown = await Booking.aggregate([
+      { $match: { paymentStatus: 'paid' } },
+      {
+        $group: {
+          _id: '$paymentProvider',
+          count: { $sum: 1 },
+          total: { $sum: '$pricing.totalPrice' },
+          commission: { $sum: '$pricing.commission' },
+        },
+      },
+    ]);
+
+    // Payout status breakdown
+    const payoutBreakdown = await Booking.aggregate([
+      { $match: { paymentStatus: 'paid' } },
+      {
+        $group: {
+          _id: '$payoutStatus',
+          count: { $sum: 1 },
+          total: { $sum: '$pricing.netPayout' },
+        },
+      },
+    ]);
+
+    const agg = aggregates[0] || { totalRevenue: 0, totalCommission: 0, totalPayouts: 0, count: 0 };
+
+    res.json({
+      payments: bookings.map((b) => ({
+        _id: b._id,
+        ownerName: b.ownerId?.name || 'Unknown',
+        ownerEmail: b.ownerId?.email || '',
+        sitterName: b.sitterId?.name || 'Unknown',
+        sitterEmail: b.sitterId?.email || '',
+        sitterPayoutMethod: b.sitterId?.payoutMethod || 'stripe',
+        serviceType: b.serviceType || '-',
+        date: b.date,
+        totalPrice: b.pricing?.totalPrice || 0,
+        commission: b.pricing?.commission || 0,
+        netPayout: b.pricing?.netPayout || 0,
+        currency: b.pricing?.currency || 'EUR',
+        paymentStatus: b.paymentStatus,
+        payoutStatus: b.payoutStatus || 'pending',
+        paymentProvider: b.paymentProvider || '-',
+        paidAt: b.paidAt,
+        payoutAt: b.payoutAt,
+        payoutError: b.payoutError,
+        stripePaymentIntentId: b.stripePaymentIntentId,
+        paypalOrderId: b.paypalOrderId,
+      })),
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      summary: {
+        totalRevenue: agg.totalRevenue,
+        totalCommission: agg.totalCommission,
+        totalPayouts: agg.totalPayouts,
+        paidCount: agg.count,
+      },
+      providerBreakdown: providerBreakdown.reduce((acc, p) => {
+        acc[p._id || 'unknown'] = { count: p.count, total: p.total, commission: p.commission };
+        return acc;
+      }, {}),
+      payoutBreakdown: payoutBreakdown.reduce((acc, p) => {
+        acc[p._id || 'pending'] = { count: p.count, total: p.total };
+        return acc;
+      }, {}),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── RETRY SITTER PAYOUT (admin) ────────────────────────────────────────────
+router.post('/payments/:id/retry-payout', requireAdmin, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (booking.payoutStatus === 'completed') return res.status(400).json({ error: 'Payout already completed.' });
+    booking.payoutStatus = 'pending';
+    booking.payoutError = null;
+    await booking.save();
+    // Trigger payout processing (same as automatic flow)
+    const { processSitterPayoutForBooking } = require('../controllers/bookingController');
+    if (typeof processSitterPayoutForBooking === 'function') {
+      processSitterPayoutForBooking(booking._id).catch(() => {});
+    }
+    res.json({ message: 'Payout retry queued.', payoutStatus: 'pending' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── BOOST ACTIVITY ─────────────────────────────────────────────────────────
+// Aggregates all boost purchases from both Sitter and Owner collections.
+router.get('/boosts', requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 30, tier, role } = req.query;
+    const now = new Date();
+
+    // Fetch boost purchases from both collections
+    const [sitters, owners] = await Promise.all([
+      Sitter.find({ 'boostPurchases.0': { $exists: true } })
+        .select('name email boostExpiry boostTier boostPurchases')
+        .lean(),
+      Owner.find({ 'boostPurchases.0': { $exists: true } })
+        .select('name email boostExpiry boostTier boostPurchases')
+        .lean(),
+    ]);
+
+    // Flatten all purchases into a single list
+    let allPurchases = [];
+    for (const s of sitters) {
+      for (const p of (s.boostPurchases || [])) {
+        allPurchases.push({
+          userId: s._id,
+          userName: s.name,
+          userEmail: s.email,
+          role: 'sitter',
+          tier: p.tier,
+          amount: p.amount,
+          currency: p.currency || 'EUR',
+          days: p.days,
+          purchasedAt: p.purchasedAt,
+          paymentProvider: p.paymentProvider || '-',
+          paymentId: p.paymentId || '-',
+          currentBoostTier: s.boostTier,
+          boostExpiry: s.boostExpiry,
+          isActive: s.boostExpiry ? new Date(s.boostExpiry) > now : false,
+        });
+      }
+    }
+    for (const o of owners) {
+      for (const p of (o.boostPurchases || [])) {
+        allPurchases.push({
+          userId: o._id,
+          userName: o.name,
+          userEmail: o.email,
+          role: 'owner',
+          tier: p.tier,
+          amount: p.amount,
+          currency: p.currency || 'EUR',
+          days: p.days,
+          purchasedAt: p.purchasedAt,
+          paymentProvider: p.paymentProvider || '-',
+          paymentId: p.paymentId || '-',
+          currentBoostTier: o.boostTier,
+          boostExpiry: o.boostExpiry,
+          isActive: o.boostExpiry ? new Date(o.boostExpiry) > now : false,
+        });
+      }
+    }
+
+    // Filter by tier / role
+    if (tier) allPurchases = allPurchases.filter(p => p.tier === tier);
+    if (role) allPurchases = allPurchases.filter(p => p.role === role);
+
+    // Sort newest first
+    allPurchases.sort((a, b) => new Date(b.purchasedAt) - new Date(a.purchasedAt));
+
+    // Summary stats
+    const totalRevenue = allPurchases.reduce((s, p) => s + (p.amount || 0), 0);
+    const activeBoosts = new Set();
+    for (const p of allPurchases) {
+      if (p.isActive) activeBoosts.add(`${p.role}_${p.userId}`);
+    }
+    const tierBreakdown = {};
+    for (const p of allPurchases) {
+      if (!tierBreakdown[p.tier]) tierBreakdown[p.tier] = { count: 0, revenue: 0 };
+      tierBreakdown[p.tier].count++;
+      tierBreakdown[p.tier].revenue += p.amount || 0;
+    }
+
+    // Paginate
+    const totalCount = allPurchases.length;
+    const skip = (Number(page) - 1) * Number(limit);
+    const paginated = allPurchases.slice(skip, skip + Number(limit));
+
+    res.json({
+      purchases: paginated,
+      total: totalCount,
+      page: Number(page),
+      limit: Number(limit),
+      summary: {
+        totalRevenue,
+        totalPurchases: totalCount,
+        activeBoostsCount: activeBoosts.size,
+        tierBreakdown,
+      },
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

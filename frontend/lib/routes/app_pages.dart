@@ -24,7 +24,14 @@ class AppPages {
   static final List<GetPage<dynamic>> pages = <GetPage<dynamic>>[
     GetPage(name: AppRoutes.splash, page: () => const SplashScreen()),
     GetPage(name: AppRoutes.login, page: () => const LoginScreen()),
-    GetPage(name: AppRoutes.signup, page: () => const SignUpScreen()),
+    GetPage(
+      name: AppRoutes.signup,
+      page: () => SignUpScreen(
+        userType: (Get.arguments is Map && (Get.arguments as Map)['userType'] is String)
+            ? (Get.arguments as Map)['userType'] as String
+            : 'pet_owner',
+      ),
+    ),
     GetPage(name: AppRoutes.homeOwner, page: () => const BottomNavWrapper()),
     GetPage(name: AppRoutes.homeSitter, page: () => const SitterNavWrapper()),
     GetPage(

@@ -117,15 +117,15 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
         post.postType.toLowerCase() == 'media';
   }
 
-  Widget _buildSortBar() {
+  Widget _buildSortBar(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
+        color: AppColors.scaffold(context),
         border: Border(
           bottom: BorderSide(
-            color: AppColors.grey300Color.withValues(alpha: 0.5),
+            color: AppColors.divider(context).withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -138,7 +138,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               text: 'my_posts_sort_label'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
           ),
           DropdownButtonHideUnderline(
@@ -151,7 +151,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               ),
               style: TextStyle(
                 fontSize: 14.sp,
-                color: AppColors.blackColor,
+                color: AppColors.textPrimary(context),
                 fontWeight: FontWeight.w500,
               ),
               items: [
@@ -160,7 +160,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                   child: InterText(
                     text: 'my_posts_sort_newest'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
                 DropdownMenuItem(
@@ -168,7 +168,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                   child: InterText(
                     text: 'my_posts_sort_oldest'.tr,
                     fontSize: 14.sp,
-                    color: AppColors.blackColor,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
               ],
@@ -331,15 +331,19 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     final userId = userProfile?['id'] as String?;
 
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: AppColors.appBar(context),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         title: InterText(
           text: 'my_posts_title'.tr,
           fontSize: 18.sp,
-          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
         ),
-        iconTheme: IconThemeData(color: AppColors.whiteColor),
+        iconTheme: IconThemeData(color: AppColors.textPrimary(context)),
       ),
       body: SafeArea(
         child: Obx(() {
@@ -362,7 +366,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               child: InterText(
                 text: 'my_posts_no_posts'.tr,
                 fontSize: 14.sp,
-                color: AppColors.greyColor,
+                color: AppColors.textSecondary(context),
               ),
             );
           }
@@ -370,7 +374,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSortBar(),
+              _buildSortBar(context),
               Expanded(
                 child: RefreshIndicator(
                   color: AppColors.primaryColor,
