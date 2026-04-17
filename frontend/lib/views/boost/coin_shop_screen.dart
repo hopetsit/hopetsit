@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
@@ -79,7 +80,14 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
         throw Exception('Failed to create payment intent.');
       }
 
-      // 2. Present Stripe payment sheet
+      // 2. Ensure Stripe publishable key is set
+      final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
+      if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
+        Stripe.publishableKey = pk;
+        await Stripe.instance.applySettings();
+      }
+
+      // 3. Present Stripe payment sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
