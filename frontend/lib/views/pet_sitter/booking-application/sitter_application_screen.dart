@@ -11,6 +11,7 @@ import 'package:hopetsit/views/pet_sitter/booking-application/sitter_booking_det
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/string_utils.dart';
+import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
@@ -411,6 +412,9 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
       }
 
       if (mounted) {
+        // Chat-access 402 → upsell dialog (Premium / Chat add-on) rather
+        // than a generic failure toast.
+        if (ChatAccessUpsellHelper.maybeShowChatUpsell(context, e)) return;
         CustomSnackbar.showError(
           title: 'common_error'.tr,
           message: e.toString().contains('Exception')

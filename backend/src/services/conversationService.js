@@ -11,6 +11,7 @@ const { maskPhonesInText } = require('../utils/phoneMask');
 const { decrypt } = require('../utils/encryption');
 const { createNotificationSafe } = require('./notificationService');
 const { sendNotification } = require('./notificationSender');
+const { getChatAccess } = require('./chatAccessService');
 
 const normalizeId = (value) => {
   if (!value) return null;
@@ -182,13 +183,25 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
     throw new HttpError(403, 'Messaging is disabled because one user has been blocked.');
   }
 
-  // Sprint 6.5 step 3 — canonical rule aligned with middleware: PAYMENT_REQUIRED
-  // when no paid booking exists between owner and sitter.
+  // Session v3.2 — chat access rule:
+  //   * If a paid booking exists → OK (historical support chat).
+  //   * Else if sender has Premium OR Chat add-on → OK (friends / pre-booking chat).
+  //   * Else → 402 CHAT_ACCESS_REQUIRED so client can upsell.
   const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId);
   if (!hasPaidBooking) {
-    const err = new HttpError(403, 'Payment required');
-    err.code = 'PAYMENT_REQUIRED';
-    throw err;
+    const senderUserModel = senderRole === 'owner' ? 'Owner' : 'Sitter';
+    const access = await getChatAccess(senderId, senderUserModel);
+    if (!access.hasAny) {
+      const err = new HttpError(402, 'Chat access required');
+      err.code = 'CHAT_ACCESS_REQUIRED';
+      err.details = {
+        needsPremium: !access.hasPremium,
+        needsChatAddon: !access.hasChatAddon,
+        upgradeUrl: '/subscriptions/plans',
+        addonUrl: '/chat-addon/plans',
+      };
+      throw err;
+    }
   }
 
   const trimmedBody = typeof body === 'string' ? body.trim() : '';

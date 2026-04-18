@@ -16,6 +16,7 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 
@@ -659,6 +660,8 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
       if (mounted) Navigator.pop(context);
       AppLogger.logError('Failed to start conversation', error: e.message);
       if (mounted) {
+        // Chat-access 402 → upsell dialog instead of a generic error toast.
+        if (ChatAccessUpsellHelper.maybeShowChatUpsell(context, e)) return;
         CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
       }
     } catch (e) {

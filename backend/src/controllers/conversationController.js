@@ -11,6 +11,7 @@ const {
   markConversationRead: markConversationReadService,
   hasValidPaidBooking,
 } = require('../services/conversationService');
+const { getChatAccess } = require('../services/chatAccessService');
 const { uploadMedia } = require('../services/cloudinary');
 const { HttpError } = require('../utils/errors');
 const { emitToConversation } = require('../sockets/emitter');
@@ -200,7 +201,10 @@ const createConversationMessage = async (req, res) => {
   } catch (error) {
     logger.error('Create message error', error);
     if (error instanceof HttpError) {
-      return res.status(error.status).json({ error: error.message });
+      const body = { error: error.message };
+      if (error.code) body.code = error.code;
+      if (error.details) body.details = error.details;
+      return res.status(error.status).json(body);
     }
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid conversation id.' });
@@ -258,7 +262,10 @@ const createConversationAttachmentMessage = async (req, res) => {
   } catch (error) {
     logger.error('Create attachment message error', error);
     if (error instanceof HttpError) {
-      return res.status(error.status).json({ error: error.message });
+      const body = { error: error.message };
+      if (error.code) body.code = error.code;
+      if (error.details) body.details = error.details;
+      return res.status(error.status).json(body);
     }
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid conversation id.' });
@@ -378,12 +385,26 @@ const startConversation = async (req, res) => {
       return res.status(403).json({ error: 'Messaging is disabled because one user has been blocked.' });
     }
 
-    // Check if there's a valid paid booking between owner and sitter
+    // Session v3.2 — chat gate:
+    //   * Paid booking between owner & sitter → OK (historical support chat).
+    //   * Else if owner has Premium OR Chat add-on → OK (pre-booking / friend chat).
+    //   * Else → 402 CHAT_ACCESS_REQUIRED with upsell hints.
     const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId);
     if (!hasPaidBooking) {
-      return res.status(403).json({ 
-        error: 'Chat is only available after payment is completed. Please complete a booking payment first.' 
-      });
+      const access = await getChatAccess(ownerId, 'Owner');
+      if (!access.hasAny) {
+        return res.status(402).json({
+          error:
+            'Chat requires an active Premium plan or the Chat add-on. Please subscribe to start messaging.',
+          code: 'CHAT_ACCESS_REQUIRED',
+          details: {
+            needsPremium: !access.hasPremium,
+            needsChatAddon: !access.hasChatAddon,
+            upgradeUrl: '/subscriptions/plans',
+            addonUrl: '/chat-addon/plans',
+          },
+        });
+      }
     }
 
     // Find or create conversation
@@ -514,12 +535,23 @@ const startConversationBySitter = async (req, res) => {
       return res.status(403).json({ error: 'Messaging is disabled because one user has been blocked.' });
     }
 
-    // Check if there's a valid paid booking between owner and sitter
+    // Session v3.2 — same chat gate as owner-side (see startConversation).
     const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId);
     if (!hasPaidBooking) {
-      return res.status(403).json({ 
-        error: 'Chat is only available after payment is completed. Please complete a booking payment first.' 
-      });
+      const access = await getChatAccess(sitterId, 'Sitter');
+      if (!access.hasAny) {
+        return res.status(402).json({
+          error:
+            'Chat requires an active Premium plan or the Chat add-on. Please subscribe to start messaging.',
+          code: 'CHAT_ACCESS_REQUIRED',
+          details: {
+            needsPremium: !access.hasPremium,
+            needsChatAddon: !access.hasChatAddon,
+            upgradeUrl: '/subscriptions/plans',
+            addonUrl: '/chat-addon/plans',
+          },
+        });
+      }
     }
 
     // Find or create conversation
