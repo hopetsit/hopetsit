@@ -128,6 +128,8 @@ const walkerSchema = new mongoose.Schema(
     ],
 
     // Identity verification — same structure as Sitter for parity.
+    // Session v3.3 — stripeSessionId + provider added so we can link an
+    // ongoing Stripe Identity VerificationSession to the user doc.
     identityVerification: {
       status: {
         type: String,
@@ -138,6 +140,8 @@ const walkerSchema = new mongoose.Schema(
       submittedAt: { type: Date, default: null },
       reviewedAt: { type: Date, default: null },
       rejectionReason: { type: String, default: '' },
+      stripeSessionId: { type: String, default: '' },
+      provider: { type: String, default: '' }, // 'stripe_identity' | '' (legacy)
     },
 
     // Top-Walker program (analog to Sitter's Top-Sitter flag).

@@ -84,6 +84,9 @@ const sitterSchema = new mongoose.Schema(
       submittedAt: { type: Date, default: null },
       reviewedAt: { type: Date, default: null },
       rejectionReason: { type: String, default: '' },
+      // Session v3.3 — Stripe Identity linkage.
+      stripeSessionId: { type: String, default: '' },
+      provider: { type: String, default: '' }, // 'stripe_identity' | '' (legacy)
     },
     avatar: {
       url: { type: String, default: '' },

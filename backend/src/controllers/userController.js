@@ -536,6 +536,21 @@ const updateProfilePicture = async (req, res) => {
       resourceType: 'image',
     });
 
+    // Session v3.3 — run Google Vision Safe Search on the uploaded avatar.
+    // No-op when CONTENT_MODERATION_ENABLED is not 'true', so this is safe
+    // to ship behind a feature flag.
+    const { rejectIfUnsafe } = require('../services/contentModerationService');
+    try {
+      await rejectIfUnsafe(uploadResult);
+    } catch (modErr) {
+      if (modErr.code === 'CONTENT_REJECTED') {
+        return res
+          .status(422)
+          .json({ error: modErr.message, code: modErr.code, details: modErr.details });
+      }
+      throw modErr;
+    }
+
     // Update user's avatar in database
     const Model = userRole === 'owner'
       ? Owner

@@ -84,6 +84,21 @@ app.use(cors({
 // Stripe webhook route must use raw body (register before JSON middleware)
 app.use('/webhooks', stripeWebhookRoutes);
 
+// Session v3.3 — Stripe Identity webhook. Must also receive the raw body
+// so the signature can be verified. Scoped to just the /webhook endpoint
+// so the /session POST keeps working with regular JSON.
+const identityVerificationRoutes = require('./routes/identityVerificationRoutes');
+app.use(
+  '/identity-verification/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res, next) => {
+    // Forward as if the router was mounted normally — the webhook route
+    // inside identityVerificationRoutes is declared at POST '/webhook'.
+    req.url = '/webhook';
+    identityVerificationRoutes(req, res, next);
+  },
+);
+
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
 // Sprint 8 step 5 — structured request logger (pino-http) with reqId + duration.
@@ -144,6 +159,9 @@ const versionedRoutes = [
   { path: '/map-boost', mw: [sensitiveLimiter], router: mapBoostRoutes },
   { path: '/subscriptions', mw: [sensitiveLimiter], router: subscriptionRoutes },
   { path: '/chat-addon', mw: [sensitiveLimiter], router: chatAddonRoutes },
+  // Session v3.3 — Stripe Identity. The webhook is mounted separately above
+  // (before the JSON parser) so signatures can be verified on raw body.
+  { path: '/identity-verification', mw: [sensitiveLimiter], router: identityVerificationRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
 ];
 
