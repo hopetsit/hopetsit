@@ -671,9 +671,19 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   );
                 }),
 
-                // Premium upsell banner when the report API returns 402
+                // Premium upsell banner — shown whenever the user is NOT
+                // Premium, so free users always see the conversion CTA on
+                // the map (previously only shown when the API returned 402,
+                // which meant the banner was invisible most of the time).
                 Obx(() {
-                  if (!_reportController.premiumRequired.value) {
+                  final sub = Get.isRegistered<SubscriptionController>()
+                      ? Get.find<SubscriptionController>()
+                      : null;
+                  final isPremium = sub?.isPremium ?? false;
+                  // Still respect the hard signal from the API (402) so the
+                  // banner stays visible right after a gated action too.
+                  final forced = _reportController.premiumRequired.value;
+                  if (isPremium && !forced) {
                     return const SizedBox.shrink();
                   }
                   return Positioned(

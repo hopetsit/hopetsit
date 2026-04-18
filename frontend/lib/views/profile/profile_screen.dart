@@ -598,15 +598,26 @@ class ProfileScreen extends StatelessWidget {
       onTap: () => _showSwitchRoleDialog(context, targetRole: targetRole),
       child: Builder(
         builder: (context) => Container(
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: accentColor, width: 2),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Colored icon chip on the left.
+              Container(
+                width: 42.w,
+                height: 42.w,
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(Icons.pets_rounded, size: 22.sp, color: accentColor),
+              ),
+              SizedBox(width: 14.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,14 +626,14 @@ class ProfileScreen extends StatelessWidget {
                       text: 'profile_switch_role_card_title'.trParams({
                         'role': newRoleText,
                       }),
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w700,
                       color: accentColor,
                     ),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 3.h),
                     InterText(
                       text: switchDescription,
-                      fontSize: 13.sp,
+                      fontSize: 12.sp,
                       fontWeight: FontWeight.w400,
                       color: AppColors.greyText,
                       maxLines: 2,
@@ -631,10 +642,9 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(width: 12.w),
               Icon(
                 Icons.arrow_forward_ios,
-                size: 20.sp,
+                size: 16.sp,
                 color: accentColor,
               ),
             ],
