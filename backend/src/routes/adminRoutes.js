@@ -913,83 +913,187 @@ router.post('/payments/:id/retry-payout', requireAdmin, async (req, res) => {
 });
 
 // ─── BOOST ACTIVITY ─────────────────────────────────────────────────────────
-// Aggregates all boost purchases from both Sitter and Owner collections.
+// Session v3.3 — now aggregates EVERY shop purchase, not just profile boosts:
+//   * Profile boost (Sitter/Owner/Walker.boostPurchases, kind === 'profile')
+//   * Map boost   (Sitter/Owner/Walker.boostPurchases, kind === 'map')
+//   * Premium subscription (UserSubscription.payments)
+//   * Chat add-on (UserChatAddon.payments)
+//
+// Each entry carries a `product` field ('profile_boost' | 'map_boost' |
+// 'premium' | 'chat_addon') so the admin UI can filter / color-code.
 router.get('/boosts', requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 30, tier, role } = req.query;
+    const { page = 1, limit = 30, tier, role, product } = req.query;
     const now = new Date();
 
-    // Fetch boost purchases from both collections
-    const [sitters, owners] = await Promise.all([
+    const UserSubscription = require('../models/UserSubscription');
+    const UserChatAddon = require('../models/UserChatAddon');
+
+    // Fetch boost purchases from all 3 user collections
+    const [sitters, owners, walkers, subs, chatAddons] = await Promise.all([
       Sitter.find({ 'boostPurchases.0': { $exists: true } })
         .select('name email boostExpiry boostTier boostPurchases')
         .lean(),
       Owner.find({ 'boostPurchases.0': { $exists: true } })
         .select('name email boostExpiry boostTier boostPurchases')
         .lean(),
+      Walker.find({ 'boostPurchases.0': { $exists: true } })
+        .select('name email boostExpiry boostTier boostPurchases')
+        .lean(),
+      UserSubscription.find({ 'payments.0': { $exists: true } })
+        .select('userId userModel payments currentPeriodEnd status plan')
+        .lean(),
+      UserChatAddon.find({ 'payments.0': { $exists: true } })
+        .select('userId userModel payments currentPeriodEnd status')
+        .lean(),
     ]);
 
-    // Flatten all purchases into a single list
-    let allPurchases = [];
-    for (const s of sitters) {
-      for (const p of (s.boostPurchases || [])) {
-        allPurchases.push({
-          userId: s._id,
-          userName: s.name,
-          userEmail: s.email,
-          role: 'sitter',
-          tier: p.tier,
-          amount: p.amount,
-          currency: p.currency || 'EUR',
-          days: p.days,
-          purchasedAt: p.purchasedAt,
-          paymentProvider: p.paymentProvider || '-',
-          paymentId: p.paymentId || '-',
-          currentBoostTier: s.boostTier,
-          boostExpiry: s.boostExpiry,
-          isActive: s.boostExpiry ? new Date(s.boostExpiry) > now : false,
-        });
+    // Build a quick lookup for sub/addon userId → name+email so the UI
+    // doesn't need a second round-trip per row.
+    const allUserIds = new Set();
+    [...subs, ...chatAddons].forEach((d) => {
+      if (d.userId) allUserIds.add(String(d.userId));
+    });
+    const [sitterMap, ownerMap, walkerMap] = await Promise.all([
+      Sitter.find({ _id: { $in: [...allUserIds] } })
+        .select('name email')
+        .lean()
+        .then((a) => new Map(a.map((u) => [String(u._id), u]))),
+      Owner.find({ _id: { $in: [...allUserIds] } })
+        .select('name email')
+        .lean()
+        .then((a) => new Map(a.map((u) => [String(u._id), u]))),
+      Walker.find({ _id: { $in: [...allUserIds] } })
+        .select('name email')
+        .lean()
+        .then((a) => new Map(a.map((u) => [String(u._id), u]))),
+    ]);
+    const resolveUser = (userId, userModel) => {
+      const map =
+        userModel === 'Owner'
+          ? ownerMap
+          : userModel === 'Walker'
+          ? walkerMap
+          : sitterMap;
+      return map.get(String(userId)) || {};
+    };
+
+    // Flatten profile + map boost purchases
+    const pushBoosts = (arr, role, users) => {
+      for (const u of users) {
+        for (const p of u.boostPurchases || []) {
+          const kind = p.kind || 'profile';
+          arr.push({
+            userId: u._id,
+            userName: u.name,
+            userEmail: u.email,
+            role,
+            product: kind === 'map' ? 'map_boost' : 'profile_boost',
+            tier: p.tier,
+            amount: p.amount,
+            currency: p.currency || 'EUR',
+            days: p.days,
+            purchasedAt: p.purchasedAt,
+            paymentProvider: p.paymentProvider || '-',
+            paymentId: p.paymentId || '-',
+            currentBoostTier: u.boostTier,
+            boostExpiry: u.boostExpiry,
+            isActive: u.boostExpiry ? new Date(u.boostExpiry) > now : false,
+          });
+        }
       }
-    }
-    for (const o of owners) {
-      for (const p of (o.boostPurchases || [])) {
+    };
+    let allPurchases = [];
+    pushBoosts(allPurchases, 'sitter', sitters);
+    pushBoosts(allPurchases, 'owner', owners);
+    pushBoosts(allPurchases, 'walker', walkers);
+
+    // Flatten premium subscription payments
+    for (const sub of subs) {
+      const u = resolveUser(sub.userId, sub.userModel);
+      const isActive =
+        sub.status === 'active' &&
+        sub.currentPeriodEnd &&
+        new Date(sub.currentPeriodEnd) > now;
+      for (const p of sub.payments || []) {
         allPurchases.push({
-          userId: o._id,
-          userName: o.name,
-          userEmail: o.email,
-          role: 'owner',
-          tier: p.tier,
+          userId: sub.userId,
+          userName: u.name || '-',
+          userEmail: u.email || '-',
+          role: (sub.userModel || '').toLowerCase(),
+          product: 'premium',
+          tier: p.plan || sub.plan || 'monthly',
           amount: p.amount,
           currency: p.currency || 'EUR',
-          days: p.days,
-          purchasedAt: p.purchasedAt,
-          paymentProvider: p.paymentProvider || '-',
-          paymentId: p.paymentId || '-',
-          currentBoostTier: o.boostTier,
-          boostExpiry: o.boostExpiry,
-          isActive: o.boostExpiry ? new Date(o.boostExpiry) > now : false,
+          days: p.periodStart && p.periodEnd
+            ? Math.round(
+                (new Date(p.periodEnd) - new Date(p.periodStart)) / 86400000,
+              )
+            : null,
+          purchasedAt: p.paidAt,
+          paymentProvider: p.paymentProvider || 'stripe',
+          paymentId: p.paymentIntentId || '-',
+          isActive,
         });
       }
     }
 
-    // Filter by tier / role
-    if (tier) allPurchases = allPurchases.filter(p => p.tier === tier);
-    if (role) allPurchases = allPurchases.filter(p => p.role === role);
+    // Flatten chat add-on payments
+    for (const addon of chatAddons) {
+      const u = resolveUser(addon.userId, addon.userModel);
+      const isActive =
+        addon.status === 'active' &&
+        addon.currentPeriodEnd &&
+        new Date(addon.currentPeriodEnd) > now;
+      for (const p of addon.payments || []) {
+        allPurchases.push({
+          userId: addon.userId,
+          userName: u.name || '-',
+          userEmail: u.email || '-',
+          role: (addon.userModel || '').toLowerCase(),
+          product: 'chat_addon',
+          tier: 'monthly',
+          amount: p.amount,
+          currency: p.currency || 'EUR',
+          days: 30,
+          purchasedAt: p.paidAt,
+          paymentProvider: p.paymentProvider || 'stripe',
+          paymentId: p.paymentIntentId || '-',
+          isActive,
+        });
+      }
+    }
+
+    // Filter by tier / role / product
+    if (tier) allPurchases = allPurchases.filter((p) => p.tier === tier);
+    if (role) allPurchases = allPurchases.filter((p) => p.role === role);
+    if (product) allPurchases = allPurchases.filter((p) => p.product === product);
 
     // Sort newest first
-    allPurchases.sort((a, b) => new Date(b.purchasedAt) - new Date(a.purchasedAt));
+    allPurchases.sort(
+      (a, b) => new Date(b.purchasedAt || 0) - new Date(a.purchasedAt || 0),
+    );
 
     // Summary stats
     const totalRevenue = allPurchases.reduce((s, p) => s + (p.amount || 0), 0);
-    const activeBoosts = new Set();
+    const activeKeys = new Set();
     for (const p of allPurchases) {
-      if (p.isActive) activeBoosts.add(`${p.role}_${p.userId}`);
+      if (p.isActive) activeKeys.add(`${p.product}_${p.role}_${p.userId}`);
     }
     const tierBreakdown = {};
     for (const p of allPurchases) {
-      if (!tierBreakdown[p.tier]) tierBreakdown[p.tier] = { count: 0, revenue: 0 };
-      tierBreakdown[p.tier].count++;
-      tierBreakdown[p.tier].revenue += p.amount || 0;
+      const key = p.tier || 'unknown';
+      if (!tierBreakdown[key]) tierBreakdown[key] = { count: 0, revenue: 0 };
+      tierBreakdown[key].count++;
+      tierBreakdown[key].revenue += p.amount || 0;
+    }
+    const productBreakdown = {};
+    for (const p of allPurchases) {
+      const key = p.product || 'unknown';
+      if (!productBreakdown[key])
+        productBreakdown[key] = { count: 0, revenue: 0 };
+      productBreakdown[key].count++;
+      productBreakdown[key].revenue += p.amount || 0;
     }
 
     // Paginate
@@ -1005,8 +1109,9 @@ router.get('/boosts', requireAdmin, async (req, res) => {
       summary: {
         totalRevenue,
         totalPurchases: totalCount,
-        activeBoostsCount: activeBoosts.size,
+        activeBoostsCount: activeKeys.size,
         tierBreakdown,
+        productBreakdown,
       },
     });
   } catch (e) {

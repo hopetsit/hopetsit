@@ -39,13 +39,15 @@ const DEFAULTS = Object.freeze({
     CHF: { monthly: 3.90, yearly: 29.99 },
     USD: { monthly: 4.29, yearly: 32.99 },
   },
-  // Session v3.2 — Chat add-on. Very cheap tier that lets a free user
-  // chat with accepted friends only (Premium users still chat with everyone).
+  // Session v3.3 — Chat add-on aligned with Daniel's pricing decision:
+  // chat entre amis = 1.90 EUR/mois (was 0.99 in v3.2). Gratuit dès qu'un
+  // paid booking existe entre les deux parties (règle métier baked into
+  // conversationService.sendMessage + startConversation).
   chat: {
-    EUR: { monthly: 0.99 },
-    GBP: { monthly: 0.89 },
-    CHF: { monthly: 0.99 },
-    USD: { monthly: 1.09 },
+    EUR: { monthly: 1.90 },
+    GBP: { monthly: 1.69 },
+    CHF: { monthly: 1.90 },
+    USD: { monthly: 2.09 },
   },
 });
 

@@ -26,11 +26,14 @@ function loadPricingService() {
  * resort fallback if the service isn't initialized yet.
  */
 
+// Session v3.3 — prix aligné sur la décision produit : 1.90 EUR/mois pour
+// débloquer le chat entre amis hors paid booking. Admin peut éditer via
+// le dashboard pricing editor sans redéploiement.
 const CHAT_ADDON_PRICING_DEFAULT = {
-  EUR: { monthly: 0.99 },
-  GBP: { monthly: 0.89 },
-  CHF: { monthly: 0.99 },
-  USD: { monthly: 1.09 },
+  EUR: { monthly: 1.90 },
+  GBP: { monthly: 1.69 },
+  CHF: { monthly: 1.90 },
+  USD: { monthly: 2.09 },
 };
 
 const CHAT_ADDON_INTERVAL_DAYS = 30;

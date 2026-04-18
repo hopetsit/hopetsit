@@ -216,7 +216,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> Terms &amp; Conditions</div>
       <div class="nav-item" onclick="showPage('privacy')"><span class="nav-icon">🔒</span> Privacy Policy</div>
       <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> Reports</div>
-      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Boosts</div>
+      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Shop Activity</div>
       <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> Pricing</div>
       <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> Services</div>
       <div class="nav-item" onclick="showPage('pawmap')"><span class="nav-icon">🗺️</span> PawMap</div>
@@ -512,18 +512,27 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- BOOSTS -->
       <div id="page-boosts" class="page">
-        <div class="section-title">🚀 Boost Activity</div>
+        <div class="section-title">🚀 Shop Activity</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          All coin shop purchases across sitters and owners. Track boost revenue, active boosts, and purchase history.
+          Tous les achats shop (Boost profil, Map Boost, Premium, Chat add-on) pour sitters, owners et walkers. Revenus, achats actifs, historique.
         </p>
         <div class="stats-grid" id="boosts-stats-grid"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <select class="filter-select" id="boost-product-filter" onchange="loadBoosts()">
+            <option value="">All Products</option>
+            <option value="profile_boost">🚀 Profile Boost</option>
+            <option value="map_boost">🗺️ Map Boost</option>
+            <option value="premium">⭐ Premium</option>
+            <option value="chat_addon">💬 Chat add-on</option>
+          </select>
           <select class="filter-select" id="boost-tier-filter" onchange="loadBoosts()">
             <option value="">All Tiers</option>
-            <option value="bronze">🥉 Bronze (3d)</option>
-            <option value="silver">🥈 Silver (7d)</option>
-            <option value="gold">🥇 Gold (15d)</option>
-            <option value="platinum">💎 Platinum (30d)</option>
+            <option value="bronze">🥉 Bronze</option>
+            <option value="silver">🥈 Silver</option>
+            <option value="gold">🥇 Gold</option>
+            <option value="platinum">💎 Platinum</option>
+            <option value="monthly">📆 Monthly</option>
+            <option value="yearly">📅 Yearly</option>
           </select>
           <select class="filter-select" id="boost-role-filter" onchange="loadBoosts()">
             <option value="">All Roles</option>
@@ -2399,18 +2408,38 @@ async function verifyIban(sitterId) {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-// ── BOOSTS ──────────────────────────────────────────────────────────────────
+// ── SHOP ACTIVITY (Boost / Map Boost / Premium / Chat add-on — session v3.3)
 let boostsPage = 1;
-const TIER_LABELS = { bronze: '🥉 Bronze', silver: '🥈 Silver', gold: '🥇 Gold', platinum: '💎 Platinum' };
-const TIER_COLORS = { bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700', platinum: '#B9F2FF' };
+const TIER_LABELS = {
+  bronze: '🥉 Bronze', silver: '🥈 Silver', gold: '🥇 Gold', platinum: '💎 Platinum',
+  monthly: '📆 Monthly', yearly: '📅 Yearly',
+};
+const TIER_COLORS = {
+  bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700', platinum: '#B9F2FF',
+  monthly: '#7E57C2', yearly: '#AB47BC',
+};
+const PRODUCT_LABELS = {
+  profile_boost: '🚀 Profile Boost',
+  map_boost: '🗺️ Map Boost',
+  premium: '⭐ Premium',
+  chat_addon: '💬 Chat add-on',
+};
+const PRODUCT_COLORS = {
+  profile_boost: '#FF8C42',
+  map_boost: '#42A5F5',
+  premium: '#FFB300',
+  chat_addon: '#26C6DA',
+};
 
 async function loadBoosts(page) {
   if (page) boostsPage = page;
   const tier = document.getElementById('boost-tier-filter')?.value || '';
   const role = document.getElementById('boost-role-filter')?.value || '';
+  const product = document.getElementById('boost-product-filter')?.value || '';
   const params = new URLSearchParams({ page: boostsPage, limit: 30 });
   if (tier) params.set('tier', tier);
   if (role) params.set('role', role);
+  if (product) params.set('product', product);
   try {
     const data = await api(`/admin/boosts?${params}`);
     renderBoostStats(data.summary);
@@ -2423,51 +2452,61 @@ async function loadBoosts(page) {
 
 function renderBoostStats(summary) {
   const grid = document.getElementById('boosts-stats-grid');
-  const tb = summary.tierBreakdown || {};
-  let tierHtml = '';
-  for (const t of ['bronze', 'silver', 'gold', 'platinum']) {
-    if (tb[t]) {
-      tierHtml += `<div class="stat-card" style="--accent:${TIER_COLORS[t]}"><div class="stat-label">${TIER_LABELS[t]}</div><div class="stat-value">${tb[t].count}</div><div class="stat-sub">€${(tb[t].revenue||0).toFixed(0)} revenue</div></div>`;
+  const pb = summary.productBreakdown || {};
+  let productHtml = '';
+  for (const k of ['profile_boost', 'map_boost', 'premium', 'chat_addon']) {
+    if (pb[k]) {
+      productHtml += `<div class="stat-card" style="--accent:${PRODUCT_COLORS[k]}">
+        <div class="stat-label">${PRODUCT_LABELS[k]}</div>
+        <div class="stat-value">${pb[k].count}</div>
+        <div class="stat-sub">€${(pb[k].revenue||0).toFixed(2)} revenue</div>
+      </div>`;
     }
   }
   grid.innerHTML = `
-    <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">Total Boost Revenue</div><div class="stat-value" style="color:var(--green)">€${(summary.totalRevenue||0).toFixed(2)}</div><div class="stat-sub">${summary.totalPurchases||0} purchases</div></div>
-    <div class="stat-card" style="--accent:var(--orange)"><div class="stat-label">Active Boosts</div><div class="stat-value" style="color:var(--orange)">${summary.activeBoostsCount||0}</div><div class="stat-sub">Users currently boosted</div></div>
-    ${tierHtml}
+    <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">Total Shop Revenue</div><div class="stat-value" style="color:var(--green)">€${(summary.totalRevenue||0).toFixed(2)}</div><div class="stat-sub">${summary.totalPurchases||0} purchases</div></div>
+    <div class="stat-card" style="--accent:var(--orange)"><div class="stat-label">Active Subscriptions</div><div class="stat-value" style="color:var(--orange)">${summary.activeBoostsCount||0}</div><div class="stat-sub">Users currently active</div></div>
+    ${productHtml}
   `;
 }
 
 function renderBoostsTable(purchases, total) {
   const container = document.getElementById('boosts-table-body');
   if (!purchases || !purchases.length) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🚀</div>No boost purchases yet</div>';
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>No purchases match the filters.</div>';
     return;
   }
   let rows = '';
   for (const p of purchases) {
-    const now = new Date();
-    const expiry = p.boostExpiry ? new Date(p.boostExpiry) : null;
-    const isActive = expiry && expiry > now;
-    const remaining = isActive ? Math.ceil((expiry - now) / 86400000) : 0;
+    const isActive = p.isActive === true;
     const statusHtml = isActive
-      ? `<span class="badge badge-green">Active · ${remaining}d left</span>`
+      ? `<span class="badge badge-green">Active</span>`
       : `<span class="badge badge-gray">Expired</span>`;
-    const tierBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${TIER_COLORS[p.tier]||'#555'}22;color:${TIER_COLORS[p.tier]||'#888'}">${TIER_LABELS[p.tier]||p.tier} · ${p.days}d</span>`;
+    const productKey = p.product || 'profile_boost';
+    const productBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${PRODUCT_COLORS[productKey]||'#555'}22;color:${PRODUCT_COLORS[productKey]||'#888'}">${PRODUCT_LABELS[productKey]||productKey}</span>`;
+    const tierBadge = p.tier
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${TIER_COLORS[p.tier]||'#555'}22;color:${TIER_COLORS[p.tier]||'#888'}">${TIER_LABELS[p.tier]||p.tier}${p.days?` · ${p.days}d`:''}</span>`
+      : '-';
     const roleBadge = p.role === 'sitter'
       ? '<span class="badge badge-blue">🐕 Sitter</span>'
+      : p.role === 'walker'
+      ? '<span class="badge badge-green">🚶 Walker</span>'
       : '<span class="badge badge-orange">👤 Owner</span>';
+    const currency = p.currency || 'EUR';
+    const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'USD' ? '$' : 'CHF ';
     rows += `<tr>
       <td>${fmtDate(p.purchasedAt)}</td>
       <td><strong>${p.userName||'-'}</strong><br><span style="font-size:11px;color:var(--text-muted)">${p.userEmail||''}</span></td>
       <td>${roleBadge}</td>
+      <td>${productBadge}</td>
       <td>${tierBadge}</td>
-      <td style="font-weight:600">€${(p.amount||0).toFixed(2)}</td>
+      <td style="font-weight:600">${symbol}${(p.amount||0).toFixed(2)}</td>
       <td>${p.paymentProvider}</td>
       <td>${statusHtml}</td>
     </tr>`;
   }
   container.innerHTML = `<table><thead><tr>
-    <th>Date</th><th>User</th><th>Role</th><th>Tier</th><th>Amount</th><th>Provider</th><th>Status</th>
+    <th>Date</th><th>User</th><th>Role</th><th>Product</th><th>Tier</th><th>Amount</th><th>Provider</th><th>Status</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
