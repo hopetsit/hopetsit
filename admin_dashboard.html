@@ -207,12 +207,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> Bookings</div>
       <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> Sitters</div>
       <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> Owners</div>
+      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> Walkers</div>
       <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💰</span> Payments</div>
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> IBAN Payouts</div>
       <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> Identity verifications</div>
       <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> Review moderation</div>
       <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> User moderation</div>
       <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> Terms &amp; Conditions</div>
+      <div class="nav-item" onclick="showPage('privacy')"><span class="nav-icon">🔒</span> Privacy Policy</div>
       <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> Reports</div>
       <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Boosts</div>
       <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> Pricing</div>
@@ -290,6 +292,49 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div id="owners-table-body">
             <div class="loading"><div class="spinner"></div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- WALKERS (session v3.2) -->
+      <div id="page-walkers" class="page">
+        <div class="section-title">🚶 Pet Walkers</div>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <input class="search-input" id="walker-search" placeholder="🔍 Search walker..." oninput="renderWalkers()"/>
+            <select class="filter-select" id="walker-verified-filter" onchange="renderWalkers()">
+              <option value="">All verification</option>
+              <option value="verified">✅ Verified</option>
+              <option value="pending">⏳ Pending</option>
+              <option value="unverified">❌ Unverified</option>
+            </select>
+          </div>
+          <div id="walkers-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRIVACY POLICY (session v3.2) -->
+      <div id="page-privacy" class="page">
+        <div class="section-title">🔒 Privacy Policy</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:12px">
+          Edit the privacy policy shown to users across the app. Supports the 6 app languages. Plain text — line breaks preserved.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+          <label style="color:var(--text-muted);font-size:13px">Language:</label>
+          <select class="filter-select" id="privacy-lang" onchange="renderPrivacyEditor()">
+            <option value="fr">🇫🇷 Français</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="it">🇮🇹 Italiano</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="pt">🇵🇹 Português</option>
+          </select>
+          <input class="search-input" id="privacy-version" placeholder="Version (e.g. 2026-04-18)" style="width:220px"/>
+          <button class="action-btn btn-primary" onclick="savePrivacy()" id="privacy-save-btn">💾 Save</button>
+        </div>
+        <div id="privacy-editor-wrap">
+          <div class="loading"><div class="spinner"></div> Loading privacy policy…</div>
         </div>
       </div>
 
@@ -484,6 +529,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <option value="">All Roles</option>
             <option value="sitter">🐕 Sitters</option>
             <option value="owner">👤 Owners</option>
+            <option value="walker">🚶 Walkers</option>
           </select>
           <button class="action-btn btn-primary" onclick="loadBoosts()">↻ Refresh</button>
         </div>
@@ -888,6 +934,9 @@ function showPage(name) {
   if (name === 'services') loadServices();
   if (name === 'pawmap') loadPawmapStats();
   if (name === 'annonces') loadAnnonces();
+  // session v3.2 — walker section + privacy policy editor.
+  if (name === 'walkers') loadWalkers();
+  if (name === 'privacy') loadPrivacy();
 }
 
 // ── ANNONCES ─────────────────────────────────────────────────────────────────
@@ -1655,6 +1704,60 @@ async function revertTermsDocument() {
   }
 }
 
+// ── PRIVACY POLICY editor (session v3.2) ─────────────────────────────────────
+async function loadPrivacy() {
+  const wrap = document.getElementById('privacy-editor-wrap');
+  if (!wrap) return;
+  await renderPrivacyEditor();
+}
+
+async function renderPrivacyEditor() {
+  const wrap = document.getElementById('privacy-editor-wrap');
+  const lang = document.getElementById('privacy-lang').value || 'fr';
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try {
+    const d = await api(`/admin/privacy-policy/${lang}`);
+    document.getElementById('privacy-version').value = d.version || '1.0';
+    const meta = d.exists
+      ? `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Last updated ${d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ''} by ${d.updatedBy || 'admin'}</div>`
+      : `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">No document yet for ${lang.toUpperCase()} — app falls back to the bundled default.</div>`;
+    wrap.innerHTML = `
+      ${meta}
+      <textarea id="privacy-content" style="width:100%;min-height:480px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.5">${(d.content || '').replace(/</g,'&lt;')}</textarea>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="action-btn" onclick="revertPrivacy()">↺ Revert to bundled default</button>
+      </div>
+    `;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--red)">Failed to load: ${e.message}</div>`;
+  }
+}
+
+async function savePrivacy() {
+  const lang = document.getElementById('privacy-lang').value || 'fr';
+  const content = document.getElementById('privacy-content')?.value ?? '';
+  const version = document.getElementById('privacy-version').value || '1.0';
+  try {
+    await api(`/admin/privacy-policy/${lang}`, 'PUT', { content, version });
+    showToast(`Privacy policy saved for ${lang.toUpperCase()}`, 'success');
+    renderPrivacyEditor();
+  } catch (e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function revertPrivacy() {
+  const lang = document.getElementById('privacy-lang').value || 'fr';
+  if (!confirm(`Delete stored ${lang.toUpperCase()} privacy policy? The app will fall back to the bundled default.`)) return;
+  try {
+    await api(`/admin/privacy-policy/${lang}`, 'DELETE');
+    showToast(`Reverted ${lang.toUpperCase()} privacy policy`, 'success');
+    renderPrivacyEditor();
+  } catch (e) {
+    showToast('Revert failed: ' + e.message, 'error');
+  }
+}
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 async function loadDashboard() {
   try {
@@ -1860,6 +1963,83 @@ async function deleteOwner(id, name) {
     allOwners = allOwners.filter(o => o._id !== id);
     renderOwners();
     showToast('Owner deleted.', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── WALKERS (session v3.2) ───────────────────────────────────────────────────
+let allWalkers = [];
+async function loadWalkers() {
+  try {
+    const d = await api('/admin/walkers?limit=100');
+    allWalkers = d.walkers || [];
+    renderWalkers();
+  } catch(e) {
+    document.getElementById('walkers-table-body').innerHTML =
+      `<div class="empty-state"><div class="empty-icon">⚠️</div><div>Unable to load walkers: ${e.message}</div></div>`;
+  }
+}
+function renderWalkers() {
+  const search = (document.getElementById('walker-search')?.value || '').toLowerCase();
+  const vf = document.getElementById('walker-verified-filter')?.value || '';
+  const filtered = allWalkers.filter(w => {
+    const match = !search ||
+      w.name?.toLowerCase().includes(search) ||
+      w.email?.toLowerCase().includes(search);
+    let ok = true;
+    if (vf === 'verified') ok = !!w.verified;
+    else if (vf === 'pending') ok = w.verified === false && !!w.identityPhotoUrl;
+    else if (vf === 'unverified') ok = !w.verified && !w.identityPhotoUrl;
+    return match && ok;
+  });
+  if (!filtered.length) {
+    document.getElementById('walkers-table-body').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">🚶</div><div>No walkers found.</div></div>';
+    return;
+  }
+  document.getElementById('walkers-table-body').innerHTML = `
+    <table><thead><tr><th>Name</th><th>Email</th><th>Rate</th><th>Coverage</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(w => {
+      const boosted = w.boostExpiry && new Date(w.boostExpiry) > new Date();
+      const boostDays = boosted ? Math.ceil((new Date(w.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
+      const coverage = w.coverage
+        ? `${w.coverage.city || '-'} · ${w.coverage.radiusKm || 0} km`
+        : '-';
+      const rate = w.rates && w.rates.length
+        ? `€${(w.rates[0].amount || 0).toFixed(2)}/${w.rates[0].duration || '?'}min`
+        : '—';
+      return `
+      <tr>
+        <td><strong>${w.name||'-'}</strong></td>
+        <td style="color:var(--text-muted)">${w.email||'-'}</td>
+        <td>${rate}</td>
+        <td style="font-size:12px">${coverage}</td>
+        <td>${w.verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
+        <td>${boosted ? `<span class="badge badge-orange">🔥 ${w.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td><span class="badge badge-blue">${w.payoutMethod||'stripe'}</span></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
+          <button class="action-btn btn-delete" onclick="deleteWalker('${w._id}','${w.name}')">Delete</button>
+        </td>
+      </tr>
+    `;}).join('')}</tbody></table>
+  `;
+}
+async function verifyWalker(id) {
+  try {
+    await api(`/admin/walkers/${id}/verify`, 'PATCH', { verified: true });
+    const w = allWalkers.find(x => x._id === id);
+    if (w) w.verified = true;
+    renderWalkers();
+    showToast('Walker verified ✓', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+async function deleteWalker(id, name) {
+  if (!confirm(`Delete walker "${name}"? This cannot be undone.`)) return;
+  try {
+    await api(`/admin/walkers/${id}`, 'DELETE');
+    allWalkers = allWalkers.filter(w => w._id !== id);
+    renderWalkers();
+    showToast('Walker deleted.', 'success');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 

@@ -105,12 +105,17 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   int _remainingDays = 0;
   List<dynamic> _history = [];
 
-  final List<Map<String, dynamic>> _packages = [
-    {'tier': 'bronze', 'amount': 25, 'days': 3, 'icon': '🥉', 'label': '3 days', 'color': const Color(0xFFCD7F32)},
-    {'tier': 'silver', 'amount': 50, 'days': 7, 'icon': '🥈', 'label': '1 week', 'color': const Color(0xFFC0C0C0)},
-    {'tier': 'gold', 'amount': 100, 'days': 15, 'icon': '🥇', 'label': '2 weeks', 'color': const Color(0xFFFFD700)},
-    {'tier': 'platinum', 'amount': 200, 'days': 30, 'icon': '💎', 'label': '1 month', 'color': const Color(0xFFE5E4E2)},
+  // Session v3.2 — packages used to be hardcoded (25/50/100/200 €), which
+  // meant admin price edits on /admin/pricing never showed up in the app.
+  // Now we fetch /boost/packages live and fall back to the static list
+  // only if the backend fails.
+  static const List<Map<String, dynamic>> _fallbackPackages = [
+    {'tier': 'bronze',   'amount': 4.99,  'days': 3,  'icon': '🥉', 'label': '3 days',   'color': Color(0xFFCD7F32)},
+    {'tier': 'silver',   'amount': 9.99,  'days': 7,  'icon': '🥈', 'label': '1 week',   'color': Color(0xFFC0C0C0)},
+    {'tier': 'gold',     'amount': 14.99, 'days': 15, 'icon': '🥇', 'label': '2 weeks',  'color': Color(0xFFFFD700)},
+    {'tier': 'platinum', 'amount': 24.99, 'days': 30, 'icon': '💎', 'label': '1 month',  'color': Color(0xFFE5E4E2)},
   ];
+  List<Map<String, dynamic>> _packages = List.of(_fallbackPackages);
 
   @override
   bool get wantKeepAlive => true;
@@ -119,6 +124,45 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   void initState() {
     super.initState();
     _loadBoostStatus();
+    _loadBoostPackages();
+  }
+
+  /// Pulls the live boost pricing from the backend (admin-editable). The
+  /// currency follows the Premium tab's SubscriptionController so all three
+  /// tabs stay aligned.
+  Future<void> _loadBoostPackages() async {
+    try {
+      final api = Get.find<ApiClient>();
+      final currency = Get.isRegistered<SubscriptionController>()
+          ? Get.find<SubscriptionController>().currency.value
+          : 'EUR';
+      final data = await api.get(
+        '/boost/packages',
+        queryParameters: {'currency': currency},
+      ) as Map<String, dynamic>;
+      final list = (data['packages'] as List?) ?? const [];
+      // Preserve the visual metadata (icon / color / label) from the
+      // fallback list — the backend only sends the pricing side.
+      final merged = _fallbackPackages.map((fb) {
+        final match = list.firstWhere(
+          (p) => p is Map && p['tier'] == fb['tier'],
+          orElse: () => const <String, dynamic>{},
+        );
+        if (match is Map && match.isNotEmpty) {
+          return {
+            ...fb,
+            'amount': (match['amount'] as num?)?.toDouble() ?? fb['amount'],
+            'days': (match['days'] as num?)?.toInt() ?? fb['days'],
+            'currency': match['currency'] ?? 'EUR',
+          };
+        }
+        return fb;
+      }).toList();
+      if (!mounted) return;
+      setState(() => _packages = merged);
+    } catch (e) {
+      // Leave _packages as fallback if the call fails.
+    }
   }
 
   Future<void> _loadBoostStatus() async {

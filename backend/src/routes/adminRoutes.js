@@ -633,6 +633,88 @@ router.delete('/terms/:lang', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── PRIVACY POLICY (admin-editable, session v3.2) ───────────────────────────
+// Same pattern as TERMS above but against PrivacyPolicyDocument. Public read
+// lives in routes/privacyPolicyRoutes.js.
+const PrivacyPolicyDocument = require('../models/PrivacyPolicyDocument');
+const PRIVACY_LANGS = ['en', 'fr', 'es', 'it', 'de', 'pt'];
+
+router.get('/privacy-policy', requireAdmin, async (req, res) => {
+  try {
+    const docs = await PrivacyPolicyDocument.find().lean();
+    const byLang = {};
+    for (const d of docs) byLang[d.language] = d;
+    const payload = PRIVACY_LANGS.map((lang) => ({
+      language: lang,
+      content: byLang[lang]?.content ?? '',
+      version: byLang[lang]?.version ?? '',
+      updatedAt: byLang[lang]?.updatedAt ?? null,
+      updatedBy: byLang[lang]?.updatedBy ?? '',
+      exists: Boolean(byLang[lang]),
+    }));
+    res.json({ languages: PRIVACY_LANGS, documents: payload });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/privacy-policy/:lang', requireAdmin, async (req, res) => {
+  try {
+    const lang = String(req.params.lang || '').toLowerCase();
+    if (!PRIVACY_LANGS.includes(lang)) {
+      return res.status(400).json({ error: 'Unsupported language.' });
+    }
+    const doc = await PrivacyPolicyDocument.findOne({ language: lang }).lean();
+    if (!doc) return res.json({ language: lang, content: '', version: '', updatedAt: null, exists: false });
+    res.json({ ...doc, exists: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put('/privacy-policy/:lang', requireAdmin, async (req, res) => {
+  try {
+    const lang = String(req.params.lang || '').toLowerCase();
+    if (!PRIVACY_LANGS.includes(lang)) {
+      return res.status(400).json({ error: 'Unsupported language.' });
+    }
+    const { content = '', version = '' } = req.body || {};
+    if (typeof content !== 'string') {
+      return res.status(400).json({ error: 'content must be a string.' });
+    }
+    const updatedBy = req.user?.email || req.user?.id || 'admin';
+    const doc = await PrivacyPolicyDocument.findOneAndUpdate(
+      { language: lang },
+      {
+        $set: {
+          content,
+          version: String(version || '1.0'),
+          updatedBy,
+        },
+        $setOnInsert: { language: lang },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
+    logger.info(`[admin] privacy-policy updated lang=${lang} by ${updatedBy} (len=${content.length})`);
+    res.json({ ...doc, exists: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/privacy-policy/:lang', requireAdmin, async (req, res) => {
+  try {
+    const lang = String(req.params.lang || '').toLowerCase();
+    if (!PRIVACY_LANGS.includes(lang)) {
+      return res.status(400).json({ error: 'Unsupported language.' });
+    }
+    await PrivacyPolicyDocument.deleteOne({ language: lang });
+    res.json({ ok: true, language: lang, reverted: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── PAYMENT ANALYTICS ───────────────────────────────────────────────────────
 // Full payment/payout overview for admin dashboard
 router.get('/payments', requireAdmin, async (req, res) => {

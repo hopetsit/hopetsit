@@ -30,6 +30,7 @@ const ibanRoutes = require('./routes/ibanRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const walkRoutes = require('./routes/walkRoutes');
 const termsRoutes = require('./routes/termsRoutes');
+const privacyPolicyRoutes = require('./routes/privacyPolicyRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const boostRoutes = require('./routes/boostRoutes');
 const mapPoiRoutes = require('./routes/mapPoiRoutes');
@@ -135,6 +136,7 @@ const versionedRoutes = [
   { path: '/notifications', mw: [], router: notificationRoutes },
   { path: '/walks', mw: [], router: walkRoutes },
   { path: '/terms', mw: [], router: termsRoutes },
+  { path: '/privacy-policy', mw: [], router: privacyPolicyRoutes },
   { path: '/reports', mw: [], router: reportRoutes },
   { path: '/boost', mw: [], router: boostRoutes },
   { path: '/map-pois', mw: [], router: mapPoiRoutes },
