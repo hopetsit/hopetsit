@@ -154,7 +154,7 @@ class WalkerModel {
               .toList()
         : <WalkRate>[];
 
-    DateTime? _parseDate(dynamic v) {
+    DateTime? parseDate(dynamic v) {
       if (v == null) return null;
       if (v is DateTime) return v;
       return DateTime.tryParse(v.toString());
@@ -189,7 +189,7 @@ class WalkerModel {
           : <String>[],
       maxPetsPerWalk: (json['maxPetsPerWalk'] as num?)?.toInt() ?? 1,
       hasInsurance: json['hasInsurance'] as bool? ?? false,
-      insuranceExpiresAt: _parseDate(json['insuranceExpiresAt']),
+      insuranceExpiresAt: parseDate(json['insuranceExpiresAt']),
       coverageCity: (json['coverageCity'] as String?) ?? '',
       coverageRadiusKm: (json['coverageRadiusKm'] as num?)?.toInt() ?? 3,
       availableDates: ((json['availableDates'] as List?) ?? const [])
@@ -204,7 +204,7 @@ class WalkerModel {
       isTopWalker: json['isTopWalker'] == true,
       isBoosted: json['isBoosted'] == true,
       boostTier: json['boostTier'] as String?,
-      mapBoostExpiry: _parseDate(json['mapBoostExpiry']),
+      mapBoostExpiry: parseDate(json['mapBoostExpiry']),
       completedWalksCount: (json['completedWalksCount'] as num?)?.toInt() ?? 0,
       averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       currency: _parseCurrency(json['currency']),

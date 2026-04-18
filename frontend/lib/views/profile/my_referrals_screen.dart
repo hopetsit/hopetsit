@@ -97,7 +97,7 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
                   label: Text('referrals_share'.tr),
                   onPressed: () {
                     final msg = 'referrals_share_text'.trParams({'code': _code});
-                    Share.share(msg);
+                    SharePlus.instance.share(ShareParams(text: msg));
                   },
                 ),
                 const SizedBox(height: 24),

@@ -91,7 +91,7 @@ class CreatePetProfileScreen extends StatelessWidget {
                   color: AppColors.card(context),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     )
@@ -445,13 +445,13 @@ class CreatePetProfileScreen extends StatelessWidget {
                                       vertical: 8.h,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primaryColor.withOpacity(
+                                      color: AppColors.primaryColor.withValues(alpha: 
                                         0.1,
                                       ),
                                       borderRadius: BorderRadius.circular(8.r),
                                       border: Border.all(
                                         color: AppColors.primaryColor
-                                            .withOpacity(0.3),
+                                            .withValues(alpha: 0.3),
                                       ),
                                     ),
                                     child: Row(
@@ -543,13 +543,13 @@ class CreatePetProfileScreen extends StatelessWidget {
                                       vertical: 8.h,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primaryColor.withOpacity(
+                                      color: AppColors.primaryColor.withValues(alpha: 
                                         0.1,
                                       ),
                                       borderRadius: BorderRadius.circular(8.r),
                                       border: Border.all(
                                         color: AppColors.primaryColor
-                                            .withOpacity(0.3),
+                                            .withValues(alpha: 0.3),
                                       ),
                                     ),
                                     child: Row(

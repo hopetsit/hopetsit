@@ -1,4 +1,3 @@
-import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -431,7 +430,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                   Container(
                                     padding: EdgeInsets.all(6.w),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primaryColor.withOpacity(
+                                      color: AppColors.primaryColor.withValues(alpha: 
                                         0.1,
                                       ),
                                       borderRadius: BorderRadius.circular(6.r),
@@ -503,34 +502,34 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
     switch (statusLower) {
       case 'available':
       case 'online':
-        backgroundColor = AppColors.greenColor.withOpacity(0.1);
+        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
         textColor = AppColors.greenColor;
         icon = Icons.check_circle;
         break;
       case 'cancelled':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.cancel;
         break;
       case 'rejected':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.close_rounded;
         break;
       case 'pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.timer;
         break;
       case 'agreed':
       case 'paid':
       case 'accepted':
-        backgroundColor = AppColors.greenColor.withOpacity(0.1);
+        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
         textColor = AppColors.greenColor;
         icon = Icons.check_circle;
         break;
       default:
-        backgroundColor = AppColors.greyColor.withOpacity(0.1);
+        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
         textColor = AppColors.greyColor;
         icon = Icons.info;
     }
@@ -633,7 +632,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 12.w),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.08),
+                  color: AppColors.primaryColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Row(
@@ -708,7 +707,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                   padding: EdgeInsets.symmetric(vertical: 12.h),
                   decoration: BoxDecoration(
                     color: _isAccepting
-                        ? AppColors.primaryColor.withOpacity(0.7)
+                        ? AppColors.primaryColor.withValues(alpha: 0.7)
                         : AppColors.primaryColor,
                     borderRadius: BorderRadius.circular(48.r),
                   ),

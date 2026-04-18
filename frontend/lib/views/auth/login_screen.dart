@@ -53,7 +53,7 @@ class LoginScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: isDark
                                   ? AppColors.surfaceDark
-                                  : AppColors.grey300Color.withOpacity(0.5),
+                                  : AppColors.grey300Color.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(12.r),
                             ),
                             child: Icon(
@@ -72,7 +72,7 @@ class LoginScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: isDark
                                   ? AppColors.surfaceDark
-                                  : AppColors.grey300Color.withOpacity(0.5),
+                                  : AppColors.grey300Color.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(12.r),
                             ),
                             child: Icon(
@@ -96,13 +96,13 @@ class LoginScreen extends StatelessWidget {
                           gradient: LinearGradient(
                             colors: [
                               AppColors.primaryColor,
-                              AppColors.primaryColor.withOpacity(0.8),
+                              AppColors.primaryColor.withValues(alpha: 0.8),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(20.r),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primaryColor.withOpacity(0.3),
+                              color: AppColors.primaryColor.withValues(alpha: 0.3),
                               blurRadius: 16,
                               offset: const Offset(0, 6),
                             ),
@@ -298,7 +298,7 @@ class LoginScreen extends StatelessWidget {
             () => controller.isSocialLoginLoading.value
                 ? Positioned.fill(
                     child: Container(
-                      color: AppColors.blackColor.withOpacity(0.3),
+                      color: AppColors.blackColor.withValues(alpha: 0.3),
                       child: Center(
                         child: CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(

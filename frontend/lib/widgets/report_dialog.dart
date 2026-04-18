@@ -60,26 +60,28 @@ class ReportDialog {
                 ),
                 SizedBox(height: 8.h),
                 Obx(
-                  () => Column(
-                    children: reasons.map((r) {
-                      return RadioListTile<String>(
-                        value: r.key,
-                        groupValue: reason.value,
-                        onChanged: (v) {
-                          if (v != null) reason.value = v;
-                        },
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        activeColor: AppColors.primaryColor,
-                        title: Text(
-                          r.value,
-                          style: TextStyle(
-                            color: AppColors.textPrimary(context),
-                            fontSize: 13,
+                  () => RadioGroup<String>(
+                    groupValue: reason.value,
+                    onChanged: (v) {
+                      if (v != null) reason.value = v;
+                    },
+                    child: Column(
+                      children: reasons.map((r) {
+                        return RadioListTile<String>(
+                          value: r.key,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: AppColors.primaryColor,
+                          title: Text(
+                            r.value,
+                            style: TextStyle(
+                              color: AppColors.textPrimary(context),
+                              fontSize: 13,
+                            ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
                 TextField(

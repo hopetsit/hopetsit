@@ -25,7 +25,7 @@ Widget sitterBottomSheet(
             children: [
               CircleAvatar(
                 radius: 30.r,
-                backgroundColor: AppColors.greyColor.withOpacity(0.2),
+                backgroundColor: AppColors.greyColor.withValues(alpha: 0.2),
                 backgroundImage: sitter.avatar.url.isNotEmpty
                     ? NetworkImage(sitter.avatar.url)
                     : null,

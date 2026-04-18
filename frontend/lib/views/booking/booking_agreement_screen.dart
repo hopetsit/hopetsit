@@ -379,7 +379,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                     Container(
                       padding: EdgeInsets.all(16.w),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12.r),
                         border: Border.all(color: Colors.green, width: 1),
                       ),
@@ -405,7 +405,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                     Container(
                       padding: EdgeInsets.all(16.w),
                       decoration: BoxDecoration(
-                        color: AppColors.greyColor.withOpacity(0.1),
+                        color: AppColors.greyColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12.r),
                         border: Border.all(
                           color: AppColors.greyColor,
@@ -435,7 +435,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                     Container(
                       padding: EdgeInsets.all(16.w),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.1),
+                        color: AppColors.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12.r),
                         border: Border.all(
                           color: AppColors.primaryColor,
@@ -490,43 +490,43 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
 
     switch (primaryStatus) {
       case 'pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.pending;
         displayText = 'status_pending_label'.tr.toUpperCase();
         break;
       case 'agreed':
-        backgroundColor = AppColors.primaryColor.withOpacity(0.1);
+        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.check_circle;
         displayText = 'status_agreed_label'.tr.toUpperCase();
         break;
       case 'paid':
-        backgroundColor = Colors.green.withOpacity(0.1);
+        backgroundColor = Colors.green.withValues(alpha: 0.1);
         textColor = Colors.green;
         icon = Icons.check_circle_outline;
         displayText = 'status_paid_label'.tr.toUpperCase();
         break;
       case 'payment_pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.hourglass_empty;
         displayText = 'status_payment_pending_label'.tr.toUpperCase();
         break;
       case 'payment_failed':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.error_outline;
         displayText = 'status_payment_failed_label'.tr.toUpperCase();
         break;
       case 'cancelled':
-        backgroundColor = AppColors.greyColor.withOpacity(0.1);
+        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
         textColor = AppColors.greyColor;
         icon = Icons.cancel;
         displayText = 'status_cancelled_label'.tr.toUpperCase();
         break;
       default:
-        backgroundColor = AppColors.primaryColor.withOpacity(0.1);
+        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.info;
         displayText = statusLower.toUpperCase();

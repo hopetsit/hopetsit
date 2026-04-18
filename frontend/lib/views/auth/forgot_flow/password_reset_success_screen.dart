@@ -61,7 +61,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                     height: 120.h,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primaryColor.withOpacity(0.1),
+                      color: AppColors.primaryColor.withValues(alpha: 0.1),
                     ),
                     child: Icon(
                       Icons.check_circle,
@@ -138,7 +138,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                     color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
-                      color: const Color(0xFFFFBC11).withOpacity(0.2),
+                      color: const Color(0xFFFFBC11).withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
@@ -180,7 +180,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
           height: 48.h,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.primaryColor.withOpacity(0.1),
+            color: AppColors.primaryColor.withValues(alpha: 0.1),
           ),
           child: Icon(icon, color: AppColors.primaryColor, size: 24.sp),
         ),

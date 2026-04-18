@@ -131,7 +131,7 @@ class ChatAccessUpsellHelper {
           width: 34.w,
           height: 34.w,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10.r),
           ),
           child: Icon(icon, size: 18.sp, color: color),

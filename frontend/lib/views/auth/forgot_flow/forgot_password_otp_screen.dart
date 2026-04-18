@@ -25,7 +25,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
         fontWeight: FontWeight.w500,
       ),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.textSecondary(context).withOpacity(0.2)),
+        border: Border.all(color: AppColors.textSecondary(context).withValues(alpha: 0.2)),
         borderRadius: BorderRadius.circular(16.r),
         color: AppColors.card(context),
       ),
@@ -36,7 +36,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
         border: Border.all(color: AppColors.primaryColor),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryColor.withOpacity(0.1),
+            color: AppColors.primaryColor.withValues(alpha: 0.1),
             blurRadius: 8.r,
             spreadRadius: 2.r,
           ),
@@ -47,7 +47,7 @@ class ForgotPasswordOtpScreen extends StatelessWidget {
     final submittedPinTheme = defaultPinTheme.copyWith(
       decoration: defaultPinTheme.decoration!.copyWith(
         border: Border.all(color: AppColors.primaryColor),
-        color: AppColors.primaryColor.withOpacity(0.05),
+        color: AppColors.primaryColor.withValues(alpha: 0.05),
       ),
     );
 

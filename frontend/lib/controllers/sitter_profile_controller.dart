@@ -63,6 +63,13 @@ class SitterProfileController extends GetxController {
 
   /// Loads the current sitter's profile from the API.
   /// Uses GET /sitters/{id} to fetch the logged-in sitter's profile.
+  ///
+  /// When the logged-in user is a Walker (Promeneur), we skip this call
+  /// entirely because the `/sitters/{id}` endpoint returns 404 for walkers.
+  /// The walker flow reuses several sitter screens (feed, chat, etc.) so
+  /// this controller can still be mounted — we just leave its observables
+  /// empty instead of triggering a spurious "Échec du chargement du profil"
+  /// snackbar.
   Future<void> loadMyProfile() async {
     isLoading.value = true;
 
@@ -75,6 +82,20 @@ class SitterProfileController extends GetxController {
 
       if (sitterId == null || sitterId.isEmpty) {
         await AuthController.handleLoginRequiredError();
+        return;
+      }
+
+      // Short-circuit for walkers — they don't have a sitter profile.
+      final role = userProfile?['role']?.toString().toLowerCase() ?? '';
+      if (role == 'walker') {
+        AppLogger.logDebug(
+          'SitterProfileController.loadMyProfile: skipping — user role is walker',
+        );
+        // Seed display name/email from the stored user profile so app bars
+        // have something to show.
+        userName.value = userProfile?['name']?.toString() ?? '';
+        email.value = userProfile?['email']?.toString() ?? '';
+        phoneNumber.value = userProfile?['mobile']?.toString() ?? '';
         return;
       }
 
@@ -185,6 +206,7 @@ class SitterProfileController extends GetxController {
     blockedUsers.value = [
       BlockedUser(
         id: '1',
+        sitterId: 'sitter_1',
         name: 'Darlene Robertson',
         company: 'Pet Owner',
         profileImage: AppImages.placeholderImage,
@@ -192,6 +214,7 @@ class SitterProfileController extends GetxController {
       ),
       BlockedUser(
         id: '2',
+        sitterId: 'sitter_2',
         name: 'John Smith',
         company: 'Pet Owner',
         profileImage: AppImages.placeholderImage,
@@ -199,6 +222,7 @@ class SitterProfileController extends GetxController {
       ),
       BlockedUser(
         id: '3',
+        sitterId: 'sitter_3',
         name: 'Sarah Johnson',
         company: 'Pet Owner',
         profileImage: AppImages.placeholderImage,
@@ -206,6 +230,7 @@ class SitterProfileController extends GetxController {
       ),
       BlockedUser(
         id: '4',
+        sitterId: 'sitter_4',
         name: 'Michael Brown',
         company: 'Pet Owner',
         profileImage: AppImages.placeholderImage,
@@ -213,6 +238,7 @@ class SitterProfileController extends GetxController {
       ),
       BlockedUser(
         id: '5',
+        sitterId: 'sitter_5',
         name: 'Emily Davis',
         company: 'Pet Owner',
         profileImage: AppImages.placeholderImage,
@@ -220,6 +246,7 @@ class SitterProfileController extends GetxController {
       ),
       BlockedUser(
         id: '6',
+        sitterId: 'sitter_6',
         name: 'David Wilson',
         company: 'Pet Owner',
         profileImage: AppImages.placeholderImage,
@@ -235,6 +262,30 @@ class SitterProfileController extends GetxController {
       title: 'common_success'.tr,
       message: 'blocked_users_unblock_success'.tr,
     );
+  }
+
+  /// Shows the logout confirmation dialog. Mirrors [ProfileController.showLogoutDialog]
+  /// so the sitter profile screen can call the same API on its own controller.
+  void showLogoutDialog(BuildContext context) {
+    CustomConfirmationDialog.show(
+      context: context,
+      message: 'logout_dialog_message'.tr,
+      yesText: 'common_yes'.tr,
+      cancelText: 'common_cancel'.tr,
+      onYes: () async {
+        if (Get.isRegistered<AuthController>()) {
+          final authController = Get.find<AuthController>();
+          await authController.logout();
+        } else {
+          Get.offAll(() => const LoginScreen());
+        }
+      },
+    );
+  }
+
+  /// Navigates to the edit sitter profile screen.
+  void editProfile() {
+    navigateToEditProfile();
   }
 
   void saveBlockedUsers() {
@@ -404,7 +455,7 @@ class SitterProfileController extends GetxController {
 
   void showUnblockUserDialog(
     BuildContext context,
-    String userId,
+    String blockId,
     String userName,
   ) {
     CustomConfirmationDialog.show(
@@ -415,48 +466,8 @@ class SitterProfileController extends GetxController {
       yesText: 'common_yes'.tr,
       cancelText: 'common_cancel'.tr,
       onYes: () {
-        unblockUser(userId);
+        unblockUser(blockId);
       },
     );
   }
-
-  void showLogoutDialog(BuildContext context) {
-    CustomConfirmationDialog.show(
-      context: context,
-      message: 'logout_dialog_message'.tr,
-      yesText: 'common_yes'.tr,
-      cancelText: 'common_cancel'.tr,
-      onYes: () async {
-        // Get AuthController and call logout
-        if (Get.isRegistered<AuthController>()) {
-          final authController = Get.find<AuthController>();
-          await authController.logout();
-        } else {
-          // Fallback: navigate to login if AuthController is not registered
-          Get.offAll(() => const LoginScreen());
-        }
-      },
-    );
-  }
-
-  void editProfile() {
-    navigateToEditProfile();
-  }
-}
-
-// BlockedUser model
-class BlockedUser {
-  final String id;
-  final String name;
-  final String company;
-  final String profileImage;
-  final DateTime blockedAt;
-
-  BlockedUser({
-    required this.id,
-    required this.name,
-    required this.company,
-    required this.profileImage,
-    required this.blockedAt,
-  });
 }

@@ -18,33 +18,30 @@ class ChooseServiceScreen extends StatelessWidget {
     this.isFromProfile = false,
   });
 
-  /// Map service value to a Material icon
+  /// Map service value to a Material icon (session avril 2026 — 3 services).
   IconData _serviceIcon(String value) {
     switch (value) {
       case 'dog_walking':
-        return Icons.pets_rounded;
+        return Icons.directions_walk_rounded;
       case 'pet_sitting':
-        return Icons.home_rounded;
-      case 'house_sitting':
-        return Icons.house_rounded;
+        return Icons.nights_stay_rounded;
       case 'day_care':
-        return Icons.child_care_rounded;
+        return Icons.wb_sunny_rounded;
       default:
         return Icons.miscellaneous_services_rounded;
     }
   }
 
-  /// Map service value to an accent color
+  /// Map service value to an accent color — palette cohérente avec les
+  /// marqueurs PawMap et les cartes Boost.
   Color _serviceColor(String value) {
     switch (value) {
       case 'dog_walking':
-        return const Color(0xFF4CAF50);
+        return const Color(0xFF4CAF50); // vert — walker
       case 'pet_sitting':
-        return const Color(0xFF2196F3);
-      case 'house_sitting':
-        return const Color(0xFF9C27B0);
+        return const Color(0xFF1A73E8); // bleu — sitter premium
       case 'day_care':
-        return const Color(0xFFFF9800);
+        return const Color(0xFFFF9800); // orange — jour
       default:
         return AppColors.primaryColor;
     }
@@ -127,7 +124,7 @@ class ChooseServiceScreen extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withOpacity(0.1),
+                    color: AppColors.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: PoppinsText(
@@ -182,7 +179,7 @@ class ChooseServiceScreen extends StatelessWidget {
                               padding: EdgeInsets.all(16.w),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? color.withOpacity(0.06)
+                                    ? color.withValues(alpha: 0.06)
                                     : AppColors.card(context),
                                 borderRadius: BorderRadius.circular(16.r),
                                 border: Border.all(
@@ -192,7 +189,7 @@ class ChooseServiceScreen extends StatelessWidget {
                                 boxShadow: isSelected
                                     ? [
                                         BoxShadow(
-                                          color: color.withOpacity(0.15),
+                                          color: color.withValues(alpha: 0.15),
                                           blurRadius: 12,
                                           offset: const Offset(0, 4),
                                         ),
@@ -207,14 +204,14 @@ class ChooseServiceScreen extends StatelessWidget {
                                     height: 52.w,
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? color.withOpacity(0.15)
-                                          : color.withOpacity(0.08),
+                                          ? color.withValues(alpha: 0.15)
+                                          : color.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(14.r),
                                     ),
                                     child: Icon(
                                       icon,
                                       size: 26.sp,
-                                      color: isSelected ? color : color.withOpacity(0.6),
+                                      color: isSelected ? color : color.withValues(alpha: 0.6),
                                     ),
                                   ),
                                   SizedBox(width: 14.w),
@@ -252,7 +249,7 @@ class ChooseServiceScreen extends StatelessWidget {
                                       shape: BoxShape.circle,
                                       color: isSelected ? color : Colors.transparent,
                                       border: Border.all(
-                                        color: isSelected ? color : AppColors.greyColor.withOpacity(0.3),
+                                        color: isSelected ? color : AppColors.greyColor.withValues(alpha: 0.3),
                                         width: 2,
                                       ),
                                     ),

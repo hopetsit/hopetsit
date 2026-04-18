@@ -22,7 +22,9 @@ class LoyaltyController extends GetxController {
     try {
       final r = await _api.get(ApiEndpoints.myLoyalty, requiresAuth: true);
       if (r is Map) {
-        completedBookingsCount.value = (r['completedBookingsCount'] ?? 0) as int;
+        // Backend may return counts as double — coerce via num.
+        completedBookingsCount.value =
+            ((r['completedBookingsCount'] ?? 0) as num).toInt();
         isPremium.value = r['isPremium'] == true;
         hasDiscountAvailable.value = r['hasDiscountAvailable'] == true;
         availableCreditsTotal.value =

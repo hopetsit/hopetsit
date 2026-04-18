@@ -226,7 +226,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               width: 38.w,
               height: 38.w,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10.r),
               ),
               child: Icon(icon, size: 18.sp, color: color),
@@ -286,7 +286,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.2) : AppColors.primaryColor.withOpacity(0.1),
+                  color: isSelected ? Colors.white.withValues(alpha: 0.2) : AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: InterText(
@@ -326,7 +326,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               Icon(
                 Icons.inbox_rounded,
                 size: 48.sp,
-                color: AppColors.greyColor.withOpacity(0.4),
+                color: AppColors.greyColor.withValues(alpha: 0.4),
               ),
               SizedBox(height: 12.h),
               InterText(
@@ -370,8 +370,8 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
                         padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
                         decoration: BoxDecoration(
                           color: item.type == 'application'
-                              ? const Color(0xFF1A73E8).withOpacity(0.1)
-                              : AppColors.primaryColor.withOpacity(0.1),
+                              ? const Color(0xFF1A73E8).withValues(alpha: 0.1)
+                              : AppColors.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6.r),
                         ),
                         child: InterText(
@@ -438,6 +438,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
         if (bookingJson is Map) {
           try {
             booking = BookingModel.fromJson(
+              // ignore: unnecessary_cast
               Map<String, dynamic>.from(bookingJson as Map),
             );
           } catch (e) {
@@ -670,9 +671,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
       if (mounted) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: e.toString().contains('Exception')
-              ? e.toString().split(':').last.trim()
-              : 'Failed to start conversation. Please try again.',
+          message: 'snackbar_text_failed_to_start_conversation_please_try_again'.tr,
         );
       }
     }

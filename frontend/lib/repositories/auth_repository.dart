@@ -1,4 +1,5 @@
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 
@@ -231,11 +232,11 @@ class AuthRepository {
     final body = <String, dynamic>{'idToken': idToken};
     if (role != null && role.isNotEmpty) {
       body['role'] = role;
-      print(
+      debugPrint(
         '[HOPETSIT] Google sign-in API: Including role=$role in request body',
       );
     } else {
-      print('[HOPETSIT] Google sign-in API: No role provided');
+      debugPrint('[HOPETSIT] Google sign-in API: No role provided');
     }
 
     final response = await _apiClient.post(

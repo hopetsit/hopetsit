@@ -180,7 +180,7 @@ class SitterChatController extends GetxController {
       errorMessage.value = e.toString();
       // Fallback to empty list on error
       conversations.value = [];
-      print('Error loading conversations: $e');
+      debugPrint('Error loading conversations: $e');
     } finally {
       isLoading.value = false;
     }
@@ -293,8 +293,8 @@ class SitterChatController extends GetxController {
 
     // Extract unread count
     final unreadCount = data['unreadCount'] is int
-        ? data['unreadCount'] as int
-        : (data['unread'] is int ? data['unread'] as int : 0);
+        ? ((data['unreadCount'] ?? 0) as num).toInt()
+        : (data['unread'] is num ? (data['unread'] as num).toInt() : 0);
 
     return SitterChatConversation(
       id: id,
@@ -603,7 +603,7 @@ class SitterChatController extends GetxController {
     }
 
     AppLogger.logDebug(
-      'Extracted ${attachments.length} attachments for message ${id}',
+      'Extracted ${attachments.length} attachments for message $id',
     );
     if (attachments.isNotEmpty) {
       AppLogger.logDebug('Attachment URLs: $attachments');
@@ -624,7 +624,9 @@ class SitterChatController extends GetxController {
   /// Sprint 3 step 6 — share sitter's profile phone via the dedicated endpoint.
   /// Reloads messages on success so the new phone_share appears in the thread.
   Future<void> sharePhone() async {
-    if (currentChatId.value.isEmpty) return;
+    if (currentChatId.value.isEmpty) {
+      return;
+    }
     try {
       await _chatRepository.sharePhone(conversationId: currentChatId.value);
       await loadChatMessages(currentChatId.value);
@@ -634,9 +636,12 @@ class SitterChatController extends GetxController {
   }
 
   Future<void> sendMessage() async {
-    if (messageController.text.trim().isEmpty && selectedAttachments.isEmpty)
+    if (messageController.text.trim().isEmpty && selectedAttachments.isEmpty) {
       return;
-    if (currentChatId.value.isEmpty) return;
+    }
+    if (currentChatId.value.isEmpty) {
+      return;
+    }
 
     final messageText = messageController.text.trim();
     final tempId = DateTime.now().millisecondsSinceEpoch.toString();

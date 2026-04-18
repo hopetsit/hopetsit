@@ -71,7 +71,7 @@ class StripePaymentScreen extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.all(16.w),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.1),
+                        color: AppColors.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Row(
@@ -114,7 +114,7 @@ class StripePaymentScreen extends StatelessWidget {
                       ? () => controller.initiatePayment()
                       : null,
                   bgColor: controller.isProcessing.value
-                      ? AppColors.primaryColor.withOpacity(0.7)
+                      ? AppColors.primaryColor.withValues(alpha: 0.7)
                       : AppColors.primaryColor,
                   textColor: AppColors.whiteColor,
                   height: 48.h,

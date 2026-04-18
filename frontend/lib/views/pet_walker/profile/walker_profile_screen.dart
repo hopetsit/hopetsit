@@ -47,7 +47,7 @@ class WalkerProfileScreen extends StatelessWidget {
 
   // Walker accent = green. Light variant used for icon chip backgrounds.
   static const Color _accent = AppColors.greenColor;
-  static final Color _accentLight = AppColors.greenColor.withOpacity(0.12);
+  static final Color _accentLight = AppColors.greenColor.withValues(alpha: 0.12);
 
   ProfileController _profileController() {
     return Get.isRegistered<ProfileController>()
@@ -156,7 +156,7 @@ class WalkerProfileScreen extends StatelessWidget {
                             vertical: 4.h,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20.r),
                           ),
                           child: Row(
@@ -193,7 +193,7 @@ class WalkerProfileScreen extends StatelessWidget {
                               text: controller.email.value,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w400,
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             )),
@@ -209,13 +209,13 @@ class WalkerProfileScreen extends StatelessWidget {
                                 vertical: 2.h,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
+                                color: Colors.white.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4.r),
                               ),
                               child: InterText(
                                 text: 'Promenade',
                                 fontSize: 10.sp,
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -245,7 +245,7 @@ class WalkerProfileScreen extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 10,
                   offset: const Offset(0, 3),
                 ),
@@ -459,7 +459,7 @@ class WalkerProfileScreen extends StatelessWidget {
               width: 42.w,
               height: 42.w,
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.12),
+                color: accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(Icons.pets_rounded, size: 22.sp, color: accentColor),
@@ -544,6 +544,7 @@ class WalkerProfileScreen extends StatelessWidget {
                     ? null
                     : () async {
                         await auth.switchRole(targetRole: targetRole);
+                        if (!dialogContext.mounted) return;
                         if (Get.isDialogOpen == true) {
                           Navigator.of(dialogContext).pop();
                         }
@@ -727,37 +728,36 @@ class WalkerProfileScreen extends StatelessWidget {
           margin: EdgeInsets.only(bottom: 6.h),
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
           decoration: BoxDecoration(
-            color: AppColors.card(context),
+            color: AppColors.errorColor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(14.r),
-            boxShadow: AppColors.cardShadow(context),
             border: Border.all(
-              color: AppColors.errorColor.withOpacity(0.3),
+              color: AppColors.errorColor.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
           child: Row(
             children: [
               Container(
-                width: 34.w,
-                height: 34.w,
+                width: 36.w,
+                height: 36.w,
                 decoration: BoxDecoration(
-                  color: AppColors.errorColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(9.r),
+                  color: AppColors.errorColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(icon, size: 16.sp, color: AppColors.errorColor),
+                child: Icon(icon, size: 20.sp, color: AppColors.errorColor),
               ),
               SizedBox(width: 12.w),
               Expanded(
                 child: InterText(
                   text: title,
                   fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.errorColor,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
               Icon(
-                Icons.arrow_forward_ios,
-                size: 14.sp,
+                Icons.chevron_right_rounded,
+                size: 20.sp,
                 color: AppColors.errorColor,
               ),
             ],
@@ -768,35 +768,33 @@ class WalkerProfileScreen extends StatelessWidget {
   }
 
   void _showThemeDialog() {
-    final tc = Get.isRegistered<ThemeController>()
-        ? Get.find<ThemeController>()
-        : Get.put(ThemeController(), permanent: true);
+    final tc = Get.find<ThemeController>();
     Get.dialog(
       AlertDialog(
         title: Text('theme_setting_title'.tr),
         content: Obx(
-          () => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<ThemeMode>(
-                title: Text('theme_light'.tr),
-                value: ThemeMode.light,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-              RadioListTile<ThemeMode>(
-                title: Text('theme_dark'.tr),
-                value: ThemeMode.dark,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-              RadioListTile<ThemeMode>(
-                title: Text('theme_system'.tr),
-                value: ThemeMode.system,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-            ],
+          () => RadioGroup<ThemeMode>(
+            groupValue: tc.themeMode.value,
+            onChanged: (v) {
+              if (v != null) tc.setMode(v);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_light'.tr),
+                  value: ThemeMode.light,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_dark'.tr),
+                  value: ThemeMode.dark,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_system'.tr),
+                  value: ThemeMode.system,
+                ),
+              ],
+            ),
           ),
         ),
         actions: [

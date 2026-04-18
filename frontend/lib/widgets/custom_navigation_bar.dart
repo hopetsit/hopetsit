@@ -29,7 +29,7 @@ class CustomNavigationBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -64,7 +64,7 @@ class CustomNavigationBar extends StatelessWidget {
     final isSelected = currentIndex == index;
     final activeColor = AppColors.primaryColor;
     final inactiveColor = isDark
-        ? Colors.white.withOpacity(0.45)
+        ? Colors.white.withValues(alpha: 0.45)
         : const Color(0xFF9E9E9E);
 
     return GestureDetector(
@@ -154,14 +154,14 @@ class CustomNavigationBar extends StatelessWidget {
           gradient: LinearGradient(
             colors: isSelected
                 ? [AppColors.primaryColor, const Color(0xFFFF6B4A)]
-                : [AppColors.primaryColor.withOpacity(0.85), AppColors.primaryColor],
+                : [AppColors.primaryColor.withValues(alpha: 0.85), AppColors.primaryColor],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryColor.withOpacity(0.35),
+              color: AppColors.primaryColor.withValues(alpha: 0.35),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

@@ -1,0 +1,19 @@
+Analyzing frontend...                                           
+
+   info - Statements in an if should be enclosed in a block - lib\controllers\chat_controller.dart:638:7 - curly_braces_in_flow_control_structures
+   info - Unnecessary 'this.' qualifier - lib\controllers\choose_service_controller.dart:415:51 - unnecessary_this
+   info - Unnecessary 'this.' qualifier - lib\controllers\choose_service_controller.dart:466:51 - unnecessary_this
+   info - The member 'refresh' overrides an inherited member but isn't annotated with '@override' - lib\controllers\friend_controller.dart:19:16 - annotate_overrides
+warning - The value of the field '_repositoryField' isn't used - lib\controllers\notifications_controller.dart:15:33 - unused_field
+   info - Statements in an if should be enclosed in a block - lib\controllers\sitter_chat_controller.dart:640:7 - curly_braces_in_flow_control_structures
+warning - The value of the local variable 'text' isn't used - lib\views\map\paw_map_screen.dart:1368:18 - unused_local_variable
+warning - The declaration '_postHasDisplayableMedia' isn't referenced - lib\views\pet_owner\home\home_screen.dart:99:15 - unused_element
+warning - The declaration '_buildHouseSittingVenueSection' isn't referenced - lib\views\pet_owner\reservation_request\publish_reservation_request_screen.dart:1054:10 - unused_element
+warning - Unused import: 'package:hopetsit/repositories/owner_repository.dart' - lib\views\pet_sitter\home\sitter_homescreen.dart:11:8 - unused_import
+   info - 'timeLimit' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\views\pet_sitter\home\sitter_homescreen.dart:73:9 - deprecated_member_use
+warning - Unused import: 'package:hopetsit/widgets/custom_confirmation_dialog.dart' - lib\views\pet_sitter\profile\sitter_profile_screen.dart:10:8 - unused_import
+warning - A value for optional parameter 'context' isn't ever given - lib\views\pet_sitter\widgets\pet_sitter_request_card.dart:198:91 - unused_element_parameter
+   info - The 'child' argument should be last in widget constructor invocations - lib\views\profile\add_card_screen.dart:115:19 - sort_child_properties_last
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\views\service_provider\service_provider_detail_screen.dart:227:12 - sized_box_for_whitespace
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\views\service_provider\service_provider_detail_screen.dart:233:11 - sized_box_for_whitespace
+

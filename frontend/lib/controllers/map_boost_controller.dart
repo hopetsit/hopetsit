@@ -85,6 +85,8 @@ class MapBoostController extends GetxController {
     await loadPackages();
   }
 
+  @override
+
   Future<void> refresh() async {
     isLoading.value = true;
     try {

@@ -207,7 +207,7 @@ class MyPetsScreen extends StatelessWidget {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.6),
+                          Colors.black.withValues(alpha: 0.6),
                         ],
                       ),
                     ),
@@ -269,7 +269,7 @@ class MyPetsScreen extends StatelessWidget {
                                       vertical: 3.h,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.whiteColor.withOpacity(
+                                      color: AppColors.whiteColor.withValues(alpha: 
                                         0.3,
                                       ),
                                       borderRadius: BorderRadius.circular(16.r),
@@ -303,7 +303,7 @@ class MyPetsScreen extends StatelessWidget {
                         child: Container(
                           padding: EdgeInsets.all(8.w),
                           decoration: BoxDecoration(
-                            color: AppColors.whiteColor.withOpacity(0.9),
+                            color: AppColors.whiteColor.withValues(alpha: 0.9),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -412,7 +412,7 @@ class MyPetsScreen extends StatelessWidget {
                   Container(
                     padding: EdgeInsets.all(10.w),
                     decoration: BoxDecoration(
-                      color: AppColors.lightGrey.withOpacity(0.5),
+                      color: AppColors.lightGrey.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: InterText(
@@ -488,10 +488,10 @@ class MyPetsScreen extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.all(10.w),
                       decoration: BoxDecoration(
-                        color: AppColors.errorColor.withOpacity(0.1),
+                        color: AppColors.errorColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8.r),
                         border: Border.all(
-                          color: AppColors.errorColor.withOpacity(0.3),
+                          color: AppColors.errorColor.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -542,10 +542,10 @@ class MyPetsScreen extends StatelessWidget {
                             vertical: 5.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withOpacity(0.1),
+                            color: AppColors.primaryColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16.r),
                             border: Border.all(
-                              color: AppColors.primaryColor.withOpacity(0.3),
+                              color: AppColors.primaryColor.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -583,7 +583,7 @@ class MyPetsScreen extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: AppColors.lightGrey.withOpacity(0.5),
+        color: AppColors.lightGrey.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8.r),
       ),
       child: Row(

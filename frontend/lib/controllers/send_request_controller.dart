@@ -245,7 +245,9 @@ class SendRequestController extends GetxController {
 
   /// Formats selected date to display format (e.g., "Thu, Apr 25, 2024")
   String get formattedDate {
-    if (selectedDate.value == null) return '';
+    if (selectedDate.value == null) {
+      return '';
+    }
     return _formatDate(selectedDate.value!);
   }
 
@@ -298,7 +300,9 @@ class SendRequestController extends GetxController {
 
   /// Combines date and time into a single DateTime object
   DateTime? _combineDateTime(DateTime? date, TimeOfDay? time) {
-    if (date == null || time == null) return null;
+    if (date == null || time == null) {
+      return null;
+    }
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
@@ -483,7 +487,7 @@ class SendRequestController extends GetxController {
       }
 
       // Log the booking creation
-      final logData = {
+      final logData = <String, dynamic>{
         'sitterId': serviceProviderId,
         'petIds': petIds,
         'description': descriptionController.text.trim(),
@@ -559,19 +563,27 @@ class SendRequestController extends GetxController {
   /// Returns list of missing required fields for validation
   List<String> _missingFields({bool requireTimeSlot = true}) {
     final missing = <String>[];
-    if (!_petNameHasText.value && selectedPetIds.isEmpty) missing.add('Pets');
-    if (!_descriptionHasText.value) missing.add('Description');
-    if (startDate.value == null && selectedDate.value == null)
+    if (!_petNameHasText.value && selectedPetIds.isEmpty) {
+      missing.add('Pets');
+    }
+    if (!_descriptionHasText.value) {
+      missing.add('Description');
+    }
+    if (startDate.value == null && selectedDate.value == null) {
       missing.add('Start date');
+    }
     if (requireTimeSlot &&
         startTime.value == null &&
-        (selectedTimeSlot.value == null || selectedTimeSlot.value!.isEmpty))
+        (selectedTimeSlot.value == null || selectedTimeSlot.value!.isEmpty)) {
       missing.add('Time');
-    if (selectedServiceType.value == null || selectedServiceType.value!.isEmpty)
+    }
+    if (selectedServiceType.value == null || selectedServiceType.value!.isEmpty) {
       missing.add('Service type');
+    }
     if (selectedServiceType.value == 'dog_walking' &&
-        (selectedDuration.value == null || selectedDuration.value!.isEmpty))
+        (selectedDuration.value == null || selectedDuration.value!.isEmpty)) {
       missing.add('Duration');
+    }
     if (selectedServiceType.value == 'house_sitting' &&
         (houseSittingVenue.value == null || houseSittingVenue.value!.isEmpty)) {
       missing.add('Venue');
@@ -581,10 +593,18 @@ class SendRequestController extends GetxController {
 
   /// Value for legacy `basePrice` on create-booking; tiered totals come from the API response.
   double _referenceRateForBookingPayload(SitterModel? s) {
-    if (s == null) return 0;
-    if (s.hourlyRate > 0) return s.hourlyRate;
-    if (s.weeklyRate > 0) return s.weeklyRate;
-    if (s.monthlyRate > 0) return s.monthlyRate;
+    if (s == null) {
+      return 0;
+    }
+    if (s.hourlyRate > 0) {
+      return s.hourlyRate;
+    }
+    if (s.weeklyRate > 0) {
+      return s.weeklyRate;
+    }
+    if (s.monthlyRate > 0) {
+      return s.monthlyRate;
+    }
     return 0;
   }
 

@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -189,22 +190,26 @@ class _EditPostScreenState extends State<EditPostScreen> {
                 color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 8.h),
-              RadioListTile<String>(
-                value: 'owners_home',
+              RadioGroup<String>(
                 groupValue: _houseSittingVenue,
                 onChanged: (v) => setState(() => _houseSittingVenue = v),
-                title: InterText(
-                  text: 'house_sitting_venue_owner_home'.tr,
-                  fontSize: 13.sp,
-                ),
-              ),
-              RadioListTile<String>(
-                value: 'sitters_home',
-                groupValue: _houseSittingVenue,
-                onChanged: (v) => setState(() => _houseSittingVenue = v),
-                title: InterText(
-                  text: 'house_sitting_venue_sitter_home'.tr,
-                  fontSize: 13.sp,
+                child: Column(
+                  children: [
+                    RadioListTile<String>(
+                      value: 'owners_home',
+                      title: InterText(
+                        text: 'house_sitting_venue_owner_home'.tr,
+                        fontSize: 13.sp,
+                      ),
+                    ),
+                    RadioListTile<String>(
+                      value: 'sitters_home',
+                      title: InterText(
+                        text: 'house_sitting_venue_sitter_home'.tr,
+                        fontSize: 13.sp,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               SizedBox(height: 24.h),

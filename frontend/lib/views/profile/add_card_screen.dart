@@ -112,6 +112,16 @@ class AddCardScreen extends StatelessWidget {
               padding: EdgeInsets.all(20.w),
               child: Obx(
                 () => CustomButton(
+                  title: controller.isLoading.value ? null : 'common_save'.tr,
+                  onTap: !controller.isLoading.value
+                      ? () => controller.saveCard()
+                      : null,
+                  bgColor: controller.isLoading.value
+                      ? AppColors.primaryColor.withValues(alpha: 0.7)
+                      : AppColors.primaryColor,
+                  textColor: AppColors.whiteColor,
+                  height: 48.h,
+                  radius: 48.r,
                   child: controller.isLoading.value
                       ? SizedBox(
                           height: 20.h,
@@ -124,16 +134,6 @@ class AddCardScreen extends StatelessWidget {
                           ),
                         )
                       : null,
-                  title: controller.isLoading.value ? null : 'common_save'.tr,
-                  onTap: !controller.isLoading.value
-                      ? () => controller.saveCard()
-                      : null,
-                  bgColor: controller.isLoading.value
-                      ? AppColors.primaryColor.withOpacity(0.7)
-                      : AppColors.primaryColor,
-                  textColor: AppColors.whiteColor,
-                  height: 48.h,
-                  radius: 48.r,
                 ),
               ),
             ),

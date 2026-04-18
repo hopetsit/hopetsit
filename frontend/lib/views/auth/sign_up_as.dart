@@ -116,10 +116,10 @@ class _RoleCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: accentColor.withOpacity(0.4), width: 1.5),
+          border: Border.all(color: accentColor.withValues(alpha: 0.4), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(0.08),
+              color: accentColor.withValues(alpha: 0.08),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -134,7 +134,7 @@ class _RoleCard extends StatelessWidget {
                   width: 96.w,
                   height: 96.h,
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.08),
+                    color: accentColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16.r),
                   ),
                   child: ClipRRect(
@@ -151,8 +151,8 @@ class _RoleCard extends StatelessWidget {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                accentColor.withOpacity(0.25),
-                                accentColor.withOpacity(0.05),
+                                accentColor.withValues(alpha: 0.25),
+                                accentColor.withValues(alpha: 0.05),
                               ],
                             ),
                           ),

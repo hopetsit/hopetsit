@@ -351,8 +351,8 @@ class PayoutStatusScreen extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: isActive
-            ? Colors.green.withOpacity(0.1)
-            : AppColors.greyColor.withOpacity(0.1),
+            ? Colors.green.withValues(alpha: 0.1)
+            : AppColors.greyColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: InterText(

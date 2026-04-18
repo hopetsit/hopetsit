@@ -21,9 +21,9 @@ class OtpVerificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('email: $email');
-    print('verificationType: $verificationType');
-    print('userType: $userType');
+    debugPrint('email: $email');
+    debugPrint('verificationType: $verificationType');
+    debugPrint('userType: $userType');
     // Create a unique tag based on verification type and email
     final tag = '${verificationType.name}_$email';
 
@@ -72,7 +72,7 @@ class OtpVerificationScreen extends StatelessWidget {
 
     return PopScope(
       canPop: true,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           // Clear OTP state when going back
           controller.resetVerificationState();

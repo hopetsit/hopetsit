@@ -272,7 +272,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
         Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(0.1),
+            color: AppColors.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Row(
@@ -378,7 +378,7 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
                   onChanged: (value) {
                     _controller.setAvailability(day, value);
                   },
-                  activeColor: AppColors.primaryColor,
+                  activeThumbColor: AppColors.primaryColor,
                 ),
               ],
             ),

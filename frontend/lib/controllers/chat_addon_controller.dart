@@ -76,6 +76,8 @@ class ChatAddonController extends GetxController {
     await loadPlan();
   }
 
+  @override
+
   Future<void> refresh() async {
     isLoading.value = true;
     try {

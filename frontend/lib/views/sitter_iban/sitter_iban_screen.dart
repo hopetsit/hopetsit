@@ -1,5 +1,6 @@
 /// Sitter IBAN screen — like Vinted payout setup
 /// Sitter enters their bank IBAN → admin verifies → platform pays via bank transfer
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -145,7 +146,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.card(context),
                         borderRadius: BorderRadius.circular(12.r),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,7 +158,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                               Container(
                                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                                 decoration: BoxDecoration(
-                                  color: (_currentIban!['ibanVerified'] == true ? Colors.green : Colors.orange).withOpacity(0.15),
+                                  color: (_currentIban!['ibanVerified'] == true ? Colors.green : Colors.orange).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(20.r),
                                 ),
                                 child: InterText(
@@ -278,7 +279,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
             color: selected ? AppColors.primaryColor : AppColors.card(context),
             borderRadius: BorderRadius.circular(10.r),
             border: Border.all(color: selected ? AppColors.primaryColor : Colors.transparent),
-            boxShadow: selected ? null : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],
+            boxShadow: selected ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
           ),
           child: Column(
             children: [

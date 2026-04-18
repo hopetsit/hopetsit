@@ -207,7 +207,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             child: Container(
               height: 110.h,
               decoration: BoxDecoration(
-                color: AppColors.card(context).withOpacity(0.9),
+                color: AppColors.card(context).withValues(alpha: 0.9),
                 borderRadius: BorderRadius.all(Radius.circular(26.r)),
               ),
               padding: EdgeInsets.all(26.w),
@@ -728,7 +728,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           decoration: BoxDecoration(
             color: _currentPage == index
                 ? AppColors.primaryColor
-                : AppColors.whiteColor.withOpacity(0.5),
+                : AppColors.whiteColor.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(4.r),
           ),
         ),

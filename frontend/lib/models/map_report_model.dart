@@ -84,20 +84,30 @@ class ReportTypes {
   static const String lostPet = 'lost_pet';
   static const String foundPet = 'found_pet';
   static const String other = 'other';
-  // Session v3.2 — 5 nouveaux types Premium.
+  // Session v3.2 — 5 types Premium existants.
   static const String deadAnimal = 'dead_animal';
   static const String trap = 'trap';
   static const String poison = 'poison';
   static const String strayPet = 'stray_pet';
   static const String construction = 'construction';
+  // Session v3.4 — 7 nouveaux types Premium (safety étendu).
+  static const String busyTraffic = 'busy_traffic';
+  static const String fireSmoke = 'fire_smoke';
+  static const String flood = 'flood';
+  static const String fallenTree = 'fallen_tree';
+  static const String chemical = 'chemical';
+  static const String wildlife = 'wildlife';
+  static const String noDogsZone = 'no_dogs_zone';
 
   static const List<String> all = [
+    // Gratuits
+    aggressiveDog,
+    hazard,
+    waterActive,
+    // Premium (existants)
     poop,
     pee,
-    waterActive,
     waterBroken,
-    hazard,
-    aggressiveDog,
     lostPet,
     foundPet,
     other,
@@ -106,19 +116,61 @@ class ReportTypes {
     poison,
     strayPet,
     construction,
+    // Premium (session v3.4)
+    busyTraffic,
+    fireSmoke,
+    flood,
+    fallenTree,
+    chemical,
+    wildlife,
+    noDogsZone,
   ];
 
-  /// Freemium whitelist — mirrors backend `FREE_REPORT_TYPES` (session v3.2).
-  /// Les 3 types community-safety : animal perdu, chien méchant, point d'eau
-  /// actif. found_pet est passé en Premium pour renforcer l'upsell.
+  /// Freemium whitelist — 3 signalements gratuits pour tous les profils
+  /// (owner / sitter / walker). Les autres requièrent Premium.
+  ///   • 😾 Chien agressif — safety communauté.
+  ///   • ⚠️ Danger — zone accidentogène.
+  ///   • 🚰 Point d'eau OK — partage utile aux promeneurs.
   static const List<String> freeTypes = [
-    lostPet,
     aggressiveDog,
+    hazard,
     waterActive,
   ];
 
   /// Returns true if [type] is usable by a free user (no Premium required).
   static bool isFree(String type) => freeTypes.contains(type);
+
+  /// Accent color for each type — used for markers, chips, and tile icons.
+  /// Mirrors the backend palette so badges look identical end-to-end.
+  static int colorArgb(String t) {
+    switch (t) {
+      // FREE
+      case aggressiveDog: return 0xFFD32F2F; // red
+      case hazard:        return 0xFFFF9800; // amber
+      case waterActive:   return 0xFF0288D1; // blue
+      // PREMIUM - existants
+      case poop:          return 0xFF795548; // brown
+      case pee:           return 0xFFFFB300; // yellow
+      case waterBroken:   return 0xFF455A64; // blue grey
+      case lostPet:       return 0xFFEC407A; // pink
+      case foundPet:      return 0xFF43A047; // green
+      case deadAnimal:    return 0xFF424242; // dark grey
+      case trap:          return 0xFF6D4C41; // dark brown
+      case poison:        return 0xFF7B1FA2; // purple
+      case strayPet:      return 0xFF8D6E63; // light brown
+      case construction:  return 0xFFFF7043; // orange
+      // PREMIUM - session v3.4
+      case busyTraffic:   return 0xFFE65100; // deep orange
+      case fireSmoke:     return 0xFFB71C1C; // dark red
+      case flood:         return 0xFF01579B; // dark blue
+      case fallenTree:    return 0xFF2E7D32; // dark green
+      case chemical:      return 0xFFF57F17; // amber dark
+      case wildlife:      return 0xFF5D4037; // brown
+      case noDogsZone:    return 0xFF37474F; // dark blue grey
+      case other:
+      default:            return 0xFF9E9E9E; // neutral grey
+    }
+  }
 
   /// Emoji badge per report type — used as map marker + list icon.
   static String emoji(String t) {
@@ -149,6 +201,21 @@ class ReportTypes {
         return '🐕';
       case construction:
         return '🚧';
+      // Session v3.4 — 7 nouveaux Premium.
+      case busyTraffic:
+        return '🚗';
+      case fireSmoke:
+        return '🔥';
+      case flood:
+        return '🌊';
+      case fallenTree:
+        return '🌳';
+      case chemical:
+        return '🧴';
+      case wildlife:
+        return '🦊';
+      case noDogsZone:
+        return '🚫';
       default:
         return '📍';
     }
@@ -181,41 +248,74 @@ class ReportTypes {
       case strayPet:
         return 'Animal errant';
       case construction:
-        return 'Travaux dangereux';
+        return 'Travaux';
+      // Session v3.4 — 7 nouveaux Premium.
+      case busyTraffic:
+        return 'Circulation dense';
+      case fireSmoke:
+        return 'Incendie / Fumée';
+      case flood:
+        return 'Inondation';
+      case fallenTree:
+        return 'Arbre tombé';
+      case chemical:
+        return 'Produits chimiques';
+      case wildlife:
+        return 'Faune sauvage';
+      case noDogsZone:
+        return 'Zone interdite aux chiens';
+      case other:
       default:
         return 'Autre';
     }
   }
 
-  /// Short 1-line description used in the picker.
+  /// Hint / placeholder text shown under each report type option in the
+  /// CreateReportSheet. Short French description — keep under 80 chars.
   static String hintFr(String t) {
     switch (t) {
       case poop:
-        return 'Déjection à signaler pour qu\'on l\'évite';
+        return 'Tas non ramassé à signaler';
       case pee:
-        return 'Zone de marquage intense';
+        return 'Marquage gênant à éviter';
       case waterActive:
-        return 'Fontaine / point d\'eau en service';
+        return 'Point d\'eau en état de marche';
       case waterBroken:
-        return 'Point d\'eau cassé ou fermé';
+        return 'Fontaine hors service';
       case hazard:
-        return 'Verre, piège, produit dangereux';
+        return 'Zone dangereuse (verre, trou, etc.)';
       case aggressiveDog:
-        return 'Chien non-tenu ou agressif — à éviter';
+        return 'Chien agressif repéré dans le quartier';
       case lostPet:
-        return 'Animal perdu aperçu ici';
+        return 'Animal perdu — aide à la recherche';
       case foundPet:
-        return 'Animal trouvé — contactez-moi';
+        return 'Animal trouvé — en attente de son propriétaire';
       case deadAnimal:
-        return 'Carcasse / animal décédé';
+        return 'Animal décédé sur la voie publique';
       case trap:
-        return 'Piège à animaux installé ici';
+        return 'Piège repéré — attention';
       case poison:
-        return 'Appât suspect — pas laisser approcher';
+        return 'Appât empoisonné — danger immédiat';
       case strayPet:
-        return 'Animal sans collier qui erre';
+        return 'Animal errant sans propriétaire apparent';
       case construction:
-        return 'Zone de travaux à éviter avec ton animal';
+        return 'Zone de travaux à éviter';
+      // Session v3.4 — 7 nouveaux Premium.
+      case busyTraffic:
+        return 'Circulation dense — rester vigilant';
+      case fireSmoke:
+        return 'Incendie ou fumée dense — éviter la zone';
+      case flood:
+        return 'Inondation — passage impraticable';
+      case fallenTree:
+        return 'Arbre tombé sur le chemin';
+      case chemical:
+        return 'Produits chimiques ou résidus dangereux';
+      case wildlife:
+        return 'Faune sauvage aperçue (sanglier, serpent…)';
+      case noDogsZone:
+        return 'Zone interdite aux chiens — amende possible';
+      case other:
       default:
         return 'Autre signalement';
     }

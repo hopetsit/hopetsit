@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
-import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -360,12 +360,12 @@ class PublishReservationRequestController extends GetxController {
     final petId = selectedPetId.value!;
 
     // Combine selected date + time into full DateTime values
-    DateTime _combine(DateTime date, TimeOfDay time) {
+    DateTime combine(DateTime date, TimeOfDay time) {
       return DateTime(date.year, date.month, date.day, time.hour, time.minute);
     }
 
-    final start = _combine(startDate.value!, startTime.value!);
-    final end = _combine(endDate.value!, endTime.value!);
+    final start = combine(startDate.value!, startTime.value!);
+    final end = combine(endDate.value!, endTime.value!);
 
     final services = <String>[
       if (selectedServiceType.value != null &&
@@ -386,11 +386,8 @@ class PublishReservationRequestController extends GetxController {
           serviceTypes: services,
           petId: petId,
           city: city,
-          lat: userLat.value,
-          lng: userLng.value,
-          notes: notes.isEmpty ? null : notes,
+          notes: notes,
           houseSittingVenue: venue,
-          serviceLocation: serviceLocation.value,
         );
       } else {
         await _ownerRepository.createReservationRequestWithMedia(
@@ -400,55 +397,32 @@ class PublishReservationRequestController extends GetxController {
           serviceTypes: services,
           petId: petId,
           city: city,
-          lat: userLat.value,
-          lng: userLng.value,
-          notes: notes.isEmpty ? null : notes,
+          notes: notes,
           houseSittingVenue: venue,
-          serviceLocation: serviceLocation.value,
           imageFiles: imageFiles.toList(),
         );
       }
 
-      clearAll();
-
-      // Reload posts so My Posts screen and feeds see the new reservation
-      if (Get.isRegistered<PostsController>()) {
-        await Get.find<PostsController>().refreshPosts();
-      }
-
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        // Always use app key so success snackbar follows current locale.
         message: 'publish_request_success'.tr,
       );
-
       Get.back();
-    } catch (e) {
-      AppLogger.logError('Failed to submit reservation request', error: e);
+    } on ApiException catch (error) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'request_send_failed'.tr,
+        message: error.message.isNotEmpty
+            ? error.message
+            : 'publish_request_error'.tr,
+      );
+    } catch (error) {
+      AppLogger.logError('publish request failed', error: error);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'publish_request_error'.tr,
       );
     } finally {
       isSubmitting.value = false;
     }
-  }
-
-  void clearAll() {
-    notesController.clear();
-    cityController.clear();
-    addressController.clear();
-    startDate.value = null;
-    endDate.value = null;
-    startTime.value = null;
-    endTime.value = null;
-    selectedServiceType.value = null;
-    selectedDuration.value = null;
-    houseSittingVenue.value = null;
-    selectedPetId.value = null;
-    imageFiles.clear();
-    detectedCity.value = '';
-    userLat.value = null;
-    userLng.value = null;
   }
 }

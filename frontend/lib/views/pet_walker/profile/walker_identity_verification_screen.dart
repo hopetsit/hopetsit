@@ -145,7 +145,7 @@ class _WalkerIdentityVerificationScreenState
         width: double.infinity,
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
-          color: bg.withOpacity(0.15),
+          color: bg.withValues(alpha: 0.15),
           border: Border.all(color: bg),
           borderRadius: BorderRadius.circular(8.r),
         ),

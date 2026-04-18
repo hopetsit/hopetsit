@@ -60,7 +60,7 @@ class EmailVerificationScreen extends StatelessWidget {
 
     return PopScope(
       canPop: true,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           // Clear OTP state when going back
           controller.resetVerificationState();
@@ -98,7 +98,7 @@ class EmailVerificationScreen extends StatelessWidget {
                   text: controller.getMaskedEmail(),
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary(context).withOpacity(0.6),
+                  color: AppColors.textSecondary(context).withValues(alpha: 0.6),
                 ),
 
                 SizedBox(height: 48.h),

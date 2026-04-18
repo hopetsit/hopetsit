@@ -181,7 +181,7 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
                     width: 100.w,
                     height: 100.h,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryColor.withOpacity(0.1),
+                      color: AppColors.primaryColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -263,7 +263,7 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
                       child: Container(
                         padding: EdgeInsets.all(16.w),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
+                          color: Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12.r),
                           border: Border.all(color: Colors.orange, width: 1),
                         ),
@@ -306,7 +306,7 @@ class _ConnectPaymentScreenState extends State<ConnectPaymentScreen>
                     return Container(
                       padding: EdgeInsets.all(20.w),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16.r),
                         border: Border.all(color: Colors.green, width: 2),
                       ),

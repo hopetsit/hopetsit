@@ -183,7 +183,7 @@ class EditSitterProfileController extends GetxController {
 
       // Small helper: show an empty field instead of "0" / "0.0" so the user
       // can type directly without having to erase the placeholder.
-      String _fmtRate(dynamic v) {
+      String fmtRate(dynamic v) {
         if (v == null) return '';
         if (v is num) {
           if (v <= 0) return '';
@@ -198,10 +198,10 @@ class EditSitterProfileController extends GetxController {
             : parsed.toString();
       }
 
-      hourlyRateController.text = _fmtRate(profileData['hourlyRate']);
-      weeklyRateController.text = _fmtRate(profileData['weeklyRate']);
-      monthlyRateController.text = _fmtRate(profileData['monthlyRate']);
-      dailyRateController.text = _fmtRate(profileData['dailyRate']);
+      hourlyRateController.text = fmtRate(profileData['hourlyRate']);
+      weeklyRateController.text = fmtRate(profileData['weeklyRate']);
+      monthlyRateController.text = fmtRate(profileData['monthlyRate']);
+      dailyRateController.text = fmtRate(profileData['dailyRate']);
 
       // Primary rates endpoint: GET /sitters/me/rates.
       try {
@@ -211,7 +211,7 @@ class EditSitterProfileController extends GetxController {
         final fetchedHourly = ratesData['hourlyRate'];
         final fetchedWeekly = ratesData['weeklyRate'];
         final fetchedMonthly = ratesData['monthlyRate'];
-        String _fmt(dynamic v) {
+        String fmt(dynamic v) {
           if (v == null) return '';
           if (v is num) {
             if (v <= 0) return '';
@@ -223,11 +223,11 @@ class EditSitterProfileController extends GetxController {
               ? parsed.truncate().toString()
               : parsed.toString();
         }
-        if (fetchedHourly != null) hourlyRateController.text = _fmt(fetchedHourly);
-        if (fetchedWeekly != null) weeklyRateController.text = _fmt(fetchedWeekly);
-        if (fetchedMonthly != null) monthlyRateController.text = _fmt(fetchedMonthly);
+        if (fetchedHourly != null) hourlyRateController.text = fmt(fetchedHourly);
+        if (fetchedWeekly != null) weeklyRateController.text = fmt(fetchedWeekly);
+        if (fetchedMonthly != null) monthlyRateController.text = fmt(fetchedMonthly);
         final fetchedDaily = ratesData['dailyRate'];
-        if (fetchedDaily != null) dailyRateController.text = _fmt(fetchedDaily);
+        if (fetchedDaily != null) dailyRateController.text = fmt(fetchedDaily);
       } catch (error) {
         AppLogger.logError('Failed to load sitter rates', error: error);
       }

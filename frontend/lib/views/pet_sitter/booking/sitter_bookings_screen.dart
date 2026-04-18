@@ -348,37 +348,37 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
 
     switch (statusLower) {
       case 'pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.pending;
         break;
       case 'agreed':
-        backgroundColor = AppColors.primaryColor.withOpacity(0.1);
+        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.check_circle;
         break;
       case 'paid':
-        backgroundColor = Colors.green.withOpacity(0.1);
+        backgroundColor = Colors.green.withValues(alpha: 0.1);
         textColor = Colors.green;
         icon = Icons.payment;
         break;
       case 'failed':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.error;
         break;
       case 'cancelled':
-        backgroundColor = AppColors.greyColor.withOpacity(0.1);
+        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
         textColor = AppColors.greyColor;
         icon = Icons.cancel;
         break;
       case 'refunded':
-        backgroundColor = Colors.blue.withOpacity(0.1);
+        backgroundColor = Colors.blue.withValues(alpha: 0.1);
         textColor = Colors.blue;
         icon = Icons.undo;
         break;
       default:
-        backgroundColor = AppColors.greyColor.withOpacity(0.1);
+        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
         textColor = AppColors.greyColor;
         icon = Icons.info;
     }

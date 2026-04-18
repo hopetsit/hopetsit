@@ -195,7 +195,7 @@ class PetSitterRequestCard extends StatelessWidget {
     );
   }
 
-  static Widget _detailChip({required IconData icon, required String label, BuildContext? context}) {
+  static Widget _detailChip({required IconData icon, required String label}) {
     return Builder(
       builder: (context) => Container(
         padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),

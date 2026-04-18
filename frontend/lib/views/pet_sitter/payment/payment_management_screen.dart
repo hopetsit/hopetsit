@@ -5,7 +5,6 @@ import 'package:hopetsit/controllers/stripe_connect_controller.dart';
 import 'package:hopetsit/controllers/sitter_paypal_payout_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
@@ -21,8 +20,6 @@ class PaymentManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final stripeCtrl = Get.put(StripeConnectController());
     final paypalCtrl = Get.put(SitterPayPalPayoutController());
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -63,7 +60,7 @@ class PaymentManagementScreen extends StatelessWidget {
                 context: context,
                 icon: Icons.account_balance_wallet_rounded,
                 iconColor: const Color(0xFF635BFF),
-                iconBg: const Color(0xFF635BFF).withOpacity(0.1),
+                iconBg: const Color(0xFF635BFF).withValues(alpha: 0.1),
                 title: 'Stripe',
                 subtitle: stripeCtrl.isConnected.value
                     ? 'payment_stripe_connected'.tr
@@ -81,7 +78,7 @@ class PaymentManagementScreen extends StatelessWidget {
                 context: context,
                 icon: Icons.paypal_rounded,
                 iconColor: const Color(0xFF003087),
-                iconBg: const Color(0xFF003087).withOpacity(0.1),
+                iconBg: const Color(0xFF003087).withValues(alpha: 0.1),
                 title: 'PayPal',
                 subtitle: paypalCtrl.paypalEmail.value.isNotEmpty
                     ? paypalCtrl.paypalEmail.value
@@ -99,7 +96,7 @@ class PaymentManagementScreen extends StatelessWidget {
                 context: context,
                 icon: Icons.account_balance_rounded,
                 iconColor: const Color(0xFF1A73E8),
-                iconBg: const Color(0xFF1A73E8).withOpacity(0.1),
+                iconBg: const Color(0xFF1A73E8).withValues(alpha: 0.1),
                 title: 'payment_iban_title'.tr,
                 subtitle: 'payment_iban_subtitle'.tr,
                 isConnected: false, // TODO: check IBAN status
@@ -219,7 +216,7 @@ class PaymentManagementScreen extends StatelessWidget {
               width: 40.w,
               height: 40.w,
               decoration: BoxDecoration(
-                color: color.withOpacity(active ? 0.15 : 0.06),
+                color: color.withValues(alpha: active ? 0.15 : 0.06),
                 borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(icon, size: 20.sp, color: active ? color : AppColors.greyColor),
@@ -237,7 +234,7 @@ class PaymentManagementScreen extends StatelessWidget {
               height: 6.w,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: active ? Colors.green : AppColors.greyColor.withOpacity(0.3),
+                color: active ? Colors.green : AppColors.greyColor.withValues(alpha: 0.3),
               ),
             ),
           ],
@@ -311,8 +308,8 @@ class PaymentManagementScreen extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
               decoration: BoxDecoration(
                 color: isConnected
-                    ? Colors.green.withOpacity(0.1)
-                    : iconColor.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : iconColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: InterText(
@@ -353,7 +350,7 @@ class PaymentManagementScreen extends StatelessWidget {
               width: 44.w,
               height: 44.w,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(icon, size: 22.sp, color: iconColor),
@@ -383,8 +380,8 @@ class PaymentManagementScreen extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
               decoration: BoxDecoration(
                 color: statusActive
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12.r),
               ),
               child: InterText(
@@ -410,12 +407,12 @@ class PaymentManagementScreen extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primaryColor.withOpacity(0.08),
-            AppColors.primaryColor.withOpacity(0.03),
+            AppColors.primaryColor.withValues(alpha: 0.08),
+            AppColors.primaryColor.withValues(alpha: 0.03),
           ],
         ),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.primaryColor.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [

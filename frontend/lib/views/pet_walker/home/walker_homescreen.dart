@@ -36,10 +36,10 @@ class WalkerHomescreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(20.w),
                 decoration: BoxDecoration(
-                  color: AppColors.greenColor.withOpacity(0.08),
+                  color: AppColors.greenColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16.r),
                   border: Border.all(
-                    color: AppColors.greenColor.withOpacity(0.2),
+                    color: AppColors.greenColor.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 ),

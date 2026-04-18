@@ -183,7 +183,7 @@ class BookingModel {
   }
 }
 
-/// Parses service from API: can be List<String> or String (legacy).
+/// Parses service from API: can be List`<String>` or String (legacy).
 List<String> _parseBookingService(dynamic value) {
   if (value is List) {
     return value.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();

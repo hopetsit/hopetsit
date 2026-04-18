@@ -127,10 +127,10 @@ class ResetPasswordScreen extends StatelessWidget {
               //       ? Container(
               //           padding: EdgeInsets.all(12.w),
               //           decoration: BoxDecoration(
-              //             color: AppColors.errorColor.withOpacity(0.1),
+              //             color: AppColors.errorColor.withValues(alpha: 0.1),
               //             borderRadius: BorderRadius.circular(8.r),
               //             border: Border.all(
-              //               color: AppColors.errorColor.withOpacity(0.3),
+              //               color: AppColors.errorColor.withValues(alpha: 0.3),
               //             ),
               //           ),
               //           child: InterText(

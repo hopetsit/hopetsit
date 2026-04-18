@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
@@ -43,6 +42,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTabIndex = 0;
   HomeMyPostsSortOrder _myPostsSortOrder = HomeMyPostsSortOrder.newestFirst;
+
+  /// Inline "Près de chez moi" filter — shared by Pet-sitters + Promeneurs
+  /// tabs. 0 = toutes les distances (pas de filtre).
+  double _maxDistanceKm = 0;
 
   late final HomeController _homeController;
   late final ProfileController _profileController;
@@ -95,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return null;
   }
 
+  // ignore: unused_element
   static bool _postHasDisplayableMedia(PostModel post) {
     return post.images.any((img) => img.url.isNotEmpty) ||
         post.videos.isNotEmpty ||
@@ -174,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 72.w,
               height: 72.w,
               decoration: BoxDecoration(
-                color: AppColors.greenColor.withOpacity(0.12),
+                color: AppColors.greenColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -224,6 +228,122 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Inline "Près de chez moi" slider — partagé par les onglets Pet-sitters
+  /// et Promeneurs. 0 km = toutes les distances. Connecté directement au
+  /// [HomeController] pour que `loadNearbySitters()` soit appelé sur drag.
+  Widget _buildInlineDistanceSlider(BuildContext context) {
+    return Obx(() {
+      final current = _homeController.offersNearMeEnabled.value
+          ? _homeController.nearMeRadiusKm.value
+          : _maxDistanceKm;
+      return _distanceSliderBody(context, current);
+    });
+  }
+
+  Widget _distanceSliderBody(BuildContext context, double current) {
+    final label = current <= 0
+        ? 'Près de chez moi : toutes les distances'
+        : 'Près de chez moi : ${current.toInt()} km';
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: current > 0
+              ? AppColors.primaryColor
+              : AppColors.divider(context),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.near_me_rounded,
+                size: 18.sp,
+                color: current > 0
+                    ? AppColors.primaryColor
+                    : AppColors.textSecondary(context),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: label,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              if (current > 0)
+                GestureDetector(
+                  onTap: () {
+                    setState(() => _maxDistanceKm = 0);
+                    _homeController.nearMeRadiusKm.value = 0;
+                    _homeController.offersNearMeEnabled.value = false;
+                  },
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.primaryColor,
+              inactiveTrackColor:
+                  AppColors.primaryColor.withValues(alpha: 0.2),
+              thumbColor: AppColors.primaryColor,
+              overlayColor:
+                  AppColors.primaryColor.withValues(alpha: 0.15),
+              trackHeight: 4,
+              thumbShape:
+                  const RoundSliderThumbShape(enabledThumbRadius: 9),
+            ),
+            child: Slider(
+              value: current.clamp(0, 500).toDouble(),
+              min: 0,
+              max: 500,
+              divisions: 50,
+              label: current <= 0 ? 'Toutes' : '${current.toInt()} km',
+              onChanged: (value) {
+                setState(() => _maxDistanceKm = value);
+                _homeController.nearMeRadiusKm.value = value;
+                // Activer automatiquement le filtre dès que l'utilisateur
+                // touche au slider.
+                _homeController.offersNearMeEnabled.value = value > 0;
+              },
+              onChangeEnd: (value) {
+                if (value > 0) {
+                  _homeController.loadNearbySitters(radiusKm: value.round());
+                }
+              },
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              InterText(
+                text: '0 km',
+                fontSize: 10.sp,
+                color: AppColors.textSecondary(context),
+              ),
+              InterText(
+                text: '500 km',
+                fontSize: 10.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -303,16 +423,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             await file.writeAsBytes(response.bodyBytes);
                             xFiles.add(XFile(file.path));
                           }
-                          await Share.shareXFiles(
-                            xFiles,
-                            text: post.body,
-                          );
+                          await SharePlus.instance.share(ShareParams(files: xFiles, text: post.body,));
                         } else {
-                          await Share.share(post.body);
+                          await SharePlus.instance.share(ShareParams(text: post.body));
                         }
                       } catch (e) {
                         AppLogger.logError('Failed to share post', error: e);
-                        await Share.share(post.body);
+                        await SharePlus.instance.share(ShareParams(text: post.body));
                       }
                     },
                   );
@@ -679,6 +796,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
               SizedBox(height: 12.h),
 
+              // Inline "Près de chez moi" slider — ne s'affiche que sur les
+              // onglets Pet-sitters et Promeneurs (pas utile sur Mes posts).
+              if (_selectedTabIndex != 0) ...[
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: _buildInlineDistanceSlider(context),
+                ),
+                SizedBox(height: 10.h),
+              ],
+
               Expanded(
                 child: _selectedTabIndex == 0
                     ? _buildMyPostsTab()
@@ -696,7 +823,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(16.r),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryColor.withOpacity(0.3),
+                color: AppColors.primaryColor.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),

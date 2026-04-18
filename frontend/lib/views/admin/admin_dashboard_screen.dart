@@ -219,9 +219,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           final c = cards[i];
           return Container(
             decoration: BoxDecoration(
-              color: (c['color'] as Color).withOpacity(0.1),
+              color: (c['color'] as Color).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: (c['color'] as Color).withOpacity(0.3)),
+              border: Border.all(color: (c['color'] as Color).withValues(alpha: 0.3)),
             ),
             child: Padding(
               padding: EdgeInsets.all(16.w),
@@ -308,7 +308,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: AppColors.primaryColor.withOpacity(0.15),
+                    backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
                     child: InterText(text: (s['name'] as String? ?? 'S')[0].toUpperCase(), fontSize: 16.sp, fontWeight: FontWeight.w700, color: AppColors.primaryColor),
                   ),
                   SizedBox(width: 12.w),
@@ -330,7 +330,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     children: [
                       Switch(
                         value: verified,
-                        activeColor: AppColors.primaryColor,
+                        activeThumbColor: AppColors.primaryColor,
                         onChanged: (val) => _verifySitter(s['_id'], val),
                       ),
                       if (hasIban && !ibanVerified)
@@ -365,7 +365,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: Colors.indigo.withOpacity(0.15),
+                backgroundColor: Colors.indigo.withValues(alpha: 0.15),
                 child: InterText(text: (o['name'] as String? ?? 'O')[0].toUpperCase(), fontSize: 16.sp, fontWeight: FontWeight.w700, color: Colors.indigo),
               ),
               title: InterText(text: o['name'] ?? '', fontSize: 14.sp, fontWeight: FontWeight.w600),
@@ -380,7 +380,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Widget _chip(String label, Color color) => Container(
     padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-    decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(20.r)),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20.r)),
     child: InterText(text: label, fontSize: 10.sp, color: color, fontWeight: FontWeight.w600),
   );
 

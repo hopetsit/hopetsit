@@ -45,7 +45,7 @@ class PayPalEmailDialog extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
         child: Container(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withValues(alpha: 0.15),
           child: Center(
             child: Container(
               width: 1.sw - 64.w,
@@ -65,7 +65,7 @@ class PayPalEmailDialog extends StatelessWidget {
                         height: 40.w,
                         width: 40.w,
                         decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withOpacity(0.10),
+                          color: AppColors.primaryColor.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Icon(

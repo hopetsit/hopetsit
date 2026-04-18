@@ -99,7 +99,7 @@ class PetsitterOnboardingController extends GetxController {
         RegExp(r'[^\d.]'),
         '',
       );
-      final rate = double.tryParse(rateText ?? '');
+      final rate = double.tryParse(rateText);
       if (rate == null || rate <= 0) {
         CustomSnackbar.showError(
           title: 'snackbar_text_invalid_hourly_rate',

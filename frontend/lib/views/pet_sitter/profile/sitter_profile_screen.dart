@@ -1,16 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
-import 'package:hopetsit/widgets/custom_app_bar.dart';
-import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
@@ -21,6 +17,7 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
+import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 
 class SitterProfileScreen extends StatelessWidget {
@@ -147,7 +144,7 @@ class SitterProfileScreen extends StatelessWidget {
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6.r),
                               ),
                               child: Row(
@@ -178,7 +175,7 @@ class SitterProfileScreen extends StatelessWidget {
                           text: controller.email.value,
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w400,
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                         )),
                         SizedBox(height: 6.h),
                         Obx(() {
@@ -199,13 +196,13 @@ class SitterProfileScreen extends StatelessWidget {
                             children: services.take(3).map((s) => Container(
                               padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
+                                color: Colors.white.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4.r),
                               ),
                               child: InterText(
                                 text: _localizeService(s),
                                 fontSize: 10.sp,
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontWeight: FontWeight.w500,
                               ),
                             )).toList(),
@@ -232,7 +229,7 @@ class SitterProfileScreen extends StatelessWidget {
             border: Border.all(color: Colors.white, width: 3),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -483,6 +480,13 @@ class SitterProfileScreen extends StatelessWidget {
           AppColors.textSecondary(context),
           () => Get.to(() => const TermsAndConditionsScreen()),
         ),
+        _buildSettingsTile(
+          'Confidentialité',
+          'Politique de confidentialité et RGPD',
+          Icons.privacy_tip_outlined,
+          AppColors.textSecondary(context),
+          () => Get.to(() => const PrivacyPolicyScreen()),
+        ),
 
         // ── ZONE DANGER ───────────────────────────────────
         _sectionHeader('Zone danger'),
@@ -517,28 +521,28 @@ class SitterProfileScreen extends StatelessWidget {
         title: Text('theme_setting_title'.tr),
         content: Obx(() {
           final tc = Get.find<ThemeController>();
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<ThemeMode>(
-                title: Text('theme_light'.tr),
-                value: ThemeMode.light,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-              RadioListTile<ThemeMode>(
-                title: Text('theme_dark'.tr),
-                value: ThemeMode.dark,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-              RadioListTile<ThemeMode>(
-                title: Text('theme_system'.tr),
-                value: ThemeMode.system,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-            ],
+          return RadioGroup<ThemeMode>(
+            groupValue: tc.themeMode.value,
+            onChanged: (v) {
+              if (v != null) tc.setMode(v);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_light'.tr),
+                  value: ThemeMode.light,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_dark'.tr),
+                  value: ThemeMode.dark,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_system'.tr),
+                  value: ThemeMode.system,
+                ),
+              ],
+            ),
           );
         }),
         actions: [
@@ -577,7 +581,7 @@ class SitterProfileScreen extends StatelessWidget {
                 width: 38.w,
                 height: 38.w,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12),
+                  color: iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Icon(icon, size: 18.sp, color: iconColor),
@@ -632,7 +636,7 @@ class SitterProfileScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(14.r),
             boxShadow: AppColors.cardShadow(context),
             border: Border.all(
-              color: AppColors.errorColor.withOpacity(0.3),
+              color: AppColors.errorColor.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -642,7 +646,7 @@ class SitterProfileScreen extends StatelessWidget {
                 width: 38.w,
                 height: 38.w,
                 decoration: BoxDecoration(
-                  color: AppColors.errorColor.withOpacity(0.12),
+                  color: AppColors.errorColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Icon(icon, size: 18.sp, color: AppColors.errorColor),
@@ -749,7 +753,7 @@ class SitterProfileScreen extends StatelessWidget {
                 width: 42.w,
                 height: 42.w,
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.12),
+                  color: accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Icon(Icons.pets_rounded, size: 22.sp, color: accentColor),
@@ -795,48 +799,78 @@ class SitterProfileScreen extends StatelessWidget {
   }) {
     final authController = Get.find<AuthController>();
 
-    String titleKey;
+    // Map role -> translation key for the confirm dialog text.
+    String roleLabelKey;
     switch (targetRole) {
       case 'owner':
-        titleKey = 'profile_switch_to_owner';
+        roleLabelKey = 'role_pet_owner';
         break;
       case 'walker':
-        titleKey = 'role_pet_walker';
+        roleLabelKey = 'role_pet_walker';
         break;
       case 'sitter':
       default:
-        titleKey = 'profile_switch_to_sitter';
+        roleLabelKey = 'role_pet_sitter';
         break;
     }
+    final newRoleText = roleLabelKey.tr;
 
-    // Build confirm/yes text according to target role.
-    final confirmMessage = targetRole == 'sitter'
-        ? 'profile_switch_to_sitter_confirm'.tr
-        : targetRole == 'owner'
-            ? 'profile_switch_to_owner_confirm'.tr
-            : 'dialog_switch_role_confirm'.trParams({'role': titleKey.tr});
-    final yesText = titleKey.tr;
-
-    CustomConfirmationDialog.show(
+    showDialog(
       context: context,
-      message: confirmMessage,
-      yesText: yesText,
-      cancelText: 'common_cancel'.tr,
-      onYes: () async {
-        // Show loading dialog while switching role
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-
-        await authController.switchRole(targetRole: targetRole);
-
-        if (Get.isDialogOpen == true) {
-          Navigator.of(context).pop();
-        }
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Obx(() {
+          final isLoading = authController.isSwitchingRole.value;
+          return AlertDialog(
+            backgroundColor: AppColors.card(dialogContext),
+            title: Text(
+              'dialog_switch_role_title'.tr,
+              style: TextStyle(color: AppColors.textPrimary(dialogContext)),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isLoading)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 16.h),
+                    child: const CircularProgressIndicator(),
+                  ),
+                Text(
+                  isLoading
+                      ? 'dialog_switch_role_switching'.trParams({'role': newRoleText})
+                      : 'dialog_switch_role_confirm'.trParams({'role': newRoleText}),
+                  style: TextStyle(color: AppColors.textPrimary(dialogContext)),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
+                child: Text(
+                  'common_cancel'.tr,
+                  style: TextStyle(color: AppColors.textSecondary(dialogContext)),
+                ),
+              ),
+              TextButton(
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        await authController.switchRole(targetRole: targetRole);
+                        if (!dialogContext.mounted) return;
+                        if (Get.isDialogOpen == true) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                      },
+                child: Text(
+                  'dialog_switch_role_button'.trParams({'role': newRoleText}),
+                  style: TextStyle(
+                    color: isLoading ? AppColors.textSecondary(dialogContext) : Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          );
+        });
       },
     );
   }

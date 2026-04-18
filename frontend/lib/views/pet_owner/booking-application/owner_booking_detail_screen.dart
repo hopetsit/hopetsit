@@ -35,22 +35,27 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
       final date = DateTime.parse(isoDate);
       final now = DateTime.now();
       final diff = now.difference(date);
-      if (diff.inMinutes < 1) return 'owner_time_just_now'.tr;
-      if (diff.inMinutes < 60)
+      if (diff.inMinutes < 1) {
+        return 'owner_time_just_now'.tr;
+      }
+      if (diff.inMinutes < 60) {
         return 'owner_time_mins_ago'.tr.replaceAll(
           '@minutes',
           diff.inMinutes.toString(),
         );
-      if (diff.inHours < 24)
+      }
+      if (diff.inHours < 24) {
         return 'owner_time_hours_ago'.tr.replaceAll(
           '@hours',
           diff.inHours.toString(),
         );
-      if (diff.inDays < 7)
+      }
+      if (diff.inDays < 7) {
         return 'owner_time_days_ago'.tr.replaceAll(
           '@days',
           diff.inDays.toString(),
         );
+      }
       return 'owner_time_days_ago'.tr.replaceAll(
         '@days',
         diff.inDays.toString(),
@@ -102,7 +107,9 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
   }
 
   String _serviceTypeLabel(String? serviceType) {
-    if (serviceType == null || serviceType.isEmpty) return '';
+    if (serviceType == null || serviceType.isEmpty) {
+      return '';
+    }
     switch (serviceType) {
       case 'long_stay':
         return 'owner_service_long_term_care'.tr;
@@ -431,12 +438,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                         height: 50.h,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.85)],
+                            colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
                           ),
                           borderRadius: BorderRadius.circular(16.r),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primaryColor.withOpacity(0.3),
+                              color: AppColors.primaryColor.withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -477,12 +484,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                           height: 50.h,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.85)],
+                              colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
                             ),
                             borderRadius: BorderRadius.circular(16.r),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryColor.withOpacity(0.3),
+                                color: AppColors.primaryColor.withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -563,7 +570,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
     final startDateStr = booking.date;
     DateTime? startDate;
     try {
-      startDate = DateTime.parse(startDateStr ?? '');
+      startDate = DateTime.parse(startDateStr);
     } catch (_) {}
 
     final hoursUntilStart = startDate != null
@@ -733,7 +740,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
           width: 36.w,
           height: 36.w,
           decoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(0.1),
+            color: AppColors.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10.r),
           ),
           child: Icon(icon, size: 18.sp, color: AppColors.primaryColor),
@@ -778,6 +785,7 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
       if (category.isNotEmpty) category,
       if (breed.isNotEmpty) breed,
     ].join(', ');
+    final context = this.context;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(14.w),
@@ -882,43 +890,43 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
 
     switch (primaryStatus) {
       case 'pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.pending;
         displayText = 'PENDING';
         break;
       case 'agreed':
-        backgroundColor = AppColors.primaryColor.withOpacity(0.1);
+        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.check_circle;
         displayText = 'AGREED';
         break;
       case 'paid':
-        backgroundColor = Colors.green.withOpacity(0.1);
+        backgroundColor = Colors.green.withValues(alpha: 0.1);
         textColor = Colors.green;
         icon = Icons.check_circle_outline;
         displayText = 'PAID';
         break;
       case 'payment_pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.hourglass_empty;
         displayText = 'PAYMENT PENDING';
         break;
       case 'payment_failed':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.error_outline;
         displayText = 'PAYMENT FAILED';
         break;
       case 'cancelled':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.cancel;
         displayText = 'CANCELLED';
         break;
       default:
-        backgroundColor = AppColors.primaryColor.withOpacity(0.1);
+        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.info;
         displayText = statusLower.toUpperCase();

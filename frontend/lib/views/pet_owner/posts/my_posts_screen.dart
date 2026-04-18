@@ -232,7 +232,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                               post.pets.first.petName.isNotEmpty
                           ? 'Meet ${post.pets.first.petName} — see this post on Hopetsit!'
                           : 'Check out my pet post on Hopetsit!');
-                await Share.share(shareText);
+                await SharePlus.instance.share(ShareParams(text: shareText));
               } catch (error) {
                 AppLogger.logError('MyPostsScreen: share failed', error: error);
                 CustomSnackbar.showError(
@@ -305,9 +305,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               }
 
               if (filesToShare.isNotEmpty) {
-                await Share.shareXFiles(filesToShare, text: shareText);
+                await SharePlus.instance.share(ShareParams(files: filesToShare, text: shareText));
               } else {
-                await Share.share(shareText);
+                await SharePlus.instance.share(ShareParams(text: shareText));
               }
             } catch (error) {
               AppLogger.logError('MyPostsScreen: share failed', error: error);

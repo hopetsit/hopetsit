@@ -206,7 +206,7 @@ class EditOwnerProfileScreen extends StatelessWidget {
                                         ? []
                                         : [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.04),
+                                              color: Colors.black.withValues(alpha: 0.04),
                                               blurRadius: 10,
                                               offset: const Offset(0, 2),
                                             )
@@ -360,7 +360,7 @@ class EditOwnerProfileScreen extends StatelessWidget {
                       () => SwitchListTile(
                         title: Text('service_prefs_at_owner_label'.tr),
                         value: controller.servicePrefAtOwner.value,
-                        activeColor: AppColors.primaryColor,
+                        activeThumbColor: AppColors.primaryColor,
                         contentPadding: EdgeInsets.zero,
                         onChanged: (v) => controller.servicePrefAtOwner.value = v,
                       ),
@@ -369,7 +369,7 @@ class EditOwnerProfileScreen extends StatelessWidget {
                       () => SwitchListTile(
                         title: Text('service_prefs_at_sitter_label'.tr),
                         value: controller.servicePrefAtSitter.value,
-                        activeColor: AppColors.primaryColor,
+                        activeThumbColor: AppColors.primaryColor,
                         contentPadding: EdgeInsets.zero,
                         onChanged: (v) => controller.servicePrefAtSitter.value = v,
                       ),

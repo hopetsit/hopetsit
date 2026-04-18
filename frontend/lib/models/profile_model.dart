@@ -155,13 +155,15 @@ class ProfileStats {
   });
 
   factory ProfileStats.fromJson(Map<String, dynamic> json) {
+    // Backend may return counts as num (double or int) — coerce safely.
+    int asInt(String key) => (json[key] as num?)?.toInt() ?? 0;
     return ProfileStats(
-      petsCount: json['petsCount'] as int? ?? 0,
-      bookingsCount: json['bookingsCount'] as int? ?? 0,
-      postsCount: json['postsCount'] as int? ?? 0,
-      tasksCount: json['tasksCount'] as int? ?? 0,
-      reviewsGivenCount: json['reviewsGivenCount'] as int? ?? 0,
-      reviewsReceivedCount: json['reviewsReceivedCount'] as int? ?? 0,
+      petsCount: asInt('petsCount'),
+      bookingsCount: asInt('bookingsCount'),
+      postsCount: asInt('postsCount'),
+      tasksCount: asInt('tasksCount'),
+      reviewsGivenCount: asInt('reviewsGivenCount'),
+      reviewsReceivedCount: asInt('reviewsReceivedCount'),
     );
   }
 

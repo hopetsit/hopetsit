@@ -91,7 +91,7 @@ class PetsMapController extends GetxController {
     }
 
     return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
+      locationSettings: LocationSettings(accuracy: LocationAccuracy.best),
     );
   }
 

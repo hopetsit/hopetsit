@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
+import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
@@ -88,7 +86,7 @@ class ProfileScreen extends StatelessWidget {
             gradient: LinearGradient(
               colors: [
                 AppColors.primaryColor,
-                AppColors.primaryColor.withOpacity(0.8),
+                AppColors.primaryColor.withValues(alpha: 0.8),
                 const Color(0xFFFF6B4A),
               ],
               begin: Alignment.topLeft,
@@ -107,13 +105,13 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.pets, color: Colors.white.withOpacity(0.9), size: 20.sp),
+                          Icon(Icons.pets, color: Colors.white.withValues(alpha: 0.9), size: 20.sp),
                           SizedBox(width: 8.w),
                           PoppinsText(
                             text: 'role_pet_owner'.tr,
                             fontSize: 12.sp,
                             fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ],
                       ),
@@ -129,7 +127,7 @@ class ProfileScreen extends StatelessWidget {
                         text: controller.email.value,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w400,
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                       )),
                     ],
                   ),
@@ -160,7 +158,7 @@ class ProfileScreen extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 4),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -254,7 +252,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 38.w,
                 height: 38.w,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Icon(icon, size: 18.sp, color: AppColors.primaryColor),
@@ -388,6 +386,13 @@ class ProfileScreen extends StatelessWidget {
           AppColors.textSecondary(context),
           () => Get.to(() => const TermsAndConditionsScreen()),
         ),
+        _buildSettingsTile(
+          'Confidentialité',
+          'Politique de confidentialité et RGPD',
+          Icons.privacy_tip_outlined,
+          AppColors.textSecondary(context),
+          () => Get.to(() => const PrivacyPolicyScreen()),
+        ),
 
         // ── ZONE DANGER ───────────────────────────────────
         _sectionHeader('Zone danger'),
@@ -442,7 +447,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 38.w,
                 height: 38.w,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12),
+                  color: iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Icon(icon, size: 18.sp, color: iconColor),
@@ -498,7 +503,7 @@ class ProfileScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(14.r),
             boxShadow: AppColors.cardShadow(context),
             border: Border.all(
-              color: AppColors.errorColor.withOpacity(0.3),
+              color: AppColors.errorColor.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -508,7 +513,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 38.w,
                 height: 38.w,
                 decoration: BoxDecoration(
-                  color: AppColors.errorColor.withOpacity(0.12),
+                  color: AppColors.errorColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Icon(icon, size: 18.sp, color: AppColors.errorColor),
@@ -612,7 +617,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 42.w,
                 height: 42.w,
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.12),
+                  color: accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Icon(Icons.pets_rounded, size: 22.sp, color: accentColor),
@@ -720,6 +725,9 @@ class ProfileScreen extends StatelessWidget {
                     ? null
                     : () async {
                         await authController.switchRole(targetRole: targetRole);
+                        // Guard: dialogContext may no longer be mounted after
+                        // the async switchRole returns.
+                        if (!dialogContext.mounted) return;
                         if (Get.isDialogOpen == true) {
                           Navigator.of(dialogContext).pop();
                         }
@@ -745,28 +753,28 @@ class ProfileScreen extends StatelessWidget {
       AlertDialog(
         title: Text('theme_setting_title'.tr),
         content: Obx(
-          () => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<ThemeMode>(
-                title: Text('theme_light'.tr),
-                value: ThemeMode.light,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-              RadioListTile<ThemeMode>(
-                title: Text('theme_dark'.tr),
-                value: ThemeMode.dark,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-              RadioListTile<ThemeMode>(
-                title: Text('theme_system'.tr),
-                value: ThemeMode.system,
-                groupValue: tc.themeMode.value,
-                onChanged: (v) => v != null ? tc.setMode(v) : null,
-              ),
-            ],
+          () => RadioGroup<ThemeMode>(
+            groupValue: tc.themeMode.value,
+            onChanged: (v) {
+              if (v != null) tc.setMode(v);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_light'.tr),
+                  value: ThemeMode.light,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_dark'.tr),
+                  value: ThemeMode.dark,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: Text('theme_system'.tr),
+                  value: ThemeMode.system,
+                ),
+              ],
+            ),
           ),
         ),
         actions: [

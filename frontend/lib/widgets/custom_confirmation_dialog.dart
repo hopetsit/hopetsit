@@ -32,7 +32,7 @@ class CustomConfirmationDialog extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: Container(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           child: Center(
             child: Container(
               margin: EdgeInsets.symmetric(horizontal: 40.w),

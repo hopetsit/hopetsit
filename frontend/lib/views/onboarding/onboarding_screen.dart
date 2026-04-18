@@ -30,13 +30,13 @@ class OnboardingScreen extends StatelessWidget {
             colors: isDark
                 ? [
                     AppColors.primaryColor,
-                    AppColors.primaryColor.withOpacity(0.85),
+                    AppColors.primaryColor.withValues(alpha: 0.85),
                     AppColors.backgroundDark,
                     AppColors.backgroundDark,
                   ]
                 : [
                     AppColors.primaryColor,
-                    AppColors.primaryColor.withOpacity(0.9),
+                    AppColors.primaryColor.withValues(alpha: 0.9),
                     Colors.white,
                     Colors.white,
                   ],
@@ -56,7 +56,7 @@ class OnboardingScreen extends StatelessWidget {
                     width: 80.w,
                     height: 80.h,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(24.r),
                     ),
                     child: Center(
@@ -85,7 +85,7 @@ class OnboardingScreen extends StatelessWidget {
                     text: 'onboarding_tagline'.tr,
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w400,
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     textAlign: TextAlign.center,
                   ),
 
@@ -259,7 +259,7 @@ class _FeatureChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(18.r),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),

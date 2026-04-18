@@ -414,7 +414,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         color: AppColors.card(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -477,7 +477,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8.r),
                       border: Border.all(
-                        color: AppColors.greyColor.withOpacity(0.3),
+                        color: AppColors.greyColor.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Stack(

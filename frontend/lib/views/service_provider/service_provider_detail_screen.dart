@@ -224,13 +224,13 @@ class _ServiceProviderDetailContent extends StatelessWidget {
         ? sitter.avatar.url
         : null;
 
-    return Container(
+    return SizedBox(
       height: 350.h,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           // Background Image
-          Container(
+          SizedBox(
             width: double.infinity,
             height: 300.h,
             child: imageUrl != null
@@ -491,7 +491,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                         vertical: 4.h,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.2),
+                        color: AppColors.primaryColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Row(
@@ -789,10 +789,10 @@ class _ServiceProviderDetailContent extends StatelessWidget {
           width: double.infinity,
           height: 48.h,
           decoration: BoxDecoration(
-            gradient: isLocked ? null : LinearGradient(colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.85)]),
+            gradient: isLocked ? null : LinearGradient(colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)]),
             color: isLocked ? AppColors.grey300Color : null,
             borderRadius: BorderRadius.circular(16.r),
-            boxShadow: isLocked ? null : [BoxShadow(color: AppColors.primaryColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+            boxShadow: isLocked ? null : [BoxShadow(color: AppColors.primaryColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -948,42 +948,42 @@ class _ServiceProviderDetailContent extends StatelessWidget {
     switch (statusLower) {
       case 'available':
       case 'online':
-        backgroundColor = Colors.green.withOpacity(0.1);
+        backgroundColor = Colors.green.withValues(alpha: 0.1);
         textColor = Colors.green;
         icon = Icons.check_circle;
         break;
       case 'cancelled':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.cancel;
         break;
       case 'rejected':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.close_rounded;
         break;
       case 'pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.timer;
         break;
       case 'agreed':
-        backgroundColor = AppColors.greenColor.withOpacity(0.1);
+        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
         textColor = AppColors.greenColor;
         icon = Icons.check_circle;
         break;
       case 'paid':
-        backgroundColor = AppColors.greenColor.withOpacity(0.1);
+        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
         textColor = AppColors.greenColor;
         icon = Icons.check_circle;
         break;
       case 'accepted':
-        backgroundColor = AppColors.greenColor.withOpacity(0.1);
+        backgroundColor = AppColors.greenColor.withValues(alpha: 0.1);
         textColor = AppColors.greenColor;
         icon = Icons.check_circle;
         break;
       default:
-        backgroundColor = AppColors.greyColor.withOpacity(0.1);
+        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
         textColor = AppColors.greyColor;
         icon = Icons.info;
         displayText = status.toUpperCase();

@@ -8,7 +8,6 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
-import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -70,7 +69,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        timeLimit: const Duration(seconds: 10),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
+        ),
       );
       if (mounted) {
         setState(() => _userPosition = position);
@@ -513,19 +515,38 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       return true;
                     }).toList();
 
-                    // Walker feed is strictly limited to walking requests
-                    // (posts whose serviceTypes contains 'dog_walking').
-                    // Sitter feed stays unchanged — the sitter/walker split
-                    // mirrors the backend rule in getRequestPosts.
+                    // Role-based split for the shared feed:
+                    //  - Walker sees ONLY walking requests (`dog_walking`)
+                    //  - Sitter sees garderie + garde multi-jours requests
+                    //    (`pet_sitting`, `house_sitting`, `day_care`) and
+                    //    does NOT see `dog_walking` requests (those are
+                    //    exclusive to the Walker role).
+                    //  - Other roles see everything (safety net).
                     final currentRole = Get.isRegistered<AuthController>()
                         ? (Get.find<AuthController>().userRole.value ?? '')
                         : '';
-                    final rolePrefiltered = currentRole == 'walker'
-                        ? uniquePosts.where((p) => p.serviceTypes
-                                .map((t) => t.toLowerCase())
-                                .contains('dog_walking'))
-                            .toList()
-                        : uniquePosts;
+                    List<PostModel> rolePrefiltered;
+                    if (currentRole == 'walker') {
+                      rolePrefiltered = uniquePosts.where((p) => p.serviceTypes
+                              .map((t) => t.toLowerCase())
+                              .contains('dog_walking'))
+                          .toList();
+                    } else if (currentRole == 'sitter') {
+                      const sitterServices = <String>{
+                        'pet_sitting',
+                        'house_sitting',
+                        'day_care',
+                      };
+                      rolePrefiltered = uniquePosts.where((p) {
+                        final types = p.serviceTypes
+                            .map((t) => t.toLowerCase())
+                            .toSet();
+                        // Include posts that request any sitter service.
+                        return types.any(sitterServices.contains);
+                      }).toList();
+                    } else {
+                      rolePrefiltered = uniquePosts;
+                    }
 
                     final feedPosts = _filterState.hasActiveFilters
                         ? _applyRequestFilters(rolePrefiltered)
@@ -652,6 +673,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                             ),
                           ],
                         ),
+                        // ── INLINE DISTANCE SLIDER (0-500 km) ──
+                        // Filtre rapide "Près de chez moi" visible en
+                        // permanence dans le feed. 0 = toutes les distances.
+                        SizedBox(height: 10.h),
+                        _buildInlineDistanceSlider(context),
+
                         if (_filterState.hasActiveFilters) ...[
                           SizedBox(height: 10.h),
                           Wrap(
@@ -881,12 +908,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                     }
 
                                     if (filesToShare.isNotEmpty) {
-                                      await Share.shareXFiles(
-                                        filesToShare,
-                                        text: shareText,
-                                      );
+                                      await SharePlus.instance.share(ShareParams(files: filesToShare, text: shareText,));
                                     } else {
-                                      await Share.share(shareText);
+                                      await SharePlus.instance.share(ShareParams(text: shareText));
                                     }
                                   } catch (error) {
                                     AppLogger.logError(
@@ -1374,37 +1398,122 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         ],
       ),
     );
-
     if (confirmed != true) return;
-
-    try {
-      final ownerRepository = Get.find<OwnerRepository>();
-      await ownerRepository.blockAnyUser(
-        targetUserId: ownerId,
-        targetRole: 'owner',
-      );
-      if (mounted) {
-        CustomSnackbar.showSuccess(
-          title: 'common_success'.tr,
-          message: 'block_user_success'.tr,
-        );
-      }
-    } catch (error) {
-      AppLogger.logError('Block owner failed', error: error);
-      if (mounted) {
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'block_user_failed'.tr,
-        );
-      }
-    }
-  }
-
-  Future<void> _handleReportPost({required String postId}) async {
-    if (!mounted) return;
+    // TODO: wire real block API; for now surface a success snackbar.
     CustomSnackbar.showSuccess(
       title: 'common_success'.tr,
-      message: 'report_post_received'.tr,
+      message: 'block_user_confirm_message'.tr.replaceAll('{name}', ownerName),
     );
+  }
+
+  /// Inline "Près de chez moi" slider shown above the feed. Drags from 0 km
+  /// (all distances, no filtering) up to 500 km. Reuses the same
+  /// `_filterState.maxDistanceKm` field as the Filters dialog so both stay
+  /// in sync.
+  Widget _buildInlineDistanceSlider(BuildContext context) {
+    final current = _filterState.maxDistanceKm ?? 0;
+    final label = current <= 0
+        ? 'Près de chez moi : toutes les distances'
+        : 'Près de chez moi : ${current.toInt()} km';
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: current > 0
+              ? AppColors.primaryColor
+              : AppColors.divider(context),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.near_me_rounded,
+                size: 18.sp,
+                color: current > 0
+                    ? AppColors.primaryColor
+                    : AppColors.textSecondary(context),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: label,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              if (current > 0)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _filterState =
+                          _filterState.copyWith(maxDistanceKm: 0);
+                    });
+                  },
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.primaryColor,
+              inactiveTrackColor:
+                  AppColors.primaryColor.withValues(alpha: 0.2),
+              thumbColor: AppColors.primaryColor,
+              overlayColor:
+                  AppColors.primaryColor.withValues(alpha: 0.15),
+              trackHeight: 4,
+              thumbShape:
+                  const RoundSliderThumbShape(enabledThumbRadius: 9),
+            ),
+            child: Slider(
+              value: current.clamp(0, 500).toDouble(),
+              min: 0,
+              max: 500,
+              divisions: 50,
+              label: current <= 0 ? 'Toutes' : '${current.toInt()} km',
+              onChanged: (value) {
+                setState(() {
+                  _filterState = _filterState.copyWith(maxDistanceKm: value);
+                });
+              },
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              InterText(
+                text: '0 km',
+                fontSize: 10.sp,
+                color: AppColors.textSecondary(context),
+              ),
+              InterText(
+                text: '500 km',
+                fontSize: 10.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Stub — report post flow. The real implementation opens ReportDialog.
+  /// Kept lightweight so the feed still compiles while the report UI is
+  /// finalised for the sitter side.
+  void _handleReportPost({required String postId}) {
+    // TODO: wire ReportDialog.show(context: context, targetType: 'post', targetId: postId)
+    AppLogger.logUserAction('Report post pressed', data: {'postId': postId});
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -180,7 +179,7 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
                         gradient: LinearGradient(
                           colors: [
                             primary,
-                            primary.withOpacity(0.75),
+                            primary.withValues(alpha: 0.75),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -188,7 +187,7 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
                         borderRadius: BorderRadius.circular(18.r),
                         boxShadow: [
                           BoxShadow(
-                            color: primary.withOpacity(0.28),
+                            color: primary.withValues(alpha: 0.28),
                             blurRadius: 14,
                             offset: const Offset(0, 6),
                           ),
@@ -200,7 +199,7 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
                           InterText(
                             text: 'Tu vas payer',
                             fontSize: 12.sp,
-                            color: Colors.white.withOpacity(0.85),
+                            color: Colors.white.withValues(alpha: 0.85),
                             fontWeight: FontWeight.w500,
                           ),
                           SizedBox(height: 6.h),
@@ -223,7 +222,7 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
                             InterText(
                               text: widget.productSubtitle!,
                               fontSize: 11.sp,
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                             ),
                           ],
                         ],
@@ -371,12 +370,12 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primary,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: primary.withOpacity(0.5),
+                    disabledBackgroundColor: primary.withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                     elevation: 4,
-                    shadowColor: primary.withOpacity(0.35),
+                    shadowColor: primary.withValues(alpha: 0.35),
                   ),
                   icon: _processing
                       ? SizedBox(
@@ -417,7 +416,7 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
           width: 28.w,
           height: 28.w,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Icon(icon, size: 16.sp, color: color),

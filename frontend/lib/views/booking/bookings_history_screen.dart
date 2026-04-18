@@ -461,55 +461,55 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
 
     switch (primaryStatus) {
       case 'pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.pending;
         displayText = 'status_pending_label'.tr;
         break;
       case 'agreed':
-        backgroundColor = AppColors.primaryColor.withOpacity(0.1);
+        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
         textColor = AppColors.primaryColor;
         icon = Icons.check_circle;
         displayText = 'status_agreed_label'.tr;
         break;
       case 'paid':
-        backgroundColor = Colors.green.withOpacity(0.1);
+        backgroundColor = Colors.green.withValues(alpha: 0.1);
         textColor = Colors.green;
         icon = Icons.check_circle_outline;
         displayText = 'status_paid_label'.tr;
         break;
       case 'payment_pending':
-        backgroundColor = Colors.orange.withOpacity(0.1);
+        backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         icon = Icons.hourglass_empty;
         displayText = 'status_payment_pending_label'.tr;
         break;
       case 'payment_failed':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.error_outline;
         displayText = 'status_payment_failed_label'.tr;
         break;
       case 'failed':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.error;
         displayText = 'status_failed_label'.tr;
         break;
       case 'cancelled':
-        backgroundColor = AppColors.errorColor.withOpacity(0.1);
+        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
         textColor = AppColors.errorColor;
         icon = Icons.cancel;
         displayText = 'status_cancelled_label'.tr;
         break;
       case 'refunded':
-        backgroundColor = Colors.blue.withOpacity(0.1);
+        backgroundColor = Colors.blue.withValues(alpha: 0.1);
         textColor = Colors.blue;
         icon = Icons.undo;
         displayText = 'status_refunded_label'.tr;
         break;
       default:
-        backgroundColor = AppColors.greyColor.withOpacity(0.1);
+        backgroundColor = AppColors.greyColor.withValues(alpha: 0.1);
         textColor = AppColors.greyColor;
         icon = Icons.info;
         displayText = statusLower.tr;

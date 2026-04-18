@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/auth/choose_service_screen.dart';
+import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 
 class EmailVerificationController extends GetxController {
   final String email;
@@ -106,8 +107,14 @@ class EmailVerificationController extends GetxController {
       // Clear OTP state before navigating
       resetVerificationState();
 
-      // Navigate to Choose Service screen (controllers will be cleaned up later)
-      Get.off(() => ChooseServiceScreen(userType: userType, email: email));
+      // Walkers (Promeneurs) have an implicit single service (dog_walking) set
+      // at signup, so they skip ChooseServiceScreen and land straight on the
+      // Walker home shell. Owners and Sitters keep the regular flow.
+      if (userType == 'pet_walker') {
+        Get.offAll(() => const WalkerNavWrapper());
+      } else {
+        Get.off(() => ChooseServiceScreen(userType: userType, email: email));
+      }
     }
   }
 }

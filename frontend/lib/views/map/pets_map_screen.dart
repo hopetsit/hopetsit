@@ -264,12 +264,12 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 16,
                           offset: Offset(0, -4),
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 6,
                           offset: Offset(0, -1),
                         ),
@@ -322,18 +322,18 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                           padding: EdgeInsets.all(12.w),
                                           decoration: BoxDecoration(
                                             color: AppColors.card(context)
-                                                .withOpacity(0.6),
+                                                .withValues(alpha: 0.6),
                                             borderRadius: BorderRadius.circular(
                                               14.r,
                                             ),
                                             border: Border.all(
                                               color: AppColors.divider(context)
-                                                  .withOpacity(0.5),
+                                                  .withValues(alpha: 0.5),
                                               width: 1,
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(
+                                                color: Colors.black.withValues(alpha: 
                                                   0.06,
                                                 ),
                                                 blurRadius: 8,
@@ -452,10 +452,10 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
             width: 200.w,
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: AppColors.card(context).withOpacity(0.6),
+              color: AppColors.card(context).withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(14.r),
               border: Border.all(
-                color: AppColors.divider(context).withOpacity(0.5),
+                color: AppColors.divider(context).withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
@@ -504,7 +504,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
   }
 
   Future<void> _showSearchDialog() async {
-    final TextEditingController _searchCtrl = TextEditingController();
+    final TextEditingController searchCtrl = TextEditingController();
 
     await showDialog<void>(
       context: context,
@@ -520,7 +520,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
           color: AppColors.textPrimary(context),
         ),
         content: TextField(
-          controller: _searchCtrl,
+          controller: searchCtrl,
           decoration: InputDecoration(
             hintText: 'map_search_hint'.tr,
             border: OutlineInputBorder(
@@ -546,7 +546,7 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
           ),
           TextButton(
             onPressed: () async {
-              final query = _searchCtrl.text.trim();
+              final query = searchCtrl.text.trim();
               if (query.isEmpty) {
                 Get.snackbar('common_error'.tr, 'map_search_empty'.tr);
                 return;

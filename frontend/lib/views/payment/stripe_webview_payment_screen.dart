@@ -154,22 +154,22 @@ class _StripeWebviewPaymentScreenState
   void _handlePaymentCancelled() {
     Get.back();
     // The controller will handle showing appropriate message
-    print('STRIPE CANCELLED');
+    debugPrint('STRIPE CANCELLED');
   }
 
   void _handlePaymentError(String error) {
     Get.back();
     // The controller will handle showing error message
-    print('STRIPE ERROR: $error');
+    debugPrint('STRIPE ERROR: $error');
   }
 
   void _handleError(WebResourceError error) {
     if (mounted) {
       Get.back();
-      print('STRIPE ERROR: ${error.description}');
-      print('STRIPE ERROR: ${error.errorCode}');
-      print('STRIPE ERROR: ${error.errorType}');
-      print('STRIPE ERROR: ${error.url}');
+      debugPrint('STRIPE ERROR: ${error.description}');
+      debugPrint('STRIPE ERROR: ${error.errorCode}');
+      debugPrint('STRIPE ERROR: ${error.errorType}');
+      debugPrint('STRIPE ERROR: ${error.url}');
       Get.snackbar(
         'common_error'.tr,
         'payment_load_error'.tr.replaceAll('@error', error.description),

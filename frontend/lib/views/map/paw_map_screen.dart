@@ -41,7 +41,11 @@ class _PawMapScreenState extends State<PawMapScreen> {
   late final MapReportController _reportController;
   late final FriendController _friendController;
   late final LiveMapService _liveMap;
-  LatLng? _currentCenter;
+  // Paris fallback by default — guarantees the GoogleMap widget always has
+  // a camera position on the very first frame, even before geolocation
+  // resolves. This fixes the "need to tap twice to see the map" bug caused
+  // by IndexedStack keeping the screen built-but-hidden.
+  LatLng _currentCenter = const LatLng(48.8566, 2.3522);
 
   /// Layer toggles — by default all visible. The Demandes toggle is only
   /// rendered for sitter/walker roles (it stays true internally but the UI
@@ -82,10 +86,8 @@ class _PawMapScreenState extends State<PawMapScreen> {
         : Get.put(LiveMapService(), permanent: true);
     _liveMap.attach();
 
-    // Render the map IMMEDIATELY on Paris fallback so the screen never shows
-    // an infinite spinner if geolocation is slow/denied/disabled. Real
-    // location upgrade happens in the background via _bootstrap().
-    _currentCenter = const LatLng(48.8566, 2.3522);
+    // Paris fallback is the initial value — the map renders immediately
+    // and _bootstrap() upgrades to real location in the background.
     _bootstrap();
   }
 
@@ -125,10 +127,9 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   Future<void> _reloadAtCenter() async {
-    if (_currentCenter == null) return;
     final futures = <Future<void>>[
-      _poiController.loadNearby(_currentCenter!),
-      _reportController.loadNearby(_currentCenter!),
+      _poiController.loadNearby(_currentCenter),
+      _reportController.loadNearby(_currentCenter),
     ];
     // Demandes layer is sitter/walker only — don't waste a round-trip on
     // owner sessions.
@@ -141,15 +142,14 @@ class _PawMapScreenState extends State<PawMapScreen> {
   /// Fetches owner reservation requests within ~25km of the current map
   /// center. Uses /posts/requests/nearby (added in the same session).
   Future<void> _loadNearbyRequests() async {
-    if (_currentCenter == null) return;
     try {
       final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
       if (api == null) return;
       final res = await api.get(
         '/posts/requests/nearby',
         queryParameters: {
-          'lat': _currentCenter!.latitude.toString(),
-          'lng': _currentCenter!.longitude.toString(),
+          'lat': _currentCenter.latitude.toString(),
+          'lng': _currentCenter.longitude.toString(),
           'maxDistance': '25',
         },
         requiresAuth: true,
@@ -183,8 +183,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
         message: 'Tes amis ne voient plus ta position.',
       );
     } else {
-      if (_currentCenter == null) return;
-      _liveMap.startBroadcasting(() => _currentCenter ?? const LatLng(0, 0));
+        _liveMap.startBroadcasting(() => _currentCenter);
       CustomSnackbar.showSuccess(
         title: 'Suivi activé',
         message: 'Tes amis voient ta position et celle de ton animal en live.',
@@ -352,7 +351,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                             vertical: 4.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withOpacity(0.1),
+                            color: AppColors.primaryColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10.r),
                           ),
                           child: InterText(
@@ -507,13 +506,13 @@ class _PawMapScreenState extends State<PawMapScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: on
-                          ? Colors.green.withOpacity(0.15)
-                          : AppColors.primaryColor.withOpacity(0.10),
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : AppColors.primaryColor.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(20.r),
                       border: Border.all(
                         color: on
                             ? Colors.green
-                            : AppColors.primaryColor.withOpacity(0.50),
+                            : AppColors.primaryColor.withValues(alpha: 0.50),
                         width: 1.2,
                       ),
                     ),
@@ -601,10 +600,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
           Expanded(
             child: Stack(
               children: [
-                if (_currentCenter == null)
-                  const Center(child: CircularProgressIndicator())
-                else
-                  Obx(() {
+                Obx(() {
                     // Force rebuild when either list changes
                     _poiController.visiblePois.length;
                     _reportController.reports.length;
@@ -612,7 +608,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                     _showReports.value;
                     return GoogleMap(
                       initialCameraPosition: CameraPosition(
-                        target: _currentCenter!,
+                        target: _currentCenter,
                         zoom: 13,
                       ),
                       onMapCreated: (c) {
@@ -639,7 +635,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                       child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
+                          color: Colors.black.withValues(alpha: 0.7),
                           borderRadius: BorderRadius.circular(20.r),
                         ),
                         child: Row(
@@ -668,33 +664,94 @@ class _PawMapScreenState extends State<PawMapScreen> {
 
                 // Premium upsell banner — shown whenever the user is NOT
                 // Premium, so free users always see the conversion CTA on
-                // the map (previously only shown when the API returned 402,
-                // which meant the banner was invisible most of the time).
+                // the map. Wrapped in Obx with explicit observable reads
+                // so GetX correctly tracks dependencies.
                 Obx(() {
-                  final sub = Get.isRegistered<SubscriptionController>()
-                      ? Get.find<SubscriptionController>()
-                      : null;
-                  final isPremium = sub?.isPremium ?? false;
-                  // Still respect the hard signal from the API (402) so the
-                  // banner stays visible right after a gated action too.
+                  // Explicit reactive read — this is what GetX tracks.
                   final forced = _reportController.premiumRequired.value;
+                  // SubscriptionController may or may not be registered
+                  // yet on first render; read its status observable safely.
+                  bool isPremium = false;
+                  if (Get.isRegistered<SubscriptionController>()) {
+                    final sub = Get.find<SubscriptionController>();
+                    isPremium = sub.status.value?.isPremium ?? false;
+                  }
                   if (isPremium && !forced) {
                     return const SizedBox.shrink();
                   }
                   return Positioned(
                     left: 12.w,
                     right: 12.w,
-                    bottom: 82.h,
-                    child: _PremiumUpsell(),
+                    bottom: 170.h,
+                    child: const _PremiumUpsell(),
                   );
                 }),
+
+                // "Me géolocaliser" — recentre la map sur la position GPS
+                // de l'utilisateur. Toujours visible, au-dessus du bouton
+                // Signaler.
+                Positioned(
+                  right: 12.w,
+                  bottom: 160.h,
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 4,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _recenterOnUser,
+                      child: Padding(
+                        padding: EdgeInsets.all(10.w),
+                        child: Icon(
+                          Icons.my_location_rounded,
+                          color: AppColors.primaryColor,
+                          size: 22.sp,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // "Signaler" — disponible pour tous les rôles. Positionné
+                // en Stack (pas en FAB) pour rester visible au-dessus de la
+                // barre de navigation du StackedNavigationWrapper.
+                Positioned(
+                  right: 12.w,
+                  bottom: 100.h,
+                  child: _buildReportFab(),
+                ),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: _buildReportFab(),
     );
+  }
+
+  /// Recenters the GoogleMap camera on the user's current GPS location.
+  Future<void> _recenterOnUser() async {
+    try {
+      final loc = await LocationService()
+          .getCurrentLocation()
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
+      if (loc == null) {
+        CustomSnackbar.showWarning(
+          title: 'Localisation indisponible',
+          message: 'Activez le GPS et les permissions.',
+        );
+        return;
+      }
+      final center = LatLng(loc.latitude, loc.longitude);
+      if (!mounted) return;
+      setState(() => _currentCenter = center);
+      if (_mapCtl.isCompleted) {
+        final ctl = await _mapCtl.future;
+        await ctl.animateCamera(CameraUpdate.newLatLng(center));
+      }
+      await _reloadAtCenter();
+    } catch (e) {
+      debugPrint('[PawMap] recenter error: $e');
+    }
   }
 
   /// Quick-signal row — surfaces the 3 free report types at the very top of
@@ -747,10 +804,9 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }) {
     return GestureDetector(
       onTap: () async {
-        if (_currentCenter == null) return;
-        final created = await CreateReportSheet.show(
+            final created = await CreateReportSheet.show(
           context,
-          initialPoint: _currentCenter!,
+          initialPoint: _currentCenter,
           preselectedType: type,
         );
         if (created) await _reloadAtCenter();
@@ -758,9 +814,9 @@ class _PawMapScreenState extends State<PawMapScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.10),
+          color: color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: color.withOpacity(0.30), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.30), width: 1),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -849,9 +905,9 @@ class _PawMapScreenState extends State<PawMapScreen> {
           _showPois.value = true;
           // Reload nearby POIs at the current center for this category so
           // the user sees results even before panning the map.
-          if (_currentCenter != null) {
+          {
             await _poiController.loadNearby(
-              _currentCenter!,
+              _currentCenter,
               category: active ? null : category,
             );
           }
@@ -859,10 +915,10 @@ class _PawMapScreenState extends State<PawMapScreen> {
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
           decoration: BoxDecoration(
-            color: active ? color : color.withOpacity(0.10),
+            color: active ? color : color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14.r),
             border: Border.all(
-              color: active ? color : color.withOpacity(0.35),
+              color: active ? color : color.withValues(alpha: 0.35),
               width: 1.2,
             ),
           ),
@@ -952,7 +1008,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
         borderRadius: BorderRadius.circular(32.r),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryColor.withOpacity(0.45),
+            color: AppColors.primaryColor.withValues(alpha: 0.45),
             blurRadius: 18,
             spreadRadius: 2,
             offset: const Offset(0, 4),
@@ -970,10 +1026,9 @@ class _PawMapScreenState extends State<PawMapScreen> {
           fontWeight: FontWeight.w800,
         ),
         onPressed: () async {
-          if (_currentCenter == null) return;
-          final created = await CreateReportSheet.show(
+                final created = await CreateReportSheet.show(
             context,
-            initialPoint: _currentCenter!,
+            initialPoint: _currentCenter,
           );
           if (created) await _reloadAtCenter();
         },
@@ -1018,7 +1073,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withOpacity(0.12),
+                    color: AppColors.primaryColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: InterText(
@@ -1130,7 +1185,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         final ok = await _reportController.confirm(report.id);
-                        if (!mounted) return;
+                        if (!mounted || !sheetContext.mounted) return;
                         Navigator.of(sheetContext).pop();
                         if (ok) {
                           CustomSnackbar.showSuccess(
@@ -1158,7 +1213,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         final ok = await _reportController.flag(report.id);
-                        if (!mounted) return;
+                        if (!mounted || !sheetContext.mounted) return;
                         Navigator.of(sheetContext).pop();
                         if (ok) {
                           CustomSnackbar.showSuccess(
@@ -1285,7 +1340,7 @@ class _LayerToggle extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.primaryColor.withOpacity(0.12)
+              ? AppColors.primaryColor.withValues(alpha: 0.12)
               : AppColors.card(context),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
@@ -1362,29 +1417,27 @@ class _TtlBadgeState extends State<_TtlBadge> {
   @override
   Widget build(BuildContext context) {
     final minutes = widget.expiresAt.difference(DateTime.now()).inMinutes;
-    final clampedMins = minutes < 0 ? 0 : minutes;
-    final hours = clampedMins ~/ 60;
-    final rem = clampedMins % 60;
-    final String text = hours >= 1 ? '${hours}h${rem.toString().padLeft(2, '0')}' : '${rem}m';
     final bool urgent = minutes < 120; // < 2h left
     final Color color = urgent ? Colors.red : AppColors.primaryColor;
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.timer_outlined, size: 10.sp, color: color),
-          SizedBox(width: 3.w),
+          Icon(Icons.access_time_rounded, size: 14.sp, color: color),
+          SizedBox(width: 4.w),
           InterText(
-            text: text,
-            fontSize: 10.sp,
-            fontWeight: FontWeight.w700,
+            text: minutes < 60
+                ? '${minutes}min'
+                : '${minutes ~/ 60}h${(minutes % 60).toString().padLeft(2, '0')}',
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w600,
             color: color,
           ),
         ],
@@ -1393,120 +1446,52 @@ class _TtlBadgeState extends State<_TtlBadge> {
   }
 }
 
-/// In-map banner shown to free users after we discover the report API
-/// returns 402. Tap opens the Boutique (coin shop) so the user can subscribe
-/// right from the map. The star is animated (pulse + glow halo) to attract
-/// the eye — per Daniel's request "une etoile qui brille pour attirer
-/// l'oeil".
-class _PremiumUpsell extends StatefulWidget {
+/// Premium upsell banner shown at the bottom of the PawMap for users who
+/// haven't subscribed yet. Tapping opens the coin shop.
+class _PremiumUpsell extends StatelessWidget {
   const _PremiumUpsell();
-
-  @override
-  State<_PremiumUpsell> createState() => _PremiumUpsellState();
-}
-
-class _PremiumUpsellState extends State<_PremiumUpsell>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctl = AnimationController(
-    duration: const Duration(milliseconds: 1400),
-    vsync: this,
-  )..repeat(reverse: true);
-
-  late final Animation<double> _scale = Tween<double>(begin: 0.90, end: 1.18)
-      .animate(CurvedAnimation(parent: _ctl, curve: Curves.easeInOut));
-  late final Animation<double> _glow = Tween<double>(begin: 0.15, end: 0.85)
-      .animate(CurvedAnimation(parent: _ctl, curve: Curves.easeInOut));
-
-  @override
-  void dispose() {
-    _ctl.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Get.to(() => const CoinShopScreen()),
       child: Container(
-        padding: EdgeInsets.all(12.w),
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFD700), Color(0xFFFF9500)],
-          ),
+          color: AppColors.primaryColor,
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: AppColors.primaryColor.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
-            // Pulsing star with a white halo — the animation ticks every
-            // 1.4 s for a calm "shine" effect that doesn't feel spammy.
-            AnimatedBuilder(
-              animation: _ctl,
-              builder: (_, __) => SizedBox(
-                width: 46.w,
-                height: 46.w,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Soft glow halo behind the star.
-                    Container(
-                      width: 44.w,
-                      height: 44.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(_glow.value * 0.25),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.white
-                                .withOpacity(_glow.value * 0.75),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Pulsing star emoji.
-                    Transform.scale(
-                      scale: _scale.value,
-                      child: Text('⭐',
-                          style: TextStyle(fontSize: 26.sp)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            Icon(Icons.star_rounded, color: Colors.white, size: 22.sp),
             SizedBox(width: 10.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   InterText(
-                    text: 'Passe Premium',
+                    text: 'Passer Premium',
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                   SizedBox(height: 2.h),
                   InterText(
-                    text:
-                        'Vois les signalements 48h autour de toi + crée les tiens.',
-                    fontSize: 11.sp,
-                    color: Colors.white.withOpacity(0.95),
+                    text: 'Débloquez tous les signalements, zones et suivis live',
+                    fontSize: 12.sp,
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14.sp,
-              color: Colors.white,
-            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16.sp),
           ],
         ),
       ),

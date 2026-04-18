@@ -71,7 +71,7 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
     if (_walkId == null) return;
     try {
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
       );
       await _api.post(
         '${ApiEndpoints.walksPosition}/$_walkId/position',
@@ -125,7 +125,7 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(active ? 'Walk is live · ${_pushed} positions pushed' : 'Ready to start'),
+            Text(active ? 'Walk is live · $_pushed positions pushed' : 'Ready to start'),
             const SizedBox(height: 24),
             if (!active)
               ElevatedButton.icon(

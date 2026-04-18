@@ -9,6 +9,7 @@ import 'package:hopetsit/views/pet_owner/pet_profile/create_pet_profile_screen.d
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 
 class ChooseServiceController extends GetxController {
   /// For backward compatibility, we keep a \"primary\" selected service,
@@ -91,7 +92,7 @@ class ChooseServiceController extends GetxController {
     } catch (e) {
       // Silently handle errors - user can still select services
       if (kDebugMode) {
-        print('Failed to load current services: $e');
+        debugPrint('Failed to load current services: $e');
       }
     }
   }
@@ -139,33 +140,45 @@ class ChooseServiceController extends GetxController {
       }
     } catch (e) {
       // Silently handle refresh errors to avoid disrupting the user flow
-      print('Failed to refresh profile data: $e');
+      debugPrint('Failed to refresh profile data: $e');
     }
   }
 
-  /// Allowed internal service values per role.
-  /// Owner: can request sitting (chez leur domicile), house-sitting (chez le
-  ///        sitter), day-care, AND dog-walking (bridges to Walker role).
-  /// Sitter: offers sitting + walking.
-  /// Walker: offers walking only (this controller is not used for Walker role
-  ///        yet — Walker onboarding handles its own service flow).
+  /// Allowed internal service values per role — session avril 2026
+  /// simplification: 3 services au lieu de 4.
+  ///   • `pet_sitting`  : garde multi-jours (chez vous OU chez le sitter,
+  ///      le choix se fait via `serviceLocation` dans le formulaire publish)
+  ///   • `day_care`     : garderie journée (sans nuitée)
+  ///   • `dog_walking`  : promenades (exclusif Walker)
+  ///
+  /// Owner & Sitter voient les 3. Walker ne voit que la promenade.
   static const List<String> _ownerAllowedServiceValues = <String>[
     'pet_sitting',
-    'house_sitting',
     'day_care',
     'dog_walking',
   ];
 
   static const List<String> _sitterAllowedServiceValues = <String>[
     'pet_sitting',
-    'house_sitting',
     'day_care',
     'dog_walking',
   ];
 
-  List<String> get _allowedServiceValuesForRole => userType == 'pet_owner'
-      ? _ownerAllowedServiceValues
-      : _sitterAllowedServiceValues;
+  static const List<String> _walkerAllowedServiceValues = <String>[
+    'dog_walking',
+  ];
+
+  List<String> get _allowedServiceValuesForRole {
+    switch (userType) {
+      case 'pet_owner':
+        return _ownerAllowedServiceValues;
+      case 'pet_walker':
+        return _walkerAllowedServiceValues;
+      case 'pet_sitter':
+      default:
+        return _sitterAllowedServiceValues;
+    }
+  }
 
   final List<ServiceOption> _petOwnerServices = [
     ServiceOption(
@@ -174,13 +187,8 @@ class ChooseServiceController extends GetxController {
       value: 'pet_sitting',
     ),
     ServiceOption(
-      titleKey: 'choose_service_card_house_sitting_title',
-      subtitleKey: 'choose_service_card_subtitle_in_your_home',
-      value: 'house_sitting',
-    ),
-    ServiceOption(
       titleKey: 'choose_service_card_day_care_title',
-      subtitleKey: 'choose_service_card_subtitle_at_owners_home',
+      subtitleKey: 'choose_service_card_subtitle_in_your_home',
       value: 'day_care',
     ),
     ServiceOption(
@@ -192,29 +200,40 @@ class ChooseServiceController extends GetxController {
 
   final List<ServiceOption> _petSitterServices = [
     ServiceOption(
-      titleKey: 'choose_service_card_dog_walking_title',
-      subtitleKey: 'choose_service_card_subtitle_in_neighborhood',
-      value: 'dog_walking',
-    ),
-    ServiceOption(
       titleKey: 'choose_service_card_pet_sitting_title',
       subtitleKey: 'choose_service_card_subtitle_at_owners_home',
       value: 'pet_sitting',
     ),
     ServiceOption(
-      titleKey: 'choose_service_card_house_sitting_title',
+      titleKey: 'choose_service_card_day_care_title',
       subtitleKey: 'choose_service_card_subtitle_in_your_home',
-      value: 'house_sitting',
+      value: 'day_care',
     ),
     ServiceOption(
-      titleKey: 'choose_service_card_day_care_title',
-      subtitleKey: 'choose_service_card_subtitle_at_owners_home',
-      value: 'day_care',
+      titleKey: 'choose_service_card_dog_walking_title',
+      subtitleKey: 'choose_service_card_subtitle_in_neighborhood',
+      value: 'dog_walking',
+    ),
+  ];
+
+  final List<ServiceOption> _petWalkerServices = [
+    ServiceOption(
+      titleKey: 'choose_service_card_dog_walking_title',
+      subtitleKey: 'choose_service_card_subtitle_in_neighborhood',
+      value: 'dog_walking',
     ),
   ];
 
   List<ServiceOption> get services {
-    return userType == 'pet_sitter' ? _petSitterServices : _petOwnerServices;
+    switch (userType) {
+      case 'pet_walker':
+        return _petWalkerServices;
+      case 'pet_sitter':
+        return _petSitterServices;
+      case 'pet_owner':
+      default:
+        return _petOwnerServices;
+    }
   }
 
   /// Toggles a service in the multi-select list for BOTH flows.
@@ -224,7 +243,7 @@ class ChooseServiceController extends GetxController {
     // Guard against invalid services for the current role (e.g., dog_walking for owners)
     if (!_allowedServiceValuesForRole.contains(serviceValue)) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           '[HOPETSIT] ⚠️ Ignoring selection of disallowed service "$serviceValue" for userType="$userType"',
         );
       }
@@ -287,7 +306,7 @@ class ChooseServiceController extends GetxController {
 
     if (filteredSelected.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           '[HOPETSIT] ⚠️ chooseService: No valid services selected for userType="$userType".',
         );
       }
@@ -302,14 +321,14 @@ class ChooseServiceController extends GetxController {
     final emailToUse = email.isNotEmpty ? email : this.email;
     if (emailToUse.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           '[HOPETSIT] ⚠️ ChooseServiceController: No email available for API call',
         );
       }
       return false;
     }
     if (kDebugMode) {
-      print(
+      debugPrint(
         '[HOPETSIT] ChooseServiceController: Calling API with email=$emailToUse',
       );
     }
@@ -344,13 +363,23 @@ class ChooseServiceController extends GetxController {
       }
 
       return true;
-    } on ApiException {
+    } on ApiException catch (error) {
+      // Surface the real backend error instead of a generic message.
+      final detail = error.message.isNotEmpty
+          ? error.message
+          : 'snackbar_choose_service_controller_004'.tr;
+      if (kDebugMode) {
+        debugPrint('[HOPETSIT] chooseService ApiException: ${error.statusCode} - ${error.message} - details=${error.details}');
+      }
       CustomSnackbar.showError(
         title: 'snackbar_text_selection_failed',
-        message: 'snackbar_choose_service_controller_004',
+        message: detail,
       );
       return false;
     } catch (error) {
+      if (kDebugMode) {
+        debugPrint('[HOPETSIT] chooseService unexpected error: $error');
+      }
       CustomSnackbar.showError(
         title: 'snackbar_text_selection_failed',
         message: 'snackbar_choose_service_controller_004'.tr,
@@ -372,7 +401,7 @@ class ChooseServiceController extends GetxController {
     }
 
     // Call API to choose service - use controller's stored email
-    final emailToUse = email.isNotEmpty ? email : this.email;
+    final emailToUse = email;
     final success = await chooseService(email: emailToUse);
 
     if (success) {
@@ -384,6 +413,9 @@ class ChooseServiceController extends GetxController {
       if (userType == 'pet_sitter') {
         // Stripe setup is done later (from profile) - go directly to dashboard.
         Get.offAll(() => const SitterNavWrapper());
+      } else if (userType == 'pet_walker') {
+        // Walker dashboard.
+        Get.offAll(() => const WalkerNavWrapper());
       } else {
         // Pet owners go to create pet profile screen first.
         // For multi-select, use the first selected service as the primary type.
@@ -420,7 +452,7 @@ class ChooseServiceController extends GetxController {
     }
 
     // Call API to choose service - use controller's stored email
-    final emailToUse = email.isNotEmpty ? email : email;
+    final emailToUse = email;
     await chooseService(email: emailToUse);
   }
 }
@@ -436,3 +468,4 @@ class ServiceOption {
     required this.value,
   });
 }
+

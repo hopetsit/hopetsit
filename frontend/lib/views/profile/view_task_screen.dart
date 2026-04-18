@@ -93,7 +93,7 @@ class ViewTaskScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: AppColors.textPrimary(context).withOpacity(0.05),
+              color: AppColors.textPrimary(context).withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),

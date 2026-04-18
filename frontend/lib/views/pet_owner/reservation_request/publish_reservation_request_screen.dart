@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -6,7 +5,6 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
@@ -192,7 +190,7 @@ class _PublishReservationRequestScreenState
                 width: 32.w,
                 height: 32.w,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Icon(icon, size: 18.sp, color: AppColors.primaryColor),
@@ -406,10 +404,10 @@ class _PublishReservationRequestScreenState
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
               decoration: BoxDecoration(
-                color: AppColors.greenColor.withOpacity(0.08),
+                color: AppColors.greenColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10.r),
                 border: Border.all(
-                  color: AppColors.greenColor.withOpacity(0.3),
+                  color: AppColors.greenColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -440,7 +438,7 @@ class _PublishReservationRequestScreenState
                 width: 32.w,
                 height: 32.w,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.arrow_downward_rounded,
@@ -467,7 +465,7 @@ class _PublishReservationRequestScreenState
                   border: Border.all(
                     color: controller.formattedEndTime.isEmpty
                         ? AppColors.divider(context)
-                        : AppColors.primaryColor.withOpacity(0.3),
+                        : AppColors.primaryColor.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -504,7 +502,7 @@ class _PublishReservationRequestScreenState
                 width: 32.w,
                 height: 32.w,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.arrow_downward_rounded,
@@ -558,7 +556,7 @@ class _PublishReservationRequestScreenState
                 color: AppColors.inputFill(context),
                 borderRadius: BorderRadius.circular(12.r),
                 border: Border.all(
-                  color: isDatePlaceholder ? AppColors.divider(context) : AppColors.primaryColor.withOpacity(0.3),
+                  color: isDatePlaceholder ? AppColors.divider(context) : AppColors.primaryColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -592,7 +590,7 @@ class _PublishReservationRequestScreenState
                 color: const Color(0xFFF7F7F8),
                 borderRadius: BorderRadius.circular(12.r),
                 border: Border.all(
-                  color: isTimePlaceholder ? AppColors.grey300Color : AppColors.primaryColor.withOpacity(0.3),
+                  color: isTimePlaceholder ? AppColors.grey300Color : AppColors.primaryColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -794,7 +792,7 @@ class _PublishReservationRequestScreenState
                     ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? accent.withOpacity(0.08)
+                          ? accent.withValues(alpha: 0.08)
                           : AppColors.inputFill(context),
                       borderRadius: BorderRadius.circular(14.r),
                       border: Border.all(
@@ -810,7 +808,7 @@ class _PublishReservationRequestScreenState
                           width: 42.w,
                           height: 42.w,
                           decoration: BoxDecoration(
-                            color: accent.withOpacity(0.14),
+                            color: accent.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(12.r),
                           ),
                           alignment: Alignment.center,
@@ -987,7 +985,7 @@ class _PublishReservationRequestScreenState
                 ),
                 decoration: BoxDecoration(
                   color: selected
-                      ? _sitterAccent.withOpacity(0.08)
+                      ? _sitterAccent.withValues(alpha: 0.08)
                       : AppColors.inputFill(context),
                   borderRadius: BorderRadius.circular(14.r),
                   border: Border.all(
@@ -1051,6 +1049,7 @@ class _PublishReservationRequestScreenState
     );
   }
 
+  // ignore: unused_element
   Widget _buildHouseSittingVenueSection() {
     const options = <Map<String, String>>[
       {'value': 'owners_home', 'label': 'house_sitting_venue_owners_home'},
@@ -1196,124 +1195,87 @@ class _PublishReservationRequestScreenState
   }
 
   Widget _buildLocationSection() {
-    return Obx(
-      () => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CityLocationPicker(
-            cityController: controller.cityController,
-            onGetLocation: controller.detectLocation,
-            isGettingLocation: controller.isGettingLocation.value,
-            detectedCity: controller.detectedCity.value,
-          ),
-          SizedBox(height: 14.h),
-          CustomTextField(
-            labelText: 'publish_request_address_label'.tr,
-            hintText: 'publish_request_address_hint'.tr,
-            controller: controller.addressController,
-            radius: 21,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImagesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InterText(
-          text: 'publish_request_images_label'.tr,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary(context),
+          text: 'publish_request_location_label'.tr,
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 8.h),
-        Obx(() {
-          final images = controller.imageFiles.toList();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        TextField(
+          controller: controller.cityController,
+          decoration: InputDecoration(
+            hintText: 'publish_request_city_hint'.tr,
+            filled: true,
+            fillColor: AppColors.inputFill(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: AppColors.divider(context)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: AppColors.divider(context)),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 14.w,
+              vertical: 14.h,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagesSection() {
+    return Obx(
+      () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: 'publish_request_images_label'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 8.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
             children: [
-              if (images.isNotEmpty)
-                SizedBox(
-                  height: 84.h,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: images.length,
-                    separatorBuilder: (_, __) => SizedBox(width: 10.w),
-                    itemBuilder: (_, idx) {
-                      final File f = images[idx];
-                      return Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12.r),
-                            child: Image.file(
-                              f,
-                              width: 84.h,
-                              height: 84.h,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 84.h,
-                                height: 84.h,
-                                color: AppColors.grey300Color,
-                                child: Icon(
-                                  Icons.image_not_supported_outlined,
-                                  color: AppColors.greyText,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 6,
-                            right: 6,
-                            child: GestureDetector(
-                              onTap: () => controller.removeImageAt(idx),
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.6),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+              for (final file in controller.imageFiles)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10.r),
+                  child: Image.file(
+                    file,
+                    width: 80.w,
+                    height: 80.w,
+                    fit: BoxFit.cover,
                   ),
                 ),
-              SizedBox(height: 12.h),
               GestureDetector(
                 onTap: controller.pickImages,
                 child: Container(
-                  height: 46.h,
+                  width: 80.w,
+                  height: 80.w,
                   decoration: BoxDecoration(
                     color: AppColors.inputFill(context),
-                    borderRadius: BorderRadius.circular(14.r),
-                    border: Border.all(color: AppColors.divider(context), width: 1),
+                    borderRadius: BorderRadius.circular(10.r),
+                    border: Border.all(color: AppColors.divider(context)),
                   ),
-                  child: Center(
-                    child: InterText(
-                      text: images.isEmpty
-                          ? 'publish_request_add_images'.tr
-                          : 'publish_request_add_more_images'.tr,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primaryColor,
-                    ),
+                  child: Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 28.sp,
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
               ),
             ],
-          );
-        }),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1323,9 +1285,9 @@ class _PublishReservationRequestScreenState
       children: [
         InterText(
           text: label,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary(context),
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary(context),
         ),
         SizedBox(height: 8.h),
         child,

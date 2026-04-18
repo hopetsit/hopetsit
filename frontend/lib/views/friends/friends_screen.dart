@@ -178,7 +178,7 @@ class _FriendTile extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 24.r,
-            backgroundColor: roleColor.withOpacity(0.15),
+            backgroundColor: roleColor.withValues(alpha: 0.15),
             child: other.avatar.isNotEmpty
                 ? ClipOval(
                     child: CachedNetworkImage(
@@ -209,7 +209,7 @@ class _FriendTile extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
                       decoration: BoxDecoration(
-                        color: roleColor.withOpacity(0.15),
+                        color: roleColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6.r),
                       ),
                       child: InterText(
@@ -239,7 +239,7 @@ class _FriendTile extends StatelessWidget {
                 scale: 0.75,
                 child: Switch(
                   value: friendship.mySharePosition,
-                  activeColor: AppColors.primaryColor,
+                  activeThumbColor: AppColors.primaryColor,
                   onChanged: (v) => controller.setSharePosition(friendship.id, v),
                 ),
               ),
@@ -354,7 +354,7 @@ class _IncomingTile extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 22.r,
-            backgroundColor: AppColors.primaryColor.withOpacity(0.15),
+            backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
             child: Icon(Icons.person, color: AppColors.primaryColor, size: 22.sp),
           ),
           SizedBox(width: 12.w),

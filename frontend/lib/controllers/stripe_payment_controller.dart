@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
@@ -241,28 +240,31 @@ class StripePaymentController extends GetxController {
       Get.off(
         () => PaymentResultScreen(
           isSuccess: false,
-          message: error.message,
-          onContinue: () {
-            Get.back();
-          },
+          message: error.message.isNotEmpty
+              ? error.message
+              : 'Payment confirmation failed. Please try again.',
+          transactionId: paymentIntentId,
+          amount: totalAmount,
+          currency: currency,
+          booking: booking,
+          onContinue: () => Get.back(),
         ),
       );
-    } catch (e) {
-      AppLogger.logError('Payment confirmation failed', error: e);
+    } catch (error) {
+      AppLogger.logError('Payment confirmation failed', error: error);
       Get.off(
         () => PaymentResultScreen(
           isSuccess: false,
-          message: 'payment_confirmation_failed'.tr,
-          onContinue: () {
-            Get.back();
-          },
+          message: 'An unexpected error occurred. Please try again.',
+          transactionId: paymentIntentId,
+          amount: totalAmount,
+          currency: currency,
+          booking: booking,
+          onContinue: () => Get.back(),
         ),
       );
+    } finally {
+      isProcessing.value = false;
     }
-  }
-
-  /// Legacy method - kept for backward compatibility
-  Future<void> processPayment() async {
-    await initiatePayment();
   }
 }

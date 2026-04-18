@@ -46,7 +46,7 @@ class CustomButton extends StatelessWidget {
               : LinearGradient(
                   colors: [
                     bgColor ?? AppColors.primaryColor,
-                    (bgColor ?? AppColors.primaryColor).withOpacity(0.85),
+                    (bgColor ?? AppColors.primaryColor).withValues(alpha: 0.85),
                   ],
                 ),
           border: borderColor != null
@@ -56,7 +56,7 @@ class CustomButton extends StatelessWidget {
           boxShadow: onTap != null
               ? [
                   BoxShadow(
-                    color: (bgColor ?? AppColors.primaryColor).withOpacity(0.3),
+                    color: (bgColor ?? AppColors.primaryColor).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),

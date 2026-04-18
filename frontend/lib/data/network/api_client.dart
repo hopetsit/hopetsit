@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
+// ignore: depend_on_referenced_packages
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 
@@ -197,7 +198,7 @@ class ApiClient {
 
   /// Executes a POST request with multipart/form-data supporting multiple files
   /// with different field names. Accepts a map where keys are field names and
-  /// values are either a single File or List<File>.
+  /// values are either a single File or List`<File>`.
   Future<dynamic> postMultipartWithFields({
     required String endpoint,
     required Map<String, dynamic>

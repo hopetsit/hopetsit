@@ -28,6 +28,7 @@ class ThemeController extends GetxController {
         return ThemeMode.dark;
       case 'system':
         return ThemeMode.system;
+      // ignore: unreachable_switch_default
       default:
         return ThemeMode.light;
     }
@@ -40,7 +41,6 @@ class ThemeController extends GetxController {
       case ThemeMode.dark:
         return 'dark';
       case ThemeMode.system:
-      default:
         return 'system';
     }
   }

@@ -16,6 +16,7 @@ class FriendController extends GetxController {
     refresh();
   }
 
+  @override
   Future<void> refresh() async {
     isLoading.value = true;
     try {

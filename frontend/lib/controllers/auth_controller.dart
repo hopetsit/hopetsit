@@ -322,25 +322,40 @@ class AuthController extends GetxController {
               '';
 
           if (email.isNotEmpty && role != null) {
-            // Map role to userType format
-            final userType = role == 'owner' ? 'pet_owner' : 'pet_sitter';
+            // Map role to userType format — supports owner / sitter / walker.
+            final userType = role == 'owner'
+                ? 'pet_owner'
+                : role == 'walker'
+                    ? 'pet_walker'
+                    : 'pet_sitter';
 
             debugPrint(
-              '[HOPETSIT] Navigating new Google user to ChooseServiceScreen: email=$email, userType=$userType',
+              '[HOPETSIT] Navigating new Google user: role=$role -> userType=$userType',
             );
 
-            CustomSnackbar.showSuccess(
-              title: 'auth_google_signin_title',
-              message: 'auth_google_signin_choose_services',
-            );
+            // Walkers have an implicit single service (dog_walking) so they
+            // skip the ChooseServiceScreen and land straight on the walker
+            // home shell.
+            if (userType == 'pet_walker') {
+              CustomSnackbar.showSuccess(
+                title: 'auth_google_signin_title',
+                message: 'auth_google_signin_success',
+              );
+              Get.offAll(() => const WalkerNavWrapper());
+            } else {
+              CustomSnackbar.showSuccess(
+                title: 'auth_google_signin_title',
+                message: 'auth_google_signin_choose_services',
+              );
 
-            Get.offAll(
-              () => ChooseServiceScreen(
-                userType: userType,
-                email: email,
-                isFromProfile: false,
-              ),
-            );
+              Get.offAll(
+                () => ChooseServiceScreen(
+                  userType: userType,
+                  email: email,
+                  isFromProfile: false,
+                ),
+              );
+            }
           } else {
             debugPrint(
               '[HOPETSIT] ⚠️ Missing email or role for new user navigation',
@@ -362,7 +377,7 @@ class AuthController extends GetxController {
         );
       }
     } catch (e) {
-      print("Google Login Error: $e");
+      debugPrint("Google Login Error: $e");
       CustomSnackbar.showError(
         title: 'auth_google_signin_title',
         message: 'common_error_generic',
@@ -456,20 +471,33 @@ class AuthController extends GetxController {
               '';
 
           if (email.isNotEmpty && role != null) {
-            final userType = role == 'owner' ? 'pet_owner' : 'pet_sitter';
+            // Map role to userType format — supports owner / sitter / walker.
+            final userType = role == 'owner'
+                ? 'pet_owner'
+                : role == 'walker'
+                    ? 'pet_walker'
+                    : 'pet_sitter';
 
-            CustomSnackbar.showSuccess(
-              title: 'common_success',
-              message: 'auth_google_signin_choose_services',
-            );
+            if (userType == 'pet_walker') {
+              CustomSnackbar.showSuccess(
+                title: 'common_success',
+                message: 'auth_apple_signin_success',
+              );
+              Get.offAll(() => const WalkerNavWrapper());
+            } else {
+              CustomSnackbar.showSuccess(
+                title: 'common_success',
+                message: 'auth_google_signin_choose_services',
+              );
 
-            Get.offAll(
-              () => ChooseServiceScreen(
-                userType: userType,
-                email: email,
-                isFromProfile: false,
-              ),
-            );
+              Get.offAll(
+                () => ChooseServiceScreen(
+                  userType: userType,
+                  email: email,
+                  isFromProfile: false,
+                ),
+              );
+            }
           } else {
             _navigateToHome();
           }
@@ -702,7 +730,7 @@ class AuthController extends GetxController {
       }
 
       // Build a user-facing role label for the 3 possible roles.
-      String _roleLabel(String r) {
+      String roleLabel(String r) {
         switch (r) {
           case 'owner':
             return 'auth_role_pet_owner'.tr;
@@ -718,7 +746,7 @@ class AuthController extends GetxController {
         title: 'snackbar_text_role_switched',
         message: 'auth_role_switched_message'.tr.replaceAll(
           '@role',
-          _roleLabel(userRole.value ?? ''),
+          roleLabel(userRole.value ?? ''),
         ),
       );
 
@@ -752,7 +780,7 @@ class AuthController extends GetxController {
       _storage.write(StorageKeys.userRole, newRole);
       userRole.value = newRole;
 
-      String _roleLabel(String r) {
+      String roleLabel(String r) {
         switch (r) {
           case 'owner':
             return 'auth_role_pet_owner'.tr;
@@ -768,7 +796,7 @@ class AuthController extends GetxController {
         title: 'auth_role_switched',
         message: 'auth_role_switched_message'.tr.replaceAll(
           '@role',
-          _roleLabel(newRole),
+          roleLabel(newRole),
         ),
       );
       _navigateToHome();
@@ -800,11 +828,25 @@ class AuthController extends GetxController {
         _clearSitterCachedData();
         _clearServiceSelections();
         await _refreshOwnerData();
-      } else {
+      } else if (role == 'walker') {
+        // Walker — no sitter-specific endpoints (no /sitters/me). The walker
+        // flow reuses the shared feed from PostsController, so we just refresh
+        // that + the user profile. Do NOT call the sitter profile endpoint
+        // (it returns 404 for walkers) and SKIP the PayPal prompt (that is a
+        // sitter-only payout flow).
         _clearOwnerCachedData();
         _clearServiceSelections();
-        // Keep sitter refresh and PayPal prompt checks isolated so one failure
-        // does not block the other.
+        try {
+          await _refreshWalkerData();
+        } catch (e) {
+          debugPrint(
+            '[HOPETSIT] ⚠️ Walker refresh failed after role switch: $e',
+          );
+        }
+      } else {
+        // Sitter — full refresh including sitter profile + PayPal prompt.
+        _clearOwnerCachedData();
+        _clearServiceSelections();
         try {
           await _refreshSitterData();
         } catch (e) {
@@ -813,7 +855,6 @@ class AuthController extends GetxController {
           );
         }
 
-        // PayPal prompt is gated by feature flag; hidden for new sitters.
         if (AppConstants.showPayPalOption) {
           await _promptForSitterPayPalEmailIfMissing();
         }
@@ -821,6 +862,20 @@ class AuthController extends GetxController {
       debugPrint('[HOPETSIT] ✅ Data refreshed after role switch to $role');
     } catch (e) {
       debugPrint('[HOPETSIT] ⚠️ Refresh after role switch failed: $e');
+    }
+  }
+
+  /// Walker-specific refresh after role switch. Walker has no dedicated
+  /// profile endpoint yet (reuses the generic user profile), so this mostly
+  /// reloads the shared feed + display name/avatar.
+  Future<void> _refreshWalkerData() async {
+    if (Get.isRegistered<UserController>()) {
+      await Get.find<UserController>().loadMyProfile();
+    }
+    if (Get.isRegistered<PostsController>()) {
+      final pc = Get.find<PostsController>();
+      await pc.loadPostsWithoutMedia();
+      await pc.loadMediaPosts();
     }
   }
 
@@ -1010,6 +1065,22 @@ class AuthController extends GetxController {
     Get.offAll(() => const LoginScreen());
   }
 
+  /// Returns true when the given error message / status code indicates the
+  /// user's session is invalid and they need to re-authenticate. Callers use
+  /// this to know when to trigger [handleLoginRequiredError].
+  static bool isLoginRequiredError(String? message, {int? statusCode}) {
+    if (statusCode == 401 || statusCode == 403) return true;
+    if (message == null) return false;
+    final lower = message.toLowerCase();
+    return lower.contains('login required') ||
+        lower.contains('please login') ||
+        lower.contains('unauthorized') ||
+        lower.contains('not authenticated') ||
+        lower.contains('invalid token') ||
+        lower.contains('token expired') ||
+        lower.contains('jwt');
+  }
+
   /// Handles "please login again" errors by logging out and routing to signin screen
   /// This should be called whenever an error indicates the user needs to re-authenticate
   static Future<void> handleLoginRequiredError() async {
@@ -1031,30 +1102,7 @@ class AuthController extends GetxController {
       final storage = GetStorage();
       await storage.remove(StorageKeys.authToken);
       await storage.remove(StorageKeys.userProfile);
-      await storage.remove(StorageKeys.userRole);
       Get.offAll(() => const LoginScreen());
     }
-  }
-
-  /// Checks if an error message indicates login is required
-  /// Also checks ApiException status code for 401 (Unauthorized)
-  static bool isLoginRequiredError(String errorMessage, {int? statusCode}) {
-    // Check status code first (401 = Unauthorized)
-    if (statusCode == 401) {
-      return true;
-    }
-
-    final lowerMessage = errorMessage.toLowerCase();
-    return lowerMessage.contains('please login again') ||
-        lowerMessage.contains('please login') ||
-        lowerMessage.contains('login again') ||
-        lowerMessage.contains('user id not found') ||
-        lowerMessage.contains('sitter id not found') ||
-        lowerMessage.contains('auth token not found') ||
-        lowerMessage.contains('authentication required') ||
-        lowerMessage.contains('unauthorized') ||
-        lowerMessage.contains('token expired') ||
-        lowerMessage.contains('session expired') ||
-        lowerMessage.contains('missing auth token');
   }
 }

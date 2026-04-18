@@ -58,7 +58,7 @@ class SitterModel {
   bool get hasConfiguredRates =>
       hourlyRate > 0 || dailyRate > 0 || weeklyRate > 0 || monthlyRate > 0;
 
-  /// Get skills as List<String>
+  /// Get skills as List`<String>`
   List<String> get skillsList {
     if (skills is List) {
       return (skills as List).map((e) => e.toString()).toList();

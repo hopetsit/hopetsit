@@ -174,8 +174,9 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       if (!mounted) return;
       setState(() {
         _boostActive = map['isActive'] == true;
-        _currentTier = map['tier'];
-        _remainingDays = map['remainingDays'] ?? 0;
+        _currentTier = map['tier'] as String?;
+        // Backend returns this as num (can be double or int) — coerce safely.
+        _remainingDays = (map['remainingDays'] as num?)?.toInt() ?? 0;
         _history = map['purchaseHistory'] as List<dynamic>? ?? [];
       });
     } catch (_) {
@@ -339,7 +340,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: _boostActive
-              ? [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.7)]
+              ? [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.7)]
               : [Colors.grey.shade300, Colors.grey.shade200],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -352,7 +353,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
             width: 56.w,
             height: 56.w,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Center(
@@ -379,14 +380,14 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                       ? 'boost_remaining_days'.tr.replaceAll('@days', _remainingDays.toString())
                       : 'boost_inactive_hint'.tr,
                   fontSize: 13.sp,
-                  color: _boostActive ? Colors.white.withOpacity(0.85) : AppColors.greyText,
+                  color: _boostActive ? Colors.white.withValues(alpha: 0.85) : AppColors.greyText,
                 ),
                 if (_boostActive && _currentTier != null) ...[
                   SizedBox(height: 4.h),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.25),
+                      color: Colors.white.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: InterText(
@@ -407,8 +408,9 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
 
   Widget _buildPackageCard(Map<String, dynamic> pkg) {
     final tier = pkg['tier'] as String;
-    final amount = pkg['amount'] as int;
-    final days = pkg['days'] as int;
+    // Backend can return amount as double (e.g. 4.99) or int — coerce via num.
+    final amount = ((pkg['amount'] as num?) ?? 0).toDouble();
+    final days = ((pkg['days'] as num?) ?? 0).toInt();
     final icon = pkg['icon'] as String;
     final label = pkg['label'] as String;
     final color = pkg['color'] as Color;
@@ -428,8 +430,8 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                 borderRadius: BorderRadius.circular(16.r),
                 border: isPopular ? Border.all(color: AppColors.primaryColor, width: 2) : null,
                 boxShadow: isPopular
-                    ? [BoxShadow(color: AppColors.primaryColor.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))]
-                    : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2))],
+                    ? [BoxShadow(color: AppColors.primaryColor.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4))]
+                    : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
               ),
               child: Row(
                 children: [
@@ -437,7 +439,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     width: 50.w,
                     height: 50.w,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
+                      color: color.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Center(child: Text(icon, style: TextStyle(fontSize: 26.sp))),
@@ -459,7 +461,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryColor.withOpacity(0.1),
+                                color: AppColors.primaryColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8.r),
                               ),
                               child: InterText(
@@ -571,7 +573,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                       width: 32.w,
                       height: 32.w,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.1),
+                        color: AppColors.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Icon(step['icon'] as IconData, size: 16.sp, color: AppColors.primaryColor),
@@ -751,7 +753,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           border: Border.all(
             color: alreadyActive
                 ? Colors.green
-                : AppColors.primaryColor.withOpacity(0.35),
+                : AppColors.primaryColor.withValues(alpha: 0.35),
             width: 1.3,
           ),
         ),
@@ -761,7 +763,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               width: 42.w,
               height: 42.w,
               decoration: BoxDecoration(
-                color: AppColors.primaryColor.withOpacity(0.12),
+                color: AppColors.primaryColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(
@@ -914,7 +916,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
             width: 56.w,
             height: 56.w,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.25),
+              color: Colors.white.withValues(alpha: 0.25),
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Center(
@@ -941,14 +943,14 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                       ? 'Il vous reste $remainingDays jours'
                       : 'Passez Premium pour débloquer toutes les fonctionnalités',
                   fontSize: 13.sp,
-                  color: isPremium ? Colors.white.withOpacity(0.9) : AppColors.greyText,
+                  color: isPremium ? Colors.white.withValues(alpha: 0.9) : AppColors.greyText,
                 ),
                 if (isPremium && status!.cancelAtPeriodEnd) ...[
                   SizedBox(height: 4.h),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: InterText(
@@ -996,8 +998,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 boxShadow: [
                   BoxShadow(
                     color: isYearly
-                        ? const Color(0xFFFFD700).withOpacity(0.15)
-                        : Colors.black.withOpacity(0.04),
+                        ? const Color(0xFFFFD700).withValues(alpha: 0.15)
+                        : Colors.black.withValues(alpha: 0.04),
                     blurRadius: isYearly ? 12 : 10,
                     offset: const Offset(0, 4),
                   ),
@@ -1009,7 +1011,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     width: 50.w,
                     height: 50.w,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFD700).withOpacity(0.15),
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Center(
@@ -1106,12 +1108,13 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
 
   Widget _buildFeaturesList(BuildContext context) {
     final features = [
-      {'icon': Icons.map_outlined, 'text': 'PawMap complète — vétos, parcs, boutiques, points d\'eau'},
-      {'icon': Icons.warning_amber_rounded, 'text': 'Signalements 48h — caca, pipi, dangers, points d\'eau actifs'},
-      {'icon': Icons.chat_bubble_outline, 'text': 'Chat avec les utilisateurs croisés sur la map'},
+      {'icon': Icons.map_outlined, 'text': 'PawMap complète — vétos, parcs, animaleries, points d\'eau'},
+      {'icon': Icons.warning_amber_rounded, 'text': '17 types de signalements 48h (dont 7 Premium exclusifs)'},
+      {'icon': Icons.chat_bubble_outline, 'text': 'Chat illimité avec les utilisateurs croisés sur la map'},
       {'icon': Icons.people_outline, 'text': 'Suivi d\'amis en temps réel (façon Waze)'},
-      {'icon': Icons.notifications_active_outlined, 'text': 'Notifications de proximité'},
-      {'icon': Icons.trending_up, 'text': '1 boost map inclus par mois'},
+      {'icon': Icons.notifications_active_outlined, 'text': 'Notifications de proximité instantanées'},
+      {'icon': Icons.trending_up, 'text': '1 boost map offert chaque mois'},
+      {'icon': Icons.verified_rounded, 'text': 'Badge Premium sur votre profil'},
     ];
 
     return Container(
@@ -1140,7 +1143,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                       width: 32.w,
                       height: 32.w,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9500).withOpacity(0.12),
+                        color: const Color(0xFFFF9500).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Icon(
@@ -1294,7 +1297,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
             width: 56.w,
             height: 56.w,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.25),
+              color: Colors.white.withValues(alpha: 0.25),
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Center(
@@ -1322,7 +1325,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                       : 'Votre pin s\'affiche en taille normale',
                   fontSize: 12.sp,
                   color: isActive
-                      ? Colors.white.withOpacity(0.9)
+                      ? Colors.white.withValues(alpha: 0.9)
                       : AppColors.greyText,
                 ),
                 if (isActive && status!.tier != null) ...[
@@ -1330,7 +1333,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: InterText(
@@ -1378,7 +1381,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                 InterText(
                   text: '1 crédit = 3 jours gratuits de Map Boost',
                   fontSize: 11.sp,
-                  color: Colors.white.withOpacity(0.95),
+                  color: Colors.white.withValues(alpha: 0.95),
                 ),
               ],
             ),
@@ -1482,8 +1485,8 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                 boxShadow: [
                   BoxShadow(
                     color: isPopular
-                        ? AppColors.primaryColor.withOpacity(0.15)
-                        : Colors.black.withOpacity(0.04),
+                        ? AppColors.primaryColor.withValues(alpha: 0.15)
+                        : Colors.black.withValues(alpha: 0.04),
                     blurRadius: isPopular ? 12 : 10,
                     offset: const Offset(0, 4),
                   ),
@@ -1495,7 +1498,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                     width: 50.w,
                     height: 50.w,
                     decoration: BoxDecoration(
-                      color: tierColor.withOpacity(0.15),
+                      color: tierColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Center(child: Text(icon, style: TextStyle(fontSize: 26.sp))),
@@ -1505,91 +1508,32 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            InterText(
-                              text: pkg.tier[0].toUpperCase() + pkg.tier.substring(1),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary(context),
-                            ),
-                            SizedBox(width: 8.w),
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              child: InterText(
-                                text: '${pkg.days} j',
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                          ],
+                        InterText(
+                          text: _mapBoostTierLabel(pkg.tier),
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(context),
+                        ),
+                        SizedBox(height: 2.h),
+                        InterText(
+                          text: '${pkg.days} jour${pkg.days > 1 ? "s" : ""} de mise en avant',
+                          fontSize: 12.sp,
+                          color: AppColors.textSecondary(context),
                         ),
                         SizedBox(height: 4.h),
                         InterText(
-                          text: 'Pin surligné pendant ${pkg.label}',
-                          fontSize: 12.sp,
-                          color: AppColors.greyText,
+                          text: '${pkg.amount.toStringAsFixed(2)} ${pkg.currency}',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryColor,
                         ),
                       ],
                     ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      PoppinsText(
-                        text: CurrencyHelper.format(pkg.currency, pkg.amount, decimals: 0),
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryColor,
-                      ),
-                      InterText(
-                        text: '${CurrencyHelper.format(pkg.currency, pkg.pricePerDay)}/jour',
-                        fontSize: 10.sp,
-                        color: AppColors.greyText,
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 8.w),
-                  controller.isPurchasing.value
-                      ? SizedBox(
-                          width: 20.w,
-                          height: 20.w,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primaryColor,
-                          ),
-                        )
-                      : Icon(Icons.arrow_forward_ios, size: 16.sp, color: AppColors.greyText),
                 ],
               ),
             ),
           ),
-          if (isPopular)
-            Positioned(
-              top: 0,
-              right: 16.w,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(8.r),
-                    bottomRight: Radius.circular(8.r),
-                  ),
-                ),
-                child: InterText(
-                  text: 'POPULAIRE',
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -1597,10 +1541,10 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
 
   Widget _buildHowItWorks(BuildContext context) {
     final steps = [
-      {'icon': Icons.shopping_cart, 'text': 'Choisir un forfait Map Boost'},
-      {'icon': Icons.payment, 'text': 'Payer par carte (CB / Apple Pay / Google Pay)'},
-      {'icon': Icons.highlight, 'text': 'Votre pin est surligné en couleur sur la PawMap'},
-      {'icon': Icons.visibility, 'text': 'Les voisins vous voient en premier dans leur zone'},
+      {'icon': Icons.location_on_rounded, 'text': 'Votre pin apparaît surligné sur la PawMap des voisins'},
+      {'icon': Icons.visibility_rounded, 'text': 'Les propriétaires vous repèrent en priorité sur la carte'},
+      {'icon': Icons.trending_up_rounded, 'text': 'Plus de demandes dans votre zone pendant toute la durée'},
+      {'icon': Icons.auto_awesome_rounded, 'text': 'Renouvellement à votre rythme — sans engagement'},
     ];
     return Container(
       padding: EdgeInsets.all(16.w),
@@ -1613,8 +1557,8 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InterText(
-            text: 'Comment ça marche',
-            fontSize: 15.sp,
+            text: 'Comment fonctionne Map Boost ?',
+            fontSize: 14.sp,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary(context),
           ),
@@ -1622,22 +1566,27 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
           ...steps.map((s) => Padding(
                 padding: EdgeInsets.only(bottom: 10.h),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 32.w,
-                      height: 32.w,
+                      width: 28.w,
+                      height: 28.w,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.1),
+                        color: AppColors.primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8.r),
                       ),
-                      child: Icon(s['icon'] as IconData, size: 16.sp, color: AppColors.primaryColor),
+                      child: Icon(
+                        s['icon'] as IconData,
+                        size: 16.sp,
+                        color: AppColors.primaryColor,
+                      ),
                     ),
-                    SizedBox(width: 12.w),
+                    SizedBox(width: 10.w),
                     Expanded(
                       child: InterText(
                         text: s['text'] as String,
                         fontSize: 13.sp,
-                        color: AppColors.blackColor,
+                        color: AppColors.textPrimary(context),
                       ),
                     ),
                   ],
@@ -1648,39 +1597,42 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     );
   }
 
+  /// Human-readable label for a Map Boost tier — mirrors the Boost tab
+  /// palette (Bronze / Argent / Or / Diamant).
+  String _mapBoostTierLabel(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'bronze':
+        return 'Bronze — Essai';
+      case 'silver':
+        return 'Argent — Recommandé';
+      case 'gold':
+        return 'Or — Meilleure visibilité';
+      case 'platinum':
+      case 'diamond':
+        return 'Diamant — Premium';
+      default:
+        return tier;
+    }
+  }
+
   Future<void> _handlePurchase(
     BuildContext context,
     MapBoostController controller,
     String tier,
   ) async {
     try {
-      final ok = await controller.purchase(tier);
+      await controller.purchase(tier);
       if (!mounted) return;
-      if (ok) {
-        CustomSnackbar.showSuccess(
-          title: 'Map Boost activé !',
-          message: 'Votre pin est maintenant surligné sur la PawMap.',
-        );
-      }
-    } on StripeException catch (e) {
-      if (!mounted) return;
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.error.localizedMessage ?? 'Paiement échoué.',
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'map_boost_purchase_success'.tr,
       );
     } catch (e) {
+      debugPrint('MapBoost purchase failed: $e');
       if (!mounted) return;
-      String msg = e.toString();
-      if (msg.contains('StripeConfigException') ||
-          msg.contains('Stripe has not been correctly initialized')) {
-        msg =
-            'Erreur de configuration Stripe. Ferme et relance l\'application, puis réessaie.';
-      } else if (msg.contains('<!DOCTYPE') || msg.contains('<html')) {
-        msg = 'Service indisponible.';
-      }
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: msg,
+        message: 'map_boost_purchase_failed'.tr,
       );
     }
   }

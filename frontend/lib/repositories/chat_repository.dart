@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
@@ -66,11 +67,11 @@ class ChatRepository {
             )
             as dynamic;
 
-    print('API Response type: ${response.runtimeType}');
-    print('API Response: $response');
+    debugPrint('API Response type: ${response.runtimeType}');
+    debugPrint('API Response: $response');
 
     if (response == null) {
-      print('Response is null, returning empty list');
+      debugPrint('Response is null, returning empty list');
       return [];
     }
 
@@ -80,7 +81,7 @@ class ChatRepository {
         final messages = (response['messages'] as List)
             .map((item) => item as Map<String, dynamic>)
             .toList();
-        print('Found ${messages.length} messages in response');
+        debugPrint('Found ${messages.length} messages in response');
         return messages;
       }
       // Handle case where API returns { data: [...] }
@@ -88,10 +89,10 @@ class ChatRepository {
         final messages = (response['data'] as List)
             .map((item) => item as Map<String, dynamic>)
             .toList();
-        print('Found ${messages.length} messages in data field');
+        debugPrint('Found ${messages.length} messages in data field');
         return messages;
       }
-      print(
+      debugPrint(
         'Response is Map but no messages/data field found. Keys: ${response.keys}',
       );
     }
@@ -101,7 +102,7 @@ class ChatRepository {
       final messages = response
           .map((item) => item as Map<String, dynamic>)
           .toList();
-      print('Response is direct list with ${messages.length} items');
+      debugPrint('Response is direct list with ${messages.length} items');
       return messages;
     }
 
@@ -220,20 +221,20 @@ class ChatRepository {
       // Handle case where API returns { message: {...} }
       if (response.containsKey('message')) {
         final messageData = response['message'] as Map<String, dynamic>;
-        print('Message with attachments response: $messageData');
-        print('Attachments in response: ${messageData['attachments']}');
+        debugPrint('Message with attachments response: $messageData');
+        debugPrint('Attachments in response: ${messageData['attachments']}');
         return messageData;
       }
       // Handle case where API returns { sentMessage: {...} }
       if (response.containsKey('sentMessage')) {
         final messageData = response['sentMessage'] as Map<String, dynamic>;
-        print('SentMessage with attachments response: $messageData');
-        print('Attachments in response: ${messageData['attachments']}');
+        debugPrint('SentMessage with attachments response: $messageData');
+        debugPrint('Attachments in response: ${messageData['attachments']}');
         return messageData;
       }
       // Return response directly if it's already the message object
-      print('Direct message response: $response');
-      print('Attachments in direct response: ${response['attachments']}');
+      debugPrint('Direct message response: $response');
+      debugPrint('Attachments in direct response: ${response['attachments']}');
       return response;
     }
 

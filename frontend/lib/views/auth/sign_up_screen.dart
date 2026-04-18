@@ -139,7 +139,7 @@ class SignUpScreen extends StatelessWidget {
                                       border: Border.all(
                                         color: hasError
                                             ? AppColors.errorColor
-                                            : AppColors.textSecondary(context).withOpacity(0.2),
+                                            : AppColors.textSecondary(context).withValues(alpha: 0.2),
                                         width: 1,
                                       ),
                                       borderRadius: BorderRadius.circular(30.r),
@@ -307,7 +307,7 @@ class SignUpScreen extends StatelessWidget {
                             vertical: 12.h,
                           ),
                           decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.textSecondary(context).withOpacity(0.2)),
+                            border: Border.all(color: AppColors.textSecondary(context).withValues(alpha: 0.2)),
                             borderRadius: BorderRadius.circular(30.r),
                           ),
                           child: Builder(
@@ -496,7 +496,7 @@ class SignUpScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Divider(
-                              color: AppColors.textSecondary(context).withOpacity(0.2),
+                              color: AppColors.textSecondary(context).withValues(alpha: 0.2),
                               thickness: 1,
                             ),
                           ),
@@ -510,7 +510,7 @@ class SignUpScreen extends StatelessWidget {
                           ),
                           Expanded(
                             child: Divider(
-                              color: AppColors.textSecondary(context).withOpacity(0.2),
+                              color: AppColors.textSecondary(context).withValues(alpha: 0.2),
                               thickness: 1,
                             ),
                           ),
@@ -542,7 +542,7 @@ class SignUpScreen extends StatelessWidget {
                                       );
                                     },
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.textSecondary(context).withOpacity(0.2)),
+                                side: BorderSide(color: AppColors.textSecondary(context).withValues(alpha: 0.2)),
                                 padding: EdgeInsets.symmetric(vertical: 12.h),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8.r),
@@ -590,7 +590,7 @@ class SignUpScreen extends StatelessWidget {
                                       },
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
-                                    color: AppColors.textSecondary(context).withOpacity(0.2),
+                                    color: AppColors.textSecondary(context).withValues(alpha: 0.2),
                                   ),
                                   padding: EdgeInsets.symmetric(vertical: 12.h),
                                   shape: RoundedRectangleBorder(
@@ -646,7 +646,7 @@ class SignUpScreen extends StatelessWidget {
             () => authController.isSocialLoginLoading.value
                 ? Positioned.fill(
                     child: Container(
-                      color: AppColors.blackColor.withOpacity(0.3),
+                      color: AppColors.blackColor.withValues(alpha: 0.3),
                       child: Center(
                         child: CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(

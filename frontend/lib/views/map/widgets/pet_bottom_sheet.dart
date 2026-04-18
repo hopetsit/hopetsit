@@ -24,7 +24,7 @@ Widget petBottomSheet(
             children: [
               CircleAvatar(
                 radius: 30.r,
-                backgroundColor: AppColors.greyColor.withOpacity(0.2),
+                backgroundColor: AppColors.greyColor.withValues(alpha: 0.2),
                 backgroundImage: pet.avatarUrl.isNotEmpty
                     ? NetworkImage(pet.avatarUrl)
                     : null,

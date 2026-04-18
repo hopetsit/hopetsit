@@ -1,5 +1,5 @@
 import 'package:get_storage/get_storage.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -9,11 +9,11 @@ class SocketService {
   SocketService({GetStorage? storage}) : _storage = storage ?? GetStorage();
 
   final GetStorage _storage;
-  IO.Socket? _socket;
+  io.Socket? _socket;
   bool _isConnected = false;
 
   /// Gets the current socket instance.
-  IO.Socket? get socket => _socket;
+  io.Socket? get socket => _socket;
 
   /// Checks if socket is connected.
   bool get isConnected => _isConnected;
@@ -39,9 +39,9 @@ class SocketService {
 
       AppLogger.logInfo('Connecting to socket: $socketUrl');
 
-      _socket = IO.io(
+      _socket = io.io(
         socketUrl,
-        IO.OptionBuilder()
+        io.OptionBuilder()
             .setTransports(['websocket'])
             .setExtraHeaders({'Authorization': 'Bearer $token'})
             .enableAutoConnect()

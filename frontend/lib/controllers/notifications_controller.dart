@@ -12,7 +12,6 @@ class NotificationsController extends GetxController {
 
   final NotificationsRepository _repository;
 
-  final NotificationsRepository _repositoryField = Get.find<NotificationsRepository>();
   final GetStorage _storage = GetStorage();
   static const String _kUnreadBookings = 'unreadBookings';
   static const String _kUnreadChat = 'unreadChat';
@@ -45,6 +44,7 @@ class NotificationsController extends GetxController {
       s.socket?.off('notification.new');
       s.socket?.on('notification.new', (data) {
         try {
+          // ignore: unnecessary_cast
           final map = data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
           final type = (map['type'] as String?) ?? '';
           unreadCount.value = unreadCount.value + 1;

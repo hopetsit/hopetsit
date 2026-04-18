@@ -117,7 +117,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
               width: 40.w,
               height: 4.h,
               decoration: BoxDecoration(
-                color: AppColors.greyText.withOpacity(0.3),
+                color: AppColors.greyText.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2.r),
               ),
             ),
@@ -142,7 +142,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
               ),
             ),
 
-            Divider(height: 1.h, color: AppColors.greyText.withOpacity(0.2)),
+            Divider(height: 1.h, color: AppColors.greyText.withValues(alpha: 0.2)),
 
             // Comments list
             Expanded(
@@ -155,7 +155,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                             Icon(
                               Icons.comment_outlined,
                               size: 48.sp,
-                              color: AppColors.greyText.withOpacity(0.5),
+                              color: AppColors.greyText.withValues(alpha: 0.5),
                             ),
                             SizedBox(height: 16.h),
                             InterText(
@@ -169,7 +169,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                               text: 'post_comments_empty_subtitle'.tr,
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.greyText.withOpacity(0.7),
+                              color: AppColors.greyText.withValues(alpha: 0.7),
                             ),
                           ],
                         ),
@@ -189,7 +189,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
             ),
 
             // Comment input section
-            Divider(height: 1.h, color: AppColors.greyText.withOpacity(0.2)),
+            Divider(height: 1.h, color: AppColors.greyText.withValues(alpha: 0.2)),
             Padding(
               padding: EdgeInsets.only(
                 left: 16.w,
@@ -254,7 +254,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                                 Icons.send,
                                 color: _commentText.value.trim().isNotEmpty
                                     ? AppColors.primaryColor
-                                    : AppColors.greyText.withOpacity(0.5),
+                                    : AppColors.greyText.withValues(alpha: 0.5),
                                 size: 24.sp,
                               ),
                               onPressed: _commentText.value.trim().isNotEmpty
@@ -321,7 +321,7 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
                           vertical: 2.h,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withOpacity(0.1),
+                          color: AppColors.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4.r),
                         ),
                         child: InterText(

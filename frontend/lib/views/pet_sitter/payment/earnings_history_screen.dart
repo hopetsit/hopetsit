@@ -116,7 +116,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
                               children: [
                                 Icon(Icons.receipt_long,
                                     size: 48.sp,
-                                    color: AppColors.greyText.withOpacity(0.4)),
+                                    color: AppColors.greyText.withValues(alpha: 0.4)),
                                 SizedBox(height: 12.h),
                                 InterText(
                                   text: 'earnings_empty'.tr,
@@ -166,7 +166,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.8)],
+          colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -347,7 +347,7 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
+                  color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: InterText(

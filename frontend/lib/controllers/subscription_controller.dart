@@ -121,6 +121,8 @@ class SubscriptionController extends GetxController {
     await loadPlans();
   }
 
+  @override
+
   Future<void> refresh() async {
     isLoading.value = true;
     try {

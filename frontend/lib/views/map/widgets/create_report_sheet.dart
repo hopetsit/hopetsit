@@ -204,7 +204,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                   final borderColor = selected
                       ? AppColors.primaryColor
                       : (locked
-                          ? AppColors.divider(context).withOpacity(0.6)
+                          ? AppColors.divider(context).withValues(alpha: 0.6)
                           : AppColors.divider(context));
                   final textColor = selected
                       ? Colors.white
@@ -259,7 +259,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: AppColors.greenColor
-                                      .withOpacity(selected ? 0.25 : 0.15),
+                                      .withValues(alpha: selected ? 0.25 : 0.15),
                                   borderRadius: BorderRadius.circular(4.r),
                                 ),
                                 child: InterText(
@@ -286,7 +286,7 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
                 Container(
                   padding: EdgeInsets.all(10.w),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withOpacity(0.08),
+                    color: AppColors.primaryColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10.r),
                   ),
                   child: Row(

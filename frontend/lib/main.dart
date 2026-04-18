@@ -8,7 +8,6 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/firebase_options.dart';
 import 'package:hopetsit/helper/dependency_injection.dart';
 import 'package:hopetsit/localization/app_translations.dart';
-import 'package:hopetsit/views/splash/splash_screen.dart';
 import 'package:hopetsit/routes/app_routes.dart';
 import 'package:hopetsit/routes/app_pages.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -266,11 +265,11 @@ class MyApp extends StatelessWidget {
             themeMode: Get.find<ThemeController>().themeMode.value,
             builder: (BuildContext context, Widget? child) {
               final MediaQueryData data = MediaQuery.of(context);
-              final textScale = data.textScaler.textScaleFactor < 1.02
-                  ? data.textScaleFactor
-                  : 1.02;
+              // Clamp text scaling to <= 1.02 for layout stability.
+              final double scale = data.textScaler.scale(1.0);
+              final double clamped = scale < 1.02 ? scale : 1.02;
               return MediaQuery(
-                data: data.copyWith(textScaler: TextScaler.linear(textScale)),
+                data: data.copyWith(textScaler: TextScaler.linear(clamped)),
                 child: child!,
               );
             },
