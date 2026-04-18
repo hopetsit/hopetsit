@@ -1,6 +1,10 @@
 const Walker = require('../models/Walker');
 const { sanitizeUser } = require('../utils/sanitize');
+const { uploadMedia } = require('../services/cloudinary');
+const { encrypt, decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger');
+
+const bufferToDataUri = (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
 /**
  * Walker controller — minimal Phase-1 endpoints so the frontend can wire up
@@ -269,6 +273,62 @@ const updateMyWalkerRates = async (req, res) => {
   }
 };
 
+// ── Identity verification (session v3.2) ─────────────────────────────────────
+// Mirror of sitterController.submitIdentityVerification so walkers can also
+// upload an ID document that the admin dashboard then reviews via the same
+// /admin/identity-verifications endpoint (now multi-role aware).
+
+const submitIdentityVerification = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Identity document file is required.' });
+    }
+    const dataUri = bufferToDataUri(req.file);
+    const upload = await uploadMedia({ file: dataUri, folder: 'identity_verification' });
+    const walker = await Walker.findByIdAndUpdate(
+      req.user.id,
+      {
+        identityVerification: {
+          status: 'pending',
+          documentUrl: encrypt(upload.url),
+          submittedAt: new Date(),
+          reviewedAt: null,
+          rejectionReason: '',
+        },
+      },
+      { new: true },
+    ).select('identityVerification');
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    res.json({
+      identityVerification: {
+        status: walker.identityVerification.status,
+        submittedAt: walker.identityVerification.submittedAt,
+      },
+    });
+  } catch (e) {
+    logger.error('walker submitIdentityVerification error', e);
+    res.status(500).json({ error: 'Unable to submit identity document.' });
+  }
+};
+
+const getMyIdentityVerification = async (req, res) => {
+  try {
+    const walker = await Walker.findById(req.user.id).select('identityVerification');
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    const iv = walker.identityVerification || {};
+    res.json({
+      status: iv.status || 'none',
+      submittedAt: iv.submittedAt || null,
+      reviewedAt: iv.reviewedAt || null,
+      rejectionReason: iv.rejectionReason || '',
+      documentUrl: iv.documentUrl ? decrypt(iv.documentUrl) : '',
+    });
+  } catch (e) {
+    logger.error('walker getMyIdentityVerification error', e);
+    res.status(500).json({ error: 'Unable to fetch identity verification.' });
+  }
+};
+
 module.exports = {
   listWalkers,
   getWalkerProfile,
@@ -277,4 +337,6 @@ module.exports = {
   updateMyWalkerProfile,
   getMyWalkerRates,
   updateMyWalkerRates,
+  submitIdentityVerification,
+  getMyIdentityVerification,
 };

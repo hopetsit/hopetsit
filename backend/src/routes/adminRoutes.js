@@ -4,6 +4,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const Booking = require('../models/Booking');
 const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
+const Walker = require('../models/Walker');
 const Pet = require('../models/Pet');
 const { decrypt } = require('../utils/encryption');
 const { sendTestEmail } = require('../services/emailService');
@@ -170,6 +171,49 @@ router.delete('/owners/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── WALKERS (session v3.2) ──────────────────────────────────────────────────
+router.get('/walkers', requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, verified } = req.query;
+    const filter = {};
+    if (verified !== undefined) filter.verified = verified === 'true';
+    const walkers = await Walker.find(filter)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .lean();
+    const total = await Walker.countDocuments(filter);
+    res.json({ walkers, total, page: Number(page), limit: Number(limit) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/walkers/:id/verify', requireAdmin, async (req, res) => {
+  try {
+    const { verified } = req.body;
+    const walker = await Walker.findByIdAndUpdate(
+      req.params.id,
+      { verified: Boolean(verified) },
+      { new: true }
+    ).select('-password');
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    res.json({ walker });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/walkers/:id', requireAdmin, async (req, res) => {
+  try {
+    await Walker.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Walker deleted.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── UPDATE BOOKING STATUS ────────────────────────────────────────────────────
 router.patch('/bookings/:id', requireAdmin, async (req, res) => {
   try {
@@ -274,23 +318,40 @@ router.patch('/sitters/:id/iban/verify', requireAdmin, async (req, res) => {
 // ─── RETRY PAYOUT ─────────────────────────────────────────────────────────────
 router.post('/bookings/:id/retry-payout', requireAuth, requireRole('owner'), retryBookingPayout);
 
-// Sprint 5 step 7 — identity verification admin review
+// Sprint 5 step 7 — identity verification admin review.
+// Session v3.2 — now aggregates Sitter AND Walker submissions so the admin
+// dashboard sees every pending ID, no matter which role uploaded it.
 router.get('/identity-verifications', requireAdmin, async (req, res) => {
   try {
     const { status = 'pending' } = req.query;
-    const sitters = await Sitter.find({ 'identityVerification.status': status })
-      .select('name identityVerification')
-      .sort({ 'identityVerification.submittedAt': -1 })
-      .lean();
-    const payload = sitters.map((s) => ({
-      id: s._id.toString(),
-      name: s.name,
-      submittedAt: s.identityVerification?.submittedAt || null,
-      status: s.identityVerification?.status || 'none',
-      documentUrl: s.identityVerification?.documentUrl
-        ? decrypt(s.identityVerification.documentUrl)
+    const [sitters, walkers] = await Promise.all([
+      Sitter.find({ 'identityVerification.status': status })
+        .select('name identityVerification')
+        .sort({ 'identityVerification.submittedAt': -1 })
+        .lean(),
+      Walker.find({ 'identityVerification.status': status })
+        .select('name identityVerification')
+        .sort({ 'identityVerification.submittedAt': -1 })
+        .lean(),
+    ]);
+    const mapDoc = (role) => (u) => ({
+      id: u._id.toString(),
+      name: u.name,
+      role,
+      submittedAt: u.identityVerification?.submittedAt || null,
+      status: u.identityVerification?.status || 'none',
+      documentUrl: u.identityVerification?.documentUrl
+        ? decrypt(u.identityVerification.documentUrl)
         : '',
-    }));
+    });
+    const payload = [
+      ...sitters.map(mapDoc('sitter')),
+      ...walkers.map(mapDoc('walker')),
+    ].sort((a, b) => {
+      const da = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+      const db = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+      return db - da;
+    });
     res.json({ verifications: payload });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -466,13 +527,18 @@ router.patch('/identity-verifications/:id', requireAdmin, async (req, res) => {
       'identityVerification.reviewedAt': new Date(),
       'identityVerification.rejectionReason': action === 'reject' ? String(reason || '') : '',
     };
-    const sitter = await Sitter.findByIdAndUpdate(req.params.id, { $set: update }, { new: true })
+    // Session v3.2 — try Sitter first, then Walker. Same doc id space.
+    let doc = await Sitter.findByIdAndUpdate(req.params.id, { $set: update }, { new: true })
       .select('identityVerification');
-    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    if (!doc) {
+      doc = await Walker.findByIdAndUpdate(req.params.id, { $set: update }, { new: true })
+        .select('identityVerification');
+    }
+    if (!doc) return res.status(404).json({ error: 'Verification target not found.' });
     res.json({
-      status: sitter.identityVerification.status,
-      reviewedAt: sitter.identityVerification.reviewedAt,
-      rejectionReason: sitter.identityVerification.rejectionReason,
+      status: doc.identityVerification.status,
+      reviewedAt: doc.identityVerification.reviewedAt,
+      rejectionReason: doc.identityVerification.rejectionReason,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
