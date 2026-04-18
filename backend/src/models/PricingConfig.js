@@ -35,6 +35,16 @@ const PremiumPlansSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Session v3.2 — new chat add-on tier. Cheap unlock that lets free users
+// chat with approved friends (Premium users still get chat with everyone).
+// Keyed monthly so admin can price it independently per currency.
+const ChatPlansSchema = new mongoose.Schema(
+  {
+    monthly: Number,
+  },
+  { _id: false },
+);
+
 const CurrencyBucketSchema = new mongoose.Schema(
   {
     EUR: TierAmountsSchema,
@@ -55,6 +65,16 @@ const PremiumCurrencyBucketSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const ChatCurrencyBucketSchema = new mongoose.Schema(
+  {
+    EUR: ChatPlansSchema,
+    GBP: ChatPlansSchema,
+    CHF: ChatPlansSchema,
+    USD: ChatPlansSchema,
+  },
+  { _id: false },
+);
+
 const PricingConfigSchema = new mongoose.Schema(
   {
     key: {
@@ -66,6 +86,7 @@ const PricingConfigSchema = new mongoose.Schema(
     boost: CurrencyBucketSchema,
     mapBoost: CurrencyBucketSchema,
     premium: PremiumCurrencyBucketSchema,
+    chat: ChatCurrencyBucketSchema, // session v3.2 add-on
   },
   { timestamps: true },
 );

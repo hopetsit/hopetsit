@@ -13,21 +13,30 @@ const mongoose = require('mongoose');
  *   visibility cutoff is enforced purely by the `expiresAt > now` filter on
  *   reads. Admin endpoints can query the full history including expired docs.
  *
- * Freemium: 3 community-oriented types (lost_pet, found_pet, water_active)
- *   are usable by free users; the other 6 remain Premium-only (see
- *   mapReportRoutes.FREE_REPORT_TYPES).
+ * Freemium (session v3.2 update): 3 community-safety types
+ *   (lost_pet, aggressive_dog, water_active) are free — signals that help
+ *   everyone's pets regardless of subscription. All other types remain
+ *   Premium-only (see mapReportRoutes.FREE_REPORT_TYPES). Daniel removed
+ *   found_pet from the free list so owners have more incentive to upgrade.
  * Moderation: any user can flag a report; >= 3 flags hides it pending admin review.
  */
 const REPORT_TYPES = [
-  'poop',           // caca à ramasser
-  'pee',            // pipi / marquage intense
-  'water_active',   // point d'eau fonctionnel (fontaine ouverte)
-  'water_broken',   // point d'eau cassé
-  'hazard',         // danger (verre, piège, produit)
-  'aggressive_dog', // chien agressif non tenu
-  'lost_pet',       // animal perdu repéré ici
-  'found_pet',      // animal trouvé
+  'poop',              // caca à ramasser
+  'pee',               // pipi / marquage intense
+  'water_active',      // point d'eau fonctionnel (fontaine ouverte) — FREE
+  'water_broken',      // point d'eau cassé
+  'hazard',            // danger (verre, piège, produit)
+  'aggressive_dog',    // chien méchant / agressif non tenu — FREE
+  'lost_pet',          // animal perdu repéré ici — FREE
+  'found_pet',         // animal trouvé
   'other',
+  // Session avril 2026 v3.2 — 5 nouveaux types Premium ajoutés à la demande
+  // de Daniel pour enrichir le catalogue communautaire.
+  'dead_animal',       // animal décédé / carcasse
+  'trap',              // piège à animaux repéré
+  'poison',            // appât empoisonné / suspect
+  'stray_pet',         // animal errant (sans collier, sans propriétaire visible)
+  'construction',      // zone de travaux dangereuse pour les animaux
 ];
 
 const REPORT_TTL_MS = 48 * 60 * 60 * 1000; // 48h

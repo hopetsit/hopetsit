@@ -22,14 +22,14 @@ const router = express.Router();
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
 
 /**
- * Freemium hook (session avril 2026) — these 3 report types are usable by
- * FREE users so community-oriented signals (lost pet, found pet, active water
- * point) get a broad base of reporters. The other 6 types (poop, pee, hazards,
- * aggressive dog, water broken, other) remain Premium-only to keep the
- * subscription attractive. See also the frontend gating in
- * `CreateReportSheet` and the upsell banner on PawMap.
+ * Freemium hook (session v3.2 update) — free-usable signals rebalanced
+ * around community-safety: animal perdu (lost_pet), chien méchant/agressif
+ * (aggressive_dog) et point d'eau actif (water_active). found_pet a été
+ * déplacé en Premium pour renforcer l'upsell ; 5 nouveaux types Premium
+ * ont été ajoutés à REPORT_TYPES (dead_animal, trap, poison, stray_pet,
+ * construction). See also frontend gating in CreateReportSheet.
  */
-const FREE_REPORT_TYPES = ['lost_pet', 'found_pet', 'water_active'];
+const FREE_REPORT_TYPES = ['lost_pet', 'aggressive_dog', 'water_active'];
 
 function parseFloatOr(value, fallback) {
   const n = parseFloat(value);

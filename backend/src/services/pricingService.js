@@ -39,9 +39,17 @@ const DEFAULTS = Object.freeze({
     CHF: { monthly: 3.90, yearly: 29.99 },
     USD: { monthly: 4.29, yearly: 32.99 },
   },
+  // Session v3.2 — Chat add-on. Very cheap tier that lets a free user
+  // chat with accepted friends only (Premium users still chat with everyone).
+  chat: {
+    EUR: { monthly: 0.99 },
+    GBP: { monthly: 0.89 },
+    CHF: { monthly: 0.99 },
+    USD: { monthly: 1.09 },
+  },
 });
 
-const CATEGORIES = ['boost', 'mapBoost', 'premium'];
+const CATEGORIES = ['boost', 'mapBoost', 'premium', 'chat'];
 const CURRENCIES = ['EUR', 'GBP', 'CHF', 'USD'];
 
 // Deep clone of DEFAULTS used as the live in-memory state. Mutated in place
@@ -91,6 +99,7 @@ function getAll() {
     boost: cache.boost,
     mapBoost: cache.mapBoost,
     premium: cache.premium,
+    chat: cache.chat,
   };
 }
 
@@ -126,6 +135,7 @@ async function update(patch) {
         boost: cache.boost,
         mapBoost: cache.mapBoost,
         premium: cache.premium,
+        chat: cache.chat,
       },
     },
     { upsert: true, new: true },

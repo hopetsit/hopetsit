@@ -84,6 +84,12 @@ class ReportTypes {
   static const String lostPet = 'lost_pet';
   static const String foundPet = 'found_pet';
   static const String other = 'other';
+  // Session v3.2 — 5 nouveaux types Premium.
+  static const String deadAnimal = 'dead_animal';
+  static const String trap = 'trap';
+  static const String poison = 'poison';
+  static const String strayPet = 'stray_pet';
+  static const String construction = 'construction';
 
   static const List<String> all = [
     poop,
@@ -95,15 +101,19 @@ class ReportTypes {
     lostPet,
     foundPet,
     other,
+    deadAnimal,
+    trap,
+    poison,
+    strayPet,
+    construction,
   ];
 
-  /// Freemium whitelist — mirrors backend `FREE_REPORT_TYPES`. Users without
-  /// an active Premium subscription can create reports of these 3 community-
-  /// oriented types. All other categories remain Premium-locked to keep the
-  /// subscription attractive.
+  /// Freemium whitelist — mirrors backend `FREE_REPORT_TYPES` (session v3.2).
+  /// Les 3 types community-safety : animal perdu, chien méchant, point d'eau
+  /// actif. found_pet est passé en Premium pour renforcer l'upsell.
   static const List<String> freeTypes = [
     lostPet,
-    foundPet,
+    aggressiveDog,
     waterActive,
   ];
 
@@ -129,6 +139,16 @@ class ReportTypes {
         return '🔎';
       case foundPet:
         return '🤝';
+      case deadAnimal:
+        return '🪦';
+      case trap:
+        return '🪤';
+      case poison:
+        return '☠️';
+      case strayPet:
+        return '🐕';
+      case construction:
+        return '🚧';
       default:
         return '📍';
     }
@@ -147,11 +167,21 @@ class ReportTypes {
       case hazard:
         return 'Danger';
       case aggressiveDog:
-        return 'Chien agressif';
+        return 'Chien méchant';
       case lostPet:
         return 'Animal perdu';
       case foundPet:
         return 'Animal trouvé';
+      case deadAnimal:
+        return 'Animal décédé';
+      case trap:
+        return 'Piège repéré';
+      case poison:
+        return 'Appât empoisonné';
+      case strayPet:
+        return 'Animal errant';
+      case construction:
+        return 'Travaux dangereux';
       default:
         return 'Autre';
     }
@@ -171,11 +201,21 @@ class ReportTypes {
       case hazard:
         return 'Verre, piège, produit dangereux';
       case aggressiveDog:
-        return 'Chien non-tenu ou agressif';
+        return 'Chien non-tenu ou agressif — à éviter';
       case lostPet:
         return 'Animal perdu aperçu ici';
       case foundPet:
         return 'Animal trouvé — contactez-moi';
+      case deadAnimal:
+        return 'Carcasse / animal décédé';
+      case trap:
+        return 'Piège à animaux installé ici';
+      case poison:
+        return 'Appât suspect — pas laisser approcher';
+      case strayPet:
+        return 'Animal sans collier qui erre';
+      case construction:
+        return 'Zone de travaux à éviter avec ton animal';
       default:
         return 'Autre signalement';
     }

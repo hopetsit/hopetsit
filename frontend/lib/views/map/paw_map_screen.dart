@@ -172,20 +172,10 @@ class _PawMapScreenState extends State<PawMapScreen> {
   /// Toggles the "Suivre mon animal" broadcast — when on, friends see the
   /// user's pin moving on their PawMap. The user's own pin shows in rose
   /// (via `_hueForRole('owner')`) so it's easy to spot as "myself + pet".
-  /// Premium-gated because real-time location is a Premium social feature.
+  /// Session v3.2 — opened to ALL roles/tiers (was Premium-gated); Daniel
+  /// wants every user to be able to share their pet's live position to help
+  /// find lost animals and keep friends in the loop.
   void _toggleBroadcast() {
-    final sub = Get.isRegistered<SubscriptionController>()
-        ? Get.find<SubscriptionController>()
-        : null;
-    final isPremium = sub?.isPremium ?? false;
-    if (!isPremium) {
-      CustomSnackbar.showError(
-        title: 'Premium requis',
-        message:
-            'Suivre ton animal en live est réservé aux membres Premium.',
-      );
-      return;
-    }
     if (_liveMap.broadcasting.value) {
       _liveMap.stopBroadcasting();
       CustomSnackbar.showSuccess(
@@ -720,12 +710,14 @@ class _PawMapScreenState extends State<PawMapScreen> {
             ),
           ),
           SizedBox(width: 8.w),
+          // Session v3.2 — "Trouvé" remplacé par "Chien méchant" dans les
+          // quick-signals (found_pet passé Premium, aggressive_dog en free).
           Expanded(
             child: _quickSignalChip(
-              emoji: '🤝',
-              label: 'Trouvé',
-              type: ReportTypes.foundPet,
-              color: const Color(0xFFAB47BC), // magenta/violet for found_pet
+              emoji: '😾',
+              label: 'Chien méchant',
+              type: ReportTypes.aggressiveDog,
+              color: const Color(0xFFE53935), // red for aggressive_dog
             ),
           ),
           SizedBox(width: 8.w),
