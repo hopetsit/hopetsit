@@ -3,12 +3,20 @@ const mongoose = require('mongoose');
 const Block = require('../models/Block');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const { sanitizeDoc, sanitizeUser } = require('../utils/sanitize');
 const logger = require('../utils/logger');
 
 const ROLE_TO_MODEL = {
   owner: 'Owner',
   sitter: 'Sitter',
+  walker: 'Walker',
+};
+
+const MODEL_TO_ROLE = {
+  Owner: 'owner',
+  Sitter: 'sitter',
+  Walker: 'walker',
 };
 
 const getModelByRole = (role) => {
@@ -16,7 +24,9 @@ const getModelByRole = (role) => {
   if (!modelName) {
     return null;
   }
-  return modelName === 'Owner' ? Owner : Sitter;
+  if (modelName === 'Owner') return Owner;
+  if (modelName === 'Walker') return Walker;
+  return Sitter;
 };
 
 const formatBlockResponse = (blockDoc) => {
@@ -24,7 +34,7 @@ const formatBlockResponse = (blockDoc) => {
   if (blockDoc.blockedId) {
     doc.blocked = sanitizeUser(blockDoc.blockedId);
   }
-  doc.blockedRole = blockDoc.blockedModel === 'Owner' ? 'owner' : 'sitter';
+  doc.blockedRole = MODEL_TO_ROLE[blockDoc.blockedModel] || 'sitter';
   delete doc.blockedId;
   delete doc.blockedModel;
   delete doc.blockerModel;
@@ -60,7 +70,7 @@ const resolveTarget = (body, blockerRole) => {
     return { error: 'A valid target user id is required.' };
   }
   if (!ROLE_TO_MODEL[targetRole]) {
-    return { error: 'Target role must be "owner" or "sitter".' };
+    return { error: 'Target role must be "owner", "sitter" or "walker".' };
   }
 
   return { targetUserId, targetRole };

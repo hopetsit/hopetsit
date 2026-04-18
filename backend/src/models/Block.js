@@ -10,7 +10,7 @@ const blockSchema = new mongoose.Schema(
     blockerModel: {
       type: String,
       required: true,
-      enum: ['Owner', 'Sitter'],
+      enum: ['Owner', 'Sitter', 'Walker'],
     },
     blockedId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,7 +20,7 @@ const blockSchema = new mongoose.Schema(
     blockedModel: {
       type: String,
       required: true,
-      enum: ['Owner', 'Sitter'],
+      enum: ['Owner', 'Sitter', 'Walker'],
     },
   },
   { timestamps: true }
