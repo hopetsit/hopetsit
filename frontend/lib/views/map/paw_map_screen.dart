@@ -81,6 +81,11 @@ class _PawMapScreenState extends State<PawMapScreen> {
         ? Get.find<LiveMapService>()
         : Get.put(LiveMapService(), permanent: true);
     _liveMap.attach();
+
+    // Render the map IMMEDIATELY on Paris fallback so the screen never shows
+    // an infinite spinner if geolocation is slow/denied/disabled. Real
+    // location upgrade happens in the background via _bootstrap().
+    _currentCenter = const LatLng(48.8566, 2.3522);
     _bootstrap();
   }
 
@@ -91,17 +96,28 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   Future<void> _bootstrap() async {
+    // Fire nearby loads immediately using the Paris fallback set in initState
+    // so users see POIs/reports without waiting on geolocation.
+    unawaited(_reloadAtCenter());
+
+    // Then try to upgrade to the real user location with a hard timeout
+    // (geolocation can hang forever on some devices / permission states).
     try {
-      final loc = await LocationService().getCurrentLocation();
-      LatLng center;
-      if (loc != null) {
-        center = LatLng(loc.latitude, loc.longitude);
-      } else {
-        // Fallback to Paris center so the map still renders.
-        center = const LatLng(48.8566, 2.3522);
-      }
+      final loc = await LocationService()
+          .getCurrentLocation()
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
+      if (loc == null) return;
+      final center = LatLng(loc.latitude, loc.longitude);
       if (!mounted) return;
       setState(() => _currentCenter = center);
+      // Try to re-center the actual GoogleMap camera if it has already been
+      // created (Completer resolves on onMapCreated).
+      try {
+        if (_mapCtl.isCompleted) {
+          final ctl = await _mapCtl.future;
+          await ctl.animateCamera(CameraUpdate.newLatLng(center));
+        }
+      } catch (_) {}
       await _reloadAtCenter();
     } catch (e) {
       debugPrint('[PawMap] bootstrap error: $e');

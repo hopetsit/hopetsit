@@ -29,8 +29,14 @@ const getMyNotifications = async (req, res) => {
     if (!userId || !role) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
-    if (!['owner', 'sitter'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid user role. Expected "owner" or "sitter".' });
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+
+    // Walker notifications are not yet supported (Notification model enum is owner|sitter).
+    // Return an empty list so the UI doesn't break.
+    if (role === 'walker') {
+      return res.json({ notifications: [], nextCursor: null, count: 0 });
     }
 
     const items = await listNotifications({
@@ -59,8 +65,12 @@ const getMyUnreadCount = async (req, res) => {
     if (!userId || !role) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
-    if (!['owner', 'sitter'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid user role. Expected "owner" or "sitter".' });
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+
+    if (role === 'walker') {
+      return res.json({ unreadCount: 0 });
     }
 
     const unreadCount = await getUnreadCount({ recipientRole: role, recipientId: userId });
@@ -80,8 +90,12 @@ const markMyNotificationRead = async (req, res) => {
     if (!userId || !role) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
-    if (!['owner', 'sitter'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid user role. Expected "owner" or "sitter".' });
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+
+    if (role === 'walker') {
+      return res.status(404).json({ error: 'Notification not found (or already read).' });
     }
 
     const updated = await markNotificationRead({
@@ -109,8 +123,12 @@ const markMyNotificationsReadAll = async (req, res) => {
     if (!userId || !role) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
-    if (!['owner', 'sitter'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid user role. Expected "owner" or "sitter".' });
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+
+    if (role === 'walker') {
+      return res.json({ updatedCount: 0 });
     }
 
     const updatedCount = await markAllRead({ recipientRole: role, recipientId: userId });

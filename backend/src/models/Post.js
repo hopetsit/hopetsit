@@ -68,14 +68,14 @@ const postSchema = new mongoose.Schema(
     likes: [
       {
         userId: { type: mongoose.Schema.Types.ObjectId, required: true },
-        userRole: { type: String, required: true, enum: ['Owner', 'Sitter'] },
+        userRole: { type: String, required: true, enum: ['Owner', 'Sitter', 'Walker'] },
         createdAt: { type: Date, default: Date.now },
       },
     ],
     comments: [
       {
         userId: { type: mongoose.Schema.Types.ObjectId, required: true },
-        userRole: { type: String, required: true, enum: ['Owner', 'Sitter'] },
+        userRole: { type: String, required: true, enum: ['Owner', 'Sitter', 'Walker'] },
         authorName: { type: String, default: '' },
         authorAvatar: {
           url: { type: String, default: '' },

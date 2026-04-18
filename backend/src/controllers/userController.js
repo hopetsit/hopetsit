@@ -511,8 +511,8 @@ const updateProfilePicture = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    if (!userRole || !['owner', 'sitter'].includes(userRole)) {
-      return res.status(403).json({ error: 'Invalid user role. Only owners and sitters can update profile picture.' });
+    if (!userRole || !['owner', 'sitter', 'walker'].includes(userRole)) {
+      return res.status(403).json({ error: 'Invalid user role. Only owners, sitters and walkers can update profile picture.' });
     }
 
     if (!req.file) {
@@ -537,7 +537,9 @@ const updateProfilePicture = async (req, res) => {
     });
 
     // Update user's avatar in database
-    const Model = userRole === 'owner' ? Owner : Sitter;
+    const Model = userRole === 'owner'
+      ? Owner
+      : (userRole === 'walker' ? Walker : Sitter);
     const user = await Model.findById(userId);
 
     if (!user) {

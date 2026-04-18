@@ -66,11 +66,18 @@ const getChatList = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    if (!userRole || !['owner', 'sitter'].includes(userRole.toLowerCase())) {
-      return res.status(400).json({ error: 'Invalid user role. Expected "owner" or "sitter".' });
+    if (!userRole || !['owner', 'sitter', 'walker'].includes(userRole.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
     const normalizedRole = userRole.toLowerCase();
+
+    // Walker chat is not yet supported by the Conversation model (owner<->sitter only).
+    // Return an empty list so the UI shows an empty state instead of a 400 error.
+    if (normalizedRole === 'walker') {
+      return res.json({ conversations: [], count: 0 });
+    }
+
     const query = normalizedRole === 'owner' ? { ownerId: userId } : { sitterId: userId };
 
     const conversations = await Conversation.find(query)

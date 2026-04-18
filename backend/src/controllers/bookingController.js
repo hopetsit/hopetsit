@@ -705,8 +705,14 @@ const getMyBookings = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    if (!userRole || !['owner', 'sitter'].includes(userRole)) {
-      return res.status(400).json({ error: 'Invalid user role. Expected "owner" or "sitter".' });
+    if (!userRole || !['owner', 'sitter', 'walker'].includes(userRole)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+
+    // Walker bookings are not yet modelled (Booking has ownerId/sitterId only).
+    // Return an empty history so the UI can render its empty state without error.
+    if (userRole === 'walker') {
+      return res.json({ bookings: [], count: 0 });
     }
 
     // Build filter based on user role

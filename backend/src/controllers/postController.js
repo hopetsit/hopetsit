@@ -1,5 +1,6 @@
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const Post = require('../models/Post');
 const Pet = require('../models/Pet');
 const { sanitizePost } = require('../utils/sanitize');
@@ -583,8 +584,8 @@ const addComment = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    if (!userRole || !['owner', 'sitter'].includes(userRole.toLowerCase())) {
-      return res.status(400).json({ error: 'Invalid user role. Expected "owner" or "sitter".' });
+    if (!userRole || !['owner', 'sitter', 'walker'].includes(userRole.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
     if (!body) {
@@ -597,7 +598,9 @@ const addComment = async (req, res) => {
     }
 
     const normalizedRole = userRole.toLowerCase();
-    const Model = normalizedRole === 'owner' ? Owner : Sitter;
+    const Model = normalizedRole === 'owner'
+      ? Owner
+      : (normalizedRole === 'walker' ? Walker : Sitter);
     const author = await Model.findById(userId);
     if (!author) {
       return res.status(404).json({ error: 'User not found.' });
@@ -618,7 +621,9 @@ const addComment = async (req, res) => {
 
     post.comments.push({
       userId,
-      userRole: normalizedRole === 'owner' ? 'Owner' : 'Sitter',
+      userRole: normalizedRole === 'owner'
+        ? 'Owner'
+        : (normalizedRole === 'walker' ? 'Walker' : 'Sitter'),
       authorName: author.name || '',
       authorAvatar: { url: author.avatar?.url || '' },
       body: trimmedBody,

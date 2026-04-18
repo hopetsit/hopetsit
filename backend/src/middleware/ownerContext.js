@@ -24,14 +24,18 @@ const attachUserFromToken = (req, res, next) => {
   const role = req.user.role;
   const userId = req.user.id;
 
-  if (!['owner', 'sitter'].includes(role)) {
+  if (!['owner', 'sitter', 'walker'].includes(role)) {
     return res.status(403).json({ error: 'Invalid user role.' });
   }
 
-  // Attach user ID to query based on role
+  // Attach user ID to query based on role.
+  // Walker is treated as a service provider like sitter for resources that
+  // haven't been role-split yet — this keeps existing owner/sitter queries
+  // working while letting walker hit the same middleware without a 403.
+  const key = role === 'owner' ? 'ownerId' : (role === 'walker' ? 'walkerId' : 'sitterId');
   req.query = {
     ...req.query,
-    [role === 'owner' ? 'ownerId' : 'sitterId']: userId,
+    [key]: userId,
   };
 
   return next();
