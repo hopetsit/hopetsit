@@ -812,6 +812,25 @@ const createPostWithMedia = async (req, res) => {
           resourceType,
         });
 
+        // Session v3.3 — Google Vision Safe Search hook. No-op when
+        // CONTENT_MODERATION_ENABLED is off; rejects adult/violence images
+        // and cleans up the Cloudinary asset before we save the post.
+        if (detectedMediaType === 'image') {
+          const { rejectIfUnsafe } = require('../services/contentModerationService');
+          try {
+            await rejectIfUnsafe(uploadResult);
+          } catch (modErr) {
+            if (modErr.code === 'CONTENT_REJECTED') {
+              return res.status(422).json({
+                error: modErr.message,
+                code: modErr.code,
+                details: modErr.details,
+              });
+            }
+            throw modErr;
+          }
+        }
+
         const mediaEntry = {
           url: uploadResult.url,
           publicId: uploadResult.publicId,

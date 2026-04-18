@@ -360,13 +360,28 @@ class _PublishReservationRequestScreenState
       controller.endDate.value;
       controller.startTime.value;
       controller.endTime.value;
+      controller.selectedServiceType.value;
+      controller.selectedDuration.value;
+
+      // Session v3.3 — service-aware date/time layout:
+      //   * dog_walking  → only "Début" (date + time). End is computed from
+      //                    the selected duration chip below.
+      //   * day_care     → date + start time + end time on the same day (no
+      //                    second date — implicit).
+      //   * pet_sitting  → full start (date+time) + full end (date+time).
+      //   * null         → same as pet_sitting (all fields visible).
+      final svc = controller.selectedServiceType.value;
+      final isWalking = svc == 'dog_walking';
+      final isDayCare = svc == 'day_care';
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Start
           InterText(
-            text: 'send_request_start_label'.tr,
+            text: isWalking
+                ? 'Date et heure de la promenade'
+                : 'send_request_start_label'.tr,
             fontSize: 13.sp,
             fontWeight: FontWeight.w600,
             color: AppColors.grey700Color,
@@ -384,40 +399,139 @@ class _PublishReservationRequestScreenState
             isDatePlaceholder: controller.formattedStartDate.isEmpty,
             isTimePlaceholder: controller.formattedStartTime.isEmpty,
           ),
-          SizedBox(height: 14.h),
-          // Divider with arrow
-          Center(
-            child: Container(
-              width: 32.w,
-              height: 32.w,
+
+          // dog_walking → helper text instead of the redundant end fields.
+          if (isWalking) ...[
+            SizedBox(height: 10.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
               decoration: BoxDecoration(
-                color: AppColors.primaryColor.withOpacity(0.1),
-                shape: BoxShape.circle,
+                color: AppColors.greenColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(
+                  color: AppColors.greenColor.withOpacity(0.3),
+                  width: 1,
+                ),
               ),
-              child: Icon(Icons.arrow_downward_rounded, size: 16.sp, color: AppColors.primaryColor),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 16.sp, color: AppColors.greenColor),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: InterText(
+                      text: controller.selectedDuration.value == null
+                          ? 'L\'heure de fin sera calculée depuis la durée que tu choisis plus bas.'
+                          : 'Fin automatique : ${controller.formattedEndTime.isEmpty ? "…" : controller.formattedEndTime} (durée ${controller.selectedDuration.value} min)',
+                      fontSize: 12.sp,
+                      color: AppColors.greenColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 14.h),
-          // End
-          InterText(
-            text: 'send_request_end_label'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary(context),
-          ),
-          SizedBox(height: 8.h),
-          _dateTimeRow(
-            dateText: controller.formattedEndDate.isEmpty
-                ? 'send_request_select_date'.tr
-                : controller.formattedEndDate,
-            timeText: controller.formattedEndTime.isEmpty
-                ? 'send_request_select_time'.tr
-                : controller.formattedEndTime,
-            onDateTap: () => _pickDate(isStart: false),
-            onTimeTap: () => _pickTime(isStart: false),
-            isDatePlaceholder: controller.formattedEndDate.isEmpty,
-            isTimePlaceholder: controller.formattedEndTime.isEmpty,
-          ),
+          ]
+          // day_care → single-day event; show only end time (end date
+          // implicit = same day as start).
+          else if (isDayCare) ...[
+            SizedBox(height: 14.h),
+            Center(
+              child: Container(
+                width: 32.w,
+                height: 32.w,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.arrow_downward_rounded,
+                    size: 16.sp, color: AppColors.primaryColor),
+              ),
+            ),
+            SizedBox(height: 14.h),
+            InterText(
+              text: 'Heure de fin (même jour)',
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(context),
+            ),
+            SizedBox(height: 8.h),
+            GestureDetector(
+              onTap: () => _pickTime(isStart: false),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                height: 48.h,
+                padding: EdgeInsets.symmetric(horizontal: 14.w),
+                decoration: BoxDecoration(
+                  color: AppColors.inputFill(context),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color: controller.formattedEndTime.isEmpty
+                        ? AppColors.divider(context)
+                        : AppColors.primaryColor.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 16.sp,
+                      color: controller.formattedEndTime.isEmpty
+                          ? AppColors.greyColor
+                          : AppColors.primaryColor,
+                    ),
+                    SizedBox(width: 8.w),
+                    InterText(
+                      text: controller.formattedEndTime.isEmpty
+                          ? 'send_request_select_time'.tr
+                          : controller.formattedEndTime,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w500,
+                      color: controller.formattedEndTime.isEmpty
+                          ? AppColors.greyColor
+                          : AppColors.blackColor,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ]
+          // pet_sitting / unknown → classic start + end pair.
+          else ...[
+            SizedBox(height: 14.h),
+            Center(
+              child: Container(
+                width: 32.w,
+                height: 32.w,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.arrow_downward_rounded,
+                    size: 16.sp, color: AppColors.primaryColor),
+              ),
+            ),
+            SizedBox(height: 14.h),
+            InterText(
+              text: 'send_request_end_label'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(context),
+            ),
+            SizedBox(height: 8.h),
+            _dateTimeRow(
+              dateText: controller.formattedEndDate.isEmpty
+                  ? 'send_request_select_date'.tr
+                  : controller.formattedEndDate,
+              timeText: controller.formattedEndTime.isEmpty
+                  ? 'send_request_select_time'.tr
+                  : controller.formattedEndTime,
+              onDateTap: () => _pickDate(isStart: false),
+              onTimeTap: () => _pickTime(isStart: false),
+              isDatePlaceholder: controller.formattedEndDate.isEmpty,
+              isTimePlaceholder: controller.formattedEndTime.isEmpty,
+            ),
+          ],
         ],
       );
     });
@@ -542,6 +656,9 @@ class _PublishReservationRequestScreenState
         controller.endDate.value = controller.startDate.value;
       }
     }
+    // Session v3.3 — recompute end for dog_walking (based on duration) and
+    // force same-day for day_care whenever the start date changes.
+    controller.onDatesChanged();
   }
 
   Future<void> _pickTime({required bool isStart}) async {
@@ -627,6 +744,8 @@ class _PublishReservationRequestScreenState
       }
       controller.endTime.value = picked;
     }
+    // Session v3.3 — service-aware auto-tuning of the end fields.
+    controller.onDatesChanged();
   }
 
   // Session avril 2026 — service-type palette. Promenade is walker-exclusive

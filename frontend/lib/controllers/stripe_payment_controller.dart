@@ -11,6 +11,7 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 import 'package:hopetsit/views/payment/payment_result_screen.dart';
 import 'package:hopetsit/controllers/loyalty_controller.dart';
 
@@ -93,18 +94,27 @@ class StripePaymentController extends GetxController {
       log('publishableKey: $_publishableKey');
       log('paymentIntentId: $_paymentIntentId');
 
-      // Step 2: Initialize PaymentSheet
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: _clientSecret!,
-          merchantDisplayName: 'HoPetSit',
-          style: ThemeMode.system,
-          allowsDelayedPaymentMethods: true,
+      // Session v3.3 — remplace la PaymentSheet native par ModernCardPaymentScreen
+      // (même raison que Premium/Boost/MapBoost/Chat : la sheet native avait un
+      // bug connu sur certains Android où le champ numéro de carte ne recevait
+      // pas les taps). L'écran custom accepte toujours le clientSecret et gère
+      // confirmPayment côté Stripe avec la même API.
+      final ok = await Get.to<bool>(
+        () => ModernCardPaymentScreen(
+          clientSecret: _clientSecret!,
+          amount: totalAmount,
+          currency: currency,
+          productLabel: 'Réservation',
+          productSubtitle: booking.sitter.name.isNotEmpty
+              ? 'Prestation avec ${booking.sitter.name}'
+              : null,
         ),
       );
-
-      // Step 3: Present PaymentSheet to user
-      await Stripe.instance.presentPaymentSheet();
+      if (ok != true) {
+        // User cancelled or payment failed — bail without confirm.
+        isProcessing.value = false;
+        return;
+      }
 
       // Step 4: Confirm payment with backend
       if (_paymentIntentId != null && _paymentIntentId!.isNotEmpty) {

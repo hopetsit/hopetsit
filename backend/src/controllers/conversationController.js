@@ -242,6 +242,27 @@ const createConversationAttachmentMessage = async (req, res) => {
       )
     );
 
+    // Session v3.3 — moderate image attachments with Google Vision. Only
+    // images trigger the check; videos are not supported by Vision Safe
+    // Search yet. When flagged, the asset is destroyed on Cloudinary and
+    // the whole message is rejected with 422.
+    const { rejectIfUnsafe } = require('../services/contentModerationService');
+    for (const up of uploads) {
+      if (!up || up.resourceType === 'video') continue;
+      try {
+        await rejectIfUnsafe(up);
+      } catch (modErr) {
+        if (modErr.code === 'CONTENT_REJECTED') {
+          return res.status(422).json({
+            error: modErr.message,
+            code: modErr.code,
+            details: modErr.details,
+          });
+        }
+        throw modErr;
+      }
+    }
+
     const attachmentPayload = uploads.map(mapUploadToAttachment);
 
     const result = await sendMessage({

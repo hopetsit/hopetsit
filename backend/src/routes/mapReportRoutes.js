@@ -183,6 +183,21 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
       return res.status(400).json({ error: 'lat and lng are required.' });
     }
 
+    // Session v3.3 — moderate the attached photo before persisting. Vision
+    // check is a no-op when the feature flag is off; if flagged we reject
+    // with 422 so the client can ask the user for another photo.
+    if (photoUrl && String(photoUrl).trim()) {
+      const { moderateImage } = require('../services/contentModerationService');
+      const verdict = await moderateImage(photoUrl);
+      if (!verdict.ok) {
+        return res.status(422).json({
+          error: `This photo was rejected by automatic moderation (${verdict.reasons.join(', ')}).`,
+          code: 'CONTENT_REJECTED',
+          details: { reasons: verdict.reasons },
+        });
+      }
+    }
+
     const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
     const report = new MapReport({
       type,

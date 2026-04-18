@@ -218,10 +218,55 @@ class PublishReservationRequestController extends GetxController {
     // house_sitting was merged into pet_sitting in the 2026 simplification;
     // always clear the legacy venue field when the type changes.
     houseSittingVenue.value = null;
+
+    // Session v3.3 — auto-tuning of the end fields based on the service:
+    //   * dog_walking: end = start + selected duration (computed below on
+    //     start / duration change). UI hides the end fields entirely.
+    //   * day_care: single-day event → copy start date to end date, let the
+    //     user only pick the end hour.
+    //   * pet_sitting (multi-day): keep existing behaviour (both dates).
+    _recomputeEndForService();
   }
 
   void selectDuration(String? minutes) {
     selectedDuration.value = minutes;
+    _recomputeEndForService();
+  }
+
+  /// Public hook called by the view after the user picked a start date/time.
+  /// Triggers the same service-aware tuning as selectServiceType/selectDuration.
+  void onDatesChanged() => _recomputeEndForService();
+
+  /// Keeps end-date/time consistent with the service semantics so the owner
+  /// doesn't have to input redundant fields. Called whenever service type,
+  /// duration, start date or start time changes.
+  void _recomputeEndForService() {
+    final svc = selectedServiceType.value;
+    if (svc == 'dog_walking') {
+      // End computed from start + duration. No user input required.
+      final s = startDate.value;
+      final st = startTime.value;
+      final d = selectedDuration.value;
+      if (s != null && st != null && d != null && int.tryParse(d) != null) {
+        final startDt = DateTime(s.year, s.month, s.day, st.hour, st.minute);
+        final endDt = startDt.add(Duration(minutes: int.parse(d)));
+        endDate.value = DateTime(endDt.year, endDt.month, endDt.day);
+        endTime.value = TimeOfDay(hour: endDt.hour, minute: endDt.minute);
+      } else {
+        endDate.value = null;
+        endTime.value = null;
+      }
+      return;
+    }
+    if (svc == 'day_care') {
+      // Same-day event — align end date with start so the user only picks
+      // the end hour. If no start date yet, leave both null.
+      if (startDate.value != null) {
+        endDate.value = startDate.value;
+      }
+      return;
+    }
+    // pet_sitting / unknown → no auto-tuning, user picks both.
   }
 
   void selectHouseSittingVenue(String? venue) {
