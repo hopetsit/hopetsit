@@ -197,6 +197,30 @@ class WalkerProfileScreen extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             )),
+                        SizedBox(height: 6.h),
+                        // Session v3.3 — service pill "Promenade" so the
+                        // walker hero mirrors the sitter hero layout.
+                        Wrap(
+                          spacing: 4.w,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6.w,
+                                vertical: 2.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(4.r),
+                              ),
+                              child: InterText(
+                                text: 'Promenade',
+                                fontSize: 10.sp,
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -210,63 +234,89 @@ class WalkerProfileScreen extends StatelessWidget {
   }
 
   Widget _buildWalkerAvatar(ProfileController controller) {
-    return Obx(() {
-      final imageUrl = controller.profileImageUrl.value;
-      final isUploading = controller.isUploadingImage.value;
-      return Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+    return Stack(
+      children: [
+        Obx(() {
+          final imageUrl = controller.profileImageUrl.value;
+          final isUploading = controller.isUploadingImage.value;
+          return Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(42.r),
-          child: SizedBox(
-            width: 84.w,
-            height: 84.w,
-            child: isUploading
-                ? Container(
-                    color: AppColors.lightGrey,
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(_accent),
-                        strokeWidth: 2,
-                      ),
-                    ),
-                  )
-                : (imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(color: AppColors.lightGrey),
-                        errorWidget: (_, __, ___) => Container(
-                          color: _accentLight,
-                          child: Icon(
-                            Icons.directions_walk_rounded,
-                            size: 36.sp,
-                            color: _accent,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(42.r),
+              child: SizedBox(
+                width: 84.w,
+                height: 84.w,
+                child: isUploading
+                    ? Container(
+                        color: AppColors.lightGrey,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(_accent),
+                            strokeWidth: 2,
                           ),
                         ),
                       )
-                    : Container(
-                        color: _accentLight,
-                        child: Icon(
-                          Icons.directions_walk_rounded,
-                          size: 36.sp,
-                          color: _accent,
-                        ),
-                      )),
+                    : (imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) =>
+                                Container(color: AppColors.lightGrey),
+                            errorWidget: (_, __, ___) => Container(
+                              color: _accentLight,
+                              child: Icon(
+                                Icons.directions_walk_rounded,
+                                size: 36.sp,
+                                color: _accent,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: _accentLight,
+                            child: Icon(
+                              Icons.directions_walk_rounded,
+                              size: 36.sp,
+                              color: _accent,
+                            ),
+                          )),
+              ),
+            ),
+          );
+        }),
+        // Session v3.3 — camera edit button overlay (parity with sitter hero).
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: GestureDetector(
+            onTap: controller.pickAndUploadProfilePicture,
+            child: Container(
+              width: 28.w,
+              height: 28.w,
+              decoration: BoxDecoration(
+                color: _accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Icon(
+                Icons.camera_alt_rounded,
+                size: 13.sp,
+                color: Colors.white,
+              ),
+            ),
           ),
         ),
-      );
-    });
+      ],
+    );
   }
 
   // ═════════════════════════════════════════════════════════════════════════

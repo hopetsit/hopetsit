@@ -182,7 +182,17 @@ class SitterProfileScreen extends StatelessWidget {
                         )),
                         SizedBox(height: 6.h),
                         Obx(() {
-                          final services = controller.profile.value?.service ?? [];
+                          // Session v3.3 — dog walking est désormais une
+                          // prestation exclusive au rôle walker. On le filtre
+                          // du hero sitter pour ne laisser que garderie et
+                          // garde multi-jours (pet_sitting + house_sitting).
+                          final rawServices = controller.profile.value?.service ?? [];
+                          final services = rawServices
+                              .where((s) {
+                                final norm = s.toLowerCase().trim().replaceAll(' ', '_');
+                                return norm != 'dog_walking';
+                              })
+                              .toList();
                           if (services.isEmpty) return const SizedBox.shrink();
                           return Wrap(
                             spacing: 4.w,
