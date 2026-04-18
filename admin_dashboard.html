@@ -216,6 +216,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> Reports</div>
       <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Boosts</div>
       <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> Pricing</div>
+      <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> Services</div>
+      <div class="nav-item" onclick="showPage('pawmap')"><span class="nav-icon">🗺️</span> PawMap</div>
+      <div class="nav-item" onclick="showPage('annonces')"><span class="nav-icon">📣</span> Annonces</div>
     </nav>
 
     <!-- PAGES -->
@@ -490,6 +493,82 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </div>
         </div>
         <div id="boosts-pagination" class="pagination"></div>
+      </div>
+
+      <!-- ANNONCES -->
+      <div id="page-annonces" class="page">
+        <div class="section-title">📣 Annonces &amp; modération</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
+          Toutes les annonces (demandes de réservation et posts média). Ban masque l'annonce côté utilisateurs tout en gardant les données en DB (audit + analytics). Supprimer est définitif.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+          <select class="filter-select" id="annonces-status-filter" onchange="loadAnnonces()">
+            <option value="all">Tous statuts</option>
+            <option value="live">En ligne</option>
+            <option value="banned">Bannis</option>
+          </select>
+          <select class="filter-select" id="annonces-type-filter" onchange="loadAnnonces()">
+            <option value="">Tous types</option>
+            <option value="request">Demandes</option>
+            <option value="media">Media</option>
+          </select>
+          <input class="search-input" id="annonces-search" placeholder="🔍 Rechercher dans le texte..." style="max-width:300px" oninput="debounce(loadAnnonces, 400)()">
+          <button class="action-btn" onclick="loadAnnonces()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Refresh</button>
+        </div>
+        <div id="annonces-list"><div class="loading"><div class="spinner"></div></div></div>
+        <div id="annonces-pagination" class="pagination" style="margin-top:16px"></div>
+      </div>
+
+      <!-- PAWMAP -->
+      <div id="page-pawmap" class="page">
+        <div class="section-title">🗺️ PawMap analytics</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
+          Vue d'ensemble des POIs (vétos, parcs, points d'eau...) et des signalements communautaires (chien perdu, danger, point d'eau, etc.).
+          Tous les signalements sont conservés — même après expiration 48 h — comme dataset historique. Utile pour repérer les hotspots et détecter les abus.
+        </p>
+
+        <!-- Seed controls -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px">🌱 Alimenter la carte (OpenStreetMap)</div>
+          <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;max-width:720px">
+            Charge automatiquement les POIs depuis OpenStreetMap pour un pays ou toute l'Europe.
+            Les catégories couvrent vétos, parcs à chiens, boutiques, toiletteurs, points d'eau, hôtels/restos pet-friendly.
+            Le seed tourne en tâche de fond (1-3 min par pays). Clique "Tout l'Europe + Suisse" pour charger les 29 pays d'un coup.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <select id="seed-country-select" class="filter-select" style="min-width:180px">
+              <!-- Populated dynamically -->
+            </select>
+            <button class="action-btn btn-primary" onclick="startSeed()">🌱 Seed ce pays</button>
+            <button class="action-btn" onclick="startSeedBatch()" style="background:var(--orange);color:#fff;border:none">🌍 Tout l'Europe + Suisse (29 pays)</button>
+            <button class="action-btn" onclick="loadSeedJobs()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Rafraîchir jobs</button>
+          </div>
+          <div id="seed-jobs" style="font-size:12px"></div>
+        </div>
+
+        <div id="pawmap-stats">
+          <div class="loading"><div class="spinner"></div> Loading…</div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="action-btn" onclick="loadPawmapStats()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Refresh stats</button>
+        </div>
+      </div>
+
+      <!-- SERVICES -->
+      <div id="page-services" class="page">
+        <div class="section-title">🧰 Service catalog</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
+          Edit the 3 bookable services exposed to owners (Promenade / Garderie / Garde multi-jours) and the duration presets for short walks and long outings.
+          Toggle <em>Active</em> off to temporarily hide a service from the publish flow. Label &amp; description overrides are optional — leave empty to use the app's default translations.
+        </p>
+        <div id="services-editor">
+          <div class="loading"><div class="spinner"></div> Loading catalog…</div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap">
+          <button class="action-btn btn-primary" onclick="saveServices()" id="services-save-btn">💾 Save changes</button>
+          <button class="action-btn" onclick="loadServices()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Reload</button>
+          <button class="action-btn" onclick="resetServices()" style="background:var(--surface2);color:var(--red);border:1px solid var(--red)">↺ Reset defaults</button>
+        </div>
       </div>
 
       <!-- PRICING -->
@@ -806,6 +885,489 @@ function showPage(name) {
   if (name === 'reports') initReportsPage();
   if (name === 'boosts') loadBoosts();
   if (name === 'pricing') loadPricing();
+  if (name === 'services') loadServices();
+  if (name === 'pawmap') loadPawmapStats();
+  if (name === 'annonces') loadAnnonces();
+}
+
+// ── ANNONCES ─────────────────────────────────────────────────────────────────
+// CRUD + soft-delete (ban) moderation for owner posts (reservation requests
+// and media). Ban prompts for an optional reason that's stored on the post
+// so we can show it to the user if needed.
+let _annoncesPage = 1;
+
+// Simple debounce so typing in the search box doesn't spam the API.
+let _debounceTimer = null;
+function debounce(fn, ms) {
+  return () => {
+    clearTimeout(_debounceTimer);
+    _debounceTimer = setTimeout(fn, ms);
+  };
+}
+
+async function loadAnnonces(pageOverride) {
+  if (typeof pageOverride === 'number') _annoncesPage = pageOverride;
+  const list = document.getElementById('annonces-list');
+  list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const status = document.getElementById('annonces-status-filter').value;
+    const postType = document.getElementById('annonces-type-filter').value;
+    const q = document.getElementById('annonces-search').value.trim();
+    const qs = new URLSearchParams({
+      page: String(_annoncesPage),
+      limit: '20',
+      status,
+    });
+    if (postType) qs.set('postType', postType);
+    if (q) qs.set('q', q);
+    const data = await api('/admin/posts?' + qs.toString());
+    list.innerHTML = renderAnnoncesList(data.posts || []);
+    renderAnnoncesPagination(data);
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${e.message}</div>`;
+  }
+}
+
+function renderAnnoncesList(posts) {
+  if (!posts.length) {
+    return '<div style="color:var(--text-muted);padding:30px;text-align:center">Aucune annonce trouvée.</div>';
+  }
+  return posts.map((p) => {
+    const banned = p.hidden === true;
+    const statusBadge = banned
+      ? `<span style="background:var(--red);color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">BANNI</span>`
+      : `<span style="background:var(--green);color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">LIVE</span>`;
+    const services = (p.serviceTypes || []).map((s) => `<span style="background:var(--surface2);padding:2px 8px;border-radius:8px;font-size:11px;margin-right:4px">${s}</span>`).join('');
+    const actions = banned
+      ? `<button class="action-btn" onclick="unbanAnnonce('${p.id}')" style="background:var(--green);color:#fff;border:none">↩ Unban</button>
+         <button class="action-btn" onclick="deleteAnnonce('${p.id}')" style="background:transparent;color:var(--red);border:1px solid var(--red)">🗑 Supprimer</button>`
+      : `<button class="action-btn" onclick="banAnnonce('${p.id}')" style="background:var(--red);color:#fff;border:none">⛔ Ban</button>
+         <button class="action-btn" onclick="deleteAnnonce('${p.id}')" style="background:transparent;color:var(--red);border:1px solid var(--red)">🗑 Supprimer</button>`;
+    const reason = banned && p.bannedReason
+      ? `<div style="color:var(--red);font-size:11px;margin-top:6px">Raison : ${p.bannedReason}</div>`
+      : '';
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              ${statusBadge}
+              <span style="color:var(--text-muted);font-size:12px">${new Date(p.createdAt).toLocaleString()}</span>
+              <span style="color:var(--text-muted);font-size:12px">· ${p.postType}</span>
+            </div>
+            <div style="font-weight:600;margin-bottom:4px">${p.owner.name || p.owner.email || '(anonyme)'}</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-bottom:6px">${p.body || '(pas de texte)'}</div>
+            ${services ? `<div style="margin-top:4px">${services}</div>` : ''}
+            ${p.city ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">📍 ${p.city}</div>` : ''}
+            ${reason}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">${actions}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAnnoncesPagination(data) {
+  const el = document.getElementById('annonces-pagination');
+  if (!data || data.pages <= 1) { el.innerHTML = ''; return; }
+  const buttons = [];
+  for (let i = 1; i <= data.pages; i++) {
+    const active = i === data.page;
+    buttons.push(`<button class="action-btn ${active ? 'btn-primary' : ''}" onclick="loadAnnonces(${i})">${i}</button>`);
+  }
+  el.innerHTML = buttons.join(' ');
+}
+
+async function banAnnonce(id) {
+  const reason = prompt('Raison du ban (optionnel, sera visible pour l\'utilisateur) :', '');
+  if (reason === null) return;
+  try {
+    await api(`/admin/posts/${id}/ban`, 'POST', { reason });
+    showToast('⛔ Annonce bannie.');
+    loadAnnonces();
+  } catch (e) { showToast('❌ ' + (e.message || 'Ban failed')); }
+}
+
+async function unbanAnnonce(id) {
+  try {
+    await api(`/admin/posts/${id}/unban`, 'POST', {});
+    showToast('↩ Annonce restaurée.');
+    loadAnnonces();
+  } catch (e) { showToast('❌ ' + (e.message || 'Unban failed')); }
+}
+
+async function deleteAnnonce(id) {
+  if (!confirm('Suppression définitive ? Cette action est irréversible (hard-delete).')) return;
+  try {
+    await api(`/admin/posts/${id}`, 'DELETE');
+    showToast('🗑 Annonce supprimée.');
+    loadAnnonces();
+  } catch (e) { showToast('❌ ' + (e.message || 'Delete failed')); }
+}
+
+// ── PAWMAP ANALYTICS ─────────────────────────────────────────────────────────
+// Reads aggregated stats from /admin/pawmap/stats and renders:
+//   • Top-line stat cards (total POIs, live reports, expired, hidden, last 7d)
+//   • Breakdown table by report type (total / live / expired / hidden per type)
+//   • Breakdown table by POI category
+//   • Top 10 cities ranked by signal volume
+const REPORT_TYPE_LABELS = {
+  poop: '💩 Caca',
+  pee: '💧 Pipi',
+  water_active: '🚰 Point d\'eau OK',
+  water_broken: '🚱 Point d\'eau cassé',
+  hazard: '⚠️ Danger',
+  aggressive_dog: '😾 Chien agressif',
+  lost_pet: '🔎 Animal perdu',
+  found_pet: '🤝 Animal trouvé',
+  other: '📍 Autre',
+};
+const POI_CATEGORY_LABELS = {
+  vet: '🏥 Vétérinaires',
+  park: '🌳 Parcs',
+  shop: '🛒 Boutiques',
+  groomer: '✂️ Toilettage',
+  beach: '🏖️ Plages',
+  water: '🚰 Points d\'eau',
+  trainer: '🎓 Dresseurs',
+  hotel: '🏨 Hôtels',
+  restaurant: '🍽️ Restaurants',
+  other: '📍 Autre',
+};
+
+async function loadPawmapStats() {
+  const wrap = document.getElementById('pawmap-stats');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try {
+    const d = await api('/admin/pawmap/stats');
+    wrap.innerHTML = renderPawmapStats(d);
+    // Populate the seed country dropdown (first render only).
+    if (!document.getElementById('seed-country-select').options.length) {
+      await loadSeedCountries();
+    }
+    // Also refresh any in-progress jobs.
+    loadSeedJobs();
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${e.message}</div>`;
+  }
+}
+
+// ── SEED CONTROLS ────────────────────────────────────────────────────────────
+const COUNTRY_FLAGS = {
+  FR: '🇫🇷', DE: '🇩🇪', ES: '🇪🇸', IT: '🇮🇹', PT: '🇵🇹', NL: '🇳🇱',
+  BE: '🇧🇪', LU: '🇱🇺', AT: '🇦🇹', CH: '🇨🇭', GB: '🇬🇧', IE: '🇮🇪',
+  DK: '🇩🇰', SE: '🇸🇪', NO: '🇳🇴', FI: '🇫🇮', PL: '🇵🇱', CZ: '🇨🇿',
+  SK: '🇸🇰', HU: '🇭🇺', RO: '🇷🇴', GR: '🇬🇷', HR: '🇭🇷', SI: '🇸🇮',
+  BG: '🇧🇬', EE: '🇪🇪', LV: '🇱🇻', LT: '🇱🇹', MT: '🇲🇹', CY: '🇨🇾',
+};
+
+async function loadSeedCountries() {
+  try {
+    const d = await api('/admin/pawmap/seed/countries');
+    const sel = document.getElementById('seed-country-select');
+    sel.innerHTML = d.countries
+      .map((c) => `<option value="${c}">${COUNTRY_FLAGS[c] || ''} ${c}</option>`)
+      .join('');
+  } catch (e) {
+    console.error('loadSeedCountries', e);
+  }
+}
+
+async function startSeed() {
+  const country = document.getElementById('seed-country-select').value;
+  try {
+    const d = await api('/admin/pawmap/seed', 'POST', { country });
+    showToast(`🌱 Seed lancé pour ${COUNTRY_FLAGS[country] || ''} ${country}. Job ${d.jobId}.`);
+    pollSeedJobs();
+  } catch (e) { showToast('❌ ' + (e.message || 'Seed failed')); }
+}
+
+async function startSeedBatch() {
+  if (!confirm('Lancer le seed pour les 29 pays d\'Europe ? Peut prendre 30-60 minutes total. Le batch tourne en arrière-plan — tu peux fermer l\'admin.')) return;
+  try {
+    const d = await api('/admin/pawmap/seed/batch', 'POST', {});
+    showToast(`🌍 Batch seed lancé. Job ${d.jobId}. Rafraîchis stats dans quelques minutes.`);
+    pollSeedJobs();
+  } catch (e) { showToast('❌ ' + (e.message || 'Batch failed')); }
+}
+
+let _seedPollTimer = null;
+function pollSeedJobs() {
+  loadSeedJobs();
+  if (_seedPollTimer) clearInterval(_seedPollTimer);
+  _seedPollTimer = setInterval(loadSeedJobs, 15000); // every 15s
+}
+
+async function loadSeedJobs() {
+  try {
+    const d = await api('/admin/pawmap/seed/jobs');
+    const el = document.getElementById('seed-jobs');
+    if (!d.jobs || !d.jobs.length) { el.innerHTML = ''; return; }
+    el.innerHTML = d.jobs.slice(0, 8).map((j) => {
+      const dur = j.finishedAt
+        ? Math.round((new Date(j.finishedAt) - new Date(j.startedAt)) / 1000) + 's'
+        : Math.round((Date.now() - new Date(j.startedAt)) / 1000) + 's (en cours)';
+      const statusColor = j.status === 'done' ? 'var(--green)' : (j.status === 'error' ? 'var(--red)' : 'var(--orange)');
+      if (j.type === 'batch') {
+        const countries = Object.entries(j.perCountry || {});
+        const countriesHtml = countries.map(([c, info]) => {
+          const color = info.status === 'done' ? 'var(--green)' : (info.status === 'error' ? 'var(--red)' : 'var(--orange)');
+          return `<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:8px;background:${color};color:#fff;font-size:10px">${COUNTRY_FLAGS[c] || ''} ${c} · ${info.inserted || 0}</span>`;
+        }).join('');
+        return `<div style="background:var(--surface2);padding:10px;border-radius:8px;margin-bottom:8px;border-left:3px solid ${statusColor}">
+          <div style="font-weight:600;margin-bottom:4px">🌍 Batch · ${j.status} · ${j.totalInserted || 0} POIs · ${dur}</div>
+          <div>${countriesHtml}</div>
+        </div>`;
+      }
+      const byCat = Object.entries(j.byCategory || {})
+        .map(([k, v]) => `${k}: ${v.inserted || 0}`)
+        .join(' · ');
+      return `<div style="background:var(--surface2);padding:10px;border-radius:8px;margin-bottom:8px;border-left:3px solid ${statusColor}">
+        <div style="font-weight:600">${COUNTRY_FLAGS[j.country] || ''} ${j.country} · ${j.status} · ${j.totalInserted} POIs · ${dur}</div>
+        <div style="color:var(--text-muted);font-size:11px">${byCat || '(pas encore de cat)'}</div>
+      </div>`;
+    }).join('');
+    // Auto-stop polling when everything is done.
+    if (d.jobs.every((j) => j.status !== 'running') && _seedPollTimer) {
+      clearInterval(_seedPollTimer);
+      _seedPollTimer = null;
+    }
+  } catch (e) { console.error(e); }
+}
+
+function renderPawmapStats(d) {
+  const r = d.reports || {};
+  const p = d.pois || {};
+
+  // Stat cards.
+  const cards = `
+    <div class="stats-grid" style="margin-bottom:24px">
+      <div class="stat-card"><div class="stat-label">POIs total</div><div class="stat-value">${p.total || 0}</div><div class="stat-sub">Tous statuts</div></div>
+      <div class="stat-card" style="--accent:var(--green)"><div class="stat-label">Signalements live</div><div class="stat-value">${r.live || 0}</div><div class="stat-sub">Visibles sur la map</div></div>
+      <div class="stat-card" style="--accent:var(--blue)"><div class="stat-label">Expirés (archivés)</div><div class="stat-value">${r.expired || 0}</div><div class="stat-sub">Dataset historique</div></div>
+      <div class="stat-card" style="--accent:var(--red)"><div class="stat-label">Masqués (flags)</div><div class="stat-value">${r.hidden || 0}</div><div class="stat-sub">À modérer</div></div>
+      <div class="stat-card" style="--accent:var(--orange)"><div class="stat-label">7 derniers jours</div><div class="stat-value">${r.last7d || 0}</div><div class="stat-sub">Signalements créés</div></div>
+      <div class="stat-card"><div class="stat-label">Signalements total</div><div class="stat-value">${r.total || 0}</div><div class="stat-sub">All-time</div></div>
+    </div>`;
+
+  // Reports by type table.
+  const typeRows = (r.byType || []).map((row) => {
+    const label = REPORT_TYPE_LABELS[row.type] || row.type;
+    return `
+      <tr>
+        <td style="padding:10px;font-weight:600">${label}</td>
+        <td style="padding:10px;text-align:right">${row.total}</td>
+        <td style="padding:10px;text-align:right;color:var(--green);font-weight:600">${row.live}</td>
+        <td style="padding:10px;text-align:right;color:var(--text-muted)">${row.expired}</td>
+        <td style="padding:10px;text-align:right;color:var(--red)">${row.hidden}</td>
+      </tr>`;
+  }).join('');
+  const typeTable = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+      <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">Signalements par type</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:left">
+          <th style="padding:8px">TYPE</th>
+          <th style="padding:8px;text-align:right">TOTAL</th>
+          <th style="padding:8px;text-align:right">LIVE</th>
+          <th style="padding:8px;text-align:right">EXPIRÉS</th>
+          <th style="padding:8px;text-align:right">MASQUÉS</th>
+        </tr></thead>
+        <tbody>${typeRows || '<tr><td style="padding:10px;color:var(--text-muted)">Aucun signalement encore.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  // POIs by category table.
+  const poiRows = (p.byCategory || []).map((row) => {
+    const label = POI_CATEGORY_LABELS[row.category] || row.category;
+    return `<tr><td style="padding:10px;font-weight:600">${label}</td><td style="padding:10px;text-align:right">${row.count}</td></tr>`;
+  }).join('');
+  const poiTable = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+      <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">POIs par catégorie</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:left">
+          <th style="padding:8px">CATÉGORIE</th>
+          <th style="padding:8px;text-align:right">COUNT</th>
+        </tr></thead>
+        <tbody>${poiRows || '<tr><td style="padding:10px;color:var(--text-muted)">Pas encore de POIs.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  // Top 10 cities by report volume.
+  const cities = d.topReportCities || [];
+  const cityRows = cities.map((c, i) => `
+    <tr>
+      <td style="padding:10px;color:var(--text-muted);width:30px">${i + 1}</td>
+      <td style="padding:10px;font-weight:600">${c.city || '—'}</td>
+      <td style="padding:10px;text-align:right">${c.count}</td>
+    </tr>
+  `).join('');
+  const cityTable = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+      <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">Top 10 villes (signalements)</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="color:var(--text-muted);font-size:11px;letter-spacing:1px;text-align:left">
+          <th style="padding:8px">#</th>
+          <th style="padding:8px">VILLE</th>
+          <th style="padding:8px;text-align:right">SIGNALEMENTS</th>
+        </tr></thead>
+        <tbody>${cityRows || '<tr><td style="padding:10px;color:var(--text-muted)">Pas encore de ville tracée.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  return cards + typeTable + poiTable + cityTable;
+}
+
+// ── SERVICES ─────────────────────────────────────────────────────────────────
+// Editable catalog backed by /admin/services (GET/PATCH/reset). 3 hardcoded
+// service keys + duration arrays + per-language label & description overrides.
+let _servicesState = null;
+const SERVICE_META = [
+  { key: 'dog_walking', label: '🐾 Promenade' },
+  { key: 'day_care',    label: '☀️ Garderie' },
+  { key: 'pet_sitting', label: '🏡 Garde multi-jours' },
+];
+const SERVICE_LANGS = ['fr','en','de','es','it','pt'];
+
+async function loadServices() {
+  const editor = document.getElementById('services-editor');
+  editor.innerHTML = '<div class="loading"><div class="spinner"></div> Loading catalog…</div>';
+  try {
+    const data = await api('/admin/services');
+    _servicesState = JSON.parse(JSON.stringify(data));
+    renderServices();
+  } catch (e) {
+    editor.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${e.message}</div>`;
+  }
+}
+
+function renderServices() {
+  const editor = document.getElementById('services-editor');
+  const catalog = _servicesState.catalog || {};
+
+  // Duration presets card.
+  const promenadeCsv = (catalog.promenadeMinutes || []).join(', ');
+  const longCsv = (catalog.longOutingMinutes || []).join(', ');
+  const durationsCard = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+      <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:14px">⏱️ Duration presets (minutes)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:6px">PROMENADE</div>
+          <input id="sc-promenade" class="pricing-input" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px" value="${promenadeCsv}" placeholder="30, 60, 90, 120" onchange="onDurationsEdit('promenade', this)">
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Comma-separated minutes. Short walks.</div>
+        </div>
+        <div>
+          <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:6px">SORTIE LONGUE</div>
+          <input id="sc-long" class="pricing-input" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px" value="${longCsv}" placeholder="180, 240, 300" onchange="onDurationsEdit('long', this)">
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Half-day outings in minutes.</div>
+        </div>
+      </div>
+    </div>`;
+
+  // Per-service cards.
+  const serviceCards = SERVICE_META.map((s) => {
+    const entry = catalog[s.key] || {};
+    const active = entry.active !== false;
+    const icon = entry.icon || '';
+    const labelOverride = entry.labelOverride || {};
+    const descOverride = entry.descOverride || {};
+
+    const langInputs = SERVICE_LANGS.map((lang) => `
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">${lang.toUpperCase()}</div>
+        <input
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:4px"
+          placeholder="Label override (leave empty = app default)"
+          value="${(labelOverride[lang] || '').replace(/"/g, '&quot;')}"
+          onchange="onServiceFieldEdit('${s.key}','labelOverride','${lang}', this)">
+        <input
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px"
+          placeholder="Description override (leave empty = app default)"
+          value="${(descOverride[lang] || '').replace(/"/g, '&quot;')}"
+          onchange="onServiceFieldEdit('${s.key}','descOverride','${lang}', this)">
+      </div>
+    `).join('');
+
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700">${s.label}</div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted)">
+            <input type="checkbox" ${active ? 'checked' : ''} onchange="onServiceToggle('${s.key}', this.checked)">
+            Active
+          </label>
+        </div>
+        <div style="display:grid;grid-template-columns:100px 1fr;gap:16px">
+          <div>
+            <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">ICON</div>
+            <input
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:20px;text-align:center"
+              value="${icon}"
+              maxlength="3"
+              onchange="onServiceFieldEdit('${s.key}','icon',null, this)">
+          </div>
+          <div>
+            <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);margin-bottom:6px">LABEL &amp; DESCRIPTION OVERRIDES (per language)</div>
+            ${langInputs}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  editor.innerHTML = durationsCard + serviceCards;
+}
+
+function onDurationsEdit(which, input) {
+  const nums = input.value.split(',').map((x) => parseInt(x.trim(), 10)).filter((n) => !Number.isNaN(n) && n > 0);
+  if (which === 'promenade') _servicesState.catalog.promenadeMinutes = nums;
+  if (which === 'long') _servicesState.catalog.longOutingMinutes = nums;
+}
+
+function onServiceToggle(serviceKey, active) {
+  _servicesState.catalog[serviceKey] = _servicesState.catalog[serviceKey] || {};
+  _servicesState.catalog[serviceKey].active = active;
+}
+
+function onServiceFieldEdit(serviceKey, field, lang, input) {
+  _servicesState.catalog[serviceKey] = _servicesState.catalog[serviceKey] || {};
+  if (field === 'icon') {
+    _servicesState.catalog[serviceKey].icon = input.value;
+    return;
+  }
+  _servicesState.catalog[serviceKey][field] = _servicesState.catalog[serviceKey][field] || {};
+  _servicesState.catalog[serviceKey][field][lang] = input.value;
+}
+
+async function saveServices() {
+  const btn = document.getElementById('services-save-btn');
+  const prev = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Saving…';
+  try {
+    const res = await api('/admin/services', 'PATCH', _servicesState.catalog);
+    _servicesState.catalog = res.catalog || _servicesState.catalog;
+    showToast('✅ Service catalog updated.');
+  } catch (e) {
+    showToast('❌ ' + (e.message || 'Save failed'));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = prev;
+  }
+}
+
+async function resetServices() {
+  if (!confirm('Reset service catalog to defaults? Custom overrides will be lost.')) return;
+  try {
+    const res = await api('/admin/services/reset', 'POST', {});
+    _servicesState.catalog = res.catalog;
+    renderServices();
+    showToast('↺ Services reset to defaults.');
+  } catch (e) {
+    showToast('❌ ' + (e.message || 'Reset failed'));
+  }
 }
 
 // ── PRICING ──────────────────────────────────────────────────────────────────

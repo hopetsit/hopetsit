@@ -168,6 +168,7 @@ const Map<String, String> deDETranslations = <String, String>{
 
       'my_posts_title': 'Meine Beiträge',
       'home_segment_sitters': 'Tiersitter',
+      'home_segment_walkers': 'Hundeausführer',
       'my_posts_no_posts': 'Keine Beiträge gefunden',
       'my_posts_delete_title': 'Beitrag loeschen?',
       'my_posts_delete_message':
@@ -983,7 +984,12 @@ const Map<String, String> deDETranslations = <String, String>{
       'publish_request_service_walking': 'Spaziergang',
       'publish_request_service_boarding': 'Unterbringung',
       'publish_request_service_daycare': 'Tagesbetreuung',
-      'publish_request_service_pet_sitting': 'Tiersitting',
+      'publish_request_service_pet_sitting': 'Mehrtägige Betreuung',
+      'publish_request_service_walking_desc': 'Kurzer oder langer Gassigang, nur Walker',
+      'publish_request_service_daycare_desc': 'Tagesbetreuung, keine Übernachtung',
+      'publish_request_service_pet_sitting_desc': 'Mehrere Tage, bei dir oder beim Sitter',
+      'publish_request_duration_walk_label': 'Gassigang',
+      'publish_request_duration_long_label': 'Lange Tour (halbtags)',
       'publish_request_service_house_sitting': 'Haussitting',
       'house_sitting_venue_label': 'Ort des Haussittings',
       'house_sitting_venue_owners_home': 'Beim Tierhalter zu Hause',
@@ -1469,7 +1475,7 @@ const Map<String, String> deDETranslations = <String, String>{
 
     // ── Walker role (third role — dog walkers) ──
     'role_pet_walker': 'Hundeausführer',
-    'role_pet_walker_desc': 'Ich biete Gassigänge auf Anfrage oder regelmäßig für Hunde und Katzen in der Nachbarschaft an.',
+    'role_pet_walker_desc': 'Bewirb dich auf bezahlte Gassigänge, die von Tierhaltern gepostet werden. Hast du selbst ein Tier, hilft dir PawMap Tierärzte, Wasserstellen und nützliche Orte zu finden.',
     'sign_up_as_pet_walker': 'Als Hundeausführer registrieren',
     'auth_role_pet_walker': 'Hundeausführer',
     'walker_home_title': 'Startseite Hundeausführer',

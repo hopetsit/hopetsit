@@ -58,20 +58,57 @@ class PublishReservationRequestController extends GetxController {
 
   final RxList<File> imageFiles = <File>[].obs;
 
+  /// Service catalog — session avril 2026 simplification from 5 to 3 services.
+  ///   • Promenade (dog_walking) — walker-exclusive, green accent
+  ///   • Garderie (day_care)     — daytime care at sitter or owner, blue
+  ///   • Garde multi-jours (pet_sitting) — overnight stays, blue
+  ///
+  /// "Boarding" and "house_sitting" are folded into `pet_sitting`; the
+  /// previous "Lieu du house sitting" binary choice is replaced by the more
+  /// general `serviceLocation` radio (Chez moi / Chez le sitter / Les deux)
+  /// which is shown for daycare + pet_sitting but hidden for promenades
+  /// (always outdoors).
   List<Map<String, String>> get serviceTypes => <Map<String, String>>[
-    {'value': 'dog_walking', 'label': 'publish_request_service_walking'.tr},
-    {'value': 'boarding', 'label': 'publish_request_service_boarding'.tr},
-    {'value': 'day_care', 'label': 'publish_request_service_daycare'.tr},
-    {'value': 'pet_sitting', 'label': 'publish_request_service_pet_sitting'.tr},
     {
-      'value': 'house_sitting',
-      'label': 'publish_request_service_house_sitting'.tr,
+      'value': 'dog_walking',
+      'label': 'publish_request_service_walking'.tr,
+      'description': 'publish_request_service_walking_desc'.tr,
+      'icon': '🐾',
+    },
+    {
+      'value': 'day_care',
+      'label': 'publish_request_service_daycare'.tr,
+      'description': 'publish_request_service_daycare_desc'.tr,
+      'icon': '☀️',
+    },
+    {
+      'value': 'pet_sitting',
+      'label': 'publish_request_service_pet_sitting'.tr,
+      'description': 'publish_request_service_pet_sitting_desc'.tr,
+      'icon': '🏡',
     },
   ];
 
+  /// Duration presets for Promenade — short walks, 30-min steps up to 2h.
+  /// Pricing and chip layout in the UI assume 4 items here.
+  static const List<String> promenadeMinutes = <String>['30', '60', '90', '120'];
+
+  /// Duration presets for Sortie longue — half-day outings, hour granularity.
+  /// Displayed as a second group under Promenade so owners understand
+  /// this is a different product (and walkers can price it differently).
+  static const List<String> longOutingMinutes = <String>['180', '240', '300'];
+
   bool get shouldShowDuration => selectedServiceType.value == 'dog_walking';
-  bool get shouldShowHouseSittingVenue =>
-      selectedServiceType.value == 'house_sitting';
+
+  /// The service-location radio (at_owner / at_sitter / both) shows for
+  /// sitter services only. Promenade is implicitly outdoor.
+  bool get shouldShowServiceLocation =>
+      selectedServiceType.value == 'day_care' ||
+      selectedServiceType.value == 'pet_sitting';
+
+  // Legacy flag kept for backward-compat callers; house_sitting is no longer
+  // a selectable type post-simplification, so this now always returns false.
+  bool get shouldShowHouseSittingVenue => false;
 
   static const List<String> _weekdays = <String>[
     'Mon',
@@ -170,12 +207,17 @@ class PublishReservationRequestController extends GetxController {
 
   void selectServiceType(String? value) {
     selectedServiceType.value = value;
+    // Duration only applies to promenades.
     if (value != 'dog_walking') {
       selectedDuration.value = null;
     }
-    if (value != 'house_sitting') {
-      houseSittingVenue.value = null;
+    // Service location only applies to daycare / pet_sitting.
+    if (value != 'day_care' && value != 'pet_sitting') {
+      serviceLocation.value = null;
     }
+    // house_sitting was merged into pet_sitting in the 2026 simplification;
+    // always clear the legacy venue field when the type changes.
+    houseSittingVenue.value = null;
   }
 
   void selectDuration(String? minutes) {

@@ -1,16 +1,19 @@
 /**
- * Map Report TTL Scheduler
+ * Map Report TTL Scheduler (post-2026-avril data retention update).
  *
- * MongoDB TTL indexes run every ~60 seconds with a tolerance of +/- a minute,
- * which is fine for most cases. We add a lightweight cron layer on top that:
- *   - Force-purges expired reports (belt-and-suspenders)
- *   - Auto-hides expired-but-not-yet-purged reports from API responses
- *   - Logs stats so we can watch report volume / churn
+ * Originally deleted expired reports every hour. That was reversed: all
+ * reports are now kept indefinitely as a historical analytics dataset
+ * (community hotspots, recurring hazards, etc.). The visibility window is
+ * still enforced by the `/nearby` endpoint filtering on `expiresAt > now`.
  *
- * Also handles subscription period expiry: flips UserSubscription.status from
- * 'active' to 'expired' when currentPeriodEnd has passed and there is no
- * pending renewal. This is what we'd normally do with a Stripe webhook in
- * Phase 2, but Phase 1 uses one-time PaymentIntents so we sweep instead.
+ * This scheduler now only:
+ *   - Logs report volume stats (live / expired / hidden) once per tick
+ *   - Flips expired UserSubscription rows from `active` → `expired` (same
+ *     logic as before — subscription renewal fallback when Stripe webhooks
+ *     aren't plugged in yet).
+ *
+ * Note the module still exports `purgeExpiredReports` for backwards-compat
+ * tests and emergency manual cleanup, but it's no longer called from tick().
  */
 
 const logger = require('../utils/logger');
@@ -21,13 +24,38 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 
 let timer = null;
 
+/**
+ * Legacy helper — DO NOT call from tick() anymore. Kept for the rare case
+ * where an admin explicitly wants to wipe all expired reports (manual
+ * cleanup script, test fixtures, etc.). Production flow keeps all data.
+ */
 async function purgeExpiredReports() {
   const now = new Date();
   const result = await MapReport.deleteMany({ expiresAt: { $lt: now } });
   if (result.deletedCount > 0) {
-    logger.info(`🧹 [ttl] Purged ${result.deletedCount} expired MapReports`);
+    logger.info(`🧹 [ttl] Manual purge removed ${result.deletedCount} expired MapReports`);
   }
   return result.deletedCount;
+}
+
+/**
+ * Periodic visibility stats — useful to watch the live/expired ratio and
+ * catch spikes (e.g. spam).
+ */
+async function logReportStats() {
+  try {
+    const now = new Date();
+    const [live, expired, hidden] = await Promise.all([
+      MapReport.countDocuments({ expiresAt: { $gt: now }, hidden: false }),
+      MapReport.countDocuments({ expiresAt: { $lte: now } }),
+      MapReport.countDocuments({ hidden: true }),
+    ]);
+    logger.info(
+      `📊 [mapReports] live=${live} expired=${expired} hidden=${hidden}`,
+    );
+  } catch (e) {
+    logger.error('[mapReports/stats] log failed', e);
+  }
 }
 
 async function expireStaleSubscriptions() {
@@ -49,7 +77,9 @@ async function expireStaleSubscriptions() {
 
 async function tick() {
   try {
-    await purgeExpiredReports();
+    // Retention policy: KEEP expired reports (analytics dataset).
+    // We only log counts and expire stale subscriptions here.
+    await logReportStats();
     await expireStaleSubscriptions();
   } catch (error) {
     logger.error('[ttl] Sweep failed', error);

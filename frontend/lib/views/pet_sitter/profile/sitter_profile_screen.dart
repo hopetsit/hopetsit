@@ -22,7 +22,6 @@ import 'package:hopetsit/widgets/top_sitter_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
-import 'package:hopetsit/views/map/pets_map_screen.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
@@ -363,6 +362,12 @@ class SitterProfileScreen extends StatelessWidget {
     );
   }
 
+  // ── Section palette — mirrors owner/walker redesign for cross-role
+  // visual consistency.
+  static const Color _sitterAccent = Color(0xFF1A73E8);
+  static const Color _palePurple = Color(0xFF6A5AE0);
+  static const Color _paleOrange = Color(0xFFE9A73B);
+
   Widget _buildSettingsSection(
     BuildContext context,
     SitterProfileController controller,
@@ -370,134 +375,110 @@ class SitterProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PoppinsText(
-          text: 'section_settings'.tr,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
-        ),
-
-        SizedBox(height: 15.h),
         // Switch Role Cards — shows the 2 other roles (3-way switch).
         _buildSwitchRoleCards(context),
-        SizedBox(height: 20.h),
 
+        // ── COMPTE ─────────────────────────────────────────
+        _sectionHeader('Compte'),
         _buildSettingsTile(
           'profile_edit_profile'.tr,
+          'Modifier ton profil et ta photo',
           Icons.person_outline_rounded,
+          _sitterAccent,
           controller.navigateToEditProfile,
         ),
         _buildSettingsTile(
           'profile_choose_service'.tr,
+          'Change les services que tu proposes',
           Icons.work_outline_rounded,
+          _sitterAccent,
           controller.navigateToChooseService,
         ),
         _buildSettingsTile(
-          'profile_change_password'.tr,
-          Icons.lock_outline_rounded,
-          controller.navigateToChangePassword,
-        ),
-        _buildSettingsTile(
-          'profile_change_language'.tr,
-          Icons.language_rounded,
-          controller.showLanguageDialog,
-        ),
-        //   'Blocked Users',
-        //   Icons.arrow_forward_ios,
-        //   controller.navigateToBlockedUsers,
-        // ),
-        // _buildSettingsTile(
-        //   'Payment Method',
-        //   Icons.arrow_forward_ios,
-        //   controller.navigateToAddCard,
-        // ),
-        // Sprint 7 step 2 — Top Sitter progress card.
-        const TopSitterCard(),
-        // Carte — menu qui réunit Ma map classique + PawMap.
-        _buildSettingsTile(
           'Carte',
+          'PawMap — POIs, reports, amis, demandes',
           Icons.map_rounded,
-          () => _showMapMenu(),
+          _palePurple,
+          () => Get.to(() => const PawMapScreen()),
         ),
-        // Sprint 7 step 3 — referrals tile.
-        _buildSettingsTile(
-          'referrals_title'.tr,
-          Icons.group_add,
-          () => Get.to(() => const MyReferralsScreen()),
-        ),
-        _buildSettingsTile(
-          'payment_management_title'.tr,
-          Icons.account_balance_wallet_rounded,
-          () => Get.to(() => const PaymentManagementScreen()),
-        ),
-        _buildSettingsTile(
-          'bookings_tab_title'.tr,
-          Icons.event_rounded,
-          controller.navigateToBookings,
-        ),
-        // Sprint 5 UI step 4 — identity verification
         _buildSettingsTile(
           'profile_verify_identity'.tr,
+          'Sois vérifié pour rassurer les propriétaires',
           Icons.verified_user_outlined,
+          AppColors.greenColor,
           () => Get.to(() => const IdentityVerificationScreen()),
         ),
-        // Sprint 6 step 1 — theme mode.
+
+        // ── MES SERVICES ──────────────────────────────────
+        _sectionHeader('Mes services'),
+        const TopSitterCard(),
         _buildSettingsTile(
-          'theme_setting_title'.tr,
-          Icons.brightness_6,
-          () => Get.dialog(
-            AlertDialog(
-              title: Text('theme_setting_title'.tr),
-              content: Obx(() {
-                final tc = Get.find<ThemeController>();
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    RadioListTile<ThemeMode>(
-                      title: Text('theme_light'.tr),
-                      value: ThemeMode.light,
-                      groupValue: tc.themeMode.value,
-                      onChanged: (v) => v != null ? tc.setMode(v) : null,
-                    ),
-                    RadioListTile<ThemeMode>(
-                      title: Text('theme_dark'.tr),
-                      value: ThemeMode.dark,
-                      groupValue: tc.themeMode.value,
-                      onChanged: (v) => v != null ? tc.setMode(v) : null,
-                    ),
-                    RadioListTile<ThemeMode>(
-                      title: Text('theme_system'.tr),
-                      value: ThemeMode.system,
-                      groupValue: tc.themeMode.value,
-                      onChanged: (v) => v != null ? tc.setMode(v) : null,
-                    ),
-                  ],
-                );
-              }),
-              actions: [
-                TextButton(onPressed: () => Get.back(), child: Text('common_close'.tr)),
-              ],
-            ),
-          ),
+          'bookings_tab_title'.tr,
+          'Tes réservations en cours',
+          Icons.event_rounded,
+          _sitterAccent,
+          controller.navigateToBookings,
         ),
-        // _buildSettingsTile(
-        //   'Reviews',
-        //   Icons.arrow_forward_ios,
-        //   controller.navigateToReviews,
-        // ),
-        // Terms & Conditions (was missing on sitter profile)
+
+        // ── PAIEMENTS & SERVICES ──────────────────────────
+        _sectionHeader('Paiements & services'),
         _buildSettingsTile(
-          'terms_read_button'.tr,
-          Icons.description_outlined,
-          () => Get.to(() => const TermsAndConditionsScreen()),
-        ),
-        _buildSettingsTile(
-          'profile_donate_us'.tr,
-          Icons.favorite_outline_rounded,
+          'payment_management_title'.tr,
+          'Moyens de paiement & payouts',
+          Icons.account_balance_wallet_rounded,
+          AppColors.primaryColor,
           () => Get.to(() => const PaymentManagementScreen()),
         ),
         _buildSettingsTile(
+          'referrals_title'.tr,
+          'Invite tes amis, gagne des crédits',
+          Icons.group_add_rounded,
+          _paleOrange,
+          () => Get.to(() => const MyReferralsScreen()),
+        ),
+
+        // ── PRÉFÉRENCES ───────────────────────────────────
+        _sectionHeader('Préférences'),
+        _buildSettingsTile(
+          'profile_change_language'.tr,
+          'Change la langue de l\'app',
+          Icons.language_rounded,
+          _sitterAccent,
+          controller.showLanguageDialog,
+        ),
+        _buildSettingsTile(
+          'theme_setting_title'.tr,
+          'Clair / sombre / système',
+          Icons.brightness_6_rounded,
+          _palePurple,
+          () => _showThemeDialog(),
+        ),
+
+        // ── SÉCURITÉ ──────────────────────────────────────
+        _sectionHeader('Sécurité'),
+        _buildSettingsTile(
+          'profile_change_password'.tr,
+          'Modifier ton mot de passe',
+          Icons.lock_outline_rounded,
+          _sitterAccent,
+          controller.navigateToChangePassword,
+        ),
+
+        // ── LÉGAL ─────────────────────────────────────────
+        _sectionHeader('Légal'),
+        _buildSettingsTile(
+          'terms_read_button'.tr,
+          'CGU de la plateforme',
+          Icons.description_outlined,
+          AppColors.textSecondary(context),
+          () => Get.to(() => const TermsAndConditionsScreen()),
+        ),
+
+        // ── ZONE DANGER ───────────────────────────────────
+        _sectionHeader('Zone danger'),
+        _buildSettingsTileDanger(
           'profile_delete_account'.tr,
+          'Action irréversible',
           Icons.delete_outline_rounded,
           () => controller.showDeleteAccountDialog(context),
         ),
@@ -505,178 +486,184 @@ class SitterProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsTile(String title, IconData icon, VoidCallback onTap) {
-    const sitterAccent = Color(0xFF1A73E8);
+  /// Small caps section header — shared with owner / walker profiles.
+  Widget _sectionHeader(String label) {
+    return Padding(
+      padding: EdgeInsets.only(top: 18.h, bottom: 8.h, left: 4.w),
+      child: PoppinsText(
+        text: label.toUpperCase(),
+        fontSize: 11.sp,
+        fontWeight: FontWeight.w700,
+        color: AppColors.greyText,
+      ),
+    );
+  }
+
+  /// Theme picker dialog (extracted so we can reuse it from the settings
+  /// tile instead of inlining the Get.dialog literal).
+  void _showThemeDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: Text('theme_setting_title'.tr),
+        content: Obx(() {
+          final tc = Get.find<ThemeController>();
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<ThemeMode>(
+                title: Text('theme_light'.tr),
+                value: ThemeMode.light,
+                groupValue: tc.themeMode.value,
+                onChanged: (v) => v != null ? tc.setMode(v) : null,
+              ),
+              RadioListTile<ThemeMode>(
+                title: Text('theme_dark'.tr),
+                value: ThemeMode.dark,
+                groupValue: tc.themeMode.value,
+                onChanged: (v) => v != null ? tc.setMode(v) : null,
+              ),
+              RadioListTile<ThemeMode>(
+                title: Text('theme_system'.tr),
+                value: ThemeMode.system,
+                groupValue: tc.themeMode.value,
+                onChanged: (v) => v != null ? tc.setMode(v) : null,
+              ),
+            ],
+          );
+        }),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('common_close'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Colored settings tile with title + subtitle + tinted icon chip.
+  /// Same pattern as owner / walker for cross-role consistency.
+  Widget _buildSettingsTile(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color iconColor,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Builder(
         builder: (context) => Container(
-          margin: EdgeInsets.only(bottom: 6.h),
+          margin: EdgeInsets.only(bottom: 8.h),
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
             borderRadius: BorderRadius.circular(14.r),
             boxShadow: AppColors.cardShadow(context),
           ),
-        child: Row(
-          children: [
-            Container(
-              width: 34.w,
-              height: 34.w,
-              decoration: BoxDecoration(
-                color: sitterAccent.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(9.r),
-              ),
-              child: Icon(icon, size: 16.sp, color: sitterAccent),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: InterText(
-                text: title,
-                fontSize: 14.sp,
-                color: AppColors.textSecondary(context),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 14.sp, color: AppColors.textSecondary(context)),
-          ],
-        ),
-        ),
-      ),
-    );
-  }
-
-  /// Carte menu — bottom sheet exposing both map experiences for sitters.
-  /// Mirrors the owner profile's map menu but uses the sitter blue accent.
-  void _showMapMenu() {
-    const sitterAccent = Color(0xFF1A73E8);
-    Get.bottomSheet(
-      Builder(
-        builder: (context) => Container(
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24.r),
-              topRight: Radius.circular(24.r),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 28.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Row(
             children: [
-              Center(
-                child: Container(
-                  width: 40.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 16.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.divider(context),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
+              Container(
+                width: 38.w,
+                height: 38.w,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, size: 18.sp, color: iconColor),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(
+                      text: title,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary(context),
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: subtitle,
+                      fontSize: 11.sp,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ],
                 ),
               ),
-              PoppinsText(
-                text: 'Choisis ta carte',
-                fontSize: 17.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-              ),
-              SizedBox(height: 4.h),
-              InterText(
-                text: 'Deux vues disponibles — l\'une pour tes clients, l\'autre pour explorer les alentours.',
-                fontSize: 12.sp,
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14.sp,
                 color: AppColors.textSecondary(context),
-              ),
-              SizedBox(height: 16.h),
-              _mapMenuOption(
-                context,
-                accent: sitterAccent,
-                icon: Icons.pets_rounded,
-                title: 'Ma map classique',
-                subtitle: 'Owners & animaux à proximité',
-                onTap: () {
-                  Get.back();
-                  Get.to(() => const PetsMapScreen());
-                },
-              ),
-              SizedBox(height: 10.h),
-              _mapMenuOption(
-                context,
-                accent: sitterAccent,
-                icon: Icons.explore_rounded,
-                title: 'PawMap',
-                subtitle: 'POIs, reports 48h, amis en live',
-                onTap: () {
-                  Get.back();
-                  Get.to(() => const PawMapScreen());
-                },
               ),
             ],
           ),
         ),
       ),
-      isScrollControlled: false,
     );
   }
 
-  Widget _mapMenuOption(
-    BuildContext context, {
-    required Color accent,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
+  /// Danger variant — red accent + red outline for irreversible actions.
+  Widget _buildSettingsTileDanger(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: accent.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(
-            color: accent.withOpacity(0.18),
-            width: 1,
+      child: Builder(
+        builder: (context) => Container(
+          margin: EdgeInsets.only(bottom: 8.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
+            border: Border.all(
+              color: AppColors.errorColor.withOpacity(0.3),
+              width: 1,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38.w,
-              height: 38.w,
-              decoration: BoxDecoration(
-                color: accent.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(10.r),
+          child: Row(
+            children: [
+              Container(
+                width: 38.w,
+                height: 38.w,
+                decoration: BoxDecoration(
+                  color: AppColors.errorColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, size: 18.sp, color: AppColors.errorColor),
               ),
-              child: Icon(icon, size: 18.sp, color: accent),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  PoppinsText(
-                    text: title,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary(context),
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: subtitle,
-                    fontSize: 11.sp,
-                    color: AppColors.textSecondary(context),
-                  ),
-                ],
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(
+                      text: title,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.errorColor,
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: subtitle,
+                      fontSize: 11.sp,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 13.sp,
-              color: AppColors.textSecondary(context),
-            ),
-          ],
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14.sp,
+                color: AppColors.errorColor,
+              ),
+            ],
+          ),
         ),
       ),
     );

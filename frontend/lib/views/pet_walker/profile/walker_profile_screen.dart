@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -7,293 +8,708 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
+import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
+import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
+import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/rounded_text_button.dart';
 
-/// Walker profile screen.
+/// Walker profile screen — full redesign (session avril 2026).
 ///
-/// Phase 2 decision (session avril 2026) — the walker profile is not yet
-/// built out (no pricing manager, no coverage editor, no avatar flow). Until
-/// the full profile UI lands, tapping the Profil tab takes the walker directly
-/// to the PawMap (their primary tool: POIs, reports 48h, amis en live).
+/// Previous iteration embedded the PawMap fullscreen + a gear bottom-sheet.
+/// Feedback from Daniel: the profile tab should show a *real profile* with
+/// all the action buttons visible inline. PawMap stays on the bottom-nav
+/// center button where it belongs.
 ///
-/// A small gear button is overlaid top-right so the walker can still reach the
-/// essentials — switch role, logout — without having to go back to the owner
-/// or sitter flow.
+/// Layout mirrors [SitterProfileScreen]:
+///   1. Green-gradient hero with avatar, name, email, walker role badge
+///   2. Quick actions row (Revenues / Calendar / Boost / IBAN)
+///   3. Switch-role cards (toward Owner and Sitter)
+///   4. Settings list grouped in sections (Account / Payments / Preferences
+///      / Security / Legal / Danger zone)
+///   5. Logout button
+///
+/// Walker-specific data (rate manager, coverage zones, insurance) will land
+/// in a later session; for now the header reuses ProfileController's generic
+/// name/email/avatar fields, which are populated for every logged-in user.
 class WalkerProfileScreen extends StatelessWidget {
   const WalkerProfileScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      body: Stack(
-        children: [
-          // Fill the whole body with the PawMap.
-          const Positioned.fill(child: PawMapScreen()),
-          // Floating gear — opens the walker quick-settings sheet.
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 12.h,
-            right: 12.w,
-            child: _GearButton(onTap: () => _showQuickSettings(context)),
-          ),
-        ],
-      ),
-    );
-  }
+  // Walker accent = green. Light variant used for icon chip backgrounds.
+  static const Color _accent = AppColors.greenColor;
+  static final Color _accentLight = AppColors.greenColor.withOpacity(0.12);
 
-  /// Quick-settings bottom sheet — minimal actions the walker might need while
-  /// the full profile screen is not yet implemented. The sheet is scrollable
-  /// so the list can grow without overflowing short screens.
-  void _showQuickSettings(BuildContext context) {
-    Get.bottomSheet(
-      Builder(
-        builder: (sheetContext) => DraggableScrollableSheet(
-          initialChildSize: 0.78,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (_, scrollCtl) => Container(
-            decoration: BoxDecoration(
-              color: AppColors.card(sheetContext),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24.r),
-                topRight: Radius.circular(24.r),
-              ),
-            ),
-            child: SingleChildScrollView(
-              controller: scrollCtl,
-              padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 28.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Grab handle.
-                  Center(
-                    child: Container(
-                      width: 40.w,
-                      height: 4.h,
-                      margin: EdgeInsets.only(bottom: 16.h),
-                      decoration: BoxDecoration(
-                        color: AppColors.divider(sheetContext),
-                        borderRadius: BorderRadius.circular(2.r),
-                      ),
-                    ),
-                  ),
-                  PoppinsText(
-                    text: 'Réglages promeneur',
-                    fontSize: 17.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(sheetContext),
-                  ),
-                  SizedBox(height: 4.h),
-                  InterText(
-                    text: 'Le profil complet arrive bientôt. En attendant :',
-                    fontSize: 12.sp,
-                    color: AppColors.textSecondary(sheetContext),
-                  ),
-
-                  // ── Compte ─────────────────────────────────
-                  _sectionHeader(sheetContext, 'Compte'),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.pets_rounded,
-                    iconColor: AppColors.primaryColor,
-                    title: 'Passer en Propriétaire',
-                    subtitle: 'Basculer vers le rôle owner',
-                    onTap: () {
-                      Get.back();
-                      _confirmSwitchRole(context, 'owner', 'Propriétaire');
-                    },
-                  ),
-                  SizedBox(height: 10.h),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.home_work_rounded,
-                    iconColor: const Color(0xFF1A73E8),
-                    title: 'Passer en Gardien',
-                    subtitle: 'Basculer vers le rôle sitter',
-                    onTap: () {
-                      Get.back();
-                      _confirmSwitchRole(context, 'sitter', 'Gardien');
-                    },
-                  ),
-
-                  // ── Paiements & services ───────────────────
-                  _sectionHeader(sheetContext, 'Paiements & services'),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.storefront_rounded,
-                    iconColor: AppColors.greenColor,
-                    title: 'Boutique',
-                    subtitle: 'Premium, Boost profil, Map Boost',
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const CoinShopScreen());
-                    },
-                  ),
-                  SizedBox(height: 10.h),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.account_balance_wallet_rounded,
-                    iconColor: AppColors.primaryColor,
-                    title: 'Gestion paiement',
-                    subtitle: 'Moyens de paiement & payouts',
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const PaymentManagementScreen());
-                    },
-                  ),
-                  SizedBox(height: 10.h),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.group_add_rounded,
-                    iconColor: const Color(0xFFE9A73B),
-                    title: 'Parrainages',
-                    subtitle: 'Invite tes amis, gagne des crédits',
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const MyReferralsScreen());
-                    },
-                  ),
-
-                  // ── Préférences ────────────────────────────
-                  _sectionHeader(sheetContext, 'Préférences'),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.language_rounded,
-                    iconColor: const Color(0xFF1A73E8),
-                    title: 'Langue',
-                    subtitle: 'Change la langue de l\'app',
-                    onTap: () {
-                      Get.back();
-                      _profileController().showLanguageDialog();
-                    },
-                  ),
-                  SizedBox(height: 10.h),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.brightness_6_rounded,
-                    iconColor: const Color(0xFF6A5AE0),
-                    title: 'Thème',
-                    subtitle: 'Clair / sombre / système',
-                    onTap: () {
-                      Get.back();
-                      _showThemeDialog();
-                    },
-                  ),
-
-                  // ── Sécurité ───────────────────────────────
-                  _sectionHeader(sheetContext, 'Sécurité'),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.lock_outline_rounded,
-                    iconColor: AppColors.primaryColor,
-                    title: 'Mot de passe',
-                    subtitle: 'Modifier ton mot de passe',
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const ChangePasswordScreen());
-                    },
-                  ),
-                  SizedBox(height: 10.h),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.block_rounded,
-                    iconColor: AppColors.errorColor,
-                    title: 'Utilisateurs bloqués',
-                    subtitle: 'Gérer les personnes bloquées',
-                    onTap: () {
-                      Get.back();
-                      Get.to(
-                        () => const BlockedUsersScreen(userType: 'pet_walker'),
-                      );
-                    },
-                  ),
-
-                  // ── Légal ──────────────────────────────────
-                  _sectionHeader(sheetContext, 'Légal'),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.description_outlined,
-                    iconColor: AppColors.textSecondary(sheetContext),
-                    title: 'Conditions d\'utilisation',
-                    subtitle: 'CGU de la plateforme',
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const TermsAndConditionsScreen());
-                    },
-                  ),
-                  SizedBox(height: 10.h),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.privacy_tip_outlined,
-                    iconColor: AppColors.textSecondary(sheetContext),
-                    title: 'Confidentialité',
-                    subtitle: 'Politique de confidentialité',
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const PrivacyPolicyScreen());
-                    },
-                  ),
-
-                  // ── Zone danger ────────────────────────────
-                  _sectionHeader(sheetContext, 'Zone danger'),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.delete_outline_rounded,
-                    iconColor: AppColors.errorColor,
-                    title: 'Supprimer le compte',
-                    subtitle: 'Action irréversible',
-                    onTap: () {
-                      Get.back();
-                      _profileController()
-                          .showDeleteAccountDialog(context);
-                    },
-                  ),
-
-                  SizedBox(height: 20.h),
-                  Divider(color: AppColors.divider(sheetContext), height: 1),
-                  SizedBox(height: 14.h),
-                  _settingsRow(
-                    sheetContext,
-                    icon: Icons.logout_rounded,
-                    iconColor: AppColors.errorColor,
-                    title: 'Déconnexion',
-                    subtitle: 'Quitter ta session',
-                    onTap: () async {
-                      Get.back();
-                      if (Get.isRegistered<AuthController>()) {
-                        await Get.find<AuthController>().logout();
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      isScrollControlled: true,
-    );
-  }
-
-  /// Lazy getter for ProfileController. We reuse it for the generic dialog
-  /// flows (language picker, delete account) instead of duplicating that
-  /// logic into walker-land. If the walker has never touched an owner flow,
-  /// the controller is created on demand here.
   ProfileController _profileController() {
     return Get.isRegistered<ProfileController>()
         ? Get.find<ProfileController>()
         : Get.put(ProfileController());
   }
 
-  /// Theme picker dialog — mirrors the owner profile `_showThemeDialog` so the
-  /// walker can toggle light / dark / system from the gear sheet.
+  @override
+  Widget build(BuildContext context) {
+    final controller = _profileController();
+
+    return Scaffold(
+      backgroundColor: AppColors.scaffold(context),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ── Walker hero ───────────────────────────────────
+            _buildWalkerHero(context, controller),
+
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 100.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 16.h),
+
+                  // Quick Actions: revenues, calendar, boost, iban.
+                  _buildQuickActions(context),
+                  SizedBox(height: 20.h),
+
+                  // Switch role cards — one per role the walker can move to.
+                  _buildSwitchRoleCards(context),
+                  SizedBox(height: 20.h),
+
+                  // Settings section.
+                  _buildSettingsSection(context, controller),
+
+                  SizedBox(height: 30.h),
+
+                  // Logout button.
+                  Center(
+                    child: CustomButton(
+                      width: 305.w,
+                      radius: 16.r,
+                      isGradient: false,
+                      title: 'button_logout'.tr,
+                      bgColor: Colors.grey.shade200,
+                      textColor: _accent,
+                      onTap: () async {
+                        if (Get.isRegistered<AuthController>()) {
+                          await Get.find<AuthController>().logout();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // HERO
+  // ═════════════════════════════════════════════════════════════════════════
+
+  Widget _buildWalkerHero(
+    BuildContext context,
+    ProfileController controller,
+  ) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 200.h,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF1B5E20), // Dark green
+                _accent,
+                Color(0xFF66BB6A), // Light green
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWalkerAvatar(controller),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Role badge.
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10.w,
+                            vertical: 4.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.directions_walk_rounded,
+                                size: 12.sp,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 4.w),
+                              InterText(
+                                text: 'role_pet_walker'.tr,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 10.h),
+                        Obx(() => PoppinsText(
+                              text: controller.userName.value.isEmpty
+                                  ? 'walker_profile_title'.tr
+                                  : controller.userName.value,
+                              fontSize: 22.sp,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            )),
+                        SizedBox(height: 4.h),
+                        Obx(() => InterText(
+                              text: controller.email.value,
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withOpacity(0.85),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            )),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWalkerAvatar(ProfileController controller) {
+    return Obx(() {
+      final imageUrl = controller.profileImageUrl.value;
+      final isUploading = controller.isUploadingImage.value;
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(42.r),
+          child: SizedBox(
+            width: 84.w,
+            height: 84.w,
+            child: isUploading
+                ? Container(
+                    color: AppColors.lightGrey,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(_accent),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  )
+                : (imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) =>
+                            Container(color: AppColors.lightGrey),
+                        errorWidget: (_, __, ___) => Container(
+                          color: _accentLight,
+                          child: Icon(
+                            Icons.directions_walk_rounded,
+                            size: 36.sp,
+                            color: _accent,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: _accentLight,
+                        child: Icon(
+                          Icons.directions_walk_rounded,
+                          size: 36.sp,
+                          color: _accent,
+                        ),
+                      )),
+          ),
+        ),
+      );
+    });
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // QUICK ACTIONS
+  // ═════════════════════════════════════════════════════════════════════════
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Row(
+      children: [
+        _quickAction(
+          context,
+          icon: Icons.bar_chart_rounded,
+          label: 'Mes revenus',
+          onTap: () => Get.to(() => const EarningsHistoryScreen()),
+        ),
+        SizedBox(width: 8.w),
+        _quickAction(
+          context,
+          icon: Icons.calendar_month_rounded,
+          label: 'Mon calendrier',
+          onTap: () => Get.to(() => const AvailabilityCalendarScreen()),
+        ),
+        SizedBox(width: 8.w),
+        _quickAction(
+          context,
+          icon: Icons.rocket_launch_rounded,
+          label: 'Boutique boost',
+          onTap: () => Get.to(() => const CoinShopScreen()),
+        ),
+        SizedBox(width: 8.w),
+        _quickAction(
+          context,
+          icon: Icons.account_balance_rounded,
+          label: 'IBAN',
+          onTap: () => Get.to(() => const IbanSetupScreen()),
+        ),
+      ],
+    );
+  }
+
+  Widget _quickAction(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: _accentLight,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, size: 17.sp, color: _accent),
+              ),
+              SizedBox(height: 6.h),
+              InterText(
+                text: label,
+                fontSize: 9.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.grey700Color,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // SWITCH ROLE
+  // ═════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSwitchRoleCards(BuildContext context) {
+    final authController = Get.find<AuthController>();
+    final currentRole = authController.userRole.value;
+    const allRoles = ['owner', 'sitter', 'walker'];
+    final otherRoles = allRoles.where((r) => r != currentRole).toList();
+    return Column(
+      children: [
+        for (int i = 0; i < otherRoles.length; i++) ...[
+          _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
+          if (i < otherRoles.length - 1) SizedBox(height: 12.h),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSwitchRoleCard(
+    BuildContext context, {
+    required String targetRole,
+  }) {
+    String roleLabelKey;
+    Color accentColor;
+    switch (targetRole) {
+      case 'owner':
+        roleLabelKey = 'role_pet_owner';
+        accentColor = AppColors.primaryColor;
+        break;
+      case 'walker':
+        roleLabelKey = 'role_pet_walker';
+        accentColor = AppColors.greenColor;
+        break;
+      case 'sitter':
+      default:
+        roleLabelKey = 'role_pet_sitter';
+        accentColor = const Color(0xFF1A73E8);
+        break;
+    }
+    final roleLabel = roleLabelKey.tr;
+
+    return GestureDetector(
+      onTap: () => _confirmSwitchRole(context, targetRole, roleLabel),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: accentColor, width: 2),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: 'Passer en $roleLabel',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: accentColor,
+                  ),
+                  SizedBox(height: 6.h),
+                  InterText(
+                    text:
+                        'Bascule ton rôle actif et accède à l\'interface $roleLabel.',
+                    fontSize: 12.sp,
+                    color: AppColors.greyText,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Icon(Icons.arrow_forward_ios, size: 18.sp, color: accentColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmSwitchRole(
+    BuildContext context,
+    String targetRole,
+    String roleLabel,
+  ) {
+    final auth = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : null;
+    if (auth == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Obx(() {
+          final isLoading = auth.isSwitchingRole.value;
+          return AlertDialog(
+            backgroundColor: AppColors.card(dialogContext),
+            title: Text('Changer de rôle',
+                style: TextStyle(color: AppColors.textPrimary(dialogContext))),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isLoading)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 16.h),
+                    child: const CircularProgressIndicator(),
+                  ),
+                Text(
+                  isLoading
+                      ? 'Bascule vers $roleLabel…'
+                      : 'Tu vas basculer vers le rôle $roleLabel. Continuer ?',
+                  style:
+                      TextStyle(color: AppColors.textPrimary(dialogContext)),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isLoading
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(),
+                child: Text(
+                  'Annuler',
+                  style: TextStyle(
+                      color: AppColors.textSecondary(dialogContext)),
+                ),
+              ),
+              TextButton(
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        await auth.switchRole(targetRole: targetRole);
+                        if (Get.isDialogOpen == true) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                      },
+                child: Text(
+                  'Passer en $roleLabel',
+                  style: TextStyle(
+                    color: isLoading
+                        ? AppColors.textSecondary(dialogContext)
+                        : Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // SETTINGS
+  // ═════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSettingsSection(
+    BuildContext context,
+    ProfileController controller,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Compte'),
+        _settingsTile(
+          'Modifier mon profil',
+          Icons.person_outline_rounded,
+          () {
+            // No walker-specific edit screen yet — reuse the owner edit flow.
+            CustomSnackbar.showError(
+              title: 'Bientôt disponible',
+              message:
+                  'L\'écran d\'édition profil promeneur arrive dans la prochaine mise à jour.',
+            );
+          },
+        ),
+        _settingsTile(
+          'Carte (PawMap)',
+          Icons.map_rounded,
+          () => Get.to(() => const PawMapScreen()),
+        ),
+        _settingsTile(
+          'Vérification d\'identité',
+          Icons.verified_user_outlined,
+          () => Get.to(() => const IdentityVerificationScreen()),
+        ),
+
+        _sectionHeader('Paiements & services'),
+        _settingsTile(
+          'Boutique',
+          Icons.storefront_rounded,
+          () => Get.to(() => const CoinShopScreen()),
+        ),
+        _settingsTile(
+          'Gestion paiement',
+          Icons.account_balance_wallet_rounded,
+          () => Get.to(() => const PaymentManagementScreen()),
+        ),
+        _settingsTile(
+          'Parrainages',
+          Icons.group_add_rounded,
+          () => Get.to(() => const MyReferralsScreen()),
+        ),
+
+        _sectionHeader('Préférences'),
+        _settingsTile(
+          'profile_change_language'.tr,
+          Icons.language_rounded,
+          controller.showLanguageDialog,
+        ),
+        _settingsTile(
+          'theme_setting_title'.tr,
+          Icons.brightness_6_rounded,
+          () => _showThemeDialog(),
+        ),
+
+        _sectionHeader('Sécurité'),
+        _settingsTile(
+          'Mot de passe',
+          Icons.lock_outline_rounded,
+          () => Get.to(() => const ChangePasswordScreen()),
+        ),
+        _settingsTile(
+          'Utilisateurs bloqués',
+          Icons.block_rounded,
+          () =>
+              Get.to(() => const BlockedUsersScreen(userType: 'pet_walker')),
+        ),
+
+        _sectionHeader('Légal'),
+        _settingsTile(
+          'Conditions d\'utilisation',
+          Icons.description_outlined,
+          () => Get.to(() => const TermsAndConditionsScreen()),
+        ),
+        _settingsTile(
+          'Confidentialité',
+          Icons.privacy_tip_outlined,
+          () => Get.to(() => const PrivacyPolicyScreen()),
+        ),
+
+        _sectionHeader('Zone danger'),
+        _settingsTileDanger(
+          'profile_delete_account'.tr,
+          Icons.delete_outline_rounded,
+          () => controller.showDeleteAccountDialog(Get.context!),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionHeader(String label) {
+    return Padding(
+      padding: EdgeInsets.only(top: 18.h, bottom: 8.h, left: 4.w),
+      child: PoppinsText(
+        text: label.toUpperCase(),
+        fontSize: 11.sp,
+        fontWeight: FontWeight.w700,
+        color: AppColors.greyText,
+      ),
+    );
+  }
+
+  Widget _settingsTile(String title, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Builder(
+        builder: (context) => Container(
+          margin: EdgeInsets.only(bottom: 6.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34.w,
+                height: 34.w,
+                decoration: BoxDecoration(
+                  color: _accentLight,
+                  borderRadius: BorderRadius.circular(9.r),
+                ),
+                child: Icon(icon, size: 16.sp, color: _accent),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: InterText(
+                  text: title,
+                  fontSize: 14.sp,
+                  color: AppColors.textSecondary(context),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _settingsTileDanger(
+    String title,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Builder(
+        builder: (context) => Container(
+          margin: EdgeInsets.only(bottom: 6.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: AppColors.cardShadow(context),
+            border: Border.all(
+              color: AppColors.errorColor.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34.w,
+                height: 34.w,
+                decoration: BoxDecoration(
+                  color: AppColors.errorColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(9.r),
+                ),
+                child: Icon(icon, size: 16.sp, color: AppColors.errorColor),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: InterText(
+                  text: title,
+                  fontSize: 14.sp,
+                  color: AppColors.errorColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14.sp,
+                color: AppColors.errorColor,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showThemeDialog() {
     final tc = Get.isRegistered<ThemeController>()
         ? Get.find<ThemeController>()
@@ -332,198 +748,6 @@ class WalkerProfileScreen extends StatelessWidget {
             child: Text('common_close'.tr),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Small caps section label used to group bottom-sheet actions.
-  Widget _sectionHeader(BuildContext context, String label) {
-    return Padding(
-      padding: EdgeInsets.only(top: 20.h, bottom: 10.h),
-      child: PoppinsText(
-        text: label.toUpperCase(),
-        fontSize: 11.sp,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textSecondary(context),
-      ),
-    );
-  }
-
-  Widget _settingsRow(
-    BuildContext context, {
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(
-            color: iconColor.withOpacity(0.18),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38.w,
-              height: 38.w,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Icon(icon, size: 18.sp, color: iconColor),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  PoppinsText(
-                    text: title,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary(context),
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: subtitle,
-                    fontSize: 11.sp,
-                    color: AppColors.textSecondary(context),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 13.sp,
-              color: AppColors.textSecondary(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Confirm dialog before switching role. Mirrors the pattern used in
-  /// profile_screen.dart (owner) so walker UX feels consistent.
-  void _confirmSwitchRole(
-    BuildContext context,
-    String targetRole,
-    String roleLabel,
-  ) {
-    final auth = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : null;
-    if (auth == null) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return Obx(() {
-          final isLoading = auth.isSwitchingRole.value;
-          return AlertDialog(
-            backgroundColor: AppColors.card(dialogContext),
-            title: Text(
-              'Changer de rôle',
-              style: TextStyle(color: AppColors.textPrimary(dialogContext)),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isLoading)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: 16.h),
-                    child: const CircularProgressIndicator(),
-                  ),
-                Text(
-                  isLoading
-                      ? 'Bascule vers $roleLabel…'
-                      : 'Tu vas basculer vers le rôle $roleLabel. Continuer ?',
-                  style: TextStyle(color: AppColors.textPrimary(dialogContext)),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: isLoading
-                    ? null
-                    : () => Navigator.of(dialogContext).pop(),
-                child: Text(
-                  'Annuler',
-                  style: TextStyle(color: AppColors.textSecondary(dialogContext)),
-                ),
-              ),
-              TextButton(
-                onPressed: isLoading
-                    ? null
-                    : () async {
-                        await auth.switchRole(targetRole: targetRole);
-                        if (Get.isDialogOpen == true) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                      },
-                child: Text(
-                  'Passer en $roleLabel',
-                  style: TextStyle(
-                    color: isLoading
-                        ? AppColors.textSecondary(dialogContext)
-                        : Colors.blue,
-                  ),
-                ),
-              ),
-            ],
-          );
-        });
-      },
-    );
-  }
-}
-
-/// Circular floating gear button — shown overlaid on top of the PawMap so the
-/// walker can reach quick-settings without a profile screen.
-class _GearButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _GearButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22.r),
-        child: Container(
-          width: 44.w,
-          height: 44.w,
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.18),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-            border: Border.all(
-              color: AppColors.divider(context),
-              width: 1,
-            ),
-          ),
-          child: Icon(
-            Icons.settings_rounded,
-            size: 22.sp,
-            color: AppColors.textPrimary(context),
-          ),
-        ),
       ),
     );
   }

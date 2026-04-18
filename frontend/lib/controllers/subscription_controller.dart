@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 
 /// Single plan description as returned by GET /subscriptions/plans.
 class SubscriptionPlan {
@@ -163,15 +164,19 @@ class SubscriptionController extends GetxController {
     }
   }
 
-  /// Launches the Stripe payment sheet for the given plan and confirms on success.
-  /// Returns true if the purchase was fully completed and status refreshed.
+  /// Launches the in-app modern card screen for the given plan and confirms
+  /// the subscription on success. Returns true if the purchase was fully
+  /// completed and status refreshed.
+  ///
+  /// Replaces the former Stripe PaymentSheet flow (was unreliable on some
+  /// Android devices — card number field wouldn't accept input).
   Future<bool> purchase(String plan) async {
     if (isPurchasing.value) return false;
     isPurchasing.value = true;
     try {
       final api = Get.find<ApiClient>();
 
-      // 1. Create PaymentIntent
+      // 1. Create PaymentIntent server-side.
       final piData = await api.post(
         '/subscriptions/subscribe',
         body: {'plan': plan, 'currency': currency.value},
@@ -184,23 +189,36 @@ class SubscriptionController extends GetxController {
         throw Exception('Failed to create subscription payment intent.');
       }
 
-      // 2. Ensure Stripe publishable key is set
+      // 2. Ensure Stripe publishable key is set (defensive — main.dart
+      //    already inits at boot but we keep this as a fallback).
       final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
       if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
         Stripe.publishableKey = pk;
         await Stripe.instance.applySettings();
       }
 
-      // 3. Present Stripe payment sheet
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'HopeTSIT - Premium',
+      // 3. Resolve display amount for the chosen plan+currency.
+      final planRow = plans.firstWhereOrNull((p) => p.plan == plan);
+      final displayAmount = planRow?.amount ?? 0;
+
+      // 4. Push the in-app card screen. Returns true only on confirmed
+      //    payment, false on cancel / error.
+      final ok = await Get.to<bool>(
+        () => ModernCardPaymentScreen(
+          clientSecret: clientSecret,
+          amount: displayAmount,
+          currency: currency.value,
+          productLabel:
+              plan == 'yearly' ? 'Premium Annuel' : 'Premium Mensuel',
+          productSubtitle: plan == 'yearly'
+              ? '1 an — 35% off vs mensuel'
+              : 'Renouvellement mensuel',
         ),
       );
-      await Stripe.instance.presentPaymentSheet();
 
-      // 4. Confirm subscription on backend
+      if (ok != true) return false; // user cancelled or payment failed
+
+      // 5. Confirm subscription on backend.
       await api.post(
         '/subscriptions/confirm',
         body: {
@@ -214,9 +232,7 @@ class SubscriptionController extends GetxController {
       await loadStatus();
       return true;
     } on StripeException catch (e) {
-      if (e.error.code != FailureCode.Canceled) {
-        rethrow;
-      }
+      if (e.error.code != FailureCode.Canceled) rethrow;
       return false;
     } finally {
       isPurchasing.value = false;

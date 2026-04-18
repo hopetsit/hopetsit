@@ -817,6 +817,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'post_button_posting': 'Publication en cours...',
       'my_posts_title': 'Mes publications',
       'home_segment_sitters': 'Pet-sitters',
+      'home_segment_walkers': 'Promeneurs',
       'my_posts_no_posts': 'Aucune publication trouvée',
       'my_posts_delete_title': 'Supprimer la publication ?',
       'my_posts_delete_message':
@@ -991,7 +992,12 @@ const Map<String, String> frFRTranslations = <String, String>{
       'publish_request_service_walking': 'Promenade',
       'publish_request_service_boarding': 'Hébergement',
       'publish_request_service_daycare': 'Garderie',
-      'publish_request_service_pet_sitting': 'Garde d\'animaux',
+      'publish_request_service_pet_sitting': 'Garde multi-jours',
+      'publish_request_service_walking_desc': 'Promenade courte ou longue, uniquement promeneurs',
+      'publish_request_service_daycare_desc': 'À la journée, sans dormir sur place',
+      'publish_request_service_pet_sitting_desc': 'Plusieurs jours, chez toi ou chez le sitter',
+      'publish_request_duration_walk_label': 'Promenade',
+      'publish_request_duration_long_label': 'Sortie longue (demi-journée)',
       'publish_request_service_house_sitting': 'Garde à domicile',
       'house_sitting_venue_label': 'Lieu du house sitting',
       'house_sitting_venue_owners_home': 'Chez le propriétaire',
@@ -1486,7 +1492,7 @@ const Map<String, String> frFRTranslations = <String, String>{
 
     // ── Walker role (third role — dog walkers) ──
     'role_pet_walker': 'Promeneur',
-    'role_pet_walker_desc': 'Je propose des promenades à la demande ou régulières pour chiens et chats du quartier.',
+    'role_pet_walker_desc': 'Postule aux annonces de promenade payantes publiées par les proprios. Et si tu as toi-même un animal, la carte PawMap t\'aide à trouver vétos, points d\'eau et lieux utiles.',
     'sign_up_as_pet_walker': 'Inscription comme promeneur',
     'auth_role_pet_walker': 'Promeneur',
     'walker_home_title': 'Accueil Promeneur',

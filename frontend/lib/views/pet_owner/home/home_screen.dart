@@ -17,7 +17,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
-import 'package:hopetsit/views/map/pets_map_screen.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
@@ -156,6 +156,76 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     return merged;
+  }
+
+  /// Walkers tab (index 2) — placeholder until the full walker listing lands.
+  /// The repository endpoint /walkers already exists; the listing UI (same
+  /// card pattern as sitters) will be wired in a follow-up. Keeping a
+  /// visible placeholder here lets the 3-tab layout ship right now without
+  /// pretending the feature is live.
+  Widget _buildWalkersTab() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 28.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72.w,
+              height: 72.w,
+              decoration: BoxDecoration(
+                color: AppColors.greenColor.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.directions_walk_rounded,
+                size: 36.sp,
+                color: AppColors.greenColor,
+              ),
+            ),
+            SizedBox(height: 16.h),
+            PoppinsText(
+              text: 'Promeneurs à proximité',
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+            ),
+            SizedBox(height: 6.h),
+            InterText(
+              text:
+                  'La liste complète des promeneurs arrive très bientôt. En attendant, publie une demande de promenade — elle sera visible uniquement par les promeneurs.',
+              fontSize: 12.sp,
+              color: AppColors.textSecondary(context),
+              textAlign: TextAlign.center,
+              maxLines: 4,
+            ),
+            SizedBox(height: 18.h),
+            ElevatedButton.icon(
+              onPressed: () {
+                Get.to(
+                  () => const PublishReservationRequestScreen(),
+                )?.then((_) => _postsController.refreshPosts());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.greenColor,
+                padding:
+                    EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded, color: Colors.white),
+              label: InterText(
+                text: 'Publier une promenade',
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildMyPostsTab() {
@@ -562,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   size: 20.sp,
                 ),
               ),
-              onPressed: () => Get.to(() => const PetsMapScreen()),
+              onPressed: () => Get.to(() => const PawMapScreen()),
             ),
           ],
         ),
@@ -583,15 +653,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? 0
                       : allPosts.where((p) => p.owner.id == _userId).length;
 
+                  // 3-segment switcher — Publication (orange) / Pet-sitters
+                  // (blue) / Promeneurs (green). Per-segment colors make each
+                  // role easy to distinguish at a glance.
                   return CustomSegmentedControl(
                     leftText: '${'my_posts_title'.tr} ($myCount)',
-                    rightText: 'home_segment_sitters'.tr,
+                    middleText: 'home_segment_sitters'.tr,
+                    rightText: 'home_segment_walkers'.tr,
                     selectedIndex: _selectedTabIndex,
+                    activeColorLeft: AppColors.primaryColor,
+                    activeColorMiddle: const Color(0xFF1A73E8),
+                    activeColorRight: AppColors.greenColor,
                     onLeftTap: () {
                       setState(() => _selectedTabIndex = 0);
                     },
-                    onRightTap: () {
+                    onMiddleTap: () {
                       setState(() => _selectedTabIndex = 1);
+                    },
+                    onRightTap: () {
+                      setState(() => _selectedTabIndex = 2);
                     },
                   );
                 }),
@@ -602,7 +682,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: _selectedTabIndex == 0
                     ? _buildMyPostsTab()
-                    : _buildSittersTab(),
+                    : _selectedTabIndex == 1
+                        ? _buildSittersTab()
+                        : _buildWalkersTab(),
               ),
               SizedBox(height: 20.h),
             ],

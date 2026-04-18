@@ -7,6 +7,7 @@ const {
   listPosts,
   getMediaPosts,
   getRequestPosts,
+  getNearbyRequestPosts,
   toggleLike,
   addComment,
   deleteComment,
@@ -239,6 +240,10 @@ router.get('/media', getMediaPosts);
  *                     $ref: '#/components/schemas/Post'
  */
 router.get('/requests', getRequestPosts);
+
+// PawMap layer — geo-filtered request posts for sitter/walker discovery.
+// Must sit BEFORE the '/:id' route so Express doesn't treat "nearby" as an id.
+router.get('/requests/nearby', requireAuth, getNearbyRequestPosts);
 
 /**
  * @swagger

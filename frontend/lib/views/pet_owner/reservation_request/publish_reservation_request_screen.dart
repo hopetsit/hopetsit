@@ -78,21 +78,21 @@ class _PublishReservationRequestScreenState
                 SizedBox(height: 16.h),
                 _buildServiceTypeSection(),
                 Obx(
-                  () => controller.shouldShowHouseSittingVenue
-                      ? Column(
-                          children: [
-                            SizedBox(height: 20.h),
-                            _buildHouseSittingVenueSection(),
-                          ],
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
                   () => controller.shouldShowDuration
                       ? Column(
                           children: [
                             SizedBox(height: 20.h),
                             _buildDurationSection(),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                Obx(
+                  () => controller.shouldShowServiceLocation
+                      ? Column(
+                          children: [
+                            SizedBox(height: 20.h),
+                            _buildServiceLocationSection(),
                           ],
                         )
                       : const SizedBox.shrink(),
@@ -629,6 +629,16 @@ class _PublishReservationRequestScreenState
     }
   }
 
+  // Session avril 2026 — service-type palette. Promenade is walker-exclusive
+  // and gets the walker green accent; the two sitter services share the
+  // blue accent so owners visually group them as "sitter services".
+  static const Color _walkerAccent = AppColors.greenColor;
+  static const Color _sitterAccent = Color(0xFF1A73E8);
+
+  Color _accentForService(String value) {
+    return value == 'dog_walking' ? _walkerAccent : _sitterAccent;
+  }
+
   Widget _buildServiceTypeSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,37 +650,172 @@ class _PublishReservationRequestScreenState
           color: AppColors.textSecondary(context),
         ),
         SizedBox(height: 12.h),
+        Obx(() {
+          final types = controller.serviceTypes;
+          return Column(
+            children: List.generate(types.length, (i) {
+              final t = types[i];
+              final value = t['value']!;
+              final label = t['label']!;
+              final description = t['description'] ?? '';
+              final icon = t['icon'] ?? '🐾';
+              final selected =
+                  controller.selectedServiceType.value == value;
+              final accent = _accentForService(value);
+
+              return Padding(
+                padding: EdgeInsets.only(bottom: i == types.length - 1 ? 0 : 10.h),
+                child: GestureDetector(
+                  onTap: () => controller.selectServiceType(value),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 14.w,
+                      vertical: 14.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? accent.withOpacity(0.08)
+                          : AppColors.inputFill(context),
+                      borderRadius: BorderRadius.circular(14.r),
+                      border: Border.all(
+                        color: selected
+                            ? accent
+                            : AppColors.greyColor.withValues(alpha: 0.25),
+                        width: selected ? 1.8 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42.w,
+                          height: 42.w,
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(0.14),
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(icon, style: TextStyle(fontSize: 22.sp)),
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              InterText(
+                                text: label,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w700,
+                                color: selected
+                                    ? accent
+                                    : AppColors.textPrimary(context),
+                              ),
+                              if (description.isNotEmpty) ...[
+                                SizedBox(height: 2.h),
+                                InterText(
+                                  text: description,
+                                  fontSize: 11.sp,
+                                  color: AppColors.textSecondary(context),
+                                  maxLines: 2,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        // Selected indicator — checkmark in a tinted circle.
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 180),
+                          opacity: selected ? 1 : 0,
+                          child: Container(
+                            width: 22.w,
+                            height: 22.w,
+                            decoration: BoxDecoration(
+                              color: accent,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.check_rounded,
+                              size: 14.sp,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          );
+        }),
+      ],
+    );
+  }
+
+  /// Duration section for Promenade — split in two groups so owners visually
+  /// understand that a 30-min walk and a 5-hour outing are different products.
+  /// Group 1 = short walks (30/60/90/120 min). Group 2 = long outings (3/4/5 h).
+  Widget _buildDurationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _durationGroup(
+          sectionLabel: 'publish_request_duration_walk_label'.tr,
+          minutesList: PublishReservationRequestController.promenadeMinutes,
+        ),
+        SizedBox(height: 16.h),
+        _durationGroup(
+          sectionLabel: 'publish_request_duration_long_label'.tr,
+          minutesList: PublishReservationRequestController.longOutingMinutes,
+        ),
+      ],
+    );
+  }
+
+  Widget _durationGroup({
+    required String sectionLabel,
+    required List<String> minutesList,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InterText(
+          text: sectionLabel,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.greyText,
+        ),
+        SizedBox(height: 8.h),
         Obx(
           () => Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
-            children: controller.serviceTypes.map((serviceType) {
-              final value = serviceType['value']!;
-              final label = serviceType['label']!;
-              final selected = controller.selectedServiceType.value == value;
+            spacing: 10.w,
+            runSpacing: 10.h,
+            children: minutesList.map((m) {
+              final selected = controller.selectedDuration.value == m;
               return GestureDetector(
-                onTap: () => controller.selectServiceType(value),
+                onTap: () => controller.selectDuration(m),
                 child: Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: 16.w,
+                    horizontal: 18.w,
                     vertical: 10.h,
                   ),
                   decoration: BoxDecoration(
                     color: selected
-                        ? AppColors.primaryColor
+                        ? _walkerAccent
                         : AppColors.inputFill(context),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
                       color: selected
-                          ? AppColors.primaryColor
+                          ? _walkerAccent
                           : AppColors.greyColor.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
                   child: InterText(
-                    text: label,
+                    text: _formatMinutes(m),
                     fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: selected
                         ? AppColors.whiteColor
                         : AppColors.greyColor,
@@ -684,57 +829,105 @@ class _PublishReservationRequestScreenState
     );
   }
 
-  Widget _buildDurationSection() {
+  /// "30" → "30 min", "90" → "1 h 30", "180" → "3 h".
+  String _formatMinutes(String m) {
+    final n = int.tryParse(m) ?? 0;
+    if (n < 60) return '$n min';
+    final hours = n ~/ 60;
+    final rem = n % 60;
+    if (rem == 0) return '$hours h';
+    return '$hours h $rem';
+  }
+
+  /// Service location radio — replaces the old "Lieu du house sitting" +
+  /// "Où doit se dérouler le service ?" duplicate, now a single clear
+  /// question surfaced for daycare + pet_sitting only.
+  Widget _buildServiceLocationSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InterText(
-          text: 'send_request_duration_label'.tr,
+          text: 'service_location_label'.tr,
           fontSize: 14.sp,
           fontWeight: FontWeight.w500,
           color: AppColors.textSecondary(context),
         ),
-        SizedBox(height: 12.h),
-        Obx(
-          () => Wrap(
-            spacing: 12.w,
-            runSpacing: 12.h,
-            children: const ['30', '60'].map((m) {
-              final selected = controller.selectedDuration.value == m;
-              return GestureDetector(
-                onTap: () => controller.selectDuration(m),
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 25.w,
-                    vertical: 10.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primaryColor
-                        : AppColors.inputFill(context),
-                    borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(
-                      color: selected
-                          ? AppColors.primaryColor
-                          : AppColors.greyColor.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: InterText(
-                    text: 'send_request_duration_minutes_label'.trParams({
-                      'minutes': m,
-                    }),
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: selected
-                        ? AppColors.whiteColor
-                        : AppColors.greyColor,
+        SizedBox(height: 8.h),
+        Obx(() {
+          final current = controller.serviceLocation.value;
+          Widget buildOption(String value, String labelKey) {
+            final selected = current == value;
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => controller.serviceLocation.value = value,
+              child: Container(
+                margin: EdgeInsets.only(bottom: 10.h),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 14.w,
+                  vertical: 12.h,
+                ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? _sitterAccent.withOpacity(0.08)
+                      : AppColors.inputFill(context),
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(
+                    color:
+                        selected ? _sitterAccent : AppColors.divider(context),
+                    width: selected ? 1.5 : 1,
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-        ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 20.w,
+                      height: 20.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected
+                              ? _sitterAccent
+                              : AppColors.textSecondary(context),
+                          width: 2,
+                        ),
+                      ),
+                      child: selected
+                          ? Center(
+                              child: Container(
+                                width: 10.w,
+                                height: 10.w,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _sitterAccent,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: InterText(
+                        text: labelKey.tr,
+                        fontSize: 14.sp,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w500,
+                        color: AppColors.textPrimary(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return Column(
+            children: [
+              buildOption('at_owner', 'service_location_at_owner'),
+              buildOption('at_sitter', 'service_location_at_sitter'),
+              buildOption('both', 'service_location_both'),
+            ],
+          );
+        }),
       ],
     );
   }

@@ -21,22 +21,37 @@ const router = express.Router();
 
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
 
+/**
+ * Freemium hook (session avril 2026) — these 3 report types are usable by
+ * FREE users so community-oriented signals (lost pet, found pet, active water
+ * point) get a broad base of reporters. The other 6 types (poop, pee, hazards,
+ * aggressive dog, water broken, other) remain Premium-only to keep the
+ * subscription attractive. See also the frontend gating in
+ * `CreateReportSheet` and the upsell banner on PawMap.
+ */
+const FREE_REPORT_TYPES = ['lost_pet', 'found_pet', 'water_active'];
+
 function parseFloatOr(value, fallback) {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Middleware: require an active Premium subscription. */
+/** Helper: read the user's Premium status (does not block). */
+async function resolvePremium(req) {
+  const userId = req.user.id;
+  const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
+  const sub = await UserSubscription.findOne({ userId, userModel });
+  const isPremium =
+    sub && sub.status === 'active' && sub.currentPeriodEnd &&
+    new Date(sub.currentPeriodEnd) > new Date();
+  return { isPremium, sub };
+}
+
+/** Middleware: require an active Premium subscription. Kept for endpoints
+ *  that should stay strictly Premium (e.g. confirm an extension). */
 async function requirePremium(req, res, next) {
   try {
-    const userId = req.user.id;
-    const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
-    const sub = await UserSubscription.findOne({ userId, userModel });
-
-    const isPremium =
-      sub && sub.status === 'active' && sub.currentPeriodEnd &&
-      new Date(sub.currentPeriodEnd) > new Date();
-
+    const { isPremium, sub } = await resolvePremium(req);
     if (!isPremium) {
       return res.status(402).json({
         error: 'Premium subscription required.',
@@ -52,13 +67,34 @@ async function requirePremium(req, res, next) {
   }
 }
 
+/** Middleware: attach `req.isPremium` without blocking free users. */
+async function attachPremium(req, res, next) {
+  try {
+    const { isPremium, sub } = await resolvePremium(req);
+    req.isPremium = isPremium;
+    req.subscription = sub;
+    next();
+  } catch (e) {
+    logger.error('[mapReport/attachPremium]', e);
+    req.isPremium = false;
+    next();
+  }
+}
+
 // ── GET /types (public) ─────────────────────────────────────────────────────
 router.get('/types', (req, res) => {
-  res.json({ types: REPORT_TYPES, ttlHours: REPORT_TTL_MS / 3_600_000 });
+  res.json({
+    types: REPORT_TYPES,
+    freeTypes: FREE_REPORT_TYPES,
+    ttlHours: REPORT_TTL_MS / 3_600_000,
+  });
 });
 
-// ── GET /nearby — Premium-only ─────────────────────────────────────────────
-router.get('/nearby', requireAuth, requirePremium, async (req, res) => {
+// ── GET /nearby ────────────────────────────────────────────────────────────
+// Premium users see all report types. Free users only see reports of the
+// freemium-whitelisted types (lost_pet, found_pet, water_active). The payload
+// includes `isPremium` so the client can show an upsell banner for the rest.
+router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
   try {
     const lat = parseFloatOr(req.query.lat, null);
     const lng = parseFloatOr(req.query.lng, null);
@@ -78,36 +114,67 @@ router.get('/nearby', requireAuth, requirePremium, async (req, res) => {
         },
       },
     };
-    if (type && REPORT_TYPES.includes(type)) filter.type = type;
+
+    if (type && REPORT_TYPES.includes(type)) {
+      // Explicit type filter — free users may only request free types.
+      if (!req.isPremium && !FREE_REPORT_TYPES.includes(type)) {
+        return res.status(402).json({
+          error: 'This report category is Premium-only.',
+          code: 'PREMIUM_REQUIRED',
+          upgradeUrl: '/subscriptions/plans',
+        });
+      }
+      filter.type = type;
+    } else if (!req.isPremium) {
+      // No type filter + free user → restrict to free types.
+      filter.type = { $in: FREE_REPORT_TYPES };
+    }
 
     const reports = await MapReport.find(filter)
       .limit(200)
       .select('type note photoUrl location reporterId reporterModel expiresAt createdAt confirmations')
       .lean();
 
-    // Enrich with a TTL countdown + confirmations count for the UI
     const enriched = reports.map((r) => ({
       ...r,
       hoursRemaining: Math.max(0, (new Date(r.expiresAt).getTime() - Date.now()) / 3_600_000),
       confirmationsCount: (r.confirmations || []).length,
-      confirmations: undefined, // don't leak the user list
+      confirmations: undefined,
     }));
 
-    res.json({ reports: enriched, count: enriched.length });
+    res.json({
+      reports: enriched,
+      count: enriched.length,
+      isPremium: Boolean(req.isPremium),
+      freeTypes: FREE_REPORT_TYPES,
+    });
   } catch (e) {
     logger.error('[mapReport/nearby]', e);
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── POST / — create new report (Premium) ───────────────────────────────────
-router.post('/', requireAuth, requirePremium, async (req, res) => {
+// ── POST / — create new report ─────────────────────────────────────────────
+// Free users may create any of the FREE_REPORT_TYPES; Premium is required for
+// the 6 remaining categories (poop, pee, water_broken, hazard, aggressive_dog,
+// other).
+router.post('/', requireAuth, attachPremium, async (req, res) => {
   try {
     const { type, note, photoUrl, lat, lng, city } = req.body;
 
     if (!type || !REPORT_TYPES.includes(type)) {
       return res.status(400).json({
         error: `Invalid type. Allowed: ${REPORT_TYPES.join(', ')}`,
+      });
+    }
+
+    // Freemium gate.
+    if (!req.isPremium && !FREE_REPORT_TYPES.includes(type)) {
+      return res.status(402).json({
+        error: 'This report type is Premium-only.',
+        code: 'PREMIUM_REQUIRED',
+        freeTypes: FREE_REPORT_TYPES,
+        upgradeUrl: '/subscriptions/plans',
       });
     }
     const latNum = parseFloatOr(lat, null);
@@ -218,3 +285,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+// Attach the freemium whitelist so other modules (e.g. adminRoutes admin stats)
+// can import it without re-declaring the list.
+module.exports.FREE_REPORT_TYPES = FREE_REPORT_TYPES;

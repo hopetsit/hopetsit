@@ -97,6 +97,19 @@ class ReportTypes {
     other,
   ];
 
+  /// Freemium whitelist — mirrors backend `FREE_REPORT_TYPES`. Users without
+  /// an active Premium subscription can create reports of these 3 community-
+  /// oriented types. All other categories remain Premium-locked to keep the
+  /// subscription attractive.
+  static const List<String> freeTypes = [
+    lostPet,
+    foundPet,
+    waterActive,
+  ];
+
+  /// Returns true if [type] is usable by a free user (no Premium required).
+  static bool isFree(String type) => freeTypes.contains(type);
+
   /// Emoji badge per report type — used as map marker + list icon.
   static String emoji(String t) {
     switch (t) {

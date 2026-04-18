@@ -4,6 +4,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 
 class MapBoostPackage {
   final String tier;
@@ -144,13 +145,20 @@ class MapBoostController extends GetxController {
         await Stripe.instance.applySettings();
       }
 
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'HopeTSIT - Map Boost',
+      // In-app card screen replaces the native PaymentSheet (unreliable on
+      // some Android devices — card number field wouldn't accept input).
+      final pkg = packages.firstWhereOrNull((p) => p.tier == tier);
+      final displayAmount = pkg?.amount ?? 0;
+      final ok = await Get.to<bool>(
+        () => ModernCardPaymentScreen(
+          clientSecret: clientSecret,
+          amount: displayAmount,
+          currency: currency.value,
+          productLabel: 'Map Boost ${tier[0].toUpperCase()}${tier.substring(1)}',
+          productSubtitle: pkg != null ? '${pkg.days} jours sur la map' : null,
         ),
       );
-      await Stripe.instance.presentPaymentSheet();
+      if (ok != true) return false;
 
       await api.post(
         '/map-boost/confirm',

@@ -1,11 +1,21 @@
 const mongoose = require('mongoose');
 
 /**
- * MapReport — Ephemeral user-submitted signals on the PawMap.
+ * MapReport — user-submitted signals on the PawMap.
  *
- * TTL: 48 hours from creation (MongoDB auto-deletes via TTL index on expiresAt).
- * Visibility: Free users can SEE vets/parks/water POIs (Couche 1) but
- *             cannot see nor create reports — reports are a Premium feature (Couche 2).
+ * Visibility window: 48 hours from creation — the /nearby endpoint filters on
+ *   `expiresAt > now` so only fresh signals are shown on the map.
+ *
+ * Data retention (session avril 2026 update): expired reports are NO LONGER
+ *   deleted from the DB. Daniel's ask was to keep every report indefinitely
+ *   as a historical analytics dataset (community signals, hotspots,
+ *   recurring hazards). The MongoDB TTL index was therefore removed; the
+ *   visibility cutoff is enforced purely by the `expiresAt > now` filter on
+ *   reads. Admin endpoints can query the full history including expired docs.
+ *
+ * Freemium: 3 community-oriented types (lost_pet, found_pet, water_active)
+ *   are usable by free users; the other 6 remain Premium-only (see
+ *   mapReportRoutes.FREE_REPORT_TYPES).
  * Moderation: any user can flag a report; >= 3 flags hides it pending admin review.
  */
 const REPORT_TYPES = [
@@ -100,10 +110,14 @@ const mapReportSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// TTL index — MongoDB deletes docs when expiresAt < now.
-// Note: TTL has ~60s granularity; a secondary cron sweeps for near-expired docs
-// to keep the UI clean (see services/mapReportTtlScheduler.js).
-mapReportSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// TTL index intentionally removed — reports are kept forever for analytics.
+// A plain (non-TTL) index on expiresAt still speeds up the `expiresAt > now`
+// filter used by the /nearby endpoint.
+//
+// If you ever re-enable auto-deletion, first drop the existing index in Mongo
+// (otherwise `expireAfterSeconds` conflicts):
+//   db.mapreports.dropIndex('expiresAt_1')
+mapReportSchema.index({ expiresAt: 1 });
 mapReportSchema.index({ location: '2dsphere' });
 mapReportSchema.index({ type: 1, hidden: 1, createdAt: -1 });
 

@@ -100,6 +100,19 @@ const postSchema = new mongoose.Schema(
       enum: ['at_owner', 'at_sitter', 'both'],
       default: 'at_owner',
     },
+
+    // Session avril 2026 — moderation fields for the admin Annonces tab.
+    // Soft-delete only so the historical dataset is preserved (same policy
+    // as MapReport). `bannedReason` is shown to the offending user.
+    hidden: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    bannedAt: { type: Date, default: null },
+    bannedBy: { type: String, default: '' }, // admin email / id for audit
+    bannedReason: { type: String, default: '' },
+    moderationNote: { type: String, default: '' },
   },
   {
     timestamps: true,

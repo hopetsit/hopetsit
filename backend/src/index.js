@@ -8,6 +8,7 @@ const createSocketServer = require('./sockets');
 const { startPayoutScheduler } = require('./services/payoutScheduler');
 const { startMapTtlScheduler } = require('./services/mapReportTtlScheduler');
 const pricingService = require('./services/pricingService');
+const serviceCatalogService = require('./services/serviceCatalogService');
 const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 5000;
@@ -22,6 +23,9 @@ async function startServer() {
     // Load pricing grid from DB before we start accepting requests so the
     // /packages endpoints return live prices from the first call.
     await pricingService.init();
+    // Load the admin-editable service catalog (duration presets, active
+    // flags, label overrides) the same way.
+    await serviceCatalogService.init();
     server.listen(PORT, () => {
       logger.info(`PetsInsta backend listening at http://localhost:${PORT}`);
     });

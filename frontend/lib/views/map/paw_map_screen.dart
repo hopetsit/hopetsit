@@ -4,15 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
 import 'package:hopetsit/controllers/paw_map_controller.dart';
 import 'package:hopetsit/controllers/subscription_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_poi_model.dart';
 import 'package:hopetsit/models/map_report_model.dart';
+import 'package:hopetsit/models/nearby_request_model.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -39,10 +43,27 @@ class _PawMapScreenState extends State<PawMapScreen> {
   late final LiveMapService _liveMap;
   LatLng? _currentCenter;
 
-  /// Layer toggles — by default all 3 are visible.
+  /// Layer toggles — by default all visible. The Demandes toggle is only
+  /// rendered for sitter/walker roles (it stays true internally but the UI
+  /// hides it for owners).
   final RxBool _showPois = true.obs;
   final RxBool _showReports = true.obs;
   final RxBool _showFriends = true.obs;
+  final RxBool _showRequests = true.obs;
+
+  /// Nearby reservation requests for the sitter/walker layer. Fetched in
+  /// `_reloadAtCenter()` via `/posts/requests/nearby`. Empty for owner role.
+  final RxList<NearbyRequestPost> _requests = <NearbyRequestPost>[].obs;
+
+  /// Cached role lookup — read once, used for layer gating and UI.
+  String get _role {
+    final auth = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : null;
+    return auth?.userRole.value ?? '';
+  }
+
+  bool get _isSitterOrWalker => _role == 'sitter' || _role == 'walker';
 
   @override
   void initState() {
@@ -89,16 +110,53 @@ class _PawMapScreenState extends State<PawMapScreen> {
 
   Future<void> _reloadAtCenter() async {
     if (_currentCenter == null) return;
-    await Future.wait([
+    final futures = <Future<void>>[
       _poiController.loadNearby(_currentCenter!),
       _reportController.loadNearby(_currentCenter!),
-    ]);
+    ];
+    // Demandes layer is sitter/walker only — don't waste a round-trip on
+    // owner sessions.
+    if (_isSitterOrWalker) {
+      futures.add(_loadNearbyRequests());
+    }
+    await Future.wait(futures);
+  }
+
+  /// Fetches owner reservation requests within ~25km of the current map
+  /// center. Uses /posts/requests/nearby (added in the same session).
+  Future<void> _loadNearbyRequests() async {
+    if (_currentCenter == null) return;
+    try {
+      final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+      if (api == null) return;
+      final res = await api.get(
+        '/posts/requests/nearby',
+        queryParameters: {
+          'lat': _currentCenter!.latitude.toString(),
+          'lng': _currentCenter!.longitude.toString(),
+          'maxDistance': '25',
+        },
+        requiresAuth: true,
+      );
+      final list = (res['posts'] as List?) ?? const [];
+      _requests.value = list
+          .map((e) => NearbyRequestPost.fromJson(e as Map<String, dynamic>))
+          .where((p) => p.lat != 0 || p.lng != 0)
+          .toList();
+    } catch (e) {
+      debugPrint('[PawMap] loadNearbyRequests error: $e');
+      _requests.clear();
+    }
   }
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
   }
 
+  /// Toggles the "Suivre mon animal" broadcast — when on, friends see the
+  /// user's pin moving on their PawMap. The user's own pin shows in rose
+  /// (via `_hueForRole('owner')`) so it's easy to spot as "myself + pet".
+  /// Premium-gated because real-time location is a Premium social feature.
   void _toggleBroadcast() {
     final sub = Get.isRegistered<SubscriptionController>()
         ? Get.find<SubscriptionController>()
@@ -107,22 +165,23 @@ class _PawMapScreenState extends State<PawMapScreen> {
     if (!isPremium) {
       CustomSnackbar.showError(
         title: 'Premium requis',
-        message: 'Partager ta position en live est une fonctionnalité Premium.',
+        message:
+            'Suivre ton animal en live est réservé aux membres Premium.',
       );
       return;
     }
     if (_liveMap.broadcasting.value) {
       _liveMap.stopBroadcasting();
       CustomSnackbar.showSuccess(
-        title: 'Position masquée',
-        message: 'Tes amis ne te voient plus.',
+        title: 'Suivi désactivé',
+        message: 'Tes amis ne voient plus ta position.',
       );
     } else {
       if (_currentCenter == null) return;
       _liveMap.startBroadcasting(() => _currentCenter ?? const LatLng(0, 0));
       CustomSnackbar.showSuccess(
-        title: 'Position partagée',
-        message: 'Tes amis te voient en temps réel.',
+        title: 'Suivi activé',
+        message: 'Tes amis voient ta position et celle de ton animal en live.',
       );
     }
   }
@@ -190,19 +249,171 @@ class _PawMapScreenState extends State<PawMapScreen> {
         );
       }
     }
+    // Demandes layer — only sitters/walkers fetch & see these.
+    if (_showRequests.value && _isSitterOrWalker) {
+      for (final req in _requests) {
+        markers.add(
+          Marker(
+            markerId: MarkerId('req_${req.id}'),
+            position: LatLng(req.lat, req.lng),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueYellow,
+            ),
+            infoWindow: InfoWindow(
+              title: '📣 ${req.ownerName.isNotEmpty ? req.ownerName : 'Demande'}',
+              snippet: _requestSnippet(req),
+            ),
+            onTap: () => _showRequestBottomSheet(req),
+          ),
+        );
+      }
+    }
     return markers;
+  }
+
+  String _requestSnippet(NearbyRequestPost r) {
+    final parts = <String>[];
+    if (r.city.isNotEmpty) parts.add(r.city);
+    parts.add('${r.distanceKm.toStringAsFixed(1)} km');
+    if (r.serviceTypes.isNotEmpty) parts.add(r.serviceTypes.first);
+    return parts.join(' · ');
+  }
+
+  /// Shows the details of a nearby reservation request and lets the
+  /// sitter/walker act on it. For now the action is a simple CTA that
+  /// pops the sheet and tells the user to open the full request from the
+  /// Home screen — proper deep-link to the request detail / send-request
+  /// flow will be wired in a follow-up when the backend exposes a
+  /// canonical detail-by-id endpoint.
+  void _showRequestBottomSheet(NearbyRequestPost r) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      useSafeArea: true,
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20.w,
+          20.h,
+          20.w,
+          20.h + MediaQuery.of(sheetCtx).viewPadding.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('📣', style: TextStyle(fontSize: 22.sp)),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: PoppinsText(
+                    text: r.ownerName.isNotEmpty
+                        ? r.ownerName
+                        : 'Demande de garde',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ),
+                InterText(
+                  text: '${r.distanceKm.toStringAsFixed(1)} km',
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryColor,
+                ),
+              ],
+            ),
+            if (r.city.isNotEmpty) ...[
+              SizedBox(height: 4.h),
+              InterText(
+                text: r.city,
+                fontSize: 12.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            ],
+            if (r.serviceTypes.isNotEmpty) ...[
+              SizedBox(height: 10.h),
+              Wrap(
+                spacing: 6.w,
+                runSpacing: 6.h,
+                children: r.serviceTypes
+                    .map((s) => Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 4.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: InterText(
+                            text: s,
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryColor,
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ],
+            if (r.body.isNotEmpty) ...[
+              SizedBox(height: 12.h),
+              InterText(
+                text: r.body,
+                fontSize: 13.sp,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+            SizedBox(height: 16.h),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  CustomSnackbar.showSuccess(
+                    title: 'Demande ouverte',
+                    message:
+                        'Retrouve l\'annonce complète dans l\'onglet Accueil.',
+                  );
+                },
+                icon: const Icon(Icons.open_in_new, color: Colors.white),
+                label: InterText(
+                  text: 'Voir l\'annonce',
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   double _hueForRole(String role) {
     switch (role) {
+      // Owners get the rose/pink pin on the map to distinguish them
+      // visually from sitters (blue) and walkers (green). This also
+      // mirrors the "mon animal en rose" UX requested for owners.
       case 'owner':
-        return BitmapDescriptor.hueOrange;
+        return BitmapDescriptor.hueRose;
       case 'sitter':
         return BitmapDescriptor.hueBlue;
       case 'walker':
         return BitmapDescriptor.hueGreen;
       default:
-        return BitmapDescriptor.hueRose;
+        return BitmapDescriptor.hueMagenta;
     }
   }
 
@@ -270,16 +481,55 @@ class _PawMapScreenState extends State<PawMapScreen> {
           ],
         ),
         actions: [
-          // Live position broadcast toggle
+          // "Suivre mon animal" — toggles the live-position broadcast for
+          // the user. When on, friends see this user's pin moving on their
+          // own PawMap. Rendered as a colored pill (not a plain icon) so
+          // it stands out as the primary tracking action per Daniel's ask.
           Obx(() {
             final on = _liveMap.broadcasting.value;
-            return IconButton(
-              tooltip: on ? 'Je suis visible' : 'Partager ma position',
-              icon: Icon(
-                on ? Icons.location_on : Icons.location_off,
-                color: on ? Colors.green : AppColors.greyText,
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 8.h),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _toggleBroadcast,
+                  borderRadius: BorderRadius.circular(20.r),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 6.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: on
+                          ? Colors.green.withOpacity(0.15)
+                          : AppColors.primaryColor.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(20.r),
+                      border: Border.all(
+                        color: on
+                            ? Colors.green
+                            : AppColors.primaryColor.withOpacity(0.50),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '🐾',
+                          style: TextStyle(fontSize: 13.sp),
+                        ),
+                        SizedBox(width: 4.w),
+                        InterText(
+                          text: on ? 'Live' : 'Suivre',
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w700,
+                          color: on ? Colors.green : AppColors.primaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              onPressed: _toggleBroadcast,
             );
           }),
           IconButton(
@@ -296,6 +546,11 @@ class _PawMapScreenState extends State<PawMapScreen> {
       ),
       body: Column(
         children: [
+          // Quick-signal row — the 3 freemium report types are reachable
+          // without even opening the Signaler FAB. Pushes conversion by
+          // showing free users what they can do right away.
+          _buildQuickSignalRow(),
+
           // Layer toggle row (POIs / Reports)
           _buildLayerRow(),
 
@@ -421,34 +676,136 @@ class _PawMapScreenState extends State<PawMapScreen> {
     );
   }
 
+  /// Quick-signal row — surfaces the 3 free report types at the very top of
+  /// the PawMap so free users can contribute immediately and paying users see
+  /// the fastest path to create a common signal. Tap pushes a pre-selected
+  /// CreateReportSheet.
+  Widget _buildQuickSignalRow() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      child: Row(
+        children: [
+          Expanded(
+            child: _quickSignalChip(
+              emoji: '🔎',
+              label: 'Perdu',
+              type: ReportTypes.lostPet,
+              color: const Color(0xFFEC407A), // rose/pink for lost_pet
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _quickSignalChip(
+              emoji: '🤝',
+              label: 'Trouvé',
+              type: ReportTypes.foundPet,
+              color: const Color(0xFFAB47BC), // magenta/violet for found_pet
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _quickSignalChip(
+              emoji: '🚰',
+              label: 'Point d\'eau',
+              type: ReportTypes.waterActive,
+              color: const Color(0xFF26C6DA), // cyan for water_active
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickSignalChip({
+    required String emoji,
+    required String label,
+    required String type,
+    required Color color,
+  }) {
+    return GestureDetector(
+      onTap: () async {
+        if (_currentCenter == null) return;
+        final created = await CreateReportSheet.show(
+          context,
+          initialPoint: _currentCenter!,
+          preselectedType: type,
+        );
+        if (created) await _reloadAtCenter();
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.10),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: color.withOpacity(0.30), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(emoji, style: TextStyle(fontSize: 16.sp)),
+            SizedBox(width: 6.w),
+            Flexible(
+              child: InterText(
+                text: label,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: color,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLayerRow() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       child: Row(
         children: [
-          Obx(() => _LayerToggle(
-                label: 'POIs',
-                emoji: '📍',
-                active: _showPois.value,
-                onTap: () => _showPois.value = !_showPois.value,
-              )),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Obx(() => _LayerToggle(
+                        label: 'POIs',
+                        emoji: '📍',
+                        active: _showPois.value,
+                        onTap: () => _showPois.value = !_showPois.value,
+                      )),
+                  SizedBox(width: 8.w),
+                  Obx(() => _LayerToggle(
+                        label: 'Signalements 48h',
+                        emoji: '⚠️',
+                        active: _showReports.value,
+                        onTap: () => _showReports.value = !_showReports.value,
+                      )),
+                  SizedBox(width: 8.w),
+                  Obx(() => _LayerToggle(
+                        label: 'Amis',
+                        emoji: '👥',
+                        active: _showFriends.value,
+                        premiumBadge: true,
+                        onTap: () => _showFriends.value = !_showFriends.value,
+                      )),
+                  if (_isSitterOrWalker) ...[
+                    SizedBox(width: 8.w),
+                    Obx(() => _LayerToggle(
+                          label: 'Demandes',
+                          emoji: '📣',
+                          active: _showRequests.value,
+                          onTap: () =>
+                              _showRequests.value = !_showRequests.value,
+                        )),
+                  ],
+                ],
+              ),
+            ),
+          ),
           SizedBox(width: 8.w),
-          Obx(() => _LayerToggle(
-                label: 'Signalements 48h',
-                emoji: '⚠️',
-                active: _showReports.value,
-                premiumBadge: true,
-                onTap: () => _showReports.value = !_showReports.value,
-              )),
-          SizedBox(width: 8.w),
-          Obx(() => _LayerToggle(
-                label: 'Amis',
-                emoji: '👥',
-                active: _showFriends.value,
-                premiumBadge: true,
-                onTap: () => _showFriends.value = !_showFriends.value,
-              )),
-          const Spacer(),
           Obx(() {
             final n = _reportController.reports
                 .where((r) => !r.isExpired)
@@ -474,40 +831,43 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   // ─── Floating action button for creating reports ─────────────────────────
+  // Post-freemium refactor: the FAB is always active. Free users can open the
+  // sheet and pick among the 3 free types (lost_pet, found_pet, water_active).
+  // Premium users see all 9 types. The CreateReportSheet handles the per-type
+  // lock UI and the final submit guard.
   Widget _buildReportFab() {
-    final sub = Get.isRegistered<SubscriptionController>()
-        ? Get.find<SubscriptionController>()
-        : null;
-    if (sub == null) return const SizedBox.shrink();
-    return Obx(() {
-      final isPremium = sub.isPremium;
-      return FloatingActionButton.extended(
-        backgroundColor:
-            isPremium ? AppColors.primaryColor : Colors.grey.shade500,
-        icon: Icon(isPremium ? Icons.add_alert : Icons.lock, color: Colors.white),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32.r),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryColor.withOpacity(0.45),
+            blurRadius: 18,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: FloatingActionButton.extended(
+        backgroundColor: AppColors.primaryColor,
+        elevation: 6,
+        icon: Icon(Icons.add_alert_rounded, color: Colors.white, size: 22.sp),
         label: InterText(
-          text: isPremium ? 'Signaler' : 'Premium requis',
-          fontSize: 13.sp,
+          text: 'Signaler',
+          fontSize: 14.sp,
           color: Colors.white,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
         ),
         onPressed: () async {
           if (_currentCenter == null) return;
-          if (!isPremium) {
-            CustomSnackbar.showError(
-              title: 'Premium requis',
-              message: 'Passe Premium pour signaler et voir les signalements 48h.',
-            );
-            return;
-          }
           final created = await CreateReportSheet.show(
             context,
             initialPoint: _currentCenter!,
           );
           if (created) await _reloadAtCenter();
         },
-      );
-    });
+      ),
+    );
   }
 
   // ─── POI details sheet ───────────────────────────────────────────────────
@@ -518,8 +878,16 @@ class _PawMapScreenState extends State<PawMapScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => Padding(
-        padding: EdgeInsets.all(20.w),
+      useSafeArea: true,
+      builder: (sheetCtx) => Padding(
+        // Respect the system nav bar / gesture area so the bottom of the
+        // sheet is never hidden under Android's 3-button bar.
+        padding: EdgeInsets.fromLTRB(
+          20.w,
+          20.h,
+          20.w,
+          20.h + MediaQuery.of(sheetCtx).viewPadding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -580,9 +948,15 @@ class _PawMapScreenState extends State<PawMapScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      useSafeArea: true,
       builder: (sheetContext) {
         return Padding(
-          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
+          padding: EdgeInsets.fromLTRB(
+            20.w,
+            16.h,
+            20.w,
+            24.h + MediaQuery.of(sheetContext).viewPadding.bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -887,51 +1261,121 @@ class _TtlBadgeState extends State<_TtlBadge> {
 }
 
 /// In-map banner shown to free users after we discover the report API
-/// returns 402. Tapping it should open the boutique (TODO: wire a route).
-class _PremiumUpsell extends StatelessWidget {
+/// returns 402. Tap opens the Boutique (coin shop) so the user can subscribe
+/// right from the map. The star is animated (pulse + glow halo) to attract
+/// the eye — per Daniel's request "une etoile qui brille pour attirer
+/// l'oeil".
+class _PremiumUpsell extends StatefulWidget {
   const _PremiumUpsell();
 
   @override
+  State<_PremiumUpsell> createState() => _PremiumUpsellState();
+}
+
+class _PremiumUpsellState extends State<_PremiumUpsell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl = AnimationController(
+    duration: const Duration(milliseconds: 1400),
+    vsync: this,
+  )..repeat(reverse: true);
+
+  late final Animation<double> _scale = Tween<double>(begin: 0.90, end: 1.18)
+      .animate(CurvedAnimation(parent: _ctl, curve: Curves.easeInOut));
+  late final Animation<double> _glow = Tween<double>(begin: 0.15, end: 0.85)
+      .animate(CurvedAnimation(parent: _ctl, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFD700), Color(0xFFFF9500)],
-        ),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () => Get.to(() => const CoinShopScreen()),
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFD700), Color(0xFFFF9500)],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Text('⭐', style: TextStyle(fontSize: 24.sp)),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InterText(
-                  text: 'Passe Premium',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-                SizedBox(height: 2.h),
-                InterText(
-                  text: 'Vois les signalements 48h autour de toi + crée les tiens.',
-                  fontSize: 11.sp,
-                  color: Colors.white.withOpacity(0.95),
-                ),
-              ],
+          borderRadius: BorderRadius.circular(16.r),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            // Pulsing star with a white halo — the animation ticks every
+            // 1.4 s for a calm "shine" effect that doesn't feel spammy.
+            AnimatedBuilder(
+              animation: _ctl,
+              builder: (_, __) => SizedBox(
+                width: 46.w,
+                height: 46.w,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Soft glow halo behind the star.
+                    Container(
+                      width: 44.w,
+                      height: 44.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(_glow.value * 0.25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white
+                                .withOpacity(_glow.value * 0.75),
+                            blurRadius: 18,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Pulsing star emoji.
+                    Transform.scale(
+                      scale: _scale.value,
+                      child: Text('⭐',
+                          style: TextStyle(fontSize: 26.sp)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: 'Passe Premium',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                  SizedBox(height: 2.h),
+                  InterText(
+                    text:
+                        'Vois les signalements 48h autour de toi + crée les tiens.',
+                    fontSize: 11.sp,
+                    color: Colors.white.withOpacity(0.95),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14.sp,
+              color: Colors.white,
+            ),
+          ],
+        ),
       ),
     );
   }

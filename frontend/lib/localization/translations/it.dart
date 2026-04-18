@@ -164,6 +164,7 @@ const Map<String, String> itITTranslations = <String, String>{
 
       'my_posts_title': 'I miei post',
       'home_segment_sitters': 'Sitter per animali',
+      'home_segment_walkers': 'Dog walker',
       'my_posts_no_posts': 'Nessun post trovato',
       'my_posts_delete_title': 'Eliminare il post?',
       'my_posts_delete_message':
@@ -951,7 +952,12 @@ const Map<String, String> itITTranslations = <String, String>{
       'publish_request_service_walking': 'Passeggiata',
       'publish_request_service_boarding': 'Pensione',
       'publish_request_service_daycare': 'Asilo diurno',
-      'publish_request_service_pet_sitting': 'Pet sitting',
+      'publish_request_service_pet_sitting': 'Cura più giorni',
+      'publish_request_service_walking_desc': 'Passeggiata breve o lunga, solo dog walker',
+      'publish_request_service_daycare_desc': 'Asilo diurno, senza pernotto',
+      'publish_request_service_pet_sitting_desc': 'Più giorni, a casa tua o del sitter',
+      'publish_request_duration_walk_label': 'Passeggiata',
+      'publish_request_duration_long_label': 'Uscita lunga (mezza giornata)',
       'publish_request_service_house_sitting': 'House sitting',
       'publish_request_city_label': 'Posizione',
       'house_sitting_venue_label': 'Luogo del house sitting',
@@ -1422,7 +1428,7 @@ const Map<String, String> itITTranslations = <String, String>{
 
     // ── Walker role (third role — dog walkers) ──
     'role_pet_walker': 'Dog Walker',
-    'role_pet_walker_desc': 'Offro passeggiate su richiesta o regolari per cani e gatti del quartiere.',
+    'role_pet_walker_desc': 'Candidati alle passeggiate retribuite pubblicate dai proprietari. E se hai anche tu un animale, PawMap ti aiuta a trovare veterinari, punti d\'acqua e luoghi utili.',
     'sign_up_as_pet_walker': 'Registrati come dog walker',
     'auth_role_pet_walker': 'Dog Walker',
     'walker_home_title': 'Home Dog Walker',

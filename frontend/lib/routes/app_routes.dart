@@ -71,8 +71,9 @@ class AppRoutes {
   // Notifications
   static const String notifications = '/notifications';
 
-  // Map / discovery
-  static const String petsMap = '/map';
+  // Map / discovery — PawMap is the only map screen since session 2 fusion.
+  // The legacy `petsMap` route was removed; use `Get.to(() => const PawMapScreen())`
+  // from anywhere that needs to push the map.
   static const String serviceProviderDetail = '/service-provider';
   static const String sendRequest = '/send-request';
 

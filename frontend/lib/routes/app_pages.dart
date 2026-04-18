@@ -11,7 +11,6 @@ import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
-import 'package:hopetsit/views/map/pets_map_screen.dart';
 
 /// Sprint 8 step 1 — named-route registry.
 ///
@@ -54,13 +53,6 @@ class AppPages {
     GetPage(
       name: AppRoutes.identityVerification,
       page: () => const IdentityVerificationScreen(),
-    ),
-    // Classic pets map (legacy view kept accessible alongside new PawMap).
-    // The PawMap is now wired to the bottom-nav center button; this route
-    // lets any screen still jump back to PetsMapScreen via Get.toNamed.
-    GetPage(
-      name: AppRoutes.petsMap,
-      page: () => const PetsMapScreen(),
     ),
   ];
 }

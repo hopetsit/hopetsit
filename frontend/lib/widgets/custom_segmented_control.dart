@@ -26,6 +26,13 @@ class CustomSegmentedControl extends StatefulWidget {
   final double? width;
   final double? height;
 
+  /// Optional per-segment active colors. When omitted, all segments use the
+  /// app primary color (legacy behaviour). Used on the owner home to theme
+  /// Publication (primary/orange), Pet-sitter (blue), Promeneur (green).
+  final Color? activeColorLeft;
+  final Color? activeColorMiddle;
+  final Color? activeColorRight;
+
   const CustomSegmentedControl({
     super.key,
     required this.leftText,
@@ -38,6 +45,9 @@ class CustomSegmentedControl extends StatefulWidget {
     this.onRightTap,
     this.width,
     this.height,
+    this.activeColorLeft,
+    this.activeColorMiddle,
+    this.activeColorRight,
   });
 
   @override
@@ -112,6 +122,10 @@ class _CustomSegmentedControlState extends State<CustomSegmentedControl>
   @override
   Widget build(BuildContext context) {
     final hasMiddle = widget.middleText != null;
+    final leftActive = widget.activeColorLeft ?? AppColors.primaryColor;
+    final middleActive =
+        widget.activeColorMiddle ?? AppColors.primaryColor;
+    final rightActive = widget.activeColorRight ?? AppColors.primaryColor;
 
     return SizedBox(
       width: widget.width,
@@ -148,7 +162,7 @@ class _CustomSegmentedControlState extends State<CustomSegmentedControl>
                           height: double.infinity,
                           decoration: BoxDecoration(
                             color: _selectedIndex == 0
-                                ? AppColors.primaryColor
+                                ? leftActive
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12.r),
                           ),
@@ -186,7 +200,7 @@ class _CustomSegmentedControlState extends State<CustomSegmentedControl>
                             height: double.infinity,
                             decoration: BoxDecoration(
                               color: _selectedIndex == 1
-                                  ? AppColors.primaryColor
+                                  ? middleActive
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(12.r),
                             ),
@@ -224,7 +238,7 @@ class _CustomSegmentedControlState extends State<CustomSegmentedControl>
                           decoration: BoxDecoration(
                             color: _selectedIndex ==
                                     (hasMiddle ? 2 : 1)
-                                ? AppColors.primaryColor
+                                ? rightActive
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12.r),
                           ),

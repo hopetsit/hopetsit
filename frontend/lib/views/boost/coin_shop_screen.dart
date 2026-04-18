@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 
 /// Boutique screen — 3 tabs:
 ///   1. Boost     — one-time profile boost (existing feature)
@@ -166,14 +167,34 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
         await Stripe.instance.applySettings();
       }
 
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'HopeTSIT - Coin Shop',
-          style: ThemeMode.system,
+      // In-app card screen replaces the native PaymentSheet that was
+      // unreliable on some Android devices. `_packages` is a local list
+      // of Maps (tier/amount/days) so we look up the row by tier string.
+      final pkgMap = _packages.firstWhere(
+        (p) => p['tier'] == tier,
+        orElse: () => const <String, dynamic>{},
+      );
+      final displayAmount =
+          ((pkgMap['amount'] as num?) ?? 0).toDouble();
+      final days = (pkgMap['days'] as num?)?.toInt();
+      final ok = await Get.to<bool>(
+        () => ModernCardPaymentScreen(
+          clientSecret: clientSecret,
+          amount: displayAmount,
+          currency: currency,
+          productLabel:
+              'Boost ${tier[0].toUpperCase()}${tier.substring(1)}',
+          productSubtitle:
+              days != null ? '$days jours de visibilité' : null,
         ),
       );
-      await Stripe.instance.presentPaymentSheet();
+      if (ok != true) {
+        setState(() {
+          _purchasing = false;
+          _selectedTier = null;
+        });
+        return;
+      }
 
       await api.post(
         '/boost/confirm',

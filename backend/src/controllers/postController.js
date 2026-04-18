@@ -266,7 +266,9 @@ const getMediaPosts = async (req, res) => {
 const getRequestPosts = async (req, res) => {
   try {
     const { ownerId } = req.query;
-    const filter = { postType: 'request' };
+    // hidden=true means an admin has banned/hidden the post — never surface
+    // those on normal user feeds (admin has its own endpoint for that).
+    const filter = { postType: 'request', hidden: { $ne: true } };
     if (ownerId) {
       filter.ownerId = ownerId;
     }
@@ -286,6 +288,17 @@ const getRequestPosts = async (req, res) => {
         allowed.push('both');
         filter.serviceLocation = { $in: allowed };
       }
+      // Session avril 2026 — walking requests are walker-exclusive. Any
+      // post whose serviceTypes array contains 'dog_walking' is removed
+      // from the sitter's feed so walkers get first dibs on walks. Mongo
+      // $nin against an array field excludes docs where the array
+      // intersects the provided list.
+      filter.serviceTypes = { $nin: ['dog_walking'] };
+    }
+
+    // Session avril 2026 — walkers only see posts that request a walk.
+    if (req.user?.role === 'walker') {
+      filter.serviceTypes = 'dog_walking';
     }
 
     const posts = await Post.find(filter).sort({ createdAt: -1 }).populate('ownerId');
@@ -335,6 +348,127 @@ const getRequestPosts = async (req, res) => {
   } catch (error) {
     logger.error('Fetch request posts error', error);
     res.status(500).json({ error: 'Unable to fetch request posts. Please try again later.' });
+  }
+};
+
+/**
+ * GET /posts/requests/nearby — returns owner reservation requests within a
+ * given radius of a geographic point. Used by sitter/walker PawMap layer.
+ *
+ * Query params:
+ *   lat          required  Latitude of the viewer (e.g. the sitter).
+ *   lng          required  Longitude of the viewer.
+ *   maxDistance  optional  Search radius in kilometers (default 25).
+ *
+ * Posts are filtered by the same sitter service-preference logic as
+ * getRequestPosts so sitters only see requests they can fulfill. Distance is
+ * computed with the haversine formula in JS because `Post.location` is a
+ * plain { city, lat, lng } object (no 2dsphere index). Good enough for MVP;
+ * migrate to a geo index when the dataset grows.
+ */
+const getNearbyRequestPosts = async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const maxDistanceKm = Math.min(
+      parseFloat(req.query.maxDistance || '25'),
+      200,
+    );
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res
+        .status(400)
+        .json({ error: 'Valid lat and lng query params are required.' });
+    }
+
+    const filter = { postType: 'request', hidden: { $ne: true } };
+
+    // Sitter service-preference filter (mirrors getRequestPosts).
+    if (req.user?.role === 'sitter') {
+      const viewer = await Sitter.findById(req.user.id)
+        .select('canServiceAtOwner canServiceAtSitter')
+        .lean();
+      if (viewer) {
+        const allowed = [];
+        if (viewer.canServiceAtOwner) allowed.push('at_owner');
+        if (viewer.canServiceAtSitter) allowed.push('at_sitter');
+        if (allowed.length === 0) {
+          return res.json({ posts: [], count: 0, radiusKm: maxDistanceKm });
+        }
+        allowed.push('both');
+        filter.serviceLocation = { $in: allowed };
+      }
+      // Walking requests are walker-exclusive — hide them from sitter map.
+      filter.serviceTypes = { $nin: ['dog_walking'] };
+    }
+
+    // Walkers on the PawMap only see walking requests.
+    if (req.user?.role === 'walker') {
+      filter.serviceTypes = 'dog_walking';
+    }
+
+    // Discard posts without coordinates — they can't appear on a map.
+    filter['location.lat'] = { $ne: null };
+    filter['location.lng'] = { $ne: null };
+
+    const raw = await Post.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('ownerId')
+      .lean();
+
+    // Haversine great-circle distance in kilometers.
+    const toRad = (x) => (x * Math.PI) / 180;
+    const R = 6371;
+    const haversine = (lat1, lng1, lat2, lng2) => {
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    const withDistance = raw
+      .filter(
+        (p) =>
+          p.ownerId &&
+          p.location &&
+          Number.isFinite(p.location.lat) &&
+          Number.isFinite(p.location.lng),
+      )
+      .map((p) => ({
+        post: p,
+        distanceKm: haversine(lat, lng, p.location.lat, p.location.lng),
+      }))
+      .filter((x) => x.distanceKm <= maxDistanceKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 200); // hard cap for the map payload
+
+    const posts = withDistance.map(({ post, distanceKm }) => ({
+      id: post._id.toString(),
+      ownerId: post.ownerId?._id?.toString() || '',
+      ownerName: post.ownerId?.name || '',
+      ownerAvatar: post.ownerId?.avatar?.url || '',
+      body: post.body || '',
+      serviceTypes: post.serviceTypes || [],
+      serviceLocation: post.serviceLocation || '',
+      startDate: post.startDate,
+      endDate: post.endDate,
+      location: {
+        city: post.location.city || '',
+        lat: post.location.lat,
+        lng: post.location.lng,
+      },
+      distanceKm: Number(distanceKm.toFixed(2)),
+      createdAt: post.createdAt,
+    }));
+
+    res.json({ posts, count: posts.length, radiusKm: maxDistanceKm });
+  } catch (error) {
+    logger.error('[posts/requests/nearby] Error', error);
+    res.status(500).json({ error: 'Unable to fetch nearby requests.' });
   }
 };
 
@@ -882,6 +1016,7 @@ module.exports = {
   listPosts,
   getMediaPosts,
   getRequestPosts,
+  getNearbyRequestPosts,
   toggleLike,
   addComment,
   deleteComment,
