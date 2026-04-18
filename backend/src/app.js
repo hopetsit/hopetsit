@@ -36,6 +36,7 @@ const mapPoiRoutes = require('./routes/mapPoiRoutes');
 const mapReportRoutes = require('./routes/mapReportRoutes');
 const mapBoostRoutes = require('./routes/mapBoostRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const chatAddonRoutes = require('./routes/chatAddonRoutes');
 const friendRoutes = require('./routes/friendRoutes');
 const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
 
@@ -140,6 +141,7 @@ const versionedRoutes = [
   { path: '/map-reports', mw: [], router: mapReportRoutes },
   { path: '/map-boost', mw: [sensitiveLimiter], router: mapBoostRoutes },
   { path: '/subscriptions', mw: [sensitiveLimiter], router: subscriptionRoutes },
+  { path: '/chat-addon', mw: [sensitiveLimiter], router: chatAddonRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
 ];
 

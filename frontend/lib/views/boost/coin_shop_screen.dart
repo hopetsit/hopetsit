@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/chat_addon_controller.dart';
 import 'package:hopetsit/controllers/map_boost_controller.dart';
 import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
@@ -31,6 +32,11 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
     // Ensure SubscriptionController is available.
     if (!Get.isRegistered<SubscriptionController>()) {
       Get.put(SubscriptionController());
+    }
+    // Chat add-on (session v3.2) — lazy register so the Premium tab can
+    // show the cheap chat tile under the main Premium plans.
+    if (!Get.isRegistered<ChatAddonController>()) {
+      Get.put(ChatAddonController());
     }
 
     return DefaultTabController(
@@ -664,10 +670,131 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               SizedBox(height: 16.h),
               ...controller.plans.map((p) => _buildPlanCard(context, controller, p)),
               SizedBox(height: 20.h),
+              // Session v3.2 — Chat add-on tile for free users who just want
+              // chat with friends without going full Premium.
+              _buildChatAddonTile(context),
+              SizedBox(height: 20.h),
               _buildFeaturesList(context),
               SizedBox(height: 40.h),
             ],
           ),
+        ),
+      );
+    });
+  }
+
+  /// Secondary tile: cheap chat add-on. Hidden for active Premium users
+  /// (they already have chat with everyone).
+  Widget _buildChatAddonTile(BuildContext context) {
+    final sub = Get.find<SubscriptionController>();
+    final chat = Get.find<ChatAddonController>();
+    return Obx(() {
+      final isPremium = sub.status.value?.isPremium ?? false;
+      if (isPremium) return const SizedBox.shrink();
+
+      final plan = chat.plan.value;
+      final status = chat.status.value;
+      final alreadyActive = status?.isActive == true;
+      final priceText = plan == null || plan.amount == 0
+          ? '—'
+          : '${CurrencyHelper.symbol(plan.currency)}${plan.amount.toStringAsFixed(2)}';
+
+      return Container(
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: alreadyActive
+                ? Colors.green
+                : AppColors.primaryColor.withOpacity(0.35),
+            width: 1.3,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42.w,
+              height: 42.w,
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 22.sp,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: 'Chat entre amis',
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                  SizedBox(height: 3.h),
+                  InterText(
+                    text: alreadyActive
+                        ? 'Actif · renouvelle le chat entre amis'
+                        : 'Débloque le chat avec tes amis acceptés — 30 jours',
+                    fontSize: 12.sp,
+                    color: AppColors.greyText,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 10.w),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                InterText(
+                  text: priceText,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryColor,
+                ),
+                SizedBox(height: 4.h),
+                GestureDetector(
+                  onTap: chat.isPurchasing.value
+                      ? null
+                      : () async {
+                          final ok = await chat.purchase();
+                          if (ok && mounted) {
+                            CustomSnackbar.showSuccess(
+                              title: 'Chat débloqué',
+                              message: 'Tu peux maintenant chatter avec tes amis.',
+                            );
+                          }
+                        },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 6.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: chat.isPurchasing.value
+                          ? Colors.grey.shade300
+                          : AppColors.primaryColor,
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                    child: InterText(
+                      text: chat.isPurchasing.value
+                          ? '…'
+                          : (alreadyActive ? 'Renouveler' : 'Acheter'),
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       );
     });
