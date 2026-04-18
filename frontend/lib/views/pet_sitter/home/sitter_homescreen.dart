@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
@@ -512,9 +513,23 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       return true;
                     }).toList();
 
-                    final feedPosts = _filterState.hasActiveFilters
-                        ? _applyRequestFilters(uniquePosts)
+                    // Walker feed is strictly limited to walking requests
+                    // (posts whose serviceTypes contains 'dog_walking').
+                    // Sitter feed stays unchanged — the sitter/walker split
+                    // mirrors the backend rule in getRequestPosts.
+                    final currentRole = Get.isRegistered<AuthController>()
+                        ? (Get.find<AuthController>().userRole.value ?? '')
+                        : '';
+                    final rolePrefiltered = currentRole == 'walker'
+                        ? uniquePosts.where((p) => p.serviceTypes
+                                .map((t) => t.toLowerCase())
+                                .contains('dog_walking'))
+                            .toList()
                         : uniquePosts;
+
+                    final feedPosts = _filterState.hasActiveFilters
+                        ? _applyRequestFilters(rolePrefiltered)
+                        : rolePrefiltered;
 
                     final sortedFeed = _sortFeedPosts(feedPosts);
 

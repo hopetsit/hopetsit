@@ -285,4 +285,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
-// Attach the freemium whitelist so other modules (e.g
+// Attach the freemium whitelist so other modules (e.g. adminRoutes admin stats)
+// can import it without re-declaring the list.
+module.exports.FREE_REPORT_TYPES = FREE_REPORT_TYPES;

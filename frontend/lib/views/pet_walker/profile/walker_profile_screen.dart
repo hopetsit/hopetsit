@@ -15,11 +15,11 @@ import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
+import 'package:hopetsit/views/profile/edit_owner_profile_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 /// Walker profile screen — full redesign (session avril 2026).
@@ -518,14 +518,10 @@ class WalkerProfileScreen extends StatelessWidget {
         _settingsTile(
           'Modifier mon profil',
           Icons.person_outline_rounded,
-          () {
-            // No walker-specific edit screen yet — reuse the owner edit flow.
-            CustomSnackbar.showError(
-              title: 'Bientôt disponible',
-              message:
-                  'L\'écran d\'édition profil promeneur arrive dans la prochaine mise à jour.',
-            );
-          },
+          // Walker profile editing reuses the generic edit screen
+          // (name/email/avatar/mobile/city). A walker-specific form with
+          // rates + coverage will land in a follow-up.
+          () => Get.to(() => const EditOwnerProfileScreen()),
         ),
         _settingsTile(
           'Carte (PawMap)',

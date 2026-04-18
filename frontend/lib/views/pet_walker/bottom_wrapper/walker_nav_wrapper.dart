@@ -4,7 +4,7 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking-application/sitter_application_screen.dart';
-import 'package:hopetsit/views/pet_walker/home/walker_homescreen.dart';
+import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
 import 'package:hopetsit/views/pet_walker/profile/walker_profile_screen.dart';
 import 'package:hopetsit/widgets/stacked_navigation_wrapper.dart';
 
@@ -30,10 +30,12 @@ class _WalkerNavWrapperState extends State<WalkerNavWrapper> {
   }
 
   // Walker tabs reuse the same chat/map/bookings infrastructure as sitters
-  // during Phase 1 — these features are cross-role. Profile and home are
-  // walker-specific (green accent, walker-appropriate copy).
+  // during Phase 1 — these features are cross-role. Profile is walker-specific.
+  // Home reuses SitterHomescreen so walkers see the owner feed (including
+  // walking requests). A walker-specific dog_walking-only filter will land
+  // in a follow-up on top of this shared screen.
   final List<Widget> _screens = const [
-    WalkerHomescreen(), // 0 — Home
+    SitterHomescreen(), // 0 — Home (shared feed — shows owner announcements)
     SitterChatScreen(), // 1 — Chat (shared)
     PawMapScreen(), // 2 — PawMap (shared) — POIs + Reports 48h + Amis live
     SitterApplicationScreen(), // 3 — Bookings (shared; to be forked later)
