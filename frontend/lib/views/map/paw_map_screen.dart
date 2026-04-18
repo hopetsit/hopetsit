@@ -557,6 +557,11 @@ class _PawMapScreenState extends State<PawMapScreen> {
           // showing free users what they can do right away.
           _buildQuickSignalRow(),
 
+          // Session v3.3 — "Urgence" quick-access row. Gros boutons qui
+          // filtrent la PawMap sur une catégorie POI utile en situation
+          // d'urgence (trouver un véto rapidement, une animalerie proche).
+          _buildEmergencyRow(),
+
           // Layer toggle row (POIs / Reports)
           _buildLayerRow(),
 
@@ -778,72 +783,160 @@ class _PawMapScreenState extends State<PawMapScreen> {
     );
   }
 
-  Widget _buildLayerRow() {
+  /// Session v3.3 — Emergency quick-access row.
+  ///
+  /// Gros boutons colorés qui filtrent la PawMap sur une catégorie POI en
+  /// un seul tap (utile quand on cherche un véto / une animalerie en
+  /// urgence). Tap bascule le filtre ; retap = reset.
+  Widget _buildEmergencyRow() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
       child: Row(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Obx(() => _LayerToggle(
-                        label: 'POIs',
-                        emoji: '📍',
-                        active: _showPois.value,
-                        onTap: () => _showPois.value = !_showPois.value,
-                      )),
-                  SizedBox(width: 8.w),
-                  Obx(() => _LayerToggle(
-                        label: 'Signalements 48h',
-                        emoji: '⚠️',
-                        active: _showReports.value,
-                        onTap: () => _showReports.value = !_showReports.value,
-                      )),
-                  SizedBox(width: 8.w),
-                  Obx(() => _LayerToggle(
-                        label: 'Amis',
-                        emoji: '👥',
-                        active: _showFriends.value,
-                        premiumBadge: true,
-                        onTap: () => _showFriends.value = !_showFriends.value,
-                      )),
-                  if (_isSitterOrWalker) ...[
-                    SizedBox(width: 8.w),
-                    Obx(() => _LayerToggle(
-                          label: 'Demandes',
-                          emoji: '📣',
-                          active: _showRequests.value,
-                          onTap: () =>
-                              _showRequests.value = !_showRequests.value,
-                        )),
-                  ],
-                ],
-              ),
+            child: _emergencyChip(
+              emoji: '🏥',
+              label: 'Vétérinaire',
+              category: PoiCategories.vet,
+              color: const Color(0xFFE53935), // red — urgent medical
             ),
           ),
           SizedBox(width: 8.w),
-          Obx(() {
-            final n = _reportController.reports
-                .where((r) => !r.isExpired)
-                .length;
-            if (n == 0) return const SizedBox.shrink();
-            return Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor,
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: InterText(
-                text: '$n actif(s)',
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            );
-          }),
+          Expanded(
+            child: _emergencyChip(
+              emoji: '🛍️',
+              label: 'Animalerie',
+              category: PoiCategories.shop,
+              color: const Color(0xFF8E24AA), // purple — pet supplies
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _emergencyChip(
+              emoji: '🌳',
+              label: 'Parc',
+              category: PoiCategories.park,
+              color: const Color(0xFF2E7D32), // green — parks
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// Single emergency chip — tap toggles a single-category filter on the
+  /// PawMap (so only those POIs remain visible) and ensures the POI layer
+  /// is shown. Retap the active chip to clear the filter.
+  Widget _emergencyChip({
+    required String emoji,
+    required String label,
+    required String category,
+    required Color color,
+  }) {
+    return Obx(() {
+      final active = _poiController.enabledCategories.length == 1 &&
+          _poiController.enabledCategories.contains(category);
+      return GestureDetector(
+        onTap: () async {
+          if (active) {
+            _poiController.clearFilters();
+          } else {
+            _poiController.enabledCategories
+              ..clear()
+              ..add(category);
+          }
+          // Ensure the POI layer itself is on so the filter takes effect.
+          _showPois.value = true;
+          // Reload nearby POIs at the current center for this category so
+          // the user sees results even before panning the map.
+          if (_currentCenter != null) {
+            await _poiController.loadNearby(
+              _currentCenter!,
+              category: active ? null : category,
+            );
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            color: active ? color : color.withOpacity(0.10),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(
+              color: active ? color : color.withOpacity(0.35),
+              width: 1.2,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(emoji, style: TextStyle(fontSize: 16.sp)),
+              SizedBox(width: 6.w),
+              Flexible(
+                child: InterText(
+                  text: label,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : color,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildLayerRow() {
+    // Session v3.3 — single horizontal scroll with the active-reports count
+    // now living inside the "Signalements" toggle so nothing overflows on
+    // small screens (the old side-badge was clipping on a Galaxy device).
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Obx(() => _LayerToggle(
+                  label: 'POIs',
+                  emoji: '📍',
+                  active: _showPois.value,
+                  onTap: () => _showPois.value = !_showPois.value,
+                )),
+            SizedBox(width: 8.w),
+            Obx(() => _LayerToggle(
+                  label: 'Signalements 48h',
+                  emoji: '⚠️',
+                  active: _showReports.value,
+                  // Inline active-count pill — replaces the old side badge
+                  // that was overflowing the row on narrow screens.
+                  count: _reportController.reports
+                      .where((r) => !r.isExpired)
+                      .length,
+                  onTap: () => _showReports.value = !_showReports.value,
+                )),
+            SizedBox(width: 8.w),
+            Obx(() => _LayerToggle(
+                  label: 'Amis',
+                  emoji: '👥',
+                  active: _showFriends.value,
+                  premiumBadge: true,
+                  count: _liveMap.friendPositions.length,
+                  onTap: () => _showFriends.value = !_showFriends.value,
+                )),
+            if (_isSitterOrWalker) ...[
+              SizedBox(width: 8.w),
+              Obx(() => _LayerToggle(
+                    label: 'Demandes',
+                    emoji: '📣',
+                    active: _showRequests.value,
+                    count: _requests.length,
+                    onTap: () => _showRequests.value = !_showRequests.value,
+                  )),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1170,6 +1263,7 @@ class _LayerToggle extends StatelessWidget {
     required this.active,
     required this.onTap,
     this.premiumBadge = false,
+    this.count,
   });
 
   final String label;
@@ -1177,6 +1271,11 @@ class _LayerToggle extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   final bool premiumBadge;
+
+  /// Optional inline count pill rendered to the right of the label. Used
+  /// e.g. to show the number of active reports next to the "Signalements"
+  /// toggle instead of as a separate badge that used to overflow the row.
+  final int? count;
 
   @override
   Widget build(BuildContext context) {
@@ -1209,6 +1308,22 @@ class _LayerToggle extends StatelessWidget {
             if (premiumBadge) ...[
               SizedBox(width: 4.w),
               Text('⭐', style: TextStyle(fontSize: 10.sp)),
+            ],
+            if (count != null && count! > 0) ...[
+              SizedBox(width: 6.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: InterText(
+                  text: '$count',
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
             ],
           ],
         ),
