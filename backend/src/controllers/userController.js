@@ -353,30 +353,44 @@ const deleteAccount = async (req, res) => {
       role = 'sitter';
     }
 
+    // Walkers are a distinct collection since session v3.2 — look them up too
+    // so "Delete my account" works for the walker role.
+    if (!account) {
+      account = await Walker.findById(id);
+      role = 'walker';
+    }
+
     if (!account) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const roleModel = role === 'owner' ? 'Owner' : 'Sitter';
+    const roleModel =
+      role === 'owner' ? 'Owner' : role === 'sitter' ? 'Sitter' : 'Walker';
     const userId = account._id;
 
-    const conversationFilter =
-      role === 'owner' ? { ownerId: userId } : { sitterId: userId };
-    const conversations = await Conversation.find(conversationFilter).select('_id');
+    // Conversation / Booking / Application are keyed by ownerId + sitterId
+    // (the walker table is not yet wired into these). For walkers we skip
+    // these cleanups — anything that references the walker goes orphan and
+    // gets pruned by a background job later.
+    if (role === 'owner' || role === 'sitter') {
+      const conversationFilter =
+        role === 'owner' ? { ownerId: userId } : { sitterId: userId };
+      const conversations = await Conversation.find(conversationFilter).select('_id');
 
-    if (conversations.length) {
-      const conversationIds = conversations.map((conversation) => conversation._id);
-      await Message.deleteMany({ conversationId: { $in: conversationIds } });
-      await Conversation.deleteMany({ _id: { $in: conversationIds } });
+      if (conversations.length) {
+        const conversationIds = conversations.map((conversation) => conversation._id);
+        await Message.deleteMany({ conversationId: { $in: conversationIds } });
+        await Conversation.deleteMany({ _id: { $in: conversationIds } });
+      }
+
+      await Booking.deleteMany({
+        [role === 'owner' ? 'ownerId' : 'sitterId']: userId,
+      });
+
+      await Application.deleteMany({
+        [role === 'owner' ? 'ownerId' : 'sitterId']: userId,
+      });
     }
-
-    await Booking.deleteMany({
-      [role === 'owner' ? 'ownerId' : 'sitterId']: userId,
-    });
-
-    await Application.deleteMany({
-      [role === 'owner' ? 'ownerId' : 'sitterId']: userId,
-    });
 
     let sitterIdsForRecalc = [];
     if (role === 'owner') {
@@ -462,8 +476,10 @@ const deleteAccount = async (req, res) => {
       await Post.deleteMany({ ownerId: userId });
       await Task.deleteMany({ ownerId: userId });
       await Owner.deleteOne({ _id: userId });
-    } else {
+    } else if (role === 'sitter') {
       await Sitter.deleteOne({ _id: userId });
+    } else {
+      await Walker.deleteOne({ _id: userId });
     }
 
     res.json({ message: 'Account and related data deleted successfully.' });
