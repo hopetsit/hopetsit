@@ -41,10 +41,13 @@ const COUNTRIES = {
 };
 
 // Overpass query fragments — one per category.
+// Park: restrict to leisure=dog_park only. Including leisure=park was
+// returning 60k+ generic municipal parks per country, most of which are
+// not dog-specific and would drown the map in useless markers.
 const QUERIES = {
   vet:  '["amenity"="veterinary"]',
   shop: '["shop"="pet"]',
-  park: '["leisure"~"^(dog_park|park)$"]',
+  park: '["leisure"="dog_park"]',
 };
 
 const CATEGORY_TO_TITLE_FALLBACK = {
@@ -69,11 +72,11 @@ function parseArgs() {
   return out;
 }
 
-async function overpassQuery({ bbox, filter, category }) {
+async function overpassQuery({ bbox, filter, category, attempt = 1 }) {
   const [s, w, n, e] = bbox;
   // nwr = node+way+relation, out center so ways get a representative lat/lng.
   const query = `
-    [out:json][timeout:120];
+    [out:json][timeout:180];
     (
       nwr${filter}(${s},${w},${n},${e});
     );
@@ -91,6 +94,15 @@ async function overpassQuery({ bbox, filter, category }) {
     },
     body: body.toString(),
   });
+
+  // 504 / 429 / 502 = Overpass is busy or rate-limited. Back off and retry.
+  if ((res.status === 504 || res.status === 502 || res.status === 429) && attempt < 3) {
+    const backoff = 10000 * attempt; // 10s, then 20s
+    process.stdout.write(` [retry ${attempt}→${attempt + 1} after ${backoff / 1000}s]`);
+    await wait(backoff);
+    return overpassQuery({ bbox, filter, category, attempt: attempt + 1 });
+  }
+
   if (!res.ok) {
     throw new Error(`Overpass ${res.status} for ${category}: ${res.statusText}`);
   }
