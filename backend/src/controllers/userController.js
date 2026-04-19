@@ -997,7 +997,8 @@ module.exports = {
 async function getMyReferralsRoute(req, res) {
   try {
     const role = req.user?.role;
-    if (role !== 'owner' && role !== 'sitter') {
+    // Session avril 2026 — walker role supported alongside owner/sitter.
+    if (role !== 'owner' && role !== 'sitter' && role !== 'walker') {
       return res.status(403).json({ error: 'Unsupported role.' });
     }
     const data = await getMyReferrals(req.user.id, role);

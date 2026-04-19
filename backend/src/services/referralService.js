@@ -1,17 +1,25 @@
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const Referral = require('../models/Referral');
 const OwnerCredit = require('../models/OwnerCredit');
 const Booking = require('../models/Booking');
 const { generateUniqueReferralCode } = require('../utils/referralCode');
 const { sendNotification } = require('./notificationSender');
 
+// Session avril 2026 — walker role added alongside owner/sitter.
+const resolveReferralModel = (role) => {
+  if (role === 'sitter') return Sitter;
+  if (role === 'walker') return Walker;
+  return Owner;
+};
+
 const ensureReferralCode = async (role, userId) => {
-  const Model = role === 'sitter' ? Sitter : Owner;
+  const Model = resolveReferralModel(role);
   const user = await Model.findById(userId).select('referralCode');
   if (!user) return null;
   if (user.referralCode) return user.referralCode;
-  const code = await generateUniqueReferralCode({ Owner, Sitter });
+  const code = await generateUniqueReferralCode({ Owner, Sitter, Walker });
   await Model.updateOne({ _id: userId }, { $set: { referralCode: code } });
   return code;
 };
@@ -23,6 +31,8 @@ const findReferrerByCode = async (code) => {
   if (owner) return { id: owner._id, role: 'owner' };
   const sitter = await Sitter.findOne({ referralCode: upper }).select('_id').lean();
   if (sitter) return { id: sitter._id, role: 'sitter' };
+  const walker = await Walker.findOne({ referralCode: upper }).select('_id').lean();
+  if (walker) return { id: walker._id, role: 'walker' };
   return null;
 };
 
