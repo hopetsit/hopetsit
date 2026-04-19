@@ -165,7 +165,11 @@ const updateService = async (req, res) => {
 
     let account = await Owner.findById(id);
     let role = 'owner';
-    let allowedServices = OWNER_SERVICES;
+    // Session v15 — all roles can pick any of the 5 service types (Pet
+    // Sitting, House Sitting, Day Care, Long Stay, Dog Walking). The old
+    // split OWNER_SERVICES / SITTER_SERVICES used to reject a legitimate
+    // "Dog Walking" selection for an Owner who wants to offer walks too.
+    let allowedServices = SITTER_SERVICES;
 
     if (!account) {
       account = await Sitter.findById(id);

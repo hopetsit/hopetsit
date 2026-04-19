@@ -1276,7 +1276,11 @@ const chooseService = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const allowedServices = result.role === 'sitter' ? SITTER_SERVICES : OWNER_SERVICES;
+    // Session v15 — all 3 roles can now pick any combination of the 4 generic
+    // services (Pet Sitting, House Sitting, Day Care, Long Stay) plus Dog
+    // Walking. Previously Owners and Walkers were silently stripped of Dog
+    // Walking which made ChooseServiceScreen reject their full selection.
+    const allowedServices = SITTER_SERVICES;
     const invalid = normalizedServices.filter((s) => !allowedServices.includes(s));
     if (invalid.length > 0) {
       return res.status(400).json({
