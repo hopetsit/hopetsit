@@ -82,7 +82,13 @@ async function overpassQuery({ bbox, filter, category }) {
   const body = new URLSearchParams({ data: query });
   const res = await fetch(OVERPASS_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      // Overpass returns 406 "Not Acceptable" for unidentified clients.
+      // The User-Agent is required by their fair-use policy.
+      'User-Agent': 'HopeTSIT-POI-Seed/1.0 (contact: dadaciao84@gmail.com)',
+      'Accept': 'application/json',
+    },
     body: body.toString(),
   });
   if (!res.ok) {
