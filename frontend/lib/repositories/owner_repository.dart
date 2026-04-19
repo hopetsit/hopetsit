@@ -272,8 +272,13 @@ class OwnerRepository {
     );
   }
 
-  /// Creates a booking request for a sitter.
+  /// Creates a booking request for a sitter or a walker.
   /// [petIds] must contain at least one pet ID.
+  ///
+  /// Session v16-owner-walker — the [providerRole] decides which query
+  /// parameter name the backend expects. 'walker' → ?walkerId=..., anything
+  /// else → ?sitterId=... (kept as default for retrocompat with the dozens
+  /// of existing callers that don't pass the new param).
   Future<Map<String, dynamic>> createBooking({
     required String sitterId,
     required List<String> petIds,
@@ -287,6 +292,7 @@ class OwnerRepository {
     String? endDate,
     String? houseSittingVenue,
     String? serviceLocation,
+    String providerRole = 'sitter',
   }) async {
     final body = <String, dynamic>{
       'petIds': petIds,
@@ -312,9 +318,16 @@ class OwnerRepository {
       body['duration'] = int.parse(duration);
     }
 
+    // Session v16-owner-walker — send the right query key. The backend
+    // treats `walkerId` as the trigger to fetch the Walker collection
+    // instead of Sitter and persists the booking on `walkerId` field.
+    final queryParams = providerRole == 'walker'
+        ? {'walkerId': sitterId}
+        : {'sitterId': sitterId};
+
     final response = await _apiClient.post(
       ApiEndpoints.bookings,
-      queryParameters: {'sitterId': sitterId},
+      queryParameters: queryParams,
       body: body,
       requiresAuth: true,
     );

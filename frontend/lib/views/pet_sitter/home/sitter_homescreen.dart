@@ -10,6 +10,7 @@ import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -973,7 +974,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
 
     try {
       final sitterRepository = Get.find<SitterRepository>();
-      final basePrice = await _resolveSitterBasePrice(sitterRepository);
+      final basePrice = await _resolveProviderBasePrice(sitterRepository);
       if (basePrice <= 0) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
@@ -1161,7 +1162,13 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     }
   }
 
-  Future<double> _resolveSitterBasePrice(
+  /// Session v16-owner-walker — renamed from `_resolveSitterBasePrice`
+  /// so it can cover both provider roles. When the connected user is a
+  /// walker we fetch their walkRates and convert to an hourly equivalent
+  /// (60-min rate, or 30-min × 2, or per-hour prorata of 90/120 slots).
+  /// Otherwise the existing sitter path runs unchanged, so the large
+  /// majority of calls (Sitter → annonce Owner) keep the same behaviour.
+  Future<double> _resolveProviderBasePrice(
     SitterRepository sitterRepository,
   ) async {
     try {
@@ -1169,13 +1176,48 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       final userProfile = storage.read<Map<String, dynamic>>(
         StorageKeys.userProfile,
       );
-      final sitterId = userProfile?['id']?.toString() ?? '';
-      if (sitterId.isEmpty) {
+      final providerId = userProfile?['id']?.toString() ?? '';
+      if (providerId.isEmpty) {
         return 0;
       }
 
-      // /sitters/me/profile is not available in current backend env; use /sitters/{id}.
-      final profile = await sitterRepository.getSitterProfile(sitterId);
+      final role = Get.isRegistered<AuthController>()
+          ? (Get.find<AuthController>().userRole.value ?? '')
+          : '';
+
+      if (role == 'walker') {
+        // Fetch the walker's own rate grid and normalise to an hourly
+        // equivalent. We don't want to crash when walkRates is empty or
+        // every entry is disabled — just return 0 and let the UI ask the
+        // walker to set a rate in the profile first.
+        final walkerRepository = Get.find<WalkerRepository>();
+        final walker =
+            await walkerRepository.getWalkerProfile(providerId);
+        double? findRate(int minutes) {
+          for (final r in walker.walkRates) {
+            if (r.durationMinutes == minutes &&
+                r.enabled &&
+                r.basePrice > 0) {
+              return r.basePrice;
+            }
+          }
+          return null;
+        }
+
+        final hour = findRate(60);
+        if (hour != null) return hour;
+        final half = findRate(30);
+        if (half != null) return half * 2;
+        final ninety = findRate(90);
+        if (ninety != null) return ninety * (60 / 90);
+        final twoHours = findRate(120);
+        if (twoHours != null) return twoHours / 2;
+        return 0;
+      }
+
+      // Sitter path — /sitters/me/profile is not available in current
+      // backend env; use /sitters/{id}.
+      final profile = await sitterRepository.getSitterProfile(providerId);
       final data =
           profile['sitter'] as Map<String, dynamic>? ??
           profile['profile'] as Map<String, dynamic>? ??
@@ -1185,16 +1227,31 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       if (fromHourly != null && fromHourly > 0) {
         return fromHourly;
       }
-
-      final fromRateString = double.tryParse(data['rate']?.toString() ?? '');
+      final fromDaily = (data['dailyRate'] as num?)?.toDouble();
+      if (fromDaily != null && fromDaily > 0) {
+        return fromDaily;
+      }
+      final fromWeekly = (data['weeklyRate'] as num?)?.toDouble();
+      if (fromWeekly != null && fromWeekly > 0) {
+        return fromWeekly;
+      }
+      final fromMonthly = (data['monthlyRate'] as num?)?.toDouble();
+      if (fromMonthly != null && fromMonthly > 0) {
+        return fromMonthly;
+      }
+      final fromRateString =
+          double.tryParse(data['rate']?.toString() ?? '');
       if (fromRateString != null && fromRateString > 0) {
         return fromRateString;
       }
     } catch (error) {
-      AppLogger.logError('Failed to resolve sitter base price', error: error);
+      AppLogger.logError(
+        'Failed to resolve provider base price',
+        error: error,
+      );
     }
 
-    // Do not send fallback for invalid/unknown sitter pricing.
+    // Do not send fallback for invalid/unknown provider pricing.
     return 0;
   }
 

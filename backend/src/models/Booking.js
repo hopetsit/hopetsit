@@ -3,7 +3,12 @@ const mongoose = require('mongoose');
 const bookingSchema = new mongoose.Schema(
   {
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner', required: true },
-    sitterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sitter', required: true },
+    // Session v16-owner-walker — the booking now targets either a Sitter
+    // (traditional garde/garderie) OR a Walker (dog_walking). Exactly one
+    // of the two must be set, enforced by the pre-save validator below.
+    // Legacy bookings keep `sitterId` populated, so no migration needed.
+    sitterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sitter', default: null },
+    walkerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Walker', default: null },
     petIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Pet' }], // Array of pet IDs
     description: { type: String, default: '' },
     date: { type: String, required: true },
@@ -153,6 +158,29 @@ const bookingSchema = new mongoose.Schema(
 );
 
 bookingSchema.index({ ownerId: 1, sitterId: 1, status: 1, requestFingerprint: 1 });
+// Session v16-owner-walker — mirror index for walker lookups.
+bookingSchema.index({ ownerId: 1, walkerId: 1, status: 1, requestFingerprint: 1 });
+
+// Session v16-owner-walker — enforce exactly one provider target. Without
+// this, a buggy caller could persist a booking with neither field set (the
+// booking would end up linked to nobody) or with both set (ambiguous which
+// provider gets paid). Validator is pre('validate') so error surfaces on
+// save() before any downstream $set does weird stuff.
+bookingSchema.pre('validate', function (next) {
+  const hasSitter = !!this.sitterId;
+  const hasWalker = !!this.walkerId;
+  if (hasSitter && hasWalker) {
+    return next(
+      new Error('Booking cannot target both a sitter and a walker.'),
+    );
+  }
+  if (!hasSitter && !hasWalker) {
+    return next(
+      new Error('Booking must target either a sitter or a walker.'),
+    );
+  }
+  next();
+});
 
 module.exports = mongoose.model('Booking', bookingSchema);
 

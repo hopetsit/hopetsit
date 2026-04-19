@@ -133,6 +133,9 @@ const createBooking = async (req, res) => {
   try {
     const ownerId = req.user?.id;
     const sitterIdQuery = req.query?.sitterId;
+    // Session v16-owner-walker — Owner can now book a Walker directly.
+    // Caller sends either ?sitterId=... OR ?walkerId=..., never both.
+    const walkerIdQuery = req.query?.walkerId;
     const body = req.body || {};
     const {
       petIds, // Array of pet IDs
@@ -170,10 +173,29 @@ const createBooking = async (req, res) => {
       return res.status(403).json({ error: 'Owner context missing.' });
     }
 
-    const sitterId = typeof sitterIdQuery === 'string' ? sitterIdQuery.trim() : '';
+    // Session v16-owner-walker — resolve which provider the Owner targets.
+    // walkerId wins if both happen to be sent (shouldn't happen client-side
+    // but keeps the behaviour deterministic). providerId is the id we write
+    // to the Booking, providerType picks which collection we fetch.
+    const walkerIdClean =
+      typeof walkerIdQuery === 'string' ? walkerIdQuery.trim() : '';
+    const sitterIdClean =
+      typeof sitterIdQuery === 'string' ? sitterIdQuery.trim() : '';
+    const providerType = walkerIdClean
+      ? 'walker'
+      : sitterIdClean
+        ? 'sitter'
+        : null;
+    const providerId = walkerIdClean || sitterIdClean;
+    // Legacy alias kept to minimise diff in the rest of this function —
+    // most downstream code still reads `sitterId`, which now just means
+    // "the provider id" regardless of whether it's a sitter or a walker.
+    const sitterId = providerId;
 
-    if (!sitterId) {
-      return res.status(400).json({ error: 'sitterId query parameter is required.' });
+    if (!providerId) {
+      return res.status(400).json({
+        error: 'sitterId or walkerId query parameter is required.',
+      });
     }
 
     // Validate petIds array
@@ -260,24 +282,80 @@ const createBooking = async (req, res) => {
       'Owner currency must be set to create a booking.'
     );
 
-    const sitter = await Sitter.findById(sitterId);
-    if (!sitter) {
-      return res.status(404).json({ error: 'Sitter not found.' });
-    }
-    // Session v15-6 — the Sitter edit UI was simplified in v15 so sitters
-    // often configure only dailyRate/weeklyRate/monthlyRate (no hourly).
-    // Reject only when *no* rate at all is set; otherwise we'll derive the
-    // hourly fallback from the most specific rate available below.
-    const hasAnyRate =
-      (sitter.hourlyRate && sitter.hourlyRate > 0) ||
-      (sitter.dailyRate && sitter.dailyRate > 0) ||
-      (sitter.weeklyRate && sitter.weeklyRate > 0) ||
-      (sitter.monthlyRate && sitter.monthlyRate > 0);
-    if (!hasAnyRate) {
-      return res.status(400).json({
-        error:
-          'Sitter must set at least one rate (hourly, daily, weekly or monthly) before creating a payable booking request.',
-      });
+    // Session v16-owner-walker — fetch the right collection based on
+    // providerType. For walkers we build a minimal "sitter-shim" object
+    // (plain JS, not a Mongoose doc) carrying only the fields the
+    // downstream pricing code needs: hourlyRate / dailyRate / weeklyRate /
+    // monthlyRate / rate / currency. This avoids branching the whole
+    // pricing pipeline on providerType.
+    let sitter = null;
+    if (providerType === 'walker') {
+      const Walker = require('../models/Walker');
+      const walker = await Walker.findById(providerId);
+      if (!walker) {
+        return res.status(404).json({ error: 'Walker not found.' });
+      }
+      const findWalkRate = (min) => {
+        const rate = (walker.walkRates || []).find(
+          (r) =>
+            r.durationMinutes === min && r.enabled && r.basePrice > 0,
+        );
+        return rate ? rate.basePrice : null;
+      };
+      let derivedHourly = findWalkRate(60);
+      if (!derivedHourly) {
+        const half = findWalkRate(30);
+        if (half) derivedHourly = half * 2;
+      }
+      if (!derivedHourly) {
+        const ninety = findWalkRate(90);
+        if (ninety) derivedHourly = ninety * (60 / 90);
+      }
+      if (!derivedHourly) {
+        const twoHours = findWalkRate(120);
+        if (twoHours) derivedHourly = twoHours / 2;
+      }
+      if (!derivedHourly || derivedHourly <= 0) {
+        return res.status(400).json({
+          error:
+            'Walker must set at least one walk rate before creating a payable booking request.',
+        });
+      }
+      sitter = {
+        _id: walker._id,
+        hourlyRate: derivedHourly,
+        dailyRate: 0,
+        weeklyRate: 0,
+        monthlyRate: 0,
+        rate: String(derivedHourly),
+        currency: walker.currency || DEFAULT_CURRENCY,
+        // The rest of the file reads these fields in a few places; keeping
+        // them helps the sanitize helpers treat walkers as sitter-like
+        // without a special case.
+        name: walker.name,
+        email: walker.email,
+        mobile: walker.mobile,
+      };
+    } else {
+      sitter = await Sitter.findById(sitterId);
+      if (!sitter) {
+        return res.status(404).json({ error: 'Sitter not found.' });
+      }
+      // Session v15-6 — the Sitter edit UI was simplified in v15 so sitters
+      // often configure only dailyRate/weeklyRate/monthlyRate (no hourly).
+      // Reject only when *no* rate at all is set; otherwise we'll derive the
+      // hourly fallback from the most specific rate available below.
+      const hasAnyRate =
+        (sitter.hourlyRate && sitter.hourlyRate > 0) ||
+        (sitter.dailyRate && sitter.dailyRate > 0) ||
+        (sitter.weeklyRate && sitter.weeklyRate > 0) ||
+        (sitter.monthlyRate && sitter.monthlyRate > 0);
+      if (!hasAnyRate) {
+        return res.status(400).json({
+          error:
+            'Sitter must set at least one rate (hourly, daily, weekly or monthly) before creating a payable booking request.',
+        });
+      }
     }
     // Derive an hourly equivalent for downstream tier/price calculations.
     // Precedence: explicit hourly > dailyRate / 8h > weekly / 56h (7×8) >
@@ -369,7 +447,10 @@ const createBooking = async (req, res) => {
 
     const booking = await Booking.create({
       ownerId,
-      sitterId,
+      // Session v16-owner-walker — write only the relevant provider field.
+      // The Booking schema's pre('validate') enforces exactly one is set.
+      sitterId: providerType === 'sitter' ? sitterId : null,
+      walkerId: providerType === 'walker' ? providerId : null,
       petIds: uniquePetIds,
       description: trimmedDescription,
       date: normalizedDate,

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/sitter_model.dart';
+import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
@@ -24,9 +26,13 @@ class SendRequestController extends GetxController {
     required this.serviceProviderId,
     this.serviceProviderRole = 'sitter',
     OwnerRepository? ownerRepository,
-  }) : _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>();
+    WalkerRepository? walkerRepository,
+  })  : _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>(),
+        _walkerRepository =
+            walkerRepository ?? Get.find<WalkerRepository>();
 
   final OwnerRepository _ownerRepository;
+  final WalkerRepository _walkerRepository;
 
   final formKey = GlobalKey<FormState>();
   final petNameController = TextEditingController();
@@ -61,6 +67,10 @@ class SendRequestController extends GetxController {
   final RxBool _petNameHasText = false.obs;
   final RxBool _descriptionHasText = false.obs;
   final Rxn<SitterModel> _sitter = Rxn<SitterModel>();
+  /// Session v16-owner-walker — loaded when serviceProviderRole == 'walker'
+  /// so `_referenceRateForBookingPayload` can derive basePrice from walkRates
+  /// instead of calling Sitter.findById on an id that doesn't exist.
+  final Rxn<WalkerModel> _walker = Rxn<WalkerModel>();
 
   final List<String> timeSlots = const [
     '11:30 AM',
@@ -124,14 +134,22 @@ class SendRequestController extends GetxController {
 
   Future<void> _loadSitterDetails() async {
     try {
-      final sitterData = await _ownerRepository.getSitterDetail(
-        serviceProviderId,
-      );
-      _sitter.value = sitterData;
+      if (serviceProviderRole == 'walker') {
+        // Session v16-owner-walker — walkers live in a different collection
+        // with a different pricing shape (walkRates array), so fetch via
+        // the walker repository and keep the sitter slot empty.
+        final walkerData =
+            await _walkerRepository.getWalkerProfile(serviceProviderId);
+        _walker.value = walkerData;
+      } else {
+        final sitterData =
+            await _ownerRepository.getSitterDetail(serviceProviderId);
+        _sitter.value = sitterData;
+      }
     } catch (e) {
       // Silently fail - basePrice will use a default value
       AppLogger.logError(
-        'Failed to load sitter details for basePrice',
+        'Failed to load provider details for basePrice',
         error: e,
       );
     }
@@ -509,9 +527,11 @@ class SendRequestController extends GetxController {
           : (endDate.value != null ? _formatDateToISO(endDate.value!) : null);
 
       // Legacy request field: backend may ignore this when computing tiered pricing.
-      // Prefer hourly, then weekly, then monthly so sitters with only long-term rates still work.
-      double basePrice = _referenceRateForBookingPayload(_sitter.value);
-      if (basePrice <= 0) {
+      // Session v16-owner-walker — walker vs sitter pricing is resolved on
+      // the new _resolveBasePrice() helper; the retry below only applies to
+      // sitters (walker walkRates don't change between two calls in a row).
+      double basePrice = _resolveBasePrice();
+      if (basePrice <= 0 && serviceProviderRole != 'walker') {
         try {
           final sitterData = await _ownerRepository.getSitterDetail(
             serviceProviderId,
@@ -524,6 +544,20 @@ class SendRequestController extends GetxController {
         } catch (e) {
           AppLogger.logError(
             'Failed to refresh sitter details before sending request',
+            error: e,
+          );
+        }
+      } else if (basePrice <= 0 && serviceProviderRole == 'walker') {
+        // Refresh the walker once in case the first onInit call failed
+        // (e.g. airplane mode during the navigation transition).
+        try {
+          final walkerData =
+              await _walkerRepository.getWalkerProfile(serviceProviderId);
+          _walker.value = walkerData;
+          basePrice = _resolveBasePrice();
+        } catch (e) {
+          AppLogger.logError(
+            'Failed to refresh walker details before sending request',
             error: e,
           );
         }
@@ -579,6 +613,10 @@ class SendRequestController extends GetxController {
 
       await _ownerRepository.createBooking(
         sitterId: serviceProviderId,
+        // Session v16-owner-walker — tells the repository which query param
+        // name the backend expects (?walkerId vs ?sitterId) and which
+        // collection to look up server-side.
+        providerRole: serviceProviderRole,
         petIds: petIds,
         description: descriptionController.text.trim(),
         serviceDate: serviceDate,
@@ -688,6 +726,42 @@ class SendRequestController extends GetxController {
       return s.monthlyRate;
     }
     return 0;
+  }
+
+  /// Session v16-owner-walker — unified basePrice resolver covering both
+  /// provider types. Sitter → hourly/daily/weekly/monthly cascade. Walker
+  /// → convert walkRates into an hourly equivalent so the backend's legacy
+  /// "basePrice" field keeps a numeric value the tierPricing math expects.
+  double _resolveBasePrice() {
+    if (serviceProviderRole == 'walker') {
+      final walker = _walker.value;
+      if (walker == null) return 0;
+      // Try the natural 60-min rate first, then derive from 30/90/120 by
+      // normalising to per-hour. We never return a 30-min-as-is value —
+      // tierPricing would multiply it by the booking duration assuming it
+      // was already a full hour.
+      double? findRate(int minutes) {
+        for (final r in walker.walkRates) {
+          if (r.durationMinutes == minutes &&
+              r.enabled &&
+              r.basePrice > 0) {
+            return r.basePrice;
+          }
+        }
+        return null;
+      }
+
+      final hour = findRate(60);
+      if (hour != null) return hour;
+      final half = findRate(30);
+      if (half != null) return half * 2;
+      final ninety = findRate(90);
+      if (ninety != null) return ninety * (60 / 90);
+      final twoHours = findRate(120);
+      if (twoHours != null) return twoHours / 2;
+      return 0;
+    }
+    return _referenceRateForBookingPayload(_sitter.value);
   }
 
   /// Clears all form fields
