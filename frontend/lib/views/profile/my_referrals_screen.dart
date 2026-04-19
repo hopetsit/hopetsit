@@ -30,6 +30,7 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
   Future<void> _load() async {
     try {
       final r = await _api.get('/users/me/referrals', requiresAuth: true);
+      debugPrint('[REFERRALS DEBUG] response: $r');
       if (r is Map) {
         setState(() {
           _code = (r['code'] ?? '').toString();
@@ -37,8 +38,17 @@ class _MyReferralsScreenState extends State<MyReferralsScreen> {
           _totalCredits = ((r['totalCredits'] ?? 0) as num).toDouble();
         });
       }
-    } catch (_) {
-      // silent
+    } catch (e) {
+      debugPrint('[REFERRALS DEBUG] ERROR: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Parrainage indisponible : $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -1440,6 +1440,31 @@ const PRICING_CATS = [
   { key: 'chat',     label: '💬 Chat add-on', tiers: ['monthly'] },
 ];
 
+// Session v15-5 — human-readable label per (category, tier) pair.
+// Boost keeps the medal metaphor (bronze/silver/gold/platinum), while Map
+// Boost uses the "pin + visibility" progression already shipped in the app
+// (Découverte / Visible / Pin Doré / Map Premium), so the admin matches what
+// the user actually sees on mobile. Falls back to a capitalized tier name
+// when the pair is unknown, so nothing is ever blank in the grid.
+function tierLabel(catKey, tier) {
+  const PAIRS = {
+    'boost.bronze':      '🥉 Bronze',
+    'boost.silver':      '🥈 Silver',
+    'boost.gold':        '🥇 Gold',
+    'boost.platinum':    '💎 Platinum',
+    'mapBoost.bronze':   '📍 Découverte',
+    'mapBoost.silver':   '🔆 Visible',
+    'mapBoost.gold':     '✨ Pin Doré',
+    'mapBoost.platinum': '🗺️ Map Premium',
+    'premium.monthly':   '📆 Mensuel',
+    'premium.yearly':    '📅 Annuel',
+    'chat.monthly':      '💬 Mensuel',
+  };
+  const key = `${catKey}.${tier}`;
+  if (PAIRS[key]) return PAIRS[key];
+  return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
+
 async function loadPricing() {
   const editor = document.getElementById('pricing-editor');
   editor.innerHTML = '<div class="loading"><div class="spinner"></div> Loading pricing…</div>';
@@ -1474,7 +1499,7 @@ function renderPricing() {
       }).join('');
       return `
         <tr>
-          <td style="padding:8px;color:var(--text-muted);font-size:13px;text-transform:capitalize">${tier}</td>
+          <td style="padding:8px;color:var(--text);font-size:13px;font-weight:600">${tierLabel(cat.key, tier)}</td>
           ${cells}
         </tr>`;
     }).join('');

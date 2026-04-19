@@ -31,16 +31,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   bool _authenticated = false;
   String _adminSecret = '';
 
+  // ── Pricing (session v15) ────────────────────────────────────────────────
+  // Loaded from GET /admin/pricing, edited via PATCH /admin/pricing.
+  // Schema: { boost: {EUR: {bronze,silver,gold,platinum}, …}, mapBoost: {…},
+  //           premium: {EUR: {monthly,yearly}, …} }
+  Map<String, dynamic> _pricing = {};
+  bool _pricingLoading = false;
+  bool _pricingSaving = false;
+  String _pricingCurrency = 'EUR';
+  // One TextEditingController per pricing cell so edits persist across rebuild.
+  final Map<String, TextEditingController> _priceCtrls = {};
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _adminSecretController.dispose();
+    for (final c in _priceCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -76,10 +90,123 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         _sitters = (sitters as Map)['sitters'] ?? [];
         _owners = (owners as Map)['owners'] ?? [];
       });
+      // Also preload pricing so the Tarifs tab is ready on first open.
+      await _loadPricing();
     } catch (e) {
       // ignore
     } finally {
       setState(() => _listLoading = false);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  PRICING (session v15) — GET / PATCH / RESET /admin/pricing
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _loadPricing() async {
+    setState(() => _pricingLoading = true);
+    try {
+      final response = await ApiClient().get(
+        '${ApiConfig.baseUrl}/admin/pricing',
+        headers: {'x-admin-secret': _adminSecret},
+      );
+      setState(() {
+        _pricing = Map<String, dynamic>.from(
+            (response as Map)['pricing'] as Map? ?? {});
+        _syncPriceControllers();
+      });
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to load pricing',
+          backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      setState(() => _pricingLoading = false);
+    }
+  }
+
+  /// Builds / updates one TextEditingController per pricing cell so that
+  /// the text fields stay in sync with whatever came back from the backend.
+  /// Keys look like "boost.EUR.bronze" / "premium.EUR.monthly".
+  void _syncPriceControllers() {
+    final cur = _pricingCurrency;
+    final groups = ['boost', 'mapBoost', 'premium'];
+    for (final g in groups) {
+      final byCur = (_pricing[g] as Map?) ?? {};
+      final tiers = (byCur[cur] as Map?) ?? {};
+      tiers.forEach((tier, value) {
+        final key = '$g.$cur.$tier';
+        final str = (value is num) ? value.toStringAsFixed(2) : value.toString();
+        _priceCtrls.putIfAbsent(key, () => TextEditingController());
+        if (_priceCtrls[key]!.text != str) {
+          _priceCtrls[key]!.text = str;
+        }
+      });
+    }
+  }
+
+  Future<void> _savePricing() async {
+    setState(() => _pricingSaving = true);
+    try {
+      // Re-build the patch from current controller values.
+      final cur = _pricingCurrency;
+      final patch = <String, Map<String, Map<String, num>>>{};
+      for (final g in ['boost', 'mapBoost', 'premium']) {
+        final byCur = (_pricing[g] as Map?) ?? {};
+        final tiers = (byCur[cur] as Map?) ?? {};
+        final group = <String, num>{};
+        tiers.forEach((tier, _) {
+          final ctl = _priceCtrls['$g.$cur.$tier'];
+          if (ctl == null) return;
+          final parsed = double.tryParse(ctl.text.trim().replaceAll(',', '.'));
+          if (parsed != null && parsed >= 0) group[tier] = parsed;
+        });
+        if (group.isNotEmpty) patch[g] = {cur: group};
+      }
+
+      await ApiClient().patch(
+        '${ApiConfig.baseUrl}/admin/pricing',
+        body: patch,
+        headers: {'x-admin-secret': _adminSecret},
+      );
+      Get.snackbar('Success', 'Tarifs enregistrés',
+          backgroundColor: Colors.green, colorText: Colors.white);
+      await _loadPricing();
+    } catch (e) {
+      Get.snackbar('Error', 'Échec de la sauvegarde',
+          backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      setState(() => _pricingSaving = false);
+    }
+  }
+
+  Future<void> _resetPricing() async {
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Réinitialiser les tarifs ?'),
+        content: const Text(
+            'Cela restaure tous les prix Boost / Map Boost / Premium à leurs '
+            'valeurs par défaut. Cette action est irréversible.'),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Réinitialiser', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await ApiClient().post(
+        '${ApiConfig.baseUrl}/admin/pricing/reset',
+        body: {},
+        headers: {'x-admin-secret': _adminSecret},
+      );
+      Get.snackbar('Success', 'Tarifs réinitialisés',
+          backgroundColor: Colors.green, colorText: Colors.white);
+      await _loadPricing();
+    } catch (e) {
+      Get.snackbar('Error', 'Échec du reset',
+          backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
@@ -420,6 +547,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Tab(icon: Icon(Icons.book), text: 'Bookings'),
             Tab(icon: Icon(Icons.pets), text: 'Sitters'),
             Tab(icon: Icon(Icons.person), text: 'Owners'),
+            Tab(icon: Icon(Icons.euro), text: 'Tarifs'),
           ],
         ),
       ),
@@ -430,6 +558,198 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _buildBookingsTab(),
           _buildSittersTab(),
           _buildOwnersTab(),
+          _buildPricingTab(),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  TAB 5 — PRICING EDITOR
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildPricingTab() {
+    if (_pricingLoading && _pricing.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_pricing.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.euro, size: 48, color: Colors.grey),
+            SizedBox(height: 8.h),
+            const Text('Aucun tarif chargé.'),
+            SizedBox(height: 8.h),
+            ElevatedButton.icon(
+              onPressed: _loadPricing,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Charger les tarifs'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadPricing,
+      child: ListView(
+        padding: EdgeInsets.all(16.w),
+        children: [
+          _buildPricingCurrencyPicker(),
+          SizedBox(height: 16.h),
+          _buildPricingGroup(
+            title: 'Boost — mise en avant dans l\'app',
+            subtitle: 'Tarifs unitaires par tier (bronze / silver / gold / platinum)',
+            group: 'boost',
+          ),
+          SizedBox(height: 16.h),
+          _buildPricingGroup(
+            title: 'Map Boost — surligné sur la PawMap',
+            subtitle: 'Tarifs par tier (bronze / silver / gold / platinum)',
+            group: 'mapBoost',
+          ),
+          SizedBox(height: 16.h),
+          _buildPricingGroup(
+            title: 'Premium — abonnement',
+            subtitle: 'Tarif mensuel et annuel (monthly / yearly)',
+            group: 'premium',
+          ),
+          SizedBox(height: 24.h),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pricingSaving ? null : _savePricing,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 14.h),
+                  ),
+                  icon: _pricingSaving
+                      ? SizedBox(
+                          width: 18.w,
+                          height: 18.w,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.save),
+                  label: Text(_pricingSaving ? 'Sauvegarde...' : 'Enregistrer les tarifs'),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              OutlinedButton.icon(
+                onPressed: _pricingSaving ? null : _resetPricing,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                ),
+                icon: const Icon(Icons.restore),
+                label: const Text('Reset'),
+              ),
+            ],
+          ),
+          SizedBox(height: 40.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPricingCurrencyPicker() {
+    return Row(
+      children: [
+        const Text('Devise : '),
+        SizedBox(width: 8.w),
+        DropdownButton<String>(
+          value: _pricingCurrency,
+          items: const ['EUR', 'GBP', 'CHF', 'USD']
+              .map((c) => DropdownMenuItem<String>(value: c, child: Text(c)))
+              .toList(),
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _pricingCurrency = v;
+              _syncPriceControllers();
+            });
+          },
+        ),
+        const Spacer(),
+        Text(
+          'Les modifications s\'appliquent à la devise sélectionnée.',
+          style: TextStyle(fontSize: 11.sp, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPricingGroup({
+    required String title,
+    required String subtitle,
+    required String group,
+  }) {
+    final cur = _pricingCurrency;
+    final byCur = (_pricing[group] as Map?) ?? {};
+    final tiers = (byCur[cur] as Map?) ?? {};
+    if (tiers.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: EdgeInsets.all(12.w),
+          child: Text('Aucun tarif $group pour $cur.'),
+        ),
+      );
+    }
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(12.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 11.sp, color: Colors.grey),
+            ),
+            SizedBox(height: 12.h),
+            ...tiers.keys.map((tier) => _buildPricingRow(group, cur, tier)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPricingRow(String group, String currency, dynamic tier) {
+    final key = '$group.$currency.$tier';
+    final ctl = _priceCtrls.putIfAbsent(key, () => TextEditingController());
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 6.h),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100.w,
+            child: Text(
+              tier.toString(),
+              style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            child: TextField(
+              controller: ctl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                isDense: true,
+                prefixText: '$currency ',
+                border: const OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/views/boost/widgets/map_boost_pin_icon.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -20,7 +21,12 @@ import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 ///
 /// Available for the 3 roles: Owner, Sitter, Walker.
 class CoinShopScreen extends StatefulWidget {
-  const CoinShopScreen({super.key});
+  const CoinShopScreen({super.key, this.initialTab = 0});
+
+  /// Index of the tab to show first. 0 = Boost (default), 1 = Premium,
+  /// 2 = Map Boost. Used by the PawMap "Passer Premium" banner to land
+  /// directly on the Premium offers rather than the Boost page.
+  final int initialTab;
 
   @override
   State<CoinShopScreen> createState() => _CoinShopScreenState();
@@ -41,6 +47,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
 
     return DefaultTabController(
       length: 3,
+      initialIndex: widget.initialTab.clamp(0, 2),
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -1107,14 +1114,41 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
   }
 
   Widget _buildFeaturesList(BuildContext context) {
-    final features = [
-      {'icon': Icons.map_outlined, 'text': 'PawMap complète — vétos, parcs, animaleries, points d\'eau'},
-      {'icon': Icons.warning_amber_rounded, 'text': '17 types de signalements 48h (dont 7 Premium exclusifs)'},
-      {'icon': Icons.chat_bubble_outline, 'text': 'Chat illimité avec les utilisateurs croisés sur la map'},
-      {'icon': Icons.people_outline, 'text': 'Suivi d\'amis en temps réel (façon Waze)'},
-      {'icon': Icons.notifications_active_outlined, 'text': 'Notifications de proximité instantanées'},
-      {'icon': Icons.trending_up, 'text': '1 boost map offert chaque mois'},
-      {'icon': Icons.verified_rounded, 'text': 'Badge Premium sur votre profil'},
+    // Session v15 — "PawMap complète" ligne retirée (les POIs vétos/parcs/
+    // animaleries/points d'eau sont gratuits et publics). Les signalements
+    // passent en tête pour valoriser la feature phare.
+    // Session v15-4 — the "1 boost map offert" row becomes a shortcut
+    // to the Map Boost tab (where the user can claim the credit). The
+    // other features stay static since they're already unlocked by
+    // Premium itself.
+    final features = <Map<String, dynamic>>[
+      {
+        'icon': Icons.warning_amber_rounded,
+        'text':
+            '18 types d\'alertes temps réel — dont 7 signalements Premium exclusifs (chien agressif, danger véhicule, incendie, inondation, faune sauvage…)',
+      },
+      {
+        'icon': Icons.notifications_active_outlined,
+        'text':
+            'Notifications instantanées — soyez le premier alerté quand un signalement apparaît près de vous',
+      },
+      {
+        'icon': Icons.chat_bubble_outline,
+        'text': 'Chat illimité avec les utilisateurs croisés sur la map',
+      },
+      {
+        'icon': Icons.people_outline,
+        'text': 'Suivi d\'amis en temps réel (façon Waze)',
+      },
+      {
+        'icon': Icons.push_pin_rounded,
+        'text': '1 boost map offert chaque mois — touchez pour réclamer',
+        'goToMapBoost': true,
+      },
+      {
+        'icon': Icons.verified_rounded,
+        'text': 'Badge Premium sur votre profil',
+      },
     ];
 
     return Container(
@@ -1134,35 +1168,59 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
             color: AppColors.textPrimary(context),
           ),
           SizedBox(height: 12.h),
-          ...features.map((f) => Padding(
-                padding: EdgeInsets.only(bottom: 10.h),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 32.w,
-                      height: 32.w,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF9500).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Icon(
-                        f['icon'] as IconData,
-                        size: 16.sp,
-                        color: const Color(0xFFFF9500),
-                      ),
+          ...features.map((f) {
+            final isShortcut = f['goToMapBoost'] == true;
+            // Shortcut rows use the Map Boost blue accent + chevron to signal
+            // tap affordance. Other rows stay flat with Premium orange.
+            final accent = isShortcut
+                ? AppColors.mapBoostBlue
+                : const Color(0xFFFF9500);
+            final row = Padding(
+              padding: EdgeInsets.only(bottom: 10.h),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 32.w,
+                    height: 32.w,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8.r),
                     ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: InterText(
-                        text: f['text'] as String,
-                        fontSize: 13.sp,
-                        color: AppColors.blackColor,
-                      ),
+                    child: Icon(
+                      f['icon'] as IconData,
+                      size: 16.sp,
+                      color: accent,
                     ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: InterText(
+                      text: f['text'] as String,
+                      fontSize: 13.sp,
+                      color: AppColors.blackColor,
+                    ),
+                  ),
+                  if (isShortcut) ...[
+                    SizedBox(width: 6.w),
+                    Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14.sp, color: accent),
                   ],
-                ),
-              )),
+                ],
+              ),
+            );
+            if (!isShortcut) return row;
+            return InkWell(
+              onTap: () {
+                final ctl = DefaultTabController.maybeOf(context);
+                if (ctl != null) {
+                  ctl.animateTo(2);
+                }
+              },
+              borderRadius: BorderRadius.circular(8.r),
+              child: row,
+            );
+          }),
         ],
       ),
     );
@@ -1454,26 +1512,24 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     MapBoostController controller,
     MapBoostPackage pkg,
   ) {
-    final tierColor = {
-      'bronze': const Color(0xFFCD7F32),
-      'silver': const Color(0xFFC0C0C0),
-      'gold': const Color(0xFFFFD700),
-      'platinum': const Color(0xFFE5E4E2),
-    }[pkg.tier] ?? AppColors.primaryColor;
-    final icon = {
-      'bronze': '🥉',
-      'silver': '🥈',
-      'gold': '🥇',
-      'platinum': '💎',
-    }[pkg.tier] ?? '🗺️';
+    // Session v15-4 — identité visuelle distincte du Boost :
+    //   • pin cartographique animé (MapBoostPinIcon) au lieu des médailles
+    //   • accent bleu-map (+ or sur gold/platinum) au lieu du rouge primaryColor
+    //   • titres "Découverte / Visible / Pin Doré / Map Premium"
+    //   • badge "Top map" sur gold
+    //   • sous-titre descriptif sous le titre pour clarifier la valeur
+    final tierAccent = _mapBoostTierAccent(pkg.tier);
     final isPopular = pkg.tier == 'gold';
+    final isPurchasing = controller.isPurchasing.value;
+    final sym = CurrencyHelper.symbol(pkg.currency);
+    final pricePerDay = pkg.days > 0 ? (pkg.amount / pkg.days) : pkg.amount;
 
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
       child: Stack(
         children: [
           GestureDetector(
-            onTap: controller.isPurchasing.value
+            onTap: isPurchasing
                 ? null
                 : () => _handlePurchase(context, controller, pkg.tier),
             child: Container(
@@ -1481,27 +1537,38 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16.r),
-                border: isPopular ? Border.all(color: AppColors.primaryColor, width: 2) : null,
-                boxShadow: [
-                  BoxShadow(
-                    color: isPopular
-                        ? AppColors.primaryColor.withValues(alpha: 0.15)
-                        : Colors.black.withValues(alpha: 0.04),
-                    blurRadius: isPopular ? 12 : 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: isPopular
+                    ? Border.all(color: AppColors.mapBoostGold, width: 2)
+                    : null,
+                boxShadow: isPopular
+                    ? [
+                        BoxShadow(
+                          color: AppColors.mapBoostGold
+                              .withValues(alpha: 0.18),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 50.w,
-                    height: 50.w,
+                    width: 54.w,
+                    height: 54.w,
                     decoration: BoxDecoration(
-                      color: tierColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12.r),
+                      color: tierAccent.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(14.r),
                     ),
-                    child: Center(child: Text(icon, style: TextStyle(fontSize: 26.sp))),
+                    child: Center(
+                      child: MapBoostPinIcon(tier: pkg.tier, size: 48),
+                    ),
                   ),
                   SizedBox(width: 14.w),
                   Expanded(
@@ -1516,35 +1583,147 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                         ),
                         SizedBox(height: 2.h),
                         InterText(
-                          text: '${pkg.days} jour${pkg.days > 1 ? "s" : ""} de mise en avant',
-                          fontSize: 12.sp,
-                          color: AppColors.textSecondary(context),
+                          text: _mapBoostTierDescription(pkg.tier),
+                          fontSize: 11.sp,
+                          color: AppColors.greyText,
+                          maxLines: 2,
                         ),
                         SizedBox(height: 4.h),
-                        InterText(
-                          text: '${pkg.amount.toStringAsFixed(2)} ${pkg.currency}',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primaryColor,
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8.w, vertical: 2.h),
+                          decoration: BoxDecoration(
+                            color: tierAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: InterText(
+                            text:
+                                '${pkg.days} jour${pkg.days > 1 ? "s" : ""}',
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600,
+                            color: tierAccent,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      PoppinsText(
+                        text: '$sym${pkg.amount.toStringAsFixed(2)}',
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.w700,
+                        color: tierAccent,
+                      ),
+                      InterText(
+                        text:
+                            '$sym${pricePerDay.toStringAsFixed(2)}/${'boost_per_day'.tr}',
+                        fontSize: 10.sp,
+                        color: AppColors.greyText,
+                      ),
+                    ],
+                  ),
+                  SizedBox(width: 8.w),
+                  isPurchasing
+                      ? SizedBox(
+                          width: 20.w,
+                          height: 20.w,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: tierAccent),
+                        )
+                      : Icon(Icons.arrow_forward_ios,
+                          size: 16.sp, color: AppColors.greyText),
                 ],
               ),
             ),
           ),
+          if (isPopular)
+            Positioned(
+              top: 0,
+              right: 16.w,
+              child: Container(
+                padding:
+                    EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: AppColors.mapBoostGold,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(8.r),
+                    bottomRight: Radius.circular(8.r),
+                  ),
+                ),
+                child: InterText(
+                  text: 'Top map',
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
+  /// Colour accent used on the Map Boost package card per tier. Blue for
+  /// the entry tiers, gold for the premium tiers so there's a gentle
+  /// progression that doesn't look like the Boost tab's medals.
+  Color _mapBoostTierAccent(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'bronze':
+        return const Color(0xFF60A5FA);
+      case 'silver':
+        return AppColors.mapBoostBlue;
+      case 'gold':
+        return AppColors.mapBoostGold;
+      case 'platinum':
+      case 'diamond':
+        return AppColors.mapBoostGoldDeep;
+      default:
+        return AppColors.mapBoostBlue;
+    }
+  }
+
+  /// Short value-prop shown under the tier title. Helps the user pick
+  /// without having to scroll through the "Comment fonctionne" section.
+  String _mapBoostTierDescription(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'bronze':
+        return 'Testez la visibilité carte';
+      case 'silver':
+        return 'Pin surligné, portée moyenne';
+      case 'gold':
+        return 'Pin doré, top des résultats carte';
+      case 'platinum':
+      case 'diamond':
+        return 'Pin doré + halo animé permanent';
+      default:
+        return '';
+    }
+  }
+
   Widget _buildHowItWorks(BuildContext context) {
+    // Session v15 — icônes plus parlantes + textes raccourcis / clarifiés.
+    // L'ancien set utilisait 4 icônes très proches visuellement (rond plein,
+    // tiret montant, étoile…), ce qui brouillait la lecture. Passage à un
+    // pin + œil + courbe + flèche de recyclage pour mieux différencier.
     final steps = [
-      {'icon': Icons.location_on_rounded, 'text': 'Votre pin apparaît surligné sur la PawMap des voisins'},
-      {'icon': Icons.visibility_rounded, 'text': 'Les propriétaires vous repèrent en priorité sur la carte'},
-      {'icon': Icons.trending_up_rounded, 'text': 'Plus de demandes dans votre zone pendant toute la durée'},
-      {'icon': Icons.auto_awesome_rounded, 'text': 'Renouvellement à votre rythme — sans engagement'},
+      {
+        'icon': Icons.push_pin_rounded,
+        'text': 'Votre pin ressort en doré sur la PawMap des voisins',
+      },
+      {
+        'icon': Icons.remove_red_eye_rounded,
+        'text': 'Les propriétaires vous voient en haut de la liste',
+      },
+      {
+        'icon': Icons.query_stats_rounded,
+        'text': 'Plus de demandes pendant toute la durée du boost',
+      },
+      {
+        'icon': Icons.autorenew_rounded,
+        'text': 'Sans engagement — renouvelable à la demande',
+      },
     ];
     return Container(
       padding: EdgeInsets.all(16.w),
@@ -1572,13 +1751,14 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                       width: 28.w,
                       height: 28.w,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.12),
+                        color:
+                            AppColors.mapBoostBlue.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Icon(
                         s['icon'] as IconData,
                         size: 16.sp,
-                        color: AppColors.primaryColor,
+                        color: AppColors.mapBoostBlue,
                       ),
                     ),
                     SizedBox(width: 10.w),
@@ -1597,19 +1777,21 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     );
   }
 
-  /// Human-readable label for a Map Boost tier — mirrors the Boost tab
-  /// palette (Bronze / Argent / Or / Diamant).
+  /// Session v15-4 — tier labels renamed to drop the medal metaphor
+  /// (bronze/silver/gold/diamond) and sound like a map visibility progression.
+  /// The tier *keys* stay bronze/silver/gold/platinum for backend compat;
+  /// only the display label changes here.
   String _mapBoostTierLabel(String tier) {
     switch (tier.toLowerCase()) {
       case 'bronze':
-        return 'Bronze — Essai';
+        return 'Découverte';
       case 'silver':
-        return 'Argent — Recommandé';
+        return 'Visible';
       case 'gold':
-        return 'Or — Meilleure visibilité';
+        return 'Pin Doré';
       case 'platinum':
       case 'diamond':
-        return 'Diamant — Premium';
+        return 'Map Premium';
       default:
         return tier;
     }

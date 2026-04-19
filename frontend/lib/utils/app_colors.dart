@@ -22,6 +22,13 @@ class AppColors {
   // sitter_profile_screen). Walker accent = the existing greenColor above.
   static const sitterAccent = Color(0xFF1A73E8);
 
+  // Session v15-4 — Map Boost theme palette. Distinct from Boost (red) and
+  // Premium (orange) so the user immediately sees Map Boost = "carte".
+  // Blue for the entry tiers + gold for the premium tiers.
+  static const Color mapBoostBlue = Color(0xFF3B82F6);
+  static const Color mapBoostGold = Color(0xFFF59E0B);
+  static const Color mapBoostGoldDeep = Color(0xFFD97706);
+
   // Detail box color
   static const detailBoxColor = Color(0x1AFFBC11); // #FFBC11 with 0.1 opacity
   static const purpleLineNavigation = Color(0xFFBF32C1);

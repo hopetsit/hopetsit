@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/home_controller.dart';
+import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
@@ -403,6 +405,11 @@ class PublishReservationRequestController extends GetxController {
         );
       }
 
+      // Session v15 — refresh the feeds BEFORE popping the screen so the user
+      // lands back on "Mes publications" with the freshly-published request
+      // already visible. Used to require a full logout/login to show up.
+      await _refreshFeedsAfterPublish();
+
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
         message: 'publish_request_success'.tr,
@@ -423,6 +430,34 @@ class PublishReservationRequestController extends GetxController {
       );
     } finally {
       isSubmitting.value = false;
+    }
+  }
+
+  /// Re-fetches the feeds that depend on the list of reservation posts so a
+  /// freshly-published request appears without requiring a logout/login.
+  ///   • PostsController — drives "Mes publications" on the owner home.
+  ///   • HomeController  — sitters/walkers listing (some UIs surface the
+  ///     user's own post count in a header).
+  Future<void> _refreshFeedsAfterPublish() async {
+    try {
+      if (Get.isRegistered<PostsController>()) {
+        final pc = Get.find<PostsController>();
+        // Use whichever "refresh" API the controller exposes.
+        try {
+          await pc.refreshPosts();
+        } catch (_) {
+          await pc.loadPostsWithoutMedia();
+          await pc.loadMediaPosts();
+        }
+      }
+      if (Get.isRegistered<HomeController>()) {
+        final hc = Get.find<HomeController>();
+        try {
+          await hc.loadSitters();
+        } catch (_) {/* ignore — best effort */}
+      }
+    } catch (e) {
+      AppLogger.logError('refresh feeds after publish failed', error: e);
     }
   }
 }

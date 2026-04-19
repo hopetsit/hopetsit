@@ -96,6 +96,21 @@ class SitterProfileController extends GetxController {
         userName.value = userProfile?['name']?.toString() ?? '';
         email.value = userProfile?['email']?.toString() ?? '';
         phoneNumber.value = userProfile?['mobile']?.toString() ?? '';
+
+        // Session v15-2 — also seed the avatar so the home / chat /
+        // reservations tabs stop rendering a grey placeholder for walkers.
+        // Avatar may be stored either as a Map {'url': ..., 'publicId': ...}
+        // (preferred shape) or a plain String URL from older payloads.
+        final avatar = userProfile?['avatar'];
+        if (avatar is Map) {
+          profileImageUrl.value = avatar['url']?.toString() ?? '';
+        } else if (avatar is String) {
+          profileImageUrl.value = avatar;
+        } else if (userProfile?['profileImage'] != null) {
+          profileImageUrl.value = userProfile!['profileImage'].toString();
+        } else {
+          profileImageUrl.value = '';
+        }
         return;
       }
 

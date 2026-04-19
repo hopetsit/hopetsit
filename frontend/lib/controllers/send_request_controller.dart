@@ -13,9 +13,16 @@ class SendRequestController extends GetxController {
   final String serviceProviderName;
   final String serviceProviderId;
 
+  /// Session v15-3 — role of the provider we're sending the request to.
+  /// 'walker' → only `dog_walking` service is offered (auto-selected).
+  /// 'sitter' → Garderie (`day_care`) + Garde multi-jours (`pet_sitting`).
+  /// Defaults to 'sitter' to preserve legacy callers that don't pass a role.
+  final String serviceProviderRole;
+
   SendRequestController({
     required this.serviceProviderName,
     required this.serviceProviderId,
+    this.serviceProviderRole = 'sitter',
     OwnerRepository? ownerRepository,
   }) : _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>();
 
@@ -65,13 +72,33 @@ class SendRequestController extends GetxController {
     '3:00 PM',
   ];
 
-  /// Service types matching image: Long Term Care, Dog Walking, Overnight Stay, Home Visit
-  List<Map<String, String>> get serviceTypes => [
-    {'value': 'long_stay', 'label': 'send_request_service_long_term_care'.tr},
-    {'value': 'dog_walking', 'label': 'send_request_service_dog_walking'.tr},
-    {'value': 'overnight_stay', 'label': 'send_request_service_overnight_stay'.tr},
-    {'value': 'home_visit', 'label': 'send_request_service_home_visit'.tr},
-  ];
+  /// Service catalog — session v15-3. We now return **role-specific** services
+  /// so the Owner can't pick "Séjour nocturne" when asking a walker, or
+  /// "Promenade" when asking a sitter. Labels reuse the canonical keys from
+  /// the Publish flow to stay in sync (one source of truth across the app).
+  ///   • walker → `dog_walking` only
+  ///   • sitter → `day_care` (Garderie) + `pet_sitting` (Garde multi-jours)
+  List<Map<String, String>> get serviceTypes {
+    if (serviceProviderRole == 'walker') {
+      return [
+        {
+          'value': 'dog_walking',
+          'label': 'publish_request_service_walking'.tr,
+        },
+      ];
+    }
+    // Default: sitter catalog
+    return [
+      {
+        'value': 'day_care',
+        'label': 'publish_request_service_daycare'.tr,
+      },
+      {
+        'value': 'pet_sitting',
+        'label': 'publish_request_service_pet_sitting'.tr,
+      },
+    ];
+  }
 
   @override
   void onInit() {
@@ -81,6 +108,14 @@ class SendRequestController extends GetxController {
     // Listen to text changes to make button reactive
     petNameController.addListener(_onPetNameChanged);
     descriptionController.addListener(_onDescriptionChanged);
+    // Session v15-3 — walker only offers 1 service, pre-select it so the
+    // Owner doesn't have to tap to confirm "Promenade" each time. Also
+    // flip isAllDay off: a walk is a punctual event with a specific start
+    // time (not an all-day booking like sitter), so we require the hour.
+    if (serviceProviderRole == 'walker') {
+      selectedServiceType.value = 'dog_walking';
+      isAllDay.value = false;
+    }
     // Fetch sitter details to get hourly rate for basePrice
     _loadSitterDetails();
     // Load owner's pets for dropdown
@@ -136,7 +171,41 @@ class SendRequestController extends GetxController {
 
   void selectDuration(String duration) {
     selectedDuration.value = duration;
+    // Session v15-3 — for walker, the End row is derived from
+    // Start + duration. When the user changes duration we recompute End
+    // so the booking payload stays consistent without any extra taps.
+    _syncWalkerEndIfNeeded();
   }
+
+  /// Session v15-3 — called whenever startDate, startTime or duration
+  /// change on a Walker request. Walker demand = 1 punctual slot, no
+  /// "Fin" UI, so we mirror startDate into endDate and compute endTime
+  /// from startTime + duration minutes (default 60 when not picked yet).
+  void _syncWalkerEndIfNeeded() {
+    if (serviceProviderRole != 'walker') {
+      return;
+    }
+    if (startDate.value != null) {
+      endDate.value = startDate.value;
+    }
+    final start = startTime.value;
+    if (start != null) {
+      final minutes = int.tryParse(selectedDuration.value ?? '') ?? 60;
+      final totalMinutes = start.hour * 60 + start.minute + minutes;
+      // Cap at 23:59 to avoid spilling into the next day; the walker UI
+      // doesn't support multi-day slots and the backend expects End on
+      // the same day as Start for dog_walking.
+      final capped = totalMinutes.clamp(0, 23 * 60 + 59);
+      endTime.value = TimeOfDay(
+        hour: capped ~/ 60,
+        minute: capped % 60,
+      );
+    }
+  }
+
+  /// Exposed to the View so pickDate / pickTime can re-sync End after
+  /// the Walker changes Start. Keeps the logic in one place.
+  void syncWalkerEnd() => _syncWalkerEndIfNeeded();
 
   void selectHouseSittingVenue(String venue) {
     houseSittingVenue.value = venue;
@@ -400,8 +469,10 @@ class SendRequestController extends GetxController {
     if (!canSendRequest(requireTimeSlot: !isAllDay)) {
       final missing = _missingFields(requireTimeSlot: !isAllDay);
       final message = missing.isEmpty
-          ? 'Please fill in all required fields'
-          : 'Please fill: ${missing.join(', ')}';
+          ? 'send_request_missing_fields_generic'.tr
+          : 'send_request_missing_fields_prefix'.trParams({
+              'fields': missing.join(', '),
+            });
 
       CustomSnackbar.showWarning(title: 'request_validation_error'.tr, message: message);
 
@@ -560,44 +631,55 @@ class SendRequestController extends GetxController {
         .toIso8601String();
   }
 
-  /// Returns list of missing required fields for validation
+  /// Returns list of missing required fields for validation.
+  /// Session v15-3 — strings are translated on return so the error snackbar
+  /// stays in the user's language (was hardcoded English before).
   List<String> _missingFields({bool requireTimeSlot = true}) {
     final missing = <String>[];
     if (!_petNameHasText.value && selectedPetIds.isEmpty) {
-      missing.add('Pets');
+      missing.add('send_request_missing_pets'.tr);
     }
     if (!_descriptionHasText.value) {
-      missing.add('Description');
+      missing.add('send_request_missing_description'.tr);
     }
     if (startDate.value == null && selectedDate.value == null) {
-      missing.add('Start date');
+      missing.add('send_request_missing_start_date'.tr);
     }
     if (requireTimeSlot &&
         startTime.value == null &&
         (selectedTimeSlot.value == null || selectedTimeSlot.value!.isEmpty)) {
-      missing.add('Time');
+      missing.add('send_request_missing_time'.tr);
     }
     if (selectedServiceType.value == null || selectedServiceType.value!.isEmpty) {
-      missing.add('Service type');
+      missing.add('send_request_missing_service'.tr);
     }
     if (selectedServiceType.value == 'dog_walking' &&
         (selectedDuration.value == null || selectedDuration.value!.isEmpty)) {
-      missing.add('Duration');
+      missing.add('send_request_missing_duration'.tr);
     }
     if (selectedServiceType.value == 'house_sitting' &&
         (houseSittingVenue.value == null || houseSittingVenue.value!.isEmpty)) {
-      missing.add('Venue');
+      missing.add('send_request_missing_venue'.tr);
     }
     return missing;
   }
 
   /// Value for legacy `basePrice` on create-booking; tiered totals come from the API response.
+  ///
+  /// Session v15-3 — Session v15 retired the hourly rate from the Sitter
+  /// edit UI, which means most sitters now only have `dailyRate` set. We
+  /// therefore fall back to dailyRate (and walker rates) before reporting
+  /// "no price" to the Owner, otherwise the send request is blocked even
+  /// though the sitter is clearly configured.
   double _referenceRateForBookingPayload(SitterModel? s) {
     if (s == null) {
       return 0;
     }
     if (s.hourlyRate > 0) {
       return s.hourlyRate;
+    }
+    if (s.dailyRate > 0) {
+      return s.dailyRate;
     }
     if (s.weeklyRate > 0) {
       return s.weeklyRate;

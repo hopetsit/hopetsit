@@ -104,6 +104,34 @@ class WalkerRepository {
     }
   }
 
+  /// GET /walkers — public paginated listing of active walkers. The backend
+  /// sorts by averageRating (desc) then createdAt (desc). Used by the owner
+  /// home screen "Promeneurs" tab.
+  Future<List<WalkerModel>> getAllWalkers({int page = 1, int limit = 20}) async {
+    AppLogger.logInfo('Fetching all walkers', data: {'page': page, 'limit': limit});
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.walkers,
+        queryParameters: {
+          'page': page.toString(),
+          'limit': limit.toString(),
+        },
+      );
+      final data = _asMap(response);
+      final list = data['walkers'];
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((e) => WalkerModel.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+      return <WalkerModel>[];
+    } catch (e) {
+      AppLogger.logError('Failed to fetch walkers', error: e);
+      rethrow;
+    }
+  }
+
   /// GET /walkers/nearby?lat=&lng=&radiusInMeters= — geospatial lookup.
   Future<List<WalkerModel>> getNearbyWalkers({
     required double lat,

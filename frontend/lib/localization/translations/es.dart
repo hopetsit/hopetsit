@@ -965,6 +965,16 @@ const Map<String, String> esESTranslations = <String, String>{
       'send_request_invalid_time_title': 'Hora no válida',
       'send_request_invalid_time_message':
           'La hora de finalización debe ser posterior a la hora de inicio.',
+      'send_request_missing_fields_generic':
+          'Por favor completa todos los campos obligatorios.',
+      'send_request_missing_fields_prefix': 'Por favor completa: @fields',
+      'send_request_missing_pets': 'Mascotas',
+      'send_request_missing_description': 'Descripción',
+      'send_request_missing_start_date': 'Fecha de inicio',
+      'send_request_missing_time': 'Hora',
+      'send_request_missing_service': 'Tipo de servicio',
+      'send_request_missing_duration': 'Duración',
+      'send_request_missing_venue': 'Lugar',
       // Publicar solicitud de reserva (dueño) - solo UI
       'publish_request_home_cta': 'Publicar solicitud de reserva',
       'publish_request_title': 'Publicar solicitud',
@@ -1039,6 +1049,22 @@ const Map<String, String> esESTranslations = <String, String>{
       'sitter_detail_booking_details_title': 'Detalles de la reserva',
       'sitter_detail_availability_pricing_title': 'Disponibilidad y precios',
       'sitter_detail_hourly_rate_label': 'Tarifa por hora',
+
+      // PawMap POI categories
+      'poi_vet': 'Veterinario',
+      'poi_shop': 'Tienda de mascotas',
+      'poi_groomer': 'Peluquero canino',
+      'poi_park': 'Parque para perros',
+      'poi_beach': 'Playa',
+      'poi_water': 'Punto de agua',
+      'poi_trainer': 'Adiestrador',
+      'poi_hotel': 'Hotel pet-friendly',
+      'poi_restaurant': 'Restaurante pet-friendly',
+      'poi_other': 'Otro',
+      'map_emergency_vet': 'Veterinario',
+      'map_emergency_shop': 'Tienda',
+      'map_emergency_park': 'Parque',
+
       'sitter_detail_daily_rate_label': 'Tarifa diaria',
       'sitter_detail_weekly_rate_label': 'Tarifa semanal',
       'sitter_detail_monthly_rate_label': 'Tarifa mensual',

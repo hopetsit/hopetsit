@@ -258,7 +258,13 @@ class SignUpScreen extends StatelessWidget {
                       SizedBox(height: 8.h),
                       GestureDetector(
                         onTap: () {
-                          final currentCode =
+                          // Track the selected language inside the dialog so
+                          // the green check mark follows the user's tap.
+                          // Without StatefulBuilder, the original version
+                          // captured `currentCode` once at open-time and the
+                          // check stayed stuck on English even after picking
+                          // another language.
+                          String selectedCode =
                               LocalizationService.getCurrentLanguageCode();
                           final entries = LocalizationService
                               .languageLabels
@@ -268,34 +274,50 @@ class SignUpScreen extends StatelessWidget {
                           Get.defaultDialog(
                             title: 'language_dialog_title'.tr,
                             backgroundColor: AppColors.scaffold(context),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: entries.map((entry) {
-                                final isSelected = entry.key == currentCode;
-                                return ListTile(
-                                  title: InterText(
-                                    text: entry.value,
-                                    fontSize: 15.sp,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  trailing: isSelected
-                                      ? const Icon(
-                                          Icons.check,
-                                          color: Colors.green,
-                                        )
-                                      : null,
-                                  onTap: () async {
-                                    await LocalizationService.updateLocale(
-                                      entry.key,
+                            content: StatefulBuilder(
+                              builder: (ctx, setDialogState) {
+                                return Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: entries.map((entry) {
+                                    final isSelected =
+                                        entry.key == selectedCode;
+                                    return ListTile(
+                                      title: InterText(
+                                        text: entry.value,
+                                        fontSize: 15.sp,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      trailing: isSelected
+                                          ? const Icon(
+                                              Icons.check,
+                                              color: Colors.green,
+                                            )
+                                          : null,
+                                      onTap: () async {
+                                        // 1. Move the check mark immediately
+                                        // so the user sees their choice.
+                                        setDialogState(() {
+                                          selectedCode = entry.key;
+                                        });
+                                        // 2. Apply the locale change.
+                                        await LocalizationService.updateLocale(
+                                          entry.key,
+                                        );
+                                        // 3. Brief pause so the visual
+                                        // confirmation registers before we
+                                        // close the dialog.
+                                        await Future.delayed(
+                                            const Duration(milliseconds: 250));
+                                        Get.back();
+                                        CustomSnackbar.showSuccess(
+                                          title: 'language_updated_title'.tr,
+                                          message: 'language_updated_message'.tr,
+                                        );
+                                      },
                                     );
-                                    Get.back();
-                                    CustomSnackbar.showSuccess(
-                                      title: 'language_updated_title'.tr,
-                                      message: 'language_updated_message'.tr,
-                                    );
-                                  },
+                                  }).toList(),
                                 );
-                              }).toList(),
+                              },
                             ),
                             textCancel: 'common_cancel'.tr,
                           );

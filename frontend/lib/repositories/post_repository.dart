@@ -57,6 +57,35 @@ class PostRepository {
     throw ApiException('Unexpected get all posts response.', details: response);
   }
 
+  /// Session v15-6 — fetches owner reservation requests filtered by the
+  /// caller's role, via `GET /posts/requests`. Requires auth so the backend
+  /// can identify the viewer: walkers only get `dog_walking` posts, sitters
+  /// only get garde/garderie posts (pet_sitting / house_sitting / day_care).
+  /// Owners calling this with their own token get the unfiltered list.
+  Future<List<PostModel>> getRequestPosts() async {
+    final response =
+        await _apiClient.get('/posts/requests', requiresAuth: true);
+
+    if (response is Map<String, dynamic>) {
+      if (response.containsKey('posts') && response['posts'] is List) {
+        return (response['posts'] as List)
+            .map((e) => PostModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    }
+
+    if (response is List) {
+      return response
+          .map((e) => PostModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw ApiException(
+      'Unexpected get request posts response.',
+      details: response,
+    );
+  }
+
   /// Adds a comment to a post.
   Future<Map<String, dynamic>> addComment({
     required String postId,

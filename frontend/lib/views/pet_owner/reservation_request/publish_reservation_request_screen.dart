@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
@@ -1195,37 +1196,23 @@ class _PublishReservationRequestScreenState
   }
 
   Widget _buildLocationSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InterText(
-          text: 'publish_request_location_label'.tr,
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary(context),
-        ),
-        SizedBox(height: 8.h),
-        TextField(
-          controller: controller.cityController,
-          decoration: InputDecoration(
-            hintText: 'publish_request_city_hint'.tr,
-            filled: true,
-            fillColor: AppColors.inputFill(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12.r),
-              borderSide: BorderSide(color: AppColors.divider(context)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12.r),
-              borderSide: BorderSide(color: AppColors.divider(context)),
-            ),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 14.w,
-              vertical: 14.h,
-            ),
-          ),
-        ),
-      ],
+    // Reuses the same CityLocationPicker widget as the edit-profile screens
+    // (Auto button for GPS + Carte button for map picker). The controller
+    // already exposes detectLocation() / isGettingLocation / detectedCity,
+    // they were just never wired to the UI until now.
+    return Obx(
+      () => CityLocationPicker(
+        cityController: controller.cityController,
+        onGetLocation: () => controller.detectLocation(),
+        isGettingLocation: controller.isGettingLocation.value,
+        detectedCity: controller.detectedCity.value,
+        onLocationSelected: (city, lat, lng) {
+          controller.cityController.text = city;
+          controller.detectedCity.value = city;
+          controller.userLat.value = lat;
+          controller.userLng.value = lng;
+        },
+      ),
     );
   }
 

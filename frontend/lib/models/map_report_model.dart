@@ -131,10 +131,12 @@ class ReportTypes {
   ///   • 😾 Chien agressif — safety communauté.
   ///   • ⚠️ Danger — zone accidentogène.
   ///   • 🚰 Point d'eau OK — partage utile aux promeneurs.
+  ///   • 💀 Animal mort — alerte sanitaire / risque pour les autres animaux.
   static const List<String> freeTypes = [
     aggressiveDog,
     hazard,
     waterActive,
+    deadAnimal,
   ];
 
   /// Returns true if [type] is usable by a free user (no Premium required).

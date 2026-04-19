@@ -971,6 +971,16 @@ const Map<String, String> itITTranslations = <String, String>{
       'send_request_invalid_time_title': 'Ora non valida',
       'send_request_invalid_time_message':
           "L'ora di fine deve essere successiva all'ora di inizio.",
+      'send_request_missing_fields_generic':
+          'Compila tutti i campi obbligatori.',
+      'send_request_missing_fields_prefix': 'Compila: @fields',
+      'send_request_missing_pets': 'Animali',
+      'send_request_missing_description': 'Descrizione',
+      'send_request_missing_start_date': 'Data di inizio',
+      'send_request_missing_time': 'Ora',
+      'send_request_missing_service': 'Tipo di servizio',
+      'send_request_missing_duration': 'Durata',
+      'send_request_missing_venue': 'Luogo',
       // Chat screens
       'chat_error_loading_conversations':
           'Errore durante il caricamento delle conversazioni',
@@ -1000,6 +1010,22 @@ const Map<String, String> itITTranslations = <String, String>{
       'sitter_detail_booking_details_title': 'Dettagli della prenotazione',
       'sitter_detail_availability_pricing_title': 'Disponibilità e prezzi',
       'sitter_detail_hourly_rate_label': 'Tariffa oraria',
+
+      // PawMap POI categories
+      'poi_vet': 'Veterinario',
+      'poi_shop': 'Negozio per animali',
+      'poi_groomer': 'Toelettatore',
+      'poi_park': 'Parco per cani',
+      'poi_beach': 'Spiaggia',
+      'poi_water': 'Punto acqua',
+      'poi_trainer': 'Educatore',
+      'poi_hotel': 'Hotel pet-friendly',
+      'poi_restaurant': 'Ristorante pet-friendly',
+      'poi_other': 'Altro',
+      'map_emergency_vet': 'Veterinario',
+      'map_emergency_shop': 'Negozio',
+      'map_emergency_park': 'Parco',
+
       'sitter_detail_daily_rate_label': 'Tariffa giornaliera',
       'sitter_detail_weekly_rate_label': 'Tariffa settimanale',
       'sitter_detail_monthly_rate_label': 'Tariffa mensile',

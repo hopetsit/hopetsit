@@ -178,21 +178,37 @@ class EditOwnerProfileController extends GetxController {
       }
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load profile', error: error.message);
-      if (AuthController.isLoginRequiredError(
-        error.message,
-        statusCode: error.statusCode,
-      )) {
+      // Scoped fix : pas d'auto-logout UNIQUEMENT si l'utilisateur est
+      // Walker (le Walker réutilise cet écran d'édition mais n'a pas
+      // toujours de profil owner côté backend, ce qui déclenchait des
+      // 401/403 et donc un logout intempestif). Pour Owner/Sitter on
+      // garde le comportement historique (auto-logout sur 401/403 ou
+      // messages liés à JWT / unauthorized).
+      final currentRole = Get.isRegistered<AuthController>()
+          ? (Get.find<AuthController>().userRole.value ?? '')
+          : '';
+      final isWalker = currentRole == 'walker';
+      if (!isWalker && AuthController.isLoginRequiredError(
+            error.message,
+            statusCode: error.statusCode,
+          )) {
         await AuthController.handleLoginRequiredError();
         return;
       }
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'profile_load_error'.tr,
+        message: error.message.isNotEmpty
+            ? error.message
+            : 'profile_load_error'.tr,
       );
     } catch (error) {
       AppLogger.logError('Failed to load profile', error: error);
+      final currentRole = Get.isRegistered<AuthController>()
+          ? (Get.find<AuthController>().userRole.value ?? '')
+          : '';
+      final isWalker = currentRole == 'walker';
       final errorMessage = error.toString();
-      if (AuthController.isLoginRequiredError(errorMessage)) {
+      if (!isWalker && AuthController.isLoginRequiredError(errorMessage)) {
         await AuthController.handleLoginRequiredError();
         return;
       }

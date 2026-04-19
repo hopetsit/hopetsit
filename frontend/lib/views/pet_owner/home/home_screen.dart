@@ -18,9 +18,11 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
+import 'package:hopetsit/views/pet_owner/home/widgets/sitter_card.dart';
+import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
-import 'package:hopetsit/views/service_provider/widgets/service_provider_card.dart';
+import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
@@ -162,74 +164,127 @@ class _HomeScreenState extends State<HomeScreen> {
     return merged;
   }
 
-  /// Walkers tab (index 2) — placeholder until the full walker listing lands.
-  /// The repository endpoint /walkers already exists; the listing UI (same
-  /// card pattern as sitters) will be wired in a follow-up. Keeping a
-  /// visible placeholder here lets the 3-tab layout ship right now without
-  /// pretending the feature is live.
+  /// Walkers tab (index 2) — real listing now that /walkers is wired.
+  /// Same layout as the sitters tab: reactive list + pull-to-refresh.
+  /// Shares the "Près de chez moi" slider with the sitters tab (both lists
+  /// filter themselves against the same radius via the HomeController).
   Widget _buildWalkersTab() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 28.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72.w,
-              height: 72.w,
-              decoration: BoxDecoration(
-                color: AppColors.greenColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.directions_walk_rounded,
-                size: 36.sp,
-                color: AppColors.greenColor,
-              ),
-            ),
-            SizedBox(height: 16.h),
-            PoppinsText(
-              text: 'Promeneurs à proximité',
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
-            ),
-            SizedBox(height: 6.h),
-            InterText(
-              text:
-                  'La liste complète des promeneurs arrive très bientôt. En attendant, publie une demande de promenade — elle sera visible uniquement par les promeneurs.',
-              fontSize: 12.sp,
-              color: AppColors.textSecondary(context),
-              textAlign: TextAlign.center,
-              maxLines: 4,
-            ),
-            SizedBox(height: 18.h),
-            ElevatedButton.icon(
-              onPressed: () {
-                Get.to(
-                  () => const PublishReservationRequestScreen(),
-                )?.then((_) => _postsController.refreshPosts());
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.greenColor,
-                padding:
-                    EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
+    return Obx(() {
+      if (_homeController.isLoadingWalkers.value) {
+        return const Center(
+          child: CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+          ),
+        );
+      }
+
+      if (_homeController.walkers.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 28.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72.w,
+                  height: 72.w,
+                  decoration: BoxDecoration(
+                    color:
+                        AppColors.greenColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.directions_walk_rounded,
+                    size: 36.sp,
+                    color: AppColors.greenColor,
+                  ),
                 ),
-              ),
-              icon: const Icon(Icons.add_rounded, color: Colors.white),
-              label: InterText(
-                text: 'Publier une promenade',
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+                SizedBox(height: 16.h),
+                PoppinsText(
+                  text: 'Aucun promeneur disponible',
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+                SizedBox(height: 6.h),
+                InterText(
+                  text:
+                      'Aucun promeneur dans votre zone pour le moment. Vous pouvez publier une demande de promenade — elle sera visible par les promeneurs à proximité.',
+                  fontSize: 12.sp,
+                  color: AppColors.textSecondary(context),
+                  textAlign: TextAlign.center,
+                  maxLines: 4,
+                ),
+                SizedBox(height: 18.h),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Get.to(
+                      () => const PublishReservationRequestScreen(),
+                    )?.then((_) => _postsController.refreshPosts());
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.greenColor,
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 18.w, vertical: 10.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_rounded, color: Colors.white),
+                  label: InterText(
+                    text: 'Publier une promenade',
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        );
+      }
+
+      return RefreshIndicator(
+        color: AppColors.primaryColor,
+        onRefresh: _homeController.loadWalkers,
+        child: ListView.builder(
+          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+          itemCount: _homeController.walkers.length,
+          itemBuilder: (context, index) {
+            final walker = _homeController.walkers[index];
+            // Pluck the 30 / 60 min rates so the Total row of the request
+            // screen can compute live. Session v15 — avoids a second API
+            // call for the walker's rates.
+            double? halfHour;
+            double? hour;
+            for (final r in walker.walkRates) {
+              if (!r.enabled || r.basePrice <= 0) continue;
+              if (r.durationMinutes == 30) halfHour = r.basePrice;
+              if (r.durationMinutes == 60) hour = r.basePrice;
+            }
+            return WalkerCard(
+              walker: walker,
+              onRequestWalk: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SendRequestScreen(
+                      serviceProviderName: walker.name,
+                      serviceProviderId: walker.id,
+                      serviceProviderRole: 'walker',
+                      walkerHalfHourRate: halfHour,
+                      walkerHourlyRate: hour,
+                      currencyCode: walker.currency,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         ),
-      ),
-    );
+      );
+    });
   }
 
   /// Inline "Près de chez moi" slider — partagé par les onglets Pet-sitters
@@ -324,6 +379,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onChangeEnd: (value) {
                 if (value > 0) {
                   _homeController.loadNearbySitters(radiusKm: value.round());
+                  _homeController.loadNearbyWalkers(radiusKm: value.round());
+                } else {
+                  // Reset to full lists when the user drags back to 0.
+                  _homeController.loadSitters();
+                  _homeController.loadWalkers();
                 }
               },
             ),
@@ -552,6 +612,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           onChangeEnd: (val) {
                             _homeController.loadNearbySitters(
                                 radiusKm: val.round());
+                            _homeController.loadNearbyWalkers(
+                                radiusKm: val.round());
                           },
                         ),
                       ),
@@ -596,36 +658,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, index) {
                     final sitter = _homeController.sitters[index];
 
-                    // FIX #1: show best available rate
-                    final String displayPrice = sitter.hourlyRate > 0
-                        ? sitter.hourlyRate.toStringAsFixed(1)
-                        : '0';
-                    // Daily rate fallback: if the sitter didn't set a daily rate
-                    // but has an hourly rate, display (hourly × 8) as the day rate
-                    // so owners always see a comparable per-day figure.
-                    final double effectiveDailyRate = sitter.dailyRate > 0
-                        ? sitter.dailyRate
-                        : (sitter.hourlyRate > 0 ? sitter.hourlyRate * 8 : 0);
-                    final String? displayDaily = effectiveDailyRate > 0
-                        ? effectiveDailyRate.toStringAsFixed(1)
-                        : null;
-                    final String? displayWeekly = sitter.weeklyRate > 0
-                        ? sitter.weeklyRate.toStringAsFixed(0)
-                        : null;
-                    final String? displayMonthly = sitter.monthlyRate > 0
-                        ? sitter.monthlyRate.toStringAsFixed(0)
-                        : null;
-
-                    final String locationLabel = [
-                      if (sitter.displayCity.isNotEmpty) sitter.displayCity,
-                      if (sitter.distanceKm != null)
-                        '${sitter.distanceKm!.toStringAsFixed(1)} km',
-                    ].join(' · ');
-
-                    // Calculate estimated cost from owner's latest reservation post.
-                    // Uses the sitter's best available rate: daily > effective-daily
-                    // (hourly × 8) > weekly / 7 > monthly / 30. Always shows at
-                    // least 1 day so same-day start/end doesn't hide the figure.
+                    // Session v15-3 — the new SitterCard reads rates directly
+                    // from the SitterModel (including the hourly × 8 fallback),
+                    // so we only compute the "estimated cost" here from the
+                    // Owner's latest active reservation post and hand it in.
                     double? estCost;
                     int? estDays;
                     if (_userId != null) {
@@ -653,30 +689,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                     }
 
-                    return ServiceProviderCard(
-                      name: sitter.name,
-                      identityVerified: sitter.identityVerified,
-                      isTopSitter: sitter.isTopSitter,
-                      isBoosted: sitter.isBoosted,
-                      phoneNumber: sitter.mobile,
-                      email: sitter.email,
-                      status: 'status_available'.tr,
-                      showStatusChip: false,
-                      rating: sitter.rating,
-                      isBlurred: true,
-                      reviewsCount: sitter.reviewsCount,
-                      location: locationLabel,
-                      pricePerHour: displayPrice,
-                      pricePerDay: displayDaily,
-                      pricePerWeek: displayWeekly,
-                      pricePerMonth: displayMonthly,
-                      currencyCode: sitter.currency,
+                    return SitterCard(
+                      sitter: sitter,
                       estimatedCost: estCost,
                       estimatedDays: estDays,
-                      profileImagePath: sitter.avatar.url.isNotEmpty
-                          ? sitter.avatar.url
-                          : null,
-                      sitterId: sitter.id,
+                      onTap: () {
+                        Get.to(
+                          () => ServiceProviderDetailScreen(
+                            sitterId: sitter.id,
+                            status: 'status_available'.tr,
+                          ),
+                        );
+                      },
                       onSendRequest: () {
                         Navigator.push(
                           context,
@@ -684,6 +708,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             builder: (context) => SendRequestScreen(
                               serviceProviderName: sitter.name,
                               serviceProviderId: sitter.id,
+                              serviceProviderRole: 'sitter',
+                              // Session v15 — pass rates so the Total row
+                              // on the request screen can compute live.
+                              sitterDailyRate: sitter.dailyRate > 0
+                                  ? sitter.dailyRate
+                                  : null,
+                              sitterWeeklyRate: sitter.weeklyRate > 0
+                                  ? sitter.weeklyRate
+                                  : null,
+                              sitterMonthlyRate: sitter.monthlyRate > 0
+                                  ? sitter.monthlyRate
+                                  : null,
+                              currencyCode: sitter.currency,
                             ),
                           ),
                         );

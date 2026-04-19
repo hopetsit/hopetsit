@@ -72,6 +72,40 @@ class MapBoostController extends GetxController {
   final RxList<MapBoostPackage> packages = <MapBoostPackage>[].obs;
   final RxString currency = CurrencyHelper.eur.obs;
 
+  /// Session v15-4 — fallback displayed when `GET /map-boost/packages`
+  /// fails (backend down, network off, etc.). Prices aligned on the new
+  /// Map Boost identity: Découverte / Visible / Pin Doré / Map Premium.
+  /// Real runtime prices still come from the backend — these are only a
+  /// safety net so the shop never shows an empty list.
+  static List<MapBoostPackage> _fallbackPackagesForCurrency(String cur) {
+    return [
+      MapBoostPackage(
+          tier: 'bronze',
+          amount: 1.99,
+          currency: cur,
+          days: 3,
+          label: 'Découverte'),
+      MapBoostPackage(
+          tier: 'silver',
+          amount: 4.99,
+          currency: cur,
+          days: 7,
+          label: 'Visible'),
+      MapBoostPackage(
+          tier: 'gold',
+          amount: 8.99,
+          currency: cur,
+          days: 15,
+          label: 'Pin Doré'),
+      MapBoostPackage(
+          tier: 'platinum',
+          amount: 14.99,
+          currency: cur,
+          days: 30,
+          label: 'Map Premium'),
+    ];
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -104,11 +138,19 @@ class MapBoostController extends GetxController {
         queryParameters: {'currency': currency.value},
       );
       final list = (data['packages'] as List?) ?? const [];
-      packages.value = list
+      final parsed = list
           .map((p) => MapBoostPackage.fromJson(p as Map<String, dynamic>))
           .toList();
+      // If backend returns an empty list (broken config or currency with no
+      // pricing), fall back so the shop is never blank — see v15-4 recap.
+      if (parsed.isEmpty) {
+        packages.value = _fallbackPackagesForCurrency(currency.value);
+      } else {
+        packages.value = parsed;
+      }
     } catch (e) {
-      debugPrint('[MapBoost] loadPackages error: $e');
+      debugPrint('[MapBoost] loadPackages error: $e — using fallback prices');
+      packages.value = _fallbackPackagesForCurrency(currency.value);
     }
   }
 

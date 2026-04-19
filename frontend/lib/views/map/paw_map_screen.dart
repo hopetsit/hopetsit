@@ -59,6 +59,11 @@ class _PawMapScreenState extends State<PawMapScreen> {
   /// `_reloadAtCenter()` via `/posts/requests/nearby`. Empty for owner role.
   final RxList<NearbyRequestPost> _requests = <NearbyRequestPost>[].obs;
 
+  /// Debounce the `onCameraIdle` callback so panning/zooming quickly doesn't
+  /// fire 5+ POI/report requests in a row. 500 ms is short enough to feel
+  /// instant but long enough to collapse a flick-zoom into one call.
+  Timer? _reloadDebounce;
+
   /// Cached role lookup — read once, used for layer gating and UI.
   String get _role {
     final auth = Get.isRegistered<AuthController>()
@@ -68,6 +73,20 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   bool get _isSitterOrWalker => _role == 'sitter' || _role == 'walker';
+
+  /// Controller for the "Chercher une ville" search bar displayed at the
+  /// top of the map. On submit, geocodes the city and recenters.
+  final TextEditingController _cityCtrl = TextEditingController();
+
+  /// Synchronous premium check — reads the current subscription status if
+  /// the controller is registered. Used to gate the _PremiumUpsell banner
+  /// without an Obx wrapper (which was firing the "improper use of GetX"
+  /// warning on first render).
+  bool _isUserPremium() {
+    if (!Get.isRegistered<SubscriptionController>()) return false;
+    final sub = Get.find<SubscriptionController>();
+    return sub.status.value?.isPremium ?? false;
+  }
 
   @override
   void initState() {
@@ -93,8 +112,80 @@ class _PawMapScreenState extends State<PawMapScreen> {
 
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     _liveMap.stopBroadcasting();
+    _cityCtrl.dispose();
     super.dispose();
+  }
+
+  /// Search bar widget — typing a city name and submitting geocodes the
+  /// query and recenters the map there.
+  Widget _buildCitySearchBar(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14.r),
+      elevation: 4,
+      child: TextField(
+        controller: _cityCtrl,
+        textInputAction: TextInputAction.search,
+        onSubmitted: _searchCity,
+        decoration: InputDecoration(
+          hintText: 'Chercher une ville…',
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary(context),
+            fontSize: 13.sp,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 20.sp,
+            color: AppColors.textSecondary(context),
+          ),
+          suffixIcon: _cityCtrl.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close_rounded, size: 18.sp),
+                  onPressed: () {
+                    _cityCtrl.clear();
+                    setState(() {});
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
+          isDense: true,
+        ),
+        onChanged: (_) => setState(() {}),
+        style: TextStyle(fontSize: 13.sp),
+      ),
+    );
+  }
+
+  Future<void> _searchCity(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    try {
+      final pos = await LocationService().getCoordinatesFromCity(trimmed);
+      if (pos == null) {
+        CustomSnackbar.showWarning(
+          title: 'Ville introuvable',
+          message: 'Aucune position trouvée pour "$trimmed".',
+        );
+        return;
+      }
+      final target = LatLng(pos.latitude, pos.longitude);
+      if (!mounted) return;
+      setState(() => _currentCenter = target);
+      if (_mapCtl.isCompleted) {
+        final ctl = await _mapCtl.future;
+        await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, 13));
+      }
+      await _reloadAtCenter();
+    } catch (e) {
+      debugPrint('[PawMap] city search failed: $e');
+      CustomSnackbar.showError(
+        title: 'Recherche impossible',
+        message: 'Vérifiez votre connexion et réessayez.',
+      );
+    }
   }
 
   Future<void> _bootstrap() async {
@@ -169,6 +260,17 @@ class _PawMapScreenState extends State<PawMapScreen> {
     _currentCenter = pos.target;
   }
 
+  /// Debounced wrapper for `_reloadAtCenter()`. Cancels any pending reload
+  /// and schedules a fresh one 500 ms later. Wired to `onCameraIdle` so the
+  /// POI / report / request layers refresh after the user stops panning.
+  void _scheduleReload() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _reloadAtCenter();
+    });
+  }
+
   /// Toggles the "Suivre mon animal" broadcast — when on, friends see the
   /// user's pin moving on their PawMap. The user's own pin shows in rose
   /// (via `_hueForRole('owner')`) so it's easy to spot as "myself + pet".
@@ -207,7 +309,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
               title: '${PoiCategories.emoji(poi.category)} ${poi.title}',
               snippet: poi.address.isNotEmpty
                   ? poi.address
-                  : PoiCategories.labelFr(poi.category),
+                  : PoiCategories.label(poi.category),
             ),
             onTap: () => _showPoiBottomSheet(poi),
           ),
@@ -568,7 +670,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
           SizedBox(
             height: 48.h,
             child: Obx(() {
-              final active = _poiController.enabledCategories;
+              // `.toSet()` forces a synchronous read of the RxSet's contents
+              // inside the Obx builder. Without it, GetX reports "improper
+              // use of GetX" because the real lookups (.isEmpty / .contains)
+              // happen in the itemBuilder closure, which runs outside the
+              // builder's reactive scope.
+              final active = _poiController.enabledCategories.toSet();
               return ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
@@ -586,7 +693,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   }
                   final cat = PoiCategories.all[i - 1];
                   return _Chip(
-                    label: PoiCategories.labelFr(cat),
+                    label: PoiCategories.label(cat),
                     emoji: PoiCategories.emoji(cat),
                     selected: active.contains(cat),
                     onTap: () => _poiController.toggleCategory(cat),
@@ -615,7 +722,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                         if (!_mapCtl.isCompleted) _mapCtl.complete(c);
                       },
                       onCameraMove: _onCameraMove,
-                      onCameraIdle: _reloadAtCenter,
+                      onCameraIdle: _scheduleReload,
                       myLocationEnabled: true,
                       myLocationButtonEnabled: true,
                       markers: _buildMarkers(),
@@ -662,53 +769,60 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   );
                 }),
 
-                // Premium upsell banner — shown whenever the user is NOT
-                // Premium, so free users always see the conversion CTA on
-                // the map. Wrapped in Obx with explicit observable reads
-                // so GetX correctly tracks dependencies.
-                Obx(() {
-                  // Explicit reactive read — this is what GetX tracks.
-                  final forced = _reportController.premiumRequired.value;
-                  // SubscriptionController may or may not be registered
-                  // yet on first render; read its status observable safely.
-                  bool isPremium = false;
-                  if (Get.isRegistered<SubscriptionController>()) {
-                    final sub = Get.find<SubscriptionController>();
-                    isPremium = sub.status.value?.isPremium ?? false;
-                  }
-                  if (isPremium && !forced) {
-                    return const SizedBox.shrink();
-                  }
-                  return Positioned(
-                    left: 12.w,
-                    right: 12.w,
-                    bottom: 170.h,
-                    child: const _PremiumUpsell(),
-                  );
-                }),
-
-                // "Me géolocaliser" — recentre la map sur la position GPS
-                // de l'utilisateur. Toujours visible, au-dessus du bouton
-                // Signaler.
+                // Premium upsell banner — shown statiquement pour tous les
+                // utilisateurs free. Plus de Obx ici (ça déclenchait le
+                // warning "[Get] improper use of GetX" chez certains users
+                // quand les controllers n'étaient pas encore initialisés).
+                // Le masquage pour Premium se fait via une simple check
+                // synchrone lue depuis le SubscriptionController si présent.
+                // Upsell stack : Premium (masqué si déjà abonné) + Map Boost
+                // (toujours visible — Map Boost se vend aussi aux Premium qui
+                // veulent utiliser leur crédit mensuel gratuit).
                 Positioned(
+                  left: 12.w,
                   right: 12.w,
-                  bottom: 160.h,
-                  child: Material(
-                    color: Colors.white,
-                    shape: const CircleBorder(),
-                    elevation: 4,
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: _recenterOnUser,
-                      child: Padding(
-                        padding: EdgeInsets.all(10.w),
-                        child: Icon(
-                          Icons.my_location_rounded,
-                          color: AppColors.primaryColor,
-                          size: 22.sp,
+                  bottom: 170.h,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!_isUserPremium()) ...[
+                        const _PremiumUpsell(),
+                        SizedBox(height: 8.h),
+                      ],
+                      const _MapBoostUpsell(),
+                    ],
+                  ),
+                ),
+
+                // Barre de recherche ville (gauche) + bouton géoloc (droite)
+                // en haut de la map. Les deux sont visibles en permanence
+                // pour un accès rapide.
+                Positioned(
+                  top: 12.h,
+                  left: 12.w,
+                  right: 12.w,
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildCitySearchBar(context)),
+                      SizedBox(width: 8.w),
+                      Material(
+                        color: Colors.white,
+                        shape: const CircleBorder(),
+                        elevation: 4,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _recenterOnUser,
+                          child: Padding(
+                            padding: EdgeInsets.all(11.w),
+                            child: Icon(
+                              Icons.my_location_rounded,
+                              color: AppColors.primaryColor,
+                              size: 22.sp,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
 
@@ -852,7 +966,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
           Expanded(
             child: _emergencyChip(
               emoji: '🏥',
-              label: 'Vétérinaire',
+              label: 'map_emergency_vet'.tr,
               category: PoiCategories.vet,
               color: const Color(0xFFE53935), // red — urgent medical
             ),
@@ -861,7 +975,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
           Expanded(
             child: _emergencyChip(
               emoji: '🛍️',
-              label: 'Animalerie',
+              label: 'map_emergency_shop'.tr,
               category: PoiCategories.shop,
               color: const Color(0xFF8E24AA), // purple — pet supplies
             ),
@@ -870,7 +984,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
           Expanded(
             child: _emergencyChip(
               emoji: '🌳',
-              label: 'Parc',
+              label: 'map_emergency_park'.tr,
               category: PoiCategories.park,
               color: const Color(0xFF2E7D32), // green — parks
             ),
@@ -973,14 +1087,21 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   onTap: () => _showReports.value = !_showReports.value,
                 )),
             SizedBox(width: 8.w),
-            Obx(() => _LayerToggle(
-                  label: 'Amis',
-                  emoji: '👥',
-                  active: _showFriends.value,
-                  premiumBadge: true,
-                  count: _liveMap.friendPositions.length,
-                  onTap: () => _showFriends.value = !_showFriends.value,
-                )),
+            Obx(() {
+              // Read the RxBool explicitly to guarantee Obx registers a
+              // reactive dependency (accessing .length on an RxMap doesn't
+              // always trigger tracking).
+              final active = _showFriends.value;
+              final count = _liveMap.friendPositions.length;
+              return _LayerToggle(
+                label: 'Amis',
+                emoji: '👥',
+                active: active,
+                premiumBadge: true,
+                count: count,
+                onTap: () => _showFriends.value = !_showFriends.value,
+              );
+            }),
             if (_isSitterOrWalker) ...[
               SizedBox(width: 8.w),
               Obx(() => _LayerToggle(
@@ -1077,7 +1198,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: InterText(
-                    text: PoiCategories.labelFr(poi.category),
+                    text: PoiCategories.label(poi.category),
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primaryColor,
@@ -1451,26 +1572,37 @@ class _TtlBadgeState extends State<_TtlBadge> {
 class _PremiumUpsell extends StatelessWidget {
   const _PremiumUpsell();
 
+  // Palette dorée pour la bannière Premium — dégradé or clair → or foncé,
+  // avec ombre chaude pour un effet luxueux.
+  static const Color _goldLight = Color(0xFFFFD700);
+  static const Color _goldDark = Color(0xFFB8860B);
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Get.to(() => const CoinShopScreen()),
+      // Land directly on the Premium tab (index 1) since this banner is
+      // specifically a Premium upsell. The default tab (0) is generic Boost.
+      onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         decoration: BoxDecoration(
-          color: AppColors.primaryColor,
+          gradient: const LinearGradient(
+            colors: [_goldLight, _goldDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryColor.withValues(alpha: 0.3),
-              blurRadius: 12,
+              color: _goldDark.withValues(alpha: 0.45),
+              blurRadius: 14,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
-            Icon(Icons.star_rounded, color: Colors.white, size: 22.sp),
+            Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 24.sp),
             SizedBox(width: 10.w),
             Expanded(
               child: Column(
@@ -1479,19 +1611,81 @@ class _PremiumUpsell extends StatelessWidget {
                   InterText(
                     text: 'Passer Premium',
                     fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                   SizedBox(height: 2.h),
                   InterText(
                     text: 'Débloquez tous les signalements, zones et suivis live',
                     fontSize: 12.sp,
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withValues(alpha: 0.95),
                   ),
                 ],
               ),
             ),
             Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16.sp),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Session v15-4 — Map Boost CTA on the PawMap, distinct from the Premium
+/// banner (blue vs gold) so the user sees they are two different products.
+/// Tapping opens the shop directly on the Map Boost tab (index 2).
+class _MapBoostUpsell extends StatelessWidget {
+  const _MapBoostUpsell();
+
+  static const Color _blueLight = Color(0xFF60A5FA);
+  static const Color _blueDark = Color(0xFF2563EB);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [_blueLight, _blueDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16.r),
+          boxShadow: [
+            BoxShadow(
+              color: _blueDark.withValues(alpha: 0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.push_pin_rounded, color: Colors.white, size: 22.sp),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: 'Booster mon pin',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                  SizedBox(height: 2.h),
+                  InterText(
+                    text: 'Pin doré sur la carte pour tes voisins',
+                    fontSize: 12.sp,
+                    color: Colors.white.withValues(alpha: 0.95),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white, size: 16.sp),
           ],
         ),
       ),

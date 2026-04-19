@@ -17,8 +17,11 @@ class PawMapController extends GetxController {
   /// Center of the last query — used to decide whether to re-query on map move.
   final Rxn<LatLng> lastQueryCenter = Rxn<LatLng>();
 
-  /// Radius in meters.
-  int maxDistanceMeters = 5000;
+  /// Radius in meters. Bumped to 50 km (the hard cap the backend enforces)
+  /// so users outside Paris / dense cities still see something instead of
+  /// an empty map. For bigger zones, use repeated queries at different
+  /// centers — the backend rejects requests above this value.
+  int maxDistanceMeters = 50000;
 
   bool categoryActive(String c) =>
       enabledCategories.isEmpty || enabledCategories.contains(c);

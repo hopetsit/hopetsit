@@ -13,10 +13,32 @@ class SendRequestScreen extends StatefulWidget {
   final String serviceProviderName;
   final String serviceProviderId;
 
+  /// Session v15-3 — role of the recipient ('walker' or 'sitter').
+  /// Controls which services are offered in the chip row. Defaults to
+  /// 'sitter' so legacy callers (e.g. pets_map_screen) keep working.
+  final String serviceProviderRole;
+
+  /// Optional rate hints passed from the card so we can compute a live
+  /// "Total estimé" without a second API call. Null = rate unknown →
+  /// the estimate row shows "À confirmer avec le prestataire".
+  final double? sitterDailyRate;
+  final double? sitterWeeklyRate;
+  final double? sitterMonthlyRate;
+  final double? walkerHalfHourRate;
+  final double? walkerHourlyRate;
+  final String? currencyCode; // e.g. "EUR", defaults to EUR
+
   const SendRequestScreen({
     super.key,
     required this.serviceProviderName,
     required this.serviceProviderId,
+    this.serviceProviderRole = 'sitter',
+    this.sitterDailyRate,
+    this.sitterWeeklyRate,
+    this.sitterMonthlyRate,
+    this.walkerHalfHourRate,
+    this.walkerHourlyRate,
+    this.currencyCode,
   });
 
   @override
@@ -24,6 +46,15 @@ class SendRequestScreen extends StatefulWidget {
 }
 
 class _SendRequestScreenState extends State<SendRequestScreen> {
+  /// Session v15-3 — the whole request screen now echoes the card color:
+  ///   • walker  → green (matches WalkerCard CTA and the home segment)
+  ///   • sitter  → blue  (matches SitterCard CTA and the home segment)
+  /// The primaryColor red is kept out of this screen to avoid 3 competing
+  /// accent colors on the Owner side.
+  Color get _roleColor => widget.serviceProviderRole == 'walker'
+      ? AppColors.greenColor
+      : const Color(0xFF1A73E8);
+
   @override
   Widget build(BuildContext context) {
     // Delete existing controller if it exists to ensure fresh state
@@ -36,6 +67,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       SendRequestController(
         serviceProviderName: widget.serviceProviderName,
         serviceProviderId: widget.serviceProviderId,
+        serviceProviderRole: widget.serviceProviderRole,
       ),
       tag: tag,
     );
@@ -45,7 +77,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.scaffold(context),
         elevation: 0,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
+        iconTheme: IconThemeData(color: _roleColor),
         leading: BackButton(),
         title: PoppinsText(
           text: 'send_request_title'.tr,
@@ -107,6 +139,10 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                       : const SizedBox.shrink(),
                 ),
 
+                // Session v15 — Total estimé (live). Se met à jour dès que
+                // l'user change dates / service / durée.
+                _buildEstimatedTotalSection(context, controller),
+
                 SizedBox(height: 40.h),
 
                 // Send Request Button
@@ -129,7 +165,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                                   controller.dateTimeValidationError.value!,
                             );
                           },
-                    bgColor: AppColors.primaryColor,
+                    bgColor: _roleColor,
                     textColor: AppColors.whiteColor,
                     height: 48.h,
                     radius: 48.r,
@@ -327,6 +363,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     BuildContext context,
     SendRequestController controller,
   ) {
+    final isWalker = widget.serviceProviderRole == 'walker';
     return Obx(() {
       controller.startDate.value;
       controller.endDate.value;
@@ -343,7 +380,10 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 8.h),
-          // Single container with border and decoration containing Start + End
+          // Single container with border and decoration.
+          //   • Sitter → Début + Fin (multi-day stays need both ends)
+          //   • Walker → single Date + Heure row (endDate/endTime are
+          //     derived from Start + selected duration by the controller)
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
@@ -354,9 +394,11 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Start: label inside container + date|time row
+                // Start (walker label = "Date & heure", sitter label = "Début")
                 InterText(
-                  text: 'send_request_start_label'.tr,
+                  text: isWalker
+                      ? 'send_request_start_label'.tr
+                      : 'send_request_start_label'.tr,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                   color: AppColors.grey700Color,
@@ -376,29 +418,31 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   onTimeTap: () =>
                       _pickTime(context, controller, isStart: true),
                 ),
-                SizedBox(height: 16.h),
-                // End: label inside container + date|time row
-                InterText(
-                  text: 'send_request_end_label'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary(context),
-                ),
-                SizedBox(height: 8.h),
-                _buildDateTimeRow(
-                  dateText: controller.formattedEndDate.isEmpty
-                      ? 'send_request_select_date'.tr
-                      : controller.formattedEndDate,
-                  timeText: controller.formattedEndTime.isEmpty
-                      ? 'send_request_select_time'.tr
-                      : controller.formattedEndTime,
-                  isDatePlaceholder: controller.formattedEndDate.isEmpty,
-                  isTimePlaceholder: controller.formattedEndTime.isEmpty,
-                  onDateTap: () =>
-                      _pickDate(context, controller, isStart: false),
-                  onTimeTap: () =>
-                      _pickTime(context, controller, isStart: false),
-                ),
+                if (!isWalker) ...[
+                  SizedBox(height: 16.h),
+                  // End: label inside container + date|time row (sitter only)
+                  InterText(
+                    text: 'send_request_end_label'.tr,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary(context),
+                  ),
+                  SizedBox(height: 8.h),
+                  _buildDateTimeRow(
+                    dateText: controller.formattedEndDate.isEmpty
+                        ? 'send_request_select_date'.tr
+                        : controller.formattedEndDate,
+                    timeText: controller.formattedEndTime.isEmpty
+                        ? 'send_request_select_time'.tr
+                        : controller.formattedEndTime,
+                    isDatePlaceholder: controller.formattedEndDate.isEmpty,
+                    isTimePlaceholder: controller.formattedEndTime.isEmpty,
+                    onDateTap: () =>
+                        _pickDate(context, controller, isStart: false),
+                    onTimeTap: () =>
+                        _pickTime(context, controller, isStart: false),
+                  ),
+                ],
                 // Show validation error message if exists
                 Obx(() {
                   final error = controller.dateTimeValidationError.value;
@@ -507,7 +551,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: AppColors.primaryColor,
+              primary: _roleColor,
               onPrimary: AppColors.whiteColor,
               surface: AppColors.whiteColor,
               onSurface: AppColors.blackColor,
@@ -534,6 +578,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       }
       controller.selectedDate.value = picked;
       controller.setFocusedDate(picked);
+      // Session v15-3 — walker has no End UI, so we mirror Start→End here.
+      controller.syncWalkerEnd();
       // Trigger validation after date change
       controller.validateDateTimeRange();
     }
@@ -580,15 +626,15 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 ),
                 hourMinuteColor: WidgetStateColor.resolveWith((states) =>
                     states.contains(WidgetState.selected)
-                        ? AppColors.primaryColor
+                        ? _roleColor
                         : AppColors.lightGrey),
                 hourMinuteTextColor: WidgetStateColor.resolveWith((states) =>
                     states.contains(WidgetState.selected)
                         ? AppColors.whiteColor
                         : AppColors.blackColor),
-                dialHandColor: AppColors.primaryColor,
+                dialHandColor: _roleColor,
                 dialBackgroundColor: AppColors.lightGrey,
-                entryModeIconColor: AppColors.primaryColor,
+                entryModeIconColor: _roleColor,
                 helpTextStyle: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -596,7 +642,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 ),
               ),
               colorScheme: ColorScheme.light(
-                primary: AppColors.primaryColor,
+                primary: _roleColor,
                 onPrimary: AppColors.whiteColor,
                 surface: AppColors.whiteColor,
                 onSurface: AppColors.blackColor,
@@ -644,6 +690,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         // Clear validation error when end time changes
         controller.dateTimeValidationError.value = null;
       }
+      // Session v15-3 — walker has no End UI; keep endTime in sync.
+      controller.syncWalkerEnd();
       // Trigger validation after time change
       controller.validateDateTimeRange();
     }
@@ -686,12 +734,12 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.primaryColor
+                              ? _roleColor
                               : AppColors.inputFill(context),
                           borderRadius: BorderRadius.circular(20.r),
                           border: Border.all(
                             color: isSelected
-                                ? AppColors.primaryColor
+                                ? _roleColor
                                 : AppColors.divider(context),
                             width: 1,
                           ),
@@ -733,7 +781,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             runSpacing: 12.h,
             direction: Axis.horizontal,
             alignment: WrapAlignment.spaceEvenly,
-            children: ['30', '60'].map((duration) {
+            // Session v15-3 — align walk duration presets with the Publish flow
+            // (publish_reservation_request_controller.promenadeMinutes).
+            children: const ['30', '60', '90', '120'].map((duration) {
               final isSelected = controller.selectedDuration.value == duration;
 
               return GestureDetector(
@@ -745,12 +795,12 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.primaryColor
+                        ? _roleColor
                         : AppColors.inputFill(context),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
                       color: isSelected
-                          ? AppColors.primaryColor
+                          ? _roleColor
                           : AppColors.divider(context),
                       width: 1,
                     ),
@@ -801,11 +851,11 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primaryColor : AppColors.inputFill(context),
+                    color: selected ? _roleColor : AppColors.inputFill(context),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
                       color: selected
-                          ? AppColors.primaryColor
+                          ? _roleColor
                           : AppColors.divider(context),
                       width: 1,
                     ),
@@ -823,5 +873,145 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         ),
       ],
     );
+  }
+
+  /// Live "Total estimé" card — re-computed on every relevant Rx change.
+  /// Formula:
+  ///   • dog_walking : 1 balade = durationMinutes → walkerHalfHourRate (30 min)
+  ///                   or walkerHourlyRate (60 min). × nbPets × nbJours
+  ///   • pet_sitting / house_sitting / day_care / long_stay :
+  ///     nbJours × sitterDailyRate
+  /// Null rate → "À confirmer avec le prestataire".
+  Widget _buildEstimatedTotalSection(
+    BuildContext context,
+    SendRequestController controller,
+  ) {
+    return Obx(() {
+      final service = controller.selectedServiceType.value;
+      final sDate = controller.startDate.value;
+      final eDate = controller.endDate.value;
+      final duration = controller.selectedDuration.value; // "30" / "60" / "90"…
+
+      String? totalText;
+      String? breakdown;
+
+      if (service == 'dog_walking') {
+        // Session v15-3 — proper pro-rata so 90/120 min aren't frozen at the
+        // 60-min tariff. Logic:
+        //   30 → halfHourRate (fallback: hourlyRate / 2)
+        //   60 → hourlyRate
+        //   90 → hourlyRate + halfHourRate (fallback: hourlyRate × 1.5)
+        //   120 → 2 × hourlyRate
+        final minutes = int.tryParse(duration ?? '') ?? 0;
+        final halfHour = widget.walkerHalfHourRate;
+        final hour = widget.walkerHourlyRate;
+        final halfHourEff =
+            halfHour ?? (hour != null ? hour / 2 : null);
+        double? total;
+        if (minutes > 0 && (halfHour != null || hour != null)) {
+          if (minutes <= 30 && halfHourEff != null) {
+            total = halfHourEff;
+          } else if (minutes == 60 && hour != null) {
+            total = hour;
+          } else if (minutes == 90 && hour != null && halfHourEff != null) {
+            total = hour + halfHourEff;
+          } else if (minutes == 120 && hour != null) {
+            total = hour * 2;
+          } else if (hour != null) {
+            // Generic fallback: prorata per hour.
+            total = hour * (minutes / 60.0);
+          }
+        }
+        if (total != null && total > 0) {
+          totalText =
+              '${total.toStringAsFixed(0)} ${widget.currencyCode ?? 'EUR'}';
+          breakdown = '1 balade $minutes min';
+        }
+      } else if (service != null && service.isNotEmpty) {
+        if (sDate != null && eDate != null) {
+          final raw = eDate.difference(sDate).inDays;
+          final days = raw > 0 ? raw : 1;
+          // Session v15-3 — derive a daily rate when the sitter only has
+          // weekly/monthly saved, otherwise the Total sits at "À confirmer"
+          // even though we have enough info to estimate.
+          double? dailyRate = widget.sitterDailyRate;
+          if (dailyRate == null || dailyRate <= 0) {
+            if (widget.sitterWeeklyRate != null &&
+                widget.sitterWeeklyRate! > 0) {
+              dailyRate = widget.sitterWeeklyRate! / 7;
+            } else if (widget.sitterMonthlyRate != null &&
+                widget.sitterMonthlyRate! > 0) {
+              dailyRate = widget.sitterMonthlyRate! / 30;
+            }
+          }
+          if (dailyRate != null && dailyRate > 0) {
+            final total = dailyRate * days;
+            totalText =
+                '${total.toStringAsFixed(0)} ${widget.currencyCode ?? 'EUR'}';
+            breakdown =
+                '$days jour${days > 1 ? 's' : ''} × ~${dailyRate.toStringAsFixed(0)} €/j';
+          }
+        }
+      }
+
+      return Container(
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              _roleColor.withValues(alpha: 0.08),
+              _roleColor.withValues(alpha: 0.03),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+              color: _roleColor.withValues(alpha: 0.2), width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.attach_money_rounded,
+                size: 28.sp, color: _roleColor),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InterText(
+                    text: 'Total estimé',
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary(context),
+                  ),
+                  SizedBox(height: 2.h),
+                  PoppinsText(
+                    text: totalText ?? 'À confirmer',
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w800,
+                    color: _roleColor,
+                  ),
+                  if (breakdown != null) ...[
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: breakdown,
+                      fontSize: 11.sp,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ] else ...[
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: 'Sélectionnez service + dates pour voir le total',
+                      fontSize: 11.sp,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }

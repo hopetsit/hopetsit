@@ -439,7 +439,10 @@ class EditSitterProfileController extends GetxController {
         language: languageController.text.trim().isNotEmpty
             ? languageController.text.trim()
             : null,
-        hourlyRate: hourlyRate,
+        // Hourly rate is no longer editable from the UI (sitters work on a
+        // min 1-day basis). We send `null` so the backend keeps whatever
+        // value is currently stored without overwriting it.
+        hourlyRate: null,
         currency: selectedCurrency.value,
       );
 

@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+
 /// Simple model mirroring backend MapPOI documents.
 class MapPOI {
   final String id;
@@ -98,19 +100,26 @@ class PoiCategories {
     }
   }
 
-  /// French display label.
-  static String labelFr(String c) {
+  /// Localized label — resolved via GetX i18n at call time.
+  /// Keys (`poi_vet`, `poi_shop`, ...) live in lib/localization/translations/*.dart
+  /// and must be kept in sync across all 6 supported languages.
+  static String label(String c) {
     switch (c) {
-      case vet: return 'Vétérinaire';
-      case shop: return 'Animalerie';
-      case groomer: return 'Toiletteur';
-      case park: return 'Parc à chiens';
-      case beach: return 'Plage';
-      case water: return 'Point d\'eau';
-      case trainer: return 'Éducateur';
-      case hotel: return 'Hôtel pet-friendly';
-      case restaurant: return 'Restaurant pet-friendly';
-      default: return 'Autre';
+      case vet: return 'poi_vet'.tr;
+      case shop: return 'poi_shop'.tr;
+      case groomer: return 'poi_groomer'.tr;
+      case park: return 'poi_park'.tr;
+      case beach: return 'poi_beach'.tr;
+      case water: return 'poi_water'.tr;
+      case trainer: return 'poi_trainer'.tr;
+      case hotel: return 'poi_hotel'.tr;
+      case restaurant: return 'poi_restaurant'.tr;
+      default: return 'poi_other'.tr;
     }
   }
+
+  /// Deprecated: kept for backwards compatibility with code that hasn't been
+  /// migrated to [label]. Prefer [label] which respects the current locale.
+  @Deprecated('Use PoiCategories.label(category) instead')
+  static String labelFr(String c) => label(c);
 }

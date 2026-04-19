@@ -473,9 +473,15 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               child: Column(
                 children: [
                   Obx(() {
+                    // Session v15-6 — the Sitter/Walker feed is now driven by
+                    // `reservationRequests` which comes from /posts/requests
+                    // (already filtered by role on the backend). The legacy
+                    // combinedPosts path is kept as a fallback for safety —
+                    // if reservationRequests is empty but a media post exists
+                    // we still show something.
                     final combinedPosts = <PostModel>[
+                      ...postsController.reservationRequests,
                       ...postsController.posts,
-                      ...postsController.postsWithoutMedia,
                     ];
 
                     if (postsController.isLoading.value &&

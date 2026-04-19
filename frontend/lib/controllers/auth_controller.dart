@@ -292,7 +292,23 @@ class AuthController extends GetxController {
         await _storage.write(StorageKeys.authToken, backendToken);
         debugPrint('[HOPETSIT] ✅ Token saved from Google sign-in');
 
-        final role = _extractRole(response);
+        // Prefer the role we sent to the backend — some backends create the
+        // user as 'sitter' by default and return 'sitter' even when we asked
+        // for 'walker'. The role we sent is the truth for new signups.
+        //
+        // Also: a user may have an old orphan record (e.g. a Sitter document
+        // from a previous app version) tied to the same Google email. When
+        // they now sign up as a Walker, the backend sees existingUser=true,
+        // role='sitter' and the frontend used to open the Sitter home. We
+        // fix this defensively: if the caller explicitly asked for 'walker',
+        // we trust that over whatever the backend returns.
+        final backendRole = _extractRole(response);
+        final isNewUser = response['existingUser'] != true;
+        final role = (roleToSend == 'walker')
+            ? 'walker'
+            : (isNewUser
+                ? (roleToSend ?? backendRole)
+                : (backendRole ?? roleToSend));
         userRole.value = role;
         if (role != null) {
           await _storage.write(StorageKeys.userRole, role);
@@ -301,7 +317,7 @@ class AuthController extends GetxController {
         final userData = _extractUser(response);
         if (userData != null) {
           final userDataWithRole = Map<String, dynamic>.from(userData);
-          if (role != null && !userDataWithRole.containsKey('role')) {
+          if (role != null) {
             userDataWithRole['role'] = role;
           }
           await _storage.write(StorageKeys.userProfile, userDataWithRole);
@@ -310,7 +326,8 @@ class AuthController extends GetxController {
         // Check if this is a new user (existingUser: false)
         final existingUser = response['existingUser'] as bool? ?? true;
         debugPrint(
-          '[HOPETSIT] Google sign-in: existingUser=$existingUser, role=$role',
+          '[HOPETSIT] Google sign-in: existingUser=$existingUser, '
+          'roleToSend=$roleToSend, backendRole=$backendRole, effective=$role',
         );
 
         if (!existingUser) {
@@ -446,7 +463,13 @@ class AuthController extends GetxController {
       if (isSuccess && backendToken != null) {
         await _storage.write(StorageKeys.authToken, backendToken);
 
-        final role = _extractRole(response);
+        // Same defensive check as Google sign-in: if the caller explicitly
+        // asked for 'walker', trust that over whatever the backend returns.
+        // This covers old orphan Sitter records created from the same Apple
+        // email in a previous version of the app.
+        final backendRole = _extractRole(response);
+        final role =
+            (roleToSend == 'walker') ? 'walker' : (backendRole ?? roleToSend);
         userRole.value = role;
         if (role != null) {
           await _storage.write(StorageKeys.userRole, role);
@@ -824,40 +847,18 @@ class AuthController extends GetxController {
     if (role == null) return;
 
     try {
-      if (role == 'owner') {
-        _clearSitterCachedData();
-        _clearServiceSelections();
-        await _refreshOwnerData();
-      } else if (role == 'walker') {
-        // Walker — no sitter-specific endpoints (no /sitters/me). The walker
-        // flow reuses the shared feed from PostsController, so we just refresh
-        // that + the user profile. Do NOT call the sitter profile endpoint
-        // (it returns 404 for walkers) and SKIP the PayPal prompt (that is a
-        // sitter-only payout flow).
-        _clearOwnerCachedData();
-        _clearServiceSelections();
-        try {
-          await _refreshWalkerData();
-        } catch (e) {
-          debugPrint(
-            '[HOPETSIT] ⚠️ Walker refresh failed after role switch: $e',
-          );
-        }
-      } else {
-        // Sitter — full refresh including sitter profile + PayPal prompt.
-        _clearOwnerCachedData();
-        _clearServiceSelections();
-        try {
-          await _refreshSitterData();
-        } catch (e) {
-          debugPrint(
-            '[HOPETSIT] ⚠️ Sitter refresh failed after role switch: $e',
-          );
-        }
+      // Session v15 — hard reset all user-scoped controllers so the *next*
+      // screen opens against a pristine controller that will fire its
+      // onInit() load. The previous "set .value = null + await reload"
+      // approach raced with _navigateToHome(): the home shell rebuilt first,
+      // lookups returned the old-but-nulled controller, and nothing re-fetched
+      // until the user triggered a manual action (hence the need to logout/
+      // relogin to see their own profile / newly published posts).
+      _forceResetUserControllers();
+      _clearServiceSelections();
 
-        if (AppConstants.showPayPalOption) {
-          await _promptForSitterPayPalEmailIfMissing();
-        }
+      if (role == 'sitter' && AppConstants.showPayPalOption) {
+        await _promptForSitterPayPalEmailIfMissing();
       }
       debugPrint('[HOPETSIT] ✅ Data refreshed after role switch to $role');
     } catch (e) {
@@ -865,9 +866,23 @@ class AuthController extends GetxController {
     }
   }
 
+  /// Deletes every user-scoped GetxController so they get re-created fresh
+  /// (with their onInit load) the next time a widget looks them up. Mirrors
+  /// the cleanup we do at logout — see `logout()`.
+  void _forceResetUserControllers() {
+    _forceDelete<UserController>();
+    _forceDelete<ProfileController>();
+    _forceDelete<SitterProfileController>();
+    _forceDelete<HomeController>();
+    _forceDelete<PostsController>();
+  }
+
   /// Walker-specific refresh after role switch. Walker has no dedicated
   /// profile endpoint yet (reuses the generic user profile), so this mostly
   /// reloads the shared feed + display name/avatar.
+  // Kept for reference — may be re-used later if we want partial refresh
+  // without the full force-delete done by _forceResetUserControllers().
+  // ignore: unused_element
   Future<void> _refreshWalkerData() async {
     if (Get.isRegistered<UserController>()) {
       await Get.find<UserController>().loadMyProfile();
@@ -960,6 +975,7 @@ class AuthController extends GetxController {
     }
   }
 
+  // ignore: unused_element
   void _clearOwnerCachedData() {
     if (Get.isRegistered<ProfileController>()) {
       final c = Get.find<ProfileController>();
@@ -976,6 +992,7 @@ class AuthController extends GetxController {
     }
   }
 
+  // ignore: unused_element
   void _clearSitterCachedData() {
     if (Get.isRegistered<SitterProfileController>()) {
       final c = Get.find<SitterProfileController>();
@@ -1017,6 +1034,7 @@ class AuthController extends GetxController {
     }
   }
 
+  // ignore: unused_element
   Future<void> _refreshOwnerData() async {
     if (Get.isRegistered<UserController>()) {
       await Get.find<UserController>().loadMyProfile();
@@ -1031,6 +1049,7 @@ class AuthController extends GetxController {
     }
   }
 
+  // ignore: unused_element
   Future<void> _refreshSitterData() async {
     if (Get.isRegistered<SitterProfileController>()) {
       await Get.find<SitterProfileController>().loadMyProfile();
@@ -1061,8 +1080,32 @@ class AuthController extends GetxController {
     emailController.clear();
     passwordController.clear();
 
+    // Force-remove controllers that carry user-scoped cache. Without this,
+    // logging out Owner "Daniel C" and logging back in as Walker "Aeps Pieces"
+    // kept the ProfileController in memory with Daniel's name/email, which
+    // showed up on the Walker profile tab while the Walker home tab (which
+    // reads from a different source) showed the correct data. Deleting these
+    // forces a clean re-init on next access.
+    _forceDelete<UserController>();
+    _forceDelete<ProfileController>();
+    _forceDelete<SitterProfileController>();
+    _forceDelete<HomeController>();
+    _forceDelete<PostsController>();
+
     // Navigate to login screen
     Get.offAll(() => const LoginScreen());
+  }
+
+  /// Safely delete a GetxController tag/instance if registered.
+  /// force: true drops permanent-marked instances too.
+  void _forceDelete<T>() {
+    try {
+      if (Get.isRegistered<T>()) {
+        Get.delete<T>(force: true);
+      }
+    } catch (_) {
+      // Swallow: logout must never fail because of a stale controller.
+    }
   }
 
   /// Returns true when the given error message / status code indicates the

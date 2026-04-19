@@ -317,7 +317,10 @@ class LoginScreen extends StatelessWidget {
 
   void _showLanguageDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentCode = LocalizationService.getCurrentLanguageCode();
+    // Track the selected language inside the dialog so the check mark moves
+    // when the user taps. Without StatefulBuilder, the check stayed frozen
+    // on whatever language was active at open-time.
+    String selectedCode = LocalizationService.getCurrentLanguageCode();
     final entries = LocalizationService.languageLabels.entries.toList();
 
     Get.defaultDialog(
@@ -327,30 +330,40 @@ class LoginScreen extends StatelessWidget {
         color: isDark ? AppColors.textPrimaryDark : AppColors.blackColor,
       ),
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.whiteColor,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: entries.map((entry) {
-          final isSelected = entry.key == currentCode;
-          return ListTile(
-            title: InterText(
-              text: entry.value,
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w500,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.blackColor,
-            ),
-            trailing: isSelected
-                ? Icon(Icons.check, color: AppColors.primaryColor)
-                : null,
-            onTap: () async {
-              await LocalizationService.updateLocale(entry.key);
-              Get.back();
-              CustomSnackbar.showSuccess(
-                title: 'language_updated_title'.tr,
-                message: 'language_updated_message'.tr,
+      content: StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: entries.map((entry) {
+              final isSelected = entry.key == selectedCode;
+              return ListTile(
+                title: InterText(
+                  text: entry.value,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w500,
+                  color:
+                      isDark ? AppColors.textPrimaryDark : AppColors.blackColor,
+                ),
+                trailing: isSelected
+                    ? Icon(Icons.check, color: AppColors.primaryColor)
+                    : null,
+                onTap: () async {
+                  setDialogState(() {
+                    selectedCode = entry.key;
+                  });
+                  await LocalizationService.updateLocale(entry.key);
+                  // Brief pause so the visual confirmation registers.
+                  await Future.delayed(const Duration(milliseconds: 250));
+                  Get.back();
+                  CustomSnackbar.showSuccess(
+                    title: 'language_updated_title'.tr,
+                    message: 'language_updated_message'.tr,
+                  );
+                },
               );
-            },
+            }).toList(),
           );
-        }).toList(),
+        },
       ),
       textCancel: 'common_cancel'.tr,
       cancelTextColor: AppColors.primaryColor,

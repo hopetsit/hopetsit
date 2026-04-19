@@ -17,7 +17,7 @@ import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_walker/profile/walker_identity_verification_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
-import 'package:hopetsit/views/profile/edit_owner_profile_screen.dart';
+import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
@@ -580,10 +580,10 @@ class WalkerProfileScreen extends StatelessWidget {
         _settingsTile(
           'Modifier mon profil',
           Icons.person_outline_rounded,
-          // Walker profile editing reuses the generic edit screen
-          // (name/email/avatar/mobile/city). A walker-specific form with
-          // rates + coverage will land in a follow-up.
-          () => Get.to(() => const EditOwnerProfileScreen()),
+          // Dedicated walker edit screen — includes a 60-min walk rate field
+          // and a single pickup toggle ("I'll pick up at the owner's home").
+          // Owners still use EditOwnerProfileScreen via their own profile.
+          () => Get.to(() => const EditWalkerProfileScreen()),
         ),
         _settingsTile(
           'Carte (PawMap)',
