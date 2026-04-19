@@ -12,6 +12,7 @@ import '../repositories/pet_repository.dart';
 import '../repositories/post_repository.dart';
 import '../repositories/sitter_repository.dart';
 import '../repositories/user_repository.dart';
+import '../repositories/walker_repository.dart';
 import '../repositories/notifications_repository.dart';
 import '../services/socket_service.dart';
 
@@ -66,6 +67,17 @@ void setupDependencies() {
   if (!Get.isRegistered<SitterRepository>()) {
     Get.put<SitterRepository>(
       SitterRepository(Get.find<ApiClient>()),
+      permanent: true,
+    );
+  }
+
+  // Session v16-owner-walker — WalkerRepository is injected into
+  // SendRequestController + sitter_homescreen to derive base price from
+  // walkRates. Without this registration every "Envoyer la demande" tap
+  // crashed with "WalkerRepository not found" on first use.
+  if (!Get.isRegistered<WalkerRepository>()) {
+    Get.put<WalkerRepository>(
+      WalkerRepository(Get.find<ApiClient>()),
       permanent: true,
     );
   }
