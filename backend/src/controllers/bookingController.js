@@ -264,10 +264,33 @@ const createBooking = async (req, res) => {
     if (!sitter) {
       return res.status(404).json({ error: 'Sitter not found.' });
     }
-    if (!sitter.hourlyRate || sitter.hourlyRate <= 0) {
+    // Session v15-6 — the Sitter edit UI was simplified in v15 so sitters
+    // often configure only dailyRate/weeklyRate/monthlyRate (no hourly).
+    // Reject only when *no* rate at all is set; otherwise we'll derive the
+    // hourly fallback from the most specific rate available below.
+    const hasAnyRate =
+      (sitter.hourlyRate && sitter.hourlyRate > 0) ||
+      (sitter.dailyRate && sitter.dailyRate > 0) ||
+      (sitter.weeklyRate && sitter.weeklyRate > 0) ||
+      (sitter.monthlyRate && sitter.monthlyRate > 0);
+    if (!hasAnyRate) {
       return res.status(400).json({
-        error: 'Sitter must set hourlyRate before creating a payable booking request.',
+        error:
+          'Sitter must set at least one rate (hourly, daily, weekly or monthly) before creating a payable booking request.',
       });
+    }
+    // Derive an hourly equivalent for downstream tier/price calculations.
+    // Precedence: explicit hourly > dailyRate / 8h > weekly / 56h (7×8) >
+    // monthly / 240h (30×8). This keeps the existing tierPricing math happy
+    // without forcing sitters to fill a field the UI doesn't even show.
+    if (!sitter.hourlyRate || sitter.hourlyRate <= 0) {
+      if (sitter.dailyRate && sitter.dailyRate > 0) {
+        sitter.hourlyRate = sitter.dailyRate / 8;
+      } else if (sitter.weeklyRate && sitter.weeklyRate > 0) {
+        sitter.hourlyRate = sitter.weeklyRate / 56;
+      } else if (sitter.monthlyRate && sitter.monthlyRate > 0) {
+        sitter.hourlyRate = sitter.monthlyRate / 240;
+      }
     }
 
     const isBlocked = await isOwnerSitterInteractionBlocked(ownerId, sitterId);

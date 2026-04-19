@@ -239,7 +239,12 @@ router.get('/media', getMediaPosts);
  *                   items:
  *                     $ref: '#/components/schemas/Post'
  */
-router.get('/requests', getRequestPosts);
+// Session v15-6 — requireAuth so `req.user` is populated and the controller
+// can filter requests by role (walker → dog_walking only; sitter → excludes
+// dog_walking + respects service preferences). Without auth the endpoint
+// returned every post unfiltered, which is why sitters/walkers were either
+// seeing the wrong posts or seeing nothing after the Flutter-side filter.
+router.get('/requests', requireAuth, getRequestPosts);
 
 // PawMap layer — geo-filtered request posts for sitter/walker discovery.
 // Must sit BEFORE the '/:id' route so Express doesn't treat "nearby" as an id.

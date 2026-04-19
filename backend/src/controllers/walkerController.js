@@ -23,7 +23,17 @@ const listWalkers = async (req, res) => {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
-    const filter = { status: 'active' };
+    // Session v15-6 — old walkers created before the `status` field was
+    // introduced have the field missing entirely; without this we'd hide
+    // them from every owner feed. Treat "missing or active" as active so
+    // legacy accounts stay visible until they get their first admin action.
+    const filter = {
+      $or: [
+        { status: 'active' },
+        { status: { $exists: false } },
+        { status: null },
+      ],
+    };
     if (req.query.city) {
       filter['location.city'] = new RegExp(`^${req.query.city}$`, 'i');
     }
@@ -90,7 +100,14 @@ const findNearbyWalkers = async (req, res) => {
           distanceField: 'distanceInMeters',
           maxDistance: radiusInMeters,
           spherical: true,
-          query: { status: 'active' },
+          // Session v15-6 — include legacy walkers without status field.
+          query: {
+            $or: [
+              { status: 'active' },
+              { status: { $exists: false } },
+              { status: null },
+            ],
+          },
         },
       },
       { $limit: 50 },
