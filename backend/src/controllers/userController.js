@@ -501,7 +501,11 @@ const deleteAccountFromToken = async (req, res) => {
       return res.status(403).json({ error: 'Authentication context missing.' });
     }
 
-    const Model = role === 'sitter' ? Sitter : Owner;
+    // Walkers are a distinct collection (added in session v3.2). Without
+    // this branch the Model fallback to Owner made walker deletions fail
+    // with "User not found".
+    const Model =
+      role === 'sitter' ? Sitter : role === 'walker' ? Walker : Owner;
     const account = await Model.findById(userId);
 
     if (!account) {
