@@ -33,12 +33,9 @@ const getMyNotifications = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
-    // Walker notifications are not yet supported (Notification model enum is owner|sitter).
-    // Return an empty list so the UI doesn't break.
-    if (role === 'walker') {
-      return res.json({ notifications: [], nextCursor: null, count: 0 });
-    }
-
+    // Session v16.2 - walker notifications are now first-class (Notification
+    // recipientRole enum includes 'walker'). The previous empty-list short
+    // circuit was hiding booking events from walker accounts.
     const items = await listNotifications({
       recipientRole: role,
       recipientId: userId,
@@ -69,10 +66,6 @@ const getMyUnreadCount = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
-    if (role === 'walker') {
-      return res.json({ unreadCount: 0 });
-    }
-
     const unreadCount = await getUnreadCount({ recipientRole: role, recipientId: userId });
     res.json({ unreadCount });
   } catch (error) {
@@ -92,10 +85,6 @@ const markMyNotificationRead = async (req, res) => {
     }
     if (!['owner', 'sitter', 'walker'].includes(role)) {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
-    }
-
-    if (role === 'walker') {
-      return res.status(404).json({ error: 'Notification not found (or already read).' });
     }
 
     const updated = await markNotificationRead({
@@ -125,10 +114,6 @@ const markMyNotificationsReadAll = async (req, res) => {
     }
     if (!['owner', 'sitter', 'walker'].includes(role)) {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
-    }
-
-    if (role === 'walker') {
-      return res.json({ updatedCount: 0 });
     }
 
     const updatedCount = await markAllRead({ recipientRole: role, recipientId: userId });

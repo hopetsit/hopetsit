@@ -3,8 +3,11 @@ const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema(
   {
     recipientRole: {
+      // Session v16.2 - added 'walker' so Mongoose stops silently rejecting
+      // notifications destined to pet-walker accounts (root cause of empty
+      // in-app notification lists for walkers).
       type: String,
-      enum: ['owner', 'sitter'],
+      enum: ['owner', 'sitter', 'walker'],
       required: true,
       index: true,
     },
@@ -15,7 +18,7 @@ const notificationSchema = new mongoose.Schema(
     },
     actorRole: {
       type: String,
-      enum: ['owner', 'sitter'],
+      enum: ['owner', 'sitter', 'walker'],
       default: null,
     },
     actorId: {

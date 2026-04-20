@@ -294,48 +294,62 @@ class EditWalkerProfileController extends GetxController {
         };
       }
 
-      // 1. Update profile.
-      await _walkerRepository.updateMyWalkerProfile(payload);
-
-      // 2. Update the walk rates (30 min + 60 min). We upsert both tiers in
-      // one round-trip. Empty fields are skipped — existing values are
-      // preserved. Session v15: added 30 min slot alongside the original
-      // 60 min "hourly rate".
+      // Session v16.2 — SAVE ORDER REVERSED. Previously the profile PATCH ran
+      // first; if any field (e.g. location) caused a validation error, the
+      // rates update was skipped and the walker's hourly price silently
+      // disappeared on next login. We now upsert rates FIRST so a broken
+      // profile payload can never wipe the rate out of the DB.
       final thirtyText =
           halfHourRateController.text.trim().replaceAll(',', '.');
       final sixtyText = hourlyRateController.text.trim().replaceAll(',', '.');
       final thirtyParsed = double.tryParse(thirtyText);
       final sixtyParsed = double.tryParse(sixtyText);
 
+      // 1. Persist the walk rates (30 min + 60 min). We upsert both tiers in
+      // one round-trip. Empty fields are skipped — existing values are
+      // preserved.
       if ((thirtyParsed != null && thirtyParsed > 0) ||
           (sixtyParsed != null && sixtyParsed > 0)) {
-        final existing = await _walkerRepository.getMyWalkerRates();
-        final byDuration = <int, WalkRate>{
-          for (final r in existing) r.durationMinutes: r,
-        };
+        try {
+          final existing = await _walkerRepository.getMyWalkerRates();
+          final byDuration = <int, WalkRate>{
+            for (final r in existing) r.durationMinutes: r,
+          };
 
-        if (thirtyParsed != null && thirtyParsed > 0) {
-          final cur = byDuration[30]?.currency ?? 'EUR';
-          byDuration[30] = WalkRate(
-            durationMinutes: 30,
-            basePrice: thirtyParsed,
-            currency: cur,
-            enabled: true,
+          if (thirtyParsed != null && thirtyParsed > 0) {
+            final cur = byDuration[30]?.currency ?? 'EUR';
+            byDuration[30] = WalkRate(
+              durationMinutes: 30,
+              basePrice: thirtyParsed,
+              currency: cur,
+              enabled: true,
+            );
+          }
+          if (sixtyParsed != null && sixtyParsed > 0) {
+            final cur = byDuration[60]?.currency ?? 'EUR';
+            byDuration[60] = WalkRate(
+              durationMinutes: 60,
+              basePrice: sixtyParsed,
+              currency: cur,
+              enabled: true,
+            );
+          }
+          final sorted = byDuration.values.toList()
+            ..sort((a, b) => a.durationMinutes.compareTo(b.durationMinutes));
+          await _walkerRepository.updateMyWalkerRates(sorted);
+        } catch (rateError) {
+          // Don't bury this: a rate save failure is the #1 root cause of
+          // "tarif horaire" errors in the request flow.
+          AppLogger.logError(
+            'Failed to update walker rates (step 1/2)',
+            error: rateError,
           );
+          rethrow;
         }
-        if (sixtyParsed != null && sixtyParsed > 0) {
-          final cur = byDuration[60]?.currency ?? 'EUR';
-          byDuration[60] = WalkRate(
-            durationMinutes: 60,
-            basePrice: sixtyParsed,
-            currency: cur,
-            enabled: true,
-          );
-        }
-        final sorted = byDuration.values.toList()
-          ..sort((a, b) => a.durationMinutes.compareTo(b.durationMinutes));
-        await _walkerRepository.updateMyWalkerRates(sorted);
       }
+
+      // 2. Update profile fields. If this fails the rate is already safe.
+      await _walkerRepository.updateMyWalkerProfile(payload);
 
       await loadProfileData();
 

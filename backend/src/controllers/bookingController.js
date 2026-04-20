@@ -483,9 +483,17 @@ const createBooking = async (req, res) => {
     await booking.populate('sitterId');
     await booking.populate('petIds'); // Populate full pet details
 
+    // Session v16.2 - route the notification to the correct collection
+    // based on providerType. Previously hardcoded to 'sitter', which meant
+    // walker bookings either failed silently (wrong enum) or persisted with
+    // a null recipientId.
+    const notificationRecipientRole =
+      providerType === 'walker' ? 'walker' : 'sitter';
+    const notificationRecipientId =
+      providerType === 'walker' ? providerId : sitterId;
     await createNotificationSafe({
-      recipientRole: 'sitter',
-      recipientId: sitterId,
+      recipientRole: notificationRecipientRole,
+      recipientId: notificationRecipientId,
       actorRole: 'owner',
       actorId: ownerId,
       type: 'booking_new',
@@ -1216,7 +1224,11 @@ const respondBooking = async (req, res) => {
       return res.status(400).json({ error: 'Invalid action. Expected "accept" or "reject".' });
     }
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId')
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
@@ -1224,6 +1236,14 @@ const respondBooking = async (req, res) => {
     if (booking.status !== 'pending') {
       return res.status(409).json({ error: `Booking already ${booking.status}.` });
     }
+
+    // Session v16.2 - derive actor info from whichever provider field is set
+    // so walker accept/reject notifications reach the owner correctly.
+    const isWalkerResponder = !!booking.walkerId;
+    const actorRoleForOwnerNotif = isWalkerResponder ? 'walker' : 'sitter';
+    const actorIdForOwnerNotif = isWalkerResponder
+      ? (booking.walkerId?._id ? booking.walkerId._id.toString() : booking.walkerId.toString())
+      : (booking.sitterId?._id ? booking.sitterId._id.toString() : booking.sitterId.toString());
 
     if (action === 'accept') {
       booking.status = 'accepted';
@@ -1233,8 +1253,8 @@ const respondBooking = async (req, res) => {
       await createNotificationSafe({
         recipientRole: 'owner',
         recipientId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
-        actorRole: 'sitter',
-        actorId: booking.sitterId?._id ? booking.sitterId._id.toString() : booking.sitterId.toString(),
+        actorRole: actorRoleForOwnerNotif,
+        actorId: actorIdForOwnerNotif,
         type: 'booking_accepted',
         title: 'Booking accepted',
         body: 'Your booking request was accepted.',
@@ -1274,13 +1294,14 @@ const respondBooking = async (req, res) => {
     booking.status = 'rejected';
     booking.rejectedAt = new Date();
     await booking.save();
-    await booking.populate(['ownerId', 'sitterId']);
+    await booking.populate(['ownerId', 'sitterId', 'walkerId']);
 
     await createNotificationSafe({
       recipientRole: 'owner',
       recipientId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
-      actorRole: 'sitter',
-      actorId: booking.sitterId?._id ? booking.sitterId._id.toString() : booking.sitterId.toString(),
+      // Session v16.2 - same walker/sitter routing as accept path above.
+      actorRole: actorRoleForOwnerNotif,
+      actorId: actorIdForOwnerNotif,
       type: 'booking_rejected',
       title: 'Booking rejected',
       body: 'Your booking request was rejected.',

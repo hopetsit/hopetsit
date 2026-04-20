@@ -159,6 +159,9 @@ const updateMyWalkerProfile = async (req, res) => {
     }
 
     // Whitelist editable fields to avoid mass-assignment vulnerabilities.
+    // Session v16.2 — added `location` and `pickupPreferences` so the walker
+    // edit-profile screen stops silently dropping city/lat/lng and the
+    // "pickup at owner" toggle on every save.
     const allowed = [
       'name',
       'mobile',
@@ -176,11 +179,44 @@ const updateMyWalkerProfile = async (req, res) => {
       'defaultWalkDurationMinutes',
       'availableTimeSlots',
       'service',
+      'location',
+      'pickupPreferences',
     ];
     const update = {};
     for (const key of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, key)) {
         update[key] = req.body[key];
+      }
+    }
+
+    // Session v16.2 — normalise `location`. Frontend sends flat
+    // `{lat, lng, city}` but the Walker schema stores GeoJSON
+    // `{type:'Point', coordinates:[lng, lat], city}`. Convert here so both
+    // shapes are accepted without breaking old clients.
+    if (update.location && typeof update.location === 'object') {
+      const loc = update.location;
+      const hasFlatCoords =
+        typeof loc.lat === 'number' && typeof loc.lng === 'number';
+      const hasGeoJsonCoords =
+        Array.isArray(loc.coordinates) && loc.coordinates.length === 2;
+      if (hasFlatCoords && !hasGeoJsonCoords) {
+        update.location = {
+          type: 'Point',
+          coordinates: [loc.lng, loc.lat],
+          ...(loc.city ? { city: String(loc.city).trim() } : {}),
+          ...(loc.locationType ? { locationType: loc.locationType } : {}),
+        };
+      } else if (hasGeoJsonCoords) {
+        // Already GeoJSON — ensure `type: 'Point'`.
+        update.location = {
+          type: 'Point',
+          coordinates: loc.coordinates,
+          ...(loc.city ? { city: String(loc.city).trim() } : {}),
+          ...(loc.locationType ? { locationType: loc.locationType } : {}),
+        };
+      } else {
+        // No valid coordinates — drop to avoid GeoJSON validation error.
+        delete update.location;
       }
     }
 

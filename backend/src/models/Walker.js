@@ -100,6 +100,13 @@ const walkerSchema = new mongoose.Schema(
     // Pricing — per-walk duration.
     walkRates: { type: [walkRateEntrySchema], default: [] },
 
+    // Session v16.2 — pickup preferences. Walkers work at the owner's side by
+    // default; this toggle lets a walker declare whether they pick up the dog
+    // at the owner's home. Exposed in the edit-profile screen.
+    pickupPreferences: {
+      atOwner: { type: Boolean, default: true },
+    },
+
     // Optional default walk duration in minutes (for UI prefill).
     defaultWalkDurationMinutes: {
       type: Number,
