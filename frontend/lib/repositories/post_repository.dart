@@ -8,6 +8,29 @@ class PostRepository {
 
   final ApiClient _apiClient;
 
+  /// v16.3h — fetch a single post by ID. Used by the notification handler
+  /// when a like/comment notification references a post that is not in the
+  /// current feed cache (e.g. a walker liked an owner's post; clicking the
+  /// notification from another device with a cold cache).
+  /// Returns null when the post does not exist or is hidden.
+  Future<PostModel?> getPostById(String postId) async {
+    try {
+      final response =
+          await _apiClient.get('/posts/by-id/$postId', requiresAuth: true);
+      if (response is Map<String, dynamic>) {
+        final raw = response['post'];
+        if (raw is Map<String, dynamic>) {
+          return PostModel.fromJson(raw);
+        }
+      }
+      return null;
+    } on ApiException {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Fetches media posts from the API.
   Future<List<PostModel>> getMediaPosts() async {
     final response = await _apiClient.get('/posts/media', requiresAuth: false);

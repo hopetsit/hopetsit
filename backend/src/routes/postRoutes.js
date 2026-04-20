@@ -8,6 +8,7 @@ const {
   getMediaPosts,
   getRequestPosts,
   getNearbyRequestPosts,
+  getPostById,
   toggleLike,
   addComment,
   deleteComment,
@@ -219,6 +220,9 @@ router.post('/with-media', requireAuth, requireRole('owner'), postMediaUpload, c
  *                     $ref: '#/components/schemas/Post'
  */
 router.get('/media', getMediaPosts);
+// v16.3h — single post fetch used by the notification handler when the post
+// is not currently in the client's feed cache (e.g. like notification).
+router.get('/by-id/:id', requireAuth, getPostById);
 
 /**
  * @swagger

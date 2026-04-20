@@ -41,6 +41,10 @@ class PetPostCard extends StatelessWidget {
   /// displayed right above the action buttons.
   final PostPriceEstimate? priceEstimate;
 
+  /// v16.3h — role of the viewer ('walker' | 'sitter' | null). Controls the
+  /// accent color of the price block (green for walker, blue for sitter).
+  final String? viewerRole;
+
   const PetPostCard({
     super.key,
     required this.userName,
@@ -68,6 +72,7 @@ class PetPostCard extends StatelessWidget {
     this.onBlockUser,
     this.onReportPost,
     this.priceEstimate,
+    this.viewerRole,
   });
 
   @override
@@ -500,10 +505,18 @@ class PetPostCard extends StatelessWidget {
   }
 
   /// v16.3g — earning estimate block for the walker/sitter viewing this
-  /// post. Shows: total billed to the owner (brut) and net amount the
-  /// provider keeps after the platform commission, with a small breakdown.
+  /// post. v16.3h: accent color depends on viewer role (green for walker,
+  /// blue for sitter, fallback to primary color).
   Widget _buildPriceBlock(BuildContext context, PostPriceEstimate est) {
-    final accent = AppColors.primaryColor;
+    final role = (viewerRole ?? '').toLowerCase();
+    Color accent;
+    if (role == 'walker') {
+      accent = const Color(0xFF16A34A); // green-600
+    } else if (role == 'sitter') {
+      accent = const Color(0xFF2563EB); // blue-600
+    } else {
+      accent = AppColors.primaryColor;
+    }
     final brutLabel = _formatMoneyShort(est.brut, est.currency);
     final netLabel = _formatMoneyShort(est.net, est.currency);
 

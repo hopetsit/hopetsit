@@ -154,15 +154,45 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return '${d.day} ${months.substring(i, i + 3)}';
   }
 
+  /// v16.3h — format a DateTime with time if the time is non-zero,
+  /// otherwise date only. Time format: "14h" or "14h30".
+  static String _formatDateWithTime(DateTime d) {
+    final dateStr = _formatDateShort(d);
+    // Treat midnight as "no time set" and display date only.
+    if (d.hour == 0 && d.minute == 0) return dateStr;
+    final h = d.hour.toString();
+    final m = d.minute.toString().padLeft(2, '0');
+    final timeStr = d.minute == 0 ? '${h}h' : '${h}h$m';
+    return '$dateStr, $timeStr';
+  }
+
   static String? _postDateRangeLabel(PostModel post) {
     final s = post.startDate;
     final e = post.endDate;
     if (s != null && e != null) {
-      return '${_formatDateShort(s.toLocal())} – ${_formatDateShort(e.toLocal())}';
+      final sl = s.toLocal();
+      final el = e.toLocal();
+      final sameDay = sl.year == el.year && sl.month == el.month && sl.day == el.day;
+      if (sameDay) {
+        // Single-day event (walker / day care). Show "30 Apr, 14h → 15h".
+        final dateStr = _formatDateShort(sl);
+        final startT = _formatTimeShort(sl);
+        final endT = _formatTimeShort(el);
+        if (startT.isEmpty && endT.isEmpty) return dateStr;
+        return '$dateStr, $startT → $endT';
+      }
+      return '${_formatDateWithTime(sl)} → ${_formatDateWithTime(el)}';
     }
-    if (s != null) return _formatDateShort(s.toLocal());
-    if (e != null) return _formatDateShort(e.toLocal());
+    if (s != null) return _formatDateWithTime(s.toLocal());
+    if (e != null) return _formatDateWithTime(e.toLocal());
     return null;
+  }
+
+  static String _formatTimeShort(DateTime d) {
+    if (d.hour == 0 && d.minute == 0) return '';
+    final h = d.hour.toString();
+    final m = d.minute.toString().padLeft(2, '0');
+    return d.minute == 0 ? '${h}h' : '${h}h$m';
   }
 
   static String _serviceTypesDisplay(List<String> types) {
@@ -844,6 +874,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               isNetworkImage: imageUrls.isNotEmpty,
                               likeCount: post.likesCount,
                               priceEstimate: priceEstimate,
+                              viewerRole: currentRole,
                               // Comments disabled on publications
                               commentCount: 0,
                               isLiked: postsController.isPostLiked(post.id),

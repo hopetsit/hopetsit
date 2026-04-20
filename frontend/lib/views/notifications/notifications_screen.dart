@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -21,6 +24,7 @@ import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/notification_card.dart';
 
@@ -164,6 +168,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await pc.refreshPosts();
       post = _findPost(pc, postId);
     }
+    // v16.3h — last-resort fallback: fetch the post directly by id. This
+    // covers the case where a notification targets a post that is not in
+    // the local feed (e.g. a like from another user on a post outside the
+    // current filter).
+    if (post == null) {
+      try {
+        final repo = Get.isRegistered<PostRepository>()
+            ? Get.find<PostRepository>()
+            : PostRepository(Get.find<ApiClient>());
+        post = await repo.getPostById(postId);
+      } catch (_) {
+        post = null;
+      }
+    }
     if (!context.mounted) return;
     if (post != null) {
       final resolved = post;
@@ -279,6 +297,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     message: e.toString(),
                   );
                 }
+              },
+              // v16.3h — Cancel button wired: show confirmation,
+              // call BookingsController.cancelBooking, pop on success.
+              onCancel: () {
+                CustomConfirmationDialog.show(
+                  context: Get.context!,
+                  message: 'booking_cancel_dialog_message'.tr,
+                  yesText: 'common_yes'.tr,
+                  cancelText: 'common_cancel'.tr,
+                  onYes: () async {
+                    final ctrl = Get.isRegistered<BookingsController>()
+                        ? Get.find<BookingsController>()
+                        : Get.put(BookingsController());
+                    await ctrl.cancelBooking(
+                      bookingId: booking.id,
+                      sitterId: booking.sitter.id,
+                    );
+                    if (Get.isOverlaysOpen) Get.back();
+                    Get.back(); // close the OwnerBookingDetailScreen
+                  },
+                );
               },
             ),
           );

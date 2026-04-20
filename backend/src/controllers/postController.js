@@ -1034,6 +1034,37 @@ const updatePost = async (req, res) => {
   }
 };
 
+/**
+ * v16.3h — Fetch a single post by ID. Used by the mobile client when a
+ * notification payload carries a postId that is not currently in the user's
+ * feed cache (e.g. a like notification for a post that belongs to another
+ * user). Returns 404 when the post does not exist or has been hidden.
+ */
+const getPostById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Post id is required.' });
+    }
+    const post = await Post.findById(id)
+      .populate('ownerId')
+      .populate('petId');
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found.' });
+    }
+    if (post.hidden) {
+      return res.status(404).json({ error: 'Post is no longer available.' });
+    }
+    return res.json({ post: sanitizePost(post) });
+  } catch (error) {
+    logger.error('Get post by id error', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid post id.' });
+    }
+    return res.status(500).json({ error: 'Unable to load post. Please try again later.' });
+  }
+};
+
 module.exports = {
   createPost,
   createPostWithMedia,
@@ -1041,6 +1072,7 @@ module.exports = {
   getMediaPosts,
   getRequestPosts,
   getNearbyRequestPosts,
+  getPostById,
   toggleLike,
   addComment,
   deleteComment,

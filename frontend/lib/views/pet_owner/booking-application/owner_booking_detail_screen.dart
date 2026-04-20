@@ -474,81 +474,102 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
               SizedBox(height: 12.h),
 
               // Pay / Cancel buttons
-              if (isEligibleForPayment && widget.onPay != null)
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: widget.onPay,
-                        child: Container(
-                          height: 50.h,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
+              // v16.3h — when the booking is eligible for payment AND the
+              // owner still has the ability to cancel, show BOTH buttons
+              // side by side (Pay primary, Cancel secondary).
+              Builder(builder: (context) {
+                final payVisible = isEligibleForPayment && widget.onPay != null;
+                final cancelVisible = !isPaid &&
+                    (statusLower == 'pending' || statusLower == 'agreed' || statusLower == 'accepted') &&
+                    widget.onCancel != null;
+
+                if (!payVisible && !cancelVisible) return const SizedBox.shrink();
+
+                final payButton = Expanded(
+                  child: GestureDetector(
+                    onTap: widget.onPay,
+                    child: Container(
+                      height: 50.h,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
+                        ),
+                        borderRadius: BorderRadius.circular(16.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.payment,
+                            color: AppColors.whiteColor,
+                            size: 20.sp,
+                          ),
+                          SizedBox(width: 8.w),
+                          Flexible(
+                            child: InterText(
+                              text: booking.totalAmount != null
+                                  ? 'owner_pay_with_amount'.tr.replaceAll(
+                                      '@amount',
+                                      booking.totalAmount!.toStringAsFixed(2),
+                                    )
+                                  : 'owner_pay_now'.tr,
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.whiteColor,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            borderRadius: BorderRadius.circular(16.r),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primaryColor.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
                           ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.payment,
-                                color: AppColors.whiteColor,
-                                size: 20.sp,
-                              ),
-                              SizedBox(width: 8.w),
-                              InterText(
-                                text: booking.totalAmount != null
-                                    ? 'owner_pay_with_amount'.tr.replaceAll(
-                                        '@amount',
-                                        booking.totalAmount!.toStringAsFixed(2),
-                                      )
-                                    : 'owner_pay_now'.tr,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.whiteColor,
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
                     ),
-                  ],
-                )
-              else if (!isPaid &&
-                  (statusLower == 'pending' || statusLower == 'agreed') &&
-                  widget.onCancel != null)
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: widget.onCancel,
-                        child: Container(
-                          height: 50.h,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F2),
-                            borderRadius: BorderRadius.circular(16.r),
-                          ),
-                          alignment: Alignment.center,
-                          child: InterText(
-                            text: 'owner_cancel_booking'.tr,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.grey700Color,
-                          ),
-                        ),
+                  ),
+                );
+
+                final cancelButton = Expanded(
+                  child: GestureDetector(
+                    onTap: widget.onCancel,
+                    child: Container(
+                      height: 50.h,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F0F2),
+                        borderRadius: BorderRadius.circular(16.r),
+                      ),
+                      alignment: Alignment.center,
+                      child: InterText(
+                        text: 'owner_cancel_booking'.tr,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey700Color,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                );
+
+                if (payVisible && cancelVisible) {
+                  return Row(
+                    children: [
+                      cancelButton,
+                      SizedBox(width: 10.w),
+                      payButton,
+                    ],
+                  );
+                }
+                if (payVisible) {
+                  return Row(children: [payButton]);
+                }
+                return Row(children: [cancelButton]);
+              }),
 
               // ── 72h free cancellation for paid bookings ──
               if (isPaid && statusLower != 'cancelled' && statusLower != 'completed' && statusLower != 'refunded')
