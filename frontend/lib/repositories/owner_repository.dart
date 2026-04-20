@@ -481,6 +481,42 @@ class OwnerRepository {
     }
   }
 
+  /// Session v16.3b — transition a booking from status `accepted` to `agreed`.
+  ///
+  /// Required before payment can be initiated (backend enforces this).
+  /// When called by the owner, the backend also auto-creates a Stripe
+  /// PaymentIntent and returns its `clientSecret` in the response, which
+  /// the payment screen can reuse to skip a round-trip.
+  Future<Map<String, dynamic>> agreeToBooking({
+    required String bookingId,
+  }) async {
+    AppLogger.logInfo(
+      'Agreeing to booking (status accepted -> agreed)',
+      data: {'bookingId': bookingId},
+    );
+    try {
+      final response = await _apiClient.put(
+        '${ApiEndpoints.bookings}/$bookingId/agree',
+        body: {},
+        requiresAuth: true,
+      );
+      if (response is Map<String, dynamic>) {
+        AppLogger.logSuccess('Booking agreed', data: {'bookingId': bookingId});
+        return response;
+      }
+      if (response is Map) {
+        return Map<String, dynamic>.from(response);
+      }
+      throw ApiException(
+        'Unexpected agree to booking response.',
+        details: response,
+      );
+    } catch (e) {
+      AppLogger.logError('Failed to agree to booking', error: e);
+      rethrow;
+    }
+  }
+
   /// Gets the booking agreement/price details.
   Future<Map<String, dynamic>> getBookingAgreement({
     required String bookingId,

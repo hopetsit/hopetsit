@@ -325,17 +325,13 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                               finalTotal,
                             ),
                           ),
-                          onTap: () {
-                            Get.to(
-                              () => StripePaymentScreen(
-                                booking: widget.booking,
-                                totalAmount: finalTotal,
-                                currency:
-                                    _currency ??
-                                    widget.booking.pricing?.currency ??
-                                    widget.booking.sitter.currency,
-                              ),
-                            );
+                          // Session v16.3b — if status is still 'accepted',
+                          // transition it to 'agreed' before opening the
+                          // Stripe sheet. Backend rejects payment intents
+                          // on non-'agreed' bookings, which left owners
+                          // stuck in a deadlock.
+                          onTap: () async {
+                            await _agreeAndPayWithStripe(finalTotal);
                           },
                           bgColor: AppColors.primaryColor,
                           textColor: AppColors.whiteColor,
@@ -354,17 +350,9 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                                 finalTotal,
                               ),
                             ),
-                            onTap: () {
-                              Get.to(
-                                () => PayPalPaymentScreen(
-                                  booking: widget.booking,
-                                  totalAmount: finalTotal,
-                                  currency:
-                                      _currency ??
-                                      widget.booking.pricing?.currency ??
-                                      widget.booking.sitter.currency,
-                                ),
-                              );
+                            // Session v16.3b — see Stripe onTap comment.
+                            onTap: () async {
+                              await _agreeAndPayWithPaypal(finalTotal);
                             },
                             bgColor: AppColors.whiteColor,
                             textColor: AppColors.grey700Color,
@@ -466,6 +454,75 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
               ),
             ),
     );
+  }
+
+  /// Session v16.3b — owner agrees to booking (if needed) then opens
+  /// the Stripe payment sheet. Wrapping the Pay button removes the need
+  /// for a separate "Agree" UI while still calling the required backend
+  /// transition `accepted -> agreed`.
+  Future<void> _agreeAndPayWithStripe(double finalTotal) async {
+    final status = widget.booking.status.toLowerCase();
+    if (status == 'accepted') {
+      final ok = await _ensureAgreed();
+      if (!ok) return;
+    }
+    if (!mounted) return;
+    Get.to(
+      () => StripePaymentScreen(
+        booking: widget.booking,
+        totalAmount: finalTotal,
+        currency: _currency ??
+            widget.booking.pricing?.currency ??
+            widget.booking.sitter.currency,
+      ),
+    );
+  }
+
+  /// Session v16.3b — symmetric helper for the PayPal path.
+  Future<void> _agreeAndPayWithPaypal(double finalTotal) async {
+    final status = widget.booking.status.toLowerCase();
+    if (status == 'accepted') {
+      final ok = await _ensureAgreed();
+      if (!ok) return;
+    }
+    if (!mounted) return;
+    Get.to(
+      () => PayPalPaymentScreen(
+        booking: widget.booking,
+        totalAmount: finalTotal,
+        currency: _currency ??
+            widget.booking.pricing?.currency ??
+            widget.booking.sitter.currency,
+      ),
+    );
+  }
+
+  /// Calls PUT /bookings/:id/agree. Returns true on success.
+  /// Mutates widget.booking.status to 'agreed' locally so the UI reflects
+  /// the new state immediately if the user comes back before a refresh.
+  Future<bool> _ensureAgreed() async {
+    try {
+      setState(() => _isLoading = true);
+      await _ownerRepository.agreeToBooking(bookingId: widget.booking.id);
+      widget.booking.status = 'agreed';
+      return true;
+    } on ApiException catch (e) {
+      AppLogger.logError('Failed to agree before payment', error: e.message);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.message.isNotEmpty ? e.message : 'common_error_generic'.tr,
+      );
+      return false;
+    } catch (e) {
+      AppLogger.logError('Failed to agree before payment', error: e);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'common_error_generic'.tr,
+      );
+      return false;
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildStatusBadge() {

@@ -58,7 +58,7 @@ class BookingModel {
   final String description;
   final String date;
   final String timeSlot;
-  final String status;
+  String status;
   final String createdAt;
   final String updatedAt;
   final BookingUser owner;
