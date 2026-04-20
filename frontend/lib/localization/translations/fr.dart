@@ -862,6 +862,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'notif_body_provider_sent_request': 'Un prestataire vous a envoyé une demande.',
       'notifications_post_view_title': 'Publication',
       'notifications_request_view_title': 'Demande du sitter',
+      'notifications_request_view_title_walker': 'Demande du walker',
       'notifications_application_not_found':
           'Cette demande n\'est plus disponible ou n\'a pas pu etre chargee.',
       'notifications_open_sitter_profile': 'Voir le profil du sitter',

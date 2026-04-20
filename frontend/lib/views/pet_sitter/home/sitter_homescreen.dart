@@ -50,11 +50,81 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   SitterFeedSortOrder _sortOrder = SitterFeedSortOrder.newestFirst;
   Position? _userPosition;
 
+  // v16.3i — provider rates cache for estimated-earning block on post cards.
+  // Walker: walkRates from /walkers/me/rates (per-duration prices).
+  // Sitter: hourly/daily/weekly/monthly from GET /sitters/:id.
+  double _providerHourlyRate = 0.0;
+  double _providerDailyRate = 0.0;
+  double _providerWeeklyRate = 0.0;
+  double _providerMonthlyRate = 0.0;
+  String _providerCurrency = 'EUR';
+
   @override
   void initState() {
     super.initState();
     _loadPendingApplications();
     _loadUserPosition();
+    _loadProviderRates();
+  }
+
+  /// v16.3i — fetch the current provider's rates so the price block on
+  /// post cards can be computed. Silent on failure (block will just stay
+  /// hidden).
+  Future<void> _loadProviderRates() async {
+    try {
+      final role = Get.isRegistered<AuthController>()
+          ? (Get.find<AuthController>().userRole.value ?? '').toLowerCase()
+          : '';
+      if (role == 'walker') {
+        final walkerRepo = Get.isRegistered<WalkerRepository>()
+            ? Get.find<WalkerRepository>()
+            : null;
+        if (walkerRepo == null) return;
+        final rates = await walkerRepo.getMyWalkerRates();
+        double hourly = 0.0;
+        double halfHour = 0.0;
+        for (final r in rates) {
+          if (!r.enabled || r.basePrice <= 0) continue;
+          if (r.durationMinutes == 60 && hourly == 0.0) hourly = r.basePrice;
+          if (r.durationMinutes == 30 && halfHour == 0.0) halfHour = r.basePrice;
+        }
+        // Prefer hourly; if only half-hour exists, extrapolate x2 so the
+        // estimator still has a value for jobs of 1h+.
+        final derivedHourly = hourly > 0 ? hourly : halfHour * 2;
+        if (!mounted) return;
+        setState(() {
+          _providerHourlyRate = derivedHourly;
+        });
+      } else if (role == 'sitter') {
+        final storage = GetStorage();
+        final userProfile = storage.read<Map<String, dynamic>>(
+          StorageKeys.userProfile,
+        );
+        final sitterId = userProfile?['id']?.toString();
+        if (sitterId == null || sitterId.isEmpty) return;
+        final sitterRepo = Get.isRegistered<SitterRepository>()
+            ? Get.find<SitterRepository>()
+            : null;
+        if (sitterRepo == null) return;
+        final profile = await sitterRepo.getSitterProfile(sitterId);
+        double _n(dynamic v) =>
+            v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
+        if (!mounted) return;
+        setState(() {
+          _providerHourlyRate = _n(profile['hourlyRate']);
+          _providerDailyRate = _n(profile['dailyRate']);
+          _providerWeeklyRate = _n(profile['weeklyRate']);
+          _providerMonthlyRate = _n(profile['monthlyRate']);
+          final cur = profile['currency']?.toString() ??
+              profile['hourlyRateCurrency']?.toString();
+          if (cur != null && cur.isNotEmpty) {
+            _providerCurrency = cur.toUpperCase();
+          }
+        });
+      }
+    } catch (e) {
+      AppLogger.logDebug('loadProviderRates failed: $e');
+    }
   }
 
   Future<void> _loadUserPosition() async {
@@ -200,42 +270,31 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return types.map((t) => t.replaceAll('_', ' ')).join(', ');
   }
 
-  /// v16.3g — Build an earning estimate for [post] using the rates from
-  /// the currently logged-in walker/sitter profile (stored in GetStorage).
-  /// Returns null when no post dates, no usable rate, or user is not a
-  /// provider.
+  /// v16.3g — Build an earning estimate for [post] using the rates loaded by
+  /// [_loadProviderRates] from the backend (walker /walkers/me/rates, sitter
+  /// GET /sitters/:id). Returns null when no post dates, no usable rate, or
+  /// user is not a provider.
   PostPriceEstimate? _estimateForPost(PostModel post) {
     try {
-      final storage = GetStorage();
-      final userProfile = storage.read<Map<String, dynamic>>(
-        StorageKeys.userProfile,
-      );
-      if (userProfile == null) return null;
-
-      final role = (userProfile['role']?.toString() ??
-              (Get.isRegistered<AuthController>()
-                  ? (Get.find<AuthController>().userRole.value ?? '')
-                  : ''))
-          .toLowerCase();
+      final role = Get.isRegistered<AuthController>()
+          ? (Get.find<AuthController>().userRole.value ?? '').toLowerCase()
+          : '';
       if (role != 'sitter' && role != 'walker') return null;
-
-      double asDouble(dynamic v) {
-        if (v is num) return v.toDouble();
-        if (v is String) return double.tryParse(v) ?? 0.0;
-        return 0.0;
-      }
+      // If rates haven't loaded yet, we simply skip — the block stays hidden.
+      final hasAnyRate = _providerHourlyRate > 0 ||
+          _providerDailyRate > 0 ||
+          _providerWeeklyRate > 0 ||
+          _providerMonthlyRate > 0;
+      if (!hasAnyRate) return null;
 
       return estimatePostPrice(
         post: post,
         userRole: role,
-        hourlyRate: asDouble(userProfile['hourlyRate']),
-        dailyRate: asDouble(userProfile['dailyRate']),
-        weeklyRate: asDouble(userProfile['weeklyRate']),
-        monthlyRate: asDouble(userProfile['monthlyRate']),
-        currency: (userProfile['currency']?.toString() ??
-                userProfile['hourlyRateCurrency']?.toString() ??
-                'EUR')
-            .toUpperCase(),
+        hourlyRate: _providerHourlyRate,
+        dailyRate: _providerDailyRate,
+        weeklyRate: _providerWeeklyRate,
+        monthlyRate: _providerMonthlyRate,
+        currency: _providerCurrency,
       );
     } catch (e) {
       AppLogger.logDebug('estimateForPost failed: $e');

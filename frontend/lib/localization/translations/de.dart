@@ -213,6 +213,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'notif_body_provider_sent_request': 'Ein Dienstleister hat Ihnen eine Anfrage gesendet.',
       'notifications_post_view_title': 'Beitrag',
       'notifications_request_view_title': 'Sitter-Anfrage',
+      'notifications_request_view_title_walker': 'Walker-Anfrage',
       'notifications_application_not_found':
           'Diese Anfrage ist nicht mehr verfuegbar oder konnte nicht geladen werden.',
       'notifications_open_sitter_profile': 'Sitter-Profil anzeigen',

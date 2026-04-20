@@ -857,6 +857,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'notif_body_provider_sent_request': 'Un proveedor te ha enviado una solicitud.',
       'notifications_post_view_title': 'Publicacion',
       'notifications_request_view_title': 'Solicitud del cuidador',
+      'notifications_request_view_title_walker': 'Solicitud del paseador',
       'notifications_application_not_found':
           'Esta solicitud ya no esta disponible o no se pudo cargar.',
       'notifications_open_sitter_profile': 'Ver perfil del cuidador',

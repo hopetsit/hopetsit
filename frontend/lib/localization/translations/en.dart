@@ -816,6 +816,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'notif_body_provider_sent_request': 'A pet-care provider sent you a request.',
       'notifications_post_view_title': 'Post',
       'notifications_request_view_title': 'Sitter request',
+      'notifications_request_view_title_walker': 'Walker request',
       'notifications_application_not_found':
           'This request is no longer available or could not be loaded.',
       'notifications_open_sitter_profile': 'View sitter profile',

@@ -207,6 +207,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'notif_body_provider_sent_request': 'Un fornitore ti ha inviato una richiesta.',
       'notifications_post_view_title': 'Post',
       'notifications_request_view_title': 'Richiesta del sitter',
+      'notifications_request_view_title_walker': 'Richiesta del walker',
       'notifications_application_not_found':
           'Questa richiesta non e piu disponibile o non e stata caricata.',
       'notifications_open_sitter_profile': 'Vedi profilo sitter',

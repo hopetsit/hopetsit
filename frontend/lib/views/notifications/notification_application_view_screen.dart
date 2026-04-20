@@ -4,8 +4,11 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/models/application_model.dart';
+import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/pricing_display_helper.dart';
+import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/widgets/service_provider_card.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -49,18 +52,67 @@ class _NotificationApplicationViewScreenState
     return null;
   }
 
+  /// v16.3i — resolve the AppBar title based on the application's service
+  /// type. Falls back to the generic sitter title when not available yet.
+  String _resolveTitle() {
+    final app = _findApplication();
+    if (app != null) {
+      final services = app.service.map((s) => s.toLowerCase());
+      if (services.any((s) => s.contains('dog_walking') || s.contains('walking'))) {
+        return 'notifications_request_view_title_walker'.tr;
+      }
+    }
+    return 'notifications_request_view_title'.tr;
+  }
+
   Future<void> _onAccept(ApplicationModel application) async {
-    final ok = await _applicationsController.respondToApplication(
+    // v16.3i — owner accepts &rarr; if the backend returned a PaymentIntent
+    // (clientSecret) in the response, immediately push StripePaymentScreen
+    // so the owner does not have to navigate back and find the pending
+    // booking to pay.
+    final response = await _applicationsController.respondToApplicationFull(
       applicationId: application.id,
       action: 'accept',
     );
     if (!mounted) return;
-    if (ok) {
-      if (Get.isRegistered<BookingsController>()) {
-        await Get.find<BookingsController>().loadBookings();
-      }
-      Get.back();
+    if (response == null) return;
+
+    if (Get.isRegistered<BookingsController>()) {
+      await Get.find<BookingsController>().loadBookings();
     }
+
+    final bookingMap = response['booking'];
+    final payment = response['payment'];
+    final String? clientSecret = payment is Map
+        ? (payment['clientSecret']?.toString()
+            ?? payment['client_secret']?.toString())
+        : null;
+
+    if (bookingMap is Map && clientSecret != null && clientSecret.isNotEmpty) {
+      try {
+        final booking = BookingModel.fromJson(
+          Map<String, dynamic>.from(bookingMap),
+        );
+        final pricing = booking.pricing;
+        final base = (pricing?.totalPrice
+                ?? pricing?.resolvedBaseAmount
+                ?? booking.totalAmount
+                ?? booking.basePrice) ??
+            0.0;
+        Get.off(
+          () => StripePaymentScreen(
+            booking: booking,
+            totalAmount: base,
+            currency: pricing?.currency ?? booking.sitter.currency,
+          ),
+        );
+        return;
+      } catch (e) {
+        AppLogger.logError('auto-open stripe after accept failed', error: e);
+      }
+    }
+
+    Get.back();
   }
 
   Future<void> _onReject(ApplicationModel application) async {
@@ -85,7 +137,9 @@ class _NotificationApplicationViewScreenState
         surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         title: InterText(
-          text: 'notifications_request_view_title'.tr,
+          // v16.3i — show "Demande du walker" when the application is for a
+          // dog_walking service, otherwise keep the generic sitter label.
+          text: _resolveTitle(),
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
