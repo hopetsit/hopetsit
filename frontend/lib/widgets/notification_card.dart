@@ -70,6 +70,13 @@ class NotificationCard extends StatelessWidget {
     'booking confirmed': 'notif_title_booking_confirmed',
     'booking cancelled': 'notif_title_booking_cancelled',
     'payment received': 'notif_title_payment_received',
+    // Session v16.3b - added entries for booking_* notification types coming
+    // from the backend (bookingController createNotificationSafe strings).
+    'new booking request': 'notif_title_booking_new',
+    'booking accepted': 'notif_title_booking_accepted',
+    'booking rejected': 'notif_title_booking_rejected',
+    'booking paid': 'notif_title_booking_paid',
+    'booking request cancelled': 'notif_title_booking_cancelled',
   };
 
   static const _bodyMap = {
@@ -80,6 +87,11 @@ class NotificationCard extends StatelessWidget {
     'you have a new message.': 'notif_body_new_message',
     'someone liked your post.': 'notif_body_post_liked',
     'someone commented on your post.': 'notif_body_post_commented',
+    // Session v16.3b.
+    'you received a new booking request.': 'notif_body_booking_new',
+    'your booking request was accepted.': 'notif_body_booking_accepted',
+    'your booking request was rejected.': 'notif_body_booking_rejected',
+    'a pet-care provider sent you a request.': 'notif_body_provider_sent_request',
   };
 
   String _localizedTitle(String raw) {

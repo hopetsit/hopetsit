@@ -185,8 +185,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final data = n.data;
     final role = n.recipientRole.toLowerCase();
 
-    // Sitter-specific routing: map notification types to booking cards.
-    if (role == 'sitter') {
+    // Session v16.3b - route for BOTH sitter AND walker (both are providers
+    // and receive the same booking_new notification when an owner books them
+    // directly). Using the sitter screens since they are role-agnostic at
+    // the data level.
+    if (role == 'sitter' || role == 'walker') {
       final bookingId = _dataString(data, 'bookingId');
 
       if (bookingId != null && bookingId.isNotEmpty) {
@@ -206,6 +209,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
           return;
         }
+      }
+    }
+
+    // Session v16.3b - owner gets notified on booking_accepted / rejected /
+    // paid. Tap should open the booking detail so owner can agree & pay.
+    if (role == 'owner' &&
+        (type == 'booking_accepted' ||
+            type == 'booking_rejected' ||
+            type == 'booking_paid')) {
+      final bookingId = _dataString(data, 'bookingId');
+      if (bookingId != null && bookingId.isNotEmpty) {
+        Get.toNamed('/reservations');
+        return;
       }
     }
 

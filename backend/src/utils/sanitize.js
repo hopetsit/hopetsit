@@ -245,6 +245,11 @@ const sanitizeApplication = (applicationDoc) => {
     application.sitter = sanitizeUser(application.sitterId);
     delete application.sitterId;
   }
+  // Session v16.3b - expose walker as a first-class field when present.
+  if (application.walkerId && typeof application.walkerId === 'object' && application.walkerId._id) {
+    application.walker = sanitizeUser(application.walkerId);
+    delete application.walkerId;
+  }
   if (application.serviceDate instanceof Date) {
     application.serviceDate = application.serviceDate.toISOString();
   } else if (!application.serviceDate) {

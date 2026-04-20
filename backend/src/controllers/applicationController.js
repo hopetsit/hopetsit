@@ -162,18 +162,80 @@ const createApplication = async (req, res) => {
       return res.status(404).json({ error: 'Owner not found.' });
     }
 
-    const sitter = await Sitter.findById(sitterId);
-    if (!sitter) {
-      return res.status(404).json({ error: 'Sitter not found.' });
+    // Session v16.3b - support BOTH sitter and walker applications. The
+    // previous implementation assumed req.user was always a sitter, which
+    // made walkers get a 404 when they tried to apply to an owner's post.
+    // We also relax the rate check: sitters can now configure daily/weekly/
+    // monthly instead of hourly (v15-6 flexible rates), so we accept ANY
+    // non-zero rate. Walkers have their own `walkRates` array.
+    const providerRole = req.user?.role;
+    let provider = null;
+    if (providerRole === 'walker') {
+      const Walker = require('../models/Walker');
+      provider = await Walker.findById(sitterId);
+      if (!provider) {
+        return res.status(404).json({ error: 'Walker not found.' });
+      }
+      // Derive an hourly equivalent from walkRates (same precedence as
+      // bookingController): 60-min direct, else 30x2, else 90*(60/90), else 120/2.
+      const findWalkRate = (min) => {
+        const rate = (provider.walkRates || []).find(
+          (r) => r.durationMinutes === min && r.enabled && r.basePrice > 0,
+        );
+        return rate ? rate.basePrice : null;
+      };
+      let derivedHourly = findWalkRate(60);
+      if (!derivedHourly) {
+        const half = findWalkRate(30);
+        if (half) derivedHourly = half * 2;
+      }
+      if (!derivedHourly) {
+        const ninety = findWalkRate(90);
+        if (ninety) derivedHourly = ninety * (60 / 90);
+      }
+      if (!derivedHourly) {
+        const twoHours = findWalkRate(120);
+        if (twoHours) derivedHourly = twoHours / 2;
+      }
+      if (!derivedHourly || derivedHourly <= 0) {
+        return res.status(400).json({
+          error: 'You must set at least one walk rate before sending requests to owners.',
+          details: 'Open your profile and set a price for 30 min or 60 min walks.',
+        });
+      }
+      // Sitter-shim so the downstream pricing code keeps working.
+      provider.hourlyRate = derivedHourly;
+    } else {
+      // Default sitter path.
+      provider = await Sitter.findById(sitterId);
+      if (!provider) {
+        return res.status(404).json({ error: 'Sitter not found.' });
+      }
+      const hasAnyRate =
+        (provider.hourlyRate && provider.hourlyRate > 0) ||
+        (provider.dailyRate && provider.dailyRate > 0) ||
+        (provider.weeklyRate && provider.weeklyRate > 0) ||
+        (provider.monthlyRate && provider.monthlyRate > 0);
+      if (!hasAnyRate) {
+        return res.status(400).json({
+          error: 'You must set at least one rate (hourly, daily, weekly or monthly) before sending requests to owners.',
+          details: 'Update your profile with a non-zero rate and try again.',
+        });
+      }
+      // Derive hourly fallback from the most specific rate available so
+      // downstream tier math works (matches bookingController behavior).
+      if (!provider.hourlyRate || provider.hourlyRate <= 0) {
+        if (provider.dailyRate && provider.dailyRate > 0) {
+          provider.hourlyRate = provider.dailyRate / 8;
+        } else if (provider.weeklyRate && provider.weeklyRate > 0) {
+          provider.hourlyRate = provider.weeklyRate / 56;
+        } else if (provider.monthlyRate && provider.monthlyRate > 0) {
+          provider.hourlyRate = provider.monthlyRate / 240;
+        }
+      }
     }
-
-    // Ensure sitter has configured an hourly rate before sending applications
-    if (!sitter.hourlyRate || sitter.hourlyRate <= 0) {
-      return res.status(400).json({
-        error: 'You must set your hourly rate before sending requests to owners.',
-        details: 'Update your profile with a non-zero hourly rate and try again.',
-      });
-    }
+    // Alias so the existing code below reading `sitter.*` keeps working.
+    const sitter = provider;
 
     const isBlocked = await isOwnerSitterInteractionBlocked(ownerId, sitterId);
     if (isBlocked) {
@@ -319,13 +381,17 @@ const createApplication = async (req, res) => {
 
     const duplicatePending = await Application.findOne({
       ownerId,
-      sitterId,
+      // Session v16.3b - dedupe against the correct provider field.
+      ...(providerRole === 'walker'
+        ? { walkerId: sitterId }
+        : { sitterId }),
       status: 'pending',
       $or: dedupeOr,
     })
       .sort({ createdAt: -1 })
       .populate('ownerId')
-      .populate('sitterId');
+      .populate('sitterId')
+      .populate('walkerId');
 
     if (duplicatePending) {
       return res.status(200).json({
@@ -336,7 +402,9 @@ const createApplication = async (req, res) => {
     }
 
     const application = await Application.create({
-      sitterId,
+      // Session v16.3b - route to the correct provider field based on role.
+      sitterId: providerRole === 'walker' ? null : sitterId,
+      walkerId: providerRole === 'walker' ? sitterId : null,
       ownerId,
       petName: trimmedPetName,
       petIds: uniquePetIds,
@@ -366,19 +434,22 @@ const createApplication = async (req, res) => {
         currency: pricingBreakdown.currency,
       },
     });
-    await application.populate(['ownerId', 'sitterId']);
+    await application.populate(['ownerId', 'sitterId', 'walkerId']);
 
     await createNotificationSafe({
       recipientRole: 'owner',
       recipientId: ownerId,
-      actorRole: 'sitter',
+      // Session v16.3b - use the real provider role so the in-app notif
+      // reaches the right bell and the actor shows the correct collection.
+      actorRole: providerRole === 'walker' ? 'walker' : 'sitter',
       actorId: sitterId,
       type: 'application_new',
       title: 'New request',
-      body: trimmedDescription || 'A sitter sent you a request.',
+      body: trimmedDescription || 'A pet-care provider sent you a request.',
       data: {
         applicationId: application._id.toString(),
-        sitterId: sitterId.toString(),
+        providerRole: providerRole === 'walker' ? 'walker' : 'sitter',
+        providerId: sitterId.toString(),
       },
     });
 
@@ -410,6 +481,9 @@ const listApplications = async (req, res) => {
         filter.ownerId = userId;
       } else if (userRole === 'sitter') {
         filter.sitterId = userId;
+      } else if (userRole === 'walker') {
+        // Session v16.3b - walker-owned applications live under walkerId.
+        filter.walkerId = userId;
       }
     } else {
       // For regular /applications endpoint, require ownerId or sitterId
@@ -432,6 +506,7 @@ const listApplications = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('ownerId')
       .populate('sitterId')
+      .populate('walkerId')
       .populate('bookingId');
 
     res.json({ applications: applications.map(sanitizeApplication) });
@@ -604,7 +679,7 @@ const respondToApplication = async (req, res) => {
     } else {
       application.status = 'rejected';
       await application.save();
-      await application.populate(['ownerId', 'sitterId']);
+      await application.populate(['ownerId', 'sitterId', 'walkerId']);
 
       await createNotificationSafe({
         recipientRole: 'sitter',

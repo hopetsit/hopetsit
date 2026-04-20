@@ -2,7 +2,10 @@ const mongoose = require('mongoose');
 
 const applicationSchema = new mongoose.Schema(
   {
-    sitterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sitter', required: true },
+    // Session v16.3b - support both sitter and walker applications.
+    // Exactly ONE of sitterId/walkerId must be set (enforced by pre-validate).
+    sitterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sitter', default: null },
+    walkerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Walker', default: null },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner', required: true },
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
     postBody: { type: String, default: '' },
@@ -69,6 +72,17 @@ const applicationSchema = new mongoose.Schema(
 );
 
 applicationSchema.index({ ownerId: 1, sitterId: 1, status: 1, requestFingerprint: 1 });
+applicationSchema.index({ ownerId: 1, walkerId: 1, status: 1, requestFingerprint: 1 });
+
+// Session v16.3b - require exactly one of sitterId / walkerId.
+applicationSchema.pre('validate', function enforceExactlyOneProvider(next) {
+  const hasSitter = !!this.sitterId;
+  const hasWalker = !!this.walkerId;
+  if (hasSitter === hasWalker) {
+    return next(new Error('Application must reference exactly one of sitterId or walkerId.'));
+  }
+  next();
+});
 
 module.exports = mongoose.model('Application', applicationSchema);
 
