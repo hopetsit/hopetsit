@@ -7,12 +7,16 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/notifications/notification_application_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_post_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
+import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
@@ -212,15 +216,79 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
-    // Session v16.3b - owner gets notified on booking_accepted / rejected /
-    // paid. Tap should open the booking detail so owner can agree & pay.
+    // Session v16.3f - owner gets notified on booking_accepted / rejected /
+    // paid. Tap opens the owner booking detail screen (shows price + Pay
+    // button wired to Stripe). Previous version used Get.toNamed('/reservations')
+    // which is not a registered route, causing a blank/error fallback screen.
     if (role == 'owner' &&
         (type == 'booking_accepted' ||
             type == 'booking_rejected' ||
             type == 'booking_paid')) {
       final bookingId = _dataString(data, 'bookingId');
       if (bookingId != null && bookingId.isNotEmpty) {
-        Get.toNamed('/reservations');
+        final ownerRepo = Get.find<OwnerRepository>();
+        try {
+          final bookings = await ownerRepo.getMyBookings();
+          final booking = bookings.firstWhereOrNull(
+            (b) => b.id == bookingId,
+          );
+          if (booking == null) {
+            CustomSnackbar.showWarning(
+              title: 'common_error'.tr,
+              message: 'notifications_application_not_found'.tr,
+            );
+            return;
+          }
+          if (!context.mounted) return;
+          Get.to(
+            () => OwnerBookingDetailScreen(
+              booking: booking,
+              onPay: () async {
+                try {
+                  final piResp = await ownerRepo.createPaymentIntent(
+                    bookingId: booking.id,
+                  );
+                  final cs = piResp['clientSecret']
+                      ?? piResp['client_secret'];
+                  if (cs is String && cs.isNotEmpty) {
+                    final pricing = booking.pricing;
+                    final base = (pricing?.totalPrice
+                            ?? pricing?.resolvedBaseAmount
+                            ?? booking.totalAmount
+                            ?? booking.basePrice) ??
+                        0.0;
+                    await Get.to(
+                      () => StripePaymentScreen(
+                        booking: booking,
+                        totalAmount: base,
+                        currency: pricing?.currency
+                            ?? booking.sitter.currency,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  AppLogger.logError(
+                    'notif onPay: createPaymentIntent failed',
+                    error: e,
+                  );
+                  CustomSnackbar.showError(
+                    title: 'common_error'.tr,
+                    message: e.toString(),
+                  );
+                }
+              },
+            ),
+          );
+        } catch (e) {
+          AppLogger.logError(
+            'notif owner booking load failed',
+            error: e,
+          );
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: e.toString(),
+          );
+        }
         return;
       }
     }
