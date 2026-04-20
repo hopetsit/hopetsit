@@ -954,7 +954,9 @@ const getMyBookings = async (req, res) => {
           netPayout: sanitized.pricing?.netPayout || 0,
           currency: sanitized.pricing?.currency || DEFAULT_CURRENCY,
         },
-        canPay: booking.status === 'agreed' && userRole === 'owner',
+        // v16.3i — owner can pay when status is 'agreed' (application flow)
+        // or 'accepted' (direct booking flow).
+        canPay: (booking.status === 'agreed' || booking.status === 'accepted') && userRole === 'owner',
         canCancel: booking.status === 'paid' && booking.cancellation,
         cancellationStatus: booking.cancellation ? {
           ownerConfirmed: booking.cancellation.ownerConfirmed,
@@ -1539,17 +1541,20 @@ const createBookingPaymentIntent = async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to pay for this booking.' });
     }
 
-    // Check if booking is in AGREED status
-    if (booking.status !== 'agreed') {
-      return res.status(400).json({ 
-        error: `Payment can only be initiated for agreed bookings. Current status: ${booking.status}` 
+    // v16.3i — accept both 'agreed' (owner accepted sitter application flow)
+    // and 'accepted' (sitter/walker accepted owner's direct booking). The
+    // previous check allowed only 'agreed', which blocked all direct-booking
+    // payments after the provider had accepted.
+    if (booking.status !== 'agreed' && booking.status !== 'accepted') {
+      return res.status(400).json({
+        error: `Payment can only be initiated for agreed or accepted bookings. Current status: ${booking.status}`
       });
     }
 
     // Validate that booking has required pricing information
     if (!booking.pricing || typeof booking.pricing.totalPrice !== 'number' || booking.pricing.totalPrice <= 0) {
-      return res.status(400).json({ 
-        error: 'This booking is missing valid pricing information. Please create a new booking with proper pricing details.' 
+      return res.status(400).json({
+        error: 'This booking is missing valid pricing information. Please create a new booking with proper pricing details.'
       });
     }
 
@@ -1689,10 +1694,11 @@ const createBookingPaypalOrder = async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to pay for this booking.' });
     }
 
-    // Check if booking is in AGREED status
-    if (booking.status !== 'agreed') {
+    // v16.3i — accept both 'agreed' and 'accepted' so direct-booking owner
+    // can pay after sitter/walker accepted. See companion fix above.
+    if (booking.status !== 'agreed' && booking.status !== 'accepted') {
       return res.status(400).json({
-        error: `Payment can only be initiated for agreed bookings. Current status: ${booking.status}`,
+        error: `Payment can only be initiated for agreed or accepted bookings. Current status: ${booking.status}`,
       });
     }
 
@@ -2140,8 +2146,8 @@ const getBookingAgreement = async (req, res) => {
         finalTotal: sanitized.pricing?.totalPrice || 0, // Final total owner pays (same as totalPrice)
         currency: sanitized.pricing?.currency || DEFAULT_CURRENCY,
       },
-      // Align with GET /bookings/my: owner can pay when agreed (Stripe or PayPal flow).
-      canPay: booking.status === 'agreed' && userId === ownerId,
+      // v16.3i — Align with GET /bookings/my. Accept both 'agreed' and 'accepted'.
+      canPay: (booking.status === 'agreed' || booking.status === 'accepted') && userId === ownerId,
       createdAt: sanitized.createdAt,
       updatedAt: sanitized.updatedAt,
     };
@@ -2384,7 +2390,7 @@ const getPaymentStatus = async (req, res) => {
             currency: booking.pricing.currency || DEFAULT_CURRENCY,
           }
         : null,
-      canRetryPayment: booking.status === 'payment_failed' || booking.status === 'agreed',
+      canRetryPayment: booking.status === 'payment_failed' || booking.status === 'agreed' || booking.status === 'accepted',
       message: booking.status === 'paid' 
         ? 'Payment completed successfully.'
         : booking.status === 'payment_failed'

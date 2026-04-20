@@ -277,12 +277,8 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
           application.phoneNumber,
         ),
         SizedBox(height: 12.h),
-        _buildDetailRow(
-          AppImages.mailIcon,
-          'sitter_detail_email'.tr,
-          application.email,
-        ),
-        SizedBox(height: 12.h),
+        // v16.3i — email row removed per user request (no need to expose
+        // emails on the acceptance / reservation card, phone is enough).
         _buildDetailRow(
           AppImages.locationIcon,
           'sitter_detail_location'.tr,

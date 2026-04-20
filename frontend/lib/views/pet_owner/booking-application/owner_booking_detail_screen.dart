@@ -152,6 +152,23 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
             paymentStatusLower == 'pending' ||
             paymentStatusLower == 'failed');
 
+    // v16.3i — role-based accent on the booking detail screen:
+    //   walker booking  → green (#16A34A)
+    //   sitter booking  → blue  (#2563EB)
+    //   fallback        → app primary color
+    final serviceLower = (booking.serviceType ?? '').toLowerCase();
+    final bool isWalkerBooking = serviceLower.contains('dog_walking') ||
+        serviceLower.contains('walking');
+    final bool isSitterBooking = !isWalkerBooking &&
+        (serviceLower.contains('sitting') ||
+            serviceLower.contains('day_care') ||
+            serviceLower.contains('boarding'));
+    final Color roleAccent = isWalkerBooking
+        ? const Color(0xFF16A34A)
+        : isSitterBooking
+            ? const Color(0xFF2563EB)
+            : AppColors.primaryColor;
+
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -492,12 +509,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       height: 50.h,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
+                          colors: [roleAccent, roleAccent.withValues(alpha: 0.85)],
                         ),
                         borderRadius: BorderRadius.circular(16.r),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryColor.withValues(alpha: 0.3),
+                            color: roleAccent.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
