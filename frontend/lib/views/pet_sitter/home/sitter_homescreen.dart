@@ -13,6 +13,7 @@ import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
@@ -167,6 +168,49 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   static String _serviceTypesDisplay(List<String> types) {
     if (types.isEmpty) return '';
     return types.map((t) => t.replaceAll('_', ' ')).join(', ');
+  }
+
+  /// v16.3g — Build an earning estimate for [post] using the rates from
+  /// the currently logged-in walker/sitter profile (stored in GetStorage).
+  /// Returns null when no post dates, no usable rate, or user is not a
+  /// provider.
+  PostPriceEstimate? _estimateForPost(PostModel post) {
+    try {
+      final storage = GetStorage();
+      final userProfile = storage.read<Map<String, dynamic>>(
+        StorageKeys.userProfile,
+      );
+      if (userProfile == null) return null;
+
+      final role = (userProfile['role']?.toString() ??
+              (Get.isRegistered<AuthController>()
+                  ? (Get.find<AuthController>().userRole.value ?? '')
+                  : ''))
+          .toLowerCase();
+      if (role != 'sitter' && role != 'walker') return null;
+
+      double asDouble(dynamic v) {
+        if (v is num) return v.toDouble();
+        if (v is String) return double.tryParse(v) ?? 0.0;
+        return 0.0;
+      }
+
+      return estimatePostPrice(
+        post: post,
+        userRole: role,
+        hourlyRate: asDouble(userProfile['hourlyRate']),
+        dailyRate: asDouble(userProfile['dailyRate']),
+        weeklyRate: asDouble(userProfile['weeklyRate']),
+        monthlyRate: asDouble(userProfile['monthlyRate']),
+        currency: (userProfile['currency']?.toString() ??
+                userProfile['hourlyRateCurrency']?.toString() ??
+                'EUR')
+            .toUpperCase(),
+      );
+    } catch (e) {
+      AppLogger.logDebug('estimateForPost failed: $e');
+      return null;
+    }
   }
 
   List<PostModel> _sortFeedPosts(List<PostModel> posts) {
@@ -780,6 +824,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               )];
                           final isCancelMode = pendingApplicationId != null;
 
+                          final priceEstimate = _estimateForPost(post);
                           return Padding(
                             padding: EdgeInsets.only(bottom: 16.h),
                             child: PetPostCard(
@@ -798,6 +843,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               location: locationLabel,
                               isNetworkImage: imageUrls.isNotEmpty,
                               likeCount: post.likesCount,
+                              priceEstimate: priceEstimate,
                               // Comments disabled on publications
                               commentCount: 0,
                               isLiked: postsController.isPostLiked(post.id),

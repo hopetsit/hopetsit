@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -35,6 +36,11 @@ class PetPostCard extends StatelessWidget {
   final VoidCallback? onBlockUser;
   final VoidCallback? onReportPost;
 
+  /// v16.3g — estimated earning for the current walker/sitter viewing
+  /// this post. When provided, a price block (brut + net + breakdown) is
+  /// displayed right above the action buttons.
+  final PostPriceEstimate? priceEstimate;
+
   const PetPostCard({
     super.key,
     required this.userName,
@@ -59,7 +65,9 @@ class PetPostCard extends StatelessWidget {
     this.isRequestLoading = false,
     this.requestButtonText,
     this.isCancelRequest = false,
-    this.onBlockUser, this.onReportPost,
+    this.onBlockUser,
+    this.onReportPost,
+    this.priceEstimate,
   });
 
   @override
@@ -207,15 +215,39 @@ class PetPostCard extends StatelessWidget {
                   ],
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.all(10.w),
+                    padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
                     decoration: BoxDecoration(
                       color: AppColors.inputFill(context),
-                      borderRadius: BorderRadius.circular(12.r),
-                      boxShadow: AppColors.cardShadow(context),
+                      borderRadius: BorderRadius.circular(14.r),
+                      border: Border.all(
+                        color: AppColors.divider(context).withValues(alpha: 0.4),
+                        width: 1.w,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Section header — "Demande de réservation"
+                        Row(
+                          children: [
+                            Container(
+                              width: 4.w,
+                              height: 14.h,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryColor,
+                                borderRadius: BorderRadius.circular(2.r),
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            InterText(
+                              text: 'post_card_reservation_request'.tr,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary(context),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 10.h),
                         if ((petName ?? '').trim().isNotEmpty)
                           _buildDetailRow(Icons.pets_outlined, petName!.trim()),
                         if ((serviceTypes ?? '').trim().isNotEmpty)
@@ -237,6 +269,10 @@ class PetPostCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (priceEstimate != null && !priceEstimate!.isZero) ...[
+                    SizedBox(height: 10.h),
+                    _buildPriceBlock(context, priceEstimate!),
+                  ],
                   if (onViewPetDetails != null || onSendRequest != null) ...[
                     SizedBox(height: 10.h),
                     Row(
@@ -428,18 +464,31 @@ class PetPostCard extends StatelessWidget {
   Widget _buildDetailRow(IconData icon, String text, {bool isLast = false}) {
     return Builder(
       builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: isLast ? 0 : 6.h),
+        padding: EdgeInsets.only(bottom: isLast ? 0 : 8.h),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 14.sp, color: AppColors.textSecondary(context)),
-            SizedBox(width: 7.w),
+            Container(
+              width: 26.w,
+              height: 26.w,
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                icon,
+                size: 14.sp,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            SizedBox(width: 10.w),
             Expanded(
               child: InterText(
                 text: text,
-                fontSize: 11.sp,
+                fontSize: 12.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary(context),
+                color: AppColors.textPrimary(context),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -448,6 +497,136 @@ class PetPostCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// v16.3g — earning estimate block for the walker/sitter viewing this
+  /// post. Shows: total billed to the owner (brut) and net amount the
+  /// provider keeps after the platform commission, with a small breakdown.
+  Widget _buildPriceBlock(BuildContext context, PostPriceEstimate est) {
+    final accent = AppColors.primaryColor;
+    final brutLabel = _formatMoneyShort(est.brut, est.currency);
+    final netLabel = _formatMoneyShort(est.net, est.currency);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            accent.withValues(alpha: 0.10),
+            accent.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.25),
+          width: 1.w,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.payments_outlined, size: 16.sp, color: accent),
+              SizedBox(width: 6.w),
+              InterText(
+                text: 'post_price_estimate_title'.tr,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+                color: accent,
+              ),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          // Brut + net side-by-side.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: 'post_price_brut_label'.tr,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary(context),
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: brutLabel,
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 1.w,
+                height: 28.h,
+                color: accent.withValues(alpha: 0.25),
+                margin: EdgeInsets.symmetric(horizontal: 10.w),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: 'post_price_net_label'.tr,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w500,
+                      color: accent,
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: netLabel,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          InterText(
+            text: est.breakdown,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatMoneyShort(double amount, String currency) {
+    final symbol = _symbolFor(currency);
+    final isInt = amount == amount.roundToDouble();
+    final formatted = isInt
+        ? amount.toInt().toString()
+        : amount.toStringAsFixed(2);
+    return '$symbol$formatted';
+  }
+
+  String _symbolFor(String code) {
+    switch (code.toUpperCase()) {
+      case 'EUR':
+        return '€';
+      case 'USD':
+      case 'CAD':
+      case 'AUD':
+        return '\$';
+      case 'GBP':
+        return '£';
+      default:
+        return '$code ';
+    }
   }
 
   Widget _buildSoftButton({

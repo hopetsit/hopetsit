@@ -169,6 +169,9 @@ class _NotificationSitterApplicationCardViewScreenState
                         );
                         Get.back();
                       } else {
+                        // Session v16.3d - refresh bookings so a stale
+                        // 'pending' badge updates after backend 409.
+                        await _controller.loadBookings();
                         CustomSnackbar.showError(
                           title: 'common_error'.tr,
                           message:
@@ -190,6 +193,7 @@ class _NotificationSitterApplicationCardViewScreenState
                         );
                         Get.back();
                       } else {
+                        await _controller.loadBookings();
                         CustomSnackbar.showError(
                           title: 'common_error'.tr,
                           message:
@@ -225,7 +229,7 @@ class NotificationSitterAcceptedCardViewScreen
   NotificationSitterAcceptedCardViewScreen({
     super.key,
     required super.bookingId,
-  }) : super(title: 'Request accepted'.tr);
+  }) : super(title: 'notif_title_booking_accepted'.tr);
 }
 
 class NotificationSitterNewRequestCardViewScreen
@@ -233,5 +237,5 @@ class NotificationSitterNewRequestCardViewScreen
   NotificationSitterNewRequestCardViewScreen({
     super.key,
     required super.bookingId,
-  }) : super(title: 'New booking request'.tr);
+  }) : super(title: 'notif_title_booking_new'.tr);
 }

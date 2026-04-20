@@ -216,14 +216,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
-    // Session v16.3f - owner gets notified on booking_accepted / rejected /
-    // paid. Tap opens the owner booking detail screen (shows price + Pay
-    // button wired to Stripe). Previous version used Get.toNamed('/reservations')
+    // Session v16.3g - owner gets notified on booking_accepted / rejected /
+    // paid AND application_accepted / application_rejected (if backend routes
+    // them to owner). Tap opens the owner booking detail screen (shows price +
+    // Pay button wired to Stripe). Previous version used Get.toNamed('/reservations')
     // which is not a registered route, causing a blank/error fallback screen.
     if (role == 'owner' &&
         (type == 'booking_accepted' ||
             type == 'booking_rejected' ||
-            type == 'booking_paid')) {
+            type == 'booking_paid' ||
+            type.contains('accepted') ||
+            type.contains('rejected'))) {
       final bookingId = _dataString(data, 'bookingId');
       if (bookingId != null && bookingId.isNotEmpty) {
         final ownerRepo = Get.find<OwnerRepository>();
