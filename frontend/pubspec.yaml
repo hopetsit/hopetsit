@@ -55,6 +55,35 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  # Session v16-1b — official HopeTSIT logo integration. flutter_launcher_icons
+  # reads the PNG source files under assets/brand/png/ and generates every
+  # Android mipmap-* density + iOS AppIcon.appiconset size automatically.
+  # Run: dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.1
+
+# flutter_launcher_icons config — single source of truth for app icons.
+# The SVGs in assets/brand/{android,apple}/ stay for reference (and future
+# manual edits); what the plugin actually uses are the 1024x1024 PNG rasters
+# generated under assets/brand/png/.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/brand/png/ic_launcher.png"
+  image_path_ios: "assets/brand/png/apple-icon-original.png"
+  # iOS 18 delivers 3 appearance variants (default / dark / tinted).
+  # The plugin ≥ 0.14 picks them up automatically and writes the right
+  # metadata in AppIcon.appiconset/Contents.json.
+  image_path_ios_dark_transparent_background: "assets/brand/png/apple-icon-dark.png"
+  image_path_ios_tinted_grayscale: "assets/brand/png/apple-icon-white.png"
+  # Android 8+ adaptive icons: separate foreground + solid orange background.
+  adaptive_icon_foreground: "assets/brand/png/ic_launcher_foreground.png"
+  adaptive_icon_background: "#EF4324"
+  # Monochrome variant for Android 13+ themed icons. Uses the foreground
+  # layer since the notification SVG is already optimised for a single colour.
+  adaptive_icon_monochrome: "assets/brand/png/ic_launcher_foreground.png"
+  # Disable the alpha stripper on iOS (Apple rejected transparent icons
+  # historically; our source PNGs don't have transparency anyway).
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
@@ -62,4 +91,9 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/brand/
+    - assets/brand/android/
+    - assets/brand/apple/
+    - assets/brand/web/
+    - assets/brand/png/
     - .env
