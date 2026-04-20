@@ -7,6 +7,9 @@ class WalkerModel {
   final String name;
   final String email;
   final String mobile;
+  /// Country dial code, e.g. "+34", "+33". Kept separate from `mobile` so the
+  /// edit-profile screen's CountryCodePicker stays in sync with the stored value.
+  final String countryCode;
   final String language;
   final String address;
   final String? city;
@@ -76,6 +79,7 @@ class WalkerModel {
     required this.name,
     required this.email,
     required this.mobile,
+    this.countryCode = '',
     required this.language,
     required this.address,
     this.city,
@@ -165,6 +169,7 @@ class WalkerModel {
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       mobile: json['mobile'] as String? ?? '',
+      countryCode: json['countryCode'] as String? ?? '',
       language: json['language'] as String? ?? '',
       address: json['address'] as String? ?? '',
       city: cityName,

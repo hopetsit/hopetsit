@@ -139,11 +139,18 @@ class EditWalkerProfileController extends GetxController {
 
       currentAvatarUrl.value = walker.avatar.url;
 
-      // Extract country code prefix from the stored mobile (e.g. "+33 6 12 …"
-      // → "+33"). Best effort: we match the leading +<digits>.
-      final mobileMatch = RegExp(r'^\+(\d+)').firstMatch(walker.mobile);
-      if (mobileMatch != null) {
-        selectedCountryCode.value = '+${mobileMatch.group(1)}';
+      // Session v16.3 — trust the backend's stored countryCode first. Previously
+      // we regex-extracted it from the mobile string, which caused the picker
+      // to desync when the stored number format changed (e.g. flag showing
+      // Afghanistan while the number started with +34). Regex stays as a
+      // fallback for old accounts that don't have countryCode persisted.
+      if (walker.countryCode.isNotEmpty) {
+        selectedCountryCode.value = walker.countryCode;
+      } else {
+        final mobileMatch = RegExp(r'^\+(\d+)').firstMatch(walker.mobile);
+        if (mobileMatch != null) {
+          selectedCountryCode.value = '+${mobileMatch.group(1)}';
+        }
       }
 
       // Load the two standard walk durations (30 min + 60 min). Either can
