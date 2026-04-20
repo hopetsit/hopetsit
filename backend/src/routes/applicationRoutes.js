@@ -126,7 +126,8 @@ const router = express.Router();
  *                 application:
  *                   $ref: '#/components/schemas/Application'
  */
-router.post('/', requireAuth, requireRole('sitter'), createApplication);
+// Session v16.3c - walker can also create applications (on owner posts).
+router.post('/', requireAuth, requireRole('sitter', 'walker'), createApplication);
 
 /**
  * @swagger
@@ -287,7 +288,8 @@ router.delete('/:id', cancelApplication);
  *       409:
  *         description: Request already accepted/rejected and cannot be cancelled
  */
-router.post('/:id/cancel-request', requireAuth, requireRole('sitter'), cancelSitterSentApplicationRequest);
+// Session v16.3c - walker can also cancel their own sent request.
+router.post('/:id/cancel-request', requireAuth, requireRole('sitter', 'walker'), cancelSitterSentApplicationRequest);
 
 module.exports = router;
 

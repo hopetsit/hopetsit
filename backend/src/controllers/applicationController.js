@@ -73,14 +73,19 @@ const cancelSitterSentApplicationRequest = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    const application = await Application.findById(id).populate('ownerId').populate('sitterId');
+    const application = await Application.findById(id).populate('ownerId').populate('sitterId').populate('walkerId');
     if (!application) {
       return res.status(404).json({ error: 'Application not found.' });
     }
 
-    const appSitterId = application.sitterId?._id
-      ? application.sitterId._id.toString()
-      : application.sitterId.toString();
+    // Session v16.3c - support walker cancellation too.
+    const providerDoc = application.sitterId || application.walkerId;
+    if (!providerDoc) {
+      return res.status(404).json({ error: 'Application has no provider reference.' });
+    }
+    const appSitterId = providerDoc._id
+      ? providerDoc._id.toString()
+      : providerDoc.toString();
     if (appSitterId !== sitterId) {
       return res.status(403).json({ error: 'You can only cancel your own sent requests.' });
     }
@@ -532,7 +537,7 @@ const respondToApplication = async (req, res) => {
       return res.status(400).json({ error: 'Invalid action. Expected "accept" or "reject".' });
     }
 
-    const application = await Application.findById(id).populate('ownerId').populate('sitterId');
+    const application = await Application.findById(id).populate('ownerId').populate('sitterId').populate('walkerId');
     if (!application) {
       return res.status(404).json({ error: 'Application not found.' });
     }
