@@ -52,12 +52,14 @@ class _NotificationApplicationViewScreenState
     return null;
   }
 
-  /// v16.3i — resolve the AppBar title based on the application's service
-  /// type. Falls back to the generic sitter title when not available yet.
+  /// v16.3i — resolve the AppBar title based on the services offered by the
+  /// applying provider. If the provider (sitter relation on ApplicationModel)
+  /// only offers dog_walking, show the walker title; otherwise fall back to
+  /// the generic sitter title.
   String _resolveTitle() {
     final app = _findApplication();
     if (app != null) {
-      final services = app.service.map((s) => s.toLowerCase());
+      final services = app.sitter.service.map((s) => s.toLowerCase());
       if (services.any((s) => s.contains('dog_walking') || s.contains('walking'))) {
         return 'notifications_request_view_title_walker'.tr;
       }
