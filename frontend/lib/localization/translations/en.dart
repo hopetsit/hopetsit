@@ -9,6 +9,20 @@ const Map<String, String> enUSTranslations = <String, String>{
       'role_sitter': 'Petsitter',
       'role_provider': 'Provider',
       'provider_unknown': 'Provider',
+      // Session v17.1 — role-specific notification bodies.
+      'notif_body_provider_sent_request_walker':
+          'A dog walker sent you a request.',
+      'notif_body_provider_sent_request_sitter':
+          'A petsitter sent you a request.',
+      'notif_body_booking_new_walker':
+          'A dog walker sent you a booking request.',
+      'notif_body_booking_new_sitter':
+          'A petsitter sent you a booking request.',
+      'notif_body_booking_accepted_walker':
+          'Your walker accepted your request.',
+      'notif_body_booking_accepted_sitter':
+          'Your petsitter accepted your request.',
+      'reserved_badge': 'Reserved',
       'common_error': 'Error',
       'common_success': 'Success',
       'common_select_value': 'Select value',

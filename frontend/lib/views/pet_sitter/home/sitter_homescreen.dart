@@ -45,6 +45,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   final Map<String, bool> _loadingStates = {};
   final Map<String, String> _pendingApplicationIds = {};
   final Map<String, String> _pendingApplicationIdsByFingerprint = {};
+  // Session v17.1 — stable post-id-based lookup. Populated from the backend's
+  // `application.postId` field (v17.1) AND when the sitter sends a new
+  // application for a post in the current session. Checked FIRST by the
+  // card render code; the fingerprint map is kept as a fallback for legacy
+  // applications that pre-date v17.1 (no postId stored).
+  final Map<String, String> _pendingApplicationIdsByPostId = {};
   ReservationRequestFilterState _filterState =
       const ReservationRequestFilterState();
   SitterFeedSortOrder _sortOrder = SitterFeedSortOrder.newestFirst;
@@ -898,8 +904,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                           final serviceTypesLabel = _serviceTypesDisplay(
                             post.serviceTypes,
                           );
+                          // Session v17.1 — lookup priority:
+                          //   1) in-session map (when the sitter just sent
+                          //      the request this session)
+                          //   2) stable post-id map (populated from
+                          //      application.postId — 100% reliable across
+                          //      logouts)
+                          //   3) legacy multi-field fingerprint (fallback
+                          //      for apps sent before v17.1 without postId).
                           final pendingApplicationId =
                               _pendingApplicationIds[post.id] ??
+                              _pendingApplicationIdsByPostId[post.id] ??
                               _pendingApplicationIdsByFingerprint[_buildRequestFingerprint(
                                 ownerId: ownerId,
                                 petId: petId ?? '',
@@ -934,6 +949,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               likeCount: post.likesCount,
                               priceEstimate: priceEstimate,
                               viewerRole: currentRole,
+                              // Session v17.1 — show the "Réservé" badge when
+                              // the owner has already accepted someone for
+                              // this post.
+                              isReserved: post.isReserved,
+                              reservedProviderRole: post.reservedBy?.providerRole,
                               // Comments disabled on publications
                               commentCount: 0,
                               isLiked: postsController.isPostLiked(post.id),
@@ -970,6 +990,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                             post,
                                             post.serviceTypes.first,
                                           ),
+                                          // v17.1 — forward the post id so the
+                                          // backend stores Application.postId.
+                                          postId: post.id,
                                         );
                                       }
                                     }
@@ -1094,6 +1117,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     required String timeSlot,
     String? houseSittingVenue,
     int? duration,
+    // Session v17.1 — postId of the originating Post, forwarded to the
+    // backend so Application.postId is set. This is what the sitter home
+    // screen uses as the stable key to decide whether to show Cancel vs
+    // Send-request on each post card after a fresh login.
+    String? postId,
   }) async {
     // Button is only enabled when petId is non-null, but guard anyway.
     if (petId == null || petId.isEmpty) {
@@ -1141,6 +1169,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         timeSlot: timeSlot,
         basePrice: basePrice,
         duration: duration,
+        postId: postId, // v17.1 — stable post reference
       );
 
       final application =
@@ -1160,6 +1189,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         setState(() {
           _pendingApplicationIds[requestKey] = applicationId;
           _pendingApplicationIdsByFingerprint[fingerprint] = applicationId;
+          // v17.1 — record the stable (postId → appId) mapping so reloads
+          // after logout/login resolve the Cancel button reliably.
+          if (postId != null && postId.isNotEmpty) {
+            _pendingApplicationIdsByPostId[postId] = applicationId;
+          }
         });
       }
 
@@ -1218,6 +1252,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           _pendingApplicationIdsByFingerprint.removeWhere(
             (_, id) => id == applicationId,
           );
+          // v17.1 — also drop the stable post-id mapping so the button flips
+          // back to "Send request" immediately.
+          _pendingApplicationIdsByPostId.removeWhere(
+            (_, id) => id == applicationId,
+          );
         });
       }
 
@@ -1254,12 +1293,22 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       if (!mounted) return;
       setState(() {
         _pendingApplicationIdsByFingerprint.clear();
+        _pendingApplicationIdsByPostId.clear();
         for (final app in applications) {
           final status = (app['status']?.toString() ?? '').toLowerCase();
           if (status != 'pending') continue;
 
           final appId = app['id']?.toString() ?? '';
           if (appId.isEmpty) continue;
+
+          // Session v17.1 — if the application carries a stable postId
+          // reference (applications created on v17.1+ servers), record it
+          // in the postId map. The card rendering code checks this first
+          // before falling back to the fragile fingerprint map.
+          final postIdValue = app['postId']?.toString();
+          if (postIdValue != null && postIdValue.isNotEmpty && postIdValue != 'null') {
+            _pendingApplicationIdsByPostId[postIdValue] = appId;
+          }
 
           final owner = app['owner'];
           final ownerId = owner is Map ? owner['id']?.toString() ?? '' : '';

@@ -124,6 +124,11 @@ const createApplication = async (req, res) => {
       duration,
       addOns = [],
       locationType,
+      // Session v17.1 — optional stable back-reference to the owner's Post
+      // that is being applied to. When present, the frontend can resolve
+      // "is this post already applied to?" by Post id instead of a fragile
+      // multi-field fingerprint.
+      postId,
     } = body;
 
     const ORDERED_SERVICE_TYPES = ['home_visit', 'dog_walking', 'overnight_stay', 'long_stay'];
@@ -406,11 +411,20 @@ const createApplication = async (req, res) => {
       });
     }
 
+    // Session v17.1 — validate postId if the client provided one. Accept a
+    // plain 24-char ObjectId string; silently ignore garbage so we never
+    // reject a legitimate application on a client-side bug.
+    let normalizedPostId = null;
+    if (typeof postId === 'string' && /^[a-fA-F0-9]{24}$/.test(postId.trim())) {
+      normalizedPostId = postId.trim();
+    }
+
     const application = await Application.create({
       // Session v16.3b - route to the correct provider field based on role.
       sitterId: providerRole === 'walker' ? null : sitterId,
       walkerId: providerRole === 'walker' ? sitterId : null,
       ownerId,
+      postId: normalizedPostId,
       petName: trimmedPetName,
       petIds: uniquePetIds,
       description: trimmedDescription,
@@ -550,6 +564,23 @@ const respondToApplication = async (req, res) => {
       return res.status(409).json({ error: `Application already ${application.status}.` });
     }
 
+    // Session v17.1 — walker-aware. The legacy code assumed every Application
+    // targets a sitter (sitterId non-null). For walker applications (walkerId
+    // set, sitterId null) it crashed at `application.sitterId._id` with a
+    // TypeError caught by the 500 handler → "Unable to update application".
+    // We resolve the provider side once and use the right fields throughout.
+    const isWalkerApp = !!application.walkerId;
+    const providerRole = isWalkerApp ? 'walker' : 'sitter';
+    const providerDoc = isWalkerApp ? application.walkerId : application.sitterId;
+    const providerRefId = providerDoc?._id
+      ? providerDoc._id.toString()
+      : (providerDoc ? providerDoc.toString() : null);
+    if (!providerRefId) {
+      return res.status(400).json({
+        error: 'Application is missing both sitterId and walkerId — refusing to proceed.',
+      });
+    }
+
     if (normalizedAction === 'accept') {
       application.status = 'accepted';
 
@@ -559,6 +590,7 @@ const respondToApplication = async (req, res) => {
         booking = await Booking.findById(application.bookingId)
           .populate('ownerId')
           .populate('sitterId')
+          .populate('walkerId')
           .populate('petIds');
       }
 
@@ -581,7 +613,10 @@ const respondToApplication = async (req, res) => {
 
         booking = await Booking.create({
           ownerId: application.ownerId._id,
-          sitterId: application.sitterId._id,
+          // Session v17.1 — write the correct provider side (XOR enforced by
+          // the Booking schema's pre-validate hook).
+          sitterId: isWalkerApp ? null : providerRefId,
+          walkerId: isWalkerApp ? providerRefId : null,
           petIds: application.petIds,
           description: application.description || '',
           date: application.startDate instanceof Date
@@ -617,14 +652,46 @@ const respondToApplication = async (req, res) => {
 
       application.bookingId = booking._id;
       await application.save();
-      await application.populate(['ownerId', 'sitterId', 'bookingId']);
+      await application.populate(['ownerId', 'sitterId', 'walkerId', 'bookingId']);
       await booking.populate('ownerId');
       await booking.populate('sitterId');
+      await booking.populate('walkerId');
       await booking.populate('petIds');
 
+      // Session v17.1 — mark the source Post as reserved so the feed shows
+      // the "Réservé" / "Reserved" badge and the card button flips to a
+      // non-actionable state on other providers' feeds. Uses
+      // application.postId (added in v17.1). Best-effort: if Post.update
+      // fails (e.g. applications without a postId because they were created
+      // pre-v17.1), the rest of the flow still succeeds.
+      if (application.postId) {
+        try {
+          const Post = require('../models/Post');
+          await Post.updateOne(
+            { _id: application.postId },
+            {
+              $set: {
+                reservedBy: {
+                  bookingId: booking._id,
+                  providerRole,
+                  providerId: providerRefId,
+                  providerName: providerDoc?.name || '',
+                  reservedAt: new Date(),
+                },
+              },
+            },
+          );
+        } catch (reserveErr) {
+          logger.warn(
+            '[respondToApplication] failed to flag Post as reserved',
+            reserveErr?.message || reserveErr,
+          );
+        }
+      }
+
       await createNotificationSafe({
-        recipientRole: 'sitter',
-        recipientId: application.sitterId?._id ? application.sitterId._id.toString() : application.sitterId.toString(),
+        recipientRole: providerRole,
+        recipientId: providerRefId,
         actorRole: 'owner',
         actorId: ownerId,
         type: 'application_accepted',
@@ -633,30 +700,40 @@ const respondToApplication = async (req, res) => {
         data: {
           applicationId: application._id.toString(),
           bookingId: booking._id.toString(),
+          // Session v17.1 — carry provider role so the Flutter notification
+          // card can render the right colour (green walker / blue sitter).
+          providerRole,
         },
       });
 
-      let conversation = await Conversation.findOne({
-        ownerId: application.ownerId._id,
-        sitterId: application.sitterId._id,
-      })
-        .populate('ownerId')
-        .populate('sitterId');
-
-      if (!conversation) {
-        conversation = await Conversation.create({
+      // Session v17.1 — Conversation model is sitter-only (sitterId required
+      // + unique index). Create the conversation only for sitter applications
+      // so we don't crash on walker accept. Walker conversations will land in
+      // a future session once the Conversation schema supports walkerId too.
+      let conversation = null;
+      if (!isWalkerApp) {
+        conversation = await Conversation.findOne({
           ownerId: application.ownerId._id,
-          sitterId: application.sitterId._id,
-          ownerUnreadCount: 0,
-          sitterUnreadCount: 0,
-        });
-        await conversation.populate(['ownerId', 'sitterId']);
-      } else {
-        conversation.lastMessageAt = new Date();
-        conversation.ownerUnreadCount = conversation.ownerUnreadCount || 0;
-        conversation.sitterUnreadCount = conversation.sitterUnreadCount || 0;
-        await conversation.save();
-        await conversation.populate(['ownerId', 'sitterId']);
+          sitterId: providerRefId,
+        })
+          .populate('ownerId')
+          .populate('sitterId');
+
+        if (!conversation) {
+          conversation = await Conversation.create({
+            ownerId: application.ownerId._id,
+            sitterId: providerRefId,
+            ownerUnreadCount: 0,
+            sitterUnreadCount: 0,
+          });
+          await conversation.populate(['ownerId', 'sitterId']);
+        } else {
+          conversation.lastMessageAt = new Date();
+          conversation.ownerUnreadCount = conversation.ownerUnreadCount || 0;
+          conversation.sitterUnreadCount = conversation.sitterUnreadCount || 0;
+          await conversation.save();
+          await conversation.populate(['ownerId', 'sitterId']);
+        }
       }
 
       // ── UX simplification (Sprint payment-flow) ────────────────────────────
@@ -664,9 +741,9 @@ const respondToApplication = async (req, res) => {
       // a Stripe PaymentIntent for the owner. The Flutter client will use the
       // returned clientSecret to open Stripe PaymentSheet directly, without
       // detouring through the "Reservations" tab.
-      // Best-effort: if the sitter has no active Stripe Connect account (or any
-      // other error), we swallow it and return payment:null — the UI will
-      // fall back to the legacy two-step flow.
+      // Best-effort: if the provider has no active Stripe Connect account (or
+      // any other error), we swallow it and return payment:{error} — the UI
+      // will still navigate to the PaymentPage and surface a retry.
       let payment = null;
       try {
         payment = await _prepareOwnerPaymentForAgreedBooking(booking, ownerId, {});
@@ -678,7 +755,7 @@ const respondToApplication = async (req, res) => {
       res.json({
         application: sanitizeApplication(application),
         booking: sanitizeBooking(booking),
-        conversation: sanitizeConversation(conversation),
+        conversation: conversation ? sanitizeConversation(conversation) : null,
         payment, // { clientSecret, paymentIntentId, ... } | { error } | null
       });
     } else {
@@ -687,8 +764,8 @@ const respondToApplication = async (req, res) => {
       await application.populate(['ownerId', 'sitterId', 'walkerId']);
 
       await createNotificationSafe({
-        recipientRole: 'sitter',
-        recipientId: application.sitterId?._id ? application.sitterId._id.toString() : application.sitterId.toString(),
+        recipientRole: providerRole,
+        recipientId: providerRefId,
         actorRole: 'owner',
         actorId: ownerId,
         type: 'application_rejected',
@@ -696,6 +773,7 @@ const respondToApplication = async (req, res) => {
         body: 'Your request was rejected.',
         data: {
           applicationId: application._id.toString(),
+          providerRole,
         },
       });
 

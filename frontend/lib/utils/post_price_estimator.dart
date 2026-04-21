@@ -89,10 +89,51 @@ PostPriceEstimate? estimatePostPrice({
   final totalMinutes = end.difference(start).inMinutes;
   int days = math.max(1, (totalMinutes / (60 * 24)).ceil());
 
+  // Session v17.1 — derive missing rate tiers from whichever one the
+  // sitter has configured. Mirrors the backend logic in createBooking.js
+  // (L.364-372): most sitters only fill ONE rate via the edit UI, but the
+  // estimator used to require the specific tier matching the booking
+  // duration, so multi-day bookings returned null → no blue block.
+  //
+  // Derivation rules (identical to the backend):
+  //   hourlyRate × 8   → dailyRate fallback
+  //   dailyRate × 7    → weeklyRate fallback
+  //   weeklyRate × 4   → monthlyRate fallback
+  //   monthlyRate / 30 → dailyRate fallback (cross-direction)
+  //   monthlyRate / 4  → weeklyRate fallback
+  double effectiveHourly = hourlyRate;
+  double effectiveDaily = dailyRate;
+  double effectiveWeekly = weeklyRate;
+  double effectiveMonthly = monthlyRate;
+
+  if (effectiveDaily <= 0) {
+    if (effectiveHourly > 0) {
+      effectiveDaily = effectiveHourly * 8;
+    } else if (effectiveWeekly > 0) {
+      effectiveDaily = effectiveWeekly / 7;
+    } else if (effectiveMonthly > 0) {
+      effectiveDaily = effectiveMonthly / 30;
+    }
+  }
+  if (effectiveWeekly <= 0) {
+    if (effectiveDaily > 0) {
+      effectiveWeekly = effectiveDaily * 7;
+    } else if (effectiveMonthly > 0) {
+      effectiveWeekly = effectiveMonthly / 4;
+    }
+  }
+  if (effectiveMonthly <= 0) {
+    if (effectiveWeekly > 0) {
+      effectiveMonthly = effectiveWeekly * 4;
+    } else if (effectiveDaily > 0) {
+      effectiveMonthly = effectiveDaily * 30;
+    }
+  }
+
   // Prefer the rate tier that matches the duration if configured.
-  if (days >= 30 && monthlyRate > 0) {
+  if (days >= 30 && effectiveMonthly > 0) {
     final months = (days / 30).ceil();
-    final brut = monthlyRate * months;
+    final brut = effectiveMonthly * months;
     final commission = brut * commissionRate;
     final label = months == 1 ? '1 mois' : '$months mois';
     return PostPriceEstimate(
@@ -100,13 +141,13 @@ PostPriceEstimate? estimatePostPrice({
       net: brut - commission,
       commission: commission,
       currency: currency,
-      breakdown: '$label × ${_money(monthlyRate, currency)}',
+      breakdown: '$label × ${_money(effectiveMonthly, currency)}',
       unit: 'month',
     );
   }
-  if (days >= 7 && weeklyRate > 0) {
+  if (days >= 7 && effectiveWeekly > 0) {
     final weeks = (days / 7).ceil();
-    final brut = weeklyRate * weeks;
+    final brut = effectiveWeekly * weeks;
     final commission = brut * commissionRate;
     final label = weeks == 1 ? '1 semaine' : '$weeks semaines';
     return PostPriceEstimate(
@@ -114,12 +155,12 @@ PostPriceEstimate? estimatePostPrice({
       net: brut - commission,
       commission: commission,
       currency: currency,
-      breakdown: '$label × ${_money(weeklyRate, currency)}',
+      breakdown: '$label × ${_money(effectiveWeekly, currency)}',
       unit: 'week',
     );
   }
-  if (dailyRate > 0) {
-    final brut = dailyRate * days;
+  if (effectiveDaily > 0) {
+    final brut = effectiveDaily * days;
     final commission = brut * commissionRate;
     final label = days == 1 ? '1 jour' : '$days jours';
     return PostPriceEstimate(
@@ -127,12 +168,12 @@ PostPriceEstimate? estimatePostPrice({
       net: brut - commission,
       commission: commission,
       currency: currency,
-      breakdown: '$label × ${_money(dailyRate, currency)}',
+      breakdown: '$label × ${_money(effectiveDaily, currency)}',
       unit: 'day',
     );
   }
 
-  // No usable rate configured.
+  // No usable rate at all — sitter has configured nothing. Hide the block.
   return null;
 }
 

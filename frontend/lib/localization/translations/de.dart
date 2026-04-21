@@ -8,6 +8,20 @@ const Map<String, String> deDETranslations = <String, String>{
       'role_sitter': 'Tiersitter',
       'role_provider': 'Anbieter',
       'provider_unknown': 'Anbieter',
+      // Session v17.1 — role-specific notification bodies.
+      'notif_body_provider_sent_request_walker':
+          'Ein Gassigeher hat Ihnen eine Anfrage gesendet.',
+      'notif_body_provider_sent_request_sitter':
+          'Ein Tiersitter hat Ihnen eine Anfrage gesendet.',
+      'notif_body_booking_new_walker':
+          'Ein Gassigeher hat Ihnen eine Buchungsanfrage gesendet.',
+      'notif_body_booking_new_sitter':
+          'Ein Tiersitter hat Ihnen eine Buchungsanfrage gesendet.',
+      'notif_body_booking_accepted_walker':
+          'Ihr Gassigeher hat Ihre Anfrage akzeptiert.',
+      'notif_body_booking_accepted_sitter':
+          'Ihr Tiersitter hat Ihre Anfrage akzeptiert.',
+      'reserved_badge': 'Reserviert',
       'common_error': 'Fehler',
       'common_success': 'Erfolg',
       'common_select_value': 'Wert auswählen',

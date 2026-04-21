@@ -8,6 +8,12 @@ const applicationSchema = new mongoose.Schema(
     walkerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Walker', default: null },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner', required: true },
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
+    // Session v17.1 — stable reference back to the owner's Post that the
+    // sitter/walker applied to. Frontend uses this id (not a fragile
+    // multi-field fingerprint) to decide whether to show "Cancel" vs "Send
+    // request" on a post card after the sitter logs back in. Indexed so
+    // `getMyApplications` can cheaply aggregate per-post state later.
+    postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null, index: true },
     postBody: { type: String, default: '' },
     petName: { type: String, trim: true, default: '' },
     petIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Pet' }],

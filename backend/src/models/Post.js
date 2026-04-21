@@ -113,6 +113,24 @@ const postSchema = new mongoose.Schema(
     bannedBy: { type: String, default: '' }, // admin email / id for audit
     bannedReason: { type: String, default: '' },
     moderationNote: { type: String, default: '' },
+
+    // Session v17.1 — reservation marker. Set when the owner accepts an
+    // Application for this post (respondToApplication) and a Booking is
+    // created. Cleared when the resulting booking is cancelled. Frontend
+    // PetPostCard renders a "Réservé" / "Reserved" badge when non-null.
+    //
+    // Kept as a single object (not an array) because a post can only host
+    // one concurrent confirmed reservation at a time — any subsequent
+    // applications stay pending and the owner sees them queued behind the
+    // reservation. If the booking is cancelled the field is unset and the
+    // post becomes available again.
+    reservedBy: {
+      bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
+      providerRole: { type: String, enum: ['sitter', 'walker', null], default: null },
+      providerId: { type: mongoose.Schema.Types.ObjectId, default: null },
+      providerName: { type: String, default: '' },
+      reservedAt: { type: Date, default: null },
+    },
   },
   {
     timestamps: true,

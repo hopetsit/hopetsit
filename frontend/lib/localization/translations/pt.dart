@@ -59,6 +59,20 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'role_sitter': 'Petsitter',
       'role_provider': 'Prestador',
       'provider_unknown': 'Prestador',
+      // Session v17.1 — role-specific notification bodies.
+      'notif_body_provider_sent_request_walker':
+          'Um passeador enviou-lhe um pedido.',
+      'notif_body_provider_sent_request_sitter':
+          'Um petsitter enviou-lhe um pedido.',
+      'notif_body_booking_new_walker':
+          'Um passeador enviou-lhe um pedido de reserva.',
+      'notif_body_booking_new_sitter':
+          'Um petsitter enviou-lhe um pedido de reserva.',
+      'notif_body_booking_accepted_walker':
+          'O seu passeador aceitou o seu pedido.',
+      'notif_body_booking_accepted_sitter':
+          'O seu petsitter aceitou o seu pedido.',
+      'reserved_badge': 'Reservado',
       'common_error': 'Erro',
       'common_success': 'Success',
       'common_select_value': 'Select value',

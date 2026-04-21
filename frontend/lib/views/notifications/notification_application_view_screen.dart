@@ -68,10 +68,16 @@ class _NotificationApplicationViewScreenState
   }
 
   Future<void> _onAccept(ApplicationModel application) async {
-    // v16.3i — owner accepts &rarr; if the backend returned a PaymentIntent
-    // (clientSecret) in the response, immediately push StripePaymentScreen
-    // so the owner does not have to navigate back and find the pending
-    // booking to pay.
+    // v16.3i — owner accepts → if the backend returned a PaymentIntent
+    // (clientSecret) in the response, immediately push StripePaymentScreen.
+    //
+    // Session v17.1 — we now ALWAYS navigate to StripePaymentScreen as long
+    // as the backend returned a booking object, even when clientSecret is
+    // missing (e.g. provider without active Stripe Connect yet). The payment
+    // screen will surface the error on Pay-click and let the owner retry,
+    // rather than silently dropping them back to the previous screen with
+    // no visible path to pay. This also gives the walker / sitter accept
+    // flows identical UX.
     final response = await _applicationsController.respondToApplicationFull(
       applicationId: application.id,
       action: 'accept',
@@ -90,7 +96,28 @@ class _NotificationApplicationViewScreenState
             ?? payment['client_secret']?.toString())
         : null;
 
-    if (bookingMap is Map && clientSecret != null && clientSecret.isNotEmpty) {
+    // v17.1 — derive provider type from the populated booking OR fallback to
+    // the services offered by the applying provider (same heuristic as the
+    // title resolver above).
+    String? resolvedProviderType;
+    if (bookingMap is Map) {
+      final walker = bookingMap['walker'];
+      if (walker is Map && (walker['id']?.toString().isNotEmpty ?? false)) {
+        resolvedProviderType = 'walker';
+      } else {
+        final sitter = bookingMap['sitter'];
+        if (sitter is Map && (sitter['id']?.toString().isNotEmpty ?? false)) {
+          resolvedProviderType = 'sitter';
+        }
+      }
+    }
+    resolvedProviderType ??= application.sitter.service
+            .map((s) => s.toLowerCase())
+            .any((s) => s.contains('dog_walking') || s.contains('walking'))
+        ? 'walker'
+        : 'sitter';
+
+    if (bookingMap is Map) {
       try {
         final booking = BookingModel.fromJson(
           Map<String, dynamic>.from(bookingMap),
@@ -106,8 +133,16 @@ class _NotificationApplicationViewScreenState
             booking: booking,
             totalAmount: base,
             currency: pricing?.currency ?? booking.sitter.currency,
+            providerType: resolvedProviderType,
           ),
         );
+        // If clientSecret is missing we log it so QA can track the
+        // fallback path (usually provider hasn't connected Stripe yet).
+        if (clientSecret == null || clientSecret.isEmpty) {
+          AppLogger.logDebug(
+            'accept: booking created but no clientSecret — PaymentPage will surface the error on Pay-click',
+          );
+        }
         return;
       } catch (e) {
         AppLogger.logError('auto-open stripe after accept failed', error: e);

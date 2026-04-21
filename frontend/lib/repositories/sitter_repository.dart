@@ -322,6 +322,10 @@ class SitterRepository {
     String? startDate,
     String? endDate,
     String? houseSittingVenue,
+    // Session v17.1 — stable back-reference to the owner's Post the sitter
+    // is applying to. Lets the sitter home screen resolve "is this post
+    // already applied to?" by Post id instead of a fragile fingerprint.
+    String? postId,
   }) async {
     if (petIds.isEmpty) {
       throw ApiException(
@@ -394,6 +398,7 @@ class SitterRepository {
         'timeSlot': timeSlot,
         'basePrice': basePrice,
         if (duration != null) 'duration': duration,
+        if (postId != null && postId.trim().isNotEmpty) 'postId': postId,
       },
       requiresAuth: true,
     );

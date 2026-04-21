@@ -8,6 +8,20 @@ const Map<String, String> itITTranslations = <String, String>{
       'role_sitter': 'Petsitter',
       'role_provider': 'Fornitore',
       'provider_unknown': 'Fornitore',
+      // Session v17.1 — role-specific notification bodies.
+      'notif_body_provider_sent_request_walker':
+          'Un dog sitter ti ha inviato una richiesta.',
+      'notif_body_provider_sent_request_sitter':
+          'Un petsitter ti ha inviato una richiesta.',
+      'notif_body_booking_new_walker':
+          'Un dog sitter ti ha inviato una richiesta di prenotazione.',
+      'notif_body_booking_new_sitter':
+          'Un petsitter ti ha inviato una richiesta di prenotazione.',
+      'notif_body_booking_accepted_walker':
+          'Il tuo dog sitter ha accettato la tua richiesta.',
+      'notif_body_booking_accepted_sitter':
+          'Il tuo petsitter ha accettato la tua richiesta.',
+      'reserved_badge': 'Riservato',
       'common_error': 'Errore',
       'common_success': 'Successo',
       'common_select_value': 'Seleziona un valore',

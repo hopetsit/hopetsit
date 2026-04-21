@@ -45,6 +45,13 @@ class PetPostCard extends StatelessWidget {
   /// accent color of the price block (green for walker, blue for sitter).
   final String? viewerRole;
 
+  /// Session v17.1 — when the post has an active reservation (owner already
+  /// accepted a sitter/walker application), the card shows a "Reserved"
+  /// badge in the header so other providers know the slot is taken.
+  /// [reservedProviderRole] ('walker' | 'sitter' | null) colours the badge.
+  final bool isReserved;
+  final String? reservedProviderRole;
+
   const PetPostCard({
     super.key,
     required this.userName,
@@ -73,6 +80,8 @@ class PetPostCard extends StatelessWidget {
     this.onReportPost,
     this.priceEstimate,
     this.viewerRole,
+    this.isReserved = false,
+    this.reservedProviderRole,
   });
 
   @override
@@ -120,13 +129,23 @@ class PetPostCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      InterText(
-                        text: userName,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary(context),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InterText(
+                              text: userName,
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isReserved) ...[
+                            SizedBox(width: 8.w),
+                            _buildReservedBadge(),
+                          ],
+                        ],
                       ),
                       SizedBox(height: 3.h),
                       InterText(
@@ -500,6 +519,43 @@ class PetPostCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Session v17.1 — tiny "Reserved" pill rendered in the card header when
+  /// the post has an active reservation. Colour matches the provider role
+  /// that reserved it (green walker / blue sitter). Uses the `reserved_badge`
+  /// translation key; falls back to "Réservé" when the key is missing.
+  Widget _buildReservedBadge() {
+    final role = (reservedProviderRole ?? '').toLowerCase();
+    final Color accent = role == 'walker'
+        ? const Color(0xFF16A34A)
+        : role == 'sitter'
+            ? const Color(0xFF2563EB)
+            : const Color(0xFF6B7280);
+    final String label = 'reserved_badge'.tr == 'reserved_badge'
+        ? 'Réservé'
+        : 'reserved_badge'.tr;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: accent.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_rounded, size: 11.sp, color: accent),
+          SizedBox(width: 4.w),
+          InterText(
+            text: label,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w700,
+            color: accent,
+          ),
+        ],
       ),
     );
   }

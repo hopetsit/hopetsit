@@ -479,34 +479,62 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
           }
         }
 
-        if (booking != null && clientSecret != null && clientSecret.isNotEmpty) {
+        // Session v17.1 — always navigate to the PaymentPage when a booking
+        // was created, even if clientSecret is still missing. The payment
+        // page will call createPaymentIntent on Pay-click and surface the
+        // error there (instead of leaving the owner stuck on this screen
+        // with no visible way to pay).
+        if (booking != null) {
           final pricing = booking.pricing;
           final base = (pricing?.totalPrice
               ?? pricing?.resolvedBaseAmount
               ?? booking.totalAmount
               ?? booking.basePrice) ?? 0.0;
+          // Infer provider type: walker if booking already carries walker,
+          // else sitter if it carries sitter, else fall back to the services
+          // offered by the applying provider.
+          String? resolvedProviderType;
+          final bookingJsonLocal = response['booking'];
+          if (bookingJsonLocal is Map) {
+            final walker = bookingJsonLocal['walker'];
+            if (walker is Map && (walker['id']?.toString().isNotEmpty ?? false)) {
+              resolvedProviderType = 'walker';
+            } else {
+              final sitter = bookingJsonLocal['sitter'];
+              if (sitter is Map && (sitter['id']?.toString().isNotEmpty ?? false)) {
+                resolvedProviderType = 'sitter';
+              }
+            }
+          }
+          resolvedProviderType ??= application.sitter.service
+                  .map((s) => s.toLowerCase())
+                  .any((s) => s.contains('dog_walking') || s.contains('walking'))
+              ? 'walker'
+              : 'sitter';
+
           if (!mounted) return;
           await Get.to(
             () => StripePaymentScreen(
               booking: booking!,
               totalAmount: base,
               currency: pricing?.currency ?? booking.sitter.currency,
+              providerType: resolvedProviderType,
             ),
           );
+          if ((clientSecret == null || clientSecret.isEmpty) &&
+              payment is Map &&
+              payment['error'] != null) {
+            AppLogger.logDebug(
+              'Accept&Pay: navigated to PaymentPage without clientSecret (error: ${payment['error']})',
+            );
+          }
           return;
         }
 
-        if (payment is Map && payment['error'] != null) {
-          CustomSnackbar.showError(
-            title: 'payment_unavailable_title'.tr,
-            message: 'payment_unavailable_message'.tr,
-          );
-        } else {
-          CustomSnackbar.showError(
-            title: 'common_error'.tr,
-            message: 'payment_unavailable_message'.tr,
-          );
-        }
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'payment_unavailable_message'.tr,
+        );
       },
       onReject: () async {
         await _applicationsController.respondToApplication(

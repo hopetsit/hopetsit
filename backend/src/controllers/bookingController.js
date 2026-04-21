@@ -1146,6 +1146,32 @@ const cancelBooking = async (req, res) => {
     await booking.populate('sitterId');
     await booking.populate('walkerId');
 
+    // Session v17.1 — release the reservation on any Post flagged as
+    // reserved-by this booking. Best-effort so a missing Post (soft-deleted
+    // or pre-v17.1) never blocks the cancellation itself.
+    try {
+      const Post = require('../models/Post');
+      await Post.updateMany(
+        { 'reservedBy.bookingId': booking._id },
+        {
+          $set: {
+            reservedBy: {
+              bookingId: null,
+              providerRole: null,
+              providerId: null,
+              providerName: '',
+              reservedAt: null,
+            },
+          },
+        },
+      );
+    } catch (releaseErr) {
+      logger.warn(
+        '[cancelBooking] failed to release Post reservation',
+        releaseErr?.message || releaseErr,
+      );
+    }
+
     res.json({ booking: sanitizeBooking(booking), message: 'Booking cancelled.' });
   } catch (error) {
     logger.error('Cancel booking error', error);
@@ -1567,9 +1593,21 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   if (!booking.pricing || typeof booking.pricing.totalPrice !== 'number' || booking.pricing.totalPrice <= 0) {
     throw new Error('Booking is missing valid pricing information.');
   }
-  const sitter = booking.sitterId;
+  // Session v17.1 — walker-aware provider resolution. The legacy code read
+  // booking.sitterId directly which crashed for walker bookings (sitterId
+  // is null on walker bookings per the XOR validator). getBookingProvider
+  // returns the right populated doc + model for either side.
+  const providerRef = getBookingProvider(booking);
+  const sitter = providerRef.doc;
+  if (!sitter) {
+    throw new Error('Provider (sitter or walker) is missing on this booking.');
+  }
   if (!sitter.stripeConnectAccountId || sitter.stripeConnectAccountStatus !== 'active') {
-    throw new Error('Sitter must have an active Stripe Connect account to receive payments.');
+    throw new Error(
+      providerRef.type === 'walker'
+        ? 'Walker must have an active Stripe Connect account to receive payments.'
+        : 'Sitter must have an active Stripe Connect account to receive payments.'
+    );
   }
 
   // If a PaymentIntent already exists for this booking, return it (unless already paid).
@@ -1614,9 +1652,11 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
     connectedAccountId: sitter.stripeConnectAccountId,
     bookingId: booking._id.toString(),
     ownerId: booking.ownerId._id.toString(),
-    sitterId: booking.sitterId._id.toString(),
+    // Session v17.1 — providerRef.id resolves to sitter or walker id.
+    sitterId: providerRef.id,
+    providerType: providerRef.type,
     currency: bookingCurrency.toLowerCase(),
-    isTopSitter: sitter.isTopSitter === true,
+    isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
   });
 
   booking.stripePaymentIntentId = paymentIntent.id;

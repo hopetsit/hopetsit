@@ -34,11 +34,27 @@ class NotificationCard extends StatelessWidget {
     return Icons.notifications_rounded;
   }
 
+  // Session v17.1 — role-aware colour so owner notifications visually
+  // distinguish walker requests (green) from sitter requests (blue). The
+  // role hint is carried in `notification.data.providerRole` by the
+  // backend (applicationController + bookingController since v17.1).
+  static const Color _walkerAccent = Color(0xFF16A34A);
+  static const Color _sitterAccent = Color(0xFF2563EB);
+
   Color _accentForType(String type) {
     final t = type.toLowerCase();
     if (t.contains('like')) return const Color(0xFFE91E63);
     if (t.contains('comment')) return const Color(0xFF5C6BC0);
-    if (t.contains('booking') || t.contains('application')) {
+    if (t.contains('booking') || t.contains('application') || t.contains('request')) {
+      // Prefer the role-specific colour when provided by the backend.
+      final role = notification.data['providerRole']?.toString().toLowerCase();
+      if (role == 'walker') return _walkerAccent;
+      if (role == 'sitter') return _sitterAccent;
+      // Fallback — also inspect actorRole on the notif itself in case the
+      // backend forgot to include providerRole in data.
+      final actorRole = notification.actorRole.toLowerCase();
+      if (actorRole == 'walker') return _walkerAccent;
+      if (actorRole == 'sitter') return _sitterAccent;
       return AppColors.primaryColor;
     }
     return AppColors.primaryColor;
@@ -104,6 +120,18 @@ class NotificationCard extends StatelessWidget {
   String _localizedBody(String raw) {
     final key = _bodyMap[raw.toLowerCase().trim()];
     if (key == null) return raw;
+    // Session v17.1 — when the backend tags the notification with a provider
+    // role (walker/sitter), pick a role-specific translation key if it
+    // exists so the body text reads "Un promeneur vous a envoyé une demande"
+    // vs "Un petsitter vous a envoyé une demande" instead of the generic
+    // "Un prestataire ...". Falls back to the generic key if no role-specific
+    // key is registered in the active locale.
+    final role = notification.data['providerRole']?.toString().toLowerCase();
+    if (role == 'walker' || role == 'sitter') {
+      final roleKey = '${key}_$role';
+      final roleTr = roleKey.tr;
+      if (roleTr != roleKey) return roleTr;
+    }
     final translated = key.tr;
     return translated == key ? raw : translated;
   }

@@ -8,6 +8,20 @@ const Map<String, String> esESTranslations = <String, String>{
       'role_sitter': 'Petsitter',
       'role_provider': 'Proveedor',
       'provider_unknown': 'Proveedor',
+      // Session v17.1 — role-specific notification bodies.
+      'notif_body_provider_sent_request_walker':
+          'Un paseador le envió una solicitud.',
+      'notif_body_provider_sent_request_sitter':
+          'Un petsitter le envió una solicitud.',
+      'notif_body_booking_new_walker':
+          'Un paseador le envió una solicitud de reserva.',
+      'notif_body_booking_new_sitter':
+          'Un petsitter le envió una solicitud de reserva.',
+      'notif_body_booking_accepted_walker':
+          'Su paseador aceptó su solicitud.',
+      'notif_body_booking_accepted_sitter':
+          'Su petsitter aceptó su solicitud.',
+      'reserved_badge': 'Reservado',
       'common_error': 'Error',
       'common_success': 'Éxito',
       'common_select_value': 'Seleccionar valor',

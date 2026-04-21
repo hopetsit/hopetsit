@@ -258,6 +258,13 @@ const sanitizeApplication = (applicationDoc) => {
     application.walker = sanitizeUser(application.walkerId);
     delete application.walkerId;
   }
+  // Session v17.1 — ensure postId is always a plain string so the frontend
+  // can do equality checks without worrying about ObjectId vs String.
+  if (application.postId) {
+    application.postId = application.postId.toString();
+  } else {
+    application.postId = null;
+  }
   if (application.serviceDate instanceof Date) {
     application.serviceDate = application.serviceDate.toISOString();
   } else if (!application.serviceDate) {
@@ -346,6 +353,24 @@ const sanitizePost = (postDoc) => {
   } else {
     post.comments = [];
     post.commentsCount = 0;
+  }
+
+  // Session v17.1 — reservation marker. Expose as a compact, front-end
+  // friendly shape so PetPostCard can render a badge without knowing the
+  // underlying Booking / Provider ref types.
+  const rb = postDoc.reservedBy;
+  if (rb && rb.bookingId) {
+    post.reservedBy = {
+      bookingId: rb.bookingId.toString(),
+      providerRole: rb.providerRole || null,
+      providerId: rb.providerId ? rb.providerId.toString() : null,
+      providerName: rb.providerName || '',
+      reservedAt: rb.reservedAt instanceof Date
+        ? rb.reservedAt.toISOString()
+        : (rb.reservedAt || null),
+    };
+  } else {
+    post.reservedBy = null;
   }
 
   // Additional optional metadata

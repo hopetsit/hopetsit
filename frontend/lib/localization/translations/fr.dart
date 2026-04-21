@@ -8,6 +8,25 @@ const Map<String, String> frFRTranslations = <String, String>{
       'role_sitter': 'Petsitter',
       'role_provider': 'Prestataire',
       'provider_unknown': 'Prestataire',
+      // Session v17.1 — role-specific notification bodies so the owner can
+      // tell at a glance whether a request came from a walker or a sitter.
+      // Keys follow the pattern `<generic_key>_<role>` so NotificationCard
+      // can pick them automatically based on notification.data.providerRole.
+      'notif_body_provider_sent_request_walker':
+          'Un promeneur vous a envoyé une demande.',
+      'notif_body_provider_sent_request_sitter':
+          'Un petsitter vous a envoyé une demande.',
+      'notif_body_booking_new_walker':
+          'Un promeneur vous a envoyé une demande de réservation.',
+      'notif_body_booking_new_sitter':
+          'Un petsitter vous a envoyé une demande de réservation.',
+      'notif_body_booking_accepted_walker':
+          'Votre promeneur a accepté votre demande.',
+      'notif_body_booking_accepted_sitter':
+          'Votre petsitter a accepté votre demande.',
+      // Session v17.1 — badge on a PetPostCard when the post has been
+      // reserved (owner accepted a walker/sitter application).
+      'reserved_badge': 'Réservé',
       'common_error': 'Erreur',
       'common_success': 'Succès',
       'common_select_value': 'Sélectionner une valeur',

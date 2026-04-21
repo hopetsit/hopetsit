@@ -24,6 +24,10 @@ class PostModel {
   /// Sprint 4 step 6 — body translated to each supported locale. Empty map if none.
   final Map<String, String> translations;
   final String sourceLanguage;
+  /// Session v17.1 — reservation marker. Non-null when the owner has
+  /// accepted an application for this post and a booking is live. Drives
+  /// the "Réservé" / "Reserved" badge on PetPostCard.
+  final PostReservation? reservedBy;
 
   PostModel({
     required this.id,
@@ -48,7 +52,12 @@ class PostModel {
     required this.pets,
     this.translations = const <String, String>{},
     this.sourceLanguage = '',
+    this.reservedBy,
   });
+
+  /// True if the post has an active reservation (owner accepted a sitter
+  /// or walker application and the booking has not been cancelled).
+  bool get isReserved => reservedBy != null;
 
   /// Returns the body translated to [locale] if available, else falls back to the original body.
   String bodyForLocale(String locale) {
@@ -160,6 +169,7 @@ class PostModel {
             )
           : const <String, String>{},
       sourceLanguage: (json['sourceLanguage'] as String?) ?? '',
+      reservedBy: PostReservation.tryParse(json['reservedBy']),
     );
   }
 
@@ -191,6 +201,44 @@ class PostModel {
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount,
       pets: pets,
+      translations: translations,
+      sourceLanguage: sourceLanguage,
+      reservedBy: reservedBy,
+    );
+  }
+}
+
+/// Session v17.1 — reservation marker attached to a Post.
+class PostReservation {
+  final String bookingId;
+  final String providerRole; // 'walker' | 'sitter'
+  final String providerId;
+  final String providerName;
+  final DateTime? reservedAt;
+
+  const PostReservation({
+    required this.bookingId,
+    required this.providerRole,
+    required this.providerId,
+    required this.providerName,
+    this.reservedAt,
+  });
+
+  static PostReservation? tryParse(dynamic v) {
+    if (v is! Map) return null;
+    final bookingId = v['bookingId']?.toString() ?? '';
+    if (bookingId.isEmpty) return null;
+    DateTime? parsed;
+    final ra = v['reservedAt'];
+    if (ra is String && ra.isNotEmpty) {
+      parsed = DateTime.tryParse(ra);
+    }
+    return PostReservation(
+      bookingId: bookingId,
+      providerRole: (v['providerRole']?.toString() ?? '').toLowerCase(),
+      providerId: v['providerId']?.toString() ?? '',
+      providerName: v['providerName']?.toString() ?? '',
+      reservedAt: parsed,
     );
   }
 }
