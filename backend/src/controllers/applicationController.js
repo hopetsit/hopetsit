@@ -476,6 +476,27 @@ const createApplication = async (req, res) => {
       },
     });
 
+    // Session v17.5 — also fire FCM push + email to the owner so their
+    // phone wakes up when a walker or sitter sends a new application.
+    // Before v17.5 only the in-app bell notification was created, which
+    // meant the owner only saw it when they manually opened the app.
+    // Best-effort: template-missing / FCM errors are swallowed inside
+    // sendNotification and logged on the server.
+    sendNotification({
+      userId: ownerId,
+      role: 'owner',
+      type: 'application_new',
+      data: {
+        applicationId: application._id.toString(),
+        providerRole: providerRole === 'walker' ? 'walker' : 'sitter',
+        providerId: sitterId.toString(),
+      },
+      actor: {
+        role: providerRole === 'walker' ? 'walker' : 'sitter',
+        id: sitterId,
+      },
+    }).catch(() => {});
+
     res.status(201).json({ application: sanitizeApplication(application) });
   } catch (error) {
     logger.error('Create application error', error);

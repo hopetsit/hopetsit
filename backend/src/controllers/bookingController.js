@@ -503,8 +503,30 @@ const createBooking = async (req, res) => {
       data: {
         bookingId: booking._id.toString(),
         ownerId: ownerId.toString(),
+        // Session v17.5 — carry providerRole so the recipient's (walker or
+        // sitter) own notification card can render role-aware text if it
+        // ever needs to, and so push payload includes the hint.
+        providerRole: notificationRecipientRole,
       },
     });
+
+    // Session v17.5 — FCM push + email to the provider so their phone
+    // pings when an owner creates a direct booking request. Previously only
+    // the in-app bell was populated, so the provider had to open the app
+    // to notice.
+    sendNotification({
+      userId: notificationRecipientId.toString
+        ? notificationRecipientId.toString()
+        : String(notificationRecipientId),
+      role: notificationRecipientRole,
+      type: 'booking_new',
+      data: {
+        bookingId: booking._id.toString(),
+        ownerId: ownerId.toString(),
+        providerRole: notificationRecipientRole,
+      },
+      actor: { role: 'owner', id: ownerId.toString ? ownerId.toString() : String(ownerId) },
+    }).catch(() => {});
 
     res.status(201).json({ 
       booking: sanitizeBooking(booking), 
