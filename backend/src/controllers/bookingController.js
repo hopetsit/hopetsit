@@ -492,28 +492,10 @@ const createBooking = async (req, res) => {
       providerType === 'walker' ? 'walker' : 'sitter';
     const notificationRecipientId =
       providerType === 'walker' ? providerId : sitterId;
-    await createNotificationSafe({
-      recipientRole: notificationRecipientRole,
-      recipientId: notificationRecipientId,
-      actorRole: 'owner',
-      actorId: ownerId,
-      type: 'booking_new',
-      title: 'New booking request',
-      body: trimmedDescription || 'You received a new booking request.',
-      data: {
-        bookingId: booking._id.toString(),
-        ownerId: ownerId.toString(),
-        // Session v17.5 — carry providerRole so the recipient's (walker or
-        // sitter) own notification card can render role-aware text if it
-        // ever needs to, and so push payload includes the hint.
-        providerRole: notificationRecipientRole,
-      },
-    });
 
-    // Session v17.5 — FCM push + email to the provider so their phone
-    // pings when an owner creates a direct booking request. Previously only
-    // the in-app bell was populated, so the provider had to open the app
-    // to notice.
+    // v18.4 — single path via sendNotification (writes bell + FCM + email).
+    // Removed the direct createNotificationSafe call that was creating a
+    // second duplicate in-app notification with English hardcoded text.
     sendNotification({
       userId: notificationRecipientId.toString
         ? notificationRecipientId.toString()
@@ -1425,28 +1407,7 @@ const respondBooking = async (req, res) => {
       booking.acceptedAt = new Date();
       await booking.save();
 
-      await createNotificationSafe({
-        recipientRole: 'owner',
-        recipientId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
-        actorRole: actorRoleForOwnerNotif,
-        actorId: actorIdForOwnerNotif,
-        type: 'booking_accepted',
-        title: 'Booking accepted',
-        body: 'Your booking request was accepted.',
-        // Session v17.2 — carry providerRole so the Flutter notification
-        // card colours the entry correctly (green walker / blue sitter) and
-        // the owner notification body picks the role-specific translation.
-        data: {
-          bookingId: booking._id.toString(),
-          providerRole: actorRoleForOwnerNotif,
-        },
-      });
-
-      // Session v17.3 — also fire FCM push + email through sendNotification
-      // so the owner gets an audible/visual push on the device the moment
-      // the walker/sitter accepts, instead of only seeing the badge when
-      // they re-open the notification bell. Best-effort — failure is
-      // logged inside sendNotification and does not block the response.
+      // v18.4 — single path via sendNotification (bell + FCM + email).
       sendNotification({
         userId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
         role: 'owner',
@@ -1501,23 +1462,7 @@ const respondBooking = async (req, res) => {
     await booking.save();
     await booking.populate(['ownerId', 'sitterId', 'walkerId']);
 
-    await createNotificationSafe({
-      recipientRole: 'owner',
-      recipientId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
-      // Session v16.2 - same walker/sitter routing as accept path above.
-      actorRole: actorRoleForOwnerNotif,
-      actorId: actorIdForOwnerNotif,
-      type: 'booking_rejected',
-      title: 'Booking rejected',
-      body: 'Your booking request was rejected.',
-      // Session v17.2 — providerRole for colour-aware owner notification.
-      data: {
-        bookingId: booking._id.toString(),
-        providerRole: actorRoleForOwnerNotif,
-      },
-    });
-
-    // Session v17.3 — FCM push + email alongside the in-app notif.
+    // v18.4 — single path via sendNotification (bell + FCM + email).
     sendNotification({
       userId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
       role: 'owner',

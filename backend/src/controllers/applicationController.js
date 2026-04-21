@@ -459,29 +459,13 @@ const createApplication = async (req, res) => {
     });
     await application.populate(['ownerId', 'sitterId', 'walkerId']);
 
-    await createNotificationSafe({
-      recipientRole: 'owner',
-      recipientId: ownerId,
-      // Session v16.3b - use the real provider role so the in-app notif
-      // reaches the right bell and the actor shows the correct collection.
-      actorRole: providerRole === 'walker' ? 'walker' : 'sitter',
-      actorId: sitterId,
-      type: 'application_new',
-      title: 'New request',
-      body: trimmedDescription || 'A pet-care provider sent you a request.',
-      data: {
-        applicationId: application._id.toString(),
-        providerRole: providerRole === 'walker' ? 'walker' : 'sitter',
-        providerId: sitterId.toString(),
-      },
-    });
-
-    // Session v17.5 — also fire FCM push + email to the owner so their
-    // phone wakes up when a walker or sitter sends a new application.
-    // Before v17.5 only the in-app bell notification was created, which
-    // meant the owner only saw it when they manually opened the app.
-    // Best-effort: template-missing / FCM errors are swallowed inside
-    // sendNotification and logged on the server.
+    // Session v18.4 — single notification path. Before v18.4 we were calling
+    // createNotificationSafe directly AND sendNotification (which itself
+    // calls createNotificationSafe internally), so each event produced TWO
+    // in-app notifications — one with a hardcoded English body, one with
+    // the locale-rendered body. We now rely on sendNotification alone: it
+    // writes the in-app bell entry using the correct locale template AND
+    // fires FCM + email.
     sendNotification({
       userId: ownerId,
       role: 'owner',
@@ -714,25 +698,9 @@ const respondToApplication = async (req, res) => {
         }
       }
 
-      await createNotificationSafe({
-        recipientRole: providerRole,
-        recipientId: providerRefId,
-        actorRole: 'owner',
-        actorId: ownerId,
-        type: 'application_accepted',
-        title: 'Request accepted',
-        body: 'Your request was accepted.',
-        data: {
-          applicationId: application._id.toString(),
-          bookingId: booking._id.toString(),
-          // Session v17.1 — carry provider role so the Flutter notification
-          // card can render the right colour (green walker / blue sitter).
-          providerRole,
-        },
-      });
-
-      // Session v17.3 — FCM push + email so the provider gets an actual
-      // device push, not just an in-app badge. Best-effort.
+      // v18.4 — single path via sendNotification (writes bell entry +
+      // FCM push + email using the correct locale template). No more
+      // double-entry.
       sendNotification({
         userId: providerRefId,
         role: providerRole,
@@ -802,19 +770,17 @@ const respondToApplication = async (req, res) => {
       await application.save();
       await application.populate(['ownerId', 'sitterId', 'walkerId']);
 
-      await createNotificationSafe({
-        recipientRole: providerRole,
-        recipientId: providerRefId,
-        actorRole: 'owner',
-        actorId: ownerId,
+      // v18.4 — single path via sendNotification.
+      sendNotification({
+        userId: providerRefId,
+        role: providerRole,
         type: 'application_rejected',
-        title: 'Request rejected',
-        body: 'Your request was rejected.',
         data: {
           applicationId: application._id.toString(),
           providerRole,
         },
-      });
+        actor: { role: 'owner', id: ownerId },
+      }).catch(() => {});
 
       res.json({ application: sanitizeApplication(application) });
     }
