@@ -60,18 +60,23 @@ const createPlatformPaymentIntent = async ({ amount, currency, metadata = {} }) 
 const createPaymentIntent = async ({
   amount,
   currency,
-  connectedAccountId,
+  connectedAccountId,  // Session v18.0 — optional. When null, charge lands on
+                       // the platform account and payoutScheduler releases the
+                       // provider share to their IBAN or PayPal at service start.
   bookingId,
   ownerId,
   sitterId,
+  providerType,
   isTopSitter = false,
+  // Session v18.2 — when provided, Stripe attaches the PaymentMethod used
+  // for this payment to the Customer, so the owner's "Mes paiements" page
+  // can list and reuse the card later. setupFutureUsage default 'off_session'
+  // means we can charge again without the CVV.
+  stripeCustomerId = null,
+  setupFutureUsage = 'off_session',
 }) => {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY is not configured');
-  }
-
-  if (!connectedAccountId) {
-    throw new Error('Sitter must have a Stripe Connect account to receive payments');
   }
 
   if (!currency || typeof currency !== 'string' || !currency.trim()) {
@@ -79,32 +84,50 @@ const createPaymentIntent = async ({
   }
 
   // Sprint 7 step 2 — Top Sitters pay reduced commission (15% instead of 20%).
+  // Only used when destination charges are active (connectedAccountId set).
   const commissionRate = isTopSitter ? 0.15 : PLATFORM_COMMISSION_RATE;
   const applicationFeeAmount = Math.round(amount * commissionRate);
 
-  // Create PaymentIntent with destination charge
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount, // Total amount in cents
+  // Base PaymentIntent parameters — shared across destination charges and
+  // plain platform charges.
+  const paymentIntentParams = {
+    amount,
     currency: currency.toLowerCase(),
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    // Application fee (platform commission)
-    application_fee_amount: applicationFeeAmount,
-    // Transfer remaining amount to sitter's connected account
-    transfer_data: {
-      destination: connectedAccountId,
-    },
-    // Metadata for tracking
+    automatic_payment_methods: { enabled: true },
     metadata: {
       booking_id: bookingId.toString(),
       pet_owner_id: ownerId.toString(),
       petsitter_id: sitterId.toString(),
       platform_fee_amount: applicationFeeAmount.toString(),
       net_to_petsitter: (amount - applicationFeeAmount).toString(),
+      provider_type: providerType || 'sitter',
+      charge_mode: connectedAccountId ? 'destination' : 'platform_then_payout',
     },
-  });
+  };
 
+  // Session v18.0 — two charge modes:
+  // 1. Destination charge (legacy, requires Stripe Connect) — fires when
+  //    connectedAccountId is provided. Funds go straight to the provider's
+  //    Stripe account; platform keeps application_fee_amount automatically.
+  // 2. Platform charge (new) — when connectedAccountId is null. Funds land
+  //    on the platform account; processProviderPayoutForBooking fires at
+  //    service-start time via payoutScheduler to push the 80% to the
+  //    provider's IBAN (Stripe Transfer) or PayPal (PayPal Payout).
+  if (connectedAccountId) {
+    paymentIntentParams.application_fee_amount = applicationFeeAmount;
+    paymentIntentParams.transfer_data = { destination: connectedAccountId };
+  }
+
+  // Session v18.2 — attach to the owner's Stripe Customer so the card
+  // gets saved and can be reused from the "Mes paiements" screen.
+  if (stripeCustomerId) {
+    paymentIntentParams.customer = stripeCustomerId;
+    if (setupFutureUsage) {
+      paymentIntentParams.setup_future_usage = setupFutureUsage;
+    }
+  }
+
+  const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
   return paymentIntent;
 };
 
@@ -378,6 +401,57 @@ const sendPayoutToIBAN = async ({
   };
 };
 
+// ─── Session v18.2 — owner "Mes paiements" helpers ─────────────────────
+// Stripe Customer is created on the owner's first payment so the card is
+// stored off-session + can be reused across bookings. The payment sheet
+// attaches the PaymentMethod to the Customer automatically when we pass
+// `setup_future_usage: 'off_session'` on the PaymentIntent.
+const getOrCreateStripeCustomerForOwner = async ({ ownerId, email, name }) => {
+  const Owner = require('../models/Owner');
+  const owner = await Owner.findById(ownerId);
+  if (!owner) throw new Error('Owner not found.');
+  if (owner.stripeCustomerId) {
+    return owner.stripeCustomerId;
+  }
+  const customer = await stripe.customers.create({
+    email: email || undefined,
+    name: name || undefined,
+    metadata: { owner_id: ownerId.toString() },
+  });
+  owner.stripeCustomerId = customer.id;
+  await owner.save();
+  return customer.id;
+};
+
+const createSetupIntentForOwner = async (customerId) => {
+  return stripe.setupIntents.create({
+    customer: customerId,
+    automatic_payment_methods: { enabled: true },
+    usage: 'off_session',
+  });
+};
+
+const listOwnerPaymentMethods = async (customerId) => {
+  if (!customerId) return [];
+  const list = await stripe.paymentMethods.list({
+    customer: customerId,
+    type: 'card',
+    limit: 20,
+  });
+  return (list.data || []).map((pm) => ({
+    id: pm.id,
+    brand: pm.card?.brand || '',
+    last4: pm.card?.last4 || '',
+    expMonth: pm.card?.exp_month || null,
+    expYear: pm.card?.exp_year || null,
+    holder: pm.billing_details?.name || '',
+  }));
+};
+
+const detachOwnerPaymentMethod = async (paymentMethodId) => {
+  return stripe.paymentMethods.detach(paymentMethodId);
+};
+
 module.exports = {
   PLATFORM_COMMISSION_RATE,
   createPaymentIntent,
@@ -390,5 +464,10 @@ module.exports = {
   confirmPaymentIntent,
   constructWebhookEvent,
   sendPayoutToIBAN,
+  // v18.2
+  getOrCreateStripeCustomerForOwner,
+  createSetupIntentForOwner,
+  listOwnerPaymentMethods,
+  detachOwnerPaymentMethod,
 };
 

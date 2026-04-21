@@ -867,6 +867,62 @@ class OwnerRepository {
     );
   }
 
+  // ── Session v18.2 — Owner "Mes paiements" ────────────────────────────
+  /// GET /owner/payments/methods — list the owner's saved Stripe cards.
+  Future<List<Map<String, dynamic>>> getOwnerPaymentMethods() async {
+    final response = await _apiClient.get(
+      ApiEndpoints.ownerPaymentMethods,
+      requiresAuth: true,
+    );
+    if (response is Map) {
+      final list = response['paymentMethods'];
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    }
+    return const [];
+  }
+
+  /// POST /owner/payments/setup-intent — start the "add card" flow.
+  Future<Map<String, dynamic>> createOwnerSetupIntent() async {
+    final response = await _apiClient.post(
+      ApiEndpoints.ownerPaymentsSetupIntent,
+      body: const {},
+      requiresAuth: true,
+    );
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected setup-intent response.', details: response);
+  }
+
+  /// DELETE /owner/payments/methods/:id — detach a saved PaymentMethod.
+  Future<void> deleteOwnerPaymentMethod(String paymentMethodId) async {
+    await _apiClient.delete(
+      '${ApiEndpoints.ownerPaymentMethods}/$paymentMethodId',
+      requiresAuth: true,
+    );
+  }
+
+  /// GET /owner/payments/history — list past paid bookings.
+  Future<List<Map<String, dynamic>>> getOwnerPaymentHistory() async {
+    final response = await _apiClient.get(
+      ApiEndpoints.ownerPaymentsHistory,
+      requiresAuth: true,
+    );
+    if (response is Map) {
+      final list = response['history'];
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    }
+    return const [];
+  }
+
   /// Get tasks
   Future<List<TaskModel>> getTasks() async {
     final response = await _apiClient.get(

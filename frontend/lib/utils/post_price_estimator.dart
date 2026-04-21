@@ -129,13 +129,30 @@ PostPriceEstimate? estimatePostPrice({
       effectiveMonthly = effectiveDaily * 30;
     }
   }
+  // v18.3 — also derive hourly (backend expects hourly for < 7 day bookings).
+  // Convention: 1 day = 8 billable hours.
+  if (effectiveHourly <= 0 && effectiveDaily > 0) {
+    effectiveHourly = effectiveDaily / 8;
+  }
 
-  // Prefer the rate tier that matches the duration if configured.
+  // Session v18.3 — align with backend tierPricing.calculateTierBasePrice:
+  //   - ≥ 30 days AND monthlyRate > 0 → monthly (with partial days pro-rated)
+  //   - ≥  7 days AND weeklyRate  > 0 → weekly  (with partial days pro-rated)
+  //   - else                          → HOURLY × total hours (not days × daily)
+  //
+  // Why the change: a "Day Care" booking of 1h40 used to show "1 jour × €7.14"
+  // on the sitter side (estimator rule) while the owner got charged 1.67h ×
+  // €0.90 = €1.49 by the backend (hourly rule). Now both sides use the same
+  // hourly math for sub-week durations.
   if (days >= 30 && effectiveMonthly > 0) {
-    final months = (days / 30).ceil();
-    final brut = effectiveMonthly * months;
+    final fullMonths = (days ~/ 30);
+    final remDays = days % 30;
+    final dailyFromMonth = effectiveMonthly / 30;
+    final brut = fullMonths * effectiveMonthly + remDays * dailyFromMonth;
     final commission = brut * commissionRate;
-    final label = months == 1 ? '1 mois' : '$months mois';
+    final label = fullMonths + (remDays > 0 ? 1 : 0) == 1
+        ? '1 mois'
+        : '$days jours';
     return PostPriceEstimate(
       brut: brut,
       net: brut - commission,
@@ -146,10 +163,14 @@ PostPriceEstimate? estimatePostPrice({
     );
   }
   if (days >= 7 && effectiveWeekly > 0) {
-    final weeks = (days / 7).ceil();
-    final brut = effectiveWeekly * weeks;
+    final fullWeeks = (days ~/ 7);
+    final remDays = days % 7;
+    final dailyFromWeek = effectiveWeekly / 7;
+    final brut = fullWeeks * effectiveWeekly + remDays * dailyFromWeek;
     final commission = brut * commissionRate;
-    final label = weeks == 1 ? '1 semaine' : '$weeks semaines';
+    final label = fullWeeks + (remDays > 0 ? 1 : 0) == 1
+        ? '1 semaine'
+        : '$days jours';
     return PostPriceEstimate(
       brut: brut,
       net: brut - commission,
@@ -159,17 +180,25 @@ PostPriceEstimate? estimatePostPrice({
       unit: 'week',
     );
   }
-  if (effectiveDaily > 0) {
-    final brut = effectiveDaily * days;
+  // Short bookings (< 7 days) — always hourly, matches backend.
+  if (effectiveHourly > 0) {
+    // Same floor as the backend: minimum 1 billed hour even if the booking
+    // is shorter than that, to prevent absurd micro-bookings. Hours are kept
+    // at 2 decimals for consistency with tierPricing.round2.
+    final hoursRaw = math.max(totalMinutes / 60.0, 1.0);
+    final hours = (hoursRaw * 100).round() / 100;
+    final brut = effectiveHourly * hours;
     final commission = brut * commissionRate;
-    final label = days == 1 ? '1 jour' : '$days jours';
+    final hoursLabel = hours == hours.roundToDouble()
+        ? '${hours.toInt()}h'
+        : '${hours.toStringAsFixed(2)}h';
     return PostPriceEstimate(
       brut: brut,
       net: brut - commission,
       commission: commission,
       currency: currency,
-      breakdown: '$label × ${_money(effectiveDaily, currency)}',
-      unit: 'day',
+      breakdown: '$hoursLabel × ${_money(effectiveHourly, currency)}',
+      unit: 'hour',
     );
   }
 

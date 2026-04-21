@@ -43,6 +43,10 @@ class ApiEndpoints {
   static const String bookings = '/bookings';
   static const String myBookings = '/bookings/my';
   static const String myApplications = '/applications/my';
+  // Session v18.2 — owner "Mes paiements" endpoints.
+  static const String ownerPaymentMethods = '/owner/payments/methods';
+  static const String ownerPaymentsSetupIntent = '/owner/payments/setup-intent';
+  static const String ownerPaymentsHistory = '/owner/payments/history';
   static const String applications = '/applications';
   static const String tasks = '/tasks';
   static const String blocks = '/blocks';

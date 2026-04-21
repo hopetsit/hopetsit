@@ -776,13 +776,18 @@ const processProviderPayoutForBooking = async (booking) => {
       const ibanNumber = decrypt(sitter.ibanNumber || '').trim();
       const holderName = (sitter.ibanHolder || sitter.name || '').trim();
 
-      if (!ibanNumber || !sitter.ibanVerified) {
-        logger.warn('⚠️ Skipping IBAN payout: IBAN missing or not verified', {
+      // Session v18.1 — ibanVerified is now auto-set to true by
+      // ibanRoutes.PUT /iban when the mod97 checksum passes, so we only
+      // need the presence check. Stripe's Transfer API still rejects
+      // structurally invalid accounts at payout time, so we can't
+      // accidentally pay out to a random string.
+      if (!ibanNumber) {
+        logger.warn('⚠️ Skipping IBAN payout: IBAN missing', {
           bookingId: booking._id.toString(),
-          sitterId: sitter._id.toString(),
+          providerId: sitter._id.toString(),
         });
         booking.payoutStatus = 'failed';
-        booking.payoutError = 'Sitter IBAN is missing or not verified by admin.';
+        booking.payoutError = 'Provider IBAN is missing.';
         await booking.save();
         return;
       }
@@ -1653,20 +1658,34 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   if (!booking.pricing || typeof booking.pricing.totalPrice !== 'number' || booking.pricing.totalPrice <= 0) {
     throw new Error('Booking is missing valid pricing information.');
   }
-  // Session v17.1 — walker-aware provider resolution. The legacy code read
-  // booking.sitterId directly which crashed for walker bookings (sitterId
-  // is null on walker bookings per the XOR validator). getBookingProvider
-  // returns the right populated doc + model for either side.
+  // Session v17.1 — walker-aware provider resolution.
   const providerRef = getBookingProvider(booking);
   const sitter = providerRef.doc;
   if (!sitter) {
     throw new Error('Provider (sitter or walker) is missing on this booking.');
   }
-  if (!sitter.stripeConnectAccountId || sitter.stripeConnectAccountStatus !== 'active') {
+  // Session v18.0 — we no longer require Stripe Connect onboarding on the
+  // provider. The owner pays by card, the platform captures the full amount,
+  // and payoutScheduler releases the 80% at service-start time via the
+  // provider's configured payout method (IBAN or PayPal). We DO require the
+  // provider to have at least one payout method set — otherwise the money
+  // would be stuck on the platform account.
+  const hasIban = !!(
+    sitter.ibanNumber &&
+    String(sitter.ibanNumber).trim().length > 0
+  );
+  const hasPaypal = !!(
+    sitter.paypalEmail &&
+    String(sitter.paypalEmail).trim().length > 0
+  );
+  const hasStripeConnect =
+    sitter.stripeConnectAccountId &&
+    sitter.stripeConnectAccountStatus === 'active';
+  if (!hasIban && !hasPaypal && !hasStripeConnect) {
     throw new Error(
       providerRef.type === 'walker'
-        ? 'Walker must have an active Stripe Connect account to receive payments.'
-        : 'Sitter must have an active Stripe Connect account to receive payments.'
+        ? 'Walker must configure a payout method (IBAN or PayPal) before receiving payments.'
+        : 'Sitter must configure a payout method (IBAN or PayPal) before receiving payments.'
     );
   }
 
@@ -1707,20 +1726,43 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   const amountInCents = Math.round(effectiveTotal * 100);
   if (isNaN(amountInCents) || amountInCents <= 0) throw new Error('Invalid payment amount.');
 
+  // Session v18.0 — only pass connectedAccountId when Stripe Connect is
+  // active. When it's not, createPaymentIntent falls back to a plain
+  // platform charge and the payout is released by the scheduler later.
+  //
+  // Session v18.2 — attach to Stripe Customer for "Mes paiements" reuse.
+  let ownerStripeCustomerId = null;
+  try {
+    const { getOrCreateStripeCustomerForOwner } = require('../services/stripeService');
+    ownerStripeCustomerId = await getOrCreateStripeCustomerForOwner({
+      ownerId: booking.ownerId._id.toString(),
+      email: booking.ownerId.email,
+      name: booking.ownerId.name,
+    });
+  } catch (custErr) {
+    logger.warn('[_prepareOwnerPaymentForAgreedBooking] Stripe Customer create/find failed', custErr?.message || custErr);
+  }
+
   const paymentIntent = await createPaymentIntent({
     amount: amountInCents,
-    connectedAccountId: sitter.stripeConnectAccountId,
+    connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
     bookingId: booking._id.toString(),
     ownerId: booking.ownerId._id.toString(),
-    // Session v17.1 — providerRef.id resolves to sitter or walker id.
     sitterId: providerRef.id,
     providerType: providerRef.type,
     currency: bookingCurrency.toLowerCase(),
     isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
+    stripeCustomerId: ownerStripeCustomerId,
   });
 
   booking.stripePaymentIntentId = paymentIntent.id;
-  booking.petsitterConnectedAccountId = sitter.stripeConnectAccountId;
+  // Session v18.0 — only persist the connected account id when destination
+  // charges are actually used. Otherwise leave it null so that
+  // processProviderPayoutForBooking falls through to the IBAN / PayPal
+  // branches at service-start time.
+  booking.petsitterConnectedAccountId = hasStripeConnect
+    ? sitter.stripeConnectAccountId
+    : null;
   booking.paymentProvider = 'stripe';
   booking.paymentStatus = 'pending';
   await booking.save();
@@ -1790,19 +1832,28 @@ const createBookingPaymentIntent = async (req, res) => {
       });
     }
 
-    // Session v17 — resolve sitter OR walker via the unified helper. The
-    // local name `sitter` is kept to minimise diff in the rest of this
-    // function; semantically it is "the provider" (may be a Walker doc).
+    // Session v17 — resolve sitter OR walker via the unified helper.
     const providerRef = getBookingProvider(booking);
     const sitter = providerRef.doc;
     if (!sitter) {
       return res.status(404).json({ error: 'Provider not found on booking.' });
     }
-    if (!sitter.stripeConnectAccountId || sitter.stripeConnectAccountStatus !== 'active') {
+    // Session v18.0 — accept the booking even without Stripe Connect, as
+    // long as the provider has configured ANY payout method (IBAN or
+    // PayPal). The money lands on the platform account and the scheduler
+    // releases the 80% at service-start time via IBAN transfer or PayPal
+    // payout. Removes the brittle "Paiement indisponible" error users hit
+    // when providers hadn't completed Stripe Connect onboarding.
+    const hasIban = !!(sitter.ibanNumber && String(sitter.ibanNumber).trim().length > 0);
+    const hasPaypal = !!(sitter.paypalEmail && String(sitter.paypalEmail).trim().length > 0);
+    const hasStripeConnect =
+      sitter.stripeConnectAccountId &&
+      sitter.stripeConnectAccountStatus === 'active';
+    if (!hasIban && !hasPaypal && !hasStripeConnect) {
       return res.status(400).json({
         error: providerRef.type === 'walker'
-          ? 'Walker must have an active Stripe Connect account to receive payments. Please contact the walker.'
-          : 'Sitter must have an active Stripe Connect account to receive payments. Please contact the sitter.'
+          ? 'The walker has not configured a payout method yet (IBAN or PayPal). Please ask them to add one before paying.'
+          : 'The sitter has not configured a payout method yet (IBAN or PayPal). Please ask them to add one before paying.'
       });
     }
 
@@ -1854,26 +1905,44 @@ const createBookingPaymentIntent = async (req, res) => {
       });
     }
 
+    // Session v18.0 — use Stripe Connect destination charge ONLY when the
+    // provider has finished their Connect onboarding. Otherwise fall back
+    // to a plain platform charge and let payoutScheduler release the 80%
+    // via the provider's IBAN or PayPal at service-start.
+    //
+    // Session v18.2 — attach the charge to the owner's Stripe Customer so
+    // the card ends up in "Mes paiements" automatically.
+    let ownerStripeCustomerId = null;
+    try {
+      const { getOrCreateStripeCustomerForOwner } = require('../services/stripeService');
+      ownerStripeCustomerId = await getOrCreateStripeCustomerForOwner({
+        ownerId: booking.ownerId._id.toString(),
+        email: booking.ownerId.email,
+        name: booking.ownerId.name,
+      });
+    } catch (custErr) {
+      logger.warn('[createBookingPaymentIntent] Stripe Customer create/find failed, charge will not be attached', custErr?.message || custErr);
+    }
+
     const paymentIntent = await createPaymentIntent({
       amount: amountInCents,
-      connectedAccountId: sitter.stripeConnectAccountId,
+      connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
       bookingId: booking._id.toString(),
       ownerId: booking.ownerId._id.toString(),
-      // Session v17 — providerRef.id is the sitter id OR walker id depending
-      // on the booking. Kept under the legacy `sitterId` key for stripe
-      // metadata parity with sitter-only bookings already in production.
       sitterId: providerRef.id,
-      providerType: providerRef.type, // 'sitter' or 'walker'
+      providerType: providerRef.type,
       currency: bookingCurrency.toLowerCase(),
-      // Sprint 7 step 2 — Top Sitters/Walkers pay reduced commission (15%).
       isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
+      stripeCustomerId: ownerStripeCustomerId,
     });
 
-    // Save PaymentIntent ID and connected account ID to booking
+    // Save PaymentIntent ID and (conditionally) connected account ID.
     booking.stripePaymentIntentId = paymentIntent.id;
-    booking.petsitterConnectedAccountId = sitter.stripeConnectAccountId;
+    booking.petsitterConnectedAccountId = hasStripeConnect
+      ? sitter.stripeConnectAccountId
+      : null;
     booking.paymentProvider = 'stripe';
-    booking.paymentStatus = 'pending'; // Set payment status to pending when payment intent is created
+    booking.paymentStatus = 'pending';
     await booking.save();
 
     const applicationFee = Math.round(amountInCents * 0.20);

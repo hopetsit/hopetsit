@@ -102,6 +102,16 @@ const ownerSchema = new mongoose.Schema(
       },
       city: { type: String, default: '', trim: true },
     },
+
+    // Session v18.2 — Stripe Customer id. Created on the owner's first
+    // payment so the card can be attached + reused across bookings via
+    // PaymentMethods. Enables the "Mes paiements" screen (list saved cards,
+    // add / delete without charging).
+    stripeCustomerId: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

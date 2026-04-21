@@ -1,17 +1,33 @@
 /**
- * IBAN Payout Routes — Like Vinted
- * Sitters save their IBAN; admin verifies; platform triggers bank transfer on payout
+ * IBAN Payout Routes.
+ *
+ * Session v18.1 changes (summary):
+ *   - Removed the manual-admin verification step. When the IBAN passes the
+ *     mod97 checksum validation (validateIBAN), it is persisted with
+ *     ibanVerified=true immediately. Format-valid IBANs are trustworthy
+ *     enough for an MVP; the first actual Stripe transfer will reject
+ *     structurally-broken IBANs anyway.
+ *   - Added walker support to every endpoint: sitter and walker hit the
+ *     same URLs, the backend routes to the right collection based on
+ *     req.user.role (sitter / walker). Previously walker got a 403 and
+ *     had no way to configure a payout method.
  */
 const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const { validateIBAN, cleanIban } = require('../utils/ibanValidator');
 const { encrypt, decrypt } = require('../utils/encryption');
 
 const router = express.Router();
 
-// ─── SITTER: Save / Update IBAN ───────────────────────────────────────────────
-router.put('/iban', requireAuth, requireRole('sitter'), async (req, res) => {
+// Pick the right collection for the authenticated provider.
+const getProviderModel = (role) => (role === 'walker' ? Walker : Sitter);
+
+const requireProviderRole = requireRole('sitter', 'walker');
+
+// ─── Save / Update IBAN (sitter + walker) ────────────────────────────────────
+router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
   try {
     const { ibanHolder, ibanNumber, ibanBic } = req.body;
 
@@ -28,76 +44,89 @@ router.put('/iban', requireAuth, requireRole('sitter'), async (req, res) => {
     }
 
     const normalizedIban = cleanIban(ibanNumber);
+    const Model = getProviderModel(req.user.role);
 
-    const sitter = await Sitter.findByIdAndUpdate(
+    const provider = await Model.findByIdAndUpdate(
       req.user.id,
       {
         ibanHolder: ibanHolder.trim(),
         ibanNumber: encrypt(normalizedIban),
         ibanBic: ibanBic?.trim() ?? '',
-        ibanVerified: false, // Reset verification when IBAN changes
+        // Session v18.1 — auto-verify on mod97 pass instead of waiting for an
+        // admin. The first real Stripe Transfer still rejects structurally
+        // invalid accounts, so we cannot pay out to a random number.
+        ibanVerified: true,
         payoutMethod: 'iban',
       },
       { new: true }
     ).select('-password');
 
-    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
 
     res.json({
-      message: 'IBAN saved successfully. It will be verified before your first payout.',
+      message: 'IBAN saved and verified. Your future payouts will be sent there.',
       payoutMethod: 'iban',
-      ibanHolder: sitter.ibanHolder,
+      ibanHolder: provider.ibanHolder,
       // Return masked IBAN only (derived from plaintext before encryption)
       ibanNumberMasked: normalizedIban.slice(0, 4) + '****' + normalizedIban.slice(-4),
-      ibanVerified: sitter.ibanVerified,
+      ibanVerified: provider.ibanVerified,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// ─── SITTER: Get own IBAN info (masked) ───────────────────────────────────────
-router.get('/iban', requireAuth, requireRole('sitter'), async (req, res) => {
+// ─── Get own IBAN info (masked) (sitter + walker) ────────────────────────────
+router.get('/iban', requireAuth, requireProviderRole, async (req, res) => {
   try {
-    const sitter = await Sitter.findById(req.user.id)
+    const Model = getProviderModel(req.user.role);
+    const provider = await Model.findById(req.user.id)
       .select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod');
-    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
 
-    const iban = decrypt(sitter.ibanNumber);
+    const iban = decrypt(provider.ibanNumber);
     const masked = iban
       ? iban.slice(0, 4) + '****' + iban.slice(-4)
       : '';
 
     res.json({
-      ibanHolder: sitter.ibanHolder,
+      ibanHolder: provider.ibanHolder,
       ibanNumberMasked: masked,
-      ibanBic: sitter.ibanBic,
-      ibanVerified: sitter.ibanVerified,
-      payoutMethod: sitter.payoutMethod || 'stripe',
+      ibanBic: provider.ibanBic,
+      ibanVerified: provider.ibanVerified,
+      payoutMethod: provider.payoutMethod || 'stripe',
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// ─── SITTER: Set payout method preference ────────────────────────────────────
-router.patch('/payout-method', requireAuth, requireRole('sitter'), async (req, res) => {
+// ─── Set payout method preference (sitter + walker) ──────────────────────────
+router.patch('/payout-method', requireAuth, requireProviderRole, async (req, res) => {
   try {
     const { payoutMethod } = req.body;
     if (!['stripe', 'paypal', 'iban'].includes(payoutMethod)) {
       return res.status(400).json({ error: 'payoutMethod must be stripe, paypal, or iban.' });
     }
-    const sitter = await Sitter.findById(req.user.id).select('ibanNumber ibanVerified paypalEmail');
-    if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
+    const Model = getProviderModel(req.user.role);
+    const provider = await Model.findById(req.user.id)
+      .select('ibanNumber ibanVerified paypalEmail');
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
 
-    // Guard: can't switch to iban if not set/verified
-    if (payoutMethod === 'iban' && (!sitter.ibanNumber || !sitter.ibanVerified)) {
+    // Guard: can't switch to iban if not set. ibanVerified is now auto-set on
+    // save (see PUT /iban) so we only need the presence check.
+    if (payoutMethod === 'iban' && !provider.ibanNumber) {
       return res.status(400).json({
-        error: 'Please save your IBAN first and wait for admin verification.',
+        error: 'Please save your IBAN first.',
+      });
+    }
+    if (payoutMethod === 'paypal' && !provider.paypalEmail) {
+      return res.status(400).json({
+        error: 'Please save your PayPal email first.',
       });
     }
 
-    await Sitter.findByIdAndUpdate(req.user.id, { payoutMethod });
+    await Model.findByIdAndUpdate(req.user.id, { payoutMethod });
     res.json({ message: 'Payout method updated.', payoutMethod });
   } catch (e) {
     res.status(500).json({ error: e.message });

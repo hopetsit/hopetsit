@@ -14,6 +14,8 @@ import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
+// v18.2 — Mes paiements entry point.
+import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -335,6 +337,18 @@ class ProfileScreen extends StatelessWidget {
         // ── PAIEMENTS & SERVICES ──────────────────────────
         _sectionHeader('Paiements & services'),
         const LoyaltyCard(),
+        // Session v18.2 — entry point to the "Mes paiements" screen
+        // (saved cards + history). Route via lazy import so that removing
+        // this line later doesn't leave a dead reference.
+        _buildSettingsTile(
+          'owner_payments_title'.tr == 'owner_payments_title'
+              ? 'Mes paiements'
+              : 'owner_payments_title'.tr,
+          'Cartes enregistrées et historique',
+          Icons.credit_card_rounded,
+          AppColors.primaryColor,
+          () => Get.to(() => const OwnerPaymentsScreen()),
+        ),
         _buildSettingsTile(
           'referrals_title'.tr,
           'Invite tes amis, gagne des crédits',

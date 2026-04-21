@@ -27,6 +27,9 @@ const stripeConnectRoutes = require('./routes/stripeConnectRoutes');
 const stripeWebhookRoutes = require('./routes/stripeWebhookRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const ibanRoutes = require('./routes/ibanRoutes');
+// Session v18.2 — owner "Mes paiements" endpoints (list/add/delete cards,
+// payment history).
+const ownerPaymentsRoutes = require('./routes/ownerPaymentsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const walkRoutes = require('./routes/walkRoutes');
 const termsRoutes = require('./routes/termsRoutes');
@@ -148,6 +151,8 @@ const versionedRoutes = [
   { path: '/stripe-connect', mw: [sensitiveLimiter], router: stripeConnectRoutes },
   { path: '/admin', mw: [], router: adminRoutes },
   { path: '/sitter', mw: [], router: ibanRoutes },
+  // v18.2 — owner "Mes paiements" (cartes sauvegardées + historique).
+  { path: '/owner/payments', mw: [sensitiveLimiter], router: ownerPaymentsRoutes },
   { path: '/notifications', mw: [], router: notificationRoutes },
   { path: '/walks', mw: [], router: walkRoutes },
   { path: '/terms', mw: [], router: termsRoutes },
