@@ -32,6 +32,10 @@ class NotificationApplicationViewScreen extends StatefulWidget {
 class _NotificationApplicationViewScreenState
     extends State<NotificationApplicationViewScreen> {
   late final ApplicationsController _applicationsController;
+  /// Session v17.2 — guard so we only auto-redirect to PaymentPage once per
+  /// screen mount. Without it we'd loop on every rebuild after the
+  /// applications list refresh finishes.
+  bool _autoRedirectAttempted = false;
 
   @override
   void initState() {
@@ -40,8 +44,9 @@ class _NotificationApplicationViewScreenState
       Get.put(ApplicationsController());
     }
     _applicationsController = Get.find<ApplicationsController>();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _applicationsController.loadApplications();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _applicationsController.loadApplications();
+      _maybeAutoRedirectToPayment();
     });
   }
 
@@ -50,6 +55,67 @@ class _NotificationApplicationViewScreenState
       if (a.id == widget.applicationId) return a;
     }
     return null;
+  }
+
+  /// Session v17.2 — when the owner reopens this screen and the application
+  /// has ALREADY been accepted (status = 'accepted' and a booking was
+  /// created), jump straight to StripePaymentScreen so the owner can pay.
+  /// Previously the owner landed on a dead-end card showing "Acceptée" with
+  /// no buttons (Bug D reopened: accept worked but re-entering stuck the
+  /// owner with no path to payment).
+  Future<void> _maybeAutoRedirectToPayment() async {
+    if (_autoRedirectAttempted) return;
+    final app = _findApplication();
+    if (app == null) return;
+    final status = app.status.toLowerCase();
+    if (status != 'accepted') return;
+    if (app.bookingId == null || app.bookingId!.isEmpty) return;
+
+    _autoRedirectAttempted = true;
+
+    // Resolve the full booking via BookingsController so we hand a real
+    // BookingModel to StripePaymentScreen (which needs pricing +
+    // provider currency).
+    try {
+      if (!Get.isRegistered<BookingsController>()) {
+        Get.put(BookingsController());
+      }
+      final bookingsCtrl = Get.find<BookingsController>();
+      await bookingsCtrl.loadBookings();
+      final booking = bookingsCtrl.bookings.firstWhere(
+        (b) => b.id == app.bookingId,
+        orElse: () => bookingsCtrl.bookings.first,
+      );
+      // If the booking is already paid, don't redirect to payment — just
+      // stay on the notification screen (it already shows "Acceptée").
+      if ((booking.paymentStatus ?? '').toLowerCase() == 'paid') return;
+
+      final pricing = booking.pricing;
+      final base = (pricing?.totalPrice
+              ?? pricing?.resolvedBaseAmount
+              ?? booking.totalAmount
+              ?? booking.basePrice) ??
+          0.0;
+
+      // Derive provider type from the accepting provider's services.
+      final resolvedProviderType = app.sitter.service
+              .map((s) => s.toLowerCase())
+              .any((s) => s.contains('dog_walking') || s.contains('walking'))
+          ? 'walker'
+          : 'sitter';
+
+      if (!mounted) return;
+      Get.off(
+        () => StripePaymentScreen(
+          booking: booking,
+          totalAmount: base,
+          currency: pricing?.currency ?? booking.sitter.currency,
+          providerType: resolvedProviderType,
+        ),
+      );
+    } catch (e) {
+      AppLogger.logError('auto redirect accepted application failed', error: e);
+    }
   }
 
   /// v16.3i — resolve the AppBar title based on the services offered by the

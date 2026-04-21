@@ -13,6 +13,12 @@ class ApplicationModel {
   final ApplicationUser owner;
   final ApplicationSitter sitter;
   final BookingPricing? pricing;
+  /// Session v17.2 — id of the Booking created when the owner accepts this
+  /// application. Populated from `application.bookingId` on the backend
+  /// (sanitizeApplication). Used to open StripePaymentScreen when the
+  /// owner reopens a "Demande du sitter / walker" notification that has
+  /// already been accepted.
+  final String? bookingId;
 
   ApplicationModel({
     required this.id,
@@ -27,10 +33,20 @@ class ApplicationModel {
     required this.owner,
     required this.sitter,
     this.pricing,
+    this.bookingId,
   });
 
   factory ApplicationModel.fromJson(Map<String, dynamic> json) {
     final pricingJson = json['pricing'];
+    final rawBookingId = json['bookingId'];
+    String? parsedBookingId;
+    if (rawBookingId is String && rawBookingId.isNotEmpty) {
+      parsedBookingId = rawBookingId;
+    } else if (rawBookingId is Map) {
+      // Populated booking — grab its id.
+      final inner = rawBookingId['id']?.toString() ?? rawBookingId['_id']?.toString();
+      if (inner != null && inner.isNotEmpty) parsedBookingId = inner;
+    }
     return ApplicationModel(
       id: json['id'] as String? ?? '',
       postBody: json['postBody'] as String? ?? '',
@@ -50,6 +66,7 @@ class ApplicationModel {
       pricing: pricingJson is Map<String, dynamic>
           ? BookingPricing.fromJson(pricingJson)
           : null,
+      bookingId: parsedBookingId,
     );
   }
 }

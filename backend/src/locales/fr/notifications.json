@@ -5,6 +5,42 @@
     "emailSubject": "Votre réservation HopeTSIT est confirmée",
     "emailBody": "<p>Bonjour {{name}},</p><p>La réservation vient d'être acceptée par les deux parties. Finalisez le paiement pour débloquer le chat et confirmer la réservation.</p><p>— L'équipe HopeTSIT</p>"
   },
+  "booking_new": {
+    "title": "Nouvelle demande de réservation",
+    "body": "Vous avez reçu une nouvelle demande de réservation.",
+    "emailSubject": "Nouvelle demande de réservation — HopeTSIT",
+    "emailBody": "<p>Vous avez reçu une nouvelle demande de réservation sur HopeTSIT. Ouvrez l'application pour la consulter.</p>"
+  },
+  "booking_accepted": {
+    "title": "Réservation acceptée",
+    "body": "Votre demande de réservation a été acceptée. Procédez au paiement.",
+    "emailSubject": "Votre réservation a été acceptée — HopeTSIT",
+    "emailBody": "<p>Bonne nouvelle, votre demande de réservation vient d'être acceptée. Ouvrez l'application pour procéder au paiement.</p>"
+  },
+  "booking_rejected": {
+    "title": "Réservation refusée",
+    "body": "Votre demande de réservation a été refusée.",
+    "emailSubject": "Votre demande a été refusée — HopeTSIT",
+    "emailBody": "<p>Votre demande de réservation a été refusée. Vous pouvez en envoyer une nouvelle à un autre prestataire.</p>"
+  },
+  "application_new": {
+    "title": "Nouvelle candidature",
+    "body": "Un prestataire vous a envoyé une demande.",
+    "emailSubject": "Nouvelle candidature — HopeTSIT",
+    "emailBody": "<p>Un prestataire a candidaté à votre annonce. Ouvrez l'application pour l'examiner.</p>"
+  },
+  "application_accepted": {
+    "title": "Candidature acceptée",
+    "body": "Votre candidature a été acceptée.",
+    "emailSubject": "Votre candidature a été acceptée — HopeTSIT",
+    "emailBody": "<p>Votre candidature a été acceptée. Ouvrez l'application pour voir les détails.</p>"
+  },
+  "application_rejected": {
+    "title": "Candidature refusée",
+    "body": "Votre candidature a été refusée.",
+    "emailSubject": "Votre candidature a été refusée — HopeTSIT",
+    "emailBody": "<p>Votre candidature a été refusée par le propriétaire. Continuez à en envoyer à d'autres annonces.</p>"
+  },
   "NEW_MESSAGE": {
     "title": "Nouveau message de {{senderName}}",
     "body": "{{preview}}",

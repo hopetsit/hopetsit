@@ -14,6 +14,10 @@ const { calculateTotalWithAddOns, SERVICE_TYPES, LOCATION_TYPES } = require('../
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { normalizeServiceType } = require('../utils/bookingAgreementFields');
 const { createNotificationSafe } = require('../services/notificationService');
+// Session v17.3 — FCM push + email helper. createNotificationSafe only
+// writes the in-app bell record; sendNotification fans out across all
+// three channels (in-app socket, FCM push, email) using locale templates.
+const { sendNotification } = require('../services/notificationSender');
 const { _prepareOwnerPaymentForAgreedBooking } = require('./bookingController');
 const {
   buildRequestFingerprint,
@@ -705,6 +709,20 @@ const respondToApplication = async (req, res) => {
           providerRole,
         },
       });
+
+      // Session v17.3 — FCM push + email so the provider gets an actual
+      // device push, not just an in-app badge. Best-effort.
+      sendNotification({
+        userId: providerRefId,
+        role: providerRole,
+        type: 'application_accepted',
+        data: {
+          applicationId: application._id.toString(),
+          bookingId: booking._id.toString(),
+          providerRole,
+        },
+        actor: { role: 'owner', id: ownerId },
+      }).catch(() => {});
 
       // Session v17.1 — Conversation model is sitter-only (sitterId required
       // + unique index). Create the conversation only for sitter applications

@@ -1415,6 +1415,22 @@ const respondBooking = async (req, res) => {
         },
       });
 
+      // Session v17.3 — also fire FCM push + email through sendNotification
+      // so the owner gets an audible/visual push on the device the moment
+      // the walker/sitter accepts, instead of only seeing the badge when
+      // they re-open the notification bell. Best-effort — failure is
+      // logged inside sendNotification and does not block the response.
+      sendNotification({
+        userId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
+        role: 'owner',
+        type: 'booking_accepted',
+        data: {
+          bookingId: booking._id.toString(),
+          providerRole: actorRoleForOwnerNotif,
+        },
+        actor: { role: actorRoleForOwnerNotif, id: actorIdForOwnerNotif },
+      }).catch(() => {});
+
       // Session v17 — Conversation model is sitter-only (sitterId required +
       // unique index on {ownerId, sitterId}). For walker bookings we skip
       // conversation creation entirely until Conversation gains walkerId
@@ -1473,6 +1489,18 @@ const respondBooking = async (req, res) => {
         providerRole: actorRoleForOwnerNotif,
       },
     });
+
+    // Session v17.3 — FCM push + email alongside the in-app notif.
+    sendNotification({
+      userId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
+      role: 'owner',
+      type: 'booking_rejected',
+      data: {
+        bookingId: booking._id.toString(),
+        providerRole: actorRoleForOwnerNotif,
+      },
+      actor: { role: actorRoleForOwnerNotif, id: actorIdForOwnerNotif },
+    }).catch(() => {});
 
     return res.json({ booking: sanitizeBooking(booking) });
   } catch (error) {

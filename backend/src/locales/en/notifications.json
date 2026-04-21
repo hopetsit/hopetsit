@@ -5,6 +5,42 @@
     "emailSubject": "Your HopeTSIT booking is confirmed",
     "emailBody": "<p>Hi {{name}},</p><p>The booking has been accepted by both parties. Complete the payment to unlock the chat and finalize the reservation.</p><p>— The HopeTSIT team</p>"
   },
+  "booking_new": {
+    "title": "New booking request",
+    "body": "You received a new booking request.",
+    "emailSubject": "New booking request — HopeTSIT",
+    "emailBody": "<p>You have a new booking request on HopeTSIT. Open the app to review it.</p>"
+  },
+  "booking_accepted": {
+    "title": "Booking accepted",
+    "body": "Your booking request was accepted. Proceed to payment.",
+    "emailSubject": "Your booking was accepted — HopeTSIT",
+    "emailBody": "<p>Good news — your booking request was accepted. Open the app to complete the payment.</p>"
+  },
+  "booking_rejected": {
+    "title": "Booking rejected",
+    "body": "Your booking request was rejected.",
+    "emailSubject": "Your booking was rejected — HopeTSIT",
+    "emailBody": "<p>Your booking request was rejected. You can send a new request to another provider.</p>"
+  },
+  "application_new": {
+    "title": "New application",
+    "body": "A provider sent you a request.",
+    "emailSubject": "New application — HopeTSIT",
+    "emailBody": "<p>A provider applied to your listing. Open the app to review it.</p>"
+  },
+  "application_accepted": {
+    "title": "Application accepted",
+    "body": "Your application was accepted.",
+    "emailSubject": "Your application was accepted — HopeTSIT",
+    "emailBody": "<p>Your application was accepted. Open the app to see the details.</p>"
+  },
+  "application_rejected": {
+    "title": "Application rejected",
+    "body": "Your application was rejected.",
+    "emailSubject": "Your application was rejected — HopeTSIT",
+    "emailBody": "<p>Your application was rejected by the owner. Keep applying to other listings.</p>"
+  },
   "NEW_MESSAGE": {
     "title": "New message from {{senderName}}",
     "body": "{{preview}}",
