@@ -261,6 +261,61 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             return;
           }
           if (!context.mounted) return;
+
+          // Session v17.2 — for booking_accepted on the owner side we go
+          // DIRECTLY to StripePaymentScreen (skipping the detour via
+          // OwnerBookingDetailScreen). Daniel asked for a 1-tap path:
+          // provider accepts → owner taps notif → pays.
+          //
+          // For booking_rejected / booking_paid we keep the old detour to
+          // OwnerBookingDetailScreen because there's nothing to pay.
+          final bool isAcceptedNotif =
+              type == 'booking_accepted' || type.contains('accepted');
+          final bool isPayable = isAcceptedNotif &&
+              (booking.paymentStatus ?? '').toLowerCase() != 'paid';
+
+          if (isPayable) {
+            // Derive provider type for colour — walker if booking carries
+            // walker data or service type contains walking, else sitter.
+            final providerRole = _dataString(data, 'providerRole');
+            String? resolvedProviderType = providerRole?.toLowerCase();
+            if (resolvedProviderType != 'walker' &&
+                resolvedProviderType != 'sitter') {
+              final serviceLower = (booking.serviceType ?? '').toLowerCase();
+              resolvedProviderType =
+                  (serviceLower.contains('walking') || serviceLower.contains('dog_walking'))
+                      ? 'walker'
+                      : 'sitter';
+            }
+            final pricing = booking.pricing;
+            final base = (pricing?.totalPrice
+                    ?? pricing?.resolvedBaseAmount
+                    ?? booking.totalAmount
+                    ?? booking.basePrice) ??
+                0.0;
+            // Best-effort: pre-create the PaymentIntent so Stripe Sheet opens
+            // straight away when Pay is tapped. Swallow errors — the
+            // PaymentScreen can retry on Pay-click.
+            try {
+              await ownerRepo.createPaymentIntent(bookingId: booking.id);
+            } catch (e) {
+              AppLogger.logDebug(
+                'notif booking_accepted: createPaymentIntent pre-warm failed: $e',
+              );
+            }
+            await Get.to(
+              () => StripePaymentScreen(
+                booking: booking,
+                totalAmount: base,
+                currency: pricing?.currency ?? booking.sitter.currency,
+                providerType: resolvedProviderType,
+              ),
+            );
+            return;
+          }
+
+          // Legacy path (rejected / paid / fallback): keep the Booking
+          // detail screen with Pay + Cancel side-by-side buttons.
           Get.to(
             () => OwnerBookingDetailScreen(
               booking: booking,

@@ -1406,7 +1406,13 @@ const respondBooking = async (req, res) => {
         type: 'booking_accepted',
         title: 'Booking accepted',
         body: 'Your booking request was accepted.',
-        data: { bookingId: booking._id.toString() },
+        // Session v17.2 — carry providerRole so the Flutter notification
+        // card colours the entry correctly (green walker / blue sitter) and
+        // the owner notification body picks the role-specific translation.
+        data: {
+          bookingId: booking._id.toString(),
+          providerRole: actorRoleForOwnerNotif,
+        },
       });
 
       // Session v17 — Conversation model is sitter-only (sitterId required +
@@ -1461,7 +1467,11 @@ const respondBooking = async (req, res) => {
       type: 'booking_rejected',
       title: 'Booking rejected',
       body: 'Your booking request was rejected.',
-      data: { bookingId: booking._id.toString() },
+      // Session v17.2 — providerRole for colour-aware owner notification.
+      data: {
+        bookingId: booking._id.toString(),
+        providerRole: actorRoleForOwnerNotif,
+      },
     });
 
     return res.json({ booking: sanitizeBooking(booking) });

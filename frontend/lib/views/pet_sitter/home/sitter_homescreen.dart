@@ -113,16 +113,27 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             : null;
         if (sitterRepo == null) return;
         final profile = await sitterRepo.getSitterProfile(sitterId);
-        double _n(dynamic v) =>
+        // Session v17.2 — the backend wraps the sitter profile under a
+        // `sitter` key (GET /sitters/:id returns `{ sitter: { hourlyRate,
+        // dailyRate, weeklyRate, monthlyRate, currency, ... } }`). The
+        // previous code read `profile['hourlyRate']` which was always
+        // undefined, so all rates silently stayed at 0 and the price
+        // estimator short-circuited on `hasAnyRate == false`. We now look
+        // inside `profile['sitter']` first and fall back to the top level
+        // for robustness (in case a route returns a flat shape).
+        final sitterPayload = (profile['sitter'] is Map)
+            ? Map<String, dynamic>.from(profile['sitter'] as Map)
+            : profile;
+        double n(dynamic v) =>
             v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
         if (!mounted) return;
         setState(() {
-          _providerHourlyRate = _n(profile['hourlyRate']);
-          _providerDailyRate = _n(profile['dailyRate']);
-          _providerWeeklyRate = _n(profile['weeklyRate']);
-          _providerMonthlyRate = _n(profile['monthlyRate']);
-          final cur = profile['currency']?.toString() ??
-              profile['hourlyRateCurrency']?.toString();
+          _providerHourlyRate = n(sitterPayload['hourlyRate']);
+          _providerDailyRate = n(sitterPayload['dailyRate']);
+          _providerWeeklyRate = n(sitterPayload['weeklyRate']);
+          _providerMonthlyRate = n(sitterPayload['monthlyRate']);
+          final cur = sitterPayload['currency']?.toString() ??
+              sitterPayload['hourlyRateCurrency']?.toString();
           if (cur != null && cur.isNotEmpty) {
             _providerCurrency = cur.toUpperCase();
           }
