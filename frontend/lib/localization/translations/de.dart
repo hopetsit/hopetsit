@@ -22,6 +22,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'notif_body_booking_accepted_sitter':
           'Ihr Tiersitter hat Ihre Anfrage akzeptiert.',
       'reserved_badge': 'Reserviert',
+      'dialog_accept_and_pay': 'Annehmen und bezahlen',
       'common_error': 'Fehler',
       'common_success': 'Erfolg',
       'common_select_value': 'Wert auswählen',

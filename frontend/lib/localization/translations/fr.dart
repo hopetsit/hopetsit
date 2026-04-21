@@ -27,6 +27,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       // Session v17.1 — badge on a PetPostCard when the post has been
       // reserved (owner accepted a walker/sitter application).
       'reserved_badge': 'Réservé',
+      // Session v17.4 — accept button label in the owner notif dialog.
+      'dialog_accept_and_pay': 'Accepter et payer',
       'common_error': 'Erreur',
       'common_success': 'Succès',
       'common_select_value': 'Sélectionner une valeur',

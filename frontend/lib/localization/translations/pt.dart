@@ -73,6 +73,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'notif_body_booking_accepted_sitter':
           'O seu petsitter aceitou o seu pedido.',
       'reserved_badge': 'Reservado',
+      'dialog_accept_and_pay': 'Aceitar e pagar',
       'common_error': 'Erro',
       'common_success': 'Success',
       'common_select_value': 'Select value',

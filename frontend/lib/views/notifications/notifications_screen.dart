@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -12,6 +14,7 @@ import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
+import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -392,17 +395,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     if (type == 'application_new' ||
         (type.contains('application') && !type.contains('post'))) {
+      // Session v17.4 — one-tap accept flow for owners. The owner no longer
+      // lands on the "Demande du sitter" full screen (which got stuck on
+      // "Acceptée" after re-opening). Instead we show a compact dialog
+      // with Accept / Refuse and navigate straight to StripePaymentScreen
+      // on accept. Same path whether it's a sitter or walker application;
+      // provider role drives dialog colours (green walker / blue sitter)
+      // and is forwarded to StripePaymentScreen.providerType.
       final applicationId = _dataString(data, 'applicationId');
+      final providerRoleFromData = _dataString(data, 'providerRole');
       final sitterId = _dataString(data, 'sitterId');
       if (role != 'owner') return;
-      if (applicationId != null) {
-        Get.to(
-          () => NotificationApplicationViewScreen(
-            applicationId: applicationId,
-            sitterIdFallback: sitterId,
-          ),
+      if (applicationId != null && applicationId.isNotEmpty) {
+        await _showOwnerApplicationDialog(
+          context: context,
+          applicationId: applicationId,
+          providerRoleHint: providerRoleFromData,
         );
-      } else if (sitterId != null) {
+        return;
+      }
+      // Fallback: no applicationId → keep legacy behaviour (sitter profile).
+      if (sitterId != null) {
         Get.to(
           () => ServiceProviderDetailScreen(
             sitterId: sitterId,
@@ -637,5 +650,328 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         );
       }),
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Session v17.4 — Owner application acceptance dialog
+  //
+  // Replaces the full-screen NotificationApplicationViewScreen detour.
+  // Owner taps the application_new notif → we fetch the application and:
+  //   • status = pending   → show a compact Accept / Refuse dialog
+  //                          coloured by provider role. On Accept we call
+  //                          OwnerRepository.respondToApplication and
+  //                          Get.to() StripePaymentScreen. On Refuse we
+  //                          just call respondToApplication(reject).
+  //   • status = accepted  → resolve the Booking from bookingsController
+  //                          and push StripePaymentScreen directly.
+  //                          NO dead-end "Acceptée" card.
+  //   • status = rejected  → snackbar "already rejected" and close.
+  // ═══════════════════════════════════════════════════════════════════
+  Future<void> _showOwnerApplicationDialog({
+    required BuildContext context,
+    required String applicationId,
+    String? providerRoleHint,
+  }) async {
+    final ownerRepo = Get.find<OwnerRepository>();
+
+    // 1) Fetch the application from the owner's pending list.
+    Map<String, dynamic>? appJson;
+    try {
+      final apps = await ownerRepo.getMyApplications();
+      final match = apps.firstWhereOrNull((a) => a.id == applicationId);
+      if (match != null) {
+        appJson = {
+          'id': match.id,
+          'status': match.status,
+          'bookingId': null, // populated below if we fetch raw
+          'sitter': {
+            'id': match.sitter.id,
+            'name': match.sitter.name,
+            'service': match.sitter.service,
+            'currency': match.sitter.currency,
+            'hourlyRate': match.sitter.hourlyRate,
+          },
+          'pricing': match.pricing == null
+              ? null
+              : {
+                  'totalPrice': match.pricing?.totalPrice,
+                  'currency': match.pricing?.currency,
+                },
+          'pet': {'name': match.petName},
+          'serviceDate': match.serviceDate,
+          'timeSlot': match.timeSlot,
+          'description': match.description,
+          'bookingIdRaw': match.bookingId,
+        };
+      }
+    } catch (e) {
+      AppLogger.logError('dialog: fetch application failed', error: e);
+    }
+
+    if (appJson == null) {
+      CustomSnackbar.showWarning(
+        title: 'common_error'.tr,
+        message: 'notifications_application_not_found'.tr,
+      );
+      return;
+    }
+
+    // 2) Resolve provider type for colour + StripePaymentScreen param.
+    String resolvedProviderType = (providerRoleHint ?? '').toLowerCase();
+    if (resolvedProviderType != 'walker' && resolvedProviderType != 'sitter') {
+      final services = ((appJson['sitter']?['service'] as List?) ?? const [])
+          .map((s) => s.toString().toLowerCase())
+          .toList();
+      resolvedProviderType = services
+              .any((s) => s.contains('dog_walking') || s.contains('walking'))
+          ? 'walker'
+          : 'sitter';
+    }
+    final Color accent = resolvedProviderType == 'walker'
+        ? const Color(0xFF16A34A)
+        : const Color(0xFF2563EB);
+
+    final String status = (appJson['status'] as String? ?? '').toLowerCase();
+
+    // 3) Already-accepted path → jump straight to StripePaymentScreen.
+    if (status == 'accepted') {
+      await _openPaymentForAcceptedApplication(
+        ownerRepo: ownerRepo,
+        bookingIdHint: appJson['bookingIdRaw']?.toString(),
+        providerType: resolvedProviderType,
+      );
+      return;
+    }
+
+    // 4) Rejected path — nothing to do.
+    if (status == 'rejected') {
+      CustomSnackbar.showWarning(
+        title: 'common_error'.tr,
+        message: 'application_reject_success'.tr,
+      );
+      return;
+    }
+
+    // 5) Pending → show the compact Accept / Refuse dialog.
+    if (!context.mounted) return;
+    final providerName =
+        (appJson['sitter']?['name'] as String? ?? '').trim();
+    final petName = (appJson['pet']?['name'] as String? ?? '').trim();
+    final price = appJson['pricing']?['totalPrice'];
+    final currency = appJson['pricing']?['currency']?.toString()
+        ?? appJson['sitter']?['currency']?.toString()
+        ?? 'EUR';
+    final priceLabel = (price is num)
+        ? '${price.toStringAsFixed(2)} $currency'
+        : '';
+
+    final choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.whiteColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18.r),
+          ),
+          title: InterText(
+            text: resolvedProviderType == 'walker'
+                ? 'role_walker'.tr
+                : 'role_sitter'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            color: accent,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (providerName.isNotEmpty)
+                InterText(
+                  text: providerName,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blackColor,
+                ),
+              if (petName.isNotEmpty) ...[
+                SizedBox(height: 6.h),
+                InterText(
+                  text: petName,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.grey700Color,
+                ),
+              ],
+              if (priceLabel.isNotEmpty) ...[
+                SizedBox(height: 10.h),
+                InterText(
+                  text: priceLabel,
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+              ],
+            ],
+          ),
+          actionsPadding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('reject'),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFEF4444),
+              ),
+              child: Text('common_cancel'.tr),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop('accept'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: AppColors.whiteColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24.r),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 8.h),
+              ),
+              child: Text(
+                'dialog_accept_and_pay'.tr == 'dialog_accept_and_pay'
+                    ? 'Accepter'
+                    : 'dialog_accept_and_pay'.tr,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (choice == null) return;
+
+    if (choice == 'reject') {
+      try {
+        await ownerRepo.respondToApplication(
+          applicationId: applicationId,
+          action: 'reject',
+        );
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'application_reject_success'.tr,
+        );
+      } catch (e) {
+        AppLogger.logError('dialog reject failed', error: e);
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'application_action_failed'.tr,
+        );
+      }
+      return;
+    }
+
+    // Accept path — call backend, then StripePaymentScreen.
+    if (choice == 'accept') {
+      Map<String, dynamic>? response;
+      try {
+        response = await ownerRepo.respondToApplication(
+          applicationId: applicationId,
+          action: 'accept',
+        );
+      } catch (e) {
+        AppLogger.logError('dialog accept failed', error: e);
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'application_action_failed'.tr,
+        );
+        return;
+      }
+
+      // Re-use BookingModel parser so StripePaymentScreen gets a real object.
+      final bookingMap = response['booking'];
+      if (bookingMap is Map) {
+        try {
+          final booking = BookingModel.fromJson(
+            Map<String, dynamic>.from(bookingMap),
+          );
+          final pricing = booking.pricing;
+          final base = (pricing?.totalPrice
+                  ?? pricing?.resolvedBaseAmount
+                  ?? booking.totalAmount
+                  ?? booking.basePrice) ??
+              0.0;
+          if (!context.mounted) return;
+          Get.to(
+            () => StripePaymentScreen(
+              booking: booking,
+              totalAmount: base,
+              currency: pricing?.currency ?? booking.sitter.currency,
+              providerType: resolvedProviderType,
+            ),
+          );
+          if (Get.isRegistered<BookingsController>()) {
+            unawaited(Get.find<BookingsController>().loadBookings());
+          }
+        } catch (e) {
+          AppLogger.logError('dialog accept: parse booking failed', error: e);
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'payment_unavailable_message'.tr,
+          );
+        }
+      } else {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'payment_unavailable_message'.tr,
+        );
+      }
+    }
+  }
+
+  /// v17.4 — shared helper: resolve a Booking by id and open PaymentPage.
+  Future<void> _openPaymentForAcceptedApplication({
+    required OwnerRepository ownerRepo,
+    required String? bookingIdHint,
+    required String providerType,
+  }) async {
+    try {
+      final bookings = await ownerRepo.getMyBookings();
+      final booking = bookings.firstWhereOrNull(
+            (b) => b.id == bookingIdHint,
+          ) ??
+          bookings.firstWhereOrNull((b) =>
+              (b.status.toLowerCase() == 'agreed' ||
+                  b.status.toLowerCase() == 'accepted') &&
+              (b.paymentStatus?.toLowerCase() ?? '') != 'paid');
+      if (booking == null) {
+        CustomSnackbar.showWarning(
+          title: 'common_error'.tr,
+          message: 'notifications_application_not_found'.tr,
+        );
+        return;
+      }
+      if ((booking.paymentStatus ?? '').toLowerCase() == 'paid') {
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'application_accept_success'.tr,
+        );
+        return;
+      }
+      final pricing = booking.pricing;
+      final base = (pricing?.totalPrice
+              ?? pricing?.resolvedBaseAmount
+              ?? booking.totalAmount
+              ?? booking.basePrice) ??
+          0.0;
+      Get.to(
+        () => StripePaymentScreen(
+          booking: booking,
+          totalAmount: base,
+          currency: pricing?.currency ?? booking.sitter.currency,
+          providerType: providerType,
+        ),
+      );
+    } catch (e) {
+      AppLogger.logError('open-payment-for-accepted failed', error: e);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString(),
+      );
+    }
   }
 }

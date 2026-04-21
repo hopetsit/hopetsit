@@ -22,6 +22,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'notif_body_booking_accepted_sitter':
           'Il tuo petsitter ha accettato la tua richiesta.',
       'reserved_badge': 'Riservato',
+      'dialog_accept_and_pay': 'Accetta e paga',
       'common_error': 'Errore',
       'common_success': 'Successo',
       'common_select_value': 'Seleziona un valore',
