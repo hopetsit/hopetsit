@@ -3,6 +3,11 @@ const Map<String, String> deDETranslations = <String, String>{
       'common_yes': 'Ja',
       'common_no': 'Nein',
       'common_cancel': 'Abbrechen',
+      // Session v17 — role labels used by StripePaymentScreen header chip.
+      'role_walker': 'Gassigeher',
+      'role_sitter': 'Tiersitter',
+      'role_provider': 'Anbieter',
+      'provider_unknown': 'Anbieter',
       'common_error': 'Fehler',
       'common_success': 'Erfolg',
       'common_select_value': 'Wert auswählen',

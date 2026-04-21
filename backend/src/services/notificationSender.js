@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const { createNotificationSafe } = require('./notificationService');
 const { sendEmail } = require('./emailService');
 const { render } = require('../utils/i18nTemplate');
@@ -41,7 +42,15 @@ const pickTemplate = (locale, type) => {
 };
 
 const resolveUser = async (role, userId) => {
-  const Model = role === 'sitter' ? Sitter : role === 'owner' ? Owner : null;
+  // Session v17 — walker added as first-class recipient alongside
+  // owner/sitter. Notifications were silently dropped for walker before:
+  // the template catalog had entries, but resolveUser returned null and
+  // sendNotification bailed out with a "user not found" warning.
+  const Model =
+    role === 'sitter' ? Sitter :
+    role === 'owner' ? Owner :
+    role === 'walker' ? Walker :
+    null;
   if (!Model) return null;
   return Model.findById(userId).select('email language fcmTokens name').lean();
 };

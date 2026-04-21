@@ -133,6 +133,14 @@ const sanitizeBooking = (bookingDoc) => {
     booking.sitter = sanitizeUser(booking.sitterId);
     delete booking.sitterId;
   }
+  // Session v17 — expose walker as a first-class field when the booking
+  // targets a walker instead of a sitter. Mirrors the sitter handling
+  // above so the frontend can rely on `booking.walker` being populated
+  // when relevant. Same pattern as sanitizeApplication below (L.249-251).
+  if (booking.walkerId && typeof booking.walkerId === 'object' && booking.walkerId._id) {
+    booking.walker = sanitizeUser(booking.walkerId);
+    delete booking.walkerId;
+  }
   // Include pet details if available (petIds array)
   if (bookingDoc.petIds && Array.isArray(bookingDoc.petIds)) {
     booking.pets = bookingDoc.petIds.map(pet => {

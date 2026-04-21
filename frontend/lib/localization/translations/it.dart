@@ -3,6 +3,11 @@ const Map<String, String> itITTranslations = <String, String>{
       'common_yes': 'Sì',
       'common_no': 'No',
       'common_cancel': 'Annulla',
+      // Session v17 — role labels used by StripePaymentScreen header chip.
+      'role_walker': 'Dog sitter',
+      'role_sitter': 'Petsitter',
+      'role_provider': 'Fornitore',
+      'provider_unknown': 'Fornitore',
       'common_error': 'Errore',
       'common_success': 'Successo',
       'common_select_value': 'Seleziona un valore',

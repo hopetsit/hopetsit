@@ -3,6 +3,11 @@ const Map<String, String> esESTranslations = <String, String>{
       'common_yes': 'Sí',
       'common_no': 'No',
       'common_cancel': 'Cancelar',
+      // Session v17 — role labels used by StripePaymentScreen header chip.
+      'role_walker': 'Paseador',
+      'role_sitter': 'Petsitter',
+      'role_provider': 'Proveedor',
+      'provider_unknown': 'Proveedor',
       'common_error': 'Error',
       'common_success': 'Éxito',
       'common_select_value': 'Seleccionar valor',

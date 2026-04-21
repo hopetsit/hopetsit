@@ -1,5 +1,6 @@
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const { decrypt } = require('../utils/encryption');
 const Booking = require('../models/Booking');
 const Application = require('../models/Application');
@@ -531,17 +532,102 @@ const createBooking = async (req, res) => {
 };
 
 /**
- * Parse the booking start date (stored as a string) into a Date object.
- * The application stores dates as "YYYY-MM-DD" or ISO strings; we accept both.
- * Falls back to the booking creation date when the start date cannot be parsed.
+ * Session v17 — unified provider resolver for a Booking doc.
+ *
+ * Every paid Booking targets EITHER a sitter (legacy) OR a walker (since
+ * v16-owner-walker). The Booking schema enforces this XOR via a pre-save
+ * validator. Before v17, almost every downstream helper hard-coded the
+ * sitter path and silently broke for walker bookings.
+ *
+ * This helper returns the single provider doc/id/model regardless of
+ * which side of the XOR is set. Pass a booking that has been populated
+ * with .populate('sitterId').populate('walkerId') if you want the full
+ * doc; otherwise only the ObjectId id is returned.
+ *
+ * Shape:
+ *   { type: 'sitter' | 'walker' | null,
+ *     id:   string | null,              // always the string id
+ *     doc:  Mongoose doc | null,        // populated doc when available
+ *     Model: Sitter | Walker | null }   // for re-queries
  */
+const getBookingProvider = (booking) => {
+  if (booking?.walkerId) {
+    const ref = booking.walkerId;
+    const isPopulated = ref && typeof ref === 'object' && ref._id;
+    return {
+      type: 'walker',
+      id: isPopulated ? ref._id.toString() : String(ref),
+      doc: isPopulated ? ref : null,
+      Model: Walker,
+    };
+  }
+  if (booking?.sitterId) {
+    const ref = booking.sitterId;
+    const isPopulated = ref && typeof ref === 'object' && ref._id;
+    return {
+      type: 'sitter',
+      id: isPopulated ? ref._id.toString() : String(ref),
+      doc: isPopulated ? ref : null,
+      Model: Sitter,
+    };
+  }
+  return { type: null, id: null, doc: null, Model: null };
+};
+
+/**
+ * Parse the booking start date+time (stored as strings) into a Date object.
+ * The application stores dates as "YYYY-MM-DD" or ISO strings and timeSlot
+ * as "HH:mm" or "H h MM" patterns. We try ISO first, then combine the date
+ * part of startDate/date with the hours+minutes parsed from timeSlot.
+ *
+ * Session v17 — hour-exact granularity. Previously forced midnight local so
+ * the payout was eligible during the whole day; now we preserve the actual
+ * start time of the service so the scheduler (polling every 5 minutes) can
+ * release funds at the precise hour the service begins.
+ *
+ * Falls back to the booking creation date when nothing else can be parsed.
+ */
+const parseTimeSlotToHoursMinutes = (timeSlot) => {
+  if (!timeSlot || typeof timeSlot !== 'string') return null;
+  // Accepts "14:00", "14h00", "14h", "14 h 30", "9:05", "09:5", etc.
+  const cleaned = timeSlot.trim().toLowerCase().replace(/\s+/g, '');
+  const match = cleaned.match(/^(\d{1,2})[:h](\d{0,2})/);
+  if (!match) {
+    // Edge case: "9h" with no minutes.
+    const hourOnly = cleaned.match(/^(\d{1,2})h$/);
+    if (hourOnly) {
+      const h = Number(hourOnly[1]);
+      if (Number.isInteger(h) && h >= 0 && h <= 23) return { h, m: 0 };
+    }
+    return null;
+  }
+  const h = Number(match[1]);
+  const m = match[2] === '' ? 0 : Number(match[2]);
+  if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+    return null;
+  }
+  return { h, m };
+};
+
 const resolveBookingStartDate = (booking) => {
   const raw = booking?.startDate || booking?.date || null;
   if (raw) {
     const parsed = new Date(raw);
     if (!Number.isNaN(parsed.getTime())) {
-      // Force midnight local time so the payout is eligible during the whole day.
-      parsed.setHours(0, 0, 0, 0);
+      // Session v17 — if the raw value already carries a time component (ISO
+      // string with hours), trust it. Otherwise combine with timeSlot.
+      const hasTimePart = typeof raw === 'string' && /T\d{2}:/.test(raw);
+      if (hasTimePart) {
+        return parsed;
+      }
+      const hm = parseTimeSlotToHoursMinutes(booking?.timeSlot);
+      if (hm) {
+        parsed.setHours(hm.h, hm.m, 0, 0);
+      } else {
+        // Fallback: start-of-day. Rare — only legacy bookings without
+        // timeSlot hit this path.
+        parsed.setHours(0, 0, 0, 0);
+      }
       return parsed;
     }
   }
@@ -549,15 +635,15 @@ const resolveBookingStartDate = (booking) => {
 };
 
 /**
- * Returns true when the booking start date is today or already in the past.
- * Used to decide whether the sitter payout should be released immediately
- * (same-day booking) or scheduled for the first day of the service.
+ * Returns true when the booking start datetime is now or already in the past.
+ * Used to decide whether the provider payout should be released immediately
+ * (same-day/late booking, admin retry) or scheduled for the exact start time.
+ *
+ * Session v17 — hour-exact comparison (was day-exact before).
  */
 const isBookingPayoutDue = (booking) => {
   const start = resolveBookingStartDate(booking);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return start.getTime() <= today.getTime();
+  return start.getTime() <= Date.now();
 };
 
 /**
@@ -566,7 +652,7 @@ const isBookingPayoutDue = (booking) => {
  * Business rule (HopeTSIT):
  *   The money stays in escrow until the first day of the pet sitting service.
  *   On that first day, `processScheduledSitterPayouts` (run by the scheduler)
- *   will call `processSitterPayoutForBooking` to actually release the funds.
+ *   will call `processProviderPayoutForBooking` to actually release the funds.
  *
  * If the booking start date is today or already past (same-day booking,
  * admin retry, legacy data), the payout is released immediately.
@@ -582,7 +668,7 @@ const schedulePayoutForBooking = async (booking) => {
   if (isBookingPayoutDue(booking)) {
     // First day of the pet sitting already reached → release now.
     await booking.save();
-    await processSitterPayoutForBooking(booking);
+    await processProviderPayoutForBooking(booking);
     return;
   }
 
@@ -594,12 +680,19 @@ const schedulePayoutForBooking = async (booking) => {
 };
 
 /**
- * Internal helper to process sitter payout for a paid booking using PayPal Payouts.
- * This function is idempotent and will not trigger a second payout when payoutStatus is completed.
+ * Internal helper to process the provider payout (sitter OR walker) for a
+ * paid booking. Uses Stripe destination-charge auto-transfer when possible,
+ * otherwise falls back to PayPal payout or Stripe transfer to IBAN.
+ *
+ * Idempotent — bails out if payoutStatus is already 'completed'.
+ *
+ * Session v17 — renamed from processSitterPayoutForBooking and extended to
+ * resolve the provider via getBookingProvider() so walker bookings are
+ * actually paid out (previously they crashed with "sitter not found").
  *
  * @param {import('mongoose').Document} booking
  */
-const processSitterPayoutForBooking = async (booking) => {
+const processProviderPayoutForBooking = async (booking) => {
   try {
     if (!booking) return;
 
@@ -612,8 +705,8 @@ const processSitterPayoutForBooking = async (booking) => {
       return;
     }
 
-    // Stripe destination-charge payments are auto-transferred to the sitter's
-    // connected account at capture time — no manual payout needed.
+    // Stripe destination-charge payments are auto-transferred to the
+    // provider's connected account at capture time — no manual payout needed.
     if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
       booking.payoutStatus = 'completed';
       booking.payoutAt = booking.payoutAt || new Date();
@@ -633,16 +726,22 @@ const processSitterPayoutForBooking = async (booking) => {
       return;
     }
 
-    const sitterId =
-      booking.sitterId && booking.sitterId._id
-        ? booking.sitterId._id
-        : booking.sitterId;
-
-    const sitter = await Sitter.findById(sitterId);
-    if (!sitter) {
-      logger.error('❌ Unable to process payout: sitter not found for booking', booking._id.toString());
+    // Session v17 — resolve sitter OR walker via the unified provider
+    // helper. The "sitter" variable name is kept below to minimise diff in
+    // the payoutMethod branches; semantically it now means "provider".
+    const provider = getBookingProvider(booking);
+    if (!provider.id || !provider.Model) {
+      logger.error('❌ Unable to process payout: provider missing on booking', booking._id.toString());
       booking.payoutStatus = 'failed';
-      booking.payoutError = 'Sitter not found for payout.';
+      booking.payoutError = 'Provider missing on booking (no sitterId nor walkerId).';
+      await booking.save();
+      return;
+    }
+    const sitter = await provider.Model.findById(provider.id);
+    if (!sitter) {
+      logger.error(`❌ Unable to process payout: ${provider.type} not found for booking`, booking._id.toString());
+      booking.payoutStatus = 'failed';
+      booking.payoutError = `${provider.type === 'walker' ? 'Walker' : 'Sitter'} not found for payout.`;
       await booking.save();
       return;
     }
@@ -730,10 +829,10 @@ const processSitterPayoutForBooking = async (booking) => {
       // Stripe Connect destination charges handle the transfer automatically,
       // but if paymentProvider was paypal, we can't stripe-payout. Flag it.
       if (booking.paymentProvider === 'paypal') {
-        logger.warn('⚠️ Sitter payout method is stripe but payment was via PayPal — falling back to PayPal payout');
+        logger.warn('⚠️ Provider payout method is stripe but payment was via PayPal — falling back to PayPal payout');
         // Recursive call with paypal override
         sitter.payoutMethod = 'paypal';
-        return processSitterPayoutForBooking(booking);
+        return processProviderPayoutForBooking(booking);
       }
       booking.payoutStatus = 'completed';
       booking.payoutAt = new Date();
@@ -821,16 +920,15 @@ const getMyBookings = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
     }
 
-    // Walker bookings are not yet modelled (Booking has ownerId/sitterId only).
-    // Return an empty history so the UI can render its empty state without error.
-    if (userRole === 'walker') {
-      return res.json({ bookings: [], count: 0 });
-    }
-
-    // Build filter based on user role
+    // Session v17 — walker was stubbed to return [] here because an earlier
+    // comment ("Booking has ownerId/sitterId only") was wrong: the Booking
+    // schema has supported walkerId since v16-owner-walker. Filter by the
+    // correct provider field depending on the authenticated role.
     const filter = {};
     if (userRole === 'owner') {
       filter.ownerId = userId;
+    } else if (userRole === 'walker') {
+      filter.walkerId = userId;
     } else {
       filter.sitterId = userId;
     }
@@ -856,13 +954,25 @@ const getMyBookings = async (req, res) => {
       .sort({ updatedAt: -1 })
       .populate('ownerId', 'name email avatar mobile address')
       .populate('sitterId', 'name email avatar mobile address location rating reviewsCount')
+      .populate('walkerId', 'name email avatar mobile address location rating reviewsCount')
       .populate('petIds');
 
     // Format bookings for Bookings History screen
     const formattedBookings = await Promise.all(bookings.map(async (booking) => {
       const sanitized = sanitizeBooking(booking);
-      const otherParty = userRole === 'owner' ? sanitized.sitter : sanitized.owner;
-      const otherPartyRaw = userRole === 'owner' ? booking.sitterId : booking.ownerId;
+      // Session v17 — pick the right "other party" depending on whether the
+      // booking targets a sitter or a walker. For an owner, the other party
+      // is whichever provider the booking is for. For a sitter or walker,
+      // it's always the owner.
+      let otherParty;
+      let otherPartyRaw;
+      if (userRole === 'owner') {
+        otherParty = sanitized.walker || sanitized.sitter;
+        otherPartyRaw = booking.walkerId || booking.sitterId;
+      } else {
+        otherParty = sanitized.owner;
+        otherPartyRaw = booking.ownerId;
+      }
 
       // Get phone number
       const phone = otherPartyRaw?.mobile || '';
@@ -870,9 +980,9 @@ const getMyBookings = async (req, res) => {
       // Get location
       let location = '';
       if (userRole === 'owner' && otherPartyRaw?.location?.city) {
-        // For sitter, use city from location object
+        // For sitter/walker, use city from location object
         location = otherPartyRaw.location.city;
-      } else if (userRole === 'sitter' && otherPartyRaw?.address) {
+      } else if ((userRole === 'sitter' || userRole === 'walker') && otherPartyRaw?.address) {
         // For owner, use address
         location = otherPartyRaw.address;
       }
@@ -880,9 +990,9 @@ const getMyBookings = async (req, res) => {
       // Get rating
       let rating = 0;
       let reviewsCount = 0;
-      
+
       if (userRole === 'owner') {
-        // For sitter, use rating field directly
+        // For sitter/walker, use rating field directly
         rating = otherPartyRaw?.rating || 0;
         reviewsCount = otherPartyRaw?.reviewsCount || 0;
       } else {
@@ -993,7 +1103,12 @@ const getMyBookings = async (req, res) => {
 const cancelBooking = async (req, res) => {
   try {
     const ownerId = req.user?.id;
+    // Session v17 — caller can identify the provider via ?sitterId or ?walkerId.
+    // Walker bookings previously rejected with a 400 because sitterId was
+    // required. We accept either and match against whichever field the
+    // booking actually has.
     const sitterIdQuery = req.query?.sitterId;
+    const walkerIdQuery = req.query?.walkerId;
     const { id } = req.params;
 
     if (!ownerId) {
@@ -1001,9 +1116,10 @@ const cancelBooking = async (req, res) => {
     }
 
     const sitterId = typeof sitterIdQuery === 'string' ? sitterIdQuery.trim() : '';
+    const walkerId = typeof walkerIdQuery === 'string' ? walkerIdQuery.trim() : '';
 
-    if (!sitterId) {
-      return res.status(400).json({ error: 'sitterId query parameter is required.' });
+    if (!sitterId && !walkerId) {
+      return res.status(400).json({ error: 'sitterId or walkerId query parameter is required.' });
     }
 
     const booking = await Booking.findById(id).populate('petIds');
@@ -1012,7 +1128,10 @@ const cancelBooking = async (req, res) => {
       return res.status(404).json({ error: 'Booking not found.' });
     }
 
-    if (booking.ownerId.toString() !== ownerId || booking.sitterId.toString() !== sitterId) {
+    const bookingOwnerMatches = booking.ownerId.toString() === ownerId;
+    const bookingProviderId = (booking.walkerId || booking.sitterId || '').toString();
+    const providedProviderId = walkerId || sitterId;
+    if (!bookingOwnerMatches || bookingProviderId !== providedProviderId) {
       return res.status(403).json({ error: 'You do not have permission to cancel this booking.' });
     }
 
@@ -1025,6 +1144,7 @@ const cancelBooking = async (req, res) => {
     await booking.save();
     await booking.populate('ownerId');
     await booking.populate('sitterId');
+    await booking.populate('walkerId');
 
     res.json({ booking: sanitizeBooking(booking), message: 'Booking cancelled.' });
   } catch (error) {
@@ -1263,33 +1383,41 @@ const respondBooking = async (req, res) => {
         data: { bookingId: booking._id.toString() },
       });
 
-      let conversation = await Conversation.findOne({
-        ownerId: booking.ownerId._id,
-        sitterId: booking.sitterId._id,
-      })
-        .populate('ownerId')
-        .populate('sitterId')
-        .populate('petIds');
-
-      if (!conversation) {
-        conversation = await Conversation.create({
+      // Session v17 — Conversation model is sitter-only (sitterId required +
+      // unique index on {ownerId, sitterId}). For walker bookings we skip
+      // conversation creation entirely until Conversation gains walkerId
+      // support in a future version. This avoids a required-field crash on
+      // walker accept without breaking the sitter flow.
+      let conversation = null;
+      if (!isWalkerResponder) {
+        conversation = await Conversation.findOne({
           ownerId: booking.ownerId._id,
           sitterId: booking.sitterId._id,
-          ownerUnreadCount: 0,
-          sitterUnreadCount: 0,
-        });
-        await conversation.populate(['ownerId', 'sitterId']);
-      } else {
-        conversation.lastMessageAt = new Date();
-        conversation.ownerUnreadCount = conversation.ownerUnreadCount || 0;
-        conversation.sitterUnreadCount = conversation.sitterUnreadCount || 0;
-        await conversation.save();
-        await conversation.populate(['ownerId', 'sitterId']);
+        })
+          .populate('ownerId')
+          .populate('sitterId')
+          .populate('petIds');
+
+        if (!conversation) {
+          conversation = await Conversation.create({
+            ownerId: booking.ownerId._id,
+            sitterId: booking.sitterId._id,
+            ownerUnreadCount: 0,
+            sitterUnreadCount: 0,
+          });
+          await conversation.populate(['ownerId', 'sitterId']);
+        } else {
+          conversation.lastMessageAt = new Date();
+          conversation.ownerUnreadCount = conversation.ownerUnreadCount || 0;
+          conversation.sitterUnreadCount = conversation.sitterUnreadCount || 0;
+          await conversation.save();
+          await conversation.populate(['ownerId', 'sitterId']);
+        }
       }
 
       return res.json({
         booking: sanitizeBooking(booking),
-        conversation: sanitizeConversation(conversation),
+        conversation: conversation ? sanitizeConversation(conversation) : null,
       });
     }
 
@@ -1531,7 +1659,11 @@ const createBookingPaymentIntent = async (req, res) => {
       return res.status(403).json({ error: 'Only owners can initiate payment.' });
     }
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId') // Session v17 — walker bookings need this populated too
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
@@ -1558,11 +1690,19 @@ const createBookingPaymentIntent = async (req, res) => {
       });
     }
 
-    // Check if sitter has Stripe Connect account
-    const sitter = booking.sitterId;
+    // Session v17 — resolve sitter OR walker via the unified helper. The
+    // local name `sitter` is kept to minimise diff in the rest of this
+    // function; semantically it is "the provider" (may be a Walker doc).
+    const providerRef = getBookingProvider(booking);
+    const sitter = providerRef.doc;
+    if (!sitter) {
+      return res.status(404).json({ error: 'Provider not found on booking.' });
+    }
     if (!sitter.stripeConnectAccountId || sitter.stripeConnectAccountStatus !== 'active') {
-      return res.status(400).json({ 
-        error: 'Sitter must have an active Stripe Connect account to receive payments. Please contact the sitter.' 
+      return res.status(400).json({
+        error: providerRef.type === 'walker'
+          ? 'Walker must have an active Stripe Connect account to receive payments. Please contact the walker.'
+          : 'Sitter must have an active Stripe Connect account to receive payments. Please contact the sitter.'
       });
     }
 
@@ -1619,10 +1759,14 @@ const createBookingPaymentIntent = async (req, res) => {
       connectedAccountId: sitter.stripeConnectAccountId,
       bookingId: booking._id.toString(),
       ownerId: booking.ownerId._id.toString(),
-      sitterId: booking.sitterId._id.toString(),
+      // Session v17 — providerRef.id is the sitter id OR walker id depending
+      // on the booking. Kept under the legacy `sitterId` key for stripe
+      // metadata parity with sitter-only bookings already in production.
+      sitterId: providerRef.id,
+      providerType: providerRef.type, // 'sitter' or 'walker'
       currency: bookingCurrency.toLowerCase(),
-      // Sprint 7 step 2 — Top Sitters pay reduced commission (15%).
-      isTopSitter: sitter.isTopSitter === true,
+      // Sprint 7 step 2 — Top Sitters/Walkers pay reduced commission (15%).
+      isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
     });
 
     // Save PaymentIntent ID and connected account ID to booking
@@ -1814,14 +1958,18 @@ const confirmBookingPayment = async (req, res) => {
       return res.status(400).json({ error: 'Payment intent ID is required in the URL path.' });
     }
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId') // Session v17 — walker bookings need this populated too
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
 
     // Verify owner owns this booking
     if (booking.ownerId._id.toString() !== ownerId) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'You do not have permission to confirm payment for this booking.',
         details: `Booking owner ID: ${booking.ownerId._id.toString()}, Your ID: ${ownerId}`
       });
@@ -2324,16 +2472,21 @@ const getPaymentStatus = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId') // Session v17 — walker bookings need this populated too
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
 
-    // Verify user has permission (owner or sitter)
+    // Verify user has permission (owner or sitter/walker provider).
     const ownerId = booking.ownerId._id.toString();
-    const sitterId = booking.sitterId._id.toString();
+    const providerRef = getBookingProvider(booking);
+    const providerId = providerRef.id;
 
-    if (userId !== ownerId && userId !== sitterId) {
+    if (userId !== ownerId && userId !== providerId) {
       return res.status(403).json({ error: 'You do not have permission to view this booking payment status.' });
     }
 
@@ -2416,7 +2569,11 @@ const retryBookingPayout = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId') // Session v17 — walker bookings need this populated too
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
@@ -2445,7 +2602,7 @@ const retryBookingPayout = async (req, res) => {
       });
     }
 
-    await processSitterPayoutForBooking(booking);
+    await processProviderPayoutForBooking(booking);
 
     // Reload latest state
     await booking.reload();
@@ -2472,26 +2629,31 @@ const retryBookingPayout = async (req, res) => {
 
 
 /**
- * processScheduledSitterPayouts — called by the background scheduler every
- * hour. Finds all bookings whose escrow payout is due (scheduled date <= now)
- * and releases the sitter payout via processSitterPayoutForBooking.
+ * processScheduledSitterPayouts — called by the background scheduler.
+ * Session v17 — granularity is now hour-exact (was day-exact). Query uses
+ * { $lte: now } so any booking whose scheduledPayoutAt has passed is
+ * released on the next scheduler tick (every 5 minutes). Both walker and
+ * sitter bookings are released; processProviderPayoutForBooking handles
+ * both via getBookingProvider().
  */
 const processScheduledSitterPayouts = async () => {
   const now = new Date();
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
 
   const dueBookings = await Booking.find({
     payoutStatus: 'scheduled',
-    scheduledPayoutAt: { $lte: endOfToday },
-  }).populate('ownerId').populate('sitterId').populate('petIds');
+    scheduledPayoutAt: { $lte: now },
+  })
+    .populate('ownerId')
+    .populate('sitterId')
+    .populate('walkerId')
+    .populate('petIds');
 
   if (!dueBookings.length) return { released: 0 };
 
   let released = 0;
   for (const booking of dueBookings) {
     try {
-      await processSitterPayoutForBooking(booking);
+      await processProviderPayoutForBooking(booking);
       released += 1;
     } catch (err) {
       logger.error(`⚠️  processScheduledSitterPayouts: failed for booking ${booking._id}`, err);
@@ -2550,6 +2712,11 @@ module.exports = {
   retryBookingPayout,
   processScheduledSitterPayouts,
   completeBooking,
+  // Session v17 — payout helper now supports walker too. Renamed from
+  // processSitterPayoutForBooking. The legacy export below keeps existing
+  // call sites (e.g. adminRoutes.js) working without modification.
+  processProviderPayoutForBooking,
+  processSitterPayoutForBooking: processProviderPayoutForBooking,
   // Shared helper — used by applicationController to offer the owner an
   // immediate Stripe PaymentSheet right after accepting an application.
   _prepareOwnerPaymentForAgreedBooking,

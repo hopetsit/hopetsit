@@ -5,6 +5,7 @@
  */
 
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const {
   createConnectAccount,
   createAccountLink,
@@ -14,81 +15,93 @@ const { sanitizeUser } = require('../utils/sanitize');
 const { resolveCountry, ibanToCountry } = require('../utils/stripeCountry');
 const logger = require('../utils/logger');
 
+// Session v17 — Stripe Connect is now available for both sitters and
+// walkers. All four endpoints below previously hard-rejected walker with
+// a 403 "Only sitters can..." — walkers physically couldn't connect
+// Stripe, which blocked the entire payout flow for them.
+//
+// Walker has the exact same payout-relevant fields as Sitter
+// (stripeConnectAccountId, stripeConnectAccountStatus, country,
+// ibanNumber, location), so the only thing that changes per role is
+// the model lookup. Helper below keeps the rest of the code generic.
+const getProviderModel = (role) => (role === 'walker' ? Walker : Sitter);
+
 /**
  * Create Stripe Connect account for sitter
  * POST /stripe-connect/create-account
  */
 const createStripeConnectAccount = async (req, res) => {
   try {
-    const sitterId = req.user?.id;
+    const userId = req.user?.id;
     const userRole = req.user?.role;
 
-    if (!sitterId) {
+    if (!userId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    if (userRole !== 'sitter') {
-      return res.status(403).json({ error: 'Only sitters can create Stripe Connect accounts.' });
+    if (!['sitter', 'walker'].includes(userRole)) {
+      return res.status(403).json({ error: 'Only sitters or walkers can create Stripe Connect accounts.' });
     }
 
-    const sitter = await Sitter.findById(sitterId);
-    if (!sitter) {
-      return res.status(404).json({ error: 'Sitter not found.' });
+    const Model = getProviderModel(userRole);
+    const provider = await Model.findById(userId);
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider not found.' });
     }
 
     // Fix invalid location before saving (MongoDB 2dsphere index requires valid coordinates or no location)
-    if (sitter.location && (!sitter.location.coordinates || 
-        !Array.isArray(sitter.location.coordinates) || 
-        sitter.location.coordinates.length !== 2)) {
+    if (provider.location && (!provider.location.coordinates ||
+        !Array.isArray(provider.location.coordinates) ||
+        provider.location.coordinates.length !== 2)) {
       // Remove invalid location field to prevent geo index error
-      sitter.location = undefined;
+      provider.location = undefined;
     }
 
-    let accountId = sitter.stripeConnectAccountId;
+    let accountId = provider.stripeConnectAccountId;
     let isNewAccount = false;
 
     // Create Stripe Connect account if it doesn't exist
     if (!accountId) {
       const country = resolveCountry({
         explicit: req.body?.country,
-        sitterCountry: sitter.country,
-        ibanCountry: ibanToCountry(sitter.ibanNumber),
+        sitterCountry: provider.country,
+        ibanCountry: ibanToCountry(provider.ibanNumber),
         acceptLanguage: req.headers['accept-language'],
       });
       if (!country) {
         return res.status(400).json({
           error:
-            'Unable to determine country for Stripe Connect account. Provide "country" (ISO-2) in body, set sitter.country, or save an IBAN first.',
+            'Unable to determine country for Stripe Connect account. Provide "country" (ISO-2) in body, set your country, or save an IBAN first.',
         });
       }
       const account = await createConnectAccount({
-        email: sitter.email,
-        name: sitter.name,
+        email: provider.email,
+        name: provider.name,
         country,
       });
 
-      // Save account ID to sitter
+      // Save account ID to provider (sitter or walker)
       // Use updateOne to avoid Mongoose applying invalid location defaults
-      const updateOps = { 
-        $set: { 
+      const updateOps = {
+        $set: {
           stripeConnectAccountId: account.id,
           stripeConnectAccountStatus: 'pending'
         }
       };
-      
+
       // Remove invalid location if needed
-      if (sitter.location === undefined || 
-          !sitter.location.coordinates || 
-          !Array.isArray(sitter.location.coordinates) || 
-          sitter.location.coordinates.length !== 2) {
+      if (provider.location === undefined ||
+          !provider.location.coordinates ||
+          !Array.isArray(provider.location.coordinates) ||
+          provider.location.coordinates.length !== 2) {
         updateOps.$unset = { location: '' };
       }
-      
-      await Sitter.updateOne({ _id: sitterId }, updateOps);
-      
-      // Refresh sitter object
-      sitter.stripeConnectAccountId = account.id;
-      sitter.stripeConnectAccountStatus = 'pending';
+
+      await Model.updateOne({ _id: userId }, updateOps);
+
+      // Refresh provider object
+      provider.stripeConnectAccountId = account.id;
+      provider.stripeConnectAccountStatus = 'pending';
 
       accountId = account.id;
       isNewAccount = true;
@@ -108,10 +121,12 @@ const createStripeConnectAccount = async (req, res) => {
       accountId: accountId,
       onboardingUrl: accountLink.url,
       expiresAt: accountLink.expires_at,
-      message: isNewAccount 
+      message: isNewAccount
         ? 'Stripe Connect account created. Use the onboardingUrl to complete onboarding.'
         : 'Account link generated. Use the onboardingUrl to complete or update your onboarding.',
-      sitter: sanitizeUser(sitter, { includeEmail: true }),
+      // v17 — keep response key "sitter" for frontend backward-compat. When
+      // the caller is a walker, the same sanitized provider doc is returned.
+      sitter: sanitizeUser(provider, { includeEmail: true }),
     });
   } catch (error) {
     logger.error('Create Stripe Connect account error', error);
@@ -137,26 +152,27 @@ const createStripeConnectAccount = async (req, res) => {
  */
 const createStripeAccountLink = async (req, res) => {
   try {
-    const sitterId = req.user?.id;
+    const userId = req.user?.id;
     const userRole = req.user?.role;
     const { returnUrl, refreshUrl } = req.body || {};
 
-    if (!sitterId) {
+    if (!userId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    if (userRole !== 'sitter') {
-      return res.status(403).json({ error: 'Only sitters can create Stripe Connect account links.' });
+    if (!['sitter', 'walker'].includes(userRole)) {
+      return res.status(403).json({ error: 'Only sitters or walkers can create Stripe Connect account links.' });
     }
 
-    const sitter = await Sitter.findById(sitterId);
-    if (!sitter) {
-      return res.status(404).json({ error: 'Sitter not found.' });
+    const Model = getProviderModel(userRole);
+    const provider = await Model.findById(userId);
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider not found.' });
     }
 
-    if (!sitter.stripeConnectAccountId) {
-      return res.status(400).json({ 
-        error: 'Stripe Connect account does not exist. Create an account first.' 
+    if (!provider.stripeConnectAccountId) {
+      return res.status(400).json({
+        error: 'Stripe Connect account does not exist. Create an account first.'
       });
     }
 
@@ -165,7 +181,7 @@ const createStripeAccountLink = async (req, res) => {
     const defaultRefreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || 'https://your-app.com/stripe-connect/refresh';
 
     const accountLink = await createAccountLink({
-      accountId: sitter.stripeConnectAccountId,
+      accountId: provider.stripeConnectAccountId,
       returnUrl: returnUrl || defaultReturnUrl,
       refreshUrl: refreshUrl || defaultRefreshUrl,
     });
@@ -190,23 +206,24 @@ const createStripeAccountLink = async (req, res) => {
  */
 const getStripeAccountStatus = async (req, res) => {
   try {
-    const sitterId = req.user?.id;
+    const userId = req.user?.id;
     const userRole = req.user?.role;
 
-    if (!sitterId) {
+    if (!userId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    if (userRole !== 'sitter') {
-      return res.status(403).json({ error: 'Only sitters can view Stripe Connect account status.' });
+    if (!['sitter', 'walker'].includes(userRole)) {
+      return res.status(403).json({ error: 'Only sitters or walkers can view Stripe Connect account status.' });
     }
 
-    const sitter = await Sitter.findById(sitterId);
-    if (!sitter) {
-      return res.status(404).json({ error: 'Sitter not found.' });
+    const Model = getProviderModel(userRole);
+    const provider = await Model.findById(userId);
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider not found.' });
     }
 
-    if (!sitter.stripeConnectAccountId) {
+    if (!provider.stripeConnectAccountId) {
       return res.json({
         connected: false,
         status: 'not_connected',
@@ -215,9 +232,9 @@ const getStripeAccountStatus = async (req, res) => {
     }
 
     // Get account status from Stripe
-    const accountStatus = await getAccountStatus(sitter.stripeConnectAccountId);
+    const accountStatus = await getAccountStatus(provider.stripeConnectAccountId);
 
-    // Update sitter's account status
+    // Update provider's account status
     let status = 'pending';
     if (accountStatus.charges_enabled && accountStatus.payouts_enabled && accountStatus.details_submitted) {
       status = 'active';
@@ -226,22 +243,22 @@ const getStripeAccountStatus = async (req, res) => {
     }
 
     // Use updateOne to avoid Mongoose applying invalid location defaults
-    const updateOps = { 
+    const updateOps = {
       $set: { stripeConnectAccountStatus: status }
     };
-    
+
     // Remove invalid location if needed
-    if (!sitter.location || 
-        !sitter.location.coordinates || 
-        !Array.isArray(sitter.location.coordinates) || 
-        sitter.location.coordinates.length !== 2) {
+    if (!provider.location ||
+        !provider.location.coordinates ||
+        !Array.isArray(provider.location.coordinates) ||
+        provider.location.coordinates.length !== 2) {
       updateOps.$unset = { location: '' };
     }
-    
-    await Sitter.updateOne({ _id: sitterId }, updateOps);
-    
-    // Refresh sitter object
-    sitter.stripeConnectAccountStatus = status;
+
+    await Model.updateOne({ _id: userId }, updateOps);
+
+    // Refresh provider object
+    provider.stripeConnectAccountStatus = status;
 
     // Format response for payout status screen
     const verificationStatus = {
@@ -259,7 +276,7 @@ const getStripeAccountStatus = async (req, res) => {
 
     res.json({
       connected: true,
-      accountId: sitter.stripeConnectAccountId,
+      accountId: provider.stripeConnectAccountId,
       status: status,
       chargesEnabled: accountStatus.charges_enabled,
       payoutsEnabled: accountStatus.payouts_enabled,
@@ -267,7 +284,7 @@ const getStripeAccountStatus = async (req, res) => {
       verificationStatus,
       allVerificationsComplete,
       requirements: accountStatus.requirements || {},
-      message: status === 'active' 
+      message: status === 'active'
         ? 'Stripe Connect account is active and ready to receive payouts.'
         : 'Stripe Connect account is being set up. Complete verification to receive payouts.',
     });
@@ -299,39 +316,48 @@ const handleStripeConnectReturn = async (req, res) => {
     // Query params may include account ID and other info
     const { account } = req.query;
 
-    // If account ID is provided, we can update the sitter's account status
+    // If account ID is provided, we can update the provider's account status.
+    // Session v17 — we don't know the role at this point (Stripe redirects
+    // without role context), so we look up the account in both Sitter and
+    // Walker collections. stripeConnectAccountId is a unique Stripe-side id
+    // so there can never be a collision between sitter and walker.
     if (account) {
       try {
-        const sitter = await Sitter.findOne({ stripeConnectAccountId: account });
-        if (sitter) {
+        let provider = await Sitter.findOne({ stripeConnectAccountId: account });
+        let ProviderModel = Sitter;
+        if (!provider) {
+          provider = await Walker.findOne({ stripeConnectAccountId: account });
+          if (provider) ProviderModel = Walker;
+        }
+        if (provider) {
           // Get updated account status from Stripe
           const accountStatus = await getAccountStatus(account);
-          
-          // Update sitter's account status
+
+          // Update provider's account status
           let status = 'pending';
           if (accountStatus.charges_enabled && accountStatus.payouts_enabled && accountStatus.details_submitted) {
             status = 'active';
           } else if (accountStatus.requirements && Object.keys(accountStatus.requirements).length > 0) {
             status = 'restricted';
           }
-          
+
           // Use updateOne to avoid Mongoose applying invalid location defaults
-          const updateOps = { 
+          const updateOps = {
             $set: { stripeConnectAccountStatus: status }
           };
-          
+
           // Remove invalid location if needed
-          if (!sitter.location || 
-              !sitter.location.coordinates || 
-              !Array.isArray(sitter.location.coordinates) || 
-              sitter.location.coordinates.length !== 2) {
+          if (!provider.location ||
+              !provider.location.coordinates ||
+              !Array.isArray(provider.location.coordinates) ||
+              provider.location.coordinates.length !== 2) {
             updateOps.$unset = { location: '' };
           }
-          
-          await Sitter.updateOne({ _id: sitter._id }, updateOps);
-          
-          // Refresh sitter object
-          sitter.stripeConnectAccountStatus = status;
+
+          await ProviderModel.updateOne({ _id: provider._id }, updateOps);
+
+          // Refresh provider object
+          provider.stripeConnectAccountStatus = status;
         }
       } catch (error) {
         logger.error('Error updating account status on return:', error);

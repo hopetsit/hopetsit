@@ -53,8 +53,13 @@ const Map<String, String> ptPTTranslations = <String, String>{
 
       // Auto-filled from en.dart
       'common_no': 'No',
-      'common_cancel': 'Cancel',
-      'common_error': 'Error',
+      'common_cancel': 'Cancelar',
+      // Session v17 — role labels used by StripePaymentScreen header chip.
+      'role_walker': 'Passeador',
+      'role_sitter': 'Petsitter',
+      'role_provider': 'Prestador',
+      'provider_unknown': 'Prestador',
+      'common_error': 'Erro',
       'common_success': 'Success',
       'common_select_value': 'Select value',
       'label_not_available': 'N/A',

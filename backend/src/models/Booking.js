@@ -26,10 +26,14 @@ const bookingSchema = new mongoose.Schema(
       enum: ['pending', 'paid', 'failed', 'refunded', 'cancelled', 'refund'],
       default: 'pending',
     },
-    // Payout status - tracks payout to sitter separately from payment capture
+    // Payout status - tracks payout to sitter/walker separately from payment capture.
+    // Session v17 — 'scheduled' was already written by schedulePayoutForBooking
+    // but silently rejected by the enum validator on save. Added so the
+    // scheduler state is actually persisted and findable via
+    // { payoutStatus: 'scheduled' } queries.
     payoutStatus: {
       type: String,
-      enum: ['pending', 'processing', 'completed', 'failed'],
+      enum: ['pending', 'scheduled', 'processing', 'completed', 'failed'],
       default: 'pending',
     },
     // Status change timestamps
@@ -82,6 +86,16 @@ const bookingSchema = new mongoose.Schema(
     payoutAt: {
       type: Date,
       default: null,
+    },
+    // Session v17 — actual datetime at which the scheduler should release
+    // the funds. Set by schedulePayoutForBooking from the booking start
+    // date (+ time slot in v17c, hour-exact). The scheduler query uses
+    // { $lte: now } on this field so precise hour-exact releases work.
+    // Indexed because the scheduler polls this column every few minutes.
+    scheduledPayoutAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
     payoutError: {
       type: String,

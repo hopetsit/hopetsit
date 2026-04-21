@@ -3,20 +3,24 @@ const logger = require('../utils/logger');
  * Payout scheduler.
  *
  * HopeTSIT business rule:
- *   The pet owner pays at booking time, the money is held in escrow, and the
- *   funds are only released to the pet sitter on the first day of the pet
- *   sitting service.
+ *   The pet owner pays at booking time, the money is held in escrow, and
+ *   the funds are only released to the sitter OR walker at the EXACT start
+ *   datetime of the service (hour-exact since Session v17).
  *
- * This module starts a lightweight background job that, every hour, calls
- * `processScheduledSitterPayouts` to release the funds for any booking whose
- * scheduled payout date has been reached.
+ * This module starts a lightweight background job that, every 5 minutes,
+ * calls `processScheduledSitterPayouts` to release the funds for any
+ * booking whose scheduled payout datetime has been reached.
  *
- * We deliberately use `setInterval` instead of a cron library to avoid a new
- * dependency. If the process crashes between two ticks, the next tick will
- * pick up the missed bookings (the query uses `$lte: now`).
+ * We deliberately use `setInterval` instead of a cron library to avoid a
+ * new dependency. If the process crashes between two ticks, the next tick
+ * will pick up the missed bookings (the query uses `$lte: now`).
+ *
+ * Session v17 — the polling interval was reduced from 1h to 5min and the
+ * query was tightened from "endOfToday" to "now" so the release happens
+ * within ~5 minutes of the booking start time instead of within 24h.
  */
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
 let timer = null;
 
@@ -24,11 +28,11 @@ let timer = null;
  * Start the payout scheduler.
  *
  * @param {object} options
- * @param {number} [options.intervalMs=ONE_HOUR_MS] polling interval in ms
+ * @param {number} [options.intervalMs=FIVE_MINUTES_MS] polling interval in ms
  * @param {boolean} [options.runImmediately=true] trigger a first run at boot
  */
 function startPayoutScheduler({
-  intervalMs = ONE_HOUR_MS,
+  intervalMs = FIVE_MINUTES_MS,
   runImmediately = true,
 } = {}) {
   if (timer) {
@@ -58,7 +62,7 @@ function startPayoutScheduler({
   }
 
   logger.info(
-    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes).`
+    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes, hour-exact release since v17).`
   );
 }
 

@@ -3,6 +3,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'common_yes': 'Oui',
       'common_no': 'Non',
       'common_cancel': 'Annuler',
+      // Session v17 — role labels used by StripePaymentScreen header chip.
+      'role_walker': 'Promeneur',
+      'role_sitter': 'Petsitter',
+      'role_provider': 'Prestataire',
+      'provider_unknown': 'Prestataire',
       'common_error': 'Erreur',
       'common_success': 'Succès',
       'common_select_value': 'Sélectionner une valeur',

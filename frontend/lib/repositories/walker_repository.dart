@@ -1,6 +1,7 @@
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/utils/logger.dart';
 
@@ -179,6 +180,78 @@ class WalkerRepository {
       return WalkerModel.fromJson(data);
     } catch (e) {
       AppLogger.logError('Failed to fetch walker profile', error: e);
+      rethrow;
+    }
+  }
+
+  // ── Session v17 — bookings history parity with SitterRepository ─────────
+  //
+  // Added so that walker_bookings_controller.dart can fetch the authenticated
+  // walker's bookings the same way the sitter flow does. Backend endpoint is
+  // the shared GET /bookings/my (route resolves the provider side from the
+  // authenticated role). Mirrors SitterRepository.getMyBookings / selfCancel
+  // / requestBookingCancellation to minimise divergence.
+
+  /// GET /bookings/my — list bookings where the authenticated walker is the
+  /// provider side. Optional [status] maps to frontend filters
+  /// ('pending' | 'agreed' | 'paid' | 'failed' | 'cancelled' | 'refunded').
+  Future<List<BookingModel>> getMyBookings({String? status}) async {
+    final queryParams = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) {
+      queryParams['status'] = status;
+    }
+
+    final response = await _apiClient.get(
+      ApiEndpoints.myBookings,
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      requiresAuth: true,
+    );
+
+    if (response is Map) {
+      final bookingsList = response['bookings'] as List<dynamic>?;
+      if (bookingsList != null) {
+        return bookingsList
+            .map((booking) => BookingModel.fromJson(
+                Map<String, dynamic>.from(booking as Map)))
+            .toList();
+      }
+    }
+
+    throw ApiException('Unexpected get bookings response.', details: response);
+  }
+
+  /// DELETE /bookings/:id/self-cancel — 72h self-cancellation window.
+  Future<Map<String, dynamic>> selfCancelBooking({
+    required String bookingId,
+    String? reason,
+  }) async {
+    try {
+      final response = await _apiClient.delete(
+        '${ApiEndpoints.bookings}/$bookingId/self-cancel',
+        body: reason != null && reason.isNotEmpty ? {'reason': reason} : null,
+        requiresAuth: true,
+      );
+      return _asMap(response);
+    } catch (e) {
+      AppLogger.logError('Failed to self-cancel booking', error: e);
+      rethrow;
+    }
+  }
+
+  /// POST /bookings/:id/request-cancellation — mutual-agreement cancellation
+  /// flow (provider side triggers it).
+  Future<Map<String, dynamic>> requestBookingCancellation({
+    required String bookingId,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '${ApiEndpoints.bookings}/$bookingId/request-cancellation',
+        body: null,
+        requiresAuth: true,
+      );
+      return _asMap(response);
+    } catch (e) {
+      AppLogger.logError('Failed to request booking cancellation', error: e);
       rethrow;
     }
   }

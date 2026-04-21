@@ -105,16 +105,21 @@ class BookingModel {
   }) : pets = pets ?? [];
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
-    // Handle both 'sitter' and 'otherParty' fields from API
-    // For owner flow: 'sitter' or 'otherParty' contains sitter info
-    // For sitter flow: 'sitter' doesn't exist, 'otherParty' contains owner info
+    // Handle 'sitter', 'walker' and 'otherParty' fields from API.
+    // For owner flow: 'sitter' OR 'walker' (since v17) OR 'otherParty' carries
+    // the provider info — depending on whether the booking targets a sitter
+    // or a walker. For sitter/walker flow: only 'otherParty' exists (owner).
     final sitterData = json['sitter'] as Map<String, dynamic>?;
+    // Session v17 — walker bookings populate `walker` in sanitizeBooking.
+    // BookingSitter is structurally compatible (name/email/avatar/etc.) so
+    // we reuse the same model under the `sitter` field for backward compat.
+    final walkerData = json['walker'] as Map<String, dynamic>?;
     final ownerData = json['owner'] as Map<String, dynamic>?;
     final otherParty = json['otherParty'] as Map<String, dynamic>?;
 
-    // Determine which field to use based on what's available
-    // If 'sitter' exists, use it; otherwise use 'otherParty' (for owner flow)
-    final finalSitterData = sitterData ?? otherParty ?? {};
+    // Determine which field to use based on what's available.
+    // Priority: sitter > walker > otherParty > {} (empty fallback).
+    final finalSitterData = sitterData ?? walkerData ?? otherParty ?? {};
 
     // If 'owner' exists, use it; otherwise use 'otherParty' (for sitter flow)
     final finalOwnerData = ownerData ?? otherParty ?? {};
