@@ -20,6 +20,7 @@ import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/sitter_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
+import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
