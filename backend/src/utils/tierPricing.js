@@ -33,7 +33,18 @@ const calculateTierBasePrice = ({ hourlyRate, weeklyRate, monthlyRate, startDate
   const { start, end } = pickEffectiveStartEnd({ startDate, endDate, serviceDate, durationMinutes });
   if (!start || !end) throw new Error('Valid startDate/serviceDate is required for pricing.');
 
-  const hoursRaw = Math.max((end.getTime() - start.getTime()) / (1000 * 60 * 60), 1);
+  // v18.7 BUG FIX : avant v18.7, `Math.max(hoursRaw, 1)` forçait un minimum
+  // de 1h. Résultat : une promenade de 30 min (0.5h) devenait 1h, et l'owner
+  // payait 1 × hourlyRate au lieu de 0.5 × hourlyRate. Ex : walker à €7/h,
+  // walk de 30 min → facture €7 au lieu de €3.50.
+  // Correctif : si une durationMinutes explicite est fournie et < 60 min,
+  // on utilise la fraction d'heure réelle. Pour les bookings sans duration
+  // (sitting au jour), on garde le minimum de 1h pour éviter €0.
+  const parsedDuration = Number(durationMinutes);
+  const hasExplicitDuration =
+    Number.isFinite(parsedDuration) && parsedDuration > 0 && parsedDuration < 60;
+  const rawHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  const hoursRaw = hasExplicitDuration ? rawHours : Math.max(rawHours, 1);
   const totalHours = round2(hoursRaw);
   const totalDays = Math.max(1, Math.ceil(hoursRaw / 24));
 

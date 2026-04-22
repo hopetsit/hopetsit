@@ -731,7 +731,7 @@ const Map<String, String> itITTranslations = <String, String>{
           'Chiave pubblicabile Stripe non valida.',
       'payment_processing_failed': 'Elaborazione pagamento fallita. Riprova.',
       'payment_error_title': 'Errore di pagamento',
-      'payment_unavailable_title': 'Pagamento non disponibile',
+      'payment_unavailable_title': 'Riprova tra un istante',
       'payment_unavailable_message':
           'Pagamento temporaneamente non disponibile. Riprova tra qualche secondo o contatta il supporto.',
       'payment_invalid_amount_title': 'Importo non valido',
@@ -1463,6 +1463,8 @@ const Map<String, String> itITTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN salvato — verifica in corso',
     'payment_connect': 'Connetti',
     'payment_manage': 'Gestisci',
+    'add_card_title': 'Aggiungi una carta',
+    'add_card_save': 'Salva carta',
     'payment_configure': 'Configura',
     'payment_verification_section': 'Verifica e stato',
     'payment_identity_title': 'Verifica dell\'identità',

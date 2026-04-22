@@ -439,6 +439,13 @@ const sanitizeConversation = (conversationDoc) => {
   } else if (conversation.sitterId) {
     conversation.sitterId = conversation.sitterId.toString();
   }
+  // v18.7 — walker support in sanitize.
+  if (conversation.walkerId && typeof conversation.walkerId === 'object' && conversation.walkerId._id) {
+    conversation.walker = sanitizeUser(conversation.walkerId);
+    delete conversation.walkerId;
+  } else if (conversation.walkerId) {
+    conversation.walkerId = conversation.walkerId.toString();
+  }
   conversation.ownerUnreadCount = conversation.ownerUnreadCount || 0;
   conversation.sitterUnreadCount = conversation.sitterUnreadCount || 0;
   return conversation;

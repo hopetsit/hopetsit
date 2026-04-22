@@ -2155,14 +2155,63 @@ const confirmBookingPayment = async (req, res) => {
     const confirmedPaymentIntent = await confirmPaymentIntent(paymentIntentId, confirmOptions);
 
     // Update booking with payment intent ID if not already set (for tracking only)
-    // IMPORTANT: Do NOT update booking status here - webhooks are the single source of truth
     if (!booking.stripePaymentIntentId) {
       booking.stripePaymentIntentId = paymentIntentId;
       await booking.save();
     }
 
-    // Return payment intent status without updating booking status
-    // Booking status will be updated by Stripe webhook (payment_intent.succeeded or payment_intent.payment_failed)
+    // v18.7 — FALLBACK quand le webhook Stripe n'arrive pas / est en retard.
+    // On marque la booking comme paid IMMEDIATEMENT si Stripe confirme
+    // succeeded, ET on déclenche le chat unlock. Le webhook fera la même
+    // chose en idempotent si/quand il arrive (guard status déjà 'paid').
+    if (
+      confirmedPaymentIntent.status === 'succeeded' &&
+      booking.status !== 'paid'
+    ) {
+      try {
+        booking.status = 'paid';
+        booking.paymentStatus = 'paid';
+        booking.paidAt = new Date();
+        booking.paymentProvider = 'stripe';
+        if (confirmedPaymentIntent.latest_charge) {
+          booking.stripeChargeId =
+            typeof confirmedPaymentIntent.latest_charge === 'string'
+              ? confirmedPaymentIntent.latest_charge
+              : confirmedPaymentIntent.latest_charge.id;
+        }
+        await booking.save();
+        logger.info(
+          `[confirmBookingPayment] Booking ${booking._id} marked as PAID via client-confirm fallback (webhook race-proof).`
+        );
+
+        // Schedule payout + unlock chat + send notifications — same as webhook.
+        await schedulePayoutForBooking(booking);
+
+        const providerId = booking.walkerId
+          ? (booking.walkerId.toString?.() || String(booking.walkerId))
+          : (booking.sitterId?.toString?.() || String(booking.sitterId));
+        const providerRole = booking.walkerId ? 'walker' : 'sitter';
+
+        // Load the webhook helper lazily (it's a controller-local function).
+        const stripeWebhookController = require('./stripeWebhookController');
+        if (typeof stripeWebhookController._unlockChatAndWelcome === 'function') {
+          await stripeWebhookController._unlockChatAndWelcome({
+            ownerId:
+              booking.ownerId?.toString?.() || String(booking.ownerId),
+            providerId,
+            providerRole,
+            bookingId: booking._id.toString(),
+          });
+        }
+      } catch (fallbackErr) {
+        logger.error(
+          '[confirmBookingPayment] client-confirm fallback failed (non-blocking)',
+          fallbackErr?.message || fallbackErr
+        );
+      }
+    }
+
+    // Return payment intent status
     if (confirmedPaymentIntent.status === 'requires_action') {
       // Payment requires additional action (e.g., 3D Secure)
       return res.json({

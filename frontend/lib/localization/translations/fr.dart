@@ -698,7 +698,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'payment_processing_failed':
           'Échec du traitement du paiement. Veuillez réessayer.',
       'payment_error_title': 'Erreur de paiement',
-      'payment_unavailable_title': 'Paiement indisponible',
+      'payment_unavailable_title': 'Réessayez dans un instant',
       'payment_unavailable_message':
           'Paiement momentanément indisponible. Réessayez dans quelques instants ou contactez le support si le problème persiste.',
       'payment_invalid_amount_title': 'Montant invalide',
@@ -1533,6 +1533,8 @@ const Map<String, String> frFRTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN enregistré — vérification en cours',
     'payment_connect': 'Connecter',
     'payment_manage': 'Gérer',
+    'add_card_title': 'Ajouter une carte',
+    'add_card_save': 'Enregistrer la carte',
     'payment_configure': 'Configurer',
     'payment_verification_section': 'Vérification & Statut',
     'payment_identity_title': 'Vérification d\'identité',

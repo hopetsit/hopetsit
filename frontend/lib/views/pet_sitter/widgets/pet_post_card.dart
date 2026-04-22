@@ -417,40 +417,45 @@ class PetPostCard extends StatelessWidget {
             child: Divider(color: AppColors.divider(context).withValues(alpha: 0.2)),
           ),
 
-          // Action buttons (comment hidden — keep like + share balanced)
+          // v18.7 — Like + Share redessinés : vraies pastilles colorées,
+          // icône Material (coeur rouge rempli si liké), compteur de likes
+          // visible, feedback tactile.
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 Expanded(
-                  child: Center(
-                    child: _buildActionButton(
-                      context: context,
-                      icon: AppImages.likeIcon,
-                      label: 'post_action_like'.tr,
-                      isActive: isLiked,
-                      onTap: onLike,
-                    ),
+                  child: _buildActionPill(
+                    context: context,
+                    icon: isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    label: likeCount > 0
+                        ? '${'post_action_like'.tr}  ·  $likeCount'
+                        : 'post_action_like'.tr,
+                    bg: isLiked
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                        : AppColors.inputFill(context),
+                    fg: isLiked
+                        ? const Color(0xFFEF4444)
+                        : AppColors.textSecondary(context),
+                    border: isLiked
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.35)
+                        : Colors.transparent,
+                    onTap: onLike,
                   ),
                 ),
-                // Expanded(
-                //   child: Center(
-                //     child: _buildActionButton(
-                //       icon: AppImages.commentLikeIcon,
-                //       label: 'post_action_comment'.tr,
-                //       onTap: onComment,
-                //     ),
-                //   ),
-                // ),
+                SizedBox(width: 10.w),
                 Expanded(
-                  child: Center(
-                    child: _buildActionButton(
-                      context: context,
-                      icon: AppImages.sendIcon,
-                      label: 'post_action_share'.tr,
-                      onTap: onShare,
-                    ),
+                  child: _buildActionPill(
+                    context: context,
+                    icon: Icons.ios_share_rounded,
+                    label: 'post_action_share'.tr,
+                    bg: const Color(0xFF2563EB).withValues(alpha: 0.10),
+                    fg: const Color(0xFF2563EB),
+                    border: const Color(0xFF2563EB).withValues(alpha: 0.28),
+                    onTap: onShare,
                   ),
                 ),
               ],
@@ -487,6 +492,53 @@ class PetPostCard extends StatelessWidget {
             color: isActive ? AppColors.primaryColor : AppColors.textSecondary(context),
           ),
         ],
+      ),
+    );
+  }
+
+  /// v18.7 — "pill" button pour Like/Share : fond coloré, icône + label
+  /// cote à cote, taille ergonomique. Bien plus visible que l'ancien
+  /// bouton icon+label vertical gris.
+  Widget _buildActionPill({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color bg,
+    required Color fg,
+    required Color border,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(22.r),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22.r),
+        splashColor: fg.withValues(alpha: 0.12),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 14.w),
+          decoration: BoxDecoration(
+            border: Border.all(color: border, width: 1),
+            borderRadius: BorderRadius.circular(22.r),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18.sp, color: fg),
+              SizedBox(width: 8.w),
+              Flexible(
+                child: InterText(
+                  text: label,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -177,8 +177,10 @@ class ChatController extends GetxController {
         return _mapToChatConversation(item);
       }).toList();
     } catch (e) {
-      errorMessage.value = e.toString();
-      // Fallback to empty list on error
+      // v18.7 — affiche le message backend (FR) au lieu du raw ApiException.
+      errorMessage.value = e is ApiException && e.message.isNotEmpty
+          ? e.message
+          : 'chat_error_loading_messages'.tr;
       conversations.value = [];
       debugPrint('Error loading conversations: $e');
     } finally {

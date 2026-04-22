@@ -685,7 +685,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'payment_processing_failed':
           'Error al procesar el pago. Por favor intenta de nuevo.',
       'payment_error_title': 'Error de pago',
-      'payment_unavailable_title': 'Pago no disponible',
+      'payment_unavailable_title': 'Inténtalo de nuevo',
       'payment_unavailable_message':
           'Pago temporalmente no disponible. Inténtalo de nuevo en unos segundos o contacta con soporte si persiste.',
       'payment_invalid_amount_title': 'Monto inválido',
@@ -1523,6 +1523,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN guardado — verificación en curso',
     'payment_connect': 'Conectar',
     'payment_manage': 'Gestionar',
+    'add_card_title': 'Añadir una tarjeta',
+    'add_card_save': 'Guardar tarjeta',
     'payment_configure': 'Configurar',
     'payment_verification_section': 'Verificación y estado',
     'payment_identity_title': 'Verificación de identidad',

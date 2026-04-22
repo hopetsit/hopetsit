@@ -73,37 +73,44 @@ const getChatList = async (req, res) => {
 
     const normalizedRole = userRole.toLowerCase();
 
-    // Walker chat is not yet supported by the Conversation model (owner<->sitter only).
-    // Return an empty list so the UI shows an empty state instead of a 400 error.
-    if (normalizedRole === 'walker') {
-      return res.json({ conversations: [], count: 0 });
+    // v18.7 — walker chat activé. La Conversation schema supporte XOR
+    // sitter/walker depuis v18.6. On query sur le champ correspondant au
+    // rôle courant.
+    let query;
+    if (normalizedRole === 'owner') {
+      query = { ownerId: userId };
+    } else if (normalizedRole === 'walker') {
+      query = { walkerId: userId };
+    } else {
+      query = { sitterId: userId };
     }
-
-    const query = normalizedRole === 'owner' ? { ownerId: userId } : { sitterId: userId };
 
     const conversations = await Conversation.find(query)
       .sort({ updatedAt: -1 })
       .populate('ownerId', 'name email avatar')
-      .populate('sitterId', 'name email avatar');
+      .populate('sitterId', 'name email avatar')
+      .populate('walkerId', 'name email avatar');
 
     // Enhance conversations with user details
     const enhancedConversations = conversations.map((conversation) => {
       const sanitized = sanitizeConversation(conversation);
-      
+
       // Get the other party's information (not the current user)
       let otherParty = null;
       if (normalizedRole === 'owner') {
-        const sitter = conversation.sitterId;
-        if (sitter) {
+        // Owner's other party = sitter or walker (whichever is set)
+        const provider = conversation.sitterId || conversation.walkerId;
+        if (provider) {
           otherParty = {
-            id: sitter._id?.toString() || '',
-            name: sitter.name || '',
-            email: sitter.email || '',
-            avatar: sitter.avatar?.url || '',
-            role: 'sitter',
+            id: provider._id?.toString() || '',
+            name: provider.name || '',
+            email: provider.email || '',
+            avatar: provider.avatar?.url || '',
+            role: conversation.sitterId ? 'sitter' : 'walker',
           };
         }
       } else {
+        // Sitter/walker's other party = owner
         const owner = conversation.ownerId;
         if (owner) {
           otherParty = {
@@ -119,8 +126,8 @@ const getChatList = async (req, res) => {
       return {
         ...sanitized,
         otherParty,
-        unreadCount: normalizedRole === 'owner' 
-          ? conversation.ownerUnreadCount || 0 
+        unreadCount: normalizedRole === 'owner'
+          ? conversation.ownerUnreadCount || 0
           : conversation.sitterUnreadCount || 0,
       };
     });
@@ -134,7 +141,7 @@ const getChatList = async (req, res) => {
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid user id.' });
     }
-    res.status(500).json({ error: 'Unable to fetch chat list. Please try again later.' });
+    res.status(500).json({ error: 'Impossible de charger la liste des conversations. Veuillez réessayer.' });
   }
 };
 
@@ -152,17 +159,22 @@ const getConversationMessages = async (req, res) => {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
-    const ownerIdValue = conversation.ownerId && conversation.ownerId._id
-      ? conversation.ownerId._id.toString()
-      : conversation.ownerId.toString();
-    const sitterIdValue = conversation.sitterId && conversation.sitterId._id
-      ? conversation.sitterId._id.toString()
-      : conversation.sitterId.toString();
+    // v18.7 — walker-aware : conversation peut être sitter-convo OU walker-convo.
+    // Avant v18.7, si walker, conversation.sitterId était null → crash
+    // sur .toString() → 500 "Unable to fetch messages".
+    const idToString = (v) =>
+      v ? (v._id ? v._id.toString() : v.toString()) : null;
 
-    if (
-      (role === 'owner' && ownerIdValue !== userId) ||
-      (role === 'sitter' && sitterIdValue !== userId)
-    ) {
+    const ownerIdValue = idToString(conversation.ownerId);
+    const sitterIdValue = idToString(conversation.sitterId);
+    const walkerIdValue = idToString(conversation.walkerId);
+
+    const accessOk =
+      (role === 'owner' && ownerIdValue === userId) ||
+      (role === 'sitter' && sitterIdValue === userId) ||
+      (role === 'walker' && walkerIdValue === userId);
+
+    if (!accessOk) {
       return res.status(403).json({ error: 'Access denied for this conversation.' });
     }
 
@@ -174,7 +186,7 @@ const getConversationMessages = async (req, res) => {
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid conversation id.' });
     }
-    res.status(500).json({ error: 'Unable to fetch messages. Please try again later.' });
+    res.status(500).json({ error: 'Impossible de charger les messages. Veuillez réessayer.' });
   }
 };
 
@@ -209,7 +221,7 @@ const createConversationMessage = async (req, res) => {
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid conversation id.' });
     }
-    res.status(500).json({ error: 'Unable to send message. Please try again later.' });
+    res.status(500).json({ error: 'Impossible d\'envoyer le message. Veuillez réessayer.' });
   }
 };
 

@@ -366,5 +366,9 @@ const handleChargeRefunded = async (charge) => {
 
 module.exports = {
   handleStripeWebhook,
+  // v18.7 — exporté pour pouvoir être appelé depuis confirmBookingPayment
+  // en fallback si le webhook Stripe n'arrive pas (cold start Render,
+  // reseau flaky). Idempotent.
+  _unlockChatAndWelcome,
 };
 

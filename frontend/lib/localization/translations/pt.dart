@@ -604,7 +604,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'payment_processing_failed':
           'Payment processing failed. Please try again.',
       'payment_error_title': 'Payment Error',
-      'payment_unavailable_title': 'Payment Unavailable',
+      'payment_unavailable_title': 'Tente novamente',
       'payment_unavailable_message':
           'Pagamento temporariamente indisponível. Tente novamente em alguns segundos ou contacte o suporte.',
       'payment_invalid_amount_title': 'Invalid Amount',
@@ -1468,6 +1468,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN salvo — verificação pendente',
     'payment_connect': 'Conectar',
     'payment_manage': 'Gerir',
+    'add_card_title': 'Adicionar um cartão',
+    'add_card_save': 'Guardar cartão',
     'payment_configure': 'Configurar',
     'payment_verification_section': 'Verificação e estado',
     'payment_identity_title': 'Verificação de identidade',

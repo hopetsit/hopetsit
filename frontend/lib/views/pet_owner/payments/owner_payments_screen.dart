@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:get/get.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/views/pet_owner/payments/add_card_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -99,16 +100,21 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
       if (clientSecret == null || clientSecret.isEmpty) {
         throw 'Missing clientSecret from backend';
       }
-      // Init Stripe PaymentSheet in setup-intent mode — user enters the
-      // card but no charge is made. On success, Stripe attaches the
-      // PaymentMethod to the Customer.
-      await stripe.Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: stripe.SetupPaymentSheetParameters(
+      // v18.7 — remplace PaymentSheet natif (focus bug Android) par
+      // AddCardScreen custom avec CardFormField + confirmSetupIntent.
+      // Résout le problème où le champ numéro de carte refuse les taps.
+      final publishableKey = setup['publishableKey']?.toString();
+      if (!mounted) return;
+      final ok = await Get.to<bool>(
+        () => AddCardScreen(
           setupIntentClientSecret: clientSecret,
-          merchantDisplayName: 'HoPetSit',
+          publishableKey: publishableKey,
         ),
       );
-      await stripe.Stripe.instance.presentPaymentSheet();
+      if (ok != true) {
+        // User cancelled ou échec — ne rien faire de plus.
+        return;
+      }
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
@@ -116,12 +122,7 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
             ? 'Carte ajoutée'
             : 'card_added_success'.tr,
       );
-      // v18.5 — #4 fix : Stripe attache le PaymentMethod au Customer de façon
-      // asynchrone via le webhook `setup_intent.succeeded`. Si on fetch trop
-      // vite `/owner/payments/methods`, Stripe retourne encore une liste vide
-      // et l'UI affiche "Aucune carte enregistrée" juste après un ajout
-      // réussi. On retry avec backoff jusqu'à voir la nouvelle carte (ou
-      // timeout après ~4s).
+      // Retry fetch jusqu'à voir la nouvelle PaymentMethod côté Stripe.
       await _loadWithRetry();
     } on stripe.StripeException catch (e) {
       // User cancelled or Stripe refused — don't treat as hard error.

@@ -645,7 +645,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'payment_processing_failed':
           'Payment processing failed. Please try again.',
       'payment_error_title': 'Payment Error',
-      'payment_unavailable_title': 'Payment Unavailable',
+      'payment_unavailable_title': 'Please try again',
       'payment_unavailable_message':
           'Payment temporarily unavailable. Please try again in a few seconds or contact support if the problem persists.',
       'payment_invalid_amount_title': 'Invalid Amount',
@@ -1629,6 +1629,8 @@ const Map<String, String> enUSTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN saved — verification pending',
     'payment_connect': 'Connect',
     'payment_manage': 'Manage',
+    'add_card_title': 'Add a card',
+    'add_card_save': 'Save card',
     'payment_configure': 'Set up',
     'payment_verification_section': 'Verification & Status',
     'payment_identity_title': 'Identity Verification',

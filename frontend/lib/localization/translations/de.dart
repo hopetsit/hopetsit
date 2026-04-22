@@ -738,7 +738,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'payment_processing_failed':
           'Zahlungsverarbeitung fehlgeschlagen. Bitte versuche es erneut.',
       'payment_error_title': 'Zahlungsfehler',
-      'payment_unavailable_title': 'Zahlung nicht verfügbar',
+      'payment_unavailable_title': 'Bitte erneut versuchen',
       'payment_unavailable_message':
           'Zahlung vorübergehend nicht verfügbar. Bitte versuche es in ein paar Sekunden erneut oder kontaktiere den Support.',
       'payment_invalid_amount_title': 'Ungültiger Betrag',
@@ -1510,6 +1510,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN gespeichert — Verifizierung ausstehend',
     'payment_connect': 'Verbinden',
     'payment_manage': 'Verwalten',
+    'add_card_title': 'Karte hinzufügen',
+    'add_card_save': 'Karte speichern',
     'payment_configure': 'Einrichten',
     'payment_verification_section': 'Verifizierung & Status',
     'payment_identity_title': 'Identitätsprüfung',
