@@ -33,9 +33,21 @@ const bookingSchema = new mongoose.Schema(
     // { payoutStatus: 'scheduled' } queries.
     payoutStatus: {
       type: String,
-      enum: ['pending', 'scheduled', 'processing', 'completed', 'failed'],
+      // v18.5 — #3 : 'held' = le owner a payé la totalité MAIS le provider
+      // n'avait pas encore configuré IBAN/PayPal au moment de la capture.
+      // L'argent dort sur le compte plateforme. Le scheduler check
+      // périodiquement si le provider a depuis configuré, et si oui
+      // déclenche le transfert en marquant 'scheduled' → 'completed'.
+      enum: ['pending', 'scheduled', 'processing', 'completed', 'failed', 'held'],
       default: 'pending',
     },
+    // v18.5 — #3 hold admin : montants dormants en attente que le provider
+    // configure son IBAN ou PayPal. `heldAmount` = part provider (netPayout,
+    // = 80% du total). `heldSince` = quand on a marqué held (pour tracking
+    // + reporting). `heldReleasedAt` = quand on a débloqué (pour audit).
+    heldAmount: { type: Number, default: null },
+    heldSince: { type: Date, default: null, index: true },
+    heldReleasedAt: { type: Date, default: null },
     // Status change timestamps
     acceptedAt: { type: Date, default: null },
     rejectedAt: { type: Date, default: null },

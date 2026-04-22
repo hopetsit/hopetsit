@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <g transform="translate(512, 512)">
-    <path d="M0,-320 C-257,-320 -257,-137 -257,23 C-257,177 -137,291 0,337 C137,291 257,177 257,23 C257,-137 257,-320 0,-320 Z" fill="white" stroke="#1A1A1A" stroke-width="8"/>
-    <ellipse cx="-120" cy="-80" rx="40" ry="48" fill="#1A1A1A"/>
-    <ellipse cx="-43" cy="-137" rx="40" ry="48" fill="#1A1A1A"/>
-    <ellipse cx="43"  cy="-137" rx="40" ry="48" fill="#1A1A1A"/>
-    <ellipse cx="120" cy="-80" rx="40" ry="48" fill="#1A1A1A"/>
-    <path d="M-149,63 C-149,-11 -91,-57 0,-57 C91,-57 149,-11 149,63 C149,120 91,160 0,160 C-91,160 -149,120 -149,63 Z" fill="#1A1A1A"/>
-    <ellipse cx="0" cy="63" rx="91" ry="51" fill="white"/>
-    <circle cx="0" cy="63" r="37" fill="#1A1A1A"/>
-    <circle cx="0" cy="63" r="20" fill="white"/>
-    <circle cx="13" cy="49" r="10" fill="#1A1A1A"/>
+  <g transform="translate(512, 471)">
+    <path d="M0,-393 C-393,-393 -393,-157 -393,55 C-393,273 -198,444 0,505 C198,444 393,273 393,55 C393,-157 393,-393 0,-393 Z" fill="white" stroke="#1A1A1A" stroke-width="10"/>
+    <ellipse cx="-177" cy="-143" rx="55" ry="61" fill="#1A1A1A"/>
+    <ellipse cx="-61" cy="-218" rx="55" ry="61" fill="#1A1A1A"/>
+    <ellipse cx="61"  cy="-218" rx="55" ry="61" fill="#1A1A1A"/>
+    <ellipse cx="177" cy="-143" rx="55" ry="61" fill="#1A1A1A"/>
+    <path d="M-266,102 C-266,-44 -164,-119 0,-119 C164,-119 266,-44 266,102 C266,215 164,290 0,290 C-164,290 -266,215 -266,102 Z" fill="#1A1A1A"/>
+    <ellipse cx="0" cy="102" rx="188" ry="95" fill="white"/>
+    <circle cx="0" cy="102" r="92" fill="#1A1A1A"/>
+    <circle cx="0" cy="102" r="51" fill="white"/>
+    <circle cx="24" cy="75" r="24" fill="#1A1A1A"/>
   </g>
 </svg>

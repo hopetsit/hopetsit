@@ -750,6 +750,32 @@ const processProviderPayoutForBooking = async (booking) => {
       return;
     }
 
+    // v18.5 — #3 hold admin : si le provider n'a toujours rien configuré
+    // (ni IBAN ni PayPal ni Stripe Connect actif) au moment du payout,
+    // on ne marque PAS `failed` (ce qui coincerait définitivement les
+    // fonds), on marque `held` et on laisse `processHeldPayouts` retry
+    // périodiquement. L'argent reste sur le compte plateforme, les comptes
+    // sont justes.
+    const hasIban = !!(
+      sitter.ibanNumber && String(sitter.ibanNumber).trim().length > 0
+    );
+    const hasPaypal = !!(
+      sitter.paypalEmail && String(sitter.paypalEmail).trim().length > 0
+    );
+    const hasStripeConnectActive =
+      sitter.stripeConnectAccountId &&
+      sitter.stripeConnectAccountStatus === 'active';
+    if (!hasIban && !hasPaypal && !hasStripeConnectActive) {
+      booking.payoutStatus = 'held';
+      booking.heldAmount = netPayout;
+      booking.heldSince = booking.heldSince || new Date();
+      await booking.save();
+      logger.info(
+        `⏸️  Payout HELD for booking ${booking._id.toString()} — provider ${provider.type}:${sitter._id} has no payout method yet. Will release when IBAN/PayPal configured.`
+      );
+      return;
+    }
+
     // Determine payout method: use sitter's preference, fallback to paypal
     const payoutMethod = sitter.payoutMethod || 'paypal';
 
@@ -1609,12 +1635,15 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   if (!sitter) {
     throw new Error('Provider (sitter or walker) is missing on this booking.');
   }
-  // Session v18.0 — we no longer require Stripe Connect onboarding on the
-  // provider. The owner pays by card, the platform captures the full amount,
-  // and payoutScheduler releases the 80% at service-start time via the
-  // provider's configured payout method (IBAN or PayPal). We DO require the
-  // provider to have at least one payout method set — otherwise the money
-  // would be stuck on the platform account.
+  // v18.5 — #3 hold admin : on NE bloque PLUS le paiement si le provider n'a
+  // pas encore configuré IBAN/PayPal. L'owner paye comme d'habitude, la
+  // plateforme capture tout le montant, et si le provider n'est pas encore
+  // configuré au moment du payout, booking.payoutStatus passe à 'held' (voir
+  // schedulePayoutForBooking). Le scheduler débloque dès que le provider
+  // configure IBAN ou PayPal.
+  //
+  // On garde les checks `hasIban/hasPaypal/hasStripeConnect` comme info
+  // locale pour les logs — plus pour bloquer.
   const hasIban = !!(
     sitter.ibanNumber &&
     String(sitter.ibanNumber).trim().length > 0
@@ -1627,10 +1656,8 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
     sitter.stripeConnectAccountId &&
     sitter.stripeConnectAccountStatus === 'active';
   if (!hasIban && !hasPaypal && !hasStripeConnect) {
-    throw new Error(
-      providerRef.type === 'walker'
-        ? 'Walker must configure a payout method (IBAN or PayPal) before receiving payments.'
-        : 'Sitter must configure a payout method (IBAN or PayPal) before receiving payments.'
+    logger.info(
+      `[_prepareOwnerPaymentForAgreedBooking] Provider ${providerRef.type}:${sitter._id} has no payout method. Owner will pay; payout will be HELD until provider configures IBAN/PayPal.`
     );
   }
 
@@ -1783,23 +1810,24 @@ const createBookingPaymentIntent = async (req, res) => {
     if (!sitter) {
       return res.status(404).json({ error: 'Provider not found on booking.' });
     }
-    // Session v18.0 — accept the booking even without Stripe Connect, as
-    // long as the provider has configured ANY payout method (IBAN or
-    // PayPal). The money lands on the platform account and the scheduler
-    // releases the 80% at service-start time via IBAN transfer or PayPal
-    // payout. Removes the brittle "Paiement indisponible" error users hit
-    // when providers hadn't completed Stripe Connect onboarding.
+    // v18.5 — #3 hold admin : on NE bloque PLUS le paiement si le provider
+    // n'a pas encore configuré IBAN/PayPal. Le owner peut payer, la
+    // plateforme capture tout (commission + netPayout), et
+    // `schedulePayoutForBooking` placera le netPayout en `held` si le
+    // provider n'a rien configuré. Dès qu'il ajoute IBAN ou PayPal, le
+    // scheduler envoie le held amount.
+    //
+    // On garde les variables hasIban/hasPaypal/hasStripeConnect juste pour
+    // logs informatifs.
     const hasIban = !!(sitter.ibanNumber && String(sitter.ibanNumber).trim().length > 0);
     const hasPaypal = !!(sitter.paypalEmail && String(sitter.paypalEmail).trim().length > 0);
     const hasStripeConnect =
       sitter.stripeConnectAccountId &&
       sitter.stripeConnectAccountStatus === 'active';
     if (!hasIban && !hasPaypal && !hasStripeConnect) {
-      return res.status(400).json({
-        error: providerRef.type === 'walker'
-          ? 'The walker has not configured a payout method yet (IBAN or PayPal). Please ask them to add one before paying.'
-          : 'The sitter has not configured a payout method yet (IBAN or PayPal). Please ask them to add one before paying.'
-      });
+      logger.info(
+        `[createBookingPaymentIntent] Provider ${providerRef.type}:${sitter._id} has no payout method. Owner will pay; payout will be HELD until provider configures IBAN/PayPal.`
+      );
     }
 
     // Check if payment already exists
@@ -2778,6 +2806,81 @@ const processScheduledSitterPayouts = async () => {
 };
 
 
+/**
+ * v18.5 — #3 hold admin : scan toutes les bookings marquées `held` et
+ * recheck si le provider a depuis ajouté un IBAN ou un PayPal. Si oui,
+ * on bascule la booking en `scheduled` (qui sera traitée par le prochain
+ * tick de processScheduledSitterPayouts) ou on la release direct si la
+ * date de service est déjà passée. Idempotent.
+ *
+ * Appelé à chaque tick du scheduler (toutes les 5 minutes via
+ * startPayoutScheduler dans payoutScheduler.js).
+ */
+const processHeldPayouts = async () => {
+  const heldBookings = await Booking.find({
+    payoutStatus: 'held',
+    paymentStatus: 'paid',
+  })
+    .populate('ownerId')
+    .populate('sitterId')
+    .populate('walkerId')
+    .populate('petIds');
+
+  if (!heldBookings.length) return { released: 0, stillHeld: 0 };
+
+  let released = 0;
+  let stillHeld = 0;
+  for (const booking of heldBookings) {
+    try {
+      const provider = getBookingProvider(booking);
+      if (!provider.doc) {
+        stillHeld += 1;
+        continue;
+      }
+      const doc = provider.doc;
+      const hasIban = !!(
+        doc.ibanNumber && String(doc.ibanNumber).trim().length > 0
+      );
+      const hasPaypal = !!(
+        doc.paypalEmail && String(doc.paypalEmail).trim().length > 0
+      );
+      const hasStripeConnectActive =
+        doc.stripeConnectAccountId &&
+        doc.stripeConnectAccountStatus === 'active';
+
+      if (!hasIban && !hasPaypal && !hasStripeConnectActive) {
+        // Still nothing configured — leave held, next tick will retry.
+        stillHeld += 1;
+        continue;
+      }
+
+      // Provider has configured something. Mark released and trigger
+      // processProviderPayoutForBooking which will pick the right method.
+      booking.heldReleasedAt = new Date();
+      // Reset to pending so processProviderPayoutForBooking enters the
+      // actual transfer path instead of re-marking held.
+      booking.payoutStatus = 'pending';
+      await booking.save();
+      logger.info(
+        `🔓 HELD payout released for booking ${booking._id.toString()} — provider ${provider.type}:${doc._id} just configured payout. Processing transfer now.`
+      );
+      await processProviderPayoutForBooking(booking);
+      released += 1;
+    } catch (err) {
+      logger.error(
+        `⚠️  processHeldPayouts: failed for booking ${booking._id}`,
+        err
+      );
+      stillHeld += 1;
+    }
+  }
+  logger.info(
+    `⏸️  processHeldPayouts: released=${released}, stillHeld=${stillHeld}`
+  );
+  return { released, stillHeld };
+};
+
+
 // Sprint 7 step 1 — mark a paid booking as completed (owner action) and fire loyalty hooks.
 const completeBooking = async (req, res) => {
   try {
@@ -2825,6 +2928,9 @@ module.exports = {
   getPaymentStatus,
   retryBookingPayout,
   processScheduledSitterPayouts,
+  // v18.5 — #3 hold admin : released en background quand provider config
+  // son IBAN/PayPal.
+  processHeldPayouts,
   completeBooking,
   // Session v17 — payout helper now supports walker too. Renamed from
   // processSitterPayoutForBooking. The legacy export below keeps existing

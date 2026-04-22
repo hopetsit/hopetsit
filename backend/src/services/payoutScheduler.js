@@ -40,13 +40,25 @@ function startPayoutScheduler({
   }
 
   // Lazy require to avoid circular dependency issues at module load time.
-  const { processScheduledSitterPayouts } = require('../controllers/bookingController');
+  const {
+    processScheduledSitterPayouts,
+    // v18.5 — #3 hold admin : release les bookings mises en hold quand le
+    // provider avait rien configuré, et qui ont depuis ajouté IBAN/PayPal.
+    processHeldPayouts,
+  } = require('../controllers/bookingController');
 
   const tick = async () => {
     try {
       await processScheduledSitterPayouts();
     } catch (error) {
-      logger.error('❌ Payout scheduler tick failed', error);
+      logger.error('❌ Payout scheduler tick (scheduled) failed', error);
+    }
+    try {
+      // Exécuté APRÈS processScheduledSitterPayouts : si on vient de mettre
+      // une booking en held au tick courant, elle sera revue au prochain.
+      await processHeldPayouts();
+    } catch (error) {
+      logger.error('❌ Payout scheduler tick (held) failed', error);
     }
   };
 
@@ -62,7 +74,7 @@ function startPayoutScheduler({
   }
 
   logger.info(
-    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes, hour-exact release since v17).`
+    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes, hour-exact release since v17, hold-admin release since v18.5).`
   );
 }
 

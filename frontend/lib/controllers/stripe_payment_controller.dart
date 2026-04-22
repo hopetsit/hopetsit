@@ -10,7 +10,6 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 import 'package:hopetsit/views/payment/payment_result_screen.dart';
 import 'package:hopetsit/controllers/loyalty_controller.dart';
 
@@ -33,8 +32,22 @@ class StripePaymentController extends GetxController {
   String? _clientSecret;
   String? _publishableKey;
 
-  /// Initiates payment by creating payment intent and showing Stripe PaymentSheet
-  Future<void> initiatePayment() async {
+  /// v18.5 — #1/#8 : unified payment flow.
+  ///
+  /// Called once from the new StripePaymentScreen Pay button. Does the
+  /// full pipeline in one call :
+  ///   1. POST /create-payment-intent (loyalty flag included)
+  ///   2. Stripe.instance.confirmPayment() with the inline card details
+  ///   3. POST /confirm-payment (server-side finalisation)
+  ///   4. Navigate to PaymentResultScreen
+  ///
+  /// Before v18.5 this was 2 calls (initiatePayment → ModernCardPaymentScreen
+  /// → confirmPayment) which forced the owner through 2 screens. Now the
+  /// card fields live on the same screen as the summary.
+  Future<void> initiateAndConfirmPayment({
+    required BillingDetails billingDetails,
+  }) async {
+    if (isProcessing.value) return;
     isProcessing.value = true;
 
     try {
@@ -52,7 +65,6 @@ class StripePaymentController extends GetxController {
         bookingId: booking.id,
         useLoyaltyCredit: useLoyaltyCredit,
       );
-      // Reset the flag after use.
       if (Get.isRegistered<LoyaltyController>()) {
         Get.find<LoyaltyController>().useLoyaltyCreditForNextPayment.value = false;
       }
@@ -69,14 +81,11 @@ class StripePaymentController extends GetxController {
           dotenv.env['STRIPE_PUBLISHABLE_KEY'];
 
       if (_clientSecret == null || _clientSecret!.isEmpty) {
-        throw ApiException(
-          'payment_error_client_secret_missing'.tr,
-        );
+        throw ApiException('payment_error_client_secret_missing'.tr);
       }
       if (_publishableKey == null || _publishableKey!.isEmpty) {
         throw ApiException('payment_error_publishable_key_missing'.tr);
       }
-
       if (!_publishableKey!.startsWith('pk_')) {
         throw ApiException('payment_error_invalid_publishable_key'.tr);
       }
@@ -93,35 +102,22 @@ class StripePaymentController extends GetxController {
       log('publishableKey: $_publishableKey');
       log('paymentIntentId: $_paymentIntentId');
 
-      // Session v3.3 — remplace la PaymentSheet native par ModernCardPaymentScreen
-      // (même raison que Premium/Boost/MapBoost/Chat : la sheet native avait un
-      // bug connu sur certains Android où le champ numéro de carte ne recevait
-      // pas les taps). L'écran custom accepte toujours le clientSecret et gère
-      // confirmPayment côté Stripe avec la même API.
-      final ok = await Get.to<bool>(
-        () => ModernCardPaymentScreen(
-          clientSecret: _clientSecret!,
-          amount: totalAmount,
-          currency: currency,
-          productLabel: 'Réservation',
-          productSubtitle: booking.sitter.name.isNotEmpty
-              ? 'Prestation avec ${booking.sitter.name}'
-              : null,
+      // Step 2 : Confirm Stripe payment inline (no screen detour).
+      await Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: _clientSecret!,
+        data: PaymentMethodParams.card(
+          paymentMethodData: PaymentMethodData(
+            billingDetails: billingDetails,
+          ),
         ),
       );
-      if (ok != true) {
-        // User cancelled or payment failed — bail without confirm.
-        isProcessing.value = false;
-        return;
-      }
 
-      // Step 4: Confirm payment with backend
+      // Step 3 : Tell the backend the PI succeeded → mark booking paid.
       if (_paymentIntentId != null && _paymentIntentId!.isNotEmpty) {
         await confirmPayment(paymentIntentId: _paymentIntentId!);
       } else {
-        // Payment succeeded on Stripe side, show success
         AppLogger.logUserAction(
-          'Payment Completed',
+          'Payment Completed (no PI id)',
           data: {'bookingId': booking.id, 'clientSecret': _clientSecret},
         );
         Get.off(
@@ -220,17 +216,17 @@ class StripePaymentController extends GetxController {
         data: {'bookingId': booking.id, 'paymentIntentId': paymentIntentId},
       );
 
-      // Navigate to success screen
+      // v18.5 — use i18n key instead of hardcoded English so the success
+      // message matches the owner's language like the rest of the app.
       Get.off(
         () => PaymentResultScreen(
           isSuccess: true,
-          message: 'Your payment has been processed successfully.',
+          message: 'payment_success_message'.tr,
           transactionId: paymentIntentId,
           amount: totalAmount,
           currency: currency,
           booking: booking,
           onContinue: () {
-            // Navigate back to home or bookings screen
             Get.until((route) => route.isFirst);
           },
         ),
@@ -242,7 +238,7 @@ class StripePaymentController extends GetxController {
           isSuccess: false,
           message: error.message.isNotEmpty
               ? error.message
-              : 'Payment confirmation failed. Please try again.',
+              : 'payment_confirmation_failed_retry'.tr,
           transactionId: paymentIntentId,
           amount: totalAmount,
           currency: currency,
@@ -255,7 +251,7 @@ class StripePaymentController extends GetxController {
       Get.off(
         () => PaymentResultScreen(
           isSuccess: false,
-          message: 'An unexpected error occurred. Please try again.',
+          message: 'payment_unexpected_error_retry'.tr,
           transactionId: paymentIntentId,
           amount: totalAmount,
           currency: currency,

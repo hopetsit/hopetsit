@@ -119,9 +119,14 @@ class ApiEndpoints {
 
   static const String reviews = '/reviews';
 
-  /// Sitter IBAN payout bank account (Sitter only)
+  /// v18.5 — unified IBAN payout endpoint (sitter + walker).
+  /// Backend mounts ibanRoutes at /sitter AND /walker; the handler reads
+  /// req.user.role to pick Sitter or Walker collection. Either URL works
+  /// for either role. We keep the const name `sitterMeIban` so existing
+  /// imports still compile.
   /// GET/PUT '${ApiEndpoints.sitterMeIban}'
-  static const String sitterMeIban = '/sitters/me/iban';
+  static const String sitterMeIban = '/sitter/iban';
+  static const String walkerMeIban = '/walker/iban';
 
   /// Notifications (Owner + Sitter; role from JWT)
   /// GET `${notificationsMy}?limit=50` — optional `&cursor=`

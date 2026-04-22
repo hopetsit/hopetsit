@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
@@ -40,26 +41,82 @@ class PaymentResultScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(height: 60.h),
+              SizedBox(height: 40.h),
 
-              // Icon
-              Container(
-                width: 120.w,
-                height: 120.h,
-                decoration: BoxDecoration(
-                  color: isSuccess
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : AppColors.errorColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isSuccess ? Icons.check_circle : Icons.error_outline,
-                  size: 60.sp,
-                  color: isSuccess ? Colors.green : AppColors.errorColor,
-                ),
+              // v18.5 — #6 fix : HopeTSIT logo + success/error badge overlay.
+              // Replaces the generic check_circle icon. The logo anchors the
+              // page and feels on-brand. On failure we show the logo dimmed
+              // with a red error badge instead of a green check.
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 140.w,
+                    height: 140.h,
+                    decoration: BoxDecoration(
+                      color: isSuccess
+                          ? Colors.green.withValues(alpha: 0.08)
+                          : AppColors.errorColor.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: EdgeInsets.all(20.w),
+                    child: ColorFiltered(
+                      colorFilter: isSuccess
+                          ? const ColorFilter.mode(
+                              Colors.transparent,
+                              BlendMode.multiply,
+                            )
+                          : ColorFilter.matrix(const <double>[
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0, 0, 0, 1, 0,
+                            ]),
+                      child: SvgPicture.asset(
+                        'assets/brand/web/logo-orange.svg',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 42.w,
+                      height: 42.w,
+                      decoration: BoxDecoration(
+                        color: isSuccess
+                            ? const Color(0xFF16A34A)
+                            : AppColors.errorColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.scaffold(context),
+                          width: 3,
+                        ),
+                      ),
+                      child: Icon(
+                        isSuccess ? Icons.check_rounded : Icons.close_rounded,
+                        size: 24.sp,
+                        color: AppColors.whiteColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
-              SizedBox(height: 32.h),
+              SizedBox(height: 24.h),
+
+              // v18.5 — product name right under the logo so the success
+              // feels like a branded confirmation, not a generic toast.
+              PoppinsText(
+                text: 'HopeTSIT',
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryColor,
+                textAlign: TextAlign.center,
+              ),
+
+              SizedBox(height: 20.h),
 
               // Title
               PoppinsText(

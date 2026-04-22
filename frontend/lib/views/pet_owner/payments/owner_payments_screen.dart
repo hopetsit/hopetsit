@@ -65,6 +65,31 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
     }
   }
 
+  /// v18.5 — #4 fix : retry fetch jusqu'à voir une nouvelle PaymentMethod
+  /// apparaître côté Stripe (webhook async). Utilisé juste après un
+  /// Stripe PaymentSheet réussi. Backoff : 300 → 600 → 900 → 1200 → 1500ms
+  /// (total ~4.5s max). Dès que methods.length augmente, on s'arrête.
+  Future<void> _loadWithRetry() async {
+    final int previousCount = _methods.length;
+    await _load();
+    if (_methods.length > previousCount) return;
+    for (int i = 1; i <= 5; i++) {
+      await Future.delayed(Duration(milliseconds: 300 * i));
+      try {
+        final methods = await _repo.getOwnerPaymentMethods();
+        if (!mounted) return;
+        if (methods.length > previousCount) {
+          setState(() {
+            _methods = methods;
+          });
+          return;
+        }
+      } catch (_) {
+        // Ignore transient errors, continue retrying.
+      }
+    }
+  }
+
   Future<void> _addCard() async {
     if (_addingCard) return;
     setState(() => _addingCard = true);
@@ -91,7 +116,13 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
             ? 'Carte ajoutée'
             : 'card_added_success'.tr,
       );
-      await _load();
+      // v18.5 — #4 fix : Stripe attache le PaymentMethod au Customer de façon
+      // asynchrone via le webhook `setup_intent.succeeded`. Si on fetch trop
+      // vite `/owner/payments/methods`, Stripe retourne encore une liste vide
+      // et l'UI affiche "Aucune carte enregistrée" juste après un ajout
+      // réussi. On retry avec backoff jusqu'à voir la nouvelle carte (ou
+      // timeout après ~4s).
+      await _loadWithRetry();
     } on stripe.StripeException catch (e) {
       // User cancelled or Stripe refused — don't treat as hard error.
       final code = e.error.code.name;

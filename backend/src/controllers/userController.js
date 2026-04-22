@@ -893,6 +893,29 @@ const switchRole = async (req, res) => {
       newUserData.service = [];
     }
 
+    // v18.5 — #16 fix défensif : avant de créer le nouveau doc dans la target
+    // collection, purger tout doc "zombie" potentiellement leftover (crash passé,
+    // migration partielle, test data). Sans ça, un insertOne peut échouer en
+    // E11000 (email unique) et l'UI affiche "Impossible de changer de rôle" /
+    // "Email already exists", obligeant l'user à passer par le chemin long
+    // owner→sitter→walker. Le filtre par email est safe car chaque rôle a son
+    // propre espace email-unique.
+    const TargetModelForCleanup = ROLE_MODELS[targetRole];
+    if (TargetModelForCleanup) {
+      const zombieFilter = {
+        $or: [
+          { email: userData.email },
+          ...(baseOldId ? [{ oldId: baseOldId }] : []),
+        ],
+      };
+      const deletedZombies = await TargetModelForCleanup.deleteMany(zombieFilter);
+      if (deletedZombies?.deletedCount) {
+        logger.info(
+          `[switchRole] Purged ${deletedZombies.deletedCount} zombie ${targetRole} doc(s) for email=${userData.email} before insert.`
+        );
+      }
+    }
+
     // Create new user in target role using collection.insertOne to bypass Mongoose defaults
     // This prevents Mongoose from applying location defaults with null coordinates
     let insertedResult;
@@ -915,6 +938,9 @@ const switchRole = async (req, res) => {
       insertedResult = await Walker.collection.insertOne(newUserData);
       newUser = await Walker.findById(insertedResult.insertedId);
     }
+    logger.info(
+      `[switchRole] ${currentRole} -> ${targetRole} OK. userId=${userId} -> newId=${insertedResult.insertedId}`
+    );
 
     // Restore the original password hash using updateOne (bypasses pre-save hook)
     // This is necessary because insertOne doesn't trigger pre-save hooks, so password is already correct
@@ -962,6 +988,12 @@ const switchRole = async (req, res) => {
 const resolveUserModel = (role) => {
   if (role === 'sitter') return Sitter;
   if (role === 'owner') return Owner;
+  // v18.5 — #11 fix : walker support pour FCM token registration, accept terms,
+  // etc. Avant v18.5, les walkers tombaient en 403 "Unsupported role" car
+  // resolveUserModel retournait null → registerFcmToken échouait silencieusement
+  // → aucun push FCM ne parvenait au device. Les notifs in-app et email
+  // continuaient à marcher via d'autres chemins.
+  if (role === 'walker') return Walker;
   return null;
 };
 

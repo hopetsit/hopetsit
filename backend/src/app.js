@@ -151,6 +151,11 @@ const versionedRoutes = [
   { path: '/stripe-connect', mw: [sensitiveLimiter], router: stripeConnectRoutes },
   { path: '/admin', mw: [], router: adminRoutes },
   { path: '/sitter', mw: [], router: ibanRoutes },
+  // v18.5 — #7 fix : expose IBAN routes sous /walker aussi. Le router
+  // ibanRoutes lui-même gère les 2 rôles via requireProviderRole('sitter','walker').
+  // Avant v18.5, les walkers tapant PUT /sitter/iban étaient rejetés (404/403),
+  // d'où l'erreur "Failed to save" en UI.
+  { path: '/walker', mw: [], router: ibanRoutes },
   // v18.2 — owner "Mes paiements" (cartes sauvegardées + historique).
   { path: '/owner/payments', mw: [sensitiveLimiter], router: ownerPaymentsRoutes },
   { path: '/notifications', mw: [], router: notificationRoutes },

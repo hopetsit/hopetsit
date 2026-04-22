@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/stripe_connect_controller.dart';
 import 'package:hopetsit/controllers/sitter_paypal_payout_controller.dart';
+import 'package:hopetsit/controllers/iban_status_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_screen.dart';
@@ -20,6 +21,9 @@ class PaymentManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final stripeCtrl = Get.put(StripeConnectController());
     final paypalCtrl = Get.put(SitterPayPalPayoutController());
+    // v18.5 — #9 fix : charger le statut IBAN pour peindre le point vert
+    // dans la rangée des 4 icônes et sur la carte "Compte bancaire (IBAN)".
+    final ibanCtrl = Get.put(IbanStatusController());
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -43,7 +47,7 @@ class PaymentManagementScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Header with 4 quick-status icons ──
-              _buildQuickStatusRow(stripeCtrl, paypalCtrl, context),
+              _buildQuickStatusRow(stripeCtrl, paypalCtrl, ibanCtrl, context),
               SizedBox(height: 24.h),
 
               // ── Payment Methods Section ──
@@ -92,17 +96,27 @@ class PaymentManagementScreen extends StatelessWidget {
               SizedBox(height: 10.h),
 
               // IBAN / Bank Account Card
-              _buildPaymentMethodCard(
+              Obx(() => _buildPaymentMethodCard(
                 context: context,
                 icon: Icons.account_balance_rounded,
                 iconColor: const Color(0xFF1A73E8),
                 iconBg: const Color(0xFF1A73E8).withValues(alpha: 0.1),
                 title: 'payment_iban_title'.tr,
-                subtitle: 'payment_iban_subtitle'.tr,
-                isConnected: false, // TODO: check IBAN status
-                onTap: () => Get.to(() => const IbanSetupScreen()),
-                buttonLabel: 'payment_configure'.tr,
-              ),
+                subtitle: ibanCtrl.ibanConfigured.value
+                    ? (ibanCtrl.ibanVerified.value
+                        ? 'payment_iban_verified'.tr
+                        : 'payment_iban_saved_pending'.tr)
+                    : 'payment_iban_subtitle'.tr,
+                isConnected: ibanCtrl.ibanConfigured.value,
+                onTap: () async {
+                  await Get.to(() => const IbanSetupScreen());
+                  // Refresh status when coming back from IBAN screen.
+                  ibanCtrl.refreshStatus();
+                },
+                buttonLabel: ibanCtrl.ibanConfigured.value
+                    ? 'payment_manage'.tr
+                    : 'payment_configure'.tr,
+              )),
 
               SizedBox(height: 28.h),
 
@@ -161,6 +175,7 @@ class PaymentManagementScreen extends StatelessWidget {
   Widget _buildQuickStatusRow(
     StripeConnectController stripeCtrl,
     SitterPayPalPayoutController paypalCtrl,
+    IbanStatusController ibanCtrl,
     BuildContext context,
   ) {
     return Obx(() => Row(
@@ -181,11 +196,12 @@ class PaymentManagementScreen extends StatelessWidget {
           const Color(0xFF003087),
         ),
         SizedBox(width: 10.w),
+        // v18.5 — #9 fix : bind to the real IBAN status.
         _quickIcon(
           context,
           Icons.account_balance_rounded,
           'IBAN',
-          false,
+          ibanCtrl.ibanConfigured.value,
           const Color(0xFF1A73E8),
         ),
         SizedBox(width: 10.w),
