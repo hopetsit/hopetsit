@@ -215,19 +215,19 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                 _buildAttributeBox(
                   'sitter_pet_weight'.tr,
                   application.weight,
-                  AppColors.primaryColor,
+                  _roleAccent,
                 ),
                 SizedBox(width: 8.w),
                 _buildAttributeBox(
                   'sitter_pet_height'.tr,
                   application.height,
-                  AppColors.primaryColor,
+                  _roleAccent,
                 ),
                 SizedBox(width: 8.w),
                 _buildAttributeBox(
                   'sitter_pet_color'.tr,
                   application.color,
-                  AppColors.primaryColor,
+                  _roleAccent,
                 ),
               ],
             ),

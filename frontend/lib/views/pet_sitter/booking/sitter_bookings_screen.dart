@@ -250,7 +250,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
                                   child: Icon(
                                     Icons.person,
                                     size: 20.sp,
-                                    color: AppColors.primaryColor,
+                                    color: _sitterAccent,
                                   ),
                                 ),
                                 errorWidget: (context, url, error) => Container(
@@ -260,7 +260,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
                                   child: Icon(
                                     Icons.person,
                                     size: 20.sp,
-                                    color: AppColors.primaryColor,
+                                    color: _sitterAccent,
                                   ),
                                 ),
                               )

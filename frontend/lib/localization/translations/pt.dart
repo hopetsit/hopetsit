@@ -606,7 +606,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'payment_error_title': 'Payment Error',
       'payment_unavailable_title': 'Payment Unavailable',
       'payment_unavailable_message':
-          'The sitter\'s Stripe account is not fully verified yet. They need to complete their account verification (including identity, bank account, and business details) before they can receive payments. Please contact the sitter to complete their Stripe account setup.',
+          'Pagamento temporariamente indisponível. Tente novamente em alguns segundos ou contacte o suporte.',
       'payment_invalid_amount_title': 'Invalid Amount',
       'payment_invalid_amount_message':
           'The payment amount is invalid. Please contact support.',

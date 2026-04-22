@@ -687,7 +687,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'payment_error_title': 'Error de pago',
       'payment_unavailable_title': 'Pago no disponible',
       'payment_unavailable_message':
-          'La cuenta de Stripe del pet sitter aún no está completamente verificada. Necesita completar la verificación de su cuenta (incluyendo identidad, cuenta bancaria y detalles del negocio) antes de poder recibir pagos. Por favor contacta al pet sitter para completar la configuración de su cuenta de Stripe.',
+          'Pago temporalmente no disponible. Inténtalo de nuevo en unos segundos o contacta con soporte si persiste.',
       'payment_invalid_amount_title': 'Monto inválido',
       'payment_invalid_amount_message':
           'El monto del pago es inválido. Por favor contacta al soporte.',

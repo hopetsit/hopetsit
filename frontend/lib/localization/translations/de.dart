@@ -740,7 +740,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'payment_error_title': 'Zahlungsfehler',
       'payment_unavailable_title': 'Zahlung nicht verfügbar',
       'payment_unavailable_message':
-          'Das Stripe-Konto des Pet Sitters ist noch nicht vollständig verifiziert. Er muss die Kontoverifizierung (einschließlich Identität, Bankkonto und Geschäftsdetails) abschließen, bevor er Zahlungen erhalten kann. Bitte kontaktiere den Pet Sitter, um die Einrichtung seines Stripe-Kontos abzuschließen.',
+          'Zahlung vorübergehend nicht verfügbar. Bitte versuche es in ein paar Sekunden erneut oder kontaktiere den Support.',
       'payment_invalid_amount_title': 'Ungültiger Betrag',
       'payment_invalid_amount_message':
           'Der Zahlungsbetrag ist ungültig. Bitte kontaktiere den Support.',

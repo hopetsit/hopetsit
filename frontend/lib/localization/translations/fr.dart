@@ -700,7 +700,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'payment_error_title': 'Erreur de paiement',
       'payment_unavailable_title': 'Paiement indisponible',
       'payment_unavailable_message':
-          'Le compte Stripe du pet sitter n\'est pas encore entièrement vérifié. Il doit compléter la vérification de son compte (y compris l\'identité, le compte bancaire et les détails de l\'entreprise) avant de pouvoir recevoir des paiements. Veuillez contacter le pet sitter pour compléter la configuration de son compte Stripe.',
+          'Paiement momentanément indisponible. Réessayez dans quelques instants ou contactez le support si le problème persiste.',
       'payment_invalid_amount_title': 'Montant invalide',
       'payment_invalid_amount_message':
           'Le montant du paiement est invalide. Veuillez contacter le support.',

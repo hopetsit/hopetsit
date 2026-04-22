@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
@@ -51,20 +52,25 @@ class OnboardingScreen extends StatelessWidget {
                 children: [
                   SizedBox(height: 30.h),
 
-                  // ── Logo icon (paw) ──
+                  // v18.7 — logo V4 officiel (SVG) à la place de Icons.pets.
                   Container(
-                    width: 80.w,
-                    height: 80.h,
+                    width: 96.w,
+                    height: 96.h,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(24.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                    child: Center(
-                      child: Icon(
-                        Icons.pets,
-                        size: 44.sp,
-                        color: Colors.white,
-                      ),
+                    padding: EdgeInsets.all(14.w),
+                    child: SvgPicture.asset(
+                      'assets/brand/apple/apple-icon-original.svg',
+                      fit: BoxFit.contain,
                     ),
                   ),
 
