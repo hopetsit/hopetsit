@@ -606,6 +606,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             // Handle profile tap
             AppLogger.logDebug('SitterHomescreen: profile tapped');
           },
+          // v18.6 — mini bouton Boost (bleu sitter) à côté de la cloche.
+          actions: const [BoostQuickAction(role: 'sitter')],
         ),
         body: SafeArea(
           child: RefreshIndicator(

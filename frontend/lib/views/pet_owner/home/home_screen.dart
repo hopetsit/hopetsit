@@ -453,6 +453,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   final locationLabel = (rawCity != null && rawCity.isNotEmpty)
                       ? rawCity
                       : null;
+                  // v18.6 — ajout onEdit + isReserved + ownerViewOfOwnPost
+                  // + share subject deep-link (cohérence avec my_posts_screen).
                   return PetPostCard(
                     userName: post.owner.name,
                     userEmail: post.owner.email,
@@ -465,9 +467,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     isNetworkImage: post.images.isNotEmpty,
                     likeCount: post.likesCount,
                     commentCount: post.commentsCount,
+                    isReserved: post.reservedBy != null,
+                    reservedProviderRole: post.reservedBy?.providerRole,
+                    ownerViewOfOwnPost: true,
                     onDelete: () => _confirmAndDeletePost(context, post.id),
+                    onEdit: () {
+                      Get.to(() => EditPostScreen(post: post));
+                    },
                     onShare: () async {
                       try {
+                        final petName = post.pets.isNotEmpty
+                            ? post.pets.first.petName
+                            : '';
+                        final link = 'https://hopetsit.app/post/${post.id}';
+                        final subject = 'share_post_subject'.trParams({
+                          'petName': petName.isEmpty ? 'HoPetSit' : petName,
+                        });
+                        final shareText =
+                            'share_post_body'.trParams({'link': link});
                         final imageUrls = post.images
                             .where((img) => img.url.isNotEmpty)
                             .map((img) => img.url)
@@ -483,9 +500,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             await file.writeAsBytes(response.bodyBytes);
                             xFiles.add(XFile(file.path));
                           }
-                          await SharePlus.instance.share(ShareParams(files: xFiles, text: post.body,));
+                          await SharePlus.instance.share(ShareParams(
+                            files: xFiles,
+                            text: shareText,
+                            subject: subject,
+                          ));
                         } else {
-                          await SharePlus.instance.share(ShareParams(text: post.body));
+                          await SharePlus.instance.share(ShareParams(
+                            text: shareText,
+                            subject: subject,
+                          ));
                         }
                       } catch (e) {
                         AppLogger.logError('Failed to share post', error: e);
@@ -772,6 +796,8 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           onProfileTap: () {},
           actions: [
+            // v18.6 — mini bouton Boost à gauche de la carte et de la cloche.
+            const BoostQuickAction(role: 'owner'),
             IconButton(
               icon: Container(
                 width: 38.w,

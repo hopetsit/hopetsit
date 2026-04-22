@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// Bell + optional count badge for AppBar [actions] (avoids title-area clipping).
@@ -74,6 +75,52 @@ class NotificationBellAction extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// v18.6 — Mini bouton "Boost" affiché dans la rangée d'actions de
+/// l'AppBar, à côté de la cloche. Ouvre CoinShopScreen direct. Couleur
+/// auto selon le rôle courant (vert walker / bleu sitter / orange owner).
+class BoostQuickAction extends StatelessWidget {
+  final String role; // 'owner' | 'sitter' | 'walker'
+  const BoostQuickAction({super.key, required this.role});
+
+  Color get _bg {
+    switch (role) {
+      case 'walker':
+        return const Color(0xFF16A34A);
+      case 'sitter':
+        return const Color(0xFF2563EB);
+      default:
+        return AppColors.primaryColor;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(left: 4.w, right: 4.w),
+      child: Material(
+        color: _bg,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Get.to(() => const CoinShopScreen()),
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            width: 38.w,
+            height: 38.h,
+            child: Center(
+              child: Icon(
+                Icons.rocket_launch_rounded,
+                size: 20.sp,
+                color: AppColors.whiteColor,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

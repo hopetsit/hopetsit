@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_app_bar.dart';
 
 /// Walker home screen — Phase-1 placeholder.
 /// Presents a welcome state until the walker-specific widgets (today's walks,
@@ -24,6 +25,11 @@ class WalkerHomescreen extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
+        // v18.6 — mini bouton Boost vert walker dans le header.
+        actions: const [
+          BoostQuickAction(role: 'walker'),
+          SizedBox(width: 12),
+        ],
       ),
       body: SafeArea(
         child: Padding(

@@ -19,6 +19,10 @@ class SitterBookingsScreen extends StatefulWidget {
 class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   late SitterBookingsController _bookingsController;
   String? _selectedStatus;
+  // v18.7 — couleur d'accent sitter (bleu) pour cohérence avec le reste
+  // de l'app. Les 3 écrans Réservations (owner/sitter/walker) utilisent
+  // désormais chacun leur couleur de rôle.
+  static const Color _sitterAccent = Color(0xFF2563EB);
 
   // All available statuses
   final List<String> _statuses = [
@@ -56,7 +60,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
+        iconTheme: IconThemeData(color: _sitterAccent),
         leading: BackButton(),
         title: PoppinsText(
           text: 'sitter_bookings_title'.tr,
@@ -74,11 +78,9 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
           Expanded(
             child: Obx(() {
               if (_bookingsController.isLoading.value) {
-                return const Center(
+                return Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.primaryColor,
-                    ),
+                    valueColor: AlwaysStoppedAnimation<Color>(_sitterAccent),
                   ),
                 );
               }
@@ -115,7 +117,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
               }
 
               return RefreshIndicator(
-                color: AppColors.primaryColor,
+                color: _sitterAccent,
                 onRefresh: () => _bookingsController.loadBookings(),
                 child: ListView.builder(
                   padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
@@ -159,12 +161,12 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.primaryColor
+                    ? _sitterAccent
                     : AppColors.whiteColor,
                 borderRadius: BorderRadius.circular(20.r),
                 border: Border.all(
                   color: isSelected
-                      ? AppColors.primaryColor
+                      ? _sitterAccent
                       : AppColors.grey300Color,
                   width: 1,
                 ),
