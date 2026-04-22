@@ -1463,7 +1463,6 @@ const Map<String, String> itITTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN salvato — verifica in corso',
     'payment_connect': 'Connetti',
     'payment_manage': 'Gestisci',
-    'add_card_title': 'Aggiungi una carta',
     'add_card_save': 'Salva carta',
     'payment_configure': 'Configura',
     'payment_verification_section': 'Verifica e stato',

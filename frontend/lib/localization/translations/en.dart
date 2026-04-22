@@ -1629,7 +1629,6 @@ const Map<String, String> enUSTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN saved — verification pending',
     'payment_connect': 'Connect',
     'payment_manage': 'Manage',
-    'add_card_title': 'Add a card',
     'add_card_save': 'Save card',
     'payment_configure': 'Set up',
     'payment_verification_section': 'Verification & Status',

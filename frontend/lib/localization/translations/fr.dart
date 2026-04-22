@@ -1533,7 +1533,6 @@ const Map<String, String> frFRTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN enregistré — vérification en cours',
     'payment_connect': 'Connecter',
     'payment_manage': 'Gérer',
-    'add_card_title': 'Ajouter une carte',
     'add_card_save': 'Enregistrer la carte',
     'payment_configure': 'Configurer',
     'payment_verification_section': 'Vérification & Statut',

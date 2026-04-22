@@ -1523,7 +1523,6 @@ const Map<String, String> esESTranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN guardado — verificación en curso',
     'payment_connect': 'Conectar',
     'payment_manage': 'Gestionar',
-    'add_card_title': 'Añadir una tarjeta',
     'add_card_save': 'Guardar tarjeta',
     'payment_configure': 'Configurar',
     'payment_verification_section': 'Verificación y estado',

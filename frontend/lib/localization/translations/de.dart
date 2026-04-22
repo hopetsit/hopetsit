@@ -1510,7 +1510,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'payment_iban_saved_pending': 'IBAN gespeichert — Verifizierung ausstehend',
     'payment_connect': 'Verbinden',
     'payment_manage': 'Verwalten',
-    'add_card_title': 'Karte hinzufügen',
     'add_card_save': 'Karte speichern',
     'payment_configure': 'Einrichten',
     'payment_verification_section': 'Verifizierung & Status',
