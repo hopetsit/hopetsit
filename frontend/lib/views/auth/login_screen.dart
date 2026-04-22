@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -88,17 +89,15 @@ class LoginScreen extends StatelessWidget {
                     SizedBox(height: 28.h),
 
                     // ── Logo + Welcome ──
+                    // v18.5 — logo V4 officiel (SVG) à la place de l'icône
+                    // Icons.pets générique. Container en dessous garde le
+                    // boxShadow/gradient mais affiche la patte HoPetSit.
                     Center(
                       child: Container(
-                        width: 64.w,
-                        height: 64.h,
+                        width: 72.w,
+                        height: 72.h,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.primaryColor,
-                              AppColors.primaryColor.withValues(alpha: 0.8),
-                            ],
-                          ),
+                          color: AppColors.primaryColor,
                           borderRadius: BorderRadius.circular(20.r),
                           boxShadow: [
                             BoxShadow(
@@ -108,10 +107,10 @@ class LoginScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: Icon(
-                          Icons.pets,
-                          size: 34.sp,
-                          color: Colors.white,
+                        padding: EdgeInsets.all(10.w),
+                        child: SvgPicture.asset(
+                          'assets/brand/apple/apple-icon-original.svg',
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),

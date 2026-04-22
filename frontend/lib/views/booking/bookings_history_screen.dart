@@ -9,6 +9,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
+import 'package:hopetsit/views/reviews/reviews_screen.dart';
 
 class BookingsHistoryScreen extends StatefulWidget {
   const BookingsHistoryScreen({super.key});
@@ -662,6 +663,43 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w500,
                 color: AppColors.errorColor,
+              ),
+            ),
+          ),
+        ],
+
+        // v18.5 — #22 : bouton "Laisser un avis" sur bookings completed.
+        // Remplace l'option review sur l'écran paiement réussi (#17) qui
+        // n'avait pas de sens car le service n'était pas encore fait.
+        if (statusLower == 'completed') ...[
+          SizedBox(width: 12.w),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () {
+                Get.to(
+                  () => ReviewsScreen(
+                    serviceProviderName: booking.sitter.name,
+                    phoneNumber: booking.sitter.mobile,
+                    email: booking.sitter.email,
+                    profileImagePath: booking.sitter.avatar.url.isNotEmpty
+                        ? booking.sitter.avatar.url
+                        : null,
+                    serviceProviderId: booking.sitter.id,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                padding: EdgeInsets.symmetric(vertical: 10.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+              ),
+              child: InterText(
+                text: 'booking_leave_review'.tr,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.whiteColor,
               ),
             ),
           ),

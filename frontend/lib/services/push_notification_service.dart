@@ -48,9 +48,9 @@ class PushNotificationService extends GetxService {
   static const AndroidNotificationChannel _androidChannel =
       AndroidNotificationChannel(
     'hopetsit_default_channel',
-    'HopeTSIT notifications',
+    'HoPetSit notifications',
     description:
-        'Messages, booking updates and special offers from HopeTSIT.',
+        'Messages, booking updates and special offers from HoPetSit.',
     importance: Importance.high,
   );
 
@@ -159,7 +159,7 @@ class PushNotificationService extends GetxService {
   Future<void> _onForegroundMessage(RemoteMessage message) async {
     debugPrint('FCM foreground: ${message.messageId}');
     final notification = message.notification;
-    final title = notification?.title ?? message.data['title'] ?? 'HopeTSIT';
+    final title = notification?.title ?? message.data['title'] ?? 'HoPetSit';
     final body = notification?.body ?? message.data['body'] ?? '';
 
     final String payload = jsonEncode(message.data);

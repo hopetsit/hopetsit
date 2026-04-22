@@ -12,7 +12,13 @@ const { emitToUser } = require('../sockets/emitter');
 const logger = require('../utils/logger');
 
 const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt'];
-const FALLBACK_LOCALE = 'en';
+// v18.5 — fallback changé de 'en' vers 'fr'. HoPetSit est lancé sur le
+// marché francophone (Daniel) ; la majorité des users n'ont pas encore
+// `language` renseigné côté DB et tombaient sur l'anglais par défaut
+// (notif "A provider sent you a request."). FR reste un fallback plus
+// utile ; les users réellement anglophones ont leur `language='en'`
+// chargé via updateProfile.
+const FALLBACK_LOCALE = 'fr';
 
 const catalogCache = {};
 

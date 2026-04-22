@@ -21,6 +21,14 @@ class PetSitterApplication {
   final String status; // 'pending', 'accepted', 'rejected'
   final String paymentStatus; // 'pending', 'paid', 'failed'
   final String ownerId; // Owner ID for starting chat
+  // v18.5 — #20 : exposer le prix TTC + la part nette (80%) au provider
+  // AVANT qu'il accepte, pour qu'il sache ce qu'il va toucher.
+  final double? totalPrice;
+  final double? netPayout;
+  final String? currency;
+  // v18.5 — #20 : rôle du provider pour colorer l'écran (walker=vert,
+  // sitter=bleu). Derivé du serviceType du booking côté caller.
+  final String providerRole;
 
   PetSitterApplication({
     required this.id,
@@ -38,6 +46,10 @@ class PetSitterApplication {
     required this.ownerId,
     this.status = 'pending',
     this.paymentStatus = 'pending',
+    this.totalPrice,
+    this.netPayout,
+    this.currency,
+    this.providerRole = 'sitter',
   });
 }
 
@@ -66,6 +78,11 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
 
   PetSitterApplication get application => widget.application;
 
+  // v18.5 — #20 : couleur du rôle pour cet écran.
+  Color get _roleAccent => application.providerRole == 'walker'
+      ? const Color(0xFF16A34A)
+      : const Color(0xFF2563EB);
+
   @override
   Widget build(BuildContext context) {
     final onStartChat = widget.onStartChat;
@@ -87,6 +104,14 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
 
           // Details Section
           _buildDetailsSection(),
+
+          // v18.5 — #20 : carte prix mise en avant — le provider voit
+          // combien l'owner paie ET combien il touchera net avant d'accepter.
+          if (application.totalPrice != null && application.totalPrice! > 0)
+            Padding(
+              padding: EdgeInsets.only(top: 14.h, right: 16.w),
+              child: _buildPriceBreakdownCard(),
+            ),
 
           SizedBox(height: 20.h),
 
@@ -209,6 +234,76 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
           ),
         ),
       ],
+    );
+  }
+
+  /// v18.5 — #20 : petite carte qui affiche le prix payé par l'owner
+  /// et la part nette (80%) que le provider touchera. Colorée selon le
+  /// rôle. Affichée SEULEMENT si totalPrice > 0.
+  Widget _buildPriceBreakdownCard() {
+    final currency = application.currency ?? 'EUR';
+    final total = application.totalPrice ?? 0;
+    final net = application.netPayout ?? (total * 0.8);
+    final currencySymbol = currency.toUpperCase() == 'EUR'
+        ? '€'
+        : currency.toUpperCase() == 'GBP'
+            ? '£'
+            : currency.toUpperCase() == 'USD'
+                ? '\$'
+                : '';
+    String fmt(double v) {
+      final s = v.toStringAsFixed(2);
+      return '$currencySymbol$s';
+    }
+
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: _roleAccent.withValues(alpha: 0.08),
+        border: Border.all(color: _roleAccent.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.euro_rounded,
+            color: _roleAccent,
+            size: 22.sp,
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InterText(
+                  text: 'application_card_price_label'.tr,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary(context),
+                ),
+                SizedBox(height: 2.h),
+                PoppinsText(
+                  text: 'application_card_you_receive'.trParams({
+                    'amount': fmt(net),
+                  }),
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                  color: _roleAccent,
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: 'application_card_owner_pays'.trParams({
+                    'amount': fmt(total),
+                  }),
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary(context),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -337,7 +432,9 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                 height: 48.h,
                 decoration: BoxDecoration(
                   color: AppColors.card(context),
-                  border: Border.all(color: AppColors.primaryColor),
+                  // v18.5 — #20 : Rejeter reste rouge (contraste), accepter
+                  // utilise la couleur du rôle (vert walker / bleu sitter).
+                  border: Border.all(color: const Color(0xFFEF4444)),
                   borderRadius: BorderRadius.circular(24.r),
                 ),
                 child: Center(
@@ -345,10 +442,10 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                       ? SizedBox(
                           width: 22.w,
                           height: 22.h,
-                          child: CircularProgressIndicator(
+                          child: const CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.primaryColor,
+                              Color(0xFFEF4444),
                             ),
                           ),
                         )
@@ -356,7 +453,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                           text: 'sitter_reject'.tr,
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.primaryColor,
+                          color: const Color(0xFFEF4444),
                         ),
                 ),
               ),
@@ -380,9 +477,10 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
             child: Container(
               height: 48.h,
               decoration: BoxDecoration(
+                // v18.5 — #20 : Accepter utilise la couleur du rôle.
                 color: _isAccepting
-                    ? AppColors.primaryColor.withValues(alpha: 0.7)
-                    : AppColors.primaryColor,
+                    ? _roleAccent.withValues(alpha: 0.7)
+                    : _roleAccent,
                 borderRadius: BorderRadius.circular(24.r),
               ),
               child: Center(

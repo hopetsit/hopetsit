@@ -105,7 +105,7 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
       await stripe.Stripe.instance.initPaymentSheet(
         paymentSheetParameters: stripe.SetupPaymentSheetParameters(
           setupIntentClientSecret: clientSecret,
-          merchantDisplayName: 'HopeTSIT',
+          merchantDisplayName: 'HoPetSit',
         ),
       );
       await stripe.Stripe.instance.presentPaymentSheet();

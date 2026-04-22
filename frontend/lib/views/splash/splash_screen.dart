@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/onboarding/onboarding_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
@@ -131,9 +131,12 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ],
                     ),
-                    padding: EdgeInsets.all(20.w),
-                    child: Image.asset(
-                      AppImages.bgRemovedLogo,
+                    padding: EdgeInsets.all(16.w),
+                    // v18.5 — logo V4 (SVG) sur fond orange. L'ancien
+                    // logo "œil" (bg-removed-logo.png) est remplacé par
+                    // la patte V4.
+                    child: SvgPicture.asset(
+                      'assets/brand/apple/apple-icon-original.svg',
                       fit: BoxFit.contain,
                     ),
                   ),

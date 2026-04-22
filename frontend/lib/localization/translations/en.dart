@@ -251,7 +251,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'referrals_my_code': 'My referral code',
       'referrals_copy': 'Copy',
       'referrals_share': 'Share my code',
-      'referrals_share_text': 'Join HopeTSIT with my code @code and get rewards!',
+      'referrals_share_text': 'Join HoPetSit with my code @code and get rewards!',
       'referrals_list_empty': 'No referrals yet — share your code!',
       'referrals_total_earned': 'Total earned: @amount @currency',
       'referrals_status_pending': 'Pending',
@@ -275,7 +275,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'button_logout': 'Logout',
       'title_login': 'Log in',
       'welcome_back': 'Welcome back 👋',
-      'login_subtitle': 'Log in to continue to Hopetsit.',
+      'login_subtitle': 'Log in to continue to HoPetSit.',
       'hint_password_login': 'Enter your password',
       'forgot_password': 'Forgot password?',
       'forgot_password_reset_title': 'Reset your password',
@@ -440,7 +440,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'section_settings': 'Settings',
       'role_pet_owner': 'Pet Owner',
       'role_pet_sitter': 'Pet Sitter',
-      'sign_up_as_subtitle': 'How would you like to use HopeTSIT?',
+      'sign_up_as_subtitle': 'How would you like to use HoPetSit?',
       'role_pet_owner_desc': 'I own a pet and I\'m looking for a trusted sitter or walker near me.',
       'role_pet_sitter_desc': 'I host or care for pets — at the owner\'s home, at mine, or during the day.',
       'auth_role_pet_owner': 'Pet Owner',
@@ -651,6 +651,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'payment_invalid_amount_title': 'Invalid Amount',
       'payment_invalid_amount_message':
           'The payment amount is invalid. Please contact support.',
+      'payment_min_amount_message':
+          'The minimum accepted amount is €0.50. Please adjust the rate or duration.',
       'payment_initiate_error': 'Failed to initiate payment. Please try again.',
       'payment_confirmation_failed':
           'Payment confirmation failed. Please contact support.',
@@ -1347,6 +1349,16 @@ const Map<String, String> enUSTranslations = <String, String>{
 
       // Missing reviews controller translations
       'review_submit_failed': 'Failed to submit review. Please try again.',
+      'reviews_title': 'Reviews',
+      'reviews_rate_label': 'Rate',
+      'reviews_description_label': 'Description',
+      'reviews_description_hint': 'Your review...',
+      'reviews_submit': 'Submit',
+      'reviews_submitting': 'Submitting...',
+      'post_already_reserved_cta': 'Already reserved',
+      'application_card_price_label': 'Your earnings for this service',
+      'application_card_you_receive': 'You receive @amount net',
+      'application_card_owner_pays': 'The owner pays @amount (HoPetSit fee included)',
 
       // Missing pets map controller translations
       'map_load_error': 'Failed to load map data. Please try again.',
@@ -1584,6 +1596,9 @@ const Map<String, String> enUSTranslations = <String, String>{
     'payment_card_incomplete_message': 'Please fill in all card fields before paying.',
     'payment_cardholder_required_title': 'Name required',
     'payment_cardholder_required_message': 'Please enter the cardholder name.',
+    'payment_saved_cards_title': 'My saved cards',
+    'payment_use_new_card': 'Use a new card',
+    'booking_leave_review': 'Leave a review',
     'payout_iban_saved_success': 'IBAN saved! Pending admin verification before first payout.',
     'payout_method_updated': 'Payout method updated.',
     'payout_iban_verified': '✓ Verified',
@@ -1612,7 +1627,7 @@ const Map<String, String> enUSTranslations = <String, String>{
     'payment_payout_status_title': 'Payout Status',
     'payment_payout_active_desc': 'Your payouts are active',
     'payment_payout_inactive_desc': 'Connect a payment method to receive payouts',
-    'payment_donate_title': 'Support HopeTSIT',
+    'payment_donate_title': 'Support HoPetSit',
     'payment_donate_desc': 'Help us improve the app',
     'payment_donate_coming_soon': 'Donations coming soon',
     'earnings_title': 'My Earnings',

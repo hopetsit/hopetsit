@@ -48,6 +48,19 @@ class StripePaymentController extends GetxController {
     required BillingDetails billingDetails,
   }) async {
     if (isProcessing.value) return;
+
+    // v18.5 — Stripe minimum charge est 0.50 EUR (50 cents). Avant de tenter
+    // la création du PaymentIntent (qui donnerait un 500 générique côté
+    // backend), on check ici pour afficher un message clair.
+    const minStripeAmount = 0.50; // EUR cents min
+    if (totalAmount < minStripeAmount) {
+      CustomSnackbar.showError(
+        title: 'payment_invalid_amount_title'.tr,
+        message: 'payment_min_amount_message'.tr,
+      );
+      return;
+    }
+
     isProcessing.value = true;
 
     try {
@@ -176,17 +189,24 @@ class StripePaymentController extends GetxController {
     } on ApiException catch (error) {
       AppLogger.logError('Payment initiation failed', error: error.message);
 
-      // Handle specific error cases with user-friendly messages
+      // v18.5 — hold admin est en place : un provider sans IBAN/PayPal ne
+      // bloque plus le paiement côté backend. On ne force plus l'ancien
+      // message "Stripe non vérifié" qui n'est plus vrai. On affiche juste
+      // le message backend tel quel (ou les messages "montant invalide"
+      // / "Stripe minimum" si détectés).
       String errorMessage = error.message;
       String errorTitle = 'payment_error_title'.tr;
 
-      if (error.message.toLowerCase().contains('stripe connect') ||
-          error.message.toLowerCase().contains('sitter must have') ||
-          error.message.toLowerCase().contains('active')) {
-        errorTitle = 'payment_unavailable_title'.tr;
-        errorMessage = 'payment_unavailable_message'.tr;
-      } else if (error.message.toLowerCase().contains('amount') ||
-          error.message.toLowerCase().contains('price')) {
+      final lowered = error.message.toLowerCase();
+      if (lowered.contains('amount must be at least') ||
+          lowered.contains('min_amount') ||
+          lowered.contains('trop petit') ||
+          (lowered.contains('amount') && lowered.contains('50'))) {
+        // Stripe minimum EUR = 0.50. Le backend ou Stripe renvoie un texte
+        // parlant de ce minimum — donner un message clair.
+        errorTitle = 'payment_invalid_amount_title'.tr;
+        errorMessage = 'payment_min_amount_message'.tr;
+      } else if (lowered.contains('amount') || lowered.contains('price')) {
         errorTitle = 'payment_invalid_amount_title'.tr;
         errorMessage = 'payment_invalid_amount_message'.tr;
       }
@@ -195,6 +215,118 @@ class StripePaymentController extends GetxController {
       isProcessing.value = false;
     } catch (e) {
       AppLogger.logError('Payment initiation failed', error: e);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'payment_initiate_error'.tr,
+      );
+      isProcessing.value = false;
+    }
+  }
+
+  /// v18.5 — #19 : paiement avec une carte DÉJÀ sauvegardée (PaymentMethod
+  /// attaché au Customer Stripe de l'owner). Pas besoin de saisir la carte,
+  /// on passe directement le pm_xxx à confirmPayment.
+  ///
+  /// Backend : createPaymentIntent doit être appelé avec le stripeCustomerId
+  /// de l'owner (déjà le cas depuis v18.2). On réutilise la même méthode.
+  Future<void> initiateAndConfirmPaymentWithSavedMethod({
+    required String paymentMethodId,
+  }) async {
+    if (isProcessing.value) return;
+
+    const minStripeAmount = 0.50;
+    if (totalAmount < minStripeAmount) {
+      CustomSnackbar.showError(
+        title: 'payment_invalid_amount_title'.tr,
+        message: 'payment_min_amount_message'.tr,
+      );
+      return;
+    }
+
+    isProcessing.value = true;
+
+    try {
+      final useLoyaltyCredit = Get.isRegistered<LoyaltyController>()
+          ? Get.find<LoyaltyController>().useLoyaltyCreditForNextPayment.value
+          : false;
+      final piResponse = await _ownerRepository.createPaymentIntent(
+        bookingId: booking.id,
+        useLoyaltyCredit: useLoyaltyCredit,
+      );
+      if (Get.isRegistered<LoyaltyController>()) {
+        Get.find<LoyaltyController>().useLoyaltyCreditForNextPayment.value = false;
+      }
+
+      _clientSecret =
+          piResponse['clientSecret'] as String? ??
+          piResponse['client_secret'] as String?;
+      _paymentIntentId =
+          piResponse['paymentIntentId'] as String? ??
+          piResponse['payment_intent_id'] as String?;
+      _publishableKey =
+          piResponse['publishableKey'] as String? ??
+          piResponse['publishable_key'] as String? ??
+          dotenv.env['STRIPE_PUBLISHABLE_KEY'];
+
+      if (_clientSecret == null || _clientSecret!.isEmpty) {
+        throw ApiException('payment_error_client_secret_missing'.tr);
+      }
+      if (_publishableKey == null || _publishableKey!.isEmpty) {
+        throw ApiException('payment_error_publishable_key_missing'.tr);
+      }
+      Stripe.publishableKey = _publishableKey!;
+      await Stripe.instance.applySettings();
+
+      // Confirm avec le PaymentMethod sauvegardé. Le backend a déjà attaché
+      // le PM au Customer via ownerPaymentMethods, donc pas besoin de
+      // billingDetails à ce moment-là.
+      await Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: _clientSecret!,
+        data: PaymentMethodParams.cardFromMethodId(
+          paymentMethodData: PaymentMethodDataCardFromMethod(
+            paymentMethodId: paymentMethodId,
+          ),
+        ),
+      );
+
+      if (_paymentIntentId != null && _paymentIntentId!.isNotEmpty) {
+        await confirmPayment(paymentIntentId: _paymentIntentId!);
+      } else {
+        Get.off(
+          () => PaymentResultScreen(
+            isSuccess: true,
+            message: 'payment_success_message'.tr,
+            amount: totalAmount,
+            currency: currency,
+            onContinue: () => Get.until((route) => route.isFirst),
+          ),
+        );
+        isProcessing.value = false;
+      }
+    } on StripeException catch (e) {
+      AppLogger.logError('Stripe payment (saved card) failed', error: e);
+      final errorCode = e.error.code.toString().toLowerCase();
+      final errorMessage = e.error.message?.toLowerCase() ?? '';
+      if (errorCode.contains('cancel') ||
+          errorMessage.contains('cancel') ||
+          errorMessage.contains('dismissed')) {
+        isProcessing.value = false;
+        return;
+      }
+      CustomSnackbar.showError(
+        title: 'payment_failed_title'.tr,
+        message: e.error.message ?? 'payment_processing_failed'.tr,
+      );
+      isProcessing.value = false;
+    } on ApiException catch (error) {
+      AppLogger.logError('Payment (saved card) init failed', error: error.message);
+      CustomSnackbar.showError(
+        title: 'payment_error_title'.tr,
+        message: error.message,
+      );
+      isProcessing.value = false;
+    } catch (e) {
+      AppLogger.logError('Payment (saved card) failed', error: e);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'payment_initiate_error'.tr,

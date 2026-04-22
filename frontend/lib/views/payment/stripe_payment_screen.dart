@@ -4,8 +4,10 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/stripe_payment_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
@@ -60,6 +62,15 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   final TextEditingController _holderEmailCtrl = TextEditingController();
   String _country = 'FR';
 
+  // v18.5 — #19 saved card auto-populate
+  // Si l'owner a une carte sauvegardée (via "Mes paiements"), on la propose
+  // en haut du formulaire en radio. Sélection = payer avec pm_xxx sans
+  // ressaisir le numéro. Tap "Utiliser une nouvelle carte" = révèle les
+  // CardFormField + form holder.
+  List<Map<String, dynamic>> _savedMethods = const [];
+  String? _selectedSavedPmId; // null = nouvelle carte
+  bool _loadingMethods = true;
+
   late final StripePaymentController _controller;
 
   @override
@@ -79,6 +90,27 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
       ),
       tag: tag,
     );
+    _loadSavedMethods();
+  }
+
+  /// v18.5 — #19 : fetch saved cards so the owner doesn't re-type.
+  Future<void> _loadSavedMethods() async {
+    try {
+      final repo = Get.find<OwnerRepository>();
+      final methods = await repo.getOwnerPaymentMethods();
+      if (!mounted) return;
+      setState(() {
+        _savedMethods = methods;
+        // Si au moins une carte, on présélectionne la 1re pour accélérer.
+        if (methods.isNotEmpty) {
+          _selectedSavedPmId = methods.first['id']?.toString();
+        }
+        _loadingMethods = false;
+      });
+    } catch (e) {
+      AppLogger.logDebug('StripePaymentScreen: load saved methods failed: $e');
+      if (mounted) setState(() => _loadingMethods = false);
+    }
   }
 
   @override
@@ -152,6 +184,17 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   }
 
   Future<void> _onPayTap() async {
+    // v18.5 — #19 : 2 routes possibles au moment du paiement.
+    // (A) Saved card sélectionnée → confirmPayment avec payment_method=pm_id
+    //     (pas de CardFormField, pas de holder name obligatoire).
+    // (B) Nouvelle carte → flow CardFormField comme avant.
+    if (_selectedSavedPmId != null && _selectedSavedPmId!.isNotEmpty) {
+      await _controller.initiateAndConfirmPaymentWithSavedMethod(
+        paymentMethodId: _selectedSavedPmId!,
+      );
+      return;
+    }
+
     if (_cardDetails == null || !(_cardDetails!.complete)) {
       CustomSnackbar.showError(
         title: 'payment_card_incomplete_title'.tr,
@@ -216,8 +259,15 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
                   children: [
                     _buildSummaryCard(context, accent),
                     SizedBox(height: 20.h),
-                    _buildCardFormSection(context, accent),
-                    SizedBox(height: 16.h),
+                    if (_savedMethods.isNotEmpty) ...[
+                      _buildSavedCardsSection(context, accent),
+                      SizedBox(height: 16.h),
+                    ],
+                    // La section carte inline n'apparaît que si l'user
+                    // choisit "Nouvelle carte" (ou n'a aucune carte).
+                    if (_selectedSavedPmId == null)
+                      _buildCardFormSection(context, accent),
+                    if (_selectedSavedPmId == null) SizedBox(height: 16.h),
                     _buildInfoBanner(context, accent),
                   ],
                 ),
@@ -377,6 +427,115 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
             color: accent,
           ),
         ],
+      ),
+    );
+  }
+
+  /// v18.5 — #19 : section "Cartes enregistrées" au-dessus du CardFormField.
+  /// Permet à l'owner de payer en 1 tap avec une carte déjà sauvegardée via
+  /// "Mes paiements", sans ressaisir le numéro.
+  Widget _buildSavedCardsSection(BuildContext context, Color accent) {
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.credit_card_rounded, size: 20.sp, color: accent),
+              SizedBox(width: 8.w),
+              PoppinsText(
+                text: 'payment_saved_cards_title'.tr,
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          for (final m in _savedMethods) _buildSavedCardOption(m, accent),
+          Divider(color: AppColors.grey300Color, height: 20.h),
+          GestureDetector(
+            onTap: () {
+              setState(() => _selectedSavedPmId = null);
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 4.w),
+              child: Row(
+                children: [
+                  Radio<String?>(
+                    value: null,
+                    groupValue: _selectedSavedPmId,
+                    onChanged: (v) =>
+                        setState(() => _selectedSavedPmId = null),
+                    activeColor: accent,
+                  ),
+                  SizedBox(width: 4.w),
+                  Icon(Icons.add_card_outlined, size: 18.sp, color: accent),
+                  SizedBox(width: 8.w),
+                  InterText(
+                    text: 'payment_use_new_card'.tr,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSavedCardOption(Map<String, dynamic> method, Color accent) {
+    final id = method['id']?.toString() ?? '';
+    final brand = (method['brand'] ?? method['card']?['brand'] ?? '')
+        .toString()
+        .toUpperCase();
+    final last4 =
+        (method['last4'] ?? method['card']?['last4'] ?? '').toString();
+    final expMonth =
+        (method['expMonth'] ?? method['card']?['exp_month'] ?? '').toString();
+    final expYear =
+        (method['expYear'] ?? method['card']?['exp_year'] ?? '').toString();
+    final expLabel = (expMonth.isNotEmpty && expYear.isNotEmpty)
+        ? ' — $expMonth/${expYear.length >= 2 ? expYear.substring(expYear.length - 2) : expYear}'
+        : '';
+    final label = '${brand.isNotEmpty ? brand : "CARD"} •••• $last4$expLabel';
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedSavedPmId = id),
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 4.w),
+        child: Row(
+          children: [
+            Radio<String?>(
+              value: id,
+              groupValue: _selectedSavedPmId,
+              onChanged: (v) => setState(() => _selectedSavedPmId = v),
+              activeColor: accent,
+            ),
+            SizedBox(width: 4.w),
+            Icon(Icons.credit_card, size: 18.sp, color: accent),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: InterText(
+                text: label,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

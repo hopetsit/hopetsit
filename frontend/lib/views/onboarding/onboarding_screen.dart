@@ -72,7 +72,7 @@ class OnboardingScreen extends StatelessWidget {
 
                   // ── App name ──
                   PoppinsText(
-                    text: 'HopeTSIT',
+                    text: 'HoPetSit',
                     fontSize: 32.sp,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,

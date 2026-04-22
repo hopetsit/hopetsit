@@ -38,7 +38,7 @@ class ReviewsScreen extends StatelessWidget {
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
-          text: 'Reviews',
+          text: 'reviews_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
@@ -141,7 +141,7 @@ class ReviewsScreen extends StatelessWidget {
 
                         // Rating Section
                         PoppinsText(
-                          text: 'Rate',
+                          text: 'reviews_rate_label'.tr,
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary(context),
@@ -176,7 +176,7 @@ class ReviewsScreen extends StatelessWidget {
 
                         // Description Section
                         InterText(
-                          text: 'Description',
+                          text: 'reviews_description_label'.tr,
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textPrimary(context),
@@ -197,7 +197,7 @@ class ReviewsScreen extends StatelessWidget {
                               controller.setDescription(value);
                             },
                             decoration: InputDecoration(
-                              hintText: 'Text...',
+                              hintText: 'reviews_description_hint'.tr,
                               hintStyle: TextStyle(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w400,
@@ -225,8 +225,8 @@ class ReviewsScreen extends StatelessWidget {
                               height: 48.h,
                               radius: 48.r,
                               title: controller.isLoading.value
-                                  ? 'Submitting...'
-                                  : 'Submit',
+                                  ? 'reviews_submitting'.tr
+                                  : 'reviews_submit'.tr,
                               bgColor: AppColors.primaryColor,
                               textColor: AppColors.whiteColor,
                               onTap:

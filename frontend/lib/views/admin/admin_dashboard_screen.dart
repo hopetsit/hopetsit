@@ -275,7 +275,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   size: 60.sp, color: AppColors.primaryColor),
               SizedBox(height: 16.h),
               InterText(
-                text: 'HopeTSIT Admin',
+                text: 'HoPetSit Admin',
                 fontSize: 22.sp,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary(context),

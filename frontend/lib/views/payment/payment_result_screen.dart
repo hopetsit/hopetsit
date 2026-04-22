@@ -109,7 +109,7 @@ class PaymentResultScreen extends StatelessWidget {
               // v18.5 — product name right under the logo so the success
               // feels like a branded confirmation, not a generic toast.
               PoppinsText(
-                text: 'HopeTSIT',
+                text: 'HoPetSit',
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primaryColor,
@@ -147,55 +147,31 @@ class PaymentResultScreen extends StatelessWidget {
 
               if (!isSuccess) SizedBox(height: 32.h),
 
-              // Action Button
+              // v18.5 — #17 : on retire le bouton "Noter le pet sitter" de
+              // l'écran paiement réussi car le service n'a pas encore eu
+              // lieu à ce moment-là. L'avis sera proposé à l'utilisateur
+              // sur l'écran "Mes réservations" quand le booking passe en
+              // statut 'completed'. Sur l'écran paiement réussi on garde
+              // juste "Retour à l'accueil" en succès et "Réessayer" en
+              // échec — avec la couleur du rôle (vert walker / bleu sitter)
+              // quand c'est un succès.
               CustomButton(
-                title: isSuccess ? 'payment_rate_sitter'.tr : 'payment_try_again'.tr,
-                onTap: () async {
-                  if (isSuccess && booking != null) {
-                    final sitterId = booking!.sitter.id;
-                    final userController = Get.find<UserController>();
-
-                    // If the user's profile is loaded and contains a review for this sitter,
-                    // don't navigate to the review screen.
-                    if (userController.profile.value == null) {
-                      await userController.loadMyProfile();
-                    }
-
-                    final reviewsGiven =
-                        userController.profile.value?.reviewsGiven ?? const [];
-                    if (_alreadyReviewed(reviewsGiven, sitterId)) {
-                      CustomSnackbar.showWarning(
-                        title: 'review_already_reviewed_title'.tr,
-                        message:
-                            'snackbar_text_you_have_already_reviewed_this_sitter_you_can_only_submit_on',
-                      );
-                      return;
-                    }
-
-                    // Navigate to reviews screen
-                    Get.off(
-                      () => ReviewsScreen(
-                        serviceProviderName: booking!.sitter.name,
-                        phoneNumber: booking!.sitter.mobile,
-                        email: booking!.sitter.email,
-                        profileImagePath: booking!.sitter.avatar.url.isNotEmpty
-                            ? booking!.sitter.avatar.url
-                            : null,
-                        serviceProviderId: booking!.sitter.id,
-                      ),
-                    );
-                  } else if (isSuccess) {
-                    // Fallback: Navigate back to home if no booking data
+                title: isSuccess
+                    ? 'common_back_to_home'.tr
+                    : 'payment_try_again'.tr,
+                onTap: () {
+                  if (isSuccess) {
                     Get.until(
                       (route) =>
                           route.isFirst || route.settings.name == '/home',
                     );
                   } else {
-                    // For failed payments, use custom onContinue or go back
                     onContinue ?? Get.back();
                   }
                 },
-                bgColor: AppColors.primaryColor,
+                bgColor: isSuccess
+                    ? _resolveAccentColor()
+                    : AppColors.primaryColor,
                 textColor: AppColors.whiteColor,
                 height: 48.h,
                 radius: 48.r,
@@ -317,6 +293,24 @@ class PaymentResultScreen extends StatelessWidget {
       'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  /// v18.5 — #17 : resolve the role accent color (green for walker,
+  /// blue for sitter, fallback primary). Used to color the "back to home"
+  /// button on the payment success screen so it matches the role that was
+  /// just paid.
+  Color _resolveAccentColor() {
+    if (booking == null) return AppColors.primaryColor;
+    final service = (booking!.serviceType ?? '').toLowerCase();
+    if (service.contains('dog_walking') || service.contains('walking')) {
+      return const Color(0xFF16A34A); // walker green
+    }
+    if (service.contains('sitting') ||
+        service.contains('day_care') ||
+        service.contains('boarding')) {
+      return const Color(0xFF2563EB); // sitter blue
+    }
+    return AppColors.primaryColor;
   }
 
   bool _alreadyReviewed(List<dynamic> reviewsGiven, String sitterId) {

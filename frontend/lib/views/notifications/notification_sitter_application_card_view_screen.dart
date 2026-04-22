@@ -59,6 +59,15 @@ class _NotificationSitterApplicationCardViewScreenState
       formattedDate = booking.date;
     }
 
+    // v18.5 — #20 : dérive le rôle du provider pour colorer l'écran
+    // (walker = vert, sitter = bleu). Heuristique : serviceType contient
+    // "walking" → walker, sinon sitter.
+    final serviceLower = (booking.serviceType ?? '').toLowerCase();
+    final derivedRole = (serviceLower.contains('walking') ||
+            serviceLower.contains('dog_walking'))
+        ? 'walker'
+        : 'sitter';
+
     return PetSitterApplication(
       id: booking.id,
       petName: booking.petName,
@@ -75,6 +84,11 @@ class _NotificationSitterApplicationCardViewScreenState
       ownerId: booking.owner.id,
       status: booking.status,
       paymentStatus: booking.paymentStatus ?? 'pending',
+      // v18.5 — #20 : prix TTC + net (80%) visibles avant d'accepter.
+      totalPrice: booking.pricing?.totalPrice ?? booking.totalAmount,
+      netPayout: booking.pricing?.netPayout,
+      currency: booking.pricing?.currency ?? booking.sitter.currency,
+      providerRole: derivedRole,
     );
   }
 

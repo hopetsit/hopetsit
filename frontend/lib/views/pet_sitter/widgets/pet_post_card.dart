@@ -313,15 +313,24 @@ class PetPostCard extends StatelessWidget {
                           SizedBox(width: 8.w),
                         if (onSendRequest != null)
                           Expanded(
+                            // v18.5 — #18 : quand le post est réservé
+                            // (badge "Réservé"), on désactive le bouton
+                            // "Envoyer la demande" et on le remplace par
+                            // un label "Déjà réservé" grisé. Empêche
+                            // d'envoyer une candidature sur une annonce
+                            // déjà prise.
                             child: _buildPrimaryButton(
-                              onTap: isRequestLoading ? null : onSendRequest,
+                              onTap: (isRequestLoading || isReserved)
+                                  ? null
+                                  : onSendRequest,
                               isLoading: isRequestLoading,
                               isCancelRequest: isCancelRequest,
-                              buttonText:
-                                  requestButtonText ??
-                                  (isCancelRequest
-                                      ? 'service_card_cancel'.tr
-                                      : 'send_request_button'.tr),
+                              buttonText: isReserved
+                                  ? 'post_already_reserved_cta'.tr
+                                  : (requestButtonText ??
+                                      (isCancelRequest
+                                          ? 'service_card_cancel'.tr
+                                          : 'send_request_button'.tr)),
                             ),
                           ),
                       ],
