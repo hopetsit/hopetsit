@@ -83,6 +83,16 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
       ? const Color(0xFF16A34A)
       : const Color(0xFF2563EB);
 
+  // v18.7 : pour cacher les boîtes d'attribut vides/non-définies.
+  bool _hasValue(String s) {
+    final v = s.trim().toLowerCase();
+    if (v.isEmpty) return false;
+    if (v == 'pas encore défini' || v == 'pas encore defini') return false;
+    if (v == 'non défini' || v == 'non defini') return false;
+    if (v == 'n/a' || v == '-') return false;
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final onStartChat = widget.onStartChat;
@@ -206,25 +216,30 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
         // ),
         // SizedBox(width: 12.w),
 
-        // Attribute Boxes
+        // Attribute Boxes — v18.7 : si la valeur est vide/non défini,
+        // on n'affiche plus la boîte du tout (plus propre que "Non défini").
         Expanded(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildAttributeBox(
-                  'sitter_pet_weight'.tr,
-                  application.weight,
-                  _roleAccent,
-                ),
-                SizedBox(width: 8.w),
-                _buildAttributeBox(
-                  'sitter_pet_height'.tr,
-                  application.height,
-                  _roleAccent,
-                ),
-                SizedBox(width: 8.w),
-                _buildAttributeBox(
+                if (_hasValue(application.weight)) ...[
+                  _buildAttributeBox(
+                    'sitter_pet_weight'.tr,
+                    application.weight,
+                    _roleAccent,
+                  ),
+                  SizedBox(width: 8.w),
+                ],
+                if (_hasValue(application.height)) ...[
+                  _buildAttributeBox(
+                    'sitter_pet_height'.tr,
+                    application.height,
+                    _roleAccent,
+                  ),
+                  SizedBox(width: 8.w),
+                ],
+                if (_hasValue(application.color)) _buildAttributeBox(
                   'sitter_pet_color'.tr,
                   application.color,
                   _roleAccent,

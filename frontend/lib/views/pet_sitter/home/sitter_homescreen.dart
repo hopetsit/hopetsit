@@ -606,8 +606,18 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             // Handle profile tap
             AppLogger.logDebug('SitterHomescreen: profile tapped');
           },
-          // v18.6 — mini bouton Boost (bleu sitter) à côté de la cloche.
-          actions: const [BoostQuickAction(role: 'sitter')],
+          // v18.7 — mini bouton Boost. Puisque SitterHomescreen est aussi
+          // utilisé comme home tab par WalkerNavWrapper, on résout le rôle
+          // dynamiquement via AuthController pour que le walker voie la
+          // fusée VERTE (et pas bleue).
+          actions: [
+            Obx(() {
+              final role = Get.isRegistered<AuthController>()
+                  ? (Get.find<AuthController>().userRole.value ?? 'sitter')
+                  : 'sitter';
+              return BoostQuickAction(role: role);
+            }),
+          ],
         ),
         body: SafeArea(
           child: RefreshIndicator(
