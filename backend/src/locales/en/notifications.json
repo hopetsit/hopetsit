@@ -14,8 +14,8 @@
   "booking_accepted": {
     "title": "Booking accepted",
     "body": "Your booking request was accepted. Proceed to payment.",
-    "emailSubject": "Your booking was accepted — HopeTSIT",
-    "emailBody": "<p>Good news — your booking request was accepted. Open the app to complete the payment.</p>"
+    "emailSubject": "Your booking was accepted — HoPetSit",
+    "emailBody": "<p>Good news — your booking request was accepted.</p><p><a href=\"hopetsit://pay/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pay now</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
   },
   "booking_rejected": {
     "title": "Booking rejected",
@@ -94,5 +94,17 @@
     "body": "Your booking has been marked as completed. Leave a review!",
     "emailSubject": "Booking completed — HopeTSIT",
     "emailBody": "<p>Your booking is now marked as <strong>completed</strong>. Please leave a review to help the community.</p>"
+  },
+  "BOOKING_PAID_CHAT_UNLOCKED": {
+    "title": "Payment received — chat unlocked",
+    "body": "The chat is now open. Agree on the exact location and details with your contact.",
+    "emailSubject": "Payment confirmed — chat is open on HoPetSit",
+    "emailBody": "<p>Good news! Your booking payment has been confirmed.</p><p>The chat is now unlocked: open the HoPetSit app to agree on the exact location and details of the service.</p><p>— The HoPetSit team</p>"
+  },
+  "CHAT_AUTO_WELCOME": {
+    "title": "Chat unlocked",
+    "body": "Hello 👋 Let's chat here to agree on the exact location and details of the service.",
+    "emailSubject": "",
+    "emailBody": ""
   }
 }

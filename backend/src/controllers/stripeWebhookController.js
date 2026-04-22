@@ -6,10 +6,122 @@
  */
 
 const Booking = require('../models/Booking');
+const Conversation = require('../models/Conversation');
+const Message = require('../models/Message');
+const Owner = require('../models/Owner');
+const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
+const path = require('path');
+const fs = require('fs');
 const { constructWebhookEvent } = require('../services/stripeService');
 const { createNotificationSafe } = require('../services/notificationService');
 const { sendNotification } = require('../services/notificationSender');
+const { emitToUser } = require('../sockets/emitter');
 const logger = require('../utils/logger');
+
+// v18.6 — helper léger pour récupérer la langue d'un user (fallback 'fr').
+const _getUserLanguage = async (role, userId) => {
+  try {
+    const Model =
+      role === 'sitter' ? Sitter :
+      role === 'walker' ? Walker :
+      role === 'owner' ? Owner : null;
+    if (!Model || !userId) return 'fr';
+    const u = await Model.findById(userId).select('language').lean();
+    const raw = String(u?.language || '').toLowerCase().slice(0, 2);
+    return ['fr', 'en', 'es', 'de', 'it', 'pt'].includes(raw) ? raw : 'fr';
+  } catch (_) {
+    return 'fr';
+  }
+};
+
+// v18.6 — lit le body de CHAT_AUTO_WELCOME dans la locale de l'user.
+const _loadWelcomeMessage = (locale) => {
+  try {
+    const file = path.join(__dirname, '..', 'locales', locale, 'notifications.json');
+    const json = JSON.parse(fs.readFileSync(file, 'utf8') || '{}');
+    return json?.CHAT_AUTO_WELCOME?.body
+      || "Bonjour 👋 Échangeons ici pour convenir du lieu exact et des détails de la prestation.";
+  } catch (_) {
+    return "Bonjour 👋 Échangeons ici pour convenir du lieu exact et des détails de la prestation.";
+  }
+};
+
+/**
+ * v18.6 — chat unlock + welcome message + notifs BOOKING_PAID_CHAT_UNLOCKED.
+ * Appelé par le webhook Stripe quand payment_intent.succeeded.
+ */
+const _unlockChatAndWelcome = async ({ ownerId, providerId, providerRole, bookingId }) => {
+  if (!ownerId || !providerId || !providerRole) return;
+
+  // 1) Get or create Conversation (walker aware depuis v18.6).
+  const query = { ownerId };
+  if (providerRole === 'walker') {
+    query.walkerId = providerId;
+  } else {
+    query.sitterId = providerId;
+  }
+  let convo = await Conversation.findOne(query);
+  if (!convo) {
+    convo = await Conversation.create({
+      ownerId,
+      sitterId: providerRole === 'sitter' ? providerId : null,
+      walkerId: providerRole === 'walker' ? providerId : null,
+      ownerUnreadCount: 1,
+      sitterUnreadCount: providerRole === 'sitter' ? 1 : 0,
+    });
+  }
+
+  // 2) Post welcome message from 'system' sender. On choisit la locale de
+  // l'owner comme langue du message visible (le chat est partagé donc un
+  // seul texte). Les notifs elles sont traduites par destinataire.
+  const ownerLocale = await _getUserLanguage('owner', ownerId);
+  const welcomeBody = _loadWelcomeMessage(ownerLocale);
+  const sysMessage = await Message.create({
+    conversationId: convo._id,
+    senderRole: 'system',
+    senderId: convo._id, // placeholder, pas d'user — on met l'id du convo.
+    body: welcomeBody,
+    type: 'text',
+  });
+  convo.lastMessage = welcomeBody;
+  convo.lastMessageAt = new Date();
+  if (providerRole === 'sitter') {
+    convo.sitterUnreadCount = (convo.sitterUnreadCount || 0) + 1;
+  }
+  convo.ownerUnreadCount = (convo.ownerUnreadCount || 0) + 1;
+  await convo.save();
+
+  // Real-time socket push.
+  try {
+    emitToUser('owner', ownerId, 'message.new', {
+      conversationId: convo._id.toString(),
+      messageId: sysMessage._id.toString(),
+      body: welcomeBody,
+    });
+    emitToUser(providerRole, providerId, 'message.new', {
+      conversationId: convo._id.toString(),
+      messageId: sysMessage._id.toString(),
+      body: welcomeBody,
+    });
+  } catch (_) {}
+
+  // 3) Send BOOKING_PAID_CHAT_UNLOCKED to both (in-app + FCM + email).
+  await Promise.allSettled([
+    sendNotification({
+      userId: ownerId,
+      role: 'owner',
+      type: 'BOOKING_PAID_CHAT_UNLOCKED',
+      data: { bookingId, conversationId: convo._id.toString() },
+    }),
+    sendNotification({
+      userId: providerId,
+      role: providerRole,
+      type: 'BOOKING_PAID_CHAT_UNLOCKED',
+      data: { bookingId, conversationId: convo._id.toString() },
+    }),
+  ]);
+};
 
 /**
  * Handle Stripe webhook events
@@ -124,7 +236,13 @@ const handlePaymentIntentSucceeded = async (paymentIntent) => {
       },
     });
 
-    // Sprint 4 step 3 — PAYMENT_SUCCESS to owner + sitter
+    // Sprint 4 step 3 — PAYMENT_SUCCESS to owner + provider
+    // v18.6 — walker parity : router vers sitter OU walker selon la booking.
+    const providerId = booking.walkerId
+      ? (booking.walkerId.toString?.() || String(booking.walkerId))
+      : (booking.sitterId?.toString?.() || String(booking.sitterId));
+    const providerRole = booking.walkerId ? 'walker' : 'sitter';
+
     const paymentData = {
       bookingId: booking._id.toString(),
       amount: (paymentIntent.amount / 100).toFixed(2),
@@ -137,13 +255,30 @@ const handlePaymentIntentSucceeded = async (paymentIntent) => {
         type: 'PAYMENT_SUCCESS',
         data: paymentData,
       }),
-      sendNotification({
-        userId: booking.sitterId?.toString(),
-        role: 'sitter',
-        type: 'PAYMENT_SUCCESS',
-        data: paymentData,
-      }),
+      providerId
+        ? sendNotification({
+            userId: providerId,
+            role: providerRole,
+            type: 'PAYMENT_SUCCESS',
+            data: paymentData,
+          })
+        : Promise.resolve(),
     ]).catch(() => {});
+
+    // v18.6 — chat unlock + auto-welcome message en langue du destinataire.
+    // Crée (ou récupère) la Conversation owner↔provider puis insert un
+    // message système "Bonjour 👋 Échangeons ici...". Envoie aussi
+    // BOOKING_PAID_CHAT_UNLOCKED (bell + FCM + email) aux 2.
+    try {
+      await _unlockChatAndWelcome({
+        ownerId: booking.ownerId?.toString?.() || String(booking.ownerId),
+        providerId,
+        providerRole,
+        bookingId: booking._id.toString(),
+      });
+    } catch (chatErr) {
+      logger.warn('[webhook paid] chat unlock failed (non-blocking)', chatErr?.message || chatErr);
+    }
 
     logger.info(`✅ Booking ${bookingId} marked as PAID via webhook (payment_status: paid)`);
   } catch (error) {

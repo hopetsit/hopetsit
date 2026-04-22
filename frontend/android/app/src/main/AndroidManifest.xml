@@ -39,6 +39,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- v18.6 — deep link hopetsit://pay/:bookingId depuis email
+                 "Payer maintenant". Quand l'user tape le bouton du mail,
+                 Android ouvre l'app sur cet intent et le handler Flutter
+                 route vers StripePaymentScreen. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="hopetsit" />
+            </intent-filter>
         </activity>
         <!-- Google Maps API Key -->
         <meta-data

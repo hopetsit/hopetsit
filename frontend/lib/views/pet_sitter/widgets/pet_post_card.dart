@@ -28,6 +28,10 @@ class PetPostCard extends StatelessWidget {
   final VoidCallback? onComment;
   final VoidCallback? onShare;
   final VoidCallback? onDelete;
+  /// v18.6 — callback "Modifier l'annonce". Si null, l'icône stylo n'est
+  /// pas affichée. Désactivée UI-side quand isReserved=true pour éviter
+  /// de modifier une annonce déjà prise.
+  final VoidCallback? onEdit;
   final VoidCallback? onViewPetDetails;
   final VoidCallback? onSendRequest;
   final bool isRequestLoading;
@@ -50,6 +54,11 @@ class PetPostCard extends StatelessWidget {
   /// badge in the header so other providers know the slot is taken.
   /// [reservedProviderRole] ('walker' | 'sitter' | null) colours the badge.
   final bool isReserved;
+  /// v18.6 — #24 : true quand l'owner consulte SA propre publication.
+  /// Force la couleur du badge "Réservé" en orange HoPetSit pour un état
+  /// immédiatement lisible côté owner. Sur le feed sitter/walker, garde
+  /// la couleur du provider qui a réservé.
+  final bool ownerViewOfOwnPost;
   final String? reservedProviderRole;
 
   const PetPostCard({
@@ -71,6 +80,7 @@ class PetPostCard extends StatelessWidget {
     this.onComment,
     this.onShare,
     this.onDelete,
+    this.onEdit,
     this.onViewPetDetails,
     this.onSendRequest,
     this.isRequestLoading = false,
@@ -81,6 +91,7 @@ class PetPostCard extends StatelessWidget {
     this.priceEstimate,
     this.viewerRole,
     this.isReserved = false,
+    this.ownerViewOfOwnPost = false,
     this.reservedProviderRole,
   });
 
@@ -157,15 +168,45 @@ class PetPostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (onDelete != null)
-                  IconButton(
-                    onPressed: onDelete,
-                    icon: Icon(
-                      Icons.delete_outline_rounded,
-                      color: AppColors.errorColor,
-                      size: 22.sp,
+                // v18.6 — stylo Modifier (désactivé si isReserved) + poubelle
+                // relookée (rond rouge pastel, icône blanche). Les 2 sont
+                // côte à côte dans un wrapper animé.
+                if (onEdit != null)
+                  Container(
+                    margin: EdgeInsets.only(right: 4.w),
+                    decoration: BoxDecoration(
+                      color: isReserved
+                          ? AppColors.grey300Color.withValues(alpha: 0.4)
+                          : const Color(0xFF2563EB).withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
                     ),
-                    tooltip: 'post_action_delete'.tr,
+                    child: IconButton(
+                      onPressed: isReserved ? null : onEdit,
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        color: isReserved
+                            ? AppColors.grey500Color
+                            : const Color(0xFF2563EB),
+                        size: 20.sp,
+                      ),
+                      tooltip: 'post_action_edit'.tr,
+                    ),
+                  ),
+                if (onDelete != null)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.errorColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      onPressed: onDelete,
+                      icon: Icon(
+                        Icons.delete_outline_rounded,
+                        color: AppColors.errorColor,
+                        size: 20.sp,
+                      ),
+                      tooltip: 'post_action_delete'.tr,
+                    ),
                   ),
                 if (onBlockUser != null || onReportPost != null)
                   PopupMenuButton<String>(
@@ -538,11 +579,19 @@ class PetPostCard extends StatelessWidget {
   /// translation key; falls back to "Réservé" when the key is missing.
   Widget _buildReservedBadge() {
     final role = (reservedProviderRole ?? '').toLowerCase();
-    final Color accent = role == 'walker'
-        ? const Color(0xFF16A34A)
-        : role == 'sitter'
-            ? const Color(0xFF2563EB)
-            : const Color(0xFF6B7280);
+    // v18.6 — #24 : quand l'owner visualise SES propres publications
+    // (ownerViewOfOwnPost=true, passé depuis "Mes publications"), on force
+    // la couleur orange HoPetSit pour que le badge soit immédiatement
+    // reconnaissable comme état du post. Pour les autres rôles (sitter/
+    // walker qui voient le post d'un owner), on garde la couleur du
+    // provider qui a réservé (vert walker / bleu sitter).
+    final Color accent = ownerViewOfOwnPost
+        ? AppColors.primaryColor
+        : (role == 'walker'
+            ? const Color(0xFF16A34A)
+            : role == 'sitter'
+                ? const Color(0xFF2563EB)
+                : const Color(0xFF6B7280));
     final String label = 'reserved_badge'.tr == 'reserved_badge'
         ? 'Réservé'
         : 'reserved_badge'.tr;

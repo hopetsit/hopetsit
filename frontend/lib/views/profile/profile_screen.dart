@@ -13,6 +13,7 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 // v18.2 — Mes paiements entry point.
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
@@ -41,6 +42,10 @@ class ProfileScreen extends StatelessWidget {
 
                   // Quick Actions Row
                   _buildQuickActions(controller),
+                  SizedBox(height: 20.h),
+
+                  // v18.6 — Bouton "Booster mon profil" (orange owner).
+                  const BoostProfileCard(role: 'owner'),
                   SizedBox(height: 20.h),
 
                   // Switch Role Cards — shows the 2 other roles the user can switch to.

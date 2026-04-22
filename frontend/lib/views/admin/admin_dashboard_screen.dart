@@ -324,12 +324,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   // ─── STATS TAB ─────────────────────────────────────────────────────────────
   Widget _buildStatsTab() {
     if (_statsLoading) return const Center(child: CircularProgressIndicator());
+    // v18.6 — walker + paid today + revenue today ajoutés.
+    num _asNum(dynamic v) => v is num ? v : (num.tryParse('${v ?? 0}') ?? 0);
     final cards = [
       {'label': 'Total Bookings', 'value': '${_stats['totalBookings'] ?? 0}', 'icon': Icons.book, 'color': Colors.blue},
       {'label': 'Paid Bookings', 'value': '${_stats['paidBookings'] ?? 0}', 'icon': Icons.check_circle, 'color': Colors.green},
+      {'label': 'Paid Today', 'value': '${_stats['paidToday'] ?? 0}', 'icon': Icons.today, 'color': Colors.lightGreen},
       {'label': 'Pending', 'value': '${_stats['pendingBookings'] ?? 0}', 'icon': Icons.hourglass_empty, 'color': Colors.orange},
-      {'label': 'Total Revenue', 'value': '€${(_stats['totalRevenue'] ?? 0).toStringAsFixed(2)}', 'icon': Icons.euro, 'color': Colors.purple},
+      {'label': 'Today Revenue', 'value': '€${_asNum(_stats['todayRevenue']).toStringAsFixed(2)}', 'icon': Icons.trending_up, 'color': Colors.deepOrange},
+      {'label': 'Total Revenue', 'value': '€${_asNum(_stats['totalRevenue']).toStringAsFixed(2)}', 'icon': Icons.euro, 'color': Colors.purple},
       {'label': 'Sitters', 'value': '${_stats['totalSitters'] ?? 0}', 'icon': Icons.pets, 'color': Colors.teal},
+      {'label': 'Walkers', 'value': '${_stats['totalWalkers'] ?? 0}', 'icon': Icons.directions_walk, 'color': Colors.green},
       {'label': 'Owners', 'value': '${_stats['totalOwners'] ?? 0}', 'icon': Icons.person, 'color': Colors.indigo},
       {'label': 'Pets', 'value': '${_stats['totalPets'] ?? 0}', 'icon': Icons.emoji_nature, 'color': Colors.pink},
     ];

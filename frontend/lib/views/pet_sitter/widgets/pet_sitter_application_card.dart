@@ -308,14 +308,18 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
   }
 
   Widget _buildAttributeBox(String title, String value, Color valueColor) {
-    final displayValue = value.isEmpty ? 'sitter_not_yet_available'.tr : value;
+    // v18.6 — boîtes agrandies pour éviter "Pas encore d..." tronqué.
+    // Largeur 92.w (au lieu de 78), hauteur auto, padding plus généreux,
+    // et texte clean avec fallback "—" quand vide.
+    final displayValue = value.isEmpty || value.trim().toLowerCase() == 'pas encore défini'
+        ? 'application_card_color_unknown'.tr
+        : value;
     return Container(
-      height: 72.h,
-      width: 78.w,
-      padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 4.w),
+      constraints: BoxConstraints(minHeight: 76.h, minWidth: 92.w),
+      padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
       decoration: BoxDecoration(
         color: AppColors.detailBoxColor,
-        borderRadius: BorderRadius.circular(17.r),
+        borderRadius: BorderRadius.circular(14.r),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -327,16 +331,14 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
             color: AppColors.textSecondary(context),
           ),
           SizedBox(height: 4.h),
-          Flexible(
-            child: PoppinsText(
-              text: displayValue,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
-              color: valueColor,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
+          PoppinsText(
+            text: displayValue,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: valueColor,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ],
       ),

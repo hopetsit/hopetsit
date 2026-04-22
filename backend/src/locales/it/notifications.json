@@ -58,5 +58,17 @@
     "body": "La tua prenotazione è stata marcata come completata. Lascia una recensione!",
     "emailSubject": "Prenotazione completata — HopeTSIT",
     "emailBody": "<p>La tua prenotazione è ora <strong>completata</strong>. Lascia una recensione per aiutare la comunità.</p>"
+  },
+  "BOOKING_PAID_CHAT_UNLOCKED": {
+    "title": "Pagamento ricevuto — chat sbloccata",
+    "body": "La chat è ora aperta. Concorda luogo esatto e dettagli con il tuo contatto.",
+    "emailSubject": "Pagamento confermato — chat aperta su HoPetSit",
+    "emailBody": "<p>Ottime notizie! Il pagamento della prenotazione è stato confermato.</p><p>La chat è ora sbloccata: apri l'app HoPetSit per concordare luogo e dettagli.</p><p>— Il team HoPetSit</p>"
+  },
+  "CHAT_AUTO_WELCOME": {
+    "title": "Chat sbloccata",
+    "body": "Ciao 👋 Parliamo qui per concordare il luogo esatto e i dettagli del servizio.",
+    "emailSubject": "",
+    "emailBody": ""
   }
 }

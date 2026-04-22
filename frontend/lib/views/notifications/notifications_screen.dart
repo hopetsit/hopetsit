@@ -752,174 +752,68 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
-    // 5) Pending → show the compact Accept / Refuse dialog.
+    // 5) Pending → v18.6 : on saute le dialog "Accepter et payer" et on
+    // envoie direct sur la page paiement. La nouvelle StripePaymentScreen
+    // (v18.5) affiche déjà provider + service + date + montant dans le
+    // summary card, donc le dialog faisait doublon. Pour rejeter une
+    // candidature, l'owner passe par l'onglet "Réservations" qui a déjà
+    // un bouton reject. Tap sur la notif = consentement à accepter et
+    // payer. Le bouton "Annuler" de la StripePaymentScreen laisse quand
+    // même un retour arrière sans charge (PaymentIntent pas confirmé).
     if (!context.mounted) return;
-    final providerName =
-        (appJson['sitter']?['name'] as String? ?? '').trim();
-    final petName = (appJson['pet']?['name'] as String? ?? '').trim();
-    final price = appJson['pricing']?['totalPrice'];
-    final currency = appJson['pricing']?['currency']?.toString()
-        ?? appJson['sitter']?['currency']?.toString()
-        ?? 'EUR';
-    final priceLabel = (price is num)
-        ? '${price.toStringAsFixed(2)} $currency'
-        : '';
 
-    final choice = await showDialog<String>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.whiteColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18.r),
-          ),
-          title: InterText(
-            text: resolvedProviderType == 'walker'
-                ? 'role_walker'.tr
-                : 'role_sitter'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
-            color: accent,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (providerName.isNotEmpty)
-                InterText(
-                  text: providerName,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.blackColor,
-                ),
-              if (petName.isNotEmpty) ...[
-                SizedBox(height: 6.h),
-                InterText(
-                  text: petName,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.grey700Color,
-                ),
-              ],
-              if (priceLabel.isNotEmpty) ...[
-                SizedBox(height: 10.h),
-                InterText(
-                  text: priceLabel,
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.w700,
-                  color: accent,
-                ),
-              ],
-            ],
-          ),
-          actionsPadding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop('reject'),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFEF4444),
-              ),
-              child: Text('common_cancel'.tr),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop('accept'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accent,
-                foregroundColor: AppColors.whiteColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24.r),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 8.h),
-              ),
-              child: Text(
-                'dialog_accept_and_pay'.tr == 'dialog_accept_and_pay'
-                    ? 'Accepter'
-                    : 'dialog_accept_and_pay'.tr,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (choice == null) return;
-
-    if (choice == 'reject') {
-      try {
-        await ownerRepo.respondToApplication(
-          applicationId: applicationId,
-          action: 'reject',
-        );
-        CustomSnackbar.showSuccess(
-          title: 'common_success'.tr,
-          message: 'application_reject_success'.tr,
-        );
-      } catch (e) {
-        AppLogger.logError('dialog reject failed', error: e);
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'application_action_failed'.tr,
-        );
-      }
+    Map<String, dynamic>? response;
+    try {
+      response = await ownerRepo.respondToApplication(
+        applicationId: applicationId,
+        action: 'accept',
+      );
+    } catch (e) {
+      AppLogger.logError('notif accept failed', error: e);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'application_action_failed'.tr,
+      );
       return;
     }
 
-    // Accept path — call backend, then StripePaymentScreen.
-    if (choice == 'accept') {
-      Map<String, dynamic>? response;
+    // Re-use BookingModel parser so StripePaymentScreen gets a real object.
+    final bookingMap = response['booking'];
+    if (bookingMap is Map) {
       try {
-        response = await ownerRepo.respondToApplication(
-          applicationId: applicationId,
-          action: 'accept',
+        final booking = BookingModel.fromJson(
+          Map<String, dynamic>.from(bookingMap),
         );
-      } catch (e) {
-        AppLogger.logError('dialog accept failed', error: e);
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'application_action_failed'.tr,
+        final pricing = booking.pricing;
+        final base = (pricing?.totalPrice
+                ?? pricing?.resolvedBaseAmount
+                ?? booking.totalAmount
+                ?? booking.basePrice) ??
+            0.0;
+        if (!context.mounted) return;
+        Get.to(
+          () => StripePaymentScreen(
+            booking: booking,
+            totalAmount: base,
+            currency: pricing?.currency ?? booking.sitter.currency,
+            providerType: resolvedProviderType,
+          ),
         );
-        return;
-      }
-
-      // Re-use BookingModel parser so StripePaymentScreen gets a real object.
-      final bookingMap = response['booking'];
-      if (bookingMap is Map) {
-        try {
-          final booking = BookingModel.fromJson(
-            Map<String, dynamic>.from(bookingMap),
-          );
-          final pricing = booking.pricing;
-          final base = (pricing?.totalPrice
-                  ?? pricing?.resolvedBaseAmount
-                  ?? booking.totalAmount
-                  ?? booking.basePrice) ??
-              0.0;
-          if (!context.mounted) return;
-          Get.to(
-            () => StripePaymentScreen(
-              booking: booking,
-              totalAmount: base,
-              currency: pricing?.currency ?? booking.sitter.currency,
-              providerType: resolvedProviderType,
-            ),
-          );
-          if (Get.isRegistered<BookingsController>()) {
-            unawaited(Get.find<BookingsController>().loadBookings());
-          }
-        } catch (e) {
-          AppLogger.logError('dialog accept: parse booking failed', error: e);
-          CustomSnackbar.showError(
-            title: 'common_error'.tr,
-            message: 'payment_unavailable_message'.tr,
-          );
+        if (Get.isRegistered<BookingsController>()) {
+          unawaited(Get.find<BookingsController>().loadBookings());
         }
-      } else {
+      } catch (e) {
+        AppLogger.logError('notif accept: parse booking failed', error: e);
         CustomSnackbar.showError(
           title: 'common_error'.tr,
           message: 'payment_unavailable_message'.tr,
         );
       }
+    } else {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'payment_unavailable_message'.tr,
+      );
     }
   }
 

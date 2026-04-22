@@ -365,13 +365,69 @@ class EditWalkerProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
-                    // Language
-                    CustomTextField(
-                      labelText: 'label_language'.tr,
-                      hintText: 'hint_language'.tr,
-                      controller: controller.languageController,
-                      textInputAction: TextInputAction.next,
+                    // v18.6 — Langue en multi-select chips, cohérent
+                    // avec sitter/owner (plus de champ texte).
+                    InterText(
+                      text: 'label_language'.tr,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary(context),
                     ),
+                    SizedBox(height: 8.h),
+                    Obx(() {
+                      final selected = controller.selectedLanguages;
+                      const languages = [
+                        'Français', 'English', 'Deutsch', 'Español',
+                        'Italiano', 'Português', 'العربية', '中文',
+                        '日本語', '한국어', 'Русский', 'Türkçe',
+                        'Nederlands', 'Polski', 'हिन्दी',
+                      ];
+                      return Wrap(
+                        spacing: 8.w,
+                        runSpacing: 8.h,
+                        children: languages.map((lang) {
+                          final isSelected = selected.contains(lang);
+                          return GestureDetector(
+                            onTap: () {
+                              if (isSelected) {
+                                selected.remove(lang);
+                              } else {
+                                selected.add(lang);
+                              }
+                              controller.languageController.text =
+                                  selected.join(', ');
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12.w,
+                                vertical: 8.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFF16A34A)
+                                    : AppColors.inputFill(context),
+                                borderRadius: BorderRadius.circular(20.r),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF16A34A)
+                                      : AppColors.divider(context),
+                                ),
+                              ),
+                              child: InterText(
+                                text: lang,
+                                fontSize: 13.sp,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textPrimary(context),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }),
 
                     SizedBox(height: 24.h),
 

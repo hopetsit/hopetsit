@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -382,6 +383,9 @@ class SitterProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // v18.6 — Booster mon profil (bleu sitter).
+        BoostProfileCard(role: 'sitter'),
+        SizedBox(height: 16.h),
         // Switch Role Cards — shows the 2 other roles (3-way switch).
         _buildSwitchRoleCards(context),
 

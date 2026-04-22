@@ -15,6 +15,7 @@ import '../repositories/user_repository.dart';
 import '../repositories/walker_repository.dart';
 import '../repositories/notifications_repository.dart';
 import '../services/socket_service.dart';
+import '../services/push_notification_service.dart';
 
 /// Registers shared dependencies with GetX's service locator.
 void setupDependencies() {
@@ -126,5 +127,21 @@ void setupDependencies() {
   // when the user opens the Boutique / Premium tab or other premium-gated UI.
   if (!Get.isRegistered<SubscriptionController>()) {
     Get.lazyPut<SubscriptionController>(() => SubscriptionController(), fenix: true);
+  }
+
+  // v18.6 — FCM push notifications fix.
+  // Avant v18.6, PushNotificationService existait mais n'était jamais init,
+  // donc aucun token FCM n'était récupéré ni enregistré côté backend →
+  // aucun push n'arrivait. On l'enregistre ici en async permanent et on
+  // laisse son onInit() déclencher init() au bon moment.
+  if (!Get.isRegistered<PushNotificationService>()) {
+    Get.putAsync<PushNotificationService>(
+      () async {
+        final service = PushNotificationService();
+        await service.init();
+        return service;
+      },
+      permanent: true,
+    );
   }
 }

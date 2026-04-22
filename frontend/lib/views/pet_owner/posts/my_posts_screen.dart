@@ -13,6 +13,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
+import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -222,17 +223,28 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           onComment: () => PostCommentSheet.show(context, post),
           onDelete: () =>
               _confirmAndDeletePost(context, post.id, postsController),
+          onEdit: () {
+            // v18.6 — stylo "Modifier" sur mes propres publications.
+            Get.to(() => EditPostScreen(post: post));
+          },
+          isReserved: post.reservedBy != null,
+          reservedProviderRole: post.reservedBy?.providerRole,
+          ownerViewOfOwnPost: true,
           onViewPetDetails: null,
           onShare: () {
             () async {
               try {
-                final shareText = post.body.isNotEmpty
-                    ? post.body
-                    : (post.pets.isNotEmpty &&
-                              post.pets.first.petName.isNotEmpty
-                          ? 'Meet ${post.pets.first.petName} — see this post on Hopetsit!'
-                          : 'Check out my pet post on Hopetsit!');
-                await SharePlus.instance.share(ShareParams(text: shareText));
+                // v18.6 — deep link HoPetSit + texte localisé + ShareSheet natif.
+                final petName = post.pets.isNotEmpty
+                    ? post.pets.first.petName
+                    : '';
+                final link = 'https://hopetsit.app/post/${post.id}';
+                final subject = 'share_post_subject'
+                    .trParams({'petName': petName.isEmpty ? 'HoPetSit' : petName});
+                final shareText = 'share_post_body'.trParams({'link': link});
+                await SharePlus.instance.share(
+                  ShareParams(text: shareText, subject: subject),
+                );
               } catch (error) {
                 AppLogger.logError('MyPostsScreen: share failed', error: error);
                 CustomSnackbar.showError(
@@ -268,14 +280,22 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
         onComment: () => PostCommentSheet.show(context, post),
         onDelete: () =>
             _confirmAndDeletePost(context, post.id, postsController),
+        onEdit: () {
+          Get.to(() => EditPostScreen(post: post));
+        },
+        isReserved: post.reservedBy != null,
+        reservedProviderRole: post.reservedBy?.providerRole,
+        ownerViewOfOwnPost: true,
         onShare: () {
           () async {
             try {
-              final shareText = post.body.isNotEmpty
-                  ? post.body
-                  : (post.pets.isNotEmpty && post.pets.first.petName.isNotEmpty
-                        ? 'Meet ${post.pets.first.petName} — see this post on Hopetsit!'
-                        : 'Check out my pet post on Hopetsit!');
+              final petName = post.pets.isNotEmpty
+                  ? post.pets.first.petName
+                  : '';
+              final link = 'https://hopetsit.app/post/${post.id}';
+              final subject = 'share_post_subject'
+                  .trParams({'petName': petName.isEmpty ? 'HoPetSit' : petName});
+              final shareText = 'share_post_body'.trParams({'link': link});
 
               final filesToShare = <XFile>[];
 
@@ -305,9 +325,16 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               }
 
               if (filesToShare.isNotEmpty) {
-                await SharePlus.instance.share(ShareParams(files: filesToShare, text: shareText));
+                await SharePlus.instance.share(ShareParams(
+                  files: filesToShare,
+                  text: shareText,
+                  subject: subject,
+                ));
               } else {
-                await SharePlus.instance.share(ShareParams(text: shareText));
+                await SharePlus.instance.share(ShareParams(
+                  text: shareText,
+                  subject: subject,
+                ));
               }
             } catch (error) {
               AppLogger.logError('MyPostsScreen: share failed', error: error);

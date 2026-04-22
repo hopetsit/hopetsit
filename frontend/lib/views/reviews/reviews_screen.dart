@@ -13,6 +13,12 @@ class ReviewsScreen extends StatelessWidget {
   final String email;
   final String? profileImagePath;
   final String? serviceProviderId;
+  // v18.6 — chaîne de trust pour le submit review :
+  // le backend exige une booking completed/paid entre owner et provider.
+  // On passe bookingId + revieweeRole pour lever toute ambiguïté
+  // sitter vs walker.
+  final String? bookingId;
+  final String? revieweeRole; // 'sitter' | 'walker'
 
   const ReviewsScreen({
     super.key,
@@ -21,6 +27,8 @@ class ReviewsScreen extends StatelessWidget {
     required this.email,
     this.profileImagePath,
     this.serviceProviderId,
+    this.bookingId,
+    this.revieweeRole,
   });
 
   @override
@@ -236,6 +244,8 @@ class ReviewsScreen extends StatelessWidget {
                                       serviceProviderId:
                                           serviceProviderId ?? '',
                                       serviceProviderName: serviceProviderName,
+                                      bookingId: bookingId,
+                                      revieweeRole: revieweeRole,
                                     )
                                   : null,
                             ),

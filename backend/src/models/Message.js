@@ -24,8 +24,10 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     senderRole: {
+      // v18.6 — walker + system support.
+      // 'system' est utilisé pour les messages auto (ex: chat unlock welcome).
       type: String,
-      enum: ['owner', 'sitter'],
+      enum: ['owner', 'sitter', 'walker', 'system'],
       required: true,
     },
     senderId: {

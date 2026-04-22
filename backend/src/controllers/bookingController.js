@@ -1524,20 +1524,27 @@ const agreeToBooking = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    // v18.6 — agreeToBooking walker support : populate walkerId aussi.
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId')
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }
 
-    // Verify user has permission
+    // v18.6 — résolution provider walker OU sitter (getBookingProvider).
+    const providerRef = getBookingProvider(booking);
     const ownerId = booking.ownerId._id.toString();
-    const sitterId = booking.sitterId._id.toString();
+    const providerId = providerRef?.id || null;
+    const providerRole = providerRef?.type || null; // 'sitter' | 'walker'
 
     if (userRole === 'owner' && ownerId !== userId) {
       return res.status(403).json({ error: 'You do not have permission to agree to this booking.' });
     }
 
-    if (userRole === 'sitter' && sitterId !== userId) {
+    if ((userRole === 'sitter' || userRole === 'walker') && providerId !== userId) {
       return res.status(403).json({ error: 'You do not have permission to agree to this booking.' });
     }
 
@@ -1546,8 +1553,6 @@ const agreeToBooking = async (req, res) => {
       return res.status(400).json({ error: `Booking cannot be agreed. Current status: ${booking.status}` });
     }
 
-    // Mark as agreed using findByIdAndUpdate to only update status field
-    // Using runValidators: false to avoid validation errors on old bookings missing new required fields
     const updatedBooking = await Booking.findByIdAndUpdate(
       id,
       {
@@ -1555,16 +1560,23 @@ const agreeToBooking = async (req, res) => {
         agreedAt: new Date(),
       },
       { new: true, runValidators: false }
-    ).populate('ownerId').populate('sitterId').populate('petIds');
+    )
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId')
+      .populate('petIds');
 
     // Sprint 4 step 3 — notify both parties of mutual acceptance
     const petName = Array.isArray(updatedBooking.petIds) && updatedBooking.petIds[0]?.name
       ? updatedBooking.petIds[0].name : '';
+    const providerDoc = providerRole === 'walker'
+      ? updatedBooking.walkerId
+      : updatedBooking.sitterId;
     const notifData = {
       bookingId: updatedBooking._id.toString(),
       petName,
       ownerName: updatedBooking.ownerId?.name || '',
-      sitterName: updatedBooking.sitterId?.name || '',
+      sitterName: providerDoc?.name || '',
     };
     Promise.allSettled([
       sendNotification({
@@ -1573,12 +1585,14 @@ const agreeToBooking = async (req, res) => {
         type: 'BOOKING_MUTUALLY_ACCEPTED',
         data: { ...notifData, name: notifData.ownerName },
       }),
-      sendNotification({
-        userId: sitterId,
-        role: 'sitter',
-        type: 'BOOKING_MUTUALLY_ACCEPTED',
-        data: { ...notifData, name: notifData.sitterName },
-      }),
+      providerId
+        ? sendNotification({
+            userId: providerId,
+            role: providerRole || 'sitter',
+            type: 'BOOKING_MUTUALLY_ACCEPTED',
+            data: { ...notifData, name: notifData.sitterName },
+          })
+        : Promise.resolve(),
     ]).catch(() => {});
 
     // ── UX simplification (Sprint payment-flow) ────────────────────────────────
@@ -1970,7 +1984,12 @@ const createBookingPaypalOrder = async (req, res) => {
       return res.status(403).json({ error: 'Only owners can initiate payment.' });
     }
 
-    const booking = await Booking.findById(id).populate('ownerId').populate('sitterId').populate('petIds');
+    // v18.6 — PayPal walker support : populate walkerId aussi.
+    const booking = await Booking.findById(id)
+      .populate('ownerId')
+      .populate('sitterId')
+      .populate('walkerId')
+      .populate('petIds');
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found.' });
     }

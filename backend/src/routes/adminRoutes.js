@@ -58,23 +58,50 @@ router.post('/test-email', requireAdmin, async (req, res) => {
 // ─── DASHBOARD STATS ─────────────────────────────────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
-    const [totalBookings, totalSitters, totalOwners, totalPets,
-           pendingBookings, paidBookings, revenue] = await Promise.all([
-      Booking.countDocuments(),
-      Sitter.countDocuments(),
-      Owner.countDocuments(),
-      Pet.countDocuments(),
-      Booking.countDocuments({ status: 'pending' }),
-      Booking.countDocuments({ paymentStatus: 'paid' }),
-      Booking.aggregate([
-        { $match: { paymentStatus: 'paid' } },
-        { $group: { _id: null, total: { $sum: '$totalAmount' } } },
-      ]),
-    ]);
+    // v18.6 — walker ajouté + paiements du jour (paidToday + todayRevenue).
+    const Walker = require('../models/Walker');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [totalBookings, totalSitters, totalWalkers, totalOwners, totalPets,
+           pendingBookings, paidBookings, paidToday, revenue, todayRevenueAgg] =
+      await Promise.all([
+        Booking.countDocuments(),
+        Sitter.countDocuments(),
+        Walker.countDocuments(),
+        Owner.countDocuments(),
+        Pet.countDocuments(),
+        Booking.countDocuments({ status: 'pending' }),
+        Booking.countDocuments({ paymentStatus: 'paid' }),
+        Booking.countDocuments({
+          paymentStatus: 'paid',
+          paidAt: { $gte: todayStart },
+        }),
+        Booking.aggregate([
+          { $match: { paymentStatus: 'paid' } },
+          { $group: { _id: null, total: { $sum: '$pricing.totalPrice' } } },
+        ]),
+        Booking.aggregate([
+          {
+            $match: {
+              paymentStatus: 'paid',
+              paidAt: { $gte: todayStart },
+            },
+          },
+          { $group: { _id: null, total: { $sum: '$pricing.totalPrice' } } },
+        ]),
+      ]);
     res.json({
-      totalBookings, totalSitters, totalOwners, totalPets,
-      pendingBookings, paidBookings,
+      totalBookings,
+      totalSitters,
+      totalWalkers,
+      totalOwners,
+      totalPets,
+      pendingBookings,
+      paidBookings,
+      paidToday,
       totalRevenue: revenue[0]?.total ?? 0,
+      todayRevenue: todayRevenueAgg[0]?.total ?? 0,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -362,36 +389,68 @@ router.get('/identity-verifications', requireAdmin, async (req, res) => {
 const Review = require('../models/Review');
 
 // Sprint 7 step 6 — platform stats + user moderation.
+// v18.6 — walker parity ajouté aux stats (total users, revenue aujourd'hui).
 router.get('/platform-stats', requireAdmin, async (req, res) => {
   try {
-    const [totalOwners, totalSitters, totalBookings, totalBookingsCompleted, premiumCount, topSitterCount, revAgg] = await Promise.all([
+    const Walker = require('../models/Walker');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [
+      totalOwners, totalSitters, totalWalkers,
+      totalBookings, totalBookingsCompleted,
+      premiumCount, topSitterCount, topWalkerCount,
+      revAgg, todayRevAgg,
+    ] = await Promise.all([
       Owner.countDocuments(),
       Sitter.countDocuments(),
+      Walker.countDocuments(),
       Booking.countDocuments(),
       Booking.countDocuments({ status: 'completed' }),
       Owner.countDocuments({ isPremium: true }),
       Sitter.countDocuments({ isTopSitter: true }),
+      Walker.countDocuments({ isTopWalker: true }).catch(() => 0),
       Booking.aggregate([
         { $match: { paymentStatus: 'paid' } },
         { $group: { _id: null, total: { $sum: '$pricing.commission' } } },
       ]).catch(() => []),
+      Booking.aggregate([
+        {
+          $match: {
+            paymentStatus: 'paid',
+            paidAt: { $gte: todayStart },
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$pricing.commission' } } },
+      ]).catch(() => []),
     ]);
     res.json({
-      totalUsers: totalOwners + totalSitters,
+      totalUsers: totalOwners + totalSitters + totalWalkers,
       totalOwners,
       totalSitters,
+      totalWalkers,
       totalBookings,
       totalBookingsCompleted,
       premiumCount,
       topSitterCount,
+      topWalkerCount,
       platformRevenue: revAgg?.[0]?.total ?? 0,
+      todayPlatformRevenue: todayRevAgg?.[0]?.total ?? 0,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-const userModelFor = (role) => (role === 'sitter' ? Sitter : role === 'owner' ? Owner : null);
+// v18.6 — walker ajouté à userModelFor pour que suspend / restore / delete
+// marchent aussi pour les walkers dans admin.
+const userModelFor = (role) => {
+  const Walker = require('../models/Walker');
+  if (role === 'sitter') return Sitter;
+  if (role === 'owner') return Owner;
+  if (role === 'walker') return Walker;
+  return null;
+};
 
 router.post('/users/:id/suspend', requireAdmin, async (req, res) => {
   try {

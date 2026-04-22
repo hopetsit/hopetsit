@@ -42,6 +42,8 @@ class ReviewsController extends GetxController {
   Future<void> submitReview({
     required String serviceProviderId,
     required String serviceProviderName,
+    String? bookingId,
+    String? revieweeRole,
   }) async {
     if (!canSubmit) return;
 
@@ -52,6 +54,8 @@ class ReviewsController extends GetxController {
         revieweeId: serviceProviderId,
         rating: rating.value.toDouble(),
         comment: description.value.trim(),
+        bookingId: bookingId,
+        revieweeRole: revieweeRole,
       );
 
       CustomSnackbar.showSuccess(
@@ -66,8 +70,9 @@ class ReviewsController extends GetxController {
       // Navigate to home screen
       _navigateToHome();
     } on ApiException catch (e) {
-      // 409 means the backend already has a review for this sitter by this user.
-      // Show a clear message and navigate to home screen.
+      // v18.6 — surface le vrai message backend au lieu du générique
+      // "Impossible d'envoyer l'avis". Le backend renvoie par ex. :
+      // "A completed booking between you and this user is required..."
       if (e.statusCode == 409) {
         final detailsMessage = (e.details is Map
             ? (e.details['error'] as String?)
@@ -78,12 +83,16 @@ class ReviewsController extends GetxController {
               ? detailsMessage!.trim()
               : e.message,
         );
-        // Navigate to home screen even if already reviewed
         _navigateToHome();
       } else {
+        final detailsMessage = (e.details is Map
+            ? (e.details['error'] as String?)
+            : null);
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: 'review_submit_failed'.tr,
+          message: detailsMessage?.trim().isNotEmpty == true
+              ? detailsMessage!.trim()
+              : (e.message.isNotEmpty ? e.message : 'review_submit_failed'.tr),
         );
       }
     } catch (e) {

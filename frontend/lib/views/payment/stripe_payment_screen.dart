@@ -494,16 +494,15 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   }
 
   Widget _buildSavedCardOption(Map<String, dynamic> method, Color accent) {
+    // v18.5 — #19 : le backend listOwnerPaymentMethods renvoie les champs
+    // à plat : {id, brand, last4, expMonth, expYear, holder}. Pas de
+    // nested `card`. Si la forme change, les fallbacks vides évitent
+    // un crash UI.
     final id = method['id']?.toString() ?? '';
-    final brand = (method['brand'] ?? method['card']?['brand'] ?? '')
-        .toString()
-        .toUpperCase();
-    final last4 =
-        (method['last4'] ?? method['card']?['last4'] ?? '').toString();
-    final expMonth =
-        (method['expMonth'] ?? method['card']?['exp_month'] ?? '').toString();
-    final expYear =
-        (method['expYear'] ?? method['card']?['exp_year'] ?? '').toString();
+    final brand = (method['brand'] ?? '').toString().toUpperCase();
+    final last4 = (method['last4'] ?? '').toString();
+    final expMonth = (method['expMonth'] ?? '').toString();
+    final expYear = (method['expYear'] ?? '').toString();
     final expLabel = (expMonth.isNotEmpty && expYear.isNotEmpty)
         ? ' — $expMonth/${expYear.length >= 2 ? expYear.substring(expYear.length - 2) : expYear}'
         : '';

@@ -85,8 +85,11 @@ class _NotificationSitterApplicationCardViewScreenState
       status: booking.status,
       paymentStatus: booking.paymentStatus ?? 'pending',
       // v18.5 — #20 : prix TTC + net (80%) visibles avant d'accepter.
+      // Le modèle frontend expose `netAmount` (pas `netPayout` qui est le
+      // nom côté backend Mongo). Si absent, la card tombera en fallback
+      // sur totalPrice × 0.8 dans _buildPriceBreakdownCard.
       totalPrice: booking.pricing?.totalPrice ?? booking.totalAmount,
-      netPayout: booking.pricing?.netPayout,
+      netPayout: booking.pricing?.netAmount,
       currency: booking.pricing?.currency ?? booking.sitter.currency,
       providerRole: derivedRole,
     );
@@ -168,7 +171,10 @@ class _NotificationSitterApplicationCardViewScreenState
                 )
               : SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 32.h),
-                  child: PetSitterApplicationCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PetSitterApplicationCard(
                     application: _convertBookingToApplication(booking),
                     onAccept: () async {
                       final result = await _controller.acceptApplication(
@@ -230,6 +236,48 @@ class _NotificationSitterApplicationCardViewScreenState
                             );
                           }
                         : null,
+                      ),
+                      // v18.6 — #20 : CTA "Voir mes réservations" qui renvoie
+                      // vers l'onglet Réservations (remplace la sortie molle
+                      // en bas de l'écran acceptance).
+                      SizedBox(height: 12.h),
+                      GestureDetector(
+                        onTap: () {
+                          Get.until((route) => route.isFirst);
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 14.h,
+                            horizontal: 16.w,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ((booking.serviceType ?? '')
+                                        .toLowerCase()
+                                        .contains('walking'))
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFF2563EB),
+                            borderRadius: BorderRadius.circular(14.r),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.calendar_today_rounded,
+                                color: AppColors.whiteColor,
+                                size: 18.sp,
+                              ),
+                              SizedBox(width: 8.w),
+                              InterText(
+                                text: 'application_card_view_reservations'.tr,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.whiteColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
         ),

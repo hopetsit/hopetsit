@@ -56,6 +56,10 @@ class EditWalkerProfileController extends GetxController {
   final bioController = TextEditingController();
   final skillsController = TextEditingController();
   final languageController = TextEditingController();
+  // v18.6 — multi-select chips pour la langue, en cohérence avec sitter/owner.
+  // Source de vérité : selectedLanguages. languageController.text reste
+  // synchronisé (join `, `) pour l'API.
+  final RxList<String> selectedLanguages = <String>[].obs;
 
   /// Walker-specific: price for a 30-minute walk.
   /// Stored as WalkRate{duration:30, basePrice:X, enabled:true}.
@@ -132,6 +136,16 @@ class EditWalkerProfileController extends GetxController {
       bioController.text = walker.bio ?? '';
       skillsController.text = walker.skills ?? '';
       languageController.text = walker.language;
+      // v18.6 — sync multi-select chips depuis la string serveur.
+      final langText = (walker.language).trim();
+      if (langText.isNotEmpty) {
+        selectedLanguages.value = langText
+            .split(RegExp(r'[,;]\s*'))
+            .where((s) => s.isNotEmpty)
+            .toList();
+      } else {
+        selectedLanguages.clear();
+      }
       userCity.value = walker.city ?? '';
 
       if (walker.latitude != null) userLatitude.value = walker.latitude;

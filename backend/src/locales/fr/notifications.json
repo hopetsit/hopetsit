@@ -14,8 +14,8 @@
   "booking_accepted": {
     "title": "Réservation acceptée",
     "body": "Votre demande de réservation a été acceptée. Procédez au paiement.",
-    "emailSubject": "Votre réservation a été acceptée — HopeTSIT",
-    "emailBody": "<p>Bonne nouvelle, votre demande de réservation vient d'être acceptée. Ouvrez l'application pour procéder au paiement.</p>"
+    "emailSubject": "Votre réservation a été acceptée — HoPetSit",
+    "emailBody": "<p>Bonne nouvelle, votre demande de réservation vient d'être acceptée.</p><p><a href=\"hopetsit://pay/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Payer maintenant</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'application HoPetSit manuellement.</p>"
   },
   "booking_rejected": {
     "title": "Réservation refusée",
@@ -88,6 +88,18 @@
     "body": "Votre filleul vient de compléter sa 1ère réservation. {{amount}} {{currency}} de crédit ajoutés.",
     "emailSubject": "Vous avez gagné {{amount}} {{currency}} — HopeTSIT",
     "emailBody": "<p>Bonne nouvelle ! Votre filleul vient de compléter sa 1ère réservation sur HopeTSIT.</p><p>Vous gagnez <strong>{{amount}} {{currency}}</strong> de crédits, utilisables sur votre prochaine réservation.</p>"
+  },
+  "BOOKING_PAID_CHAT_UNLOCKED": {
+    "title": "Paiement reçu — chat débloqué",
+    "body": "Le chat est ouvert. Échangez avec votre contact pour convenir du lieu exact et des détails.",
+    "emailSubject": "Paiement confirmé — échangez maintenant sur HoPetSit",
+    "emailBody": "<p>Bonne nouvelle ! Le paiement de votre réservation a été confirmé.</p><p>Le chat vient d'être débloqué : ouvrez l'application HoPetSit pour convenir du lieu exact et des détails de la prestation avec votre contact.</p><p>— L'équipe HoPetSit</p>"
+  },
+  "CHAT_AUTO_WELCOME": {
+    "title": "Chat débloqué",
+    "body": "Bonjour 👋 Échangeons ici pour convenir du lieu exact et des détails de la prestation.",
+    "emailSubject": "",
+    "emailBody": ""
   },
   "BOOKING_COMPLETED": {
     "title": "Réservation terminée",

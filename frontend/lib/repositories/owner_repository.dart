@@ -1071,20 +1071,40 @@ class OwnerRepository {
   }
 
   /// Submits a review for a service provider.
+  /// v18.6 — bookingId + revieweeRole ajoutés. Sans eux le backend ne trouve
+  /// pas la booking trust-chain et retourne 400 "completed booking required".
   Future<Map<String, dynamic>> submitReview({
     required String revieweeId,
     required double rating,
     required String comment,
+    String? bookingId,
+    String? revieweeRole, // 'sitter' | 'walker'
   }) async {
     AppLogger.logInfo(
       'Submitting review',
-      data: {'revieweeId': revieweeId, 'rating': rating},
+      data: {
+        'revieweeId': revieweeId,
+        'rating': rating,
+        'bookingId': bookingId,
+        'revieweeRole': revieweeRole,
+      },
     );
 
     try {
+      final body = <String, dynamic>{
+        'revieweeId': revieweeId,
+        'rating': rating,
+        'comment': comment,
+      };
+      if (bookingId != null && bookingId.isNotEmpty) {
+        body['bookingId'] = bookingId;
+      }
+      if (revieweeRole != null && revieweeRole.isNotEmpty) {
+        body['revieweeRole'] = revieweeRole;
+      }
       final response = await _apiClient.post(
         ApiEndpoints.reviews,
-        body: {'revieweeId': revieweeId, 'rating': rating, 'comment': comment},
+        body: body,
         requiresAuth: true,
       );
 

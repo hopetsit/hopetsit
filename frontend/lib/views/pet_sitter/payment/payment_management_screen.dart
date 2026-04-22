@@ -204,14 +204,9 @@ class PaymentManagementScreen extends StatelessWidget {
           ibanCtrl.ibanConfigured.value,
           const Color(0xFF1A73E8),
         ),
-        SizedBox(width: 10.w),
-        _quickIcon(
-          context,
-          Icons.verified_user_rounded,
-          'ID',
-          false,
-          Colors.teal,
-        ),
+        // v18.6 — icône "ID" retirée. La vérification d'identité a sa propre
+        // section ci-dessous ("Vérification & Statut") identique pour walker
+        // et petsitter (pas de doublon dans la rangée du haut).
       ],
     ));
   }

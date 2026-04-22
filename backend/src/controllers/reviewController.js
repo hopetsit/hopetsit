@@ -3,30 +3,43 @@ const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const { sanitizeDoc, sanitizeReview } = require('../utils/sanitize');
 const { sendNotification } = require('../services/notificationSender');
 const { recomputeSitterStatus } = require('../services/loyaltyService');
 const logger = require('../utils/logger');
 
+// v18.6 — walker support ajouté.
 const ROLE_TO_MODEL = {
   owner: 'Owner',
   sitter: 'Sitter',
+  walker: 'Walker',
 };
 
 const getModelByRole = (role) => {
   const modelName = ROLE_TO_MODEL[role];
   if (!modelName) return null;
-  return modelName === 'Owner' ? Owner : Sitter;
+  if (modelName === 'Owner') return Owner;
+  if (modelName === 'Sitter') return Sitter;
+  if (modelName === 'Walker') return Walker;
+  return null;
 };
 
 const createReview = async (req, res) => {
   try {
     // Sprint 7 step 4 — mutual reviews: role determined by JWT, opposite role is the reviewee.
+    // v18.6 : le client peut (et devrait) envoyer revieweeRole pour qu'on sache si
+    // c'est un sitter ou un walker. Fallback : on infère à partir de bookingId
+    // (provider = sitterId ou walkerId).
     const reviewerId = req.user.id;
     const reviewerRole = req.user.role;
-    const revieweeRole = reviewerRole === 'owner' ? 'sitter' : 'owner';
 
     const { revieweeId, rating, comment = '', bookingId } = req.body || {};
+    let revieweeRole = (req.body?.revieweeRole || '').toString().toLowerCase();
+    if (!revieweeRole) {
+      // Fallback heuristique : owner → sitter par défaut (legacy).
+      revieweeRole = reviewerRole === 'owner' ? 'sitter' : 'owner';
+    }
 
     if (!reviewerId || !mongoose.Types.ObjectId.isValid(reviewerId)) {
       return res.status(400).json({ error: 'Valid reviewerId is required.' });
@@ -59,21 +72,35 @@ const createReview = async (req, res) => {
       return res.status(404).json({ error: 'Reviewee not found.' });
     }
 
-    // Require a completed booking that links reviewer and reviewee.
+    // v18.6 — exiger une booking soit 'completed' soit 'paid' (owner review
+    // juste après paiement avant que le service soit marqué complete).
+    // Walker support : si revieweeRole='walker', on filter sur walkerId.
     const Booking = require('../models/Booking');
-    const query = { status: 'completed' };
+    const query = { status: { $in: ['completed', 'paid'] } };
     if (reviewerRole === 'owner') {
       query.ownerId = reviewerId;
-      query.sitterId = revieweeId;
+      if (revieweeRole === 'walker') {
+        query.walkerId = revieweeId;
+      } else {
+        query.sitterId = revieweeId;
+      }
     } else {
-      query.sitterId = reviewerId;
+      // reviewer is sitter or walker reviewing owner
       query.ownerId = revieweeId;
+      if (reviewerRole === 'walker') {
+        query.walkerId = reviewerId;
+      } else {
+        query.sitterId = reviewerId;
+      }
     }
     if (bookingId && mongoose.Types.ObjectId.isValid(bookingId)) {
       query._id = bookingId;
     }
     const booking = await Booking.findOne(query).select('_id').lean();
     if (!booking) {
+      logger.warn(
+        `[createReview] no booking found for reviewer=${reviewerRole}:${reviewerId} -> reviewee=${revieweeRole}:${revieweeId} bookingId=${bookingId}`,
+      );
       return res.status(400).json({
         error: 'A completed booking between you and this user is required to leave a review.',
       });

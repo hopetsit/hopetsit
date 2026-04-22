@@ -595,6 +595,19 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
     final statusLower = booking.status.toLowerCase();
     final paymentStatusLower = booking.paymentStatus?.toLowerCase();
 
+    // v18.6 — cohérence couleur sur la page Réservations : on utilise
+    // l'accent du rôle (vert walker / bleu sitter / rouge primary owner)
+    // pour TOUS les boutons d'action, comme sur le reste de l'app.
+    final serviceLower = (booking.serviceType ?? '').toLowerCase();
+    final Color roleAccent = (serviceLower.contains('dog_walking') ||
+            serviceLower.contains('walking'))
+        ? const Color(0xFF16A34A)
+        : (serviceLower.contains('sitting') ||
+                serviceLower.contains('day_care') ||
+                serviceLower.contains('boarding'))
+            ? const Color(0xFF2563EB)
+            : AppColors.primaryColor;
+
     return Row(
       children: [
         // View Details Button
@@ -605,7 +618,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
             },
             style: OutlinedButton.styleFrom(
               padding: EdgeInsets.symmetric(vertical: 10.h),
-              side: BorderSide(color: AppColors.primaryColor, width: 1),
+              side: BorderSide(color: roleAccent, width: 1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.r),
               ),
@@ -614,7 +627,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
               text: 'bookings_action_view_details'.tr,
               fontSize: 12.sp,
               fontWeight: FontWeight.w500,
-              color: AppColors.primaryColor,
+              color: roleAccent,
             ),
           ),
         ),
@@ -628,7 +641,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                 Get.to(() => BookingAgreementScreen(booking: booking));
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
+                backgroundColor: roleAccent,
                 padding: EdgeInsets.symmetric(vertical: 10.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8.r),
@@ -676,6 +689,12 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
           Expanded(
             child: ElevatedButton(
               onPressed: () {
+                final serviceLower =
+                    (booking.serviceType ?? '').toLowerCase();
+                final resolvedRole = (serviceLower.contains('walking') ||
+                        serviceLower.contains('dog_walking'))
+                    ? 'walker'
+                    : 'sitter';
                 Get.to(
                   () => ReviewsScreen(
                     serviceProviderName: booking.sitter.name,
@@ -685,6 +704,8 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                         ? booking.sitter.avatar.url
                         : null,
                     serviceProviderId: booking.sitter.id,
+                    bookingId: booking.id,
+                    revieweeRole: resolvedRole,
                   ),
                 );
               },

@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -7,6 +8,8 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/firebase_options.dart';
 import 'package:hopetsit/helper/dependency_injection.dart';
+import 'package:hopetsit/services/push_notification_service.dart'
+    show firebaseMessagingBackgroundHandler;
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/routes/app_routes.dart';
 import 'package:hopetsit/routes/app_pages.dart';
@@ -36,6 +39,10 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    // v18.6 — FCM push fix. Enregistre le background handler AVANT
+    // setupDependencies qui put-async PushNotificationService. Sans ça,
+    // l'OS drop les push reçues app-killed/background.
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (e) {
     debugPrint("Firebase error is $e");
   }
