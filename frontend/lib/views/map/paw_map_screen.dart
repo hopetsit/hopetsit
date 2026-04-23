@@ -1569,13 +1569,17 @@ class _TtlBadgeState extends State<_TtlBadge> {
 
 /// Premium upsell banner shown at the bottom of the PawMap for users who
 /// haven't subscribed yet. Tapping opens the coin shop.
+///
+/// v18.9.8 — ancien design gold gradient remplacé par un vert vibrant avec
+/// double glow (vert vif + halo blanc) pour matcher l'identité Premium =
+/// accès vert-brillant selon spec Daniel.
 class _PremiumUpsell extends StatelessWidget {
   const _PremiumUpsell();
 
-  // Palette dorée pour la bannière Premium — dégradé or clair → or foncé,
-  // avec ombre chaude pour un effet luxueux.
-  static const Color _goldLight = Color(0xFFFFD700);
-  static const Color _goldDark = Color(0xFFB8860B);
+  // Palette vert brillant (emerald) — saturé, lumineux, effet "shiny".
+  static const Color _greenLight = Color(0xFF34D399); // emerald-400
+  static const Color _greenMid = Color(0xFF10B981);   // emerald-500
+  static const Color _greenDark = Color(0xFF059669);  // emerald-600
 
   @override
   Widget build(BuildContext context) {
@@ -1587,18 +1591,31 @@ class _PremiumUpsell extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [_goldLight, _goldDark],
+            colors: [_greenLight, _greenMid, _greenDark],
+            stops: [0.0, 0.55, 1.0],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
+            // Glow principal vert saturé.
             BoxShadow(
-              color: _goldDark.withValues(alpha: 0.45),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              color: _greenMid.withValues(alpha: 0.55),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+            // Halo intérieur blanc pour l'effet "brillant".
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.25),
+              blurRadius: 4,
+              offset: const Offset(0, -1),
             ),
           ],
+          // Léger liseré clair en haut pour accentuer le brillant.
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.35),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
@@ -1609,14 +1626,14 @@ class _PremiumUpsell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   InterText(
-                    text: 'Passer Premium',
+                    text: 'pawmap_premium_title'.tr,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                   SizedBox(height: 2.h),
                   InterText(
-                    text: 'Débloquez tous les signalements, zones et suivis live',
+                    text: 'pawmap_premium_subtitle'.tr,
                     fontSize: 12.sp,
                     color: Colors.white.withValues(alpha: 0.95),
                   ),
@@ -1632,13 +1649,19 @@ class _PremiumUpsell extends StatelessWidget {
 }
 
 /// Session v15-4 — Map Boost CTA on the PawMap, distinct from the Premium
-/// banner (blue vs gold) so the user sees they are two different products.
+/// banner (bleu vs vert) so the user sees they are two different products.
 /// Tapping opens the shop directly on the Map Boost tab (index 2).
+///
+/// v18.9.8 — bleu rendu plus brillant (tricolor gradient + double shadow)
+/// pour matcher la demande "bleu brillant" à côté du Signaler rouge.
 class _MapBoostUpsell extends StatelessWidget {
   const _MapBoostUpsell();
 
-  static const Color _blueLight = Color(0xFF60A5FA);
-  static const Color _blueDark = Color(0xFF2563EB);
+  // Palette bleu vibrant — lumière sky-400 → blue-500 → indigo-600 pour
+  // un effet "brillant/shiny" sans tomber dans le violet.
+  static const Color _blueLight = Color(0xFF38BDF8); // sky-400
+  static const Color _blueMid = Color(0xFF3B82F6);   // blue-500
+  static const Color _blueDark = Color(0xFF1D4ED8);  // blue-700
 
   @override
   Widget build(BuildContext context) {
@@ -1648,18 +1671,30 @@ class _MapBoostUpsell extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [_blueLight, _blueDark],
+            colors: [_blueLight, _blueMid, _blueDark],
+            stops: [0.0, 0.55, 1.0],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
+            // Glow principal bleu saturé.
             BoxShadow(
-              color: _blueDark.withValues(alpha: 0.35),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              color: _blueMid.withValues(alpha: 0.55),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+            // Halo intérieur blanc pour l'effet "brillant".
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.25),
+              blurRadius: 4,
+              offset: const Offset(0, -1),
             ),
           ],
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.35),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
@@ -1670,14 +1705,14 @@ class _MapBoostUpsell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   InterText(
-                    text: 'Booster mon pin',
+                    text: 'pawmap_boost_title'.tr,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                   SizedBox(height: 2.h),
                   InterText(
-                    text: 'Pin doré sur la carte pour tes voisins',
+                    text: 'pawmap_boost_subtitle'.tr,
                     fontSize: 12.sp,
                     color: Colors.white.withValues(alpha: 0.95),
                   ),

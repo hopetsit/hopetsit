@@ -9,6 +9,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Walker identity verification screen — session v3.2.
 ///
@@ -58,6 +59,15 @@ class _WalkerIdentityVerificationScreenState
 
   /// Try the modern flow (Stripe Identity session) first. If the backend
   /// replies 503 IDENTITY_NOT_CONFIGURED, fall back to the simple upload.
+  ///
+  /// v18.9.8 — launch réel de l'URL Stripe Identity via url_launcher.
+  /// Avant c'était un TODO qui affichait juste un snackbar. Maintenant :
+  /// 1) POST /identity-verification/session → backend crée la session Stripe
+  ///    et renvoie l'url hosted (document + selfie).
+  /// 2) launchUrl(url) → ouvre le navigateur externe sur la page Stripe.
+  /// 3) User fait son scan, Stripe ping notre webhook qui met à jour
+  ///    user.identityVerification.status = 'verified' | 'rejected'.
+  /// 4) User revient sur l'app, _refreshStatus() récupère le nouveau statut.
   Future<void> _startVerification() async {
     setState(() => _uploading = true);
     try {
@@ -66,20 +76,28 @@ class _WalkerIdentityVerificationScreenState
         requiresAuth: true,
         body: const {},
       );
-      if (data is Map && data['clientSecret'] is String) {
-        // TODO wire Stripe Identity native SDK when the package is added to
-        // pubspec.yaml. For now open the hosted URL as a browser fallback
-        // so real-world testing is possible before the SDK lands.
+      if (data is Map && data['url'] is String) {
         final url = data['url']?.toString() ?? '';
-        if (!mounted) return;
-        CustomSnackbar.showSuccess(
-          title: 'identity_verification_started_title'.tr,
-          message: url.isNotEmpty
-              ? 'identity_verification_started_followup'.tr
-              : 'identity_verification_started_sdk'.tr,
-        );
-        await _refreshStatus();
-        return;
+        if (url.isNotEmpty) {
+          final launched = await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          );
+          if (!mounted) return;
+          if (launched) {
+            CustomSnackbar.showSuccess(
+              title: 'identity_verification_started_title'.tr,
+              message: 'identity_verification_started_followup'.tr,
+            );
+          } else {
+            CustomSnackbar.showError(
+              title: 'common_error'.tr,
+              message: 'identity_launch_failed'.tr,
+            );
+          }
+          await _refreshStatus();
+          return;
+        }
       }
     } catch (e) {
       // Fall back to the simple upload path if Stripe Identity is not

@@ -73,6 +73,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     );
 
     return Scaffold(
+      // v18.9.7 — léger background neutre pour contraster avec les cards.
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: AppColors.scaffold(context),
@@ -88,59 +89,87 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(20.w),
+          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
           child: Form(
             key: controller.formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Pets section (image: label "Pets", count + dropdown + arrow)
-                _buildPetsSection(context, controller),
-                SizedBox(height: 24.h),
-
-                // Description
-                CustomTextField(
-                  labelText: 'send_request_description_label'.tr,
-                  controller: controller.descriptionController,
-                  hintText: 'send_request_description_hint'.tr,
-                  maxLines: 4,
-                  radius: 21,
+                // v18.9.7 — chaque section dans une card propre avec icône
+                // + titre. Avant c'était à plat avec labels en texte.
+                _sectionCard(
+                  context: context,
+                  icon: Icons.pets_rounded,
+                  title: 'label_pets'.tr,
+                  child: _buildPetsSection(context, controller),
                 ),
-                SizedBox(height: 24.h),
+                SizedBox(height: 14.h),
 
-                // Dates section: Start (date + time), End (date + time)
-                _buildDatesSection(context, controller),
-                SizedBox(height: 24.h),
+                _sectionCard(
+                  context: context,
+                  icon: Icons.edit_note_rounded,
+                  title: 'send_request_description_label'.tr,
+                  child: CustomTextField(
+                    labelText: '',
+                    controller: controller.descriptionController,
+                    hintText: 'send_request_description_hint'.tr,
+                    maxLines: 4,
+                    radius: 21,
+                  ),
+                ),
+                SizedBox(height: 14.h),
 
-                // Service Type chips
-                _buildServiceTypeSection(controller),
-                SizedBox(height: 24.h),
+                _sectionCard(
+                  context: context,
+                  icon: Icons.calendar_today_rounded,
+                  title: 'send_request_dates_label'.tr,
+                  child: _buildDatesSection(context, controller),
+                ),
+                SizedBox(height: 14.h),
+
+                _sectionCard(
+                  context: context,
+                  icon: Icons.work_outline_rounded,
+                  title: 'send_request_service_type_label'.tr,
+                  child: _buildServiceTypeSection(controller),
+                ),
+                SizedBox(height: 14.h),
 
                 Obx(
                   () => controller.shouldShowHouseSittingVenue
                       ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildHouseSittingVenueSection(controller),
-                            SizedBox(height: 24.h),
+                            _sectionCard(
+                              context: context,
+                              icon: Icons.home_outlined,
+                              title: 'house_sitting_venue_label'.tr,
+                              child: _buildHouseSittingVenueSection(controller),
+                            ),
+                            SizedBox(height: 14.h),
                           ],
                         )
                       : const SizedBox.shrink(),
                 ),
 
-                // Duration (only for dog_walking)
                 Obx(
                   () => controller.shouldShowDuration
                       ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildDurationSection(controller),
-                            SizedBox(height: 24.h),
+                            _sectionCard(
+                              context: context,
+                              icon: Icons.timer_outlined,
+                              title: 'send_request_duration_label'.tr,
+                              child: _buildDurationSection(controller),
+                            ),
+                            SizedBox(height: 14.h),
                           ],
                         )
                       : const SizedBox.shrink(),
                 ),
 
-                // Session v15 — Total estimé (live). Se met à jour dès que
-                // l'user change dates / service / durée.
+                // Total estimé — version premium card gradient couleur rôle.
                 _buildEstimatedTotalSection(context, controller),
 
                 SizedBox(height: 40.h),
@@ -204,71 +233,112 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     );
   }
 
+  /// v18.9.7 — wrapper card uniforme pour toutes les sections du formulaire
+  /// Envoyer une demande. Icône circulaire en couleur rôle + titre en bold +
+  /// contenu. Remplace l'ancien layout plat avec labels texte.
+  Widget _sectionCard({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: AppColors.divider(context).withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: _roleColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 18.sp, color: _roleColor),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: PoppinsText(
+                  text: title,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          child,
+        ],
+      ),
+    );
+  }
+
   Widget _buildPetsSection(
     BuildContext context,
     SendRequestController controller,
   ) {
     return Obx(() {
       if (controller.isPetsLoading.value) {
-        return _labeledField(
-          label: 'label_pets'.tr,
+        return Container(
+          height: 50.h,
+          decoration: BoxDecoration(
+            color: AppColors.inputFill(context),
+            borderRadius: BorderRadius.circular(30.r),
+            border: Border.all(color: AppColors.divider(context), width: 1),
+          ),
+          child: const Center(child: CircularProgressIndicator()),
+        );
+      }
+      if (controller.myPets.isEmpty) {
+        return GestureDetector(
+          onTap: () => Get.to(() => const MyPetsScreen()),
           child: Container(
             height: 50.h,
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
             decoration: BoxDecoration(
               color: AppColors.inputFill(context),
               borderRadius: BorderRadius.circular(30.r),
               border: Border.all(color: AppColors.divider(context), width: 1),
             ),
-            child: const Center(child: CircularProgressIndicator()),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InterText(
+                    text: 'send_request_no_pets_message'.tr,
+                    fontSize: 14.sp,
+                    color: AppColors.greyColor,
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14.sp,
+                  color: AppColors.greyColor,
+                ),
+              ],
+            ),
           ),
-        );
-      }
-      if (controller.myPets.isEmpty) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InterText(
-              text: 'label_pets'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary(context),
-            ),
-            SizedBox(height: 8.h),
-            GestureDetector(
-              onTap: () => Get.to(() => const MyPetsScreen()),
-              child: Container(
-                height: 50.h,
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                decoration: BoxDecoration(
-                  color: AppColors.inputFill(context),
-                  borderRadius: BorderRadius.circular(30.r),
-                  border: Border.all(color: AppColors.divider(context), width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InterText(
-                        text: 'send_request_no_pets_message'.tr,
-                        fontSize: 14.sp,
-                        color: AppColors.greyColor,
-                      ),
-                    ),
-                    Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 20.sp,
-                      color: AppColors.greyColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14.sp,
-                      color: AppColors.greyColor,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         );
       }
       final items = controller.myPets
@@ -281,82 +351,48 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           .toList();
       final count = controller.selectedPetsCount;
       final displayText = count > 0 ? '$count' : 'common_select'.tr;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InterText(
-            text: 'label_pets'.tr,
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey700Color,
-          ),
-          SizedBox(height: 8.h),
-          Container(
-            height: 50.h,
-            decoration: BoxDecoration(
-              color: AppColors.whiteColor,
-              borderRadius: BorderRadius.circular(30.r),
-              border: Border.all(color: AppColors.grey300Color, width: 1),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: controller.selectedPetIds.isNotEmpty
-                          ? controller.selectedPetIds.first
-                          : null,
-                      items: items,
-                      onChanged: (v) => controller.selectPet(v),
-                      isExpanded: true,
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
-                      hint: InterText(
-                        text: displayText,
-                        fontSize: 14.sp,
-                        color: AppColors.greyColor,
-                      ),
-                    ),
+      return Container(
+        height: 50.h,
+        decoration: BoxDecoration(
+          color: AppColors.inputFill(context),
+          borderRadius: BorderRadius.circular(30.r),
+          border: Border.all(color: AppColors.divider(context), width: 1),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: controller.selectedPetIds.isNotEmpty
+                      ? controller.selectedPetIds.first
+                      : null,
+                  items: items,
+                  onChanged: (v) => controller.selectPet(v),
+                  isExpanded: true,
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  hint: InterText(
+                    text: displayText,
+                    fontSize: 14.sp,
+                    color: AppColors.greyColor,
                   ),
                 ),
-                // Icon(
-                //   Icons.keyboard_arrow_down,
-                //   size: 20.sp,
-                //   color: AppColors.greyColor,
-                // ),
-                //SizedBox(width: 8.w),
-                GestureDetector(
-                  onTap: () => Get.to(() => const MyPetsScreen()),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w),
-                    child: Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14.sp,
-                      color: AppColors.blackColor,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+            GestureDetector(
+              onTap: () => Get.to(() => const MyPetsScreen()),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14.sp,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     });
-  }
-
-  Widget _labeledField({required String label, required Widget child}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InterText(
-          text: label,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w500,
-          color: AppColors.grey700Color,
-        ),
-        SizedBox(height: 8.h),
-        child,
-      ],
-    );
   }
 
   Widget _buildDatesSection(
@@ -372,96 +408,104 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title outside the container (same style as other section labels)
-          InterText(
-            text: 'send_request_dates_label'.tr,
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary(context),
+          // Start label + pill
+          Row(
+            children: [
+              Container(
+                width: 6.w,
+                height: 6.w,
+                decoration: BoxDecoration(
+                  color: _roleColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              InterText(
+                text: 'send_request_start_label'.tr,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
           ),
           SizedBox(height: 8.h),
-          // Single container with border and decoration.
-          //   • Sitter → Début + Fin (multi-day stays need both ends)
-          //   • Walker → single Date + Heure row (endDate/endTime are
-          //     derived from Start + selected duration by the controller)
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: AppColors.inputFill(context),
-              borderRadius: BorderRadius.circular(21.r),
-              border: Border.all(color: AppColors.divider(context), width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          _buildDateTimeRow(
+            dateText: controller.formattedStartDate.isEmpty
+                ? 'send_request_select_date'.tr
+                : controller.formattedStartDate,
+            timeText: controller.formattedStartTime.isEmpty
+                ? 'send_request_select_time'.tr
+                : controller.formattedStartTime,
+            isDatePlaceholder: controller.formattedStartDate.isEmpty,
+            isTimePlaceholder: controller.formattedStartTime.isEmpty,
+            onDateTap: () =>
+                _pickDate(context, controller, isStart: true),
+            onTimeTap: () =>
+                _pickTime(context, controller, isStart: true),
+          ),
+          if (!isWalker) ...[
+            SizedBox(height: 14.h),
+            // End label + pill
+            Row(
               children: [
-                // Start (walker label = "Date & heure", sitter label = "Début")
+                Container(
+                  width: 6.w,
+                  height: 6.w,
+                  decoration: BoxDecoration(
+                    color: _roleColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 8.w),
                 InterText(
-                  text: isWalker
-                      ? 'send_request_start_label'.tr
-                      : 'send_request_start_label'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.grey700Color,
+                  text: 'send_request_end_label'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
                 ),
-                SizedBox(height: 8.h),
-                _buildDateTimeRow(
-                  dateText: controller.formattedStartDate.isEmpty
-                      ? 'send_request_select_date'.tr
-                      : controller.formattedStartDate,
-                  timeText: controller.formattedStartTime.isEmpty
-                      ? 'send_request_select_time'.tr
-                      : controller.formattedStartTime,
-                  isDatePlaceholder: controller.formattedStartDate.isEmpty,
-                  isTimePlaceholder: controller.formattedStartTime.isEmpty,
-                  onDateTap: () =>
-                      _pickDate(context, controller, isStart: true),
-                  onTimeTap: () =>
-                      _pickTime(context, controller, isStart: true),
-                ),
-                if (!isWalker) ...[
-                  SizedBox(height: 16.h),
-                  // End: label inside container + date|time row (sitter only)
-                  InterText(
-                    text: 'send_request_end_label'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary(context),
-                  ),
-                  SizedBox(height: 8.h),
-                  _buildDateTimeRow(
-                    dateText: controller.formattedEndDate.isEmpty
-                        ? 'send_request_select_date'.tr
-                        : controller.formattedEndDate,
-                    timeText: controller.formattedEndTime.isEmpty
-                        ? 'send_request_select_time'.tr
-                        : controller.formattedEndTime,
-                    isDatePlaceholder: controller.formattedEndDate.isEmpty,
-                    isTimePlaceholder: controller.formattedEndTime.isEmpty,
-                    onDateTap: () =>
-                        _pickDate(context, controller, isStart: false),
-                    onTimeTap: () =>
-                        _pickTime(context, controller, isStart: false),
-                  ),
-                ],
-                // Show validation error message if exists
-                Obx(() {
-                  final error = controller.dateTimeValidationError.value;
-                  if (error == null || error.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: EdgeInsets.only(top: 8.h),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            _buildDateTimeRow(
+              dateText: controller.formattedEndDate.isEmpty
+                  ? 'send_request_select_date'.tr
+                  : controller.formattedEndDate,
+              timeText: controller.formattedEndTime.isEmpty
+                  ? 'send_request_select_time'.tr
+                  : controller.formattedEndTime,
+              isDatePlaceholder: controller.formattedEndDate.isEmpty,
+              isTimePlaceholder: controller.formattedEndTime.isEmpty,
+              onDateTap: () =>
+                  _pickDate(context, controller, isStart: false),
+              onTimeTap: () =>
+                  _pickTime(context, controller, isStart: false),
+            ),
+          ],
+          // Show validation error message if exists
+          Obx(() {
+            final error = controller.dateTimeValidationError.value;
+            if (error == null || error.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: EdgeInsets.only(top: 8.h),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline_rounded,
+                      size: 14.sp, color: AppColors.errorColor),
+                  SizedBox(width: 6.w),
+                  Expanded(
                     child: InterText(
                       text: error,
                       fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
+                      fontWeight: FontWeight.w500,
                       color: AppColors.errorColor,
                     ),
-                  );
-                }),
-              ],
-            ),
-          ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       );
     });
@@ -697,181 +741,216 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     }
   }
 
-  Widget _buildServiceTypeSection(SendRequestController controller) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InterText(
-                text: 'send_request_service_type_label'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(height: 12.h),
-              Obx(
-                () => Wrap(
-                  spacing: 8.w,
-                  runSpacing: 8.h,
-                  direction: Axis.horizontal,
-                  alignment: WrapAlignment.start,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: controller.serviceTypes.map((serviceType) {
-                    final isSelected =
-                        controller.selectedServiceType.value ==
-                        serviceType['value'];
+  /// v18.9.7 — icône spécifique par service type pour rendre les chips
+  /// plus lisibles et engageants.
+  IconData _serviceTypeIcon(String value) {
+    switch (value) {
+      case 'dog_walking':
+        return Icons.directions_walk_rounded;
+      case 'day_care':
+      case 'pet_sitting':
+        return Icons.home_work_outlined;
+      case 'house_sitting':
+      case 'long_stay':
+      case 'long_term_care':
+        return Icons.hotel_outlined;
+      case 'overnight_stay':
+        return Icons.nightlight_round;
+      case 'home_visit':
+        return Icons.house_outlined;
+      default:
+        return Icons.pets_rounded;
+    }
+  }
 
-                    return GestureDetector(
-                      onTap: () =>
-                          controller.selectServiceType(serviceType['value']!),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16.w,
-                          vertical: 10.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? _roleColor
-                              : AppColors.inputFill(context),
-                          borderRadius: BorderRadius.circular(20.r),
-                          border: Border.all(
-                            color: isSelected
-                                ? _roleColor
-                                : AppColors.divider(context),
-                            width: 1,
-                          ),
-                        ),
-                        child: InterText(
-                          text: serviceType['label']!,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          color: isSelected
-                              ? AppColors.whiteColor
-                              : AppColors.textSecondary(context),
-                        ),
-                      ),
-                    );
-                  }).toList(),
+  Widget _buildServiceTypeSection(SendRequestController controller) {
+    return Obx(
+      () => Wrap(
+        spacing: 8.w,
+        runSpacing: 8.h,
+        children: controller.serviceTypes.map((serviceType) {
+          final isSelected =
+              controller.selectedServiceType.value == serviceType['value'];
+          return GestureDetector(
+            onTap: () => controller.selectServiceType(serviceType['value']!),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: isSelected ? _roleColor : AppColors.inputFill(context),
+                borderRadius: BorderRadius.circular(22.r),
+                border: Border.all(
+                  color: isSelected ? _roleColor : AppColors.divider(context),
+                  width: 1,
                 ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: _roleColor.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
-            ],
-          ),
-        ),
-      ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _serviceTypeIcon(serviceType['value'] ?? ''),
+                    size: 15.sp,
+                    color: isSelected
+                        ? AppColors.whiteColor
+                        : _roleColor,
+                  ),
+                  SizedBox(width: 6.w),
+                  InterText(
+                    text: serviceType['label']!,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? AppColors.whiteColor
+                        : AppColors.textPrimary(context),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
   Widget _buildDurationSection(SendRequestController controller) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InterText(
-          text: 'send_request_duration_label'.tr,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary(context),
-        ),
-        SizedBox(height: 12.h),
-        Obx(
-          () => Wrap(
-            spacing: 12.w,
-            runSpacing: 12.h,
-            direction: Axis.horizontal,
-            alignment: WrapAlignment.spaceEvenly,
-            // Session v15-3 — align walk duration presets with the Publish flow
-            // (publish_reservation_request_controller.promenadeMinutes).
-            children: const ['30', '60', '90', '120'].map((duration) {
-              final isSelected = controller.selectedDuration.value == duration;
-
-              return GestureDetector(
-                onTap: () => controller.selectDuration(duration),
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 25.w,
-                    vertical: 10.h,
-                  ),
-                  decoration: BoxDecoration(
+    return Obx(
+      () => Wrap(
+        spacing: 10.w,
+        runSpacing: 10.h,
+        // Session v15-3 — align walk duration presets with the Publish flow
+        // (publish_reservation_request_controller.promenadeMinutes).
+        children: const ['30', '60', '90', '120'].map((duration) {
+          final isSelected = controller.selectedDuration.value == duration;
+          return GestureDetector(
+            onTap: () => controller.selectDuration(duration),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.symmetric(
+                horizontal: 14.w,
+                vertical: 10.h,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? _roleColor
+                    : AppColors.inputFill(context),
+                borderRadius: BorderRadius.circular(22.r),
+                border: Border.all(
+                  color: isSelected
+                      ? _roleColor
+                      : AppColors.divider(context),
+                  width: 1,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: _roleColor.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.timer_outlined,
+                    size: 15.sp,
                     color: isSelected
-                        ? _roleColor
-                        : AppColors.inputFill(context),
-                    borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(
-                      color: isSelected
-                          ? _roleColor
-                          : AppColors.divider(context),
-                      width: 1,
-                    ),
+                        ? AppColors.whiteColor
+                        : _roleColor,
                   ),
-                  child: InterText(
+                  SizedBox(width: 6.w),
+                  InterText(
                     text: 'send_request_duration_minutes_label'.trParams({
                       'minutes': duration,
                     }),
                     fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: isSelected
                         ? AppColors.whiteColor
-                        : AppColors.textSecondary(context),
+                        : AppColors.textPrimary(context),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
   Widget _buildHouseSittingVenueSection(SendRequestController controller) {
     const options = <Map<String, String>>[
-      {'value': 'owners_home', 'label': 'house_sitting_venue_owners_home'},
-      {'value': 'sitters_home', 'label': 'house_sitting_venue_sitters_home'},
+      {'value': 'owners_home', 'label': 'house_sitting_venue_owners_home', 'icon': 'owner'},
+      {'value': 'sitters_home', 'label': 'house_sitting_venue_sitters_home', 'icon': 'sitter'},
     ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InterText(
-          text: 'house_sitting_venue_label'.tr,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary(context),
-        ),
-        SizedBox(height: 12.h),
-        Obx(
-          () => Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
-            children: options.map((opt) {
-              final value = opt['value']!;
-              final selected = controller.houseSittingVenue.value == value;
-              return GestureDetector(
-                onTap: () => controller.selectHouseSittingVenue(value),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-                  decoration: BoxDecoration(
-                    color: selected ? _roleColor : AppColors.inputFill(context),
-                    borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(
-                      color: selected
-                          ? _roleColor
-                          : AppColors.divider(context),
-                      width: 1,
-                    ),
+    return Obx(
+      () => Wrap(
+        spacing: 10.w,
+        runSpacing: 10.h,
+        children: options.map((opt) {
+          final value = opt['value']!;
+          final selected = controller.houseSittingVenue.value == value;
+          final icon = opt['icon'] == 'owner'
+              ? Icons.home_outlined
+              : Icons.night_shelter_outlined;
+          return GestureDetector(
+            onTap: () => controller.selectHouseSittingVenue(value),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: selected ? _roleColor : AppColors.inputFill(context),
+                borderRadius: BorderRadius.circular(22.r),
+                border: Border.all(
+                  color: selected
+                      ? _roleColor
+                      : AppColors.divider(context),
+                  width: 1,
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: _roleColor.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: 15.sp,
+                    color: selected ? AppColors.whiteColor : _roleColor,
                   ),
-                  child: InterText(
+                  SizedBox(width: 6.w),
+                  InterText(
                     text: opt['label']!.tr,
                     fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: selected ? AppColors.whiteColor : AppColors.textSecondary(context),
+                    fontWeight: FontWeight.w600,
+                    color: selected
+                        ? AppColors.whiteColor
+                        : AppColors.textPrimary(context),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -892,57 +971,57 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       final eDate = controller.endDate.value;
       final duration = controller.selectedDuration.value; // "30" / "60" / "90"…
 
+      // v18.9.8 — commission 20% payée PAR L'OWNER au-dessus du tarif
+      // prestataire. L'estimateur affiche désormais le total owner TTC.
+      const double commissionRate = 0.20;
+      final currency = widget.currencyCode ?? 'EUR';
+
       String? totalText;
       String? breakdown;
+      double? providerGross; // ce que le prestataire reçoit net
 
       if (service == 'dog_walking') {
         // v18.8 — estimateur strict : on ne montre un total que si la
         // durée sélectionnée a un tarif EXPLICITE côté walker (walkRate
         // enabled). Sinon on affiche "À confirmer avec le prestataire".
-        // Avant, on devinait via hourlyRate/2 ce qui donnait des
-        // estimations fausses quand le walker n'avait pas défini sa
-        // grille 30min (le cas de la plupart des walkers).
         final minutes = int.tryParse(duration ?? '') ?? 0;
         final halfHour = widget.walkerHalfHourRate;
         final hour = widget.walkerHourlyRate;
-        double? total;
         String? notSetNotice;
         if (minutes > 0) {
           if (minutes == 30) {
             if (halfHour != null && halfHour > 0) {
-              total = halfHour;
+              providerGross = halfHour;
             } else {
-              notSetNotice =
-                  'send_request_duration_rate_missing'.tr;
+              notSetNotice = 'send_request_duration_rate_missing'.tr;
             }
           } else if (minutes == 60) {
             if (hour != null && hour > 0) {
-              total = hour;
+              providerGross = hour;
             } else {
-              notSetNotice =
-                  'send_request_duration_rate_missing'.tr;
+              notSetNotice = 'send_request_duration_rate_missing'.tr;
             }
           } else if (minutes == 90) {
             if (hour != null && hour > 0 &&
                 halfHour != null && halfHour > 0) {
-              total = hour + halfHour;
+              providerGross = hour + halfHour;
             } else {
-              notSetNotice =
-                  'send_request_duration_rate_missing'.tr;
+              notSetNotice = 'send_request_duration_rate_missing'.tr;
             }
           } else if (minutes == 120) {
             if (hour != null && hour > 0) {
-              total = hour * 2;
+              providerGross = hour * 2;
             } else {
-              notSetNotice =
-                  'send_request_duration_rate_missing'.tr;
+              notSetNotice = 'send_request_duration_rate_missing'.tr;
             }
           }
         }
-        if (total != null && total > 0) {
-          totalText =
-              '${total.toStringAsFixed(2)} ${widget.currencyCode ?? 'EUR'}';
-          breakdown = '1 balade $minutes min';
+        if (providerGross != null && providerGross > 0) {
+          final commission = providerGross * commissionRate;
+          final ownerTotal = providerGross + commission;
+          totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
+          breakdown =
+              '$minutes min · ${providerGross.toStringAsFixed(2)} $currency prestataire + ${commission.toStringAsFixed(2)} $currency commission (20%)';
         } else if (notSetNotice != null) {
           breakdown = notSetNotice;
         }
@@ -950,9 +1029,6 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         if (sDate != null && eDate != null) {
           final raw = eDate.difference(sDate).inDays;
           final days = raw > 0 ? raw : 1;
-          // Session v15-3 — derive a daily rate when the sitter only has
-          // weekly/monthly saved, otherwise the Total sits at "À confirmer"
-          // even though we have enough info to estimate.
           double? dailyRate = widget.sitterDailyRate;
           if (dailyRate == null || dailyRate <= 0) {
             if (widget.sitterWeeklyRate != null &&
@@ -964,11 +1040,12 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             }
           }
           if (dailyRate != null && dailyRate > 0) {
-            final total = dailyRate * days;
-            totalText =
-                '${total.toStringAsFixed(0)} ${widget.currencyCode ?? 'EUR'}';
+            providerGross = dailyRate * days;
+            final commission = providerGross * commissionRate;
+            final ownerTotal = providerGross + commission;
+            totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
             breakdown =
-                '$days jour${days > 1 ? 's' : ''} × ~${dailyRate.toStringAsFixed(0)} €/j';
+                '$days jour${days > 1 ? 's' : ''} × ${dailyRate.toStringAsFixed(2)} $currency/j + ${commission.toStringAsFixed(2)} $currency commission (20%)';
           }
         }
       }

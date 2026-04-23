@@ -16,6 +16,7 @@ import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 // Session v3.2 — walker has its own identity verification screen (endpoints
 // /walkers/identity-verification) so we no longer import the sitter one here.
 import 'package:hopetsit/views/pet_walker/profile/walker_identity_verification_screen.dart';
+import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
 import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
@@ -602,6 +603,14 @@ class WalkerProfileScreen extends StatelessWidget {
         ),
 
         _sectionHeader('Paiements & services'),
+        // v19.0 — Mon portefeuille en tête des paiements : c'est le solde
+        // des gains du walker, d'où il peut retirer vers IBAN/PayPal ou
+        // dépenser dans le shop.
+        _settingsTile(
+          'wallet_menu_title'.tr,
+          Icons.account_balance_wallet_rounded,
+          () => Get.to(() => const WalletScreen()),
+        ),
         _settingsTile(
           'Boutique',
           Icons.storefront_rounded,

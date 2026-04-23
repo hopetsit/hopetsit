@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 
@@ -84,15 +85,31 @@ class WalkerCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        walker.name.isNotEmpty ? walker.name : 'Promeneur',
-                        style: TextStyle(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      // v18.9.8 — nom + badge Identité vérifiée (shield vert
+                      // via AppColors.walkerAccent) si walker.identityVerified.
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              walker.name.isNotEmpty ? walker.name : 'Promeneur',
+                              style: TextStyle(
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (walker.identityVerified) ...[
+                            SizedBox(width: 4.w),
+                            Tooltip(
+                              message: 'identity_badge_verified'.tr,
+                              child: Icon(Icons.verified,
+                                  size: 14.sp, color: AppColors.walkerAccent),
+                            ),
+                          ],
+                        ],
                       ),
                       SizedBox(height: 2.h),
                       Row(

@@ -73,26 +73,48 @@ class NotificationsController extends GetxController {
           // ignore: unnecessary_cast
           final map = data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
           final type = (map['type'] as String?) ?? '';
+          final lower = type.toLowerCase();
           unreadCount.value = unreadCount.value + 1;
-          if (type == 'NEW_MESSAGE') {
+
+          // v18.9.7 — badges par onglet selon la sémantique de l'event.
+          // Chaque type de notification n'arrive que sur UN seul rôle
+          // (ex: application_accepted va toujours à walker/sitter,
+          // jamais à owner) donc on peut router sans vérifier le rôle.
+          //
+          // ACCUEIL  (unreadHome)
+          //   - Owner   : booking_accepted (provider a accepté ma
+          //               demande directe), application_new (provider
+          //               a postulé sur mon post).
+          //   - Provider: booking_new (owner m'a envoyé une demande
+          //               directe à traiter).
+          //
+          // RÉSERVATIONS  (unreadBookings)
+          //   - Owner   : PAYMENT_SUCCESS, PAYMENT_FAILED (suite de
+          //               mon paiement).
+          //   - Provider: application_accepted (owner a accepté ma
+          //               candidature → une booking existe désormais
+          //               en attente de paiement), PAYMENT_SUCCESS,
+          //               booking_paid (owner a payé ma booking).
+          //
+          // CHAT  (unreadChat)
+          //   - Les deux : NEW_MESSAGE (y compris le welcome auto
+          //                envoyé par le backend juste après paiement).
+          //
+          // BOOKING_MUTUALLY_ACCEPTED, BOOKING_PAID_CHAT_UNLOCKED,
+          // NEW_REVIEW, BOOKING_COMPLETED : pas de badge dédié
+          // (visibles dans unreadCount + écran Notifications).
+          if (lower == 'new_message') {
             unreadChat.value = unreadChat.value + 1;
             _storage.write(_kUnreadChat, unreadChat.value);
-          } else if (type == 'BOOKING_MUTUALLY_ACCEPTED' ||
-              type == 'PAYMENT_SUCCESS' ||
-              type == 'PAYMENT_FAILED') {
+          } else if (lower == 'payment_success' ||
+              lower == 'payment_failed' ||
+              lower == 'booking_paid' ||
+              lower == 'application_accepted') {
             unreadBookings.value = unreadBookings.value + 1;
             _storage.write(_kUnreadBookings, unreadBookings.value);
-          }
-          // v18.9 — badge Accueil pour :
-          //   - provider (walker/sitter) : booking_new = owner a envoyé
-          //     une demande directe.
-          //   - owner : application_new = un provider a postulé sur son
-          //     post ; booking_accepted = provider a accepté sa demande.
-          final lower = type.toLowerCase();
-          if (lower == 'booking_new' ||
+          } else if (lower == 'booking_new' ||
               lower == 'application_new' ||
-              lower == 'booking_accepted' ||
-              lower == 'application_accepted') {
+              lower == 'booking_accepted') {
             unreadHome.value = unreadHome.value + 1;
             _storage.write(_kUnreadHome, unreadHome.value);
           }

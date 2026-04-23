@@ -52,6 +52,13 @@ dependencies:
   # v18.8 — deep link handler pour hopetsit://pay/:bookingId envoyé
   # dans les emails "Bonne nouvelle, votre demande a été acceptée".
   app_links: ^6.3.2
+  # v18.9.8 — url_launcher pour ouvrir l'URL Stripe Identity hosted.
+  # Pourquoi pas le SDK natif ? Le plugin flutter_stripe Identity est
+  # déprécié depuis 2024, Stripe recommande désormais le hosted flow
+  # (user ouvre une URL, prend photo + selfie, revient via deep link).
+  # Le backend crée la session via stripeIdentityService.js et renvoie
+  # l'url, on la launch telle quelle.
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

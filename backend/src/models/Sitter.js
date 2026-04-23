@@ -100,6 +100,12 @@ const sitterSchema = new mongoose.Schema(
     ibanBic: { type: String, default: '' },
     ibanVerified: { type: Boolean, default: false },
     payoutMethod: { type: String, enum: ['stripe', 'paypal', 'iban'], default: 'stripe' },
+    // v19.0 — Wallet Vinted-style. Crédité automatiquement quand owner paye
+    // une booking (via stripeWebhookController). Le provider peut retirer
+    // (SEPA/PayPal) ou payer ses options shop avec. Source de vérité =
+    // collection WalletTransaction. Ce champ est un cache pour lookup rapide.
+    walletBalance: { type: Number, default: 0, min: 0 },
+    walletCurrency: { type: String, default: 'EUR' },
     feedback: [
       {
         reviewerName: { type: String, default: '' },

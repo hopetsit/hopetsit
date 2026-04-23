@@ -14,6 +14,7 @@ import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
+import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
@@ -418,6 +419,14 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.verified_user_outlined,
           AppColors.greenColor,
           () => Get.to(() => const IdentityVerificationScreen()),
+        ),
+        // v19.0 — Mon portefeuille (solde + retraits IBAN/PayPal)
+        _buildSettingsTile(
+          'wallet_menu_title'.tr,
+          'wallet_menu_subtitle'.tr,
+          Icons.account_balance_wallet_rounded,
+          const Color(0xFF1A73E8),
+          () => Get.to(() => const WalletScreen()),
         ),
 
         // ── MES SERVICES ──────────────────────────────────

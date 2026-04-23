@@ -800,16 +800,20 @@ const processProviderPayoutForBooking = async (booking) => {
     // Determine payout method: use sitter's preference, fallback to paypal
     const payoutMethod = sitter.payoutMethod || 'paypal';
 
-    // ── IBAN payout (via Stripe transfer to external bank) ──
+    // ── IBAN payout ──
+    // v18.9.6 — correction BUG CRITIQUE : l'ancien code appelait
+    // stripe.transfers.create({ destination: customer.id, ... }) ce qui
+    // échoue TOUJOURS côté Stripe parce que l'API Transfers exige un
+    // Connected Account (acct_...), pas un Customer (cus_...). Résultat :
+    // tout IBAN payout terminait en 'failed'.
+    // Nouveau flow : on passe en 'pending_manual_transfer' → Daniel
+    // (admin) exécute le virement SEPA depuis son propre compte bancaire
+    // puis valide via /admin/bookings/:id/mark-iban-paid. Les fonds
+    // restent sur le compte plateforme en attendant, les comptes sont
+    // cohérents.
     if (payoutMethod === 'iban') {
       const ibanNumber = decrypt(sitter.ibanNumber || '').trim();
       const holderName = (sitter.ibanHolder || sitter.name || '').trim();
-
-      // Session v18.1 — ibanVerified is now auto-set to true by
-      // ibanRoutes.PUT /iban when the mod97 checksum passes, so we only
-      // need the presence check. Stripe's Transfer API still rejects
-      // structurally invalid accounts at payout time, so we can't
-      // accidentally pay out to a random string.
       if (!ibanNumber) {
         logger.warn('⚠️ Skipping IBAN payout: IBAN missing', {
           bookingId: booking._id.toString(),
@@ -821,27 +825,29 @@ const processProviderPayoutForBooking = async (booking) => {
         return;
       }
 
-      booking.payoutStatus = 'processing';
-      await booking.save();
-
-      // Amount in cents for Stripe
-      const amountCents = Math.round(netPayout * 100);
-      const result = await sendPayoutToIBAN({
+      const maskedIban =
+        ibanNumber.length >= 8
+          ? ibanNumber.slice(0, 4) + '****' + ibanNumber.slice(-4)
+          : ibanNumber;
+      booking.payoutStatus = 'pending_manual_transfer';
+      booking.payoutMethod = 'iban';
+      booking.manualPayoutDetails = {
         iban: ibanNumber,
+        ibanMasked: maskedIban,
         holderName,
-        email: sitter.email,
-        amount: amountCents,
-        currency: (currency || 'eur').toLowerCase(),
-        bookingId: booking._id.toString(),
-        sitterId: sitter._id.toString(),
-      });
-
-      booking.payoutStatus = 'completed';
-      booking.payoutId = result.transfer.id;
-      booking.payoutAt = new Date();
+        bic: sitter.ibanBic || '',
+        providerEmail: sitter.email || '',
+        providerRole: provider.type,
+        providerId: sitter._id.toString(),
+        amount: netPayout,
+        currency: (currency || 'EUR').toUpperCase(),
+        queuedAt: new Date(),
+      };
       booking.payoutError = null;
       await booking.save();
-      logger.info('✅ IBAN payout completed for booking', booking._id.toString());
+      logger.info(
+        `⏳ IBAN payout queued for manual admin transfer: booking=${booking._id.toString()} provider=${provider.type}:${sitter._id} amount=${netPayout} ${currency} iban=${maskedIban}`,
+      );
       return;
     }
 
@@ -1774,7 +1780,16 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   booking.paymentStatus = 'pending';
   await booking.save();
 
-  const applicationFee = Math.round(amountInCents * 0.20);
+  // v18.9.8 — commission is paid by the owner ON TOP of the provider rate.
+  // totalPrice already includes the 20% mark-up, so the application fee
+  // (= platform cut) is the stored commission in cents. Loyalty discount
+  // is absorbed by the platform so the provider still receives their
+  // FULL advertised rate.
+  const baseCommissionInCents = Math.round((booking.pricing?.commission || 0) * 100);
+  const discountInCents = loyaltyDiscountApplied
+    ? Math.round((loyaltyDiscountApplied.discountAmount || 0) * 100)
+    : 0;
+  const applicationFee = Math.max(0, baseCommissionInCents - discountInCents);
   const netSitter = amountInCents - applicationFee;
 
   return {
@@ -1953,7 +1968,15 @@ const createBookingPaymentIntent = async (req, res) => {
     booking.paymentStatus = 'pending';
     await booking.save();
 
-    const applicationFee = Math.round(amountInCents * 0.20);
+    // v18.9.8 — see _prepareOwnerPaymentForAgreedBooking. The commission is
+    // paid ON TOP by the owner and stored in booking.pricing.commission.
+    // Loyalty discount is absorbed by the platform (provider keeps full
+    // advertised rate).
+    const baseCommissionInCents = Math.round((booking.pricing?.commission || 0) * 100);
+    const discountInCents = loyaltyDiscountApplied
+      ? Math.round((loyaltyDiscountApplied.discountAmount || 0) * 100)
+      : 0;
+    const applicationFee = Math.max(0, baseCommissionInCents - discountInCents);
     const netSitter = amountInCents - applicationFee;
 
     res.json({

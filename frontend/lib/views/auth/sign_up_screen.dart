@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -496,7 +497,15 @@ class SignUpScreen extends StatelessWidget {
                                     color: AppColors.textPrimary(context),
                                   ),
                                   GestureDetector(
-                                    onTap: () {},
+                                    // v18.9.8 — lien vers CGU hébergées.
+                                    // Avant : onTap vide (ne faisait rien).
+                                    onTap: () async {
+                                      final uri = Uri.parse(
+                                          'https://hopetsit.com/terms');
+                                      await launchUrl(uri,
+                                          mode:
+                                              LaunchMode.externalApplication);
+                                    },
                                     child: InterText(
                                       text: 'label_terms_title'.tr,
                                       fontSize: 13,

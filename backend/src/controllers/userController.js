@@ -265,8 +265,29 @@ const updateProfile = async (req, res) => {
       role = 'sitter';
     }
 
+    // v18.9.8 — support walker (avant, updateProfile ne regardait que Owner
+    // et Sitter, un walker obtenait 404 en modifiant son profil).
+    if (!account) {
+      account = await Walker.findByIdAndUpdate(id, updateOps, { new: true });
+      role = 'walker';
+    }
+
     if (!account) {
       return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // v18.9.8 — sync des champs partagés (nom, adresse, ville, carte…)
+    // vers les autres rôles du même user (matché par email). Les tarifs
+    // et autres champs rôle-spécifiques sont automatiquement ignorés.
+    try {
+      const { syncSharedFields } = require('../utils/userSyncService');
+      await syncSharedFields({
+        email: account.email,
+        update,
+        excludeRole: role,
+      });
+    } catch (syncErr) {
+      logger.warn('[updateProfile] cross-role sync failed (non-blocking)', syncErr?.message || syncErr);
     }
 
     res.json({ role, user: sanitizeUser(account, { includeEmail: true }) });
@@ -346,6 +367,20 @@ const updateOwnerCardFromToken = async (req, res) => {
     );
     if (!doc) {
       return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // v18.9.8 — sync de la carte vers les autres rôles du même user. Si
+    // Daniel enregistre sa CB sur le profil owner, la même carte apparaîtra
+    // automatiquement quand il switche vers sitter ou walker.
+    try {
+      const { syncSharedFields } = require('../utils/userSyncService');
+      await syncSharedFields({
+        email: doc.email,
+        update: { card: cardData },
+        excludeRole: role,
+      });
+    } catch (syncErr) {
+      logger.warn('[updateOwnerCardFromToken] cross-role sync failed', syncErr?.message || syncErr);
     }
 
     res.json({ user: sanitizeUser(doc, { includeCard: true, includeEmail: true }) });

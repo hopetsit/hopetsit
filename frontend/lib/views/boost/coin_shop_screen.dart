@@ -116,12 +116,30 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   // meant admin price edits on /admin/pricing never showed up in the app.
   // Now we fetch /boost/packages live and fall back to the static list
   // only if the backend fails.
+  // v18.9.8 — on ne stocke plus un `label` EN hardcodé ('3 days' / '1 week'
+  // etc.). On calcule le libellé à l'affichage via _durationLabel(days) avec
+  // la locale active → plus jamais de "pendant 3 days" côté FR.
   static const List<Map<String, dynamic>> _fallbackPackages = [
-    {'tier': 'bronze',   'amount': 4.99,  'days': 3,  'icon': '🥉', 'label': '3 days',   'color': Color(0xFFCD7F32)},
-    {'tier': 'silver',   'amount': 9.99,  'days': 7,  'icon': '🥈', 'label': '1 week',   'color': Color(0xFFC0C0C0)},
-    {'tier': 'gold',     'amount': 14.99, 'days': 15, 'icon': '🥇', 'label': '2 weeks',  'color': Color(0xFFFFD700)},
-    {'tier': 'platinum', 'amount': 24.99, 'days': 30, 'icon': '💎', 'label': '1 month',  'color': Color(0xFFE5E4E2)},
+    {'tier': 'bronze',   'amount': 4.99,  'days': 3,  'icon': '🥉', 'color': Color(0xFFCD7F32)},
+    {'tier': 'silver',   'amount': 9.99,  'days': 7,  'icon': '🥈', 'color': Color(0xFFC0C0C0)},
+    {'tier': 'gold',     'amount': 14.99, 'days': 15, 'icon': '🥇', 'color': Color(0xFFFFD700)},
+    {'tier': 'platinum', 'amount': 24.99, 'days': 30, 'icon': '💎', 'color': Color(0xFFE5E4E2)},
   ];
+
+  /// v18.9.8 — libellé de durée localisé. Remplace les labels EN hardcodés
+  /// stockés côté fallback/backend. Regle les cas 7j→"1 semaine",
+  /// 14/21j→"2/3 semaines", 30j→"1 mois", sinon "X jours".
+  String _durationLabel(int days) {
+    if (days <= 0) return '';
+    if (days == 30) return 'boost_duration_one_month'.tr;
+    if (days == 7) return 'boost_duration_one_week'.tr;
+    if (days % 7 == 0 && days > 7 && days < 30) {
+      return 'boost_duration_weeks'
+          .tr
+          .replaceAll('@count', (days ~/ 7).toString());
+    }
+    return 'boost_duration_days'.tr.replaceAll('@count', days.toString());
+  }
   List<Map<String, dynamic>> _packages = List.of(_fallbackPackages);
 
   @override
@@ -439,7 +457,8 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     final amount = ((pkg['amount'] as num?) ?? 0).toDouble();
     final days = ((pkg['days'] as num?) ?? 0).toInt();
     final icon = pkg['icon'] as String;
-    final label = pkg['label'] as String;
+    // v18.9.8 — label localisé via _durationLabel(days), plus de label EN.
+    final label = _durationLabel(days);
     final color = pkg['color'] as Color;
     final isSelected = _selectedTier == tier;
     final isPopular = tier == 'gold';

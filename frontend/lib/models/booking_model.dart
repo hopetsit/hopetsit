@@ -415,9 +415,13 @@ class BookingPricing {
           (json['platformFeePercentage'] as num?)?.toDouble() ??
           (json['platform_fee_percentage'] as num?)?.toDouble(),
       basePrice: baseFromApi ?? baseFromLegacy,
+      // v18.9.8 — le backend stocke le champ sous le nom `commission`
+      // (pricing.js / bookingController). On garde aussi `platformFee` et
+      // `platform_fee` pour rétro-compat avec d'anciennes réponses.
       platformFee:
           (json['platformFee'] as num?)?.toDouble() ??
-          (json['platform_fee'] as num?)?.toDouble(),
+          (json['platform_fee'] as num?)?.toDouble() ??
+          (json['commission'] as num?)?.toDouble(),
       totalPrice:
           (json['totalPrice'] as num?)?.toDouble() ??
           (json['total_price'] as num?)?.toDouble(),

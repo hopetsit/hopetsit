@@ -166,20 +166,12 @@ class PaymentManagementScreen extends StatelessWidget {
               ),
               SizedBox(height: 12.h),
 
-              // Identity Verification Card
-              _buildStatusCard(
-                context: context,
-                icon: Icons.verified_user_rounded,
-                iconColor: Colors.teal,
-                title: 'payment_identity_title'.tr,
-                description: 'payment_identity_desc'.tr,
-                statusLabel: 'payout_status_pending'.tr,
-                statusActive: false,
-                onTap: () => Get.to(() => const IdentityVerificationScreen()),
-              ),
-              // v18.8 — "Statut des versements" retiré à la demande utilisateur.
-              // Redondant avec l'état Stripe Connect déjà affiché dans la
-              // rangée d'icônes et sur la carte Stripe plus haut.
+              // v18.9.8 — "Vérification d'identité" a été déplacée sur
+              // l'écran profil sitter (et walker). Elle n'a rien à faire
+              // dans "Gérer les paiements" puisque c'est une étape
+              // d'onboarding utilisateur, pas un moyen de paiement.
+              // Le badge "Identité vérifiée" apparaît désormais sur la
+              // carte publique du profil.
 
               SizedBox(height: 28.h),
 

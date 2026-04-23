@@ -44,24 +44,41 @@ router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
     }
 
     const normalizedIban = cleanIban(ibanNumber);
+    const encryptedIban = encrypt(normalizedIban);
     const Model = getProviderModel(req.user.role);
 
-    const provider = await Model.findByIdAndUpdate(
-      req.user.id,
-      {
-        ibanHolder: ibanHolder.trim(),
-        ibanNumber: encrypt(normalizedIban),
-        ibanBic: ibanBic?.trim() ?? '',
-        // Session v18.1 — auto-verify on mod97 pass instead of waiting for an
-        // admin. The first real Stripe Transfer still rejects structurally
-        // invalid accounts, so we cannot pay out to a random number.
-        ibanVerified: true,
-        payoutMethod: 'iban',
-      },
-      { new: true }
-    ).select('-password');
+    const ibanUpdate = {
+      ibanHolder: ibanHolder.trim(),
+      ibanNumber: encryptedIban,
+      ibanBic: ibanBic?.trim() ?? '',
+      // Session v18.1 — auto-verify on mod97 pass instead of waiting for an
+      // admin. The first real Stripe Transfer still rejects structurally
+      // invalid accounts, so we cannot pay out to a random number.
+      ibanVerified: true,
+      payoutMethod: 'iban',
+    };
+
+    const provider = await Model.findByIdAndUpdate(req.user.id, ibanUpdate, {
+      new: true,
+    }).select('-password');
 
     if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+
+    // v18.9.8 — l'IBAN enregistré côté sitter est aussi disponible côté
+    // walker (et inversement) pour le MÊME user (matché par email), car
+    // c'est le même compte bancaire. Owner est exclu automatiquement par
+    // syncSharedFields. Encryption key globale → on propage la valeur déjà
+    // chiffrée sans re-chiffrer.
+    try {
+      const { syncSharedFields } = require('../utils/userSyncService');
+      await syncSharedFields({
+        email: provider.email,
+        update: ibanUpdate,
+        excludeRole: req.user.role,
+      });
+    } catch (syncErr) {
+      // Non-bloquant.
+    }
 
     res.json({
       message: 'IBAN saved and verified. Your future payouts will be sent there.',

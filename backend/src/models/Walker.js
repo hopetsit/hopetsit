@@ -224,6 +224,9 @@ const walkerSchema = new mongoose.Schema(
       enum: ['stripe', 'paypal', 'iban'],
       default: 'stripe',
     },
+    // v19.0 — Wallet Vinted-style (voir Sitter.js pour le détail).
+    walletBalance: { type: Number, default: 0, min: 0 },
+    walletCurrency: { type: String, default: 'EUR' },
 
     // Stripe Connect account information
     stripeConnectAccountId: { type: String, default: null },

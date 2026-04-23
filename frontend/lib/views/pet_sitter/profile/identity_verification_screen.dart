@@ -9,6 +9,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Sprint 5 step 7 — Sitter identity verification screen.
 /// Pick a photo of ID document → submit → show status.
@@ -50,6 +51,53 @@ class _IdentityVerificationScreenState
         });
       }
     } catch (_) {}
+  }
+
+  /// v18.9.8 — Stripe Identity flow. Le backend crée une session via
+  /// `POST /identity-verification/session` et renvoie l'URL hosted. On
+  /// l'ouvre dans le navigateur externe ; le user scanne son ID + selfie,
+  /// Stripe ping notre webhook qui met à jour automatiquement
+  /// `user.identityVerification.status = 'verified'`. Si Stripe Identity
+  /// n'est pas configuré côté backend (503), fallback sur l'ancien upload
+  /// simple via `_pickAndUpload()`.
+  Future<void> _startStripeIdentity() async {
+    setState(() => _uploading = true);
+    try {
+      final data = await _api.post(
+        '/identity-verification/session',
+        requiresAuth: true,
+        body: const {},
+      );
+      if (data is Map && data['url'] is String) {
+        final url = data['url']?.toString() ?? '';
+        if (url.isNotEmpty) {
+          final launched = await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          );
+          if (!mounted) return;
+          if (launched) {
+            CustomSnackbar.showSuccess(
+              title: 'identity_verification_started_title'.tr,
+              message: 'identity_verification_started_followup'.tr,
+            );
+          } else {
+            CustomSnackbar.showError(
+              title: 'common_error'.tr,
+              message: 'identity_launch_failed'.tr,
+            );
+          }
+          await _refreshStatus();
+          return;
+        }
+      }
+    } catch (_) {
+      // Stripe Identity non configuré (503) → fallback upload simple.
+      await _pickAndUpload();
+      return;
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   Future<void> _pickAndUpload() async {
@@ -136,14 +184,29 @@ class _IdentityVerificationScreenState
               style: TextStyle(color: AppColors.textSecondary(context)),
             ),
             SizedBox(height: 24.h),
+            // v18.9.8 — Stripe Identity en premier (reconnaissance auto
+            // document + selfie). Si pas configuré, fallback vers upload
+            // classique via _pickAndUpload (bouton secondaire plus bas).
             ElevatedButton.icon(
-              onPressed: _uploading ? null : _pickAndUpload,
-              icon: const Icon(Icons.upload_file),
-              label: Text(_uploading ? 'Uploading...' : 'Upload ID document'),
+              onPressed: _uploading ? null : _startStripeIdentity,
+              icon: const Icon(Icons.verified_user_outlined),
+              label: Text(_uploading
+                  ? 'identity_verifying'.tr
+                  : 'identity_verify_with_stripe'.tr),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryColor,
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(vertical: 14.h),
+              ),
+            ),
+            SizedBox(height: 8.h),
+            TextButton.icon(
+              onPressed: _uploading ? null : _pickAndUpload,
+              icon: Icon(Icons.upload_file, size: 16.sp,
+                  color: AppColors.textSecondary(context)),
+              label: Text(
+                'identity_upload_manual'.tr,
+                style: TextStyle(color: AppColors.textSecondary(context)),
               ),
             ),
           ],

@@ -1,9 +1,10 @@
-// v18.6 — Bouton réutilisable "Booster mon profil".
-// Utilisé sur profile_screen (owner), sitter_profile_screen,
-// walker_profile_screen. Colorisé selon le rôle du user courant.
+// v19.1 — Bouton "Booster" divisé en deux CTA côte à côte :
+//   • Boost profil (rocket, orange/bleu/vert selon rôle) → shop tab 0 (Boost)
+//   • Boost map (pin, cyan) → shop tab 2 (Map Boost)
 //
-// Tap → ouvre la boutique coin boost (CoinShopScreen). La boutique gère
-// le paiement via Stripe et applique le boost au rôle actif.
+// Avant v19.1 : un seul gros bouton qui ouvrait le shop sur l'onglet Boost.
+// Les users voulaient atteindre Map Boost directement depuis leur profil
+// sans passer par la navigation 3-onglets.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -30,69 +31,101 @@ class BoostProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: _BoostChip(
+            accent: _accent,
+            icon: Icons.rocket_launch_rounded,
+            title: 'profile_boost_profile_title'.tr,
+            subtitle: 'profile_boost_profile_subtitle'.tr,
+            onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
+          ),
+        ),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: _BoostChip(
+            // Map Boost garde un accent bleu cyan distinct du rôle user :
+            // c'est un produit différent (carte plutôt que feed).
+            accent: const Color(0xFF3B82F6),
+            icon: Icons.push_pin_rounded,
+            title: 'profile_boost_map_title'.tr,
+            subtitle: 'profile_boost_map_subtitle'.tr,
+            onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BoostChip extends StatelessWidget {
+  const _BoostChip({
+    required this.accent,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final Color accent;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Get.to(() => const CoinShopScreen()),
+      onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              _accent,
-              _accent.withValues(alpha: 0.78),
-            ],
+            colors: [accent, accent.withValues(alpha: 0.78)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
-              color: _accent.withValues(alpha: 0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              color: accent.withValues(alpha: 0.28),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 40.w,
-              height: 40.w,
+              width: 36.w,
+              height: 36.w,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withValues(alpha: 0.22),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.rocket_launch_rounded,
-                color: Colors.white,
-                size: 22.sp,
-              ),
+              child: Icon(icon, color: Colors.white, size: 20.sp),
             ),
-            SizedBox(width: 14.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  PoppinsText(
-                    text: 'profile_boost_cta'.tr,
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: 'profile_boost_subtitle'.tr,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white.withValues(alpha: 0.85),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
+            SizedBox(height: 10.h),
+            PoppinsText(
+              text: title,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w800,
               color: Colors.white,
-              size: 16.sp,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: 2.h),
+            InterText(
+              text: subtitle,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w400,
+              color: Colors.white.withValues(alpha: 0.9),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

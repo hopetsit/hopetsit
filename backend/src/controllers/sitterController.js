@@ -897,6 +897,21 @@ const updateSitterProfile = async (req, res) => {
       return res.status(404).json({ error: 'Sitter not found.' });
     }
 
+    // v18.9.8 — sync des champs partagés vers Owner + Walker du même user.
+    // Les champs sitter-spécifiques (hourlyRate, dailyRate, weeklyRate,
+    // monthlyRate, servicePricing, identityVerification) sont ignorés par
+    // syncSharedFields car ils ne figurent pas dans SHARED_FIELDS.
+    try {
+      const { syncSharedFields } = require('../utils/userSyncService');
+      await syncSharedFields({
+        email: updatedSitter.email,
+        update: updateData,
+        excludeRole: 'sitter',
+      });
+    } catch (syncErr) {
+      logger.warn('[sitter.updateProfile] cross-role sync failed', syncErr?.message || syncErr);
+    }
+
     res.json({
       message: 'Profile updated successfully.',
       sitter: sanitizeUser(updatedSitter, { includeEmail: true }),

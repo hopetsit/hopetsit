@@ -176,6 +176,8 @@ const versionedRoutes = [
   // (before the JSON parser) so signatures can be verified on raw body.
   { path: '/identity-verification', mw: [sensitiveLimiter], router: identityVerificationRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
+  // v19.0 — Wallet Vinted-style (sitter+walker balance + withdrawals).
+  { path: '/wallet', mw: [], router: require('./routes/walletRoutes') },
 ];
 
 // Log deprecation warning for unversioned callers.

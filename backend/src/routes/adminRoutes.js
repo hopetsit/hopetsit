@@ -1826,4 +1826,177 @@ router.post('/services/reset', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── v18.9.8 — IBAN Manual Payouts (Mark as Paid) ───────────────────────────
+// Liste des bookings en attente de virement manuel (payoutStatus =
+// 'pending_manual_transfer'). Ces bookings ont été payées par l'owner mais
+// le provider reçoit par IBAN → transfer à faire à la main côté admin.
+router.get('/iban-payouts/pending', requireAdmin, async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      payoutStatus: 'pending_manual_transfer',
+    })
+      .sort({ 'manualPayoutDetails.queuedAt': 1 })
+      .populate('ownerId', 'name email')
+      .populate('sitterId', 'name email ibanHolder ibanNumber ibanBic')
+      .populate('walkerId', 'name email ibanHolder ibanNumber ibanBic')
+      .limit(200)
+      .lean();
+
+    const items = bookings.map((b) => {
+      const provider = b.walkerId || b.sitterId;
+      return {
+        bookingId: b._id,
+        providerName: provider?.name || '-',
+        providerEmail: provider?.email || '-',
+        providerRole: b.walkerId ? 'walker' : 'sitter',
+        ownerName: b.ownerId?.name || '-',
+        amount: b.manualPayoutDetails?.amount ?? b.pricing?.netPayout ?? 0,
+        currency: b.manualPayoutDetails?.currency || b.pricing?.currency || 'EUR',
+        ibanHolder: b.manualPayoutDetails?.holderName || provider?.ibanHolder || '-',
+        ibanMasked: b.manualPayoutDetails?.ibanMasked || '-',
+        ibanBic: b.manualPayoutDetails?.bic || provider?.ibanBic || '-',
+        queuedAt: b.manualPayoutDetails?.queuedAt || b.updatedAt,
+        serviceType: b.serviceType || '',
+      };
+    });
+
+    res.json({
+      count: items.length,
+      totalPending: items.reduce((s, i) => s + (i.amount || 0), 0),
+      items,
+    });
+  } catch (e) {
+    logger.error('[admin/iban-payouts/pending]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Marque un booking comme payé manuellement. On passe payoutStatus de
+// 'pending_manual_transfer' → 'completed' et on stocke payoutAt + optionnel
+// reference (numéro de virement SEPA pour trace).
+router.post(
+  '/iban-payouts/:bookingId/mark-paid',
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { bookingId } = req.params;
+      const { reference } = req.body || {};
+      const booking = await Booking.findById(bookingId);
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found.' });
+      }
+      if (booking.payoutStatus !== 'pending_manual_transfer') {
+        return res.status(400).json({
+          error: `Booking is not in pending_manual_transfer state (current: ${booking.payoutStatus}).`,
+        });
+      }
+      booking.payoutStatus = 'completed';
+      booking.payoutAt = new Date();
+      if (reference && typeof reference === 'string') {
+        booking.manualPayoutDetails = {
+          ...(booking.manualPayoutDetails || {}),
+          paidReference: reference.trim(),
+          paidAt: new Date(),
+        };
+      }
+      await booking.save();
+      res.json({
+        ok: true,
+        bookingId: booking._id,
+        payoutStatus: booking.payoutStatus,
+        payoutAt: booking.payoutAt,
+      });
+    } catch (e) {
+      logger.error('[admin/iban-payouts/mark-paid]', e);
+      res.status(500).json({ error: e.message });
+    }
+  },
+);
+
+// ─── v19.0 — Wallet withdrawals pending (Mark as Paid) ──────────────────────
+// Comme les bookings manual transfers mais pour les retraits wallet déclenchés
+// par le provider. Même flow : admin voit les pending, exécute SEPA/PayPal,
+// clique Mark as Paid → transaction passe de pending à completed.
+const WalletTransaction = require('../models/WalletTransaction');
+const SitterModel = require('../models/Sitter');
+const WalkerModel = require('../models/Walker');
+
+router.get('/wallet/withdrawals/pending', requireAdmin, async (req, res) => {
+  try {
+    const items = await WalletTransaction.find({
+      type: 'debit_withdrawal',
+      status: 'pending',
+    })
+      .sort({ createdAt: 1 })
+      .limit(200)
+      .lean();
+
+    // Hydrate les infos user (nom, email, IBAN/PayPal).
+    const hydrated = await Promise.all(
+      items.map(async (tx) => {
+        const Model = tx.userRole === 'walker' ? WalkerModel : SitterModel;
+        const u = await Model.findById(tx.userId).select(
+          'name email ibanHolder ibanNumber ibanBic paypalEmail',
+        );
+        return {
+          transactionId: tx._id,
+          userId: tx.userId,
+          userRole: tx.userRole,
+          userName: u?.name || '-',
+          userEmail: u?.email || '-',
+          amount: tx.amount,
+          currency: tx.currency,
+          method: tx.withdrawalMethod,
+          ibanHolder: u?.ibanHolder || '-',
+          ibanBic: u?.ibanBic || '-',
+          paypalEmail: u?.paypalEmail || '-',
+          queuedAt: tx.createdAt,
+        };
+      }),
+    );
+
+    res.json({
+      count: hydrated.length,
+      totalPending: hydrated.reduce((s, i) => s + i.amount, 0),
+      items: hydrated,
+    });
+  } catch (e) {
+    logger.error('[admin/wallet/withdrawals/pending]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post(
+  '/wallet/withdrawals/:transactionId/mark-paid',
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const tx = await WalletTransaction.findById(req.params.transactionId);
+      if (!tx) {
+        return res.status(404).json({ error: 'Transaction not found.' });
+      }
+      if (tx.type !== 'debit_withdrawal' || tx.status !== 'pending') {
+        return res.status(400).json({
+          error: `Transaction is not a pending withdrawal (${tx.type}/${tx.status}).`,
+        });
+      }
+      tx.status = 'completed';
+      tx.completedAt = new Date();
+      if (req.body?.reference && typeof req.body.reference === 'string') {
+        tx.referenceId = req.body.reference.trim();
+      }
+      await tx.save();
+      res.json({
+        ok: true,
+        transactionId: tx._id,
+        status: tx.status,
+        completedAt: tx.completedAt,
+      });
+    } catch (e) {
+      logger.error('[admin/wallet/withdrawals/mark-paid]', e);
+      res.status(500).json({ error: e.message });
+    }
+  },
+);
+
 module.exports = router;

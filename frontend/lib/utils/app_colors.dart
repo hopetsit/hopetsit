@@ -22,6 +22,29 @@ class AppColors {
   // sitter_profile_screen). Walker accent = the existing greenColor above.
   static const sitterAccent = Color(0xFF1A73E8);
 
+  // v18.9.8 — constantes rôle centralisées. Remplacer progressivement les
+  // const Color(0xFF1A73E8) / Color(0xFF2563EB) / greenColor éparpillés
+  // par ces références. Toujours passer par `roleAccent(role)` pour les
+  // widgets qui s'adaptent au rôle courant.
+  static const Color ownerAccent = primaryColor; // #EF4324 orange
+  static const Color walkerAccent = Color(0xFF16A34A); // vert walker
+
+  /// Retourne la couleur d'accent du rôle fourni.
+  /// Valeurs acceptées : 'owner' | 'sitter' | 'walker'.
+  /// Fallback : `primaryColor` (orange owner) si rôle inconnu.
+  static Color roleAccent(String? role) {
+    switch ((role ?? '').toLowerCase()) {
+      case 'walker':
+        return walkerAccent;
+      case 'sitter':
+        return sitterAccent;
+      case 'owner':
+        return ownerAccent;
+      default:
+        return primaryColor;
+    }
+  }
+
   // Session v15-4 — Map Boost theme palette. Distinct from Boost (red) and
   // Premium (orange) so the user immediately sees Map Boost = "carte".
   // Blue for the entry tiers + gold for the premium tiers.

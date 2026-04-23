@@ -53,9 +53,8 @@ class StripePaymentScreen extends StatefulWidget {
 }
 
 class _StripePaymentScreenState extends State<StripePaymentScreen> {
-  // ── Role detection (same logic as owner_booking_detail_screen v16.3i) ─────
-  static const Color _walkerAccent = Color(0xFF16A34A);
-  static const Color _sitterAccent = Color(0xFF2563EB);
+  // v18.9.8 — couleurs rôles centralisées via AppColors.roleAccent().
+  // Avant, ces constantes étaient dupliquées dans ~10 screens.
 
   // Card form state.
   CardFieldInputDetails? _cardDetails;
@@ -141,8 +140,9 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   }
 
   Color _accent() {
-    if (_isWalker) return _walkerAccent;
-    if (_isSitter) return _sitterAccent;
+    // v18.9.8 — helper centralisé (voir AppColors.roleAccent).
+    if (_isWalker) return AppColors.walkerAccent;
+    if (_isSitter) return AppColors.sitterAccent;
     return AppColors.primaryColor;
   }
 

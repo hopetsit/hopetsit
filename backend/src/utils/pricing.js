@@ -176,10 +176,18 @@ const getRecommendedPriceRange = (serviceType, locationType, duration = null, cu
 };
 
 /**
- * Calculate commission and payout breakdown
- * @param {number} basePrice - Base price set by sitter
+ * Calculate commission and payout breakdown.
+ *
+ * v18.9.8 — BUSINESS RULE CHANGE: the 20% platform commission is now paid
+ * ENTIRELY by the owner, ON TOP of the provider's advertised rate. The
+ * provider (sitter / walker) receives their FULL advertised rate as net
+ * payout. Before v18.9.8, the commission was deducted from the provider's
+ * payout, which was unfair to providers.
+ *
+ * @param {number} basePrice - Base price set by sitter / walker (what the
+ *                             provider wants to receive net).
  * @param {string} [currency=DEFAULT_CURRENCY] - Currency code (EUR or USD)
- * @returns {Object} Price breakdown with commission and payout
+ * @returns {Object} Price breakdown with commission, netPayout and ownerTotal.
  */
 const calculatePricingBreakdown = (basePrice, currency = DEFAULT_CURRENCY) => {
   if (typeof basePrice !== 'number' || basePrice <= 0) {
@@ -191,13 +199,21 @@ const calculatePricingBreakdown = (basePrice, currency = DEFAULT_CURRENCY) => {
     'Pricing breakdown supports only USD or EUR.'
   );
 
+  // Commission is computed ON the provider base rate and ADDED to the owner
+  // total. It is NOT subtracted from the provider's payout anymore.
+  //   provider advertises : 10 €
+  //   commission (20%)    :  2 €   ← paid by owner
+  //   owner total         : 12 €
+  //   provider net payout : 10 €   (= basePrice, unchanged)
   const commission = basePrice * PLATFORM_COMMISSION_RATE;
-  const netPayout = basePrice - commission;
+  const netPayout = basePrice; // provider receives full advertised rate
+  const ownerTotal = basePrice + commission;
 
   return {
     basePrice: parseFloat(basePrice.toFixed(2)),
     commission: parseFloat(commission.toFixed(2)),
     netPayout: parseFloat(netPayout.toFixed(2)),
+    ownerTotal: parseFloat(ownerTotal.toFixed(2)),
     commissionRate: PLATFORM_COMMISSION_RATE,
     currency: normalizedCurrency,
   };
@@ -220,8 +236,11 @@ const calculateTotalWithAddOns = (basePrice, addOns = [], currency = DEFAULT_CUR
     return sum + (addOn.amount || 0);
   }, 0);
 
-  const totalPrice = basePrice + addOnsTotal;
-  const breakdown = calculatePricingBreakdown(totalPrice, normalizedCurrency);
+  // v18.9.8 — the provider gross (what the provider wants to receive) is
+  // basePrice + addOns. The commission is computed on this amount and
+  // ADDED on top. `totalPrice` = what the owner actually pays.
+  const providerGross = basePrice + addOnsTotal;
+  const breakdown = calculatePricingBreakdown(providerGross, normalizedCurrency);
 
   return {
     ...breakdown,
@@ -232,7 +251,11 @@ const calculateTotalWithAddOns = (basePrice, addOns = [], currency = DEFAULT_CUR
       currency: normalizedCurrency,
     })),
     addOnsTotal: parseFloat(addOnsTotal.toFixed(2)),
-    totalPrice: parseFloat(totalPrice.toFixed(2)),
+    // totalPrice is what the OWNER pays (provider gross + 20% commission).
+    // Keeps backward compatibility with any consumer expecting this field.
+    totalPrice: parseFloat(breakdown.ownerTotal.toFixed(2)),
+    // providerGross stays available for display / reporting if needed.
+    providerGross: parseFloat(providerGross.toFixed(2)),
   };
 };
 

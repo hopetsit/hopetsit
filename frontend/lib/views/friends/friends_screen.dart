@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/models/friendship_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -232,19 +233,23 @@ class _FriendTile extends StatelessWidget {
               ],
             ),
           ),
-          // Share position toggle
+          // v18.9.8 — Share position toggle : couleur selon rôle actif
+          // (orange owner / bleu sitter / vert walker) au lieu de toujours
+          // orange hardcodé.
           Column(
             children: [
               Transform.scale(
                 scale: 0.75,
                 child: Switch(
                   value: friendship.mySharePosition,
-                  activeThumbColor: AppColors.primaryColor,
+                  activeThumbColor: AppColors.roleAccent(
+                    Get.find<AuthController>().userRole.value,
+                  ),
                   onChanged: (v) => controller.setSharePosition(friendship.id, v),
                 ),
               ),
               InterText(
-                text: 'Partager',
+                text: 'friends_share_position_label'.tr,
                 fontSize: 9.sp,
                 color: AppColors.greyText,
               ),

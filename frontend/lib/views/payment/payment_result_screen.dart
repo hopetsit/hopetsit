@@ -299,16 +299,19 @@ class PaymentResultScreen extends StatelessWidget {
   /// blue for sitter, fallback primary). Used to color the "back to home"
   /// button on the payment success screen so it matches the role that was
   /// just paid.
+  ///
+  /// v18.9.8 — utilise les constantes centralisées AppColors (walkerAccent /
+  /// sitterAccent) au lieu de Color(0xFF16A34A) / Color(0xFF2563EB) dupliqués.
   Color _resolveAccentColor() {
     if (booking == null) return AppColors.primaryColor;
     final service = (booking!.serviceType ?? '').toLowerCase();
     if (service.contains('dog_walking') || service.contains('walking')) {
-      return const Color(0xFF16A34A); // walker green
+      return AppColors.walkerAccent;
     }
     if (service.contains('sitting') ||
         service.contains('day_care') ||
         service.contains('boarding')) {
-      return const Color(0xFF2563EB); // sitter blue
+      return AppColors.sitterAccent;
     }
     return AppColors.primaryColor;
   }

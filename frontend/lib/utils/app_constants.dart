@@ -9,4 +9,11 @@ class AppConstants {
 
   static const double initialLat = 19.07283000;
   static const double initialLong = 72.88261000;
+
+  /// v18.9.8 — taux de commission plateforme appliqué au-dessus du tarif
+  /// provider côté owner. Gardé en mémoire pour les écrans d'estimation
+  /// ET comme garde-fou si le backend ne renvoie pas la valeur.
+  /// SOURCE DE VÉRITÉ : backend/src/utils/pricing.js PLATFORM_COMMISSION_RATE.
+  /// Toujours préférer `booking.pricing.commission` quand dispo.
+  static const double platformCommissionRate = 0.20;
 }

@@ -552,16 +552,45 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Navigates to the appropriate home screen based on user role
+  /// Navigates to the appropriate home screen based on user role.
+  ///
+  /// v18.9.8 — reset les controllers user-scoped AVANT le `Get.offAll` pour
+  /// éviter le flicker observé au switch rapide : avant, les controllers
+  /// anciens étaient encore en cache quand le nouveau wrapper commençait
+  /// son premier build, puis `_refreshDataAfterRoleSwitch` (post-frame)
+  /// les supprimait → double rebuild visible.
+  /// Transition `noTransition` pour un swap instantané (pas de fade-in).
   void _navigateToHome() {
     final role = userRole.value;
+
+    // Reset les controllers AVANT la navigation pour que le nouveau home
+    // démarre déjà propre (ses `onInit` tireront les data du bon rôle).
+    try {
+      _forceResetUserControllers();
+      _clearServiceSelections();
+    } catch (_) {
+      // Non-bloquant — si un controller n'existe pas, on continue.
+    }
+
     if (role == 'owner') {
-      Get.offAll(() => const BottomNavWrapper());
+      Get.offAll(
+        () => const BottomNavWrapper(),
+        transition: Transition.noTransition,
+        duration: Duration.zero,
+      );
     } else if (role == 'sitter') {
-      Get.offAll(() => const SitterNavWrapper());
+      Get.offAll(
+        () => const SitterNavWrapper(),
+        transition: Transition.noTransition,
+        duration: Duration.zero,
+      );
     } else if (role == 'walker') {
       // Walker role — uses its own nav shell, defined next to the sitter shell.
-      Get.offAll(() => const WalkerNavWrapper());
+      Get.offAll(
+        () => const WalkerNavWrapper(),
+        transition: Transition.noTransition,
+        duration: Duration.zero,
+      );
     } else {
       // Fallback: go back if role is not recognized
       Get.back();
@@ -842,21 +871,15 @@ class AuthController extends GetxController {
   }
 
   /// Re-triggers startup APIs for the current role and clears the other role's cached data.
+  ///
+  /// v18.9.8 — le reset des controllers a été déplacé dans `_navigateToHome`
+  /// (avant le `Get.offAll`) pour éviter le flicker. Ici on ne fait plus que
+  /// les actions qui DOIVENT se faire APRÈS navigation (prompt PayPal, etc.).
   Future<void> _refreshDataAfterRoleSwitch() async {
     final role = userRole.value;
     if (role == null) return;
 
     try {
-      // Session v15 — hard reset all user-scoped controllers so the *next*
-      // screen opens against a pristine controller that will fire its
-      // onInit() load. The previous "set .value = null + await reload"
-      // approach raced with _navigateToHome(): the home shell rebuilt first,
-      // lookups returned the old-but-nulled controller, and nothing re-fetched
-      // until the user triggered a manual action (hence the need to logout/
-      // relogin to see their own profile / newly published posts).
-      _forceResetUserControllers();
-      _clearServiceSelections();
-
       if (role == 'sitter' && AppConstants.showPayPalOption) {
         await _promptForSitterPayPalEmailIfMissing();
       }

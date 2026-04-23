@@ -137,6 +137,26 @@ class ChatAddonController extends GetxController {
       }
 
       final currentPlan = plan.value;
+
+      // v18.9.8 — charge les saved cards (endpoint role-aware : owner /
+      // sitter / walker) pour proposer paiement direct sans ressaisie.
+      List<Map<String, dynamic>> savedCards = const [];
+      try {
+        final resp =
+            await api.get('/owner/payments/methods', requiresAuth: true);
+        if (resp is Map) {
+          final list = resp['paymentMethods'];
+          if (list is List) {
+            savedCards = list
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+        }
+      } catch (_) {
+        // Non bloquant : fallback vers saisie carte.
+      }
+
       final ok = await Get.to<bool>(
         () => ModernCardPaymentScreen(
           clientSecret: clientSecret,
@@ -144,6 +164,7 @@ class ChatAddonController extends GetxController {
           currency: currency.value,
           productLabel: 'Chat entre amis',
           productSubtitle: '30 jours — débloque le chat avec tes amis',
+          savedPaymentMethods: savedCards,
         ),
       );
       if (ok != true) return false;

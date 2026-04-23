@@ -210,7 +210,9 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
   }
 
   double _calculatePlatformFee(double total) {
-    return total * 0.20; // 20% platform fee
+    // v18.9.8 — taux centralisé dans AppConstants. Ajustement sans rebuild
+    // de cette écran uniquement. Source de vérité : pricing.js côté backend.
+    return total * AppConstants.platformCommissionRate;
   }
 
   double _calculateFinalTotal(double total, double platformFee) {

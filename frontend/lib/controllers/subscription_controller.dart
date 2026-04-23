@@ -203,6 +203,25 @@ class SubscriptionController extends GetxController {
       final planRow = plans.firstWhereOrNull((p) => p.plan == plan);
       final displayAmount = planRow?.amount ?? 0;
 
+      // v18.9.8 — charge les saved cards (endpoint role-aware : owner /
+      // sitter / walker) pour permettre paiement direct sans ressaisie.
+      List<Map<String, dynamic>> savedCards = const [];
+      try {
+        final resp =
+            await api.get('/owner/payments/methods', requiresAuth: true);
+        if (resp is Map) {
+          final list = resp['paymentMethods'];
+          if (list is List) {
+            savedCards = list
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+        }
+      } catch (_) {
+        // Non bloquant : fallback vers saisie carte.
+      }
+
       // 4. Push the in-app card screen. Returns true only on confirmed
       //    payment, false on cancel / error.
       final ok = await Get.to<bool>(
@@ -215,6 +234,7 @@ class SubscriptionController extends GetxController {
           productSubtitle: plan == 'yearly'
               ? '1 an — 35% off vs mensuel'
               : 'Renouvellement mensuel',
+          savedPaymentMethods: savedCards,
         ),
       );
 

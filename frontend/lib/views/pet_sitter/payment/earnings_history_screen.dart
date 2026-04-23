@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -37,7 +38,15 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
     }
     try {
       final api = Get.find<ApiClient>();
-      final data = await api.get('/sitters/me/earnings?page=$_page&limit=20');
+      // v18.9.8 — écran partagé sitter/walker. On route vers l'endpoint
+      // role-aware sinon un walker tombait toujours sur 0€ (endpoint
+      // /sitters/me/earnings filtré par sitterId, qui n'existe pas pour
+      // les bookings walker). Endpoint backend créé en v18.9.8.
+      final role = Get.find<AuthController>().userRole.value;
+      final endpoint = role == 'walker'
+          ? '/walkers/me/earnings'
+          : '/sitters/me/earnings';
+      final data = await api.get('$endpoint?page=$_page&limit=20');
       final map = data as Map<String, dynamic>;
       setState(() {
         if (refresh || _page == 1) {

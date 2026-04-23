@@ -280,6 +280,36 @@ const handlePaymentIntentSucceeded = async (paymentIntent) => {
       logger.warn('[webhook paid] chat unlock failed (non-blocking)', chatErr?.message || chatErr);
     }
 
+    // v19.0 — Wallet Vinted-style : crédite le provider avec son netPayout
+    // dès que Stripe confirme le paiement. Le provider voit le montant
+    // apparaître dans "Mon portefeuille" immédiatement et peut retirer
+    // vers IBAN/PayPal ou l'utiliser pour acheter des boost/premium.
+    try {
+      const netPayout = booking.pricing?.netPayout;
+      const walletCurrency = (booking.pricing?.currency || 'EUR').toUpperCase();
+      if (providerId && typeof netPayout === 'number' && netPayout > 0) {
+        const { creditWallet } = require('../services/walletService');
+        await creditWallet({
+          userId: providerId,
+          userRole: providerRole,
+          amount: netPayout,
+          currency: walletCurrency,
+          type: 'credit_booking',
+          bookingId: booking._id.toString(),
+          referenceId: paymentIntent.id,
+          meta: {
+            ownerId: booking.ownerId?.toString?.() || String(booking.ownerId),
+            serviceType: booking.serviceType || '',
+          },
+        });
+      }
+    } catch (walletErr) {
+      logger.error('[webhook paid] wallet credit failed (non-blocking)', walletErr?.message || walletErr);
+      // Non-bloquant : si le credit échoue on log et on continue. Le retry
+      // du webhook Stripe re-appellera et la clé unique bookingId+type de
+      // WalletTransaction empêche un double crédit.
+    }
+
     logger.info(`✅ Booking ${bookingId} marked as PAID via webhook (payment_status: paid)`);
   } catch (error) {
     logger.error('Error handling payment_intent.succeeded:', error);

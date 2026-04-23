@@ -193,6 +193,26 @@ class MapBoostController extends GetxController {
       // some Android devices — card number field wouldn't accept input).
       final pkg = packages.firstWhereOrNull((p) => p.tier == tier);
       final displayAmount = pkg?.amount ?? 0;
+
+      // v18.9.8 — récupère les saved cards (endpoint role-aware : owner /
+      // sitter / walker) pour proposer un paiement direct sans ressaisir.
+      List<Map<String, dynamic>> savedCards = const [];
+      try {
+        final resp =
+            await api.get('/owner/payments/methods', requiresAuth: true);
+        if (resp is Map) {
+          final list = resp['paymentMethods'];
+          if (list is List) {
+            savedCards = list
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+        }
+      } catch (_) {
+        // Non bloquant : fallback vers saisie carte.
+      }
+
       final ok = await Get.to<bool>(
         () => ModernCardPaymentScreen(
           clientSecret: clientSecret,
@@ -200,6 +220,7 @@ class MapBoostController extends GetxController {
           currency: currency.value,
           productLabel: 'Map Boost ${tier[0].toUpperCase()}${tier.substring(1)}',
           productSubtitle: pkg != null ? '${pkg.days} jours sur la map' : null,
+          savedPaymentMethods: savedCards,
         ),
       );
       if (ok != true) return false;

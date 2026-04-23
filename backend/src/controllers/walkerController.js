@@ -230,6 +230,22 @@ const updateMyWalkerProfile = async (req, res) => {
     if (!walker) {
       return res.status(404).json({ error: 'Walker profile not found.' });
     }
+
+    // v18.9.8 — propage nom / adresse / téléphone / bio vers les profils
+    // owner + sitter du même user. Les champs walker-spécifiques
+    // (walkRates, acceptedPetTypes, etc.) sont automatiquement ignorés
+    // par syncSharedFields (ils ne figurent pas dans la whitelist).
+    try {
+      const { syncSharedFields } = require('../utils/userSyncService');
+      await syncSharedFields({
+        email: walker.email,
+        update,
+        excludeRole: 'walker',
+      });
+    } catch (syncErr) {
+      logger.warn('[updateMyWalkerProfile] cross-role sync failed', syncErr?.message || syncErr);
+    }
+
     res.json({ walker: sanitizeUser(walker, { includeEmail: true }) });
   } catch (error) {
     logger.error('updateMyWalkerProfile error', error);
