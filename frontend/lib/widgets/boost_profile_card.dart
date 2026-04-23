@@ -1,10 +1,7 @@
-// v19.1 — Bouton "Booster" divisé en deux CTA côte à côte :
-//   • Boost profil (rocket, orange/bleu/vert selon rôle) → shop tab 0 (Boost)
-//   • Boost map (pin, cyan) → shop tab 2 (Map Boost)
-//
-// Avant v19.1 : un seul gros bouton qui ouvrait le shop sur l'onglet Boost.
-// Les users voulaient atteindre Map Boost directement depuis leur profil
-// sans passer par la navigation 3-onglets.
+// v19.1.1 — Boost profil : 2 boutons côte à côte sans CrossAxisAlignment.stretch
+// (qui cassait le rendu des sections en-dessous sur le profil owner).
+// Chaque chip est un Container à hauteur fixe, donc pas d'infinite height
+// constraint qui fait bugger le scroll parent.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,41 +18,41 @@ class BoostProfileCard extends StatelessWidget {
   Color get _accent {
     switch (role) {
       case 'walker':
-        return const Color(0xFF16A34A); // vert
+        return const Color(0xFF16A34A);
       case 'sitter':
-        return const Color(0xFF2563EB); // bleu
+        return const Color(0xFF2563EB);
       default:
-        return AppColors.primaryColor; // orange owner
+        return AppColors.primaryColor;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: _BoostChip(
-            accent: _accent,
-            icon: Icons.rocket_launch_rounded,
-            title: 'profile_boost_profile_title'.tr,
-            subtitle: 'profile_boost_profile_subtitle'.tr,
-            onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
+    return SizedBox(
+      height: 90.h,
+      child: Row(
+        children: [
+          Expanded(
+            child: _BoostChip(
+              accent: _accent,
+              icon: Icons.rocket_launch_rounded,
+              title: 'profile_boost_profile_title'.tr,
+              subtitle: 'profile_boost_profile_subtitle'.tr,
+              onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
+            ),
           ),
-        ),
-        SizedBox(width: 10.w),
-        Expanded(
-          child: _BoostChip(
-            // Map Boost garde un accent bleu cyan distinct du rôle user :
-            // c'est un produit différent (carte plutôt que feed).
-            accent: const Color(0xFF3B82F6),
-            icon: Icons.push_pin_rounded,
-            title: 'profile_boost_map_title'.tr,
-            subtitle: 'profile_boost_map_subtitle'.tr,
-            onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: _BoostChip(
+              accent: const Color(0xFF3B82F6),
+              icon: Icons.push_pin_rounded,
+              title: 'profile_boost_map_title'.tr,
+              subtitle: 'profile_boost_map_subtitle'.tr,
+              onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -80,7 +77,7 @@ class _BoostChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [accent, accent.withValues(alpha: 0.78)],
@@ -96,9 +93,7 @@ class _BoostChip extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
             Container(
               width: 36.w,
@@ -109,23 +104,31 @@ class _BoostChip extends StatelessWidget {
               ),
               child: Icon(icon, color: Colors.white, size: 20.sp),
             ),
-            SizedBox(height: 10.h),
-            PoppinsText(
-              text: title,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            SizedBox(height: 2.h),
-            InterText(
-              text: subtitle,
-              fontSize: 10.sp,
-              fontWeight: FontWeight.w400,
-              color: Colors.white.withValues(alpha: 0.9),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PoppinsText(
+                    text: title,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 2.h),
+                  InterText(
+                    text: subtitle,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
