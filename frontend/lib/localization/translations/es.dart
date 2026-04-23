@@ -1004,6 +1004,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'send_request_service_dog_walking': 'Paseo de perros',
       'send_request_service_overnight_stay': 'Estancia nocturna',
       'send_request_service_home_visit': 'Visita a domicilio',
+      'duration_label': 'Duración',
       'send_request_duration_label': 'Duración (minutos)',
       'send_request_duration_rate_missing':
           'Tarifa no definida para esta duración — confirmar con el prestador',

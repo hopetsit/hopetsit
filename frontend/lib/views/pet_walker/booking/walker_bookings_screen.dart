@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// Walker bookings history screen.
@@ -249,16 +250,18 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
           SizedBox(height: 16.h),
           _row(Icons.pets, 'sitter_bookings_pet_label'.tr, booking.petName),
           SizedBox(height: 12.h),
+          // v18.9 — date + heure formatées selon la locale (plus d'ISO brut
+          // "2026-04-24T00:00:00.000Z" ni "11:24 PM" en FR).
           _row(Icons.calendar_today,
-              'sitter_bookings_date_label'.tr, booking.date),
+              'sitter_bookings_date_label'.tr,
+              BookingDateFormat.localizedDate(booking.date)),
           SizedBox(height: 12.h),
           _row(Icons.access_time,
-              'sitter_bookings_time_label'.tr, booking.timeSlot),
+              'sitter_bookings_time_label'.tr,
+              BookingDateFormat.localizedTime(booking.timeSlot)),
           if (booking.duration != null && booking.duration! > 0) ...[
             SizedBox(height: 12.h),
-            _row(Icons.timer, 'duration_label'.tr.isNotEmpty
-                ? 'duration_label'.tr
-                : 'Duration', '${booking.duration} min'),
+            _row(Icons.timer, 'duration_label'.tr, '${booking.duration} min'),
           ],
           if (booking.totalAmount != null) ...[
             SizedBox(height: 12.h),

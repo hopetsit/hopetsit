@@ -30,6 +30,7 @@ class ModernCardPaymentScreen extends StatefulWidget {
     required this.productLabel,
     this.productSubtitle,
     this.primaryColor,
+    this.savedPaymentMethods = const [],
   });
 
   final String clientSecret;
@@ -40,6 +41,11 @@ class ModernCardPaymentScreen extends StatefulWidget {
 
   /// Optional primary color for the header/button. Defaults to app primary.
   final Color? primaryColor;
+
+  /// v18.9 — liste des cartes déjà enregistrées. Si non vide, l'écran
+  /// propose à l'user de payer avec une carte existante sans re-saisir.
+  /// Chaque entrée doit avoir au minimum { id, brand, last4, expMonth, expYear }.
+  final List<Map<String, dynamic>> savedPaymentMethods;
 
   @override
   State<ModernCardPaymentScreen> createState() =>
@@ -52,6 +58,19 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   String _country = 'FR';
+
+  /// v18.9 — payment method ID sélectionné parmi saved cards. null = nouvelle carte.
+  String? _selectedSavedPmId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pré-sélectionne la 1re carte enregistrée si dispo.
+    if (widget.savedPaymentMethods.isNotEmpty) {
+      _selectedSavedPmId =
+          widget.savedPaymentMethods.first['id']?.toString();
+    }
+  }
 
   @override
   void dispose() {
@@ -76,6 +95,45 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
   }
 
   Future<void> _pay() async {
+    // v18.9 — si une saved card est sélectionnée, on confirme avec son
+    // PaymentMethodId et on skip la saisie carte. Sinon flow normal.
+    if (_selectedSavedPmId != null && _selectedSavedPmId!.isNotEmpty) {
+      setState(() => _processing = true);
+      try {
+        await Stripe.instance.confirmPayment(
+          paymentIntentClientSecret: widget.clientSecret,
+          data: PaymentMethodParams.cardFromMethodId(
+            paymentMethodData: PaymentMethodDataCardFromMethod(
+              paymentMethodId: _selectedSavedPmId!,
+            ),
+          ),
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+        return;
+      } on StripeException catch (e) {
+        if (!mounted) return;
+        if (e.error.code != FailureCode.Canceled) {
+          CustomSnackbar.showError(
+            title: 'Paiement échoué',
+            message: e.error.localizedMessage ??
+                e.error.message ??
+                'Erreur pendant la transaction.',
+          );
+        }
+        return;
+      } catch (e) {
+        if (!mounted) return;
+        CustomSnackbar.showError(
+          title: 'Paiement échoué',
+          message: e.toString(),
+        );
+        return;
+      } finally {
+        if (mounted) setState(() => _processing = false);
+      }
+    }
+
     if (_cardDetails == null || !(_cardDetails!.complete)) {
       CustomSnackbar.showError(
         title: 'Carte incomplète',

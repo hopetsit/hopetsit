@@ -1010,6 +1010,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'house_sitting_venue_label': 'Luogo del house sitting',
       'house_sitting_venue_owners_home': 'A casa del proprietario',
       'house_sitting_venue_sitters_home': 'A casa del pet sitter',
+      'duration_label': 'Durata',
       'send_request_duration_label': 'Durata (minuti)',
       'send_request_duration_rate_missing':
           'Tariffa non impostata per questa durata — da confermare con il prestatore',

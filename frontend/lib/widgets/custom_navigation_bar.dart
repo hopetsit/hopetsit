@@ -50,8 +50,9 @@ class CustomNavigationBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Home
-          _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark),
+          // Home — v18.9 : badge "1" quand direct request arrive (provider)
+          // ou application/acceptation arrive (owner).
+          _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark, badgeIndex: 0),
           // Chat
           _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1),
           // Center MAP button (elevated)
@@ -84,6 +85,7 @@ class CustomNavigationBar extends StatelessWidget {
         HapticFeedback.lightImpact();
         if (Get.isRegistered<NotificationsController>()) {
           final nc = Get.find<NotificationsController>();
+          if (index == 0) nc.clearHomeBadge();
           if (index == 1) nc.clearChatBadge();
           if (index == 3) nc.clearBookingsBadge();
         }
@@ -114,9 +116,11 @@ class CustomNavigationBar extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       final nc = Get.find<NotificationsController>();
-                      final count = badgeIndex == 1
-                          ? nc.unreadChat.value
-                          : nc.unreadBookings.value;
+                      final count = badgeIndex == 0
+                          ? nc.unreadHome.value
+                          : badgeIndex == 1
+                              ? nc.unreadChat.value
+                              : nc.unreadBookings.value;
                       return NotificationBadge(count: count);
                     }),
                   ),

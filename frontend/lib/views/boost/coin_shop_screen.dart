@@ -235,6 +235,25 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       final displayAmount =
           ((pkgMap['amount'] as num?) ?? 0).toDouble();
       final days = (pkgMap['days'] as num?)?.toInt();
+
+      // v18.9 — récupère les saved cards pour proposer un paiement direct
+      // sans re-saisie à chaque achat de boost.
+      List<Map<String, dynamic>> savedCards = const [];
+      try {
+        final resp = await api.get('/owner/payments/methods', requiresAuth: true);
+        if (resp is Map) {
+          final list = resp['paymentMethods'];
+          if (list is List) {
+            savedCards = list
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+        }
+      } catch (_) {
+        // Non bloquant. On tombe sur le flow saisie carte.
+      }
+
       final ok = await Get.to<bool>(
         () => ModernCardPaymentScreen(
           clientSecret: clientSecret,
@@ -244,6 +263,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
               'Boost ${tier[0].toUpperCase()}${tier.substring(1)}',
           productSubtitle:
               days != null ? '$days jours de visibilité' : null,
+          savedPaymentMethods: savedCards,
         ),
       );
       if (ok != true) {

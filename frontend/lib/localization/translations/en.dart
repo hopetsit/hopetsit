@@ -960,6 +960,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'send_request_service_dog_walking': 'Dog Walking',
       'send_request_service_overnight_stay': 'Overnight Stay',
       'send_request_service_home_visit': 'Home Visit',
+      'duration_label': 'Duration',
       'send_request_duration_label': 'Duration (minutes)',
       'send_request_duration_rate_missing':
           'Rate not set for this duration — confirm with the provider',

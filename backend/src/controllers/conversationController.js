@@ -382,10 +382,10 @@ const startConversation = async (req, res) => {
       return res.status(403).json({ error: 'Only owners can start conversations with providers.' });
     }
 
-    // Validate message
-    if (!message || typeof message !== 'string' || !message.trim()) {
-      return res.status(400).json({ error: 'Message is required in request body.' });
-    }
+    // v18.9 — message optionnel : ouvrir un chat sans message pré-rempli.
+    // Avant, l'app envoyait "Hello, I'm interested in your services!" en
+    // anglais à chaque tap sur Discussion → spam dans le fil.
+    const trimmedMsgCheck = typeof message === 'string' ? message.trim() : '';
 
     if (!targetWalker) {
       // Path sitter (inchangé).
@@ -491,35 +491,34 @@ const startConversation = async (req, res) => {
       await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
     }
 
-    // Send the first message
-    const trimmedMessage = message.trim();
-    const newMessage = await Message.create({
-      conversationId: conversation._id,
-      senderRole: 'owner',
-      senderId: ownerId,
-      body: trimmedMessage,
-      attachments: [],
-    });
-
-    // Update conversation with last message
-    conversation.lastMessage = trimmedMessage;
-    conversation.lastMessageAt = new Date();
-    conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
-    await conversation.save();
-    await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
-
-    // Emit socket event for real-time updates
-    emitToConversation(conversation._id.toString(), 'message:new', {
-      conversationId: conversation._id.toString(),
-      triggeredBy: { role: 'owner', userId: ownerId },
-      message: sanitizeMessage(newMessage),
-      conversation: sanitizeConversation(conversation),
-    });
+    // v18.9 — ne crée un Message QUE si le body est non-vide. Sinon on
+    // renvoie juste la conversation.
+    let newMessage = null;
+    if (trimmedMsgCheck) {
+      newMessage = await Message.create({
+        conversationId: conversation._id,
+        senderRole: 'owner',
+        senderId: ownerId,
+        body: trimmedMsgCheck,
+        attachments: [],
+      });
+      conversation.lastMessage = trimmedMsgCheck;
+      conversation.lastMessageAt = new Date();
+      conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
+      await conversation.save();
+      await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
+      emitToConversation(conversation._id.toString(), 'message:new', {
+        conversationId: conversation._id.toString(),
+        triggeredBy: { role: 'owner', userId: ownerId },
+        message: sanitizeMessage(newMessage),
+        conversation: sanitizeConversation(conversation),
+      });
+    }
 
     res.status(201).json({
       message: 'Conversation started successfully.',
       conversation: sanitizeConversation(conversation),
-      sentMessage: sanitizeMessage(newMessage),
+      sentMessage: newMessage ? sanitizeMessage(newMessage) : null,
     });
   } catch (error) {
     logger.error('Start conversation error', error);
@@ -556,10 +555,8 @@ const startConversationBySitter = async (req, res) => {
       return res.status(400).json({ error: 'Owner ID is required in query parameters.' });
     }
 
-    // Validate message
-    if (!message || typeof message !== 'string' || !message.trim()) {
-      return res.status(400).json({ error: 'Message is required in request body.' });
-    }
+    // v18.9 — message optionnel.
+    const trimmedMsgCheckS = typeof message === 'string' ? message.trim() : '';
 
     // Validate ownerId format
     if (!mongoose.Types.ObjectId.isValid(ownerId)) {
@@ -638,35 +635,33 @@ const startConversationBySitter = async (req, res) => {
       await conversation.populate(['ownerId', 'sitterId']);
     }
 
-    // Send the first message
-    const trimmedMessage = message.trim();
-    const newMessage = await Message.create({
-      conversationId: conversation._id,
-      senderRole: 'sitter',
-      senderId: sitterId,
-      body: trimmedMessage,
-      attachments: [],
-    });
-
-    // Update conversation with last message
-    conversation.lastMessage = trimmedMessage;
-    conversation.lastMessageAt = new Date();
-    conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
-    await conversation.save();
-    await conversation.populate(['ownerId', 'sitterId']);
-
-    // Emit socket event for real-time updates
-    emitToConversation(conversation._id.toString(), 'message:new', {
-      conversationId: conversation._id.toString(),
-      triggeredBy: { role: 'sitter', userId: sitterId },
-      message: sanitizeMessage(newMessage),
-      conversation: sanitizeConversation(conversation),
-    });
+    // v18.9 — Message créé UNIQUEMENT si le body est non-vide.
+    let newMessage = null;
+    if (trimmedMsgCheckS) {
+      newMessage = await Message.create({
+        conversationId: conversation._id,
+        senderRole: 'sitter',
+        senderId: sitterId,
+        body: trimmedMsgCheckS,
+        attachments: [],
+      });
+      conversation.lastMessage = trimmedMsgCheckS;
+      conversation.lastMessageAt = new Date();
+      conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
+      await conversation.save();
+      await conversation.populate(['ownerId', 'sitterId']);
+      emitToConversation(conversation._id.toString(), 'message:new', {
+        conversationId: conversation._id.toString(),
+        triggeredBy: { role: 'sitter', userId: sitterId },
+        message: sanitizeMessage(newMessage),
+        conversation: sanitizeConversation(conversation),
+      });
+    }
 
     res.status(201).json({
       message: 'Conversation started successfully.',
       conversation: sanitizeConversation(conversation),
-      sentMessage: sanitizeMessage(newMessage),
+      sentMessage: newMessage ? sanitizeMessage(newMessage) : null,
     });
   } catch (error) {
     logger.error('Start conversation by sitter error', error);
@@ -701,9 +696,8 @@ const startConversationByWalker = async (req, res) => {
     if (!ownerId) {
       return res.status(400).json({ error: 'Owner ID is required in query parameters.' });
     }
-    if (!message || typeof message !== 'string' || !message.trim()) {
-      return res.status(400).json({ error: 'Message is required in request body.' });
-    }
+    // v18.9 — message optionnel.
+    const trimmedMsgCheckW = typeof message === 'string' ? message.trim() : '';
     if (!mongoose.Types.ObjectId.isValid(ownerId)) {
       return res.status(400).json({ error: 'Invalid owner ID format.' });
     }
@@ -763,32 +757,32 @@ const startConversationByWalker = async (req, res) => {
       await conversation.populate(['ownerId', 'walkerId']);
     }
 
-    const trimmedMessage = message.trim();
-    const newMessage = await Message.create({
-      conversationId: conversation._id,
-      senderRole: 'walker',
-      senderId: walkerId,
-      body: trimmedMessage,
-      attachments: [],
-    });
-
-    conversation.lastMessage = trimmedMessage;
-    conversation.lastMessageAt = new Date();
-    conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
-    await conversation.save();
-    await conversation.populate(['ownerId', 'walkerId']);
-
-    emitToConversation(conversation._id.toString(), 'message:new', {
-      conversationId: conversation._id.toString(),
-      triggeredBy: { role: 'walker', userId: walkerId },
-      message: sanitizeMessage(newMessage),
-      conversation: sanitizeConversation(conversation),
-    });
+    let newMessage = null;
+    if (trimmedMsgCheckW) {
+      newMessage = await Message.create({
+        conversationId: conversation._id,
+        senderRole: 'walker',
+        senderId: walkerId,
+        body: trimmedMsgCheckW,
+        attachments: [],
+      });
+      conversation.lastMessage = trimmedMsgCheckW;
+      conversation.lastMessageAt = new Date();
+      conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
+      await conversation.save();
+      await conversation.populate(['ownerId', 'walkerId']);
+      emitToConversation(conversation._id.toString(), 'message:new', {
+        conversationId: conversation._id.toString(),
+        triggeredBy: { role: 'walker', userId: walkerId },
+        message: sanitizeMessage(newMessage),
+        conversation: sanitizeConversation(conversation),
+      });
+    }
 
     res.status(201).json({
       message: 'Conversation started successfully.',
       conversation: sanitizeConversation(conversation),
-      sentMessage: sanitizeMessage(newMessage),
+      sentMessage: newMessage ? sanitizeMessage(newMessage) : null,
     });
   } catch (error) {
     logger.error('Start conversation by walker error', error);

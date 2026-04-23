@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/pricing_display_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
@@ -298,9 +299,17 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
           // Booking Details
           _buildDetailRow(Icons.pets, 'sitter_bookings_pet_label'.tr, booking.petName),
           SizedBox(height: 12.h),
-          _buildDetailRow(Icons.calendar_today, 'sitter_bookings_date_label'.tr, booking.date),
+          // v18.9 — date + heure localisées (plus d'ISO brut / AM/PM en FR).
+          _buildDetailRow(Icons.calendar_today, 'sitter_bookings_date_label'.tr,
+              BookingDateFormat.localizedDate(booking.date)),
           SizedBox(height: 12.h),
-          _buildDetailRow(Icons.access_time, 'sitter_bookings_time_label'.tr, booking.timeSlot),
+          _buildDetailRow(Icons.access_time, 'sitter_bookings_time_label'.tr,
+              BookingDateFormat.localizedTime(booking.timeSlot)),
+          if (booking.duration != null && booking.duration! > 0) ...[
+            SizedBox(height: 12.h),
+            _buildDetailRow(Icons.timer, 'duration_label'.tr,
+                '${booking.duration} min'),
+          ],
           SizedBox(height: 12.h),
           Row(
             children: [

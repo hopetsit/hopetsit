@@ -1014,10 +1014,16 @@ class OwnerRepository {
     } else if (sitterId != null && sitterId.isNotEmpty) {
       queryParams['sitterId'] = sitterId;
     }
+    // v18.9 — plus de message auto "Hello, I'm interested in your
+    // services!" envoyé à chaque ouverture de chat. Le user ne veut voir
+    // que SON propre message quand il tape, pas un placeholder anglais
+    // répété à chaque tap sur Discussion.
     final response = await _apiClient.post(
       ApiEndpoints.conversationsStart,
       queryParameters: queryParams,
-      body: {'message': message ?? "Hello, I'm interested in your services!"},
+      body: {
+        if (message != null && message.trim().isNotEmpty) 'message': message.trim(),
+      },
       requiresAuth: true,
     );
 

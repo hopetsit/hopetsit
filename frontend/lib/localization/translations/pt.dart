@@ -901,6 +901,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'send_request_service_dog_walking': 'Dog Walking',
       'send_request_service_overnight_stay': 'Overnight Stay',
       'send_request_service_home_visit': 'Home Visit',
+      'duration_label': 'Duração',
       'send_request_duration_label': 'Duration (minutes)',
       'send_request_duration_rate_missing':
           'Tarifa não definida para esta duração — confirmar com o prestador',

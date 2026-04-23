@@ -355,6 +355,26 @@ const createApplication = async (req, res) => {
           ? endDate
           : null;
 
+    // v18.9 — fix prix 30 min walker : si le walker a un walkRate EXPLICITE
+    // pour la durée demandée, on utilise ce tarif direct. Avant v18.9,
+    // le shim hourlyRate était pris depuis walkRate[60] → owner payait
+    // 0.5 × 60-min-rate au lieu du walkRate[30] défini par le walker.
+    // Ex : walker a mis 5€ pour 30 min mais 60 min = 7€. Owner 30 min payait
+    // 0.5 × 7 = 3.50 € au lieu de 5 €.
+    const effectiveDuration = durationNum || Number(duration) || null;
+    if (providerRole === 'walker' && effectiveDuration &&
+        Array.isArray(provider.walkRates)) {
+      const exactRate = provider.walkRates.find(
+        (r) => r.durationMinutes === effectiveDuration &&
+               r.enabled && r.basePrice > 0,
+      );
+      if (exactRate) {
+        // Reshim hourlyRate pour que tierPricing retombe exactement sur
+        // exactRate.basePrice : basePrice = (durationMinutes/60) × hourlyRate.
+        sitter.hourlyRate = exactRate.basePrice * 60 / effectiveDuration;
+      }
+    }
+
     const tierPricing = calculateTierBasePrice({
       hourlyRate: sitter.hourlyRate,
       weeklyRate: sitter.weeklyRate,
@@ -362,7 +382,7 @@ const createApplication = async (req, res) => {
       startDate: parsedStartDate,
       endDate: parsedEndDate,
       serviceDate: parsedDate || serviceDate,
-      durationMinutes: durationNum || duration,
+      durationMinutes: effectiveDuration || duration,
     });
     const pricingBreakdown = calculateTotalWithAddOns(tierPricing.basePrice, normalizedAddOns, bookingCurrency);
 

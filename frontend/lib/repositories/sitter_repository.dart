@@ -884,11 +884,12 @@ class SitterRepository {
     required String ownerId,
     String? message,
   }) async {
+    // v18.9 — plus de message auto anglais.
     final response = await _apiClient.post(
       ApiEndpoints.conversationsStartBySitter,
       queryParameters: {'ownerId': ownerId},
       body: {
-        'message': message ?? "Hello, I'm available to help with your pet!",
+        if (message != null && message.trim().isNotEmpty) 'message': message.trim(),
       },
       requiresAuth: true,
     );

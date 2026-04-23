@@ -423,6 +423,28 @@ const getOrCreateStripeCustomerForOwner = async ({ ownerId, email, name }) => {
   return customer.id;
 };
 
+// v18.9 — version role-agnostic pour owner / sitter / walker. Utilise
+// stripeCustomerId stocké sur le doc du provider (Owner, Sitter ou Walker).
+// Permet aux providers d'enregistrer une carte pour payer Boost / addons.
+const getOrCreateStripeCustomerForProvider = async ({ userId, role, email, name }) => {
+  const Model = role === 'owner'
+    ? require('../models/Owner')
+    : role === 'walker'
+      ? require('../models/Walker')
+      : require('../models/Sitter');
+  const doc = await Model.findById(userId);
+  if (!doc) throw new Error(`${role} not found.`);
+  if (doc.stripeCustomerId) return doc.stripeCustomerId;
+  const customer = await stripe.customers.create({
+    email: email || doc.email || undefined,
+    name: name || doc.name || undefined,
+    metadata: { user_id: userId.toString(), role },
+  });
+  doc.stripeCustomerId = customer.id;
+  await doc.save();
+  return customer.id;
+};
+
 const createSetupIntentForOwner = async (customerId) => {
   return stripe.setupIntents.create({
     customer: customerId,
@@ -466,6 +488,7 @@ module.exports = {
   sendPayoutToIBAN,
   // v18.2
   getOrCreateStripeCustomerForOwner,
+  getOrCreateStripeCustomerForProvider,
   createSetupIntentForOwner,
   listOwnerPaymentMethods,
   detachOwnerPaymentMethod,

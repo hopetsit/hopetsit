@@ -232,6 +232,8 @@ const walkerSchema = new mongoose.Schema(
       enum: ['not_connected', 'pending', 'restricted', 'active'],
       default: 'not_connected',
     },
+    // v18.9 — Stripe Customer côté walker (pour carte enregistrée).
+    stripeCustomerId: { type: String, default: null },
 
     // Saved card (optional, same structure as Sitter)
     card: {

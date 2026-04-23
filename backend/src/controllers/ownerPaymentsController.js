@@ -14,22 +14,31 @@
  */
 
 const Owner = require('../models/Owner');
+const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const Booking = require('../models/Booking');
 const {
   getOrCreateStripeCustomerForOwner,
+  getOrCreateStripeCustomerForProvider,
   createSetupIntentForOwner,
   listOwnerPaymentMethods,
   detachOwnerPaymentMethod,
 } = require('../services/stripeService');
+
+// v18.9 — helper role-agnostic. Retourne le model ET le doc chargé.
+const _roleModel = (role) =>
+  role === 'owner' ? Owner : role === 'walker' ? Walker : Sitter;
 const { sanitizeBooking } = require('../utils/sanitize');
 const logger = require('../utils/logger');
 
+// v18.9 — accepte désormais owner / sitter / walker (les 3 peuvent avoir
+// des cartes enregistrées Stripe Customer).
 const assertOwner = (req) => {
   if (!req.user?.id) {
     return { status: 401, error: 'Authentication required.' };
   }
-  if (req.user.role !== 'owner') {
-    return { status: 403, error: 'Only owners can manage payment methods.' };
+  if (!['owner', 'sitter', 'walker'].includes(req.user.role)) {
+    return { status: 403, error: 'Only authenticated users can manage payment methods.' };
   }
   return null;
 };
@@ -43,16 +52,15 @@ const getPaymentMethods = async (req, res) => {
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
   try {
-    const owner = await Owner.findById(req.user.id);
-    if (!owner) return res.status(404).json({ error: 'Owner not found.' });
+    const Model = _roleModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    if (!owner.stripeCustomerId) {
-      // No customer yet means no saved cards — return an empty list instead
-      // of eagerly creating a Customer on a mere GET.
+    if (!user.stripeCustomerId) {
       return res.json({ paymentMethods: [], count: 0 });
     }
 
-    const methods = await listOwnerPaymentMethods(owner.stripeCustomerId);
+    const methods = await listOwnerPaymentMethods(user.stripeCustomerId);
     return res.json({ paymentMethods: methods, count: methods.length });
   } catch (err) {
     logger.error('[ownerPayments] getPaymentMethods failed', err);
@@ -71,13 +79,16 @@ const createSetupIntent = async (req, res) => {
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
   try {
-    const owner = await Owner.findById(req.user.id);
-    if (!owner) return res.status(404).json({ error: 'Owner not found.' });
+    const Model = _roleModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const customerId = await getOrCreateStripeCustomerForOwner({
-      ownerId: owner._id.toString(),
-      email: owner.email,
-      name: owner.name,
+    // v18.9 — helper role-agnostic.
+    const customerId = await getOrCreateStripeCustomerForProvider({
+      userId: user._id.toString(),
+      role: req.user.role,
+      email: user.email,
+      name: user.name,
     });
 
     const setupIntent = await createSetupIntentForOwner(customerId);
@@ -107,17 +118,18 @@ const deletePaymentMethod = async (req, res) => {
   }
 
   try {
-    const owner = await Owner.findById(req.user.id);
-    if (!owner) return res.status(404).json({ error: 'Owner not found.' });
-    if (!owner.stripeCustomerId) {
+    const Model = _roleModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    if (!user.stripeCustomerId) {
       return res.status(404).json({ error: 'No saved payment methods.' });
     }
 
     // Verify the card belongs to this customer before detaching.
-    const methods = await listOwnerPaymentMethods(owner.stripeCustomerId);
+    const methods = await listOwnerPaymentMethods(user.stripeCustomerId);
     const found = methods.find((m) => m.id === id);
     if (!found) {
-      return res.status(404).json({ error: 'Payment method not found for this owner.' });
+      return res.status(404).json({ error: 'Payment method not found for this user.' });
     }
 
     await detachOwnerPaymentMethod(id);
@@ -139,11 +151,20 @@ const getPaymentHistory = async (req, res) => {
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
   try {
-    const ownerId = req.user.id;
-    const bookings = await Booking.find({
-      ownerId,
-      paymentStatus: 'paid',
-    })
+    // v18.9 — historique role-aware : owner voit ses paiements sortants ;
+    // sitter/walker voit les versements reçus (tous les bookings payés où
+    // ils sont le provider).
+    const userId = req.user.id;
+    const role = req.user.role;
+    const match = { paymentStatus: 'paid' };
+    if (role === 'owner') {
+      match.ownerId = userId;
+    } else if (role === 'walker') {
+      match.walkerId = userId;
+    } else {
+      match.sitterId = userId;
+    }
+    const bookings = await Booking.find(match)
       .sort({ paidAt: -1, updatedAt: -1 })
       .limit(100)
       .populate('ownerId', 'name email avatar')

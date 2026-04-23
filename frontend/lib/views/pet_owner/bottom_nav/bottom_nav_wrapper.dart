@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
-import 'package:hopetsit/views/pet_owner/booking-application/application_screen.dart';
+import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/home/home_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
@@ -21,7 +21,10 @@ class _BottomNavWrapperState extends State<BottomNavWrapper> {
     HomeScreen(),       // 0 — Home
     ChatScreen(),       // 1 — Chat
     PawMapScreen(),     // 2 — PawMap (center button) — POIs + Reports 48h + Amis live
-    ApplicationScreen(),// 3 — Bookings
+    // v18.9 — remplace ApplicationScreen (vue fusionnée apps+bookings) par
+    // OwnerBookingsScreen alignée sur WalkerBookingsScreen / SitterBookingsScreen.
+    // Daniel voulait le même design de réservations sur les 3 profils.
+    OwnerBookingsScreen(), // 3 — Bookings
     ProfileScreen(),    // 4 — Profile
   ];
 

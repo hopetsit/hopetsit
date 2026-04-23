@@ -172,6 +172,12 @@ const sitterSchema = new mongoose.Schema(
       enum: ['not_connected', 'pending', 'restricted', 'active'],
       default: 'not_connected',
     },
+    // v18.9 — Stripe Customer côté sitter (pour carte enregistrée, ex paiement
+    // d'addon ou boost). Créé à la demande via getOrCreateStripeCustomerForProvider.
+    stripeCustomerId: {
+      type: String,
+      default: null,
+    },
     card: {
       holderName: { type: String, default: '' },
       number: { type: String, default: '' },

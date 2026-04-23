@@ -1000,6 +1000,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'send_request_service_dog_walking': 'Hundespaziergang',
       'send_request_service_overnight_stay': 'Übernachtung',
       'send_request_service_home_visit': 'Hausbesuch',
+      'duration_label': 'Dauer',
       'send_request_duration_label': 'Dauer (Minuten)',
       'send_request_duration_rate_missing':
           'Preis für diese Dauer nicht festgelegt — bitte beim Anbieter nachfragen',

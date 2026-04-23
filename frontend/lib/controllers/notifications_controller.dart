@@ -15,6 +15,9 @@ class NotificationsController extends GetxController {
   final GetStorage _storage = GetStorage();
   static const String _kUnreadBookings = 'unreadBookings';
   static const String _kUnreadChat = 'unreadChat';
+  // v18.9 — badge Accueil : walker/sitter reçoit direct request owner,
+  // owner reçoit application d'un provider ou acceptation direct request.
+  static const String _kUnreadHome = 'unreadHome';
 
   final RxList<AppNotificationModel> notifications =
       <AppNotificationModel>[].obs;
@@ -22,6 +25,8 @@ class NotificationsController extends GetxController {
   // Sprint 4 step 4 — per-category badges.
   final RxInt unreadBookings = 0.obs;
   final RxInt unreadChat = 0.obs;
+  // v18.9 — badge sur onglet Accueil.
+  final RxInt unreadHome = 0.obs;
   final RxBool isLoading = false.obs;
   final RxBool isLoadingMore = false.obs;
   final RxnString nextCursor = RxnString();
@@ -34,6 +39,7 @@ class NotificationsController extends GetxController {
     super.onInit();
     unreadBookings.value = _storage.read<int>(_kUnreadBookings) ?? 0;
     unreadChat.value = _storage.read<int>(_kUnreadChat) ?? 0;
+    unreadHome.value = _storage.read<int>(_kUnreadHome) ?? 0;
     _attachSocketListener();
     refreshUnreadCount();
   }
@@ -57,6 +63,19 @@ class NotificationsController extends GetxController {
             unreadBookings.value = unreadBookings.value + 1;
             _storage.write(_kUnreadBookings, unreadBookings.value);
           }
+          // v18.9 — badge Accueil pour :
+          //   - provider (walker/sitter) : booking_new = owner a envoyé
+          //     une demande directe.
+          //   - owner : application_new = un provider a postulé sur son
+          //     post ; booking_accepted = provider a accepté sa demande.
+          final lower = type.toLowerCase();
+          if (lower == 'booking_new' ||
+              lower == 'application_new' ||
+              lower == 'booking_accepted' ||
+              lower == 'application_accepted') {
+            unreadHome.value = unreadHome.value + 1;
+            _storage.write(_kUnreadHome, unreadHome.value);
+          }
         } catch (_) {}
       });
     } catch (_) {
@@ -72,6 +91,12 @@ class NotificationsController extends GetxController {
   void clearBookingsBadge() {
     unreadBookings.value = 0;
     _storage.write(_kUnreadBookings, 0);
+  }
+
+  // v18.9 — clear du badge Accueil (tap sur l'onglet 0).
+  void clearHomeBadge() {
+    unreadHome.value = 0;
+    _storage.write(_kUnreadHome, 0);
   }
 
   Future<void> refreshUnreadCount() async {

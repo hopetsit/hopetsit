@@ -255,9 +255,95 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
                     _emptyHistoryCard()
                   else
                     ..._history.map(_buildHistoryTile),
+                  SizedBox(height: 28.h),
+                  // v18.9 — widget Soutenir HoPetSit (précédemment sitter/walker
+                  // uniquement).
+                  _buildDonationCard(context),
                 ],
               ),
             ),
+    );
+  }
+
+  /// v18.9 — carte Soutenir HoPetSit. Dupliqué depuis payment_management_screen
+  /// pour que les 3 profils aient le même widget. Les amounts 2/5/10/20 sont
+  /// en placeholder tant que l'endpoint donation n'est pas branché.
+  Widget _buildDonationCard(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(20.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryColor.withValues(alpha: 0.08),
+            AppColors.primaryColor.withValues(alpha: 0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: AppColors.primaryColor.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.favorite_rounded,
+              size: 36.sp, color: AppColors.primaryColor),
+          SizedBox(height: 10.h),
+          PoppinsText(
+            text: 'payment_donate_title'.tr,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 4.h),
+          InterText(
+            text: 'payment_donate_desc'.tr,
+            fontSize: 12.sp,
+            color: AppColors.textSecondary(context),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 14.h),
+          Row(
+            children: [
+              _donationChip(context, '2€'),
+              SizedBox(width: 8.w),
+              _donationChip(context, '5€'),
+              SizedBox(width: 8.w),
+              _donationChip(context, '10€'),
+              SizedBox(width: 8.w),
+              _donationChip(context, '20€'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _donationChip(BuildContext context, String amount) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          CustomSnackbar.showSuccess(
+            title: 'common_coming_soon'.tr,
+            message: 'payment_donate_coming_soon'.tr,
+          );
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 10.h),
+          decoration: BoxDecoration(
+            color: AppColors.primaryColor,
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Center(
+            child: InterText(
+              text: amount,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

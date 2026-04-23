@@ -62,17 +62,19 @@ const createStripeConnectAccount = async (req, res) => {
 
     // Create Stripe Connect account if it doesn't exist
     if (!accountId) {
-      const country = resolveCountry({
+      let country = resolveCountry({
         explicit: req.body?.country,
         sitterCountry: provider.country,
         ibanCountry: ibanToCountry(provider.ibanNumber),
         acceptLanguage: req.headers['accept-language'],
       });
+      // v18.9 — fallback FR par défaut au lieu de bloquer l'onboarding.
+      // Avant v18.9, un walker/sitter sans country + sans IBAN + sans
+      // Accept-Language tapait un 400 "Unable to determine country" dès
+      // l'ouverture du flow Stripe Connect. On propose FR en défaut —
+      // Stripe permet de changer le pays à la phase KYC si besoin.
       if (!country) {
-        return res.status(400).json({
-          error:
-            'Unable to determine country for Stripe Connect account. Provide "country" (ISO-2) in body, set your country, or save an IBAN first.',
-        });
+        country = 'FR';
       }
       const account = await createConnectAccount({
         email: provider.email,

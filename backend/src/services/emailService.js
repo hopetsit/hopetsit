@@ -39,6 +39,18 @@ const fromAddress = () => {
   return addr.includes('<') ? addr : `${BRAND_NAME} <${addr}>`;
 };
 
+// v18.9 — adresse Reply-To no-reply pour toutes les notifs sortantes.
+// Avant v18.9, l'utilisateur qui répondait à un email "nouveau message"
+// envoyait DIRECTEMENT à l'adresse SMTP_FROM (ex hopetsit@gmail.com).
+// Pire, certaines implémentations auto-branchaient l'email de l'expéditeur
+// réel comme reply-to → fuite de l'adresse privée de l'owner/provider.
+// On force désormais un alias no-reply@ neutre.
+const noReplyAddress = () => {
+  const explicit = process.env.SMTP_NO_REPLY;
+  if (explicit && explicit.trim().length > 0) return explicit.trim();
+  return `${BRAND_NAME} no-reply <no-reply@hopetsit.app>`;
+};
+
 const sendEmail = async (email, subject, text, html) => {
   if (!email) {
     logger.warn(`[emailService] sendEmail called with empty recipient (subject="${subject}")`);
@@ -52,9 +64,18 @@ const sendEmail = async (email, subject, text, html) => {
     const info = await transporter.sendMail({
       to: email,
       from: fromAddress(),
+      // v18.9 — Reply-To no-reply : les users ne peuvent plus répondre par
+      // mail (privacy). Ils doivent ouvrir l'app pour répondre au chat.
+      replyTo: noReplyAddress(),
       subject,
       text,
       ...(html ? { html } : {}),
+      headers: {
+        // RFC 2076 — marque l'email comme automatisé, Gmail / Outlook
+        // cachent alors le bouton Reply directement.
+        'Auto-Submitted': 'auto-generated',
+        'X-Auto-Response-Suppress': 'All',
+      },
     });
     logger.info(`[emailService] sent to=${email} subject="${subject}" messageId=${info.messageId}`);
     return info;

@@ -218,6 +218,15 @@ class PaymentManagementScreen extends StatelessWidget {
           const Color(0xFF003087),
         ),
         SizedBox(width: 10.w),
+        // v18.9 — icône Carte CB en 4e position.
+        _quickIcon(
+          context,
+          Icons.credit_card_rounded,
+          'Carte',
+          false,
+          const Color(0xFF7C3AED),
+        ),
+        SizedBox(width: 10.w),
         // v18.5 — #9 fix : bind to the real IBAN status.
         _quickIcon(
           context,

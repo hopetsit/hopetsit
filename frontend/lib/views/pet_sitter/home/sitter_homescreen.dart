@@ -1052,8 +1052,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                                       .first
                                                       .petName
                                                       .isNotEmpty
-                                              ? 'Meet ${post.pets.first.petName} — looking for a caring sitter. See photos and details on Hopetsit!'
-                                              : 'Looking for a caring pet sitter? Check out this post on Hopetsit!');
+                                              ? 'Meet ${post.pets.first.petName} — looking for a caring sitter. See photos and details on HoPetSit!'
+                                              : 'Looking for a caring pet sitter? Check out this post on HoPetSit!');
 
                                     final filesToShare = <XFile>[];
 
