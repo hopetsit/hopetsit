@@ -33,7 +33,7 @@ const router = express.Router();
  *       403:
  *         description: Only sitters can create Stripe Connect accounts
  */
-router.post('/create-account', requireAuth, requireRole('sitter'), createStripeConnectAccount);
+router.post('/create-account', requireAuth, requireRole('sitter', 'walker'), createStripeConnectAccount);
 
 /**
  * @swagger
@@ -71,7 +71,7 @@ router.post('/create-account', requireAuth, requireRole('sitter'), createStripeC
  *       403:
  *         description: Only sitters can access this endpoint
  */
-router.post('/create-account-link', requireAuth, requireRole('sitter'), createStripeAccountLink);
+router.post('/create-account-link', requireAuth, requireRole('sitter', 'walker'), createStripeAccountLink);
 
 /**
  * @swagger
@@ -102,7 +102,7 @@ router.post('/create-account-link', requireAuth, requireRole('sitter'), createSt
  *       403:
  *         description: Only sitters can access this endpoint
  */
-router.get('/account-status', requireAuth, requireRole('sitter'), getStripeAccountStatus);
+router.get('/account-status', requireAuth, requireRole('sitter', 'walker'), getStripeAccountStatus);
 
 /**
  * @swagger

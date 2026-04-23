@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/firebase_options.dart';
 import 'package:hopetsit/helper/dependency_injection.dart';
+import 'package:hopetsit/services/deep_link_service.dart';
 import 'package:hopetsit/services/push_notification_service.dart'
     show firebaseMessagingBackgroundHandler;
 import 'package:hopetsit/localization/app_translations.dart';
@@ -49,6 +50,12 @@ void main() async {
 
   setupDependencies();
   Get.put(ThemeController(), permanent: true);
+
+  // v18.8 — écoute les deep links hopetsit://pay/:bookingId envoyés dans
+  // les emails "demande acceptée". Fire-and-forget : le stream reste
+  // actif pendant toute la durée de vie de l'app.
+  // ignore: discarded_futures
+  DeepLinkService.instance.start();
 
   // ── Stripe init (fix StripeConfigException on first PaymentSheet call) ───
   // We set the publishable key ONCE at startup. Before this fix, each payment

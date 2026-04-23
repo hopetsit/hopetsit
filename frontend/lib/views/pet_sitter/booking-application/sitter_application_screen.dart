@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/sitter_application_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
@@ -14,6 +15,7 @@ import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -489,10 +491,29 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
         ),
       );
 
-      final sitterRepository = Get.find<SitterRepository>();
-      final response = await sitterRepository.startConversationBySitter(
-        ownerId: ownerId,
-      );
+      // v18.8 — walker chat fix : dispatch selon rôle courant.
+      // Walker → /start-by-walker, sitter → /start-by-sitter.
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : null;
+      final role = (authController?.userRole.value ?? 'sitter').toLowerCase();
+      final Map<String, dynamic> response;
+      if (role == 'walker') {
+        final walkerRepository = Get.isRegistered<WalkerRepository>()
+            ? Get.find<WalkerRepository>()
+            : null;
+        if (walkerRepository == null) {
+          throw StateError('WalkerRepository not registered');
+        }
+        response = await walkerRepository.startConversationByWalker(
+          ownerId: ownerId,
+        );
+      } else {
+        final sitterRepository = Get.find<SitterRepository>();
+        response = await sitterRepository.startConversationBySitter(
+          ownerId: ownerId,
+        );
+      }
 
       // Close loading dialog
       if (mounted) {

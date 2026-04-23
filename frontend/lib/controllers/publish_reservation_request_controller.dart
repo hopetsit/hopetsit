@@ -12,6 +12,7 @@ import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 class PublishReservationRequestController extends GetxController {
   PublishReservationRequestController({
@@ -112,41 +113,20 @@ class PublishReservationRequestController extends GetxController {
   // a selectable type post-simplification, so this now always returns false.
   bool get shouldShowHouseSittingVenue => false;
 
-  static const List<String> _weekdays = <String>[
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
-  static const List<String> _months = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
+  // v18.8 — dates + heures localisées via DateFormat (intl) au lieu des
+  // tableaux statiques anglais. L'owner FR voit "ven. 24 avr. 2026" et
+  // "23:24" au lieu de "Fri, Apr 24, 2026" et "11:24 PM".
   String _formatDate(DateTime d) {
-    final weekday = _weekdays[d.weekday - 1];
-    return '$weekday, ${_months[d.month - 1]} ${d.day}, ${d.year}';
+    final lang = Get.locale?.languageCode ?? 'fr';
+    return DateFormat('EEE, d MMM y', lang).format(d);
   }
 
   String _formatTime(TimeOfDay t) {
-    final h24 = t.hour;
-    final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
-    final m = t.minute.toString().padLeft(2, '0');
-    final am = h24 < 12 ? 'AM' : 'PM';
-    return '$h12:$m $am';
+    final lang = Get.locale?.languageCode ?? 'fr';
+    final dt = DateTime(0, 1, 1, t.hour, t.minute);
+    // Formats 24h pour fr/de/es/it/pt, 12h avec AM/PM pour en.
+    final pattern = lang == 'en' ? 'h:mm a' : 'HH:mm';
+    return DateFormat(pattern, lang).format(dt);
   }
 
   String get formattedStartDate =>

@@ -10,6 +10,7 @@ const {
   markConversationRead,
   startConversation,
   startConversationBySitter,
+  startConversationByWalker,
 } = require('../controllers/conversationController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { requirePaidBooking } = require('../middleware/chatAccess');
@@ -160,6 +161,10 @@ router.post('/start', requireAuth, requireRole('owner'), startConversation);
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/start-by-sitter', requireAuth, requireRole('sitter'), startConversationBySitter);
+
+// v18.8 — miroir walker. Fix le 403 que recevait le walker en cliquant
+// "Discuter avec le propriétaire" depuis sa fiche booking.
+router.post('/start-by-walker', requireAuth, requireRole('walker'), startConversationByWalker);
 
 /**
  * @swagger

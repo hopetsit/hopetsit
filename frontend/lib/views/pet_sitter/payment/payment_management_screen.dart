@@ -9,6 +9,8 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
+import 'package:hopetsit/views/profile/add_card_screen.dart' as legacy_card;
+import 'package:hopetsit/views/pet_sitter/payment/provider_payout_history_screen.dart';
 import 'package:hopetsit/widgets/paypal_email_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -117,6 +119,40 @@ class PaymentManagementScreen extends StatelessWidget {
                     ? 'payment_manage'.tr
                     : 'payment_configure'.tr,
               )),
+              SizedBox(height: 10.h),
+
+              // v18.8 — Ajouter carte. Ouvre l'écran AddCardScreen partagé
+              // (userType='pet_sitter'). Permet au provider d'enregistrer
+              // une carte pour les paiements rapides.
+              _buildPaymentMethodCard(
+                context: context,
+                icon: Icons.credit_card_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                iconBg: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                title: 'payment_add_card_title'.tr,
+                subtitle: 'payment_add_card_subtitle'.tr,
+                isConnected: false,
+                onTap: () => Get.to(
+                  () =>
+                      const legacy_card.AddCardScreen(userType: 'pet_sitter'),
+                ),
+                buttonLabel: 'payment_add_card_button'.tr,
+              ),
+              SizedBox(height: 10.h),
+
+              // v18.8 — Historique de paiement (versements reçus).
+              _buildPaymentMethodCard(
+                context: context,
+                icon: Icons.receipt_long_rounded,
+                iconColor: Colors.teal,
+                iconBg: Colors.teal.withValues(alpha: 0.1),
+                title: 'payment_history_title'.tr,
+                subtitle: 'payment_history_subtitle'.tr,
+                isConnected: false,
+                onTap: () =>
+                    Get.to(() => const ProviderPayoutHistoryScreen()),
+                buttonLabel: 'payment_history_open'.tr,
+              ),
 
               SizedBox(height: 28.h),
 
@@ -140,23 +176,9 @@ class PaymentManagementScreen extends StatelessWidget {
                 statusActive: false,
                 onTap: () => Get.to(() => const IdentityVerificationScreen()),
               ),
-              SizedBox(height: 10.h),
-
-              // Payment Status Card
-              Obx(() => _buildStatusCard(
-                context: context,
-                icon: Icons.receipt_long_rounded,
-                iconColor: Colors.orange,
-                title: 'payment_payout_status_title'.tr,
-                description: stripeCtrl.isConnected.value
-                    ? 'payment_payout_active_desc'.tr
-                    : 'payment_payout_inactive_desc'.tr,
-                statusLabel: stripeCtrl.isConnected.value
-                    ? 'payout_status_active'.tr
-                    : 'payout_status_pending'.tr,
-                statusActive: stripeCtrl.isConnected.value,
-                onTap: null,
-              )),
+              // v18.8 — "Statut des versements" retiré à la demande utilisateur.
+              // Redondant avec l'état Stripe Connect déjà affiché dans la
+              // rangée d'icônes et sur la carte Stripe plus haut.
 
               SizedBox(height: 28.h),
 

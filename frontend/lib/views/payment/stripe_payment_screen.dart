@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:intl/intl.dart';
 
 /// v18.5 — #1/#2/#8 fix : UNIFIED payment screen.
 ///
@@ -166,9 +167,55 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
         .join(' ');
   }
 
+  /// v18.8 — avant on affichait booking.date brut (ex
+  /// "2026-04-24T00:00:00.000Z") + booking.timeSlot brut ("11:19 PM").
+  /// Désormais si la date arrive en ISO, on parse et on reformate dans
+  /// la locale courante : "mer. 24 avr. 2026".
+  String _formatDate(String raw, String lang) {
+    if (raw.isEmpty) return '';
+    // Détecte un ISO timestamp (ex 2026-04-24T00:00:00.000Z).
+    if (raw.contains('T') || raw.contains('-')) {
+      try {
+        final dt = DateTime.parse(raw).toLocal();
+        return DateFormat('EEE, d MMM y', lang).format(dt);
+      } catch (_) {
+        // fall through — laisser la chaîne brute si pas parseable.
+      }
+    }
+    return raw;
+  }
+
+  String _formatTime(String raw, String lang) {
+    if (raw.isEmpty) return '';
+    // Tente de parser un ISO (cas où timeSlot contient déjà la date).
+    if (raw.contains('T')) {
+      try {
+        final dt = DateTime.parse(raw).toLocal();
+        final pattern = lang == 'en' ? 'h:mm a' : 'HH:mm';
+        return DateFormat(pattern, lang).format(dt);
+      } catch (_) {}
+    }
+    // Tente "11:19 PM" → DateTime + format localisé.
+    final m = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)?$',
+            caseSensitive: false)
+        .firstMatch(raw.trim());
+    if (m != null) {
+      int h = int.parse(m.group(1)!);
+      final mm = int.parse(m.group(2)!);
+      final ampm = m.group(3)?.toUpperCase();
+      if (ampm == 'PM' && h < 12) h += 12;
+      if (ampm == 'AM' && h == 12) h = 0;
+      final dt = DateTime(0, 1, 1, h, mm);
+      final pattern = lang == 'en' ? 'h:mm a' : 'HH:mm';
+      return DateFormat(pattern, lang).format(dt);
+    }
+    return raw;
+  }
+
   String _dateLabel() {
-    final date = widget.booking.date.trim();
-    final time = widget.booking.timeSlot.trim();
+    final lang = Get.locale?.languageCode ?? 'fr';
+    final date = _formatDate(widget.booking.date.trim(), lang);
+    final time = _formatTime(widget.booking.timeSlot.trim(), lang);
     final duration = widget.booking.duration;
     final buf = StringBuffer();
     if (date.isNotEmpty) buf.write(date);
@@ -178,7 +225,7 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
     }
     if (duration != null && duration > 0) {
       if (buf.isNotEmpty) buf.write(' · ');
-      buf.write('${duration}min');
+      buf.write('${duration} min');
     }
     return buf.toString();
   }

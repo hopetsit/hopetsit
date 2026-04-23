@@ -990,15 +990,33 @@ class OwnerRepository {
     throw ApiException('Unexpected block sitter response.', details: response);
   }
 
-  /// Starts a new conversation with a sitter (Owner only).
-  /// POST /conversations/start?sitterId={sitterId}
+  /// Starts a new conversation with a provider (Owner only).
+  /// POST /conversations/start?sitterId={sitterId}  (sitter path)
+  /// POST /conversations/start?walkerId={walkerId}  (walker path, v18.8)
+  ///
+  /// Pass either `sitterId` OR `walkerId`. If `walkerId` is set the
+  /// backend matches on Conversation.walkerId (XOR schema) instead of
+  /// sitterId → plus de 404 "Sitter not found" quand le booking est avec
+  /// un walker.
   Future<Map<String, dynamic>> startConversation({
-    required String sitterId,
+    String? sitterId,
+    String? walkerId,
     String? message,
   }) async {
+    assert(
+      (sitterId != null && sitterId.isNotEmpty) ||
+          (walkerId != null && walkerId.isNotEmpty),
+      'startConversation requires sitterId OR walkerId',
+    );
+    final queryParams = <String, String>{};
+    if (walkerId != null && walkerId.isNotEmpty) {
+      queryParams['walkerId'] = walkerId;
+    } else if (sitterId != null && sitterId.isNotEmpty) {
+      queryParams['sitterId'] = sitterId;
+    }
     final response = await _apiClient.post(
       ApiEndpoints.conversationsStart,
-      queryParameters: {'sitterId': sitterId},
+      queryParameters: queryParams,
       body: {'message': message ?? "Hello, I'm interested in your services!"},
       requiresAuth: true,
     );

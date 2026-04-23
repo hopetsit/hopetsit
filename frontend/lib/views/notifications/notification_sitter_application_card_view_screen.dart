@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/sitter_application_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -101,11 +103,32 @@ class _NotificationSitterApplicationCardViewScreenState
     required String ownerImage,
   }) async {
     try {
-      // Starting chat may fail; keep it silent and show a snackbar.
-      final sitterRepository = Get.find<SitterRepository>();
-      final response = await sitterRepository.startConversationBySitter(
-        ownerId: ownerId,
-      );
+      // v18.8 — route walker→/start-by-walker, sitter→/start-by-sitter.
+      // Avant v18.8, un walker qui tapait "Discuter avec le propriétaire"
+      // depuis une notification recevait 403 car l'appel sortait sur le
+      // endpoint /start-by-sitter qui fait requireRole('sitter').
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : null;
+      final role = (authController?.userRole.value ?? 'sitter').toLowerCase();
+
+      Map<String, dynamic> response;
+      if (role == 'walker') {
+        final walkerRepository = Get.isRegistered<WalkerRepository>()
+            ? Get.find<WalkerRepository>()
+            : null;
+        if (walkerRepository == null) {
+          throw StateError('WalkerRepository not registered');
+        }
+        response = await walkerRepository.startConversationByWalker(
+          ownerId: ownerId,
+        );
+      } else {
+        final sitterRepository = Get.find<SitterRepository>();
+        response = await sitterRepository.startConversationBySitter(
+          ownerId: ownerId,
+        );
+      }
 
       String? conversationId;
       if (response['conversation'] != null && response['conversation'] is Map) {
@@ -128,7 +151,10 @@ class _NotificationSitterApplicationCardViewScreenState
         ),
       );
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'common_error_message'.tr,
+      );
     }
   }
 

@@ -2,10 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/notification_badge.dart';
+
+/// v18.8 — couleur de rôle dynamique pour la nav bottom.
+/// walker → vert · sitter → bleu · owner → orange (primary).
+Color _activeColorForCurrentRole() {
+  final role = Get.isRegistered<AuthController>()
+      ? (Get.find<AuthController>().userRole.value ?? 'owner').toLowerCase()
+      : 'owner';
+  if (role == 'walker') return const Color(0xFF16A34A);
+  if (role == 'sitter') return const Color(0xFF2563EB);
+  return AppColors.primaryColor;
+}
 
 class CustomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -62,7 +74,7 @@ class CustomNavigationBar extends StatelessWidget {
     int? badgeIndex,
   }) {
     final isSelected = currentIndex == index;
-    final activeColor = AppColors.primaryColor;
+    final activeColor = _activeColorForCurrentRole();
     final inactiveColor = isDark
         ? Colors.white.withValues(alpha: 0.45)
         : const Color(0xFF9E9E9E);
@@ -140,6 +152,12 @@ class CustomNavigationBar extends StatelessWidget {
 
   Widget _buildCenterMapButton(BuildContext context, bool isDark) {
     final isSelected = currentIndex == 2;
+    final roleAccent = _activeColorForCurrentRole();
+    // Nuance plus claire du rôle pour le gradient (sans dépendance asset).
+    final roleAccentLight = Color.alphaBlend(
+      Colors.white.withValues(alpha: 0.25),
+      roleAccent,
+    );
 
     return GestureDetector(
       onTap: () {
@@ -153,15 +171,15 @@ class CustomNavigationBar extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isSelected
-                ? [AppColors.primaryColor, const Color(0xFFFF6B4A)]
-                : [AppColors.primaryColor.withValues(alpha: 0.85), AppColors.primaryColor],
+                ? [roleAccent, roleAccentLight]
+                : [roleAccent.withValues(alpha: 0.85), roleAccent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryColor.withValues(alpha: 0.35),
+              color: roleAccent.withValues(alpha: 0.35),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

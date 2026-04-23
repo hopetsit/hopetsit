@@ -3,6 +3,14 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+// v18.8 — walker chat end-to-end : l'owner peut démarrer une conversation
+// avec un walker (param walkerId) et le walker peut démarrer avec un owner.
+let Walker;
+try {
+  Walker = require('../models/Walker');
+} catch (_) {
+  Walker = null;
+}
 const Block = require('../models/Block');
 const Booking = require('../models/Booking');
 const { sanitizeConversation, sanitizeMessage } = require('../utils/sanitize');
@@ -357,8 +365,13 @@ const startConversation = async (req, res) => {
   try {
     const ownerId = req.user?.id;
     const userRole = req.user?.role;
+    // v18.8 — owner peut maintenant démarrer une conversation avec
+    // sitter OU walker. Le param walkerId (query ou body) a la priorité
+    // pour décider le type de provider cible.
+    const walkerIdParam = req.query.walkerId || req.body?.walkerId || null;
     const { sitterId } = req.query;
     const { message } = req.body;
+    const targetWalker = walkerIdParam && mongoose.Types.ObjectId.isValid(walkerIdParam);
 
     // Validate authentication
     if (!ownerId) {
@@ -366,12 +379,7 @@ const startConversation = async (req, res) => {
     }
 
     if (userRole !== 'owner') {
-      return res.status(403).json({ error: 'Only owners can start conversations with sitters.' });
-    }
-
-    // Validate sitterId
-    if (!sitterId) {
-      return res.status(400).json({ error: 'Sitter ID is required in query parameters.' });
+      return res.status(403).json({ error: 'Only owners can start conversations with providers.' });
     }
 
     // Validate message
@@ -379,15 +387,27 @@ const startConversation = async (req, res) => {
       return res.status(400).json({ error: 'Message is required in request body.' });
     }
 
-    // Validate sitterId format
-    if (!mongoose.Types.ObjectId.isValid(sitterId)) {
-      return res.status(400).json({ error: 'Invalid sitter ID format.' });
-    }
-
-    // Check if sitter exists
-    const sitter = await Sitter.findById(sitterId);
-    if (!sitter) {
-      return res.status(404).json({ error: 'Sitter not found.' });
+    if (!targetWalker) {
+      // Path sitter (inchangé).
+      if (!sitterId) {
+        return res.status(400).json({ error: 'Sitter ID is required in query parameters.' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(sitterId)) {
+        return res.status(400).json({ error: 'Invalid sitter ID format.' });
+      }
+      const sitter = await Sitter.findById(sitterId);
+      if (!sitter) {
+        return res.status(404).json({ error: 'Sitter not found.' });
+      }
+    } else {
+      // Path walker : vérifie que le walker existe.
+      if (!Walker) {
+        return res.status(400).json({ error: 'Walker support is not enabled on this server.' });
+      }
+      const walker = await Walker.findById(walkerIdParam);
+      if (!walker) {
+        return res.status(404).json({ error: 'Walker not found.' });
+      }
     }
 
     // Check if owner exists
@@ -397,17 +417,19 @@ const startConversation = async (req, res) => {
     }
 
     // Check if blocked
+    const otherProviderId = targetWalker ? walkerIdParam : sitterId;
+    const otherProviderModel = targetWalker ? 'Walker' : 'Sitter';
     const isBlocked = await Block.exists({
       $or: [
         {
           blockerId: ownerId,
           blockerModel: 'Owner',
-          blockedId: sitterId,
-          blockedModel: 'Sitter',
+          blockedId: otherProviderId,
+          blockedModel: otherProviderModel,
         },
         {
-          blockerId: sitterId,
-          blockerModel: 'Sitter',
+          blockerId: otherProviderId,
+          blockerModel: otherProviderModel,
           blockedId: ownerId,
           blockedModel: 'Owner',
         },
@@ -419,10 +441,12 @@ const startConversation = async (req, res) => {
     }
 
     // Session v3.2 — chat gate:
-    //   * Paid booking between owner & sitter → OK (historical support chat).
+    //   * Paid booking between owner & provider → OK (historical support chat).
     //   * Else if owner has Premium OR Chat add-on → OK (pre-booking / friend chat).
     //   * Else → 402 CHAT_ACCESS_REQUIRED with upsell hints.
-    const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId);
+    const hasPaidBooking = targetWalker
+      ? await hasValidPaidBooking(ownerId, null, walkerIdParam)
+      : await hasValidPaidBooking(ownerId, sitterId);
     if (!hasPaidBooking) {
       const access = await getChatAccess(ownerId, 'Owner');
       if (!access.hasAny) {
@@ -441,22 +465,30 @@ const startConversation = async (req, res) => {
     }
 
     // Find or create conversation
-    let conversation = await Conversation.findOne({
-      ownerId: ownerId,
-      sitterId: sitterId,
-    })
+    const convoQuery = targetWalker
+      ? { ownerId: ownerId, walkerId: walkerIdParam }
+      : { ownerId: ownerId, sitterId: sitterId };
+    let conversation = await Conversation.findOne(convoQuery)
       .populate('ownerId')
-      .populate('sitterId');
+      .populate('sitterId')
+      .populate('walkerId');
 
     if (!conversation) {
-      // Create new conversation
-      conversation = await Conversation.create({
-        ownerId: ownerId,
-        sitterId: sitterId,
-        ownerUnreadCount: 0,
-        sitterUnreadCount: 0,
-      });
-      await conversation.populate(['ownerId', 'sitterId']);
+      const convoCreate = targetWalker
+        ? {
+            ownerId,
+            walkerId: walkerIdParam,
+            ownerUnreadCount: 0,
+            sitterUnreadCount: 0,
+          }
+        : {
+            ownerId,
+            sitterId,
+            ownerUnreadCount: 0,
+            sitterUnreadCount: 0,
+          };
+      conversation = await Conversation.create(convoCreate);
+      await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
     }
 
     // Send the first message
@@ -474,7 +506,7 @@ const startConversation = async (req, res) => {
     conversation.lastMessageAt = new Date();
     conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
     await conversation.save();
-    await conversation.populate(['ownerId', 'sitterId']);
+    await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
 
     // Emit socket event for real-time updates
     emitToConversation(conversation._id.toString(), 'message:new', {
@@ -650,6 +682,126 @@ const startConversationBySitter = async (req, res) => {
   }
 };
 
+// v18.8 — walker démarre une conversation avec un owner (miroir de
+// startConversationBySitter). Utilise le schéma XOR : on set walkerId
+// au lieu de sitterId sur la Conversation.
+const startConversationByWalker = async (req, res) => {
+  try {
+    const walkerId = req.user?.id;
+    const userRole = req.user?.role;
+    const { ownerId } = req.query;
+    const { message } = req.body;
+
+    if (!walkerId) {
+      return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
+    }
+    if (userRole !== 'walker') {
+      return res.status(403).json({ error: 'Only walkers can start conversations with owners.' });
+    }
+    if (!ownerId) {
+      return res.status(400).json({ error: 'Owner ID is required in query parameters.' });
+    }
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required in request body.' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(ownerId)) {
+      return res.status(400).json({ error: 'Invalid owner ID format.' });
+    }
+
+    const owner = await Owner.findById(ownerId);
+    if (!owner) {
+      return res.status(404).json({ error: 'Owner not found.' });
+    }
+    if (!Walker) {
+      return res.status(400).json({ error: 'Walker support is not enabled on this server.' });
+    }
+    const walker = await Walker.findById(walkerId);
+    if (!walker) {
+      return res.status(404).json({ error: 'Walker not found.' });
+    }
+
+    const isBlocked = await Block.exists({
+      $or: [
+        { blockerId: ownerId, blockerModel: 'Owner', blockedId: walkerId, blockedModel: 'Walker' },
+        { blockerId: walkerId, blockerModel: 'Walker', blockedId: ownerId, blockedModel: 'Owner' },
+      ],
+    });
+    if (isBlocked) {
+      return res.status(403).json({ error: 'Messaging is disabled because one user has been blocked.' });
+    }
+
+    // Chat gate : paid booking (owner ↔ walker) OR premium/chat addon.
+    const hasPaidBooking = await hasValidPaidBooking(ownerId, null, walkerId);
+    if (!hasPaidBooking) {
+      const access = await getChatAccess(walkerId, 'Walker');
+      if (!access.hasAny) {
+        return res.status(402).json({
+          error:
+            'Chat requires an active Premium plan or the Chat add-on. Please subscribe to start messaging.',
+          code: 'CHAT_ACCESS_REQUIRED',
+          details: {
+            needsPremium: !access.hasPremium,
+            needsChatAddon: !access.hasChatAddon,
+            upgradeUrl: '/subscriptions/plans',
+            addonUrl: '/chat-addon/plans',
+          },
+        });
+      }
+    }
+
+    let conversation = await Conversation.findOne({ ownerId, walkerId })
+      .populate('ownerId')
+      .populate('walkerId');
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        ownerId,
+        walkerId,
+        ownerUnreadCount: 0,
+        sitterUnreadCount: 0,
+      });
+      await conversation.populate(['ownerId', 'walkerId']);
+    }
+
+    const trimmedMessage = message.trim();
+    const newMessage = await Message.create({
+      conversationId: conversation._id,
+      senderRole: 'walker',
+      senderId: walkerId,
+      body: trimmedMessage,
+      attachments: [],
+    });
+
+    conversation.lastMessage = trimmedMessage;
+    conversation.lastMessageAt = new Date();
+    conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
+    await conversation.save();
+    await conversation.populate(['ownerId', 'walkerId']);
+
+    emitToConversation(conversation._id.toString(), 'message:new', {
+      conversationId: conversation._id.toString(),
+      triggeredBy: { role: 'walker', userId: walkerId },
+      message: sanitizeMessage(newMessage),
+      conversation: sanitizeConversation(conversation),
+    });
+
+    res.status(201).json({
+      message: 'Conversation started successfully.',
+      conversation: sanitizeConversation(conversation),
+      sentMessage: sanitizeMessage(newMessage),
+    });
+  } catch (error) {
+    logger.error('Start conversation by walker error', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid ID format.' });
+    }
+    if (error.code === 11000) {
+      return res.status(409).json({ error: 'Conversation already exists.' });
+    }
+    res.status(500).json({ error: 'Unable to start conversation. Please try again later.' });
+  }
+};
+
 module.exports = {
   listConversations,
   getChatList,
@@ -659,5 +811,6 @@ module.exports = {
   markConversationRead,
   startConversation,
   startConversationBySitter,
+  startConversationByWalker,
 };
 

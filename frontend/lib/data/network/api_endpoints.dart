@@ -66,6 +66,11 @@ class ApiEndpoints {
   static const String conversationsStartBySitter =
       '/conversations/start-by-sitter';
 
+  /// v18.8 — walker chat : route miroir pour walker→owner.
+  /// Usage: '${ApiEndpoints.conversationsStartByWalker}?ownerId={ownerId}'
+  static const String conversationsStartByWalker =
+      '/conversations/start-by-walker';
+
   /// Get messages for a conversation
   /// Usage: '${ApiEndpoints.conversationMessages}/$conversationId/messages'
   static const String conversationMessages = '/conversations';

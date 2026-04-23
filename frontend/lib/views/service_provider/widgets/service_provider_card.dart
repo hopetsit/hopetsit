@@ -98,8 +98,15 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
   @override
   void initState() {
     super.initState();
-    isPhoneLocked = widget.isBlurred ?? false;
-    isEmailLocked = widget.isBlurred ?? false;
+    // v18.8 — coherence paiement : dès que la réservation est payée,
+    // on déverrouille automatiquement téléphone + email, même si le
+    // parent a passé isBlurred=true. Avant, les cadenas + ****1982
+    // restaient visibles sur une réservation payée, ce qui est un bug.
+    final paid =
+        (widget.booking?.paymentStatus?.toLowerCase() ?? '') == 'paid';
+    final shouldBlur = (widget.isBlurred ?? false) && !paid;
+    isPhoneLocked = shouldBlur;
+    isEmailLocked = shouldBlur;
   }
 
   String getMaskedPhoneNumber(String phone) {
@@ -117,6 +124,24 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
 
   @override
   Widget build(BuildContext context) {
+    // v18.8 — Option B : en mode booking, on affiche une carte COMPACTE
+    // alignée sur le design des écrans Réservations sitter/walker
+    // (avatar 32×32, lignes icône pet/date/heure/prix, bouton unique en
+    // couleur rôle). Les modes home / application conservent la fiche
+    // complète (gros avatar 100×100 + contacts + note + bouton
+    // Accept/Reject) car leur UX est différente.
+    if (widget.cardType == ServiceProviderCardType.booking &&
+        widget.booking != null) {
+      return _buildCompactBookingCard();
+    }
+    // v18.8 — Option B (suite) : carte candidature également en version
+    // compacte, alignée sur le design booking. Owner voit désormais une
+    // ligne cohérente avec l'onglet Réservations : badge statut + avatar
+    // + note + prix + boutons Accepter/Rejeter en couleur rôle.
+    if (widget.cardType == ServiceProviderCardType.application) {
+      return _buildCompactApplicationCard();
+    }
+
     return GestureDetector(
       onTap: () {
         // Navigate to booking detail screen if it's a booking card
@@ -302,67 +327,72 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
 
                 SizedBox(height: 16.h),
 
-                // Rating and Location
-                Row(
-                  children: [
-                    // Stars (only show if rating > 0)
-                    if (widget.rating > 0 &&
-                        (widget.reviewsCount ?? 0) > 0) ...[
-                      Row(
-                        children: List.generate(5, (starIndex) {
-                          return Icon(
-                            starIndex < widget.rating.floor()
-                                ? Icons.star
-                                : Icons.star_border,
-                            size: 16.sp,
-                            color: starIndex < widget.rating.floor()
-                                ? Colors.amber
-                                : AppColors.greyText,
-                          );
-                        }),
+                // Rating — v18.8 : on cache "Aucune note pour le moment" sur les
+                // cartes réservation (peu utile après paiement).
+                if ((widget.rating > 0 && (widget.reviewsCount ?? 0) > 0) ||
+                    widget.cardType != ServiceProviderCardType.booking)
+                  Row(
+                    children: [
+                      if (widget.rating > 0 &&
+                          (widget.reviewsCount ?? 0) > 0) ...[
+                        Row(
+                          children: List.generate(5, (starIndex) {
+                            return Icon(
+                              starIndex < widget.rating.floor()
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              size: 16.sp,
+                              color: starIndex < widget.rating.floor()
+                                  ? Colors.amber
+                                  : AppColors.greyText,
+                            );
+                          }),
+                        ),
+                        SizedBox(width: 8.w),
+                        InterText(
+                          text: widget.rating.toStringAsFixed(1),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ] else ...[
+                        InterText(
+                          text: 'sitter_detail_no_rating'.tr,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ],
+                      SizedBox(width: 16.w),
+                    ],
+                  ),
+                // Location — v18.8 : on cache complètement la ligne quand
+                // la ville est absente ET qu'on est sur une carte réservation.
+                // Avant, on affichait "Aucun lieu disponible" même sur une
+                // réservation payée, ce qui polluait l'UI.
+                if (widget.location.isNotEmpty ||
+                    widget.cardType != ServiceProviderCardType.booking)
+                  Row(
+                    children: [
+                      Image.asset(
+                        AppImages.pinIcon,
+                        width: 24.w,
+                        height: 24.h,
+                        color: _roleAccent,
                       ),
-                      SizedBox(width: 8.w),
-                      InterText(
-                        text: widget.rating.toStringAsFixed(1),
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary(context),
-                      ),
-                    ] else ...[
-                      InterText(
-                        text: 'sitter_detail_no_rating'.tr,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary(context),
+                      SizedBox(width: 4.w),
+                      Expanded(
+                        child: InterText(
+                          text: widget.location.isNotEmpty
+                              ? widget.location
+                              : 'service_card_no_location'.tr,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.textSecondary(context),
+                        ),
                       ),
                     ],
-
-                    SizedBox(width: 16.w),
-                  ],
-                ),
-                // Location
-                Row(
-                  children: [
-                    Image.asset(
-                      AppImages.pinIcon,
-                      width: 24.w,
-                      height: 24.h,
-                      color: AppColors.primaryColor,
-                    ),
-                    SizedBox(width: 4.w),
-
-                    Expanded(
-                      child: InterText(
-                        text: widget.location.isNotEmpty
-                            ? widget.location
-                            : 'service_card_no_location'.tr,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary(context),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
 
                 // Status Chip
                 if (widget.showStatusChip == true) ...[
@@ -465,6 +495,446 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
           ],
         ),
       ),
+    );
+  }
+
+  /// v18.8 — Design compact pour ServiceProviderCardType.booking.
+  /// Aligné sur walker_bookings_screen.dart et sitter_bookings_screen.dart :
+  /// badge statut à gauche, avatar 32×32 + nom à droite, lignes icône
+  /// pet/date/heure/prix, bouton action unique en couleur rôle.
+  Widget _buildCompactBookingCard() {
+    final booking = widget.booking!;
+    final accent = _roleAccent;
+    final duration = booking.duration;
+    final totalAmount = booking.totalAmount ??
+        booking.pricing?.totalPrice ??
+        booking.basePrice;
+
+    return GestureDetector(
+      onTap: () {
+        Get.to(
+          () => OwnerBookingDetailScreen(
+            booking: booking,
+            onPay: widget.onPay,
+            onStartChat: widget.onStartChat,
+            onCancel: widget.onCancel,
+          ),
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 16.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppColors.grey300Color),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header : badge statut + avatar/nom
+            Row(
+              children: [
+                _buildStatusChip(),
+                const Spacer(),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ClipOval(
+                        child: widget.profileImagePath != null &&
+                                widget.profileImagePath!.isNotEmpty &&
+                                (widget.profileImagePath!.startsWith('http://') ||
+                                    widget.profileImagePath!.startsWith('https://'))
+                            ? CachedNetworkImage(
+                                imageUrl: widget.profileImagePath!,
+                                width: 32.w,
+                                height: 32.h,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) =>
+                                    _compactAvatarPlaceholder(accent),
+                                errorWidget: (_, __, ___) =>
+                                    _compactAvatarPlaceholder(accent),
+                              )
+                            : _compactAvatarPlaceholder(accent),
+                      ),
+                      SizedBox(width: 8.w),
+                      Flexible(
+                        child: InterText(
+                          text: widget.name,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16.h),
+            _compactRow(
+              Icons.pets,
+              'sitter_bookings_pet_label'.tr,
+              booking.petName,
+            ),
+            SizedBox(height: 12.h),
+            _compactRow(
+              Icons.calendar_today,
+              'sitter_bookings_date_label'.tr,
+              booking.date,
+            ),
+            SizedBox(height: 12.h),
+            _compactRow(
+              Icons.access_time,
+              'sitter_bookings_time_label'.tr,
+              booking.timeSlot,
+            ),
+            if (duration != null && duration > 0) ...[
+              SizedBox(height: 12.h),
+              _compactRow(
+                Icons.timer,
+                'duration_label'.tr.isNotEmpty
+                    ? 'duration_label'.tr
+                    : 'Duration',
+                '$duration min',
+              ),
+            ],
+            if (totalAmount != null) ...[
+              SizedBox(height: 12.h),
+              Row(
+                children: [
+                  Icon(Icons.attach_money, size: 16.sp, color: accent),
+                  SizedBox(width: 8.w),
+                  InterText(
+                    text: CurrencyHelper.format(widget.currencyCode, totalAmount),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ],
+              ),
+            ],
+            if (booking.description.isNotEmpty) ...[
+              SizedBox(height: 12.h),
+              InterText(
+                text: booking.description,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textSecondary(context),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            SizedBox(height: 16.h),
+            _buildActionButtons(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// v18.8 — Carte candidature compacte côté owner. Miroite le design
+  /// booking : badge statut + avatar 32 + nom + note/prix + boutons rôle.
+  Widget _buildCompactApplicationCard() {
+    final accent = _roleAccent;
+    final hasRating =
+        widget.rating > 0 && (widget.reviewsCount ?? 0) > 0;
+    final hasLocation = widget.location.trim().isNotEmpty;
+    final currencySym = CurrencyHelper.symbol(widget.currencyCode);
+    final price = widget.pricePerHour.trim();
+    final showPrice = price.isNotEmpty && price != '0';
+
+    return GestureDetector(
+      onTap: () {
+        if (widget.sitterId != null && widget.sitterId!.isNotEmpty) {
+          Get.to(
+            () => ServiceProviderDetailScreen(
+              sitterId: widget.sitterId!,
+              status: widget.status,
+              booking: widget.booking,
+            ),
+          );
+        }
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 16.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppColors.grey300Color),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1 — badge statut + avatar/nom
+            Row(
+              children: [
+                _buildStatusChip(),
+                const Spacer(),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ClipOval(
+                        child: widget.profileImagePath != null &&
+                                widget.profileImagePath!.isNotEmpty &&
+                                (widget.profileImagePath!.startsWith('http://') ||
+                                    widget.profileImagePath!.startsWith('https://'))
+                            ? CachedNetworkImage(
+                                imageUrl: widget.profileImagePath!,
+                                width: 32.w,
+                                height: 32.h,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) =>
+                                    _compactAvatarPlaceholder(accent),
+                                errorWidget: (_, __, ___) =>
+                                    _compactAvatarPlaceholder(accent),
+                              )
+                            : _compactAvatarPlaceholder(accent),
+                      ),
+                      SizedBox(width: 8.w),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: PoppinsText(
+                                    text: widget.name,
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (widget.identityVerified) ...[
+                                  SizedBox(width: 4.w),
+                                  Icon(Icons.verified,
+                                      color: Colors.blue, size: 14.sp),
+                                ],
+                                if (widget.isTopSitter) ...[
+                                  SizedBox(width: 4.w),
+                                  Text('🏆',
+                                      style: TextStyle(fontSize: 12.sp)),
+                                ],
+                                if (widget.isBoosted) ...[
+                                  SizedBox(width: 4.w),
+                                  Text('🔥',
+                                      style: TextStyle(fontSize: 12.sp)),
+                                ],
+                              ],
+                            ),
+                            if (hasRating) ...[
+                              SizedBox(height: 2.h),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star,
+                                      size: 12.sp, color: Colors.amber),
+                                  SizedBox(width: 2.w),
+                                  InterText(
+                                    text:
+                                        '${widget.rating.toStringAsFixed(1)} (${widget.reviewsCount})',
+                                    fontSize: 11.sp,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.textSecondary(context),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // Row 2 — info secondaire : location + prix
+            if (hasLocation || showPrice) ...[
+              SizedBox(height: 12.h),
+              Row(
+                children: [
+                  if (hasLocation) ...[
+                    Icon(Icons.place_outlined,
+                        size: 14.sp, color: AppColors.grey700Color),
+                    SizedBox(width: 4.w),
+                    Flexible(
+                      child: InterText(
+                        text: widget.location,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (showPrice)
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 10.w, vertical: 4.h),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                      child: PoppinsText(
+                        text: '$currencySym$price/${'price_per_hour_short'.tr}',
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+            // Row 3 — action buttons Accept/Reject (role-colored) for
+            // pending applications only. Pour les statuts autres (accepted
+            // etc.), pas de boutons : la candidature a déjà transité.
+            if (widget.status.toLowerCase() == 'pending' &&
+                (widget.onAccept != null || widget.onReject != null)) ...[
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  if (widget.onAccept != null)
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: (_isAccepting || _isRejecting)
+                            ? null
+                            : () async {
+                                setState(() => _isAccepting = true);
+                                try {
+                                  await Future.sync(() => widget.onAccept!.call());
+                                } finally {
+                                  if (mounted) {
+                                    setState(() => _isAccepting = false);
+                                  }
+                                }
+                              },
+                        child: Container(
+                          height: 44.h,
+                          decoration: BoxDecoration(
+                            color: _isAccepting
+                                ? accent.withValues(alpha: 0.7)
+                                : accent,
+                            borderRadius: BorderRadius.circular(22.r),
+                          ),
+                          child: Center(
+                            child: _isAccepting
+                                ? SizedBox(
+                                    width: 18.w,
+                                    height: 18.h,
+                                    child: const CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          AppColors.whiteColor),
+                                    ),
+                                  )
+                                : InterText(
+                                    text: 'service_card_accept'.tr,
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.whiteColor,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (widget.onAccept != null && widget.onReject != null)
+                    SizedBox(width: 10.w),
+                  if (widget.onReject != null)
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: (_isAccepting || _isRejecting)
+                            ? null
+                            : () async {
+                                setState(() => _isRejecting = true);
+                                try {
+                                  await Future.sync(() => widget.onReject!.call());
+                                } finally {
+                                  if (mounted) {
+                                    setState(() => _isRejecting = false);
+                                  }
+                                }
+                              },
+                        child: Container(
+                          height: 44.h,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                                color: AppColors.errorColor, width: 1),
+                            borderRadius: BorderRadius.circular(22.r),
+                          ),
+                          child: Center(
+                            child: _isRejecting
+                                ? SizedBox(
+                                    width: 18.w,
+                                    height: 18.h,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          AppColors.errorColor),
+                                    ),
+                                  )
+                                : InterText(
+                                    text: 'service_card_reject'.tr,
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.errorColor,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _compactAvatarPlaceholder(Color accent) {
+    return Container(
+      width: 32.w,
+      height: 32.h,
+      color: AppColors.lightGrey,
+      child: Icon(Icons.person, size: 20.sp, color: accent),
+    );
+  }
+
+  Widget _compactRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16.sp, color: AppColors.grey700Color),
+        SizedBox(width: 8.w),
+        InterText(
+          text: label,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w400,
+          color: AppColors.grey700Color,
+        ),
+        SizedBox(width: 8.w),
+        Expanded(
+          child: InterText(
+            text: value.isNotEmpty ? value : '—',
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary(context),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
@@ -589,6 +1059,22 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
         // ),
       ],
     );
+  }
+
+  /// v18.8 — dérive la couleur d'accent du rôle à partir du booking.
+  /// Walker → vert ; Sitter → bleu ; fallback → orange primary.
+  Color get _roleAccent {
+    final serviceLower = (widget.booking?.serviceType ?? '').toLowerCase();
+    if (serviceLower.contains('walking') ||
+        serviceLower.contains('dog_walking')) {
+      return const Color(0xFF16A34A);
+    }
+    if (serviceLower.contains('sitting') ||
+        serviceLower.contains('day_care') ||
+        serviceLower.contains('boarding')) {
+      return const Color(0xFF2563EB);
+    }
+    return AppColors.primaryColor;
   }
 
   Widget _buildActionButtons() {
@@ -843,7 +1329,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                     height: 48.h,
                     padding: EdgeInsets.symmetric(vertical: 12.h),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryColor,
+                      color: _roleAccent,
                       borderRadius: BorderRadius.circular(48.r),
                     ),
                     child: Center(
@@ -932,7 +1418,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                   height: 48.h,
                   padding: EdgeInsets.symmetric(vertical: 12.h),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor,
+                    color: _roleAccent,
                     borderRadius: BorderRadius.circular(48.r),
                   ),
                   child: Center(

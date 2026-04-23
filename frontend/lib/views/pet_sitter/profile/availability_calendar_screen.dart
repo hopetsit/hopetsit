@@ -107,7 +107,7 @@ class _AvailabilityCalendarScreenState
         elevation: 0,
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
-        title: Text('Availability', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
+        title: Text('availability_title'.tr, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
         actions: [
           IconButton(
             onPressed: _saving ? null : _save,
@@ -159,10 +159,10 @@ class _AvailabilityCalendarScreenState
             ),
           ),
           SizedBox(height: 16.h),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Tap a day: 1st tap = available (green), 2nd = blocked (red), 3rd = clear.',
+              'availability_instructions'.tr,
               textAlign: TextAlign.center,
             ),
           ),

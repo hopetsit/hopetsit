@@ -342,89 +342,11 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
               ),
             ],
           ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              InterText(
-                text: 'bookings_detail_phone_label'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: booking.sitter.mobile.isNotEmpty
-                      ? booking.sitter.mobile
-                      : 'service_card_no_phone'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: booking.sitter.mobile.isNotEmpty
-                      ? AppColors.textPrimary(context)
-                      : AppColors.textSecondary(context),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              InterText(
-                text: 'bookings_detail_location_label'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text:
-                      booking.sitter.city != null &&
-                          booking.sitter.city!.isNotEmpty
-                      ? booking.sitter.city!
-                      : 'service_card_no_location'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color:
-                      booking.sitter.city != null &&
-                          booking.sitter.city!.isNotEmpty
-                      ? AppColors.textPrimary(context)
-                      : AppColors.textSecondary(context),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              InterText(
-                text: 'bookings_detail_rating_label'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text:
-                      (booking.sitter.rating > 0 &&
-                          booking.sitter.reviewsCount > 0)
-                      ? 'sitter_rating_with_count'.trParams({
-                          'rating': booking.sitter.rating.toStringAsFixed(1),
-                          'count': booking.sitter.reviewsCount.toString(),
-                        })
-                      : 'sitter_detail_no_rating'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color:
-                      (booking.sitter.rating > 0 &&
-                          booking.sitter.reviewsCount > 0)
-                      ? AppColors.textPrimary(context)
-                      : AppColors.textSecondary(context),
-                ),
-              ),
-            ],
-          ),
+          // v18.8 — design unifié sur les 3 rôles (walker/sitter/owner).
+          // On supprime les lignes téléphone / localisation / notation dans
+          // la card liste : elles polluaient le rendu avec "****1982" et
+          // "Aucun lieu disponible" pour les bookings walker. Ces infos
+          // restent accessibles dans BookingAgreementScreen (détail).
 
           if (booking.description.isNotEmpty) ...[
             SizedBox(height: 12.h),

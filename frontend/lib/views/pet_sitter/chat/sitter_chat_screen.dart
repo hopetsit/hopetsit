@@ -53,31 +53,33 @@ class SitterChatScreen extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (controller.errorMessage.value.isNotEmpty) {
+                // v18.8 — épuré : plus de backend raw message, et on
+                // n'affiche l'erreur que si la liste est vide.
+                if (controller.errorMessage.value.isNotEmpty &&
+                    controller.conversations.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        PoppinsText(
-                          text: 'chat_error_loading_conversations'.tr,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary(context),
-                        ),
-                        SizedBox(height: 8.h),
-                        PoppinsText(
-                          text: controller.errorMessage.value,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textSecondary(context),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 16.h),
-                        ElevatedButton(
-                          onPressed: () => controller.reloadConversations(),
-                          child: Text('chat_retry'.tr),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: EdgeInsets.all(24.w),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.wifi_off_rounded,
+                              size: 48.sp, color: AppColors.greyColor),
+                          SizedBox(height: 12.h),
+                          PoppinsText(
+                            text: 'chat_error_loading_conversations'.tr,
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary(context),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 16.h),
+                          OutlinedButton(
+                            onPressed: () => controller.reloadConversations(),
+                            child: Text('chat_retry'.tr),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }

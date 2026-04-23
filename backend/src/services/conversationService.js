@@ -38,18 +38,21 @@ const getConversationOrThrow = async (conversationId, { populate = false } = {})
 const assertParticipant = (conversation, role, userId) => {
   const ownerIdValue = normalizeId(conversation.ownerId);
   const sitterIdValue = normalizeId(conversation.sitterId);
+  const walkerIdValue = normalizeId(conversation.walkerId);
 
   if (
     (role === 'owner' && ownerIdValue !== userId) ||
-    (role === 'sitter' && sitterIdValue !== userId)
+    (role === 'sitter' && sitterIdValue !== userId) ||
+    (role === 'walker' && walkerIdValue !== userId)
   ) {
     throw new HttpError(403, 'User is not part of this conversation.');
   }
 };
 
+// v18.8 — accepte désormais walker en plus de owner/sitter.
 const ensureRole = (role) => {
-  if (!['owner', 'sitter'].includes(role)) {
-    throw new HttpError(400, 'Invalid role. Expected "owner" or "sitter".');
+  if (!['owner', 'sitter', 'walker'].includes(role)) {
+    throw new HttpError(400, 'Invalid role. Expected "owner", "sitter" or "walker".');
   }
 };
 
@@ -118,33 +121,33 @@ const buildLastMessagePreview = ({ body, attachments }) => {
 };
 
 /**
- * Check if there's at least one valid paid booking between owner and sitter
- * A valid paid booking is one where:
- * - status === 'paid' OR paymentStatus === 'paid'
- * - status !== 'cancelled' AND status !== 'refunded'
+ * v18.8 — Accepte désormais (ownerId, sitterId[, walkerId]).
+ * Quand walkerId est fourni, on match sur walkerId au lieu de sitterId.
+ * Conserve la compatibilité avec l'ancienne signature à 2 arguments.
+ *
  * @param {string} ownerId - Owner ID
- * @param {string} sitterId - Sitter ID
+ * @param {string|null} sitterId - Sitter ID (null si c'est un booking walker)
+ * @param {string} [walkerId] - Walker ID (optional)
  * @returns {Promise<boolean>} - True if at least one valid paid booking exists
  */
-const hasValidPaidBooking = async (ownerId, sitterId) => {
-  if (!ownerId || !sitterId) {
-    return false;
-  }
+const hasValidPaidBooking = async (ownerId, sitterId, walkerId) => {
+  if (!ownerId) return false;
+  if (!sitterId && !walkerId) return false;
 
-  // Find a booking where:
-  // 1. ownerId and sitterId match
-  // 2. Payment is confirmed (status === 'paid' OR paymentStatus === 'paid')
-  // 3. Booking is not cancelled or refunded
+  // v18.8.1 — booking-id match plus large. Avant, si le provider était un
+  // walker mais que son Booking historique stockait l'id sous sitterId
+  // (pré-v17, pré-walkerId), le query ne matchait plus → 402
+  // CHAT_ACCESS_REQUIRED. On autorise désormais walkerId OU sitterId
+  // quand l'un des deux est fourni.
+  const providerId = walkerId || sitterId;
   const validPaidBooking = await Booking.findOne({
-    ownerId: ownerId,
-    sitterId: sitterId,
+    ownerId,
     status: { $nin: ['cancelled', 'refunded'] },
-    $or: [
-      { status: 'paid' },
-      { paymentStatus: 'paid' },
+    $and: [
+      { $or: [{ status: 'paid' }, { paymentStatus: 'paid' }] },
+      { $or: [{ walkerId: providerId }, { sitterId: providerId }] },
     ],
   });
-
   return !!validPaidBooking;
 };
 
@@ -161,18 +164,22 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
 
   const ownerId = normalizeId(conversation.ownerId);
   const sitterId = normalizeId(conversation.sitterId);
+  const walkerId = normalizeId(conversation.walkerId);
 
+  // v18.8 — block rule walker-aware : sitter OU walker en face.
+  const otherProviderId = sitterId || walkerId;
+  const otherProviderModel = sitterId ? 'Sitter' : 'Walker';
   const isBlocked = await Block.exists({
     $or: [
       {
         blockerId: ownerId,
         blockerModel: 'Owner',
-        blockedId: sitterId,
-        blockedModel: 'Sitter',
+        blockedId: otherProviderId,
+        blockedModel: otherProviderModel,
       },
       {
-        blockerId: sitterId,
-        blockerModel: 'Sitter',
+        blockerId: otherProviderId,
+        blockerModel: otherProviderModel,
         blockedId: ownerId,
         blockedModel: 'Owner',
       },
@@ -187,9 +194,13 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   //   * If a paid booking exists → OK (historical support chat).
   //   * Else if sender has Premium OR Chat add-on → OK (friends / pre-booking chat).
   //   * Else → 402 CHAT_ACCESS_REQUIRED so client can upsell.
-  const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId);
+  const hasPaidBooking = await hasValidPaidBooking(ownerId, sitterId, walkerId);
   if (!hasPaidBooking) {
-    const senderUserModel = senderRole === 'owner' ? 'Owner' : 'Sitter';
+    const senderUserModel = senderRole === 'owner'
+      ? 'Owner'
+      : senderRole === 'walker'
+        ? 'Walker'
+        : 'Sitter';
     const access = await getChatAccess(senderId, senderUserModel);
     if (!access.hasAny) {
       const err = new HttpError(402, 'Chat access required');
@@ -236,12 +247,20 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
     conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
   }
   await conversation.save();
-  await conversation.populate(['ownerId', 'sitterId']);
+  await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
 
+  // v18.8 — destinataire de la notif NEW_MESSAGE est dynamique :
+  // owner → provider (sitter OU walker) ; provider → owner.
   const ownerIdForNotif = normalizeId(conversation.ownerId);
   const sitterIdForNotif = normalizeId(conversation.sitterId);
-  const recipientRole = senderRole === 'owner' ? 'sitter' : 'owner';
-  const recipientId = senderRole === 'owner' ? sitterIdForNotif : ownerIdForNotif;
+  const walkerIdForNotif = normalizeId(conversation.walkerId);
+  const isWalkerConvo = !!walkerIdForNotif;
+  const recipientRole = senderRole === 'owner'
+    ? (isWalkerConvo ? 'walker' : 'sitter')
+    : 'owner';
+  const recipientId = senderRole === 'owner'
+    ? (isWalkerConvo ? walkerIdForNotif : sitterIdForNotif)
+    : ownerIdForNotif;
 
   if (recipientId && recipientId !== senderId) {
     // Sprint 4 step 3 — multilingual NEW_MESSAGE (in-app + push + email).
@@ -255,7 +274,9 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
         senderName:
           senderRole === 'owner'
             ? conversation.ownerId?.name || ''
-            : conversation.sitterId?.name || '',
+            : senderRole === 'walker'
+              ? conversation.walkerId?.name || ''
+              : conversation.sitterId?.name || '',
         preview: (effectiveBody || conversation.lastMessage || '').slice(0, 120),
       },
       actor: { role: senderRole, id: senderId },

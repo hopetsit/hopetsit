@@ -256,6 +256,24 @@ class WalkerRepository {
     }
   }
 
+  /// v18.8 — POST /conversations/start-by-walker?ownerId={ownerId}
+  /// Démarre une conversation walker→owner. Fix le 403 que recevait le
+  /// walker en cliquant "Discuter avec le propriétaire".
+  Future<Map<String, dynamic>> startConversationByWalker({
+    required String ownerId,
+    String? message,
+  }) async {
+    final response = await _apiClient.post(
+      ApiEndpoints.conversationsStartByWalker,
+      queryParameters: {'ownerId': ownerId},
+      body: {
+        'message': message ?? "Hello, I'm available to walk your pet!",
+      },
+      requiresAuth: true,
+    );
+    return _asMap(response);
+  }
+
   Map<String, dynamic> _asMap(dynamic response) {
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);

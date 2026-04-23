@@ -896,36 +896,55 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       String? breakdown;
 
       if (service == 'dog_walking') {
-        // Session v15-3 — proper pro-rata so 90/120 min aren't frozen at the
-        // 60-min tariff. Logic:
-        //   30 → halfHourRate (fallback: hourlyRate / 2)
-        //   60 → hourlyRate
-        //   90 → hourlyRate + halfHourRate (fallback: hourlyRate × 1.5)
-        //   120 → 2 × hourlyRate
+        // v18.8 — estimateur strict : on ne montre un total que si la
+        // durée sélectionnée a un tarif EXPLICITE côté walker (walkRate
+        // enabled). Sinon on affiche "À confirmer avec le prestataire".
+        // Avant, on devinait via hourlyRate/2 ce qui donnait des
+        // estimations fausses quand le walker n'avait pas défini sa
+        // grille 30min (le cas de la plupart des walkers).
         final minutes = int.tryParse(duration ?? '') ?? 0;
         final halfHour = widget.walkerHalfHourRate;
         final hour = widget.walkerHourlyRate;
-        final halfHourEff =
-            halfHour ?? (hour != null ? hour / 2 : null);
         double? total;
-        if (minutes > 0 && (halfHour != null || hour != null)) {
-          if (minutes <= 30 && halfHourEff != null) {
-            total = halfHourEff;
-          } else if (minutes == 60 && hour != null) {
-            total = hour;
-          } else if (minutes == 90 && hour != null && halfHourEff != null) {
-            total = hour + halfHourEff;
-          } else if (minutes == 120 && hour != null) {
-            total = hour * 2;
-          } else if (hour != null) {
-            // Generic fallback: prorata per hour.
-            total = hour * (minutes / 60.0);
+        String? notSetNotice;
+        if (minutes > 0) {
+          if (minutes == 30) {
+            if (halfHour != null && halfHour > 0) {
+              total = halfHour;
+            } else {
+              notSetNotice =
+                  'send_request_duration_rate_missing'.tr;
+            }
+          } else if (minutes == 60) {
+            if (hour != null && hour > 0) {
+              total = hour;
+            } else {
+              notSetNotice =
+                  'send_request_duration_rate_missing'.tr;
+            }
+          } else if (minutes == 90) {
+            if (hour != null && hour > 0 &&
+                halfHour != null && halfHour > 0) {
+              total = hour + halfHour;
+            } else {
+              notSetNotice =
+                  'send_request_duration_rate_missing'.tr;
+            }
+          } else if (minutes == 120) {
+            if (hour != null && hour > 0) {
+              total = hour * 2;
+            } else {
+              notSetNotice =
+                  'send_request_duration_rate_missing'.tr;
+            }
           }
         }
         if (total != null && total > 0) {
           totalText =
-              '${total.toStringAsFixed(0)} ${widget.currencyCode ?? 'EUR'}';
+              '${total.toStringAsFixed(2)} ${widget.currencyCode ?? 'EUR'}';
           breakdown = '1 balade $minutes min';
+        } else if (notSetNotice != null) {
+          breakdown = notSetNotice;
         }
       } else if (service != null && service.isNotEmpty) {
         if (sDate != null && eDate != null) {

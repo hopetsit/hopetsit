@@ -125,7 +125,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
 
           SizedBox(height: 20.h),
 
-          // Start Chat Button
+          // Start Chat Button — v18.8 : couleur rôle (vert walker / bleu sitter).
           if (onStartChat != null)
             Padding(
               padding: EdgeInsets.only(bottom: 12.h, right: 16.w),
@@ -136,7 +136,7 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                     width: Get.size.width / 2,
                     height: 48.h,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryColor,
+                      color: _roleAccent,
                       borderRadius: BorderRadius.circular(24.r),
                     ),
                     child: Row(
@@ -361,6 +361,14 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
   }
 
   Widget _buildDetailsSection() {
+    // v18.8 — on n'affiche le numéro du propriétaire que si la réservation
+    // est PAYÉE (paymentStatus=='paid'). Avant paiement, contact privé.
+    // Les icônes prennent désormais la couleur du rôle pour rester cohérent
+    // avec le bouton Accepter et la carte prix.
+    final showPhone =
+        application.paymentStatus.toLowerCase() == 'paid' &&
+            application.phoneNumber.trim().isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -382,20 +390,22 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
           'sitter_detail_time'.tr,
           application.time,
         ),
-        SizedBox(height: 12.h),
-        _buildDetailRow(
-          AppImages.callIcon,
-          'sitter_detail_phone'.tr,
-          application.phoneNumber,
-        ),
-        SizedBox(height: 12.h),
-        // v16.3i — email row removed per user request (no need to expose
-        // emails on the acceptance / reservation card, phone is enough).
-        _buildDetailRow(
-          AppImages.locationIcon,
-          'sitter_detail_location'.tr,
-          application.location,
-        ),
+        if (showPhone) ...[
+          SizedBox(height: 12.h),
+          _buildDetailRow(
+            AppImages.callIcon,
+            'sitter_detail_phone'.tr,
+            application.phoneNumber,
+          ),
+        ],
+        if (application.location.trim().isNotEmpty) ...[
+          SizedBox(height: 12.h),
+          _buildDetailRow(
+            AppImages.locationIcon,
+            'sitter_detail_location'.tr,
+            application.location,
+          ),
+        ],
       ],
     );
   }
@@ -406,22 +416,17 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
       children: [
         Image.asset(
           iconPath,
-          width: 25.w,
-          height: 25.h,
-          color: AppColors.primaryColor,
+          width: 22.w,
+          height: 22.h,
+          color: _roleAccent,
         ),
-        SizedBox(width: 5.w),
+        SizedBox(width: 6.w),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InterText(
-                text: displayValue,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w400,
-                color: value.isEmpty ? AppColors.textSecondary(context) : AppColors.textSecondary(context),
-              ),
-            ],
+          child: InterText(
+            text: displayValue,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w400,
+            color: AppColors.textSecondary(context),
           ),
         ),
       ],

@@ -161,25 +161,25 @@ class _SitterIndividualChatScreenState
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (chatController.errorMessage.value.isNotEmpty) {
+        // v18.8 — épuré : pas de raw message, et affichage uniquement si
+        // la conversation n'a pas encore de messages en cache.
+        if (chatController.errorMessage.value.isNotEmpty &&
+            chatController.currentChatMessages.isEmpty) {
           return Center(
             child: Padding(
-              padding: EdgeInsets.all(20.w),
+              padding: EdgeInsets.all(24.w),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Icon(Icons.wifi_off_rounded,
+                      size: 42.sp, color: AppColors.greyColor),
+                  SizedBox(height: 10.h),
                   InterText(
                     text: 'chat_error_loading_messages'.tr,
                     fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textSecondary(context),
-                  ),
-                  SizedBox(height: 8.h),
-                  InterText(
-                    text: chatController.errorMessage.value,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w300,
-                    color: AppColors.textSecondary(context),
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary(context),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

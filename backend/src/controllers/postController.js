@@ -490,11 +490,18 @@ const toggleLike = async (req, res) => {
     }
 
     const normalizedRole = String(role).toLowerCase();
-    if (!['owner', 'sitter'].includes(normalizedRole)) {
-      return res.status(400).json({ error: 'Invalid role. Expected "owner" or "sitter".' });
+    // v18.8 — walker peut désormais liker. Avant v18.8, le endpoint
+    // renvoyait 400 "Invalid role" pour role='walker' ce qui faisait
+    // sortir "Impossible d'aimer la publication" côté app.
+    if (!['owner', 'sitter', 'walker'].includes(normalizedRole)) {
+      return res.status(400).json({ error: 'Invalid role. Expected "owner", "sitter" or "walker".' });
     }
 
-    const Model = normalizedRole === 'owner' ? Owner : Sitter;
+    const Model = normalizedRole === 'owner'
+      ? Owner
+      : normalizedRole === 'walker'
+        ? Walker
+        : Sitter;
     const userExists = await Model.exists({ _id: userId });
     if (!userExists) {
       return res.status(404).json({ error: 'User not found.' });
@@ -505,9 +512,10 @@ const toggleLike = async (req, res) => {
       return res.status(404).json({ error: 'Post not found.' });
     }
 
-    // Check if sitter is blocked by owner (use stored ownerId so we never pass "null" to Block query)
+    // Check if sitter/walker is blocked by owner.
     const ownerIdStored = post.ownerId ? post.ownerId.toString() : null;
-    if (normalizedRole === 'sitter' && ownerIdStored) {
+    if ((normalizedRole === 'sitter' || normalizedRole === 'walker') &&
+        ownerIdStored) {
       const isBlocked = await isOwnerSitterInteractionBlocked(ownerIdStored, userId);
       if (isBlocked) {
         return res.status(403).json({ error: 'You cannot interact with this owner.' });
@@ -518,14 +526,19 @@ const toggleLike = async (req, res) => {
     const existingIndex = post.likes.findIndex(
       (like) => like.userId.toString() === userId.toString()
     );
-    
+
+    const userRoleLabel = normalizedRole === 'owner'
+      ? 'Owner'
+      : normalizedRole === 'walker'
+        ? 'Walker'
+        : 'Sitter';
     let action = 'disliked';
     if (existingIndex >= 0) {
       post.likes.splice(existingIndex, 1);
     } else {
       post.likes.push({
         userId,
-        userRole: normalizedRole === 'owner' ? 'Owner' : 'Sitter',
+        userRole: userRoleLabel,
       });
       action = 'liked';
     }

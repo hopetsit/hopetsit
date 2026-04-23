@@ -69,13 +69,17 @@ class _PublishReservationRequestScreenState
                   child: _buildPetsSection(),
                 ),
                 SizedBox(height: 16.h),
+                // v18.8 — ordre demandé : Animaux / Type de service / Dates.
+                // Avant v18.8, les dates venaient avant le type de service, ce
+                // qui obligeait l'owner à choisir une date avant même de savoir
+                // quelle prestation il cherchait.
+                _buildServiceTypeSection(),
+                SizedBox(height: 16.h),
                 _buildSectionCard(
                   icon: Icons.calendar_today_rounded,
                   title: 'send_request_dates_label'.tr,
                   child: _buildDatesSection(),
                 ),
-                SizedBox(height: 16.h),
-                _buildServiceTypeSection(),
                 Obx(
                   () => controller.shouldShowDuration
                       ? Column(

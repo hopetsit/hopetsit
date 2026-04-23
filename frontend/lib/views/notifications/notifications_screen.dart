@@ -803,16 +803,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           unawaited(Get.find<BookingsController>().loadBookings());
         }
       } catch (e) {
+        // v18.8 — si le parser BookingModel explose sur la réponse de
+        // /applications/:id/respond, on ne montre PLUS un popup rouge
+        // "Paiement indisponible". On tente un fallback transparent :
+        // on recharge les bookings via GET /bookings/:id et on ouvre la
+        // page paiement. Le popup d'erreur ne doit s'afficher que si
+        // même ce fallback échoue.
         AppLogger.logError('notif accept: parse booking failed', error: e);
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'payment_unavailable_message'.tr,
+        final bookingIdHint = (bookingMap['id'] ??
+                bookingMap['_id'] ??
+                appJson['bookingIdRaw'])
+            ?.toString();
+        await _openPaymentForAcceptedApplication(
+          ownerRepo: ownerRepo,
+          bookingIdHint: bookingIdHint,
+          providerType: resolvedProviderType,
         );
       }
     } else {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: 'payment_unavailable_message'.tr,
+      // Pas de booking dans la réponse → fallback GET /bookings/:id avant
+      // tout popup d'erreur. Avant v18.8, on balançait directement
+      // "Paiement momentanément indisponible" sur chaque candidature,
+      // même si l'acceptation avait réussi côté backend.
+      await _openPaymentForAcceptedApplication(
+        ownerRepo: ownerRepo,
+        bookingIdHint: appJson['bookingIdRaw']?.toString(),
+        providerType: resolvedProviderType,
       );
     }
   }
@@ -861,10 +877,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       );
     } catch (e) {
+      // v18.8 — plus de e.toString() en dur (fuite de stack en anglais
+      // dans le snackbar). Message générique traduit.
       AppLogger.logError('open-payment-for-accepted failed', error: e);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: e.toString(),
+        message: 'common_error_message'.tr,
       );
     }
   }

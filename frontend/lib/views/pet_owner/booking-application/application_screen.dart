@@ -608,12 +608,19 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
       },
       onStartChat: booking.paymentStatus == 'paid'
           ? () async {
+              // v18.8 — booking walker → walkerId, sinon sitterId.
+              // Avant v18.8, on tapait toujours /conversations/start?sitterId=X
+              // même pour un walker → 404 "Sitter not found" cracheur.
+              final svcLower = (booking.serviceType ?? '').toLowerCase();
+              final isWalker = svcLower.contains('walking') ||
+                  svcLower.contains('dog_walking');
               await _handleStartChatForBooking(
                 booking.sitter.id,
                 booking.sitter.name,
                 booking.sitter.avatar.url.isNotEmpty
                     ? booking.sitter.avatar.url
                     : '',
+                isWalkerBooking: isWalker,
               );
             }
           : null,
@@ -640,10 +647,11 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
   }
 
   Future<void> _handleStartChatForBooking(
-    String sitterId,
-    String sitterName,
-    String sitterImage,
-  ) async {
+    String providerId,
+    String providerName,
+    String providerImage, {
+    bool isWalkerBooking = false,
+  }) async {
     try {
       showDialog(
         context: context,
@@ -657,7 +665,8 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
 
       final ownerRepository = Get.find<OwnerRepository>();
       final response = await ownerRepository.startConversation(
-        sitterId: sitterId,
+        sitterId: isWalkerBooking ? null : providerId,
+        walkerId: isWalkerBooking ? providerId : null,
       );
 
       if (mounted) Navigator.pop(context);
@@ -672,8 +681,8 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
           Get.to(
             () => IndividualChatScreen(
               conversationId: conversationId!,
-              contactName: sitterName,
-              contactImage: sitterImage.isNotEmpty ? sitterImage : '',
+              contactName: providerName,
+              contactImage: providerImage.isNotEmpty ? providerImage : '',
             ),
           );
         }
@@ -681,7 +690,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
         if (mounted) {
           CustomSnackbar.showError(
             title: 'common_error'.tr,
-            message: 'snackbar_text_failed_to_start_conversation_please_try_again',
+            message: 'snackbar_text_failed_to_start_conversation_please_try_again'.tr,
           );
         }
       }
@@ -691,7 +700,15 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
       if (mounted) {
         // Chat-access 402 → upsell dialog instead of a generic error toast.
         if (ChatAccessUpsellHelper.maybeShowChatUpsell(context, e)) return;
-        CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
+        // v18.8 — les 404 "Sitter not found" / "Walker not found" viennent
+        // d'un booking mal typé côté backend. On remplace le message
+        // technique par une erreur générique traduite.
+        final m = e.message.toLowerCase();
+        final isNotFound = m.contains('not found');
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: isNotFound ? 'common_error_message'.tr : e.message,
+        );
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);

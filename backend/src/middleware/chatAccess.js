@@ -3,18 +3,31 @@ const Booking = require('../models/Booking');
 const logger = require('../utils/logger');
 
 /**
- * Canonical rule (sprint6.5 step 3): chat is OPEN only if there is at least
- * one paid booking between owner and sitter. Otherwise blocked with
- * code='PAYMENT_REQUIRED' + bookingId (most recent unpaid/agreed one if any).
+ * v18.8 — walker-aware. Accepte (ownerId, sitterId[, walkerId]).
+ * Chat ouvert si au moins un booking payé existe entre owner et le
+ * provider (sitter OU walker selon le cas).
  */
-const evaluateChatAccess = async ({ ownerId, sitterId }) => {
+const evaluateChatAccess = async ({ ownerId, sitterId, walkerId }) => {
+  if (!ownerId || (!sitterId && !walkerId)) {
+    return { blocked: true, bookingId: null, status: null, paymentStatus: null };
+  }
+
+  // v18.8.1 — query plus large : on accepte que l'id provider soit stocké
+  // dans walkerId OU sitterId (cas des bookings historiques créés avant le
+  // champ walkerId).
+  const providerId = walkerId || sitterId;
+
   const paidExists = await Booking.exists({
     ownerId,
-    sitterId,
     paymentStatus: 'paid',
+    $or: [{ walkerId: providerId }, { sitterId: providerId }],
   });
   if (paidExists) return { blocked: false };
-  const latest = await Booking.findOne({ ownerId, sitterId })
+
+  const latest = await Booking.findOne({
+    ownerId,
+    $or: [{ walkerId: providerId }, { sitterId: providerId }],
+  })
     .sort({ createdAt: -1 })
     .select('_id status paymentStatus')
     .lean();
@@ -28,12 +41,14 @@ const evaluateChatAccess = async ({ ownerId, sitterId }) => {
 
 /**
  * Express middleware: 403 with PAYMENT_REQUIRED when chat is gated.
- * Requires :id param (conversationId) and req.user from requireAuth.
+ * v18.8 — prend en compte conversation.walkerId pour les chats owner↔walker.
+ * Avant v18.8, un walker tapait 403 car la conversation avait sitterId=null
+ * et evaluateChatAccess queryait Booking.findOne({ ownerId, sitterId:null }).
  */
 const requirePaidBooking = async (req, res, next) => {
   try {
     const conversation = await Conversation.findById(req.params.id)
-      .select('ownerId sitterId')
+      .select('ownerId sitterId walkerId')
       .lean();
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found.' });
@@ -41,6 +56,7 @@ const requirePaidBooking = async (req, res, next) => {
     const access = await evaluateChatAccess({
       ownerId: conversation.ownerId,
       sitterId: conversation.sitterId,
+      walkerId: conversation.walkerId,
     });
     if (access.blocked) {
       return res.status(403).json({
