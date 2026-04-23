@@ -73,10 +73,10 @@ class _WalkerIdentityVerificationScreenState
         final url = data['url']?.toString() ?? '';
         if (!mounted) return;
         CustomSnackbar.showSuccess(
-          title: 'Vérification démarrée',
+          title: 'identity_verification_started_title'.tr,
           message: url.isNotEmpty
-              ? 'Suis le lien Stripe pour terminer.'
-              : 'Session Identity créée, ouvre le SDK.',
+              ? 'identity_verification_started_followup'.tr
+              : 'identity_verification_started_sdk'.tr,
         );
         await _refreshStatus();
         return;
@@ -109,17 +109,20 @@ class _WalkerIdentityVerificationScreenState
       if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
         await _refreshStatus();
         CustomSnackbar.showSuccess(
-          title: 'common_success',
-          message: 'Document envoyé. En attente de vérification.',
+          title: 'common_success'.tr,
+          message: 'identity_verification_upload_success'.tr,
         );
       } else {
         CustomSnackbar.showError(
-          title: 'common_error',
-          message: 'Upload failed (${streamed.statusCode}).',
+          title: 'common_error'.tr,
+          message: 'common_error_message'.tr,
         );
       }
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error', message: e.toString());
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'common_error_message'.tr,
+      );
     } finally {
       if (mounted) setState(() => _uploading = false);
     }

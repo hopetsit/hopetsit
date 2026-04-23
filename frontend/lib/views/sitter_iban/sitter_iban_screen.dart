@@ -78,7 +78,11 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
       );
       await _loadCurrentIban();
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      // v18.9.2 — message générique traduit au lieu de e.toString().
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'common_error_message'.tr,
+      );
     } finally {
       setState(() => _saving = false);
     }
@@ -93,7 +97,11 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
       setState(() => _payoutMethod = method);
       CustomSnackbar.showSuccess(title: 'common_success'.tr, message: 'payout_method_updated'.tr);
     } catch (e) {
-      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      // v18.9.2 — message générique traduit au lieu de e.toString().
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'common_error_message'.tr,
+      );
     }
   }
 

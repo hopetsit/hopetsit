@@ -136,9 +136,11 @@ const createStripeConnectAccount = async (req, res) => {
       return res.status(500).json({ error: 'Payment service is not configured.' });
     }
     if (error.type === 'StripeInvalidRequestError' && error.message && error.message.includes('Connect')) {
-      return res.status(400).json({ 
-        error: 'Stripe Connect is not enabled for your account. Please enable Stripe Connect in your Stripe Dashboard first.',
-        details: 'Visit https://stripe.com/docs/connect to learn how to enable Connect.'
+      // v18.9.1 — code machine-lisible pour que le front traduise en FR.
+      return res.status(503).json({
+        error: 'Stripe Connect is not enabled on this platform account.',
+        code: 'STRIPE_CONNECT_PLATFORM_NOT_ENABLED',
+        details: 'Platform owner must enable Connect on their Stripe account (dashboard.stripe.com → Connect → Get started).',
       });
     }
     res.status(500).json({ 

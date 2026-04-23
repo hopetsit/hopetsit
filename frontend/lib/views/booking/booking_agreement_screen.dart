@@ -5,6 +5,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -148,11 +149,13 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
         }
       }
     } on ApiException catch (e) {
-      AppLogger.logError('Failed to load booking agreement', error: e);
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message:
-            'snackbar_text_failed_to_load_booking_details_using_default_pricing',
+      // v18.9.1 — plus de popup rouge "Impossible de charger les details de
+      // reservation" quand le fallback pricing fonctionne déjà. L'erreur est
+      // loggée, l'utilisateur voit le prix correct (booking.pricing),
+      // inutile de polluer l'UI avec un snackbar.
+      AppLogger.logError(
+        'Failed to refresh booking agreement — silent fallback to booking.pricing',
+        error: e,
       );
       _basePrice =
           widget.booking.pricing?.basePrice ??
@@ -665,7 +668,8 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
           SizedBox(height: 12.h),
           _buildDetailRow(
             'booking_agreement_time_slot_label'.tr,
-            widget.booking.timeSlot,
+            // v18.9.1 — heure localisée (plus de "12:04 PM" en FR).
+            BookingDateFormat.localizedTime(widget.booking.timeSlot),
           ),
           SizedBox(height: 12.h),
           _buildDetailRow(
@@ -677,7 +681,8 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
             SizedBox(height: 12.h),
             _buildDetailRow(
               'booking_agreement_service_type_label'.tr,
-              widget.booking.serviceType!,
+              // v18.9.1 — service type localisé au lieu de 'dog_walking' brut.
+              _localizedServiceType(widget.booking.serviceType!),
             ),
           ],
           if (venueLabel != null &&
@@ -871,6 +876,24 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
         widget.booking.pricing?.currency ??
         widget.booking.sitter.currency;
     return CurrencyHelper.format(currency, price);
+  }
+
+  /// v18.9.1 — localise un service type brut ('dog_walking', 'day_care'...)
+  /// en label lisible selon la locale. Fallback : capitalise underscore → espace.
+  String _localizedServiceType(String raw) {
+    final normalized = raw.trim().toLowerCase();
+    if (normalized.isEmpty) return raw;
+    // Essaie d'abord les clés send_request_service_{type} déjà utilisées dans
+    // le formulaire Envoyer une demande.
+    final key = 'send_request_service_$normalized';
+    final translated = key.tr;
+    if (translated != key) return translated;
+    // Fallback : 'dog_walking' → 'Dog Walking'.
+    return normalized
+        .split('_')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
   }
 
   String _formatDateTime(String dateTimeString) {

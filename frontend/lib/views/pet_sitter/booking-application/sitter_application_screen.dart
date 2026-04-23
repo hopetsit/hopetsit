@@ -555,11 +555,10 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
         // Chat-access 402 → upsell dialog (Premium / Chat add-on) rather
         // than a generic failure toast.
         if (ChatAccessUpsellHelper.maybeShowChatUpsell(context, e)) return;
+        // v18.9.2 — plus de e.toString() ni fallback anglais en dur.
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: e.toString().contains('Exception')
-              ? e.toString().split(':').last.trim()
-              : 'Failed to start conversation. Please try again.',
+          message: 'snackbar_text_failed_to_start_conversation_please_try_again'.tr,
         );
       }
     }

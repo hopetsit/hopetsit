@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class PetSitterApplication {
@@ -127,35 +128,43 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
 
           // Start Chat Button — v18.8 : couleur rôle (vert walker / bleu sitter).
           if (onStartChat != null)
+            // v18.9.2 — largeur 'infinie' + padding adapté : avant, le bouton
+            // était fixé à width/2 et le texte 'Discuter avec le propriétaire'
+            // dépassait. Désormais il prend toute la largeur disponible et
+            // le texte ne tronque plus (auto-wrap + ellipsis fallback).
             Padding(
               padding: EdgeInsets.only(bottom: 12.h, right: 16.w),
               child: GestureDetector(
                 onTap: onStartChat,
-                child: Center(
-                  child: Container(
-                    width: Get.size.width / 2,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: _roleAccent,
-                      borderRadius: BorderRadius.circular(24.r),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_outlined,
-                          color: AppColors.whiteColor,
-                          size: 20.sp,
-                        ),
-                        SizedBox(width: 8.w),
-                        InterText(
+                child: Container(
+                  width: double.infinity,
+                  height: 48.h,
+                  padding: EdgeInsets.symmetric(horizontal: 12.w),
+                  decoration: BoxDecoration(
+                    color: _roleAccent,
+                    borderRadius: BorderRadius.circular(24.r),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.chat_outlined,
+                        color: AppColors.whiteColor,
+                        size: 18.sp,
+                      ),
+                      SizedBox(width: 6.w),
+                      Flexible(
+                        child: InterText(
                           text: 'sitter_chat_with_owner'.tr,
-                          fontSize: 14.sp,
+                          fontSize: 13.sp,
                           fontWeight: FontWeight.w500,
                           color: AppColors.whiteColor,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -382,13 +391,15 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
         _buildDetailRow(
           AppImages.calendarIcon,
           'sitter_detail_date'.tr,
-          application.date,
+          // v18.9.1 — date localisée : FR "mer. 23 avr. 2026" au lieu de "Apr 23, 2026".
+          BookingDateFormat.localizedDate(application.date),
         ),
         SizedBox(height: 12.h),
         _buildDetailRow(
           AppImages.timeIcon,
           'sitter_detail_time'.tr,
-          application.time,
+          // v18.9.1 — heure localisée : FR "13:14" au lieu de "1:14 PM".
+          BookingDateFormat.localizedTime(application.time),
         ),
         if (showPhone) ...[
           SizedBox(height: 12.h),

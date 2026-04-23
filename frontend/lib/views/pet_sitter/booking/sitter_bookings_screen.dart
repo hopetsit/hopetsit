@@ -272,7 +272,9 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
                                 child: Icon(
                                   Icons.person,
                                   size: 20.sp,
-                                  color: AppColors.primaryColor,
+                                  // v18.9.2 — accent rôle sitter (bleu)
+                                  // au lieu de l'orange primary.
+                                  color: _sitterAccent,
                                 ),
                               ),
                       ),
@@ -311,31 +313,58 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
                 '${booking.duration} min'),
           ],
           SizedBox(height: 12.h),
-          Row(
-            children: [
-              Icon(
-                Icons.attach_money,
-                size: 16.sp,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(width: 8.w),
-              InterText(
-                text: 'sitter_bookings_rate_label'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.grey700Color,
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: PricingDisplayHelper.sitterBookingRateLine(booking),
+          // v18.9.2 — sitter voit son montant NET perçu sur les bookings payés.
+          // Sinon tarif de référence.
+          Builder(builder: (context) {
+            final paid =
+                (booking.paymentStatus ?? '').toLowerCase() == 'paid';
+            if (paid) {
+              final total = booking.totalAmount ??
+                  booking.pricing?.totalPrice ??
+                  0.0;
+              final net =
+                  booking.pricing?.netAmount ?? (total * 0.8);
+              final currency =
+                  booking.pricing?.currency ?? booking.sitter.currency;
+              return Row(
+                children: [
+                  Icon(Icons.attach_money,
+                      size: 16.sp, color: _sitterAccent),
+                  SizedBox(width: 8.w),
+                  InterText(
+                    text: 'bookings_card_you_receive'.trParams({
+                      'amount': '${net.toStringAsFixed(2)} $currency',
+                    }),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: _sitterAccent,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Icon(Icons.attach_money,
+                    size: 16.sp, color: AppColors.grey700Color),
+                SizedBox(width: 8.w),
+                InterText(
+                  text: 'sitter_bookings_rate_label'.tr,
                   fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary(context),
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.grey700Color,
                 ),
-              ),
-            ],
-          ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: InterText(
+                    text: PricingDisplayHelper.sitterBookingRateLine(booking),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ),
+              ],
+            );
+          }),
 
           if (booking.description.isNotEmpty) ...[
             SizedBox(height: 12.h),

@@ -667,6 +667,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'stripe_already_connected': 'Già collegato',
       'stripe_already_connected_message':
           'Il tuo account Stripe è già collegato e attivo.',
+      'stripe_connect_platform_not_enabled':
+          'I pagamenti Stripe non sono ancora attivati sulla piattaforma. Riprova più tardi o contatta l\'assistenza.',
       'stripe_connect_error':
           'Impossibile collegare l\'account Stripe. Riprova.',
       'stripe_no_onboarding_url':
@@ -1008,9 +1010,24 @@ const Map<String, String> itITTranslations = <String, String>{
       'publish_request_service_house_sitting': 'House sitting',
       'publish_request_city_label': 'Posizione',
       'house_sitting_venue_label': 'Luogo del house sitting',
+      'send_request_service_dog_walking': 'Passeggiata',
+      'send_request_service_pet_sitting': 'Pet sitting',
+      'send_request_service_day_care': 'Asilo',
+      'send_request_service_house_sitting': 'Custodia a domicilio',
+      'send_request_service_long_stay': 'Soggiorno lungo',
+      'send_request_service_overnight_stay': 'Pernottamento',
       'house_sitting_venue_owners_home': 'A casa del proprietario',
       'house_sitting_venue_sitters_home': 'A casa del pet sitter',
       'duration_label': 'Durata',
+      'bookings_card_you_receive': 'Ricevi @amount netti',
+      'bookings_card_you_paid': 'Hai pagato @amount',
+      'identity_verification_started_title': 'Verifica avviata',
+      'identity_verification_started_followup':
+          'Segui il link Stripe per completare.',
+      'identity_verification_started_sdk':
+          'Sessione Identity creata, apri l\'SDK.',
+      'identity_verification_upload_success':
+          'Documento caricato. In attesa di verifica.',
       'send_request_duration_label': 'Durata (minuti)',
       'send_request_duration_rate_missing':
           'Tariffa non impostata per questa durata — da confermare con il prestatore',

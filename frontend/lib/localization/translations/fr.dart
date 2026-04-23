@@ -638,6 +638,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'stripe_already_connected': 'Déjà connecté',
       'stripe_already_connected_message':
           'Votre compte Stripe est déjà connecté et actif.',
+      'stripe_connect_platform_not_enabled':
+          'Le paiement par Stripe n\'est pas encore activé côté plateforme. Réessayez plus tard ou contactez le support.',
       'stripe_connect_error':
           'Échec de la connexion du compte Stripe. Veuillez réessayer.',
       'stripe_no_onboarding_url':
@@ -1014,9 +1016,22 @@ const Map<String, String> frFRTranslations = <String, String>{
       'send_request_service_type_label': 'Type de service',
       'send_request_service_long_term_care': 'Garde à long terme',
       'send_request_service_dog_walking': 'Promenade de chien',
+      'send_request_service_pet_sitting': 'Pet sitting',
+      'send_request_service_day_care': 'Garderie',
+      'send_request_service_house_sitting': 'Garde à domicile',
+      'send_request_service_long_stay': 'Séjour longue durée',
       'send_request_service_overnight_stay': 'Séjour nocturne',
       'send_request_service_home_visit': 'Visite à domicile',
       'duration_label': 'Durée',
+      'bookings_card_you_receive': 'Tu touches @amount net',
+      'bookings_card_you_paid': 'Tu as payé @amount',
+      'identity_verification_started_title': 'Vérification démarrée',
+      'identity_verification_started_followup':
+          'Suis le lien Stripe pour terminer.',
+      'identity_verification_started_sdk':
+          'Session Identity créée, ouvre le SDK.',
+      'identity_verification_upload_success':
+          'Document envoyé. En attente de vérification.',
       'send_request_duration_label': 'Durée (minutes)',
       'send_request_duration_rate_missing':
           'Tarif non défini pour cette durée — à confirmer avec le prestataire',

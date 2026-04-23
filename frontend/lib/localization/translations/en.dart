@@ -605,6 +605,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'stripe_already_connected': 'Already Connected',
       'stripe_already_connected_message':
           'Your Stripe account is already connected and active.',
+      'stripe_connect_platform_not_enabled':
+          'Stripe payments are not yet enabled on the platform. Please try again later or contact support.',
       'stripe_connect_error':
           'Failed to connect Stripe account. Please try again.',
       'stripe_no_onboarding_url':
@@ -959,8 +961,21 @@ const Map<String, String> enUSTranslations = <String, String>{
       'send_request_service_long_term_care': 'Long Term Care',
       'send_request_service_dog_walking': 'Dog Walking',
       'send_request_service_overnight_stay': 'Overnight Stay',
+      'send_request_service_pet_sitting': 'Pet sitting',
+      'send_request_service_day_care': 'Day Care',
+      'send_request_service_house_sitting': 'House Sitting',
+      'send_request_service_long_stay': 'Long Stay',
       'send_request_service_home_visit': 'Home Visit',
       'duration_label': 'Duration',
+      'bookings_card_you_receive': 'You earn @amount net',
+      'bookings_card_you_paid': 'You paid @amount',
+      'identity_verification_started_title': 'Verification started',
+      'identity_verification_started_followup':
+          'Follow the Stripe link to complete verification.',
+      'identity_verification_started_sdk':
+          'Identity session created, open the SDK.',
+      'identity_verification_upload_success':
+          'Document uploaded. Pending verification.',
       'send_request_duration_label': 'Duration (minutes)',
       'send_request_duration_rate_missing':
           'Rate not set for this duration — confirm with the provider',

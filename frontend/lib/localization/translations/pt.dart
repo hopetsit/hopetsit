@@ -574,6 +574,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'stripe_cancel_onboarding_title': 'Cancel Onboarding?',
       'stripe_cancel_onboarding_message':
           'Are you sure you want to cancel Stripe onboarding? You can complete it later from settings.',
+      'stripe_connect_platform_not_enabled':
+          'Os pagamentos Stripe ainda não estão ativados na plataforma. Tente novamente mais tarde ou contacte o suporte.',
       'stripe_connect_payment_title': 'Connect Your Payment Account',
       'stripe_connect_payment_description':
           'To start receiving payments as a Pet Sitter, you need to connect your payment account. This is a required step to complete your profile setup.',
@@ -900,8 +902,21 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'send_request_service_long_term_care': 'Long Term Care',
       'send_request_service_dog_walking': 'Dog Walking',
       'send_request_service_overnight_stay': 'Overnight Stay',
+      'send_request_service_pet_sitting': 'Pet sitting',
+      'send_request_service_day_care': 'Creche',
+      'send_request_service_house_sitting': 'Casa do dono',
+      'send_request_service_long_stay': 'Estadia longa',
       'send_request_service_home_visit': 'Home Visit',
       'duration_label': 'Duração',
+      'bookings_card_you_receive': 'Recebes @amount líquido',
+      'bookings_card_you_paid': 'Pagaste @amount',
+      'identity_verification_started_title': 'Verificação iniciada',
+      'identity_verification_started_followup':
+          'Siga o link Stripe para concluir.',
+      'identity_verification_started_sdk':
+          'Sessão Identity criada, abra o SDK.',
+      'identity_verification_upload_success':
+          'Documento enviado. A aguardar verificação.',
       'send_request_duration_label': 'Duration (minutes)',
       'send_request_duration_rate_missing':
           'Tarifa não definida para esta duração — confirmar com o prestador',

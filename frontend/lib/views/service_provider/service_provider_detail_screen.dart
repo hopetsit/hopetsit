@@ -899,9 +899,13 @@ class _ServiceProviderDetailContent extends StatelessWidget {
       );
     } on ApiException catch (error) {
       AppLogger.logError('Failed to start conversation', error: error.message);
+      // v18.9.2 — les 404/500 backend affichent désormais une erreur
+      // générique traduite. Les 402 chat-access gardent le path upsell.
+      final m = error.message.toLowerCase();
+      final isNotFound = m.contains('not found');
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: error.message,
+        message: isNotFound ? 'common_error_message'.tr : error.message,
       );
     } catch (error) {
       AppLogger.logError('Failed to start conversation', error: error);

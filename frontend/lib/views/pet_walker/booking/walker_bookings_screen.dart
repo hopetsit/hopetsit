@@ -265,20 +265,33 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
           ],
           if (booking.totalAmount != null) ...[
             SizedBox(height: 12.h),
-            Row(
-              children: [
-                Icon(Icons.attach_money,
-                    size: 16.sp, color: _walkerAccent),
-                SizedBox(width: 8.w),
-                InterText(
-                  text: '${booking.totalAmount!.toStringAsFixed(2)} '
-                      '${booking.pricing?.currency ?? booking.sitter.currency}',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
-                  color: _walkerAccent,
-                ),
-              ],
-            ),
+            // v18.9.2 — walker voit son montant NET perçu (80% après commission
+            // plateforme) sur les réservations payées, pas le montant brut
+            // que l'owner a payé.
+            Builder(builder: (context) {
+              final paid = (booking.paymentStatus ?? '').toLowerCase() == 'paid';
+              final total = booking.totalAmount!;
+              final net = booking.pricing?.netAmount ?? (total * 0.8);
+              final currency =
+                  booking.pricing?.currency ?? booking.sitter.currency;
+              return Row(
+                children: [
+                  Icon(Icons.attach_money, size: 16.sp, color: _walkerAccent),
+                  SizedBox(width: 8.w),
+                  InterText(
+                    text: paid
+                        ? 'bookings_card_you_receive'.trParams({
+                            'amount':
+                                '${net.toStringAsFixed(2)} $currency',
+                          })
+                        : '${total.toStringAsFixed(2)} $currency',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: _walkerAccent,
+                  ),
+                ],
+              );
+            }),
           ],
         ],
       ),

@@ -267,21 +267,31 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
             ],
             if (totalAmount != null) ...[
               SizedBox(height: 12.h),
-              Row(
-                children: [
-                  Icon(Icons.attach_money, size: 16.sp, color: _ownerAccent),
-                  SizedBox(width: 8.w),
-                  InterText(
-                    text: CurrencyHelper.format(
-                      booking.pricing?.currency ?? booking.sitter.currency,
-                      totalAmount,
+              // v18.9.2 — owner sur booking payé voit "Tu as payé €X".
+              Builder(builder: (_) {
+                final paid =
+                    (booking.paymentStatus ?? '').toLowerCase() == 'paid';
+                final formatted = CurrencyHelper.format(
+                  booking.pricing?.currency ?? booking.sitter.currency,
+                  totalAmount,
+                );
+                return Row(
+                  children: [
+                    Icon(Icons.attach_money, size: 16.sp, color: _ownerAccent),
+                    SizedBox(width: 8.w),
+                    InterText(
+                      text: paid
+                          ? 'bookings_card_you_paid'.trParams({
+                              'amount': formatted,
+                            })
+                          : formatted,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w700,
+                      color: _ownerAccent,
                     ),
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
-                    color: _ownerAccent,
-                  ),
-                ],
-              ),
+                  ],
+                );
+              }),
             ],
             SizedBox(height: 16.h),
             _buildActionButtons(booking),

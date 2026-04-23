@@ -677,6 +677,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'stripe_already_connected': 'Bereits verbunden',
       'stripe_already_connected_message':
           'Dein Stripe-Konto ist bereits verbunden und aktiv.',
+      'stripe_connect_platform_not_enabled':
+          'Stripe-Zahlungen sind auf der Plattform noch nicht aktiviert. Bitte später erneut versuchen oder den Support kontaktieren.',
       'stripe_connect_error':
           'Fehler beim Verbinden des Stripe-Kontos. Bitte versuche es erneut.',
       'stripe_no_onboarding_url':
@@ -999,8 +1001,21 @@ const Map<String, String> deDETranslations = <String, String>{
       'send_request_service_long_term_care': 'Langzeitpflege',
       'send_request_service_dog_walking': 'Hundespaziergang',
       'send_request_service_overnight_stay': 'Übernachtung',
+      'send_request_service_pet_sitting': 'Tiersitting',
+      'send_request_service_day_care': 'Tagesbetreuung',
+      'send_request_service_house_sitting': 'Hausbetreuung',
+      'send_request_service_long_stay': 'Langzeitbetreuung',
       'send_request_service_home_visit': 'Hausbesuch',
       'duration_label': 'Dauer',
+      'bookings_card_you_receive': 'Du erhältst @amount netto',
+      'bookings_card_you_paid': 'Du hast @amount bezahlt',
+      'identity_verification_started_title': 'Verifizierung gestartet',
+      'identity_verification_started_followup':
+          'Folge dem Stripe-Link zum Abschluss.',
+      'identity_verification_started_sdk':
+          'Identity-Sitzung erstellt, öffne das SDK.',
+      'identity_verification_upload_success':
+          'Dokument hochgeladen. Prüfung läuft.',
       'send_request_duration_label': 'Dauer (Minuten)',
       'send_request_duration_rate_missing':
           'Preis für diese Dauer nicht festgelegt — bitte beim Anbieter nachfragen',

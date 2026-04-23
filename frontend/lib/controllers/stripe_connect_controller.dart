@@ -198,7 +198,18 @@ class StripeConnectController extends GetxController {
       });
     } on ApiException catch (error) {
       AppLogger.logError('Failed to connect Stripe', error: error.message);
-      CustomSnackbar.showError(title: 'common_error'.tr, message: error.message);
+      // v18.9.1 — si le backend renvoie code STRIPE_CONNECT_PLATFORM_NOT_ENABLED,
+      // on affiche un message user-friendly traduit (c'est une config à
+      // activer côté Stripe Dashboard du dev, pas de l'utilisateur).
+      String msg = error.message;
+      final code = error.details is Map
+          ? (error.details['code'] as String?)
+          : null;
+      if (code == 'STRIPE_CONNECT_PLATFORM_NOT_ENABLED' ||
+          msg.toLowerCase().contains('stripe connect is not enabled')) {
+        msg = 'stripe_connect_platform_not_enabled'.tr;
+      }
+      CustomSnackbar.showError(title: 'common_error'.tr, message: msg);
     } catch (e) {
       AppLogger.logError('Failed to connect Stripe', error: e);
       CustomSnackbar.showError(

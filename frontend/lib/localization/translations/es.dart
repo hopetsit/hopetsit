@@ -622,6 +622,8 @@ const Map<String, String> esESTranslations = <String, String>{
       'stripe_already_connected': 'Ya conectado',
       'stripe_already_connected_message':
           'Tu cuenta de Stripe ya está conectada y activa.',
+      'stripe_connect_platform_not_enabled':
+          'Los pagos con Stripe aún no están activados en la plataforma. Vuelve a intentarlo más tarde o contacta con soporte.',
       'stripe_connect_error':
           'Error al conectar la cuenta de Stripe. Por favor intenta de nuevo.',
       'stripe_no_onboarding_url':
@@ -1003,8 +1005,21 @@ const Map<String, String> esESTranslations = <String, String>{
       'send_request_service_long_term_care': 'Cuidado a largo plazo',
       'send_request_service_dog_walking': 'Paseo de perros',
       'send_request_service_overnight_stay': 'Estancia nocturna',
+      'send_request_service_pet_sitting': 'Pet sitting',
+      'send_request_service_day_care': 'Guardería',
+      'send_request_service_house_sitting': 'Cuidado a domicilio',
+      'send_request_service_long_stay': 'Estancia larga',
       'send_request_service_home_visit': 'Visita a domicilio',
       'duration_label': 'Duración',
+      'bookings_card_you_receive': 'Recibes @amount netos',
+      'bookings_card_you_paid': 'Pagaste @amount',
+      'identity_verification_started_title': 'Verificación iniciada',
+      'identity_verification_started_followup':
+          'Sigue el enlace de Stripe para completar.',
+      'identity_verification_started_sdk':
+          'Sesión Identity creada, abre el SDK.',
+      'identity_verification_upload_success':
+          'Documento enviado. Verificación en curso.',
       'send_request_duration_label': 'Duración (minutos)',
       'send_request_duration_rate_missing':
           'Tarifa no definida para esta duración — confirmar con el prestador',
