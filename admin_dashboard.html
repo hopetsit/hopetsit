@@ -1797,13 +1797,17 @@ async function loadDashboard() {
   try {
     const d = await api('/admin/stats');
     const colors = ['var(--primary)', 'var(--green)', 'var(--blue)', 'var(--orange)', 'var(--red)', 'var(--green)', 'var(--blue)'];
+    // v18.9.6 — ajout tuile Pet Walkers manquante dans Overview. Backend
+    // renvoie déjà totalWalkers depuis /admin/stats, il n'était juste pas
+    // rendu dans la grid.
     const stats = [
       { label: 'Total Bookings', value: d.totalBookings, sub: `${d.pendingBookings} pending`, accent: colors[0] },
       { label: 'Paid Bookings', value: d.paidBookings, sub: 'completed payments', accent: colors[1] },
       { label: 'Total Revenue', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'platform earnings', accent: colors[2] },
       { label: 'Pet Sitters', value: d.totalSitters, sub: 'registered', accent: colors[3] },
+      { label: 'Pet Walkers', value: d.totalWalkers || 0, sub: 'registered', accent: colors[5] },
       { label: 'Pet Owners', value: d.totalOwners, sub: 'registered', accent: colors[4] },
-      { label: 'Total Pets', value: d.totalPets, sub: 'in system', accent: colors[5] },
+      { label: 'Total Pets', value: d.totalPets, sub: 'in system', accent: colors[6] },
     ];
     document.getElementById('stats-grid').innerHTML = stats.map(s => `
       <div class="stat-card" style="--accent:${s.accent}">
