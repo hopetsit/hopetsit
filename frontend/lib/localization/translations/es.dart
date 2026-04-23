@@ -1640,8 +1640,6 @@ const Map<String, String> esESTranslations = <String, String>{
     'identity_upload_manual': 'Subir foto de identidad manualmente',
     'identity_verifying': 'Verificando...',
     'identity_launch_failed': 'No se pudo abrir la página de verificación. Inténtalo de nuevo.',
-    'identity_verification_started_title': 'Verificación iniciada',
-    'identity_verification_started_followup': 'Completa la verificación en el navegador. Actualizaremos tu estado automáticamente.',
     'identity_badge_verified': 'Identidad verificada',
     'identity_section_title': 'Verificación de identidad',
     'identity_section_subtitle_verified': 'Tu identidad está verificada.',

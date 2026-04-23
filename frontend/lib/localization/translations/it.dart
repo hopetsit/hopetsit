@@ -1580,8 +1580,6 @@ const Map<String, String> itITTranslations = <String, String>{
     'identity_upload_manual': 'Carica foto identità manualmente',
     'identity_verifying': 'Verifica in corso...',
     'identity_launch_failed': 'Impossibile aprire la pagina di verifica. Riprova.',
-    'identity_verification_started_title': 'Verifica avviata',
-    'identity_verification_started_followup': 'Completa la verifica nel browser. Aggiorneremo il tuo stato automaticamente.',
     'identity_badge_verified': 'Identità verificata',
     'identity_section_title': 'Verifica identità',
     'identity_section_subtitle_verified': 'La tua identità è verificata.',

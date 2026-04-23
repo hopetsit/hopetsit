@@ -1627,8 +1627,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'identity_upload_manual': 'Ausweisfoto manuell hochladen',
     'identity_verifying': 'Wird überprüft...',
     'identity_launch_failed': 'Verifizierungsseite konnte nicht geöffnet werden. Erneut versuchen.',
-    'identity_verification_started_title': 'Verifizierung gestartet',
-    'identity_verification_started_followup': 'Beende die Verifizierung im Browser. Wir aktualisieren deinen Status automatisch.',
     'identity_badge_verified': 'Identität verifiziert',
     'identity_section_title': 'Identitätsverifizierung',
     'identity_section_subtitle_verified': 'Deine Identität ist verifiziert.',

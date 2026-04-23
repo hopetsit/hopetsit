@@ -1661,8 +1661,6 @@ const Map<String, String> frFRTranslations = <String, String>{
     'identity_upload_manual': 'Envoyer manuellement une photo d\'identité',
     'identity_verifying': 'Vérification...',
     'identity_launch_failed': 'Impossible d\'ouvrir la page de vérification. Réessaie.',
-    'identity_verification_started_title': 'Vérification lancée',
-    'identity_verification_started_followup': 'Termine la vérification dans le navigateur. On mettra à jour ton statut automatiquement.',
     'identity_badge_verified': 'Identité vérifiée',
     'identity_section_title': 'Vérification d\'identité',
     'identity_section_subtitle_verified': 'Votre identité est vérifiée.',

@@ -1568,8 +1568,6 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'identity_upload_manual': 'Enviar foto de identificação manualmente',
     'identity_verifying': 'A verificar...',
     'identity_launch_failed': 'Não foi possível abrir a página de verificação. Tenta novamente.',
-    'identity_verification_started_title': 'Verificação iniciada',
-    'identity_verification_started_followup': 'Termina a verificação no navegador. Atualizaremos o teu estado automaticamente.',
     'identity_badge_verified': 'Identidade verificada',
     'identity_section_title': 'Verificação de identidade',
     'identity_section_subtitle_verified': 'A tua identidade está verificada.',

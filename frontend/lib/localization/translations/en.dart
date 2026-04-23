@@ -1727,8 +1727,6 @@ const Map<String, String> enUSTranslations = <String, String>{
     'identity_upload_manual': 'Upload an ID photo manually',
     'identity_verifying': 'Verifying...',
     'identity_launch_failed': 'Could not open the verification page. Try again.',
-    'identity_verification_started_title': 'Verification started',
-    'identity_verification_started_followup': 'Complete the verification in the browser. We\'ll update your status automatically.',
     'identity_badge_verified': 'Identity verified',
     'identity_section_title': 'Identity verification',
     'identity_section_subtitle_verified': 'Your identity is verified.',
