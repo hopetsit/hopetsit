@@ -358,17 +358,35 @@ const createBooking = async (req, res) => {
         });
       }
     }
-    // Derive an hourly equivalent for downstream tier/price calculations.
-    // Precedence: explicit hourly > dailyRate / 8h > weekly / 56h (7×8) >
-    // monthly / 240h (30×8). This keeps the existing tierPricing math happy
-    // without forcing sitters to fill a field the UI doesn't even show.
-    if (!sitter.hourlyRate || sitter.hourlyRate <= 0) {
-      if (sitter.dailyRate && sitter.dailyRate > 0) {
-        sitter.hourlyRate = sitter.dailyRate / 8;
-      } else if (sitter.weeklyRate && sitter.weeklyRate > 0) {
+    // v18.9.5 — ne dérive PLUS hourlyRate quand dailyRate existe. Le
+    // tierPricing fait désormais le fallback proprement (tier 'daily' pour
+    // les bookings ≥ 8h, sinon hourly dérivé pour les courts créneaux).
+    // On ne force un fallback QUE si aucun rate explicit n'existe.
+    if ((!sitter.hourlyRate || sitter.hourlyRate <= 0) &&
+        (!sitter.dailyRate || sitter.dailyRate <= 0)) {
+      if (sitter.weeklyRate && sitter.weeklyRate > 0) {
         sitter.hourlyRate = sitter.weeklyRate / 56;
       } else if (sitter.monthlyRate && sitter.monthlyRate > 0) {
         sitter.hourlyRate = sitter.monthlyRate / 240;
+      }
+    }
+
+    // v18.9.3 — fix prix 30 min walker via demande DIRECTE (owner→walker).
+    // Si le walker a un walkRate EXPLICITE pour la durée demandée, on
+    // shim hourlyRate pour que tierPricing retombe exactement sur ce tarif.
+    // Ex : walker a mis 5€ pour 30min ET 7€ pour 60min. Sans ce fix, owner
+    // paye 0.5 × 7 = 3.50€ (au lieu de 5€).
+    if (providerType === 'walker' && durationNum) {
+      const Walker = require('../models/Walker');
+      const walkerForRates = await Walker.findById(providerId);
+      if (walkerForRates && Array.isArray(walkerForRates.walkRates)) {
+        const exactRate = walkerForRates.walkRates.find(
+          (r) => r.durationMinutes === durationNum &&
+                 r.enabled && r.basePrice > 0,
+        );
+        if (exactRate) {
+          sitter.hourlyRate = exactRate.basePrice * 60 / durationNum;
+        }
       }
     }
 
@@ -399,6 +417,9 @@ const createBooking = async (req, res) => {
 
     const tierPricing = calculateTierBasePrice({
       hourlyRate: sitter.hourlyRate,
+      // v18.9.5 — pass dailyRate pour le tier "daily" (pet_sitting /
+      // day_care / house_sitting ≥ 8h).
+      dailyRate: sitter.dailyRate,
       weeklyRate: sitter.weeklyRate,
       monthlyRate: sitter.monthlyRate,
       startDate: normalizedStartDate,

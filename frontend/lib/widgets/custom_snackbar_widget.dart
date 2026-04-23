@@ -120,7 +120,33 @@ class CustomSnackbar {
     });
   }
 
+  // v18.9.4 — debounce pour bloquer la duplication de popups quand l'user
+  // tape 5 fois sur un bouton qui rate. Avant, 5 taps = 5 snackbars
+  // empilés. On garde le dernier couple (title|message) affiché et on
+  // refuse un duplicata dans la fenêtre. `_lastShowAt` empêche aussi le
+  // spam même avec un couple différent (rate-limit 600ms global).
+  static String? _lastKey;
+  static DateTime? _lastShowAt;
+
+  static bool _shouldSuppress(String title, String message) {
+    final now = DateTime.now();
+    final key = '$title|$message';
+    if (_lastShowAt != null) {
+      final delta = now.difference(_lastShowAt!).inMilliseconds;
+      if (delta < 600) {
+        return true;
+      }
+      if (key == _lastKey && delta < 3000) {
+        return true;
+      }
+    }
+    _lastKey = key;
+    _lastShowAt = now;
+    return false;
+  }
+
   static void showError({required String title, required String message}) {
+    if (_shouldSuppress(title, message)) return;
     _showSafe(() {
       Get.snackbar(
         _t(title),
@@ -137,6 +163,7 @@ class CustomSnackbar {
   }
 
   static void showSuccess({required String title, required String message}) {
+    if (_shouldSuppress(title, message)) return;
     _showSafe(() {
       Get.snackbar(
         _t(title),
@@ -156,6 +183,7 @@ class CustomSnackbar {
   }
 
   static void showWarning({required String title, required String message}) {
+    if (_shouldSuppress(title, message)) return;
     _showSafe(() {
       Get.snackbar(
         _t(title),

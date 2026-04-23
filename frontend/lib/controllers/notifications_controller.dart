@@ -40,8 +40,28 @@ class NotificationsController extends GetxController {
     unreadBookings.value = _storage.read<int>(_kUnreadBookings) ?? 0;
     unreadChat.value = _storage.read<int>(_kUnreadChat) ?? 0;
     unreadHome.value = _storage.read<int>(_kUnreadHome) ?? 0;
-    _attachSocketListener();
+    // v18.9.4 — force la connexion socket dès le démarrage des bottom nav.
+    // Avant, le socket ne se connectait QUE dans chat_controller (onglet
+    // Chat). Conséquence : si owner reçoit une demande directe alors qu'il
+    // est sur Accueil / Réservations, l'event 'notification.new' du
+    // backend ne lui arrivait jamais → aucun badge.
+    _attachSocketListener(); // best-effort, au cas où socket déjà up
+    _ensureSocketConnectedAndListen();
     refreshUnreadCount();
+  }
+
+  Future<void> _ensureSocketConnectedAndListen() async {
+    try {
+      if (!Get.isRegistered<SocketService>()) return;
+      final svc = Get.find<SocketService>();
+      if (!svc.isConnected) {
+        await svc.connect();
+      }
+      // Ré-attache le listener maintenant que le socket est connecté.
+      _attachSocketListener();
+    } catch (e) {
+      AppLogger.logError('Notifications: socket connect failed', error: e);
+    }
   }
 
   void _attachSocketListener() {

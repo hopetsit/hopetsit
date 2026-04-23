@@ -236,12 +236,11 @@ const createApplication = async (req, res) => {
           details: 'Update your profile with a non-zero rate and try again.',
         });
       }
-      // Derive hourly fallback from the most specific rate available so
-      // downstream tier math works (matches bookingController behavior).
-      if (!provider.hourlyRate || provider.hourlyRate <= 0) {
-        if (provider.dailyRate && provider.dailyRate > 0) {
-          provider.hourlyRate = provider.dailyRate / 8;
-        } else if (provider.weeklyRate && provider.weeklyRate > 0) {
+      // v18.9.5 — idem bookingController : on ne dérive PLUS hourlyRate
+      // depuis dailyRate. tierPricing gère le tier 'daily' directement.
+      if ((!provider.hourlyRate || provider.hourlyRate <= 0) &&
+          (!provider.dailyRate || provider.dailyRate <= 0)) {
+        if (provider.weeklyRate && provider.weeklyRate > 0) {
           provider.hourlyRate = provider.weeklyRate / 56;
         } else if (provider.monthlyRate && provider.monthlyRate > 0) {
           provider.hourlyRate = provider.monthlyRate / 240;
@@ -377,6 +376,8 @@ const createApplication = async (req, res) => {
 
     const tierPricing = calculateTierBasePrice({
       hourlyRate: sitter.hourlyRate,
+      // v18.9.5 — pass dailyRate.
+      dailyRate: sitter.dailyRate,
       weeklyRate: sitter.weeklyRate,
       monthlyRate: sitter.monthlyRate,
       startDate: parsedStartDate,

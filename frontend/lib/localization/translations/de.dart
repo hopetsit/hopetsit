@@ -1009,6 +1009,12 @@ const Map<String, String> deDETranslations = <String, String>{
       'duration_label': 'Dauer',
       'bookings_card_you_receive': 'Du erhältst @amount netto',
       'bookings_card_you_paid': 'Du hast @amount bezahlt',
+      'donation_payment_label': 'Spende an HoPetSit',
+      'donation_payment_subtitle': 'Danke für die Unterstützung',
+      'donation_thanks_title': 'Danke!',
+      'donation_thanks_message':
+          'Deine Spende von @amount ist angekommen. Das hilft uns wirklich.',
+      'booking_agreement_city_label': 'Stadt',
       'identity_verification_started_title': 'Verifizierung gestartet',
       'identity_verification_started_followup':
           'Folge dem Stripe-Link zum Abschluss.',

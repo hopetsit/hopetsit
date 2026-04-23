@@ -76,7 +76,10 @@ router.get('/me/profile', requireAuth, requireRole('owner'), getOwnerProfile);
  *       403:
  *         description: Only owners can access this endpoint
  */
-router.put('/me/card', requireAuth, requireRole('owner'), updateOwnerCardFromToken);
+// v18.9.3 — fix 403 ajout carte côté sitter/walker. Avant v18.9.3, cette
+// route n'acceptait que 'owner' alors que les 3 rôles utilisent le même
+// AddCardScreen legacy.
+router.put('/me/card', requireAuth, requireRole('owner', 'sitter', 'walker'), updateOwnerCardFromToken);
 
 /**
  * @swagger

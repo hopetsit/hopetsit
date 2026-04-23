@@ -1013,6 +1013,12 @@ const Map<String, String> esESTranslations = <String, String>{
       'duration_label': 'Duración',
       'bookings_card_you_receive': 'Recibes @amount netos',
       'bookings_card_you_paid': 'Pagaste @amount',
+      'donation_payment_label': 'Donación a HoPetSit',
+      'donation_payment_subtitle': 'Gracias por apoyar la app',
+      'donation_thanks_title': '¡Gracias!',
+      'donation_thanks_message':
+          'Tu donación de @amount fue recibida. Nos ayuda mucho.',
+      'booking_agreement_city_label': 'Ciudad',
       'identity_verification_started_title': 'Verificación iniciada',
       'identity_verification_started_followup':
           'Sigue el enlace de Stripe para completar.',

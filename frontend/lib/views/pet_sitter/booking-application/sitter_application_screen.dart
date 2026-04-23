@@ -11,6 +11,7 @@ import 'package:hopetsit/views/pet_sitter/widgets/pet_sitter_application_card.da
 import 'package:hopetsit/views/pet_sitter/booking-application/sitter_booking_detail_screen.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/chat_access_upsell_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -444,14 +445,9 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
   // }
 
   PetSitterApplication _convertBookingToApplication(BookingModel booking) {
-    // Format date
-    String formattedDate = booking.date;
-    try {
-      final dateTime = DateTime.parse(booking.date);
-      formattedDate = DateFormat('MMM dd, yyyy').format(dateTime);
-    } catch (e) {
-      formattedDate = booking.date;
-    }
+    // v18.9.5 — date + heure localisées (était 'MMM dd, yyyy' anglais).
+    final formattedDate = BookingDateFormat.localizedDate(booking.date);
+    final formattedTime = BookingDateFormat.localizedTime(booking.timeSlot);
 
     return PetSitterApplication(
       id: booking.id,
@@ -464,7 +460,7 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
       height: booking.petHeight,
       color: booking.petColor,
       date: formattedDate,
-      time: booking.timeSlot,
+      time: formattedTime,
       phoneNumber: maskPhoneNumber(booking.owner.mobile),
       email: booking.owner.email,
       location: booking.owner.address,

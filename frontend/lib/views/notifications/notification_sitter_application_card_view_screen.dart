@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_sitter_application_card.dart';
 import 'package:intl/intl.dart';
+import 'package:hopetsit/utils/booking_date_format.dart';
 
 class NotificationSitterApplicationCardViewScreen extends StatefulWidget {
   const NotificationSitterApplicationCardViewScreen({
@@ -52,14 +53,9 @@ class _NotificationSitterApplicationCardViewScreenState
   }
 
   PetSitterApplication _convertBookingToApplication(BookingModel booking) {
-    // Matches the conversion logic used in `SitterApplicationScreen`.
-    String formattedDate = booking.date;
-    try {
-      final dateTime = DateTime.parse(booking.date);
-      formattedDate = DateFormat('MMM dd, yyyy').format(dateTime);
-    } catch (_) {
-      formattedDate = booking.date;
-    }
+    // v18.9.5 — date + heure localisées (avant : 'MMM dd, yyyy' anglais).
+    final formattedDate = BookingDateFormat.localizedDate(booking.date);
+    final formattedTime = BookingDateFormat.localizedTime(booking.timeSlot);
 
     // v18.5 — #20 : dérive le rôle du provider pour colorer l'écran
     // (walker = vert, sitter = bleu). Heuristique : serviceType contient
@@ -79,7 +75,7 @@ class _NotificationSitterApplicationCardViewScreenState
       height: booking.petHeight,
       color: booking.petColor,
       date: formattedDate,
-      time: booking.timeSlot,
+      time: formattedTime,
       phoneNumber: maskPhoneNumber(booking.owner.mobile),
       email: booking.owner.email,
       location: booking.owner.address,

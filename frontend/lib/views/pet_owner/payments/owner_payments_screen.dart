@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:get/get.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/services/donation_service.dart';
 import 'package:hopetsit/views/pet_owner/payments/add_card_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -323,9 +324,15 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          CustomSnackbar.showSuccess(
-            title: 'common_coming_soon'.tr,
-            message: 'payment_donate_coming_soon'.tr,
+          // v18.9.3 — don réel via Stripe.
+          final parsed = double.tryParse(
+                amount.replaceAll('€', '').replaceAll(',', '.').trim(),
+              ) ??
+              0;
+          if (parsed <= 0) return;
+          DonationService.donate(
+            context: context,
+            amount: parsed,
           );
         },
         child: Container(

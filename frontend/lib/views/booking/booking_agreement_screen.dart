@@ -676,6 +676,15 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
             'booking_agreement_service_provider_label'.tr,
             widget.booking.sitter.name,
           ),
+          // v18.9.3 — ville du provider affichée dans les détails.
+          if (widget.booking.sitter.city != null &&
+              widget.booking.sitter.city!.trim().isNotEmpty) ...[
+            SizedBox(height: 12.h),
+            _buildDetailRow(
+              'booking_agreement_city_label'.tr,
+              widget.booking.sitter.city!,
+            ),
+          ],
           if (widget.booking.serviceType != null &&
               widget.booking.serviceType!.isNotEmpty) ...[
             SizedBox(height: 12.h),

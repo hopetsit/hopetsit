@@ -11,6 +11,7 @@ import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/views/profile/add_card_screen.dart' as legacy_card;
 import 'package:hopetsit/views/pet_sitter/payment/provider_payout_history_screen.dart';
+import 'package:hopetsit/services/donation_service.dart';
 import 'package:hopetsit/widgets/paypal_email_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -499,10 +500,15 @@ class PaymentManagementScreen extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          // TODO: Connect to Stripe payment for donation
-          CustomSnackbar.showSuccess(
-            title: 'common_coming_soon'.tr,
-            message: 'payment_donate_coming_soon'.tr,
+          // v18.9.3 — don réel via Stripe. Parse "5€" → 5.0.
+          final parsed = double.tryParse(
+                amount.replaceAll('€', '').replaceAll(',', '.').trim(),
+              ) ??
+              0;
+          if (parsed <= 0) return;
+          DonationService.donate(
+            context: context,
+            amount: parsed,
           );
         },
         child: Container(

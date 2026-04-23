@@ -969,6 +969,12 @@ const Map<String, String> enUSTranslations = <String, String>{
       'duration_label': 'Duration',
       'bookings_card_you_receive': 'You earn @amount net',
       'bookings_card_you_paid': 'You paid @amount',
+      'donation_payment_label': 'Donation to HoPetSit',
+      'donation_payment_subtitle': 'Thanks for supporting the app',
+      'donation_thanks_title': 'Thank you!',
+      'donation_thanks_message':
+          'Your @amount donation was received. It truly helps.',
+      'booking_agreement_city_label': 'City',
       'identity_verification_started_title': 'Verification started',
       'identity_verification_started_followup':
           'Follow the Stripe link to complete verification.',

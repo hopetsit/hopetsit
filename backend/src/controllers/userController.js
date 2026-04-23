@@ -319,11 +319,15 @@ const updateCard = async (req, res) => {
   }
 };
 
+// v18.9.3 — role-aware : owner / sitter / walker peuvent tous enregistrer
+// leur carte via PUT /users/me/card. Le Sitter.card et Walker.card schemas
+// existent déjà (même shape que Owner.card).
 const updateOwnerCardFromToken = async (req, res) => {
   try {
-    const ownerId = req.user?.id;
-    if (!ownerId) {
-      return res.status(403).json({ error: 'Owner context missing.' });
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    if (!userId) {
+      return res.status(403).json({ error: 'Authentication context missing.' });
     }
 
     let cardData;
@@ -333,14 +337,20 @@ const updateOwnerCardFromToken = async (req, res) => {
       return res.status(400).json({ error: validationError.message });
     }
 
-    const owner = await Owner.findByIdAndUpdate(ownerId, { card: cardData }, { new: true });
-    if (!owner) {
-      return res.status(404).json({ error: 'Owner not found.' });
+    const Model =
+      role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
+    const doc = await Model.findByIdAndUpdate(
+      userId,
+      { card: cardData },
+      { new: true },
+    );
+    if (!doc) {
+      return res.status(404).json({ error: 'User not found.' });
     }
 
-    res.json({ user: sanitizeUser(owner, { includeCard: true, includeEmail: true }) });
+    res.json({ user: sanitizeUser(doc, { includeCard: true, includeEmail: true }) });
   } catch (error) {
-    logger.error('Update owner card (token) error', error);
+    logger.error('Update user card (token) error', error);
     res.status(500).json({ error: 'Unable to update card. Please try again later.' });
   }
 };
