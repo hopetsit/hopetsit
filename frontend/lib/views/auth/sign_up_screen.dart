@@ -93,6 +93,44 @@ class SignUpScreen extends StatelessWidget {
                         role: userType,
                       ),
                       SizedBox(height: 16.h),
+                      // v20.0.6 — Banner expliquant que la CB se rajoute APRÈS
+                      // l'inscription (pas pendant — on n'a pas encore de
+                      // userId ni de Stripe Customer).
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 14.w,
+                          vertical: 12.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A73E8).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14.r),
+                          border: Border.all(
+                            color: const Color(0xFF1A73E8).withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.credit_card_rounded,
+                              color: const Color(0xFF1A73E8),
+                              size: 20.sp,
+                            ),
+                            SizedBox(width: 10.w),
+                            Expanded(
+                              child: Text(
+                                'signup_cb_later_hint'.tr,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF1A73E8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 16.h),
                       // Full Name
                       CustomTextField(
                         labelText: 'label_name'.tr,
@@ -386,6 +424,76 @@ class SignUpScreen extends StatelessWidget {
                         textInputAction: TextInputAction.next,
                         validator: controller.validateAddress,
                       ),
+
+                      // v20.0.6 — Currency dropdown for OWNER and WALKER too
+                      // (not just sitter). Owner uses it for Premium / Boost
+                      // / donation pricing. Walker uses it for rates + payout.
+                      if (userType == 'pet_owner' ||
+                          userType == 'pet_walker') ...[
+                        SizedBox(height: 20.h),
+                        Obx(
+                          () => CustomDropdown<String>(
+                            items: controller.currencyOptions,
+                            initialItem: CurrencyHelper.label(
+                              controller.selectedCurrency.value,
+                            ),
+                            onChanged: controller.updateCurrency,
+                            closedHeaderPadding: EdgeInsets.symmetric(
+                              horizontal: 16.w,
+                              vertical: 12.h,
+                            ),
+                            decoration: CustomDropdownDecoration(
+                              closedBorder: Border.all(
+                                color: AppColors.grey300Color,
+                              ),
+                              closedBorderRadius: BorderRadius.circular(30.r),
+                              headerStyle: GoogleFonts.inter(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.blackColor,
+                              ),
+                            ),
+                            disabledDecoration:
+                                CustomDropdownDisabledDecoration(
+                                  border: Border.all(
+                                    color: AppColors.grey300Color,
+                                  ),
+                                ),
+                          ),
+                        ),
+                      ],
+
+                      // v20.0.6 — Walker rates captured at signup (30 & 60 min).
+                      // Previously walker had NO rate field at signup which
+                      // confused users. Displayed right under the currency.
+                      if (userType == 'pet_walker') ...[
+                        SizedBox(height: 20.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomTextField(
+                                labelText: 'walker_rate_30min_label'.tr,
+                                hintText: '€10',
+                                controller:
+                                    controller.walkerRate30Controller,
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.next,
+                              ),
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: CustomTextField(
+                                labelText: 'walker_rate_60min_label'.tr,
+                                hintText: '€18',
+                                controller:
+                                    controller.walkerRate60Controller,
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.next,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
 
                       // Pet Sitter specific fields
                       // v19.1.4 — PayPal field removed from signup (user can
@@ -742,57 +850,92 @@ class _SignupPhotoPickerState extends State<_SignupPhotoPicker> {
 
   @override
   Widget build(BuildContext context) {
+    // v20.0.6 — Photo circle very visibly role-colored: thick ring (4px) +
+    // colored halo shadow + gradient background behind the placeholder icon.
     return Center(
       child: Column(
         children: [
           GestureDetector(
             onTap: _pick,
-            child: Stack(
-              children: [
-                Container(
-                  width: 100.w,
-                  height: 100.w,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _accent.withValues(alpha: 0.10),
-                    border: Border.all(color: _accent, width: 2),
-                    image: _file != null
-                        ? DecorationImage(
-                            image: FileImage(_file!),
-                            fit: BoxFit.cover,
-                          )
+            child: Container(
+              // Outer "halo" — soft colored shadow so the role tint is
+              // immediately readable even before the image is picked.
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _accent.withValues(alpha: 0.32),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Container(
+                    width: 110.w,
+                    height: 110.w,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: _file == null
+                          ? LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                _accent.withValues(alpha: 0.22),
+                                _accent.withValues(alpha: 0.08),
+                              ],
+                            )
+                          : null,
+                      color: _file != null ? null : null,
+                      border: Border.all(color: _accent, width: 4),
+                      image: _file != null
+                          ? DecorationImage(
+                              image: FileImage(_file!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: _file == null
+                        ? Icon(Icons.person_rounded,
+                            size: 54.sp, color: _accent)
                         : null,
                   ),
-                  child: _file == null
-                      ? Icon(Icons.person, size: 48.sp, color: _accent)
-                      : null,
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.all(6.w),
-                    decoration: BoxDecoration(
-                      color: _accent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: Icon(
-                      _file != null ? Icons.edit : Icons.add_a_photo,
-                      color: Colors.white,
-                      size: 16.sp,
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: _accent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _accent.withValues(alpha: 0.45),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        _file != null ? Icons.edit : Icons.add_a_photo,
+                        color: Colors.white,
+                        size: 18.sp,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 10.h),
           Text(
             _file == null ? 'signup_photo_add'.tr : 'signup_photo_change'.tr,
             style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
               color: _accent,
             ),
           ),

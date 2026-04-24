@@ -31,6 +31,9 @@ class SignUpController extends GetxController {
   final ratePerWeekController = TextEditingController();
   final ratePerMonthController = TextEditingController();
   final skillsController = TextEditingController();
+  // v20.0.6 — Walker rates at signup.
+  final walkerRate30Controller = TextEditingController();
+  final walkerRate60Controller = TextEditingController();
   final cityController = TextEditingController();
   final paypalEmailController = TextEditingController();
   // v20 — Photo de profil uploadée pendant l'inscription. Assignée par
@@ -430,10 +433,36 @@ class SignUpController extends GetxController {
       // the backend will fill this if it's empty.
       data['service'] = ['dog_walking'];
 
+      // v20.0.6 — walker rates captured at signup (30 min / 60 min). We ship
+      // them as `walkRates` (same shape used by edit-profile) so the walker
+      // can start accepting requests immediately after OTP.
+      final r30 = double.tryParse(
+        walkerRate30Controller.text.trim().replaceAll(',', '.'),
+      );
+      final r60 = double.tryParse(
+        walkerRate60Controller.text.trim().replaceAll(',', '.'),
+      );
+      final rates = <Map<String, dynamic>>[];
+      if (r30 != null && r30 > 0) {
+        rates.add({'duration': 30, 'amount': r30, 'currency': selectedCurrency.value});
+      }
+      if (r60 != null && r60 > 0) {
+        rates.add({'duration': 60, 'amount': r60, 'currency': selectedCurrency.value});
+      }
+      if (rates.isNotEmpty) {
+        data['walkRates'] = rates;
+      }
+
       final paypal = paypalEmailController.text.trim();
       if (paypal.isNotEmpty) {
         data['paypalEmail'] = paypal;
       }
+    }
+
+    // v20.0.6 — Owner also gets a currency at signup (used for Premium,
+    // Boost, donation displays). Defaults to EUR.
+    if (userType == 'pet_owner') {
+      data['currency'] = selectedCurrency.value;
     }
 
     return data;
