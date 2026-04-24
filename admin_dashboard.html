@@ -296,12 +296,28 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
       </div>
 
-      <!-- OWNERS -->
+      <!-- OWNERS — v20.0.7: unified view with owners + sitters + walkers,
+           filterable by role. Each row has its own Staff/Delete buttons. -->
       <div id="page-owners" class="page">
-        <div class="section-title">👤 Pet Owners</div>
+        <div class="section-title">👤 Tous les utilisateurs</div>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;max-width:720px">
+          Vue unifiée : propriétaires + pet-sitters + walkers. Filtre par rôle en haut.
+          Utilise les boutons Staff pour accorder Premium gratuit, ou Delete pour supprimer.
+        </p>
         <div class="table-wrap">
           <div class="table-toolbar">
-            <input class="search-input" id="owner-search" placeholder="🔍 Search owner..." oninput="renderOwners()"/>
+            <input class="search-input" id="owner-search" placeholder="🔍 Search name or email..." oninput="renderOwners()"/>
+            <select class="filter-select" id="owner-role-filter" onchange="renderOwners()">
+              <option value="all">🌍 Tous les rôles</option>
+              <option value="owner">👤 Propriétaires</option>
+              <option value="sitter">🐕 Pet-sitters</option>
+              <option value="walker">🚶 Walkers</option>
+            </select>
+            <select class="filter-select" id="owner-staff-filter" onchange="renderOwners()">
+              <option value="">Tous Staff status</option>
+              <option value="staff">⭐ Staff uniquement</option>
+              <option value="nonstaff">Non-staff uniquement</option>
+            </select>
           </div>
           <div id="owners-table-body">
             <div class="loading"><div class="spinner"></div></div>
@@ -746,7 +762,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 <script>
 let API_URL = '';
 let ADMIN_TOKEN = '';
-let allBookings = [], allSitters = [], allOwners = [];
+let allBookings = [], allSitters = [], allOwners = [], allWalkers = [];
 let currentBookingId = null, currentIbanSitterId = null;
 
 // v19.1.5 — global date formatter (used across Bookings/Sitters/Owners/Payments).
@@ -2079,34 +2095,79 @@ async function deleteSitter(id, name) {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-// ── OWNERS ────────────────────────────────────────────────────────────────────
+// ── OWNERS — v20.0.7: unified with sitters + walkers ─────────────────────────
 async function loadOwners() {
   try {
-    const d = await api('/admin/owners?limit=100');
-    allOwners = d.owners || [];
+    // Fetch all 3 roles in parallel so the unified table shows owners +
+    // sitters + walkers.
+    const [o, s, w] = await Promise.all([
+      api('/admin/owners?limit=300').catch(() => ({ owners: [] })),
+      api('/admin/sitters?limit=300').catch(() => ({ sitters: [] })),
+      api('/admin/walkers?limit=300').catch(() => ({ walkers: [] })),
+    ]);
+    const owners = (o.owners || []).map(u => ({ ...u, _role: 'owner' }));
+    const sitters = (s.sitters || []).map(u => ({ ...u, _role: 'sitter' }));
+    const walkers = (w.walkers || []).map(u => ({ ...u, _role: 'walker' }));
+    allOwners = [...owners, ...sitters, ...walkers]
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    allSitters = sitters; // keep legacy arrays for the dedicated pages
+    allWalkers = walkers;
     renderOwners();
-  } catch(e) {}
+  } catch (e) {}
 }
+
+const _ROLE_BADGE = {
+  owner:  { label: 'Owner',  color: '#EF4324', icon: '👤' },
+  sitter: { label: 'Sitter', color: '#1A73E8', icon: '🐕' },
+  walker: { label: 'Walker', color: '#16A34A', icon: '🚶' },
+};
+
 function renderOwners() {
   const search = (document.getElementById('owner-search')?.value || '').toLowerCase();
-  const filtered = allOwners.filter(o => !search || o.name?.toLowerCase().includes(search) || o.email?.toLowerCase().includes(search));
-  if (!filtered.length) { document.getElementById('owners-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><div>No owners found.</div></div>'; return; }
+  const roleF = document.getElementById('owner-role-filter')?.value || 'all';
+  const staffF = document.getElementById('owner-staff-filter')?.value || '';
+  const filtered = allOwners.filter(u => {
+    if (roleF !== 'all' && u._role !== roleF) return false;
+    if (staffF === 'staff' && !u.isStaff) return false;
+    if (staffF === 'nonstaff' && u.isStaff) return false;
+    if (!search) return true;
+    return (u.name || '').toLowerCase().includes(search) ||
+           (u.email || '').toLowerCase().includes(search);
+  });
+  if (!filtered.length) {
+    document.getElementById('owners-table-body').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">👤</div><div>Aucun utilisateur trouvé.</div></div>';
+    return;
+  }
   document.getElementById('owners-table-body').innerHTML = `
-    <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Staff</th><th>Actions</th></tr></thead>
-    <tbody>${filtered.map(o => `
+    <table><thead><tr><th>Role</th><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Staff</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(u => {
+      const b = _ROLE_BADGE[u._role] || _ROLE_BADGE.owner;
+      return `
       <tr>
-        <td><strong>${o.name||'-'}</strong></td>
-        <td style="color:var(--text-muted)">${o.email||'-'}</td>
-        <td>${o.mobile||'-'}</td>
-        <td>${fmtDate(o.createdAt)}</td>
-        <td>${o.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td>
-          <button class="action-btn" style="background:${o.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('owner','${o._id}',${!o.isStaff})">${o.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
-          <button class="action-btn btn-delete" onclick="deleteOwner('${o._id}','${o.name}')">Delete</button>
+        <td><span style="background:${b.color};color:#fff;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
+        <td><strong>${u.name||'-'}</strong></td>
+        <td style="color:var(--text-muted)">${u.email||'-'}</td>
+        <td>${u.mobile||'-'}</td>
+        <td>${fmtDate(u.createdAt)}</td>
+        <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
+          <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}','${(u.name||'').replace(/'/g,"\\'")}')">Delete</button>
         </td>
-      </tr>
-    `).join('')}</tbody></table>
+      </tr>`;
+    }).join('')}</tbody></table>
   `;
+}
+async function deleteUnifiedUser(role, id, name) {
+  if (!confirm(`Supprimer ${role} "${name}" ?`)) return;
+  const endpoint = role === 'owner' ? '/admin/owners/' : role === 'walker' ? '/admin/walkers/' : '/admin/sitters/';
+  try {
+    await api(endpoint + id, 'DELETE');
+    allOwners = allOwners.filter(u => u._id !== id);
+    renderOwners();
+    showToast(`${role} supprimé.`, 'success');
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 async function deleteOwner(id, name) {
   if (!confirm(`Delete owner "${name}"?`)) return;
@@ -2119,7 +2180,7 @@ async function deleteOwner(id, name) {
 }
 
 // ── WALKERS (session v3.2) ───────────────────────────────────────────────────
-let allWalkers = [];
+// allWalkers declared at the top alongside allOwners/allSitters (v20.0.7).
 async function loadWalkers() {
   try {
     const d = await api('/admin/walkers?limit=100');
