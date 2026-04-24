@@ -106,32 +106,54 @@ function buildOverpassQuery(bbox, tagFilters, { limit } = {}) {
   return `[out:json][timeout:90][maxsize:536870912];(${unions});${outClause}`;
 }
 
+// v20.0.19 — Liste d'endpoints Overpass publics à essayer dans l'ordre.
+// `overpass-api.de` rejetait nos POST en 406 (politique fair-use stricte).
+// On utilise GET avec `?data=...` (format officiel documenté) + on bascule
+// vers des mirrors si le premier rate-limit/refuse.
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
+];
+
 async function fetchOverpass(query) {
-  // v20.0.19 — CRITICAL : Overpass API renvoie HTTP 406 "Not Acceptable"
-  // sur les User-Agent génériques (axios/X.Y.Z). La politique fair-use
-  // Overpass exige un User-Agent identifiant l'application ET un Accept
-  // explicite pour JSON. Avant ce fix, TOUTES les requêtes de seed ont
-  // été rejetées en 406 → "0 POIs" sur tous les pays, toutes catégories.
-  const res = await axios.post(
-    'https://overpass-api.de/api/interpreter',
-    `data=${encodeURIComponent(query)}`,
-    {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'User-Agent': 'HoPetSit/1.0 (admin seed; contact: hopetsit@gmail.com)',
-      },
-      timeout: 120000,
-    },
-  );
-  if (!res.data || !Array.isArray(res.data.elements)) {
-    const preview = typeof res.data === 'string'
-      ? res.data.slice(0, 300)
-      : JSON.stringify(res.data || {}).slice(0, 300);
-    logger.warn?.(`[seed] Overpass réponse inattendue (pas d'elements): ${preview}`);
-    return [];
+  // v20.0.19 — CRITICAL FIX : on passe en GET (format documenté Overpass),
+  // le serveur attend exactement `?data=<query>`. Axios POST string body
+  // était interprété bizarrement → HTTP 406 sur toutes les requêtes. On
+  // ajoute aussi un User-Agent identifiant + Accept JSON.
+  let lastErr = null;
+  for (const url of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await axios.get(url, {
+        params: { data: query },
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'HoPetSit/1.0 (admin seed; contact: hopetsit@gmail.com)',
+        },
+        timeout: 120000,
+      });
+      if (!res.data || !Array.isArray(res.data.elements)) {
+        const preview = typeof res.data === 'string'
+          ? res.data.slice(0, 300)
+          : JSON.stringify(res.data || {}).slice(0, 300);
+        logger.warn?.(`[seed] Overpass ${url} réponse inattendue: ${preview}`);
+        lastErr = new Error('no elements');
+        continue; // try next endpoint
+      }
+      return res.data.elements;
+    } catch (e) {
+      lastErr = e;
+      // 429 (rate limit) ou 503 → bascule sur mirror suivant sans log
+      // 4xx autres → log pour diag
+      const code = e?.response?.status;
+      if (code && code !== 429 && code !== 503 && code !== 504) {
+        logger.warn?.(`[seed] Overpass ${url} HTTP ${code} — tente mirror suivant`);
+      }
+      continue;
+    }
   }
-  return res.data.elements;
+  throw lastErr || new Error('All Overpass endpoints failed');
 }
 
 function elementToPoi(el, category, country) {
