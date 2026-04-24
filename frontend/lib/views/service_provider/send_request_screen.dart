@@ -1050,64 +1050,189 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         }
       }
 
+      // v20.0.12 — card modernisée avec breakdown 3 lignes clair :
+      //   - Tu paies (owner total)           → gros chiffre accent rôle
+      //   - Prestataire touche (net)         → ligne verte check
+      //   - Commission HoPetSit (20%)        → ligne grise info
+      final commission =
+          providerGross != null ? providerGross * commissionRate : 0.0;
+      final ownerTotal =
+          providerGross != null ? providerGross + commission : 0.0;
       return Container(
-        padding: EdgeInsets.all(14.w),
+        padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              _roleColor.withValues(alpha: 0.08),
+              _roleColor.withValues(alpha: 0.10),
               _roleColor.withValues(alpha: 0.03),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(14.r),
+          borderRadius: BorderRadius.circular(18.r),
           border: Border.all(
-              color: _roleColor.withValues(alpha: 0.2), width: 1),
+              color: _roleColor.withValues(alpha: 0.25), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: _roleColor.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.attach_money_rounded,
-                size: 28.sp, color: _roleColor),
-            SizedBox(width: 10.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: 'Total estimé',
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary(context),
-                  ),
-                  SizedBox(height: 2.h),
-                  PoppinsText(
-                    text: totalText ?? 'À confirmer',
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.w800,
+            // Header : icône + label
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(6.w),
+                  decoration: BoxDecoration(
                     color: _roleColor,
+                    borderRadius: BorderRadius.circular(10.r),
                   ),
-                  if (breakdown != null) ...[
-                    SizedBox(height: 2.h),
-                    InterText(
-                      text: breakdown,
+                  child: Icon(Icons.euro_rounded,
+                      size: 18.sp, color: Colors.white),
+                ),
+                SizedBox(width: 10.w),
+                InterText(
+                  text: 'send_request_total_estimated'.tr,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary(context),
+                ),
+              ],
+            ),
+            SizedBox(height: 10.h),
+            // Grand total — tu paies
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                PoppinsText(
+                  text: totalText ?? 'À confirmer',
+                  fontSize: 28.sp,
+                  fontWeight: FontWeight.w800,
+                  color: _roleColor,
+                ),
+                if (totalText != null) ...[
+                  SizedBox(width: 8.w),
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 6.h),
+                    child: InterText(
+                      text: 'send_request_owner_pays'.tr,
                       fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary(context),
                     ),
-                  ] else ...[
-                    SizedBox(height: 2.h),
-                    InterText(
-                      text: 'Sélectionnez service + dates pour voir le total',
-                      fontSize: 11.sp,
-                      color: AppColors.textSecondary(context),
+                  ),
+                ],
+              ],
+            ),
+            SizedBox(height: 12.h),
+            // Breakdown lines
+            if (providerGross != null && providerGross > 0) ...[
+              Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: 12.w, vertical: 10.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Column(
+                  children: [
+                    _buildBreakdownRow(
+                      context,
+                      icon: Icons.check_circle_rounded,
+                      iconColor: const Color(0xFF16A34A),
+                      label: 'send_request_provider_receives'.tr,
+                      amount:
+                          '${providerGross.toStringAsFixed(2)} $currency',
+                      boldAmount: true,
+                    ),
+                    SizedBox(height: 8.h),
+                    _buildBreakdownRow(
+                      context,
+                      icon: Icons.percent_rounded,
+                      iconColor: AppColors.textSecondary(context),
+                      label: 'send_request_commission_label'.tr,
+                      amount:
+                          '${commission.toStringAsFixed(2)} $currency',
+                    ),
+                    SizedBox(height: 6.h),
+                    Divider(
+                      color: _roleColor.withValues(alpha: 0.2),
+                      height: 1,
+                    ),
+                    SizedBox(height: 8.h),
+                    _buildBreakdownRow(
+                      context,
+                      icon: Icons.payments_rounded,
+                      iconColor: _roleColor,
+                      label: 'send_request_you_pay'.tr,
+                      amount:
+                          '${ownerTotal.toStringAsFixed(2)} $currency',
+                      boldAmount: true,
+                      emphasisColor: _roleColor,
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
+              if (breakdown != null) ...[
+                SizedBox(height: 8.h),
+                InterText(
+                  text: breakdown,
+                  fontSize: 10.sp,
+                  color: AppColors.textSecondary(context),
+                  maxLines: 3,
+                  overflow: TextOverflow.visible,
+                ),
+              ],
+            ] else ...[
+              InterText(
+                text: breakdown ??
+                    'send_request_select_to_see_total'.tr,
+                fontSize: 11.sp,
+                color: AppColors.textSecondary(context),
+                maxLines: 3,
+                overflow: TextOverflow.visible,
+              ),
+            ],
           ],
         ),
       );
     });
+  }
+
+  // v20.0.12 — Row helper for the modernized breakdown section.
+  Widget _buildBreakdownRow(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String amount,
+    bool boldAmount = false,
+    Color? emphasisColor,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16.sp, color: iconColor),
+        SizedBox(width: 8.w),
+        Expanded(
+          child: InterText(
+            text: label,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary(context),
+          ),
+        ),
+        PoppinsText(
+          text: amount,
+          fontSize: boldAmount ? 14.sp : 13.sp,
+          fontWeight: boldAmount ? FontWeight.w800 : FontWeight.w600,
+          color: emphasisColor ?? AppColors.textPrimary(context),
+        ),
+      ],
+    );
   }
 }

@@ -1821,4 +1821,10 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'bug_report_sent_msg': 'Obrigado! Vamos ver isso o mais rápido possível.',
     'bug_report_short_title': 'Descrição demasiado curta',
     'bug_report_short_msg': 'Escreve pelo menos 10 caracteres.',
+    'send_request_total_estimated': 'Total estimado',
+    'send_request_owner_pays': '(pagas)',
+    'send_request_provider_receives': 'Prestador recebe',
+    'send_request_commission_label': 'Comissão HoPetSit (20%)',
+    'send_request_you_pay': 'Pagas total',
+    'send_request_select_to_see_total': 'Escolhe serviço + datas para ver o total',
 };

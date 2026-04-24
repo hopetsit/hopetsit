@@ -1833,4 +1833,10 @@ const Map<String, String> itITTranslations = <String, String>{
     'bug_report_sent_msg': 'Grazie! Lo guardiamo il prima possibile.',
     'bug_report_short_title': 'Descrizione troppo breve',
     'bug_report_short_msg': 'Scrivi almeno 10 caratteri.',
+    'send_request_total_estimated': 'Totale stimato',
+    'send_request_owner_pays': '(paghi)',
+    'send_request_provider_receives': 'Prestatore riceve',
+    'send_request_commission_label': 'Commissione HoPetSit (20%)',
+    'send_request_you_pay': 'Paghi totale',
+    'send_request_select_to_see_total': 'Scegli servizio + date per vedere il totale',
 };

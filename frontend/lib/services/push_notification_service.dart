@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 
 /// Push notification service for HopeTSIT.
 ///
@@ -161,6 +162,44 @@ class PushNotificationService extends GetxService {
     final notification = message.notification;
     final title = notification?.title ?? message.data['title'] ?? 'HoPetSit';
     final body = notification?.body ?? message.data['body'] ?? '';
+
+    // v20.0.13 — Increment the home/notifications badge IMMEDIATELY from the
+    // FCM handler, in addition to the socket listener in NotificationsController.
+    // Previously only the socket incremented the badge, so if FCM delivered the
+    // push slightly earlier than the socket event the user saw the notification
+    // pop up but the bottom-nav badge stayed at 0 for up to a few seconds.
+    // Both paths now update the badge whichever arrives first.
+    try {
+      if (Get.isRegistered<NotificationsController>()) {
+        final nc = Get.find<NotificationsController>();
+        // v20.0.13 — dedup: if this notification id has already been seen
+        // (by a faster socket event), skip — otherwise record it so the
+        // incoming socket event won't double-increment.
+        final data = Map<String, dynamic>.from(message.data);
+        final alreadySeen = nc.markSeenOrDupePublic(data);
+        if (!alreadySeen) {
+          final rawType =
+              (data['type'] ?? data['notificationType'] ?? '')
+                  .toString()
+                  .toLowerCase();
+          final homeTypes = {
+            'booking_new',
+            'application_new',
+            'booking_accepted',
+            'provider_sent_request_walker',
+            'provider_sent_request_sitter',
+            'direct_request',
+          };
+          if (homeTypes.contains(rawType)) {
+            nc.bumpUnreadHomeImmediate();
+          }
+          nc.bumpUnreadCountImmediate();
+        }
+      }
+    } catch (_) {
+      // Non-blocking: if the controller is not registered (rare), socket
+      // will still catch up when it arrives.
+    }
 
     final String payload = jsonEncode(message.data);
 

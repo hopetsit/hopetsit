@@ -322,8 +322,12 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
               final total = booking.totalAmount ??
                   booking.pricing?.totalPrice ??
                   0.0;
-              final net =
-                  booking.pricing?.netAmount ?? (total * 0.8);
+              // v20.0.11 — commission is paid ON TOP by owner, so sitter
+              // receives basePrice intact. Fallback to basePrice, then to
+              // total/1.20 (back-out commission), never to total*0.8.
+              final net = booking.pricing?.netAmount ??
+                  booking.pricing?.basePrice ??
+                  (total > 0 ? total / 1.20 : 0.0);
               final currency =
                   booking.pricing?.currency ?? booking.sitter.currency;
               return Row(

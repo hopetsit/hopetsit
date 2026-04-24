@@ -1918,4 +1918,10 @@ const Map<String, String> frFRTranslations = <String, String>{
     'bug_report_sent_msg': 'Merci ! On regarde ça au plus vite.',
     'bug_report_short_title': 'Description trop courte',
     'bug_report_short_msg': 'Merci d\'écrire au moins 10 caractères.',
+    'send_request_total_estimated': 'Total estimé',
+    'send_request_owner_pays': '(tu paies)',
+    'send_request_provider_receives': 'Prestataire reçoit',
+    'send_request_commission_label': 'Commission HoPetSit (20%)',
+    'send_request_you_pay': 'Tu paies au total',
+    'send_request_select_to_see_total': 'Choisis service + dates pour voir le total',
 };

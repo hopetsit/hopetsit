@@ -68,14 +68,16 @@ PostPriceEstimate? estimatePostPrice({
     if (hours < 0.5) hours = 0.5;
     // Round to 0.5 increments.
     hours = (hours * 2).ceilToDouble() / 2.0;
+    // v20.0.11 — commission is paid ON TOP by owner, NOT subtracted from
+    // the walker's net. Walker gets his full rate × hours.
     final brut = hourlyRate * hours;
     final commission = brut * commissionRate;
-    final net = brut - commission;
+    final net = brut; // provider keeps full rate
     final hoursLabel = hours == hours.roundToDouble()
         ? '${hours.toInt()}h'
         : '${hours.toStringAsFixed(1)}h';
     return PostPriceEstimate(
-      brut: brut,
+      brut: brut + commission, // what owner pays (gross with commission)
       net: net,
       commission: commission,
       currency: currency,
@@ -153,9 +155,10 @@ PostPriceEstimate? estimatePostPrice({
     final label = fullMonths + (remDays > 0 ? 1 : 0) == 1
         ? '1 mois'
         : '$days jours';
+    // v20.0.11 — commission ADDED on top for owner. Provider receives full rate.
     return PostPriceEstimate(
-      brut: brut,
-      net: brut - commission,
+      brut: brut + commission,
+      net: brut,
       commission: commission,
       currency: currency,
       breakdown: '$label × ${_money(effectiveMonthly, currency)}',
@@ -171,9 +174,10 @@ PostPriceEstimate? estimatePostPrice({
     final label = fullWeeks + (remDays > 0 ? 1 : 0) == 1
         ? '1 semaine'
         : '$days jours';
+    // v20.0.11 — same fix : provider = brut, owner = brut + commission.
     return PostPriceEstimate(
-      brut: brut,
-      net: brut - commission,
+      brut: brut + commission,
+      net: brut,
       commission: commission,
       currency: currency,
       breakdown: '$label × ${_money(effectiveWeekly, currency)}',
@@ -182,9 +186,6 @@ PostPriceEstimate? estimatePostPrice({
   }
   // Short bookings (< 7 days) — always hourly, matches backend.
   if (effectiveHourly > 0) {
-    // Same floor as the backend: minimum 1 billed hour even if the booking
-    // is shorter than that, to prevent absurd micro-bookings. Hours are kept
-    // at 2 decimals for consistency with tierPricing.round2.
     final hoursRaw = math.max(totalMinutes / 60.0, 1.0);
     final hours = (hoursRaw * 100).round() / 100;
     final brut = effectiveHourly * hours;
@@ -192,9 +193,10 @@ PostPriceEstimate? estimatePostPrice({
     final hoursLabel = hours == hours.roundToDouble()
         ? '${hours.toInt()}h'
         : '${hours.toStringAsFixed(2)}h';
+    // v20.0.11 — provider net = brut, owner pays brut + 20% commission.
     return PostPriceEstimate(
-      brut: brut,
-      net: brut - commission,
+      brut: brut + commission,
+      net: brut,
       commission: commission,
       currency: currency,
       breakdown: '$hoursLabel × ${_money(effectiveHourly, currency)}',

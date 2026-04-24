@@ -1880,4 +1880,10 @@ const Map<String, String> deDETranslations = <String, String>{
     'bug_report_sent_msg': 'Danke! Wir kümmern uns sofort darum.',
     'bug_report_short_title': 'Beschreibung zu kurz',
     'bug_report_short_msg': 'Bitte mindestens 10 Zeichen schreiben.',
+    'send_request_total_estimated': 'Geschätzt gesamt',
+    'send_request_owner_pays': '(du zahlst)',
+    'send_request_provider_receives': 'Anbieter erhält',
+    'send_request_commission_label': 'HoPetSit-Gebühr (20%)',
+    'send_request_you_pay': 'Du zahlst insgesamt',
+    'send_request_select_to_see_total': 'Service + Daten wählen für Gesamtpreis',
 };

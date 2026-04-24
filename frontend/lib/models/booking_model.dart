@@ -425,9 +425,16 @@ class BookingPricing {
       totalPrice:
           (json['totalPrice'] as num?)?.toDouble() ??
           (json['total_price'] as num?)?.toDouble(),
+      // v20.0.11 — CRITICAL FIX: le backend stocke `netPayout` (pas
+      // `netAmount`). Avant ce fallback, netAmount restait null et les
+      // écrans tombaient sur `total * 0.8` qui re-déduisait 20% au walker/
+      // sitter, d'où l'affichage "Tu touches 4.80€" pour un tarif de 5€.
+      // Avec le fallback, le provider reçoit bien son tarif complet.
       netAmount:
           (json['netAmount'] as num?)?.toDouble() ??
-          (json['net_amount'] as num?)?.toDouble(),
+          (json['net_amount'] as num?)?.toDouble() ??
+          (json['netPayout'] as num?)?.toDouble() ??
+          (json['net_payout'] as num?)?.toDouble(),
       currency: json['currency'] as String?,
       pricingTier: json['pricingTier'] as String? ?? json['pricing_tier'] as String?,
       appliedRate:

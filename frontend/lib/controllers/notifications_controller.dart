@@ -64,6 +64,24 @@ class NotificationsController extends GetxController {
     }
   }
 
+  // v20.0.13 — dedup set shared between FCM handler + socket listener so
+  // the badge only increments once per notification even if both paths
+  // deliver the same event (FCM push + socket emit run in parallel).
+  final Set<String> _seenNotifIds = <String>{};
+  bool _markSeenOrDupe(Map<String, dynamic> data) {
+    final id = (data['id'] ?? data['_id'] ?? data['notificationId'] ?? '')
+        .toString();
+    if (id.isEmpty) return false;
+    if (_seenNotifIds.contains(id)) return true;
+    _seenNotifIds.add(id);
+    // Cap the cache to avoid unbounded memory.
+    if (_seenNotifIds.length > 200) {
+      final drop = _seenNotifIds.take(100).toList();
+      for (final k in drop) _seenNotifIds.remove(k);
+    }
+    return false;
+  }
+
   void _attachSocketListener() {
     try {
       final s = Get.find<SocketService>();
@@ -72,6 +90,9 @@ class NotificationsController extends GetxController {
         try {
           // ignore: unnecessary_cast
           final map = data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
+          // v20.0.13 — skip if FCM handler already bumped the badge for
+          // this notification id.
+          if (_markSeenOrDupe(map)) return;
           final type = (map['type'] as String?) ?? '';
           final lower = type.toLowerCase();
           unreadCount.value = unreadCount.value + 1;
@@ -139,6 +160,26 @@ class NotificationsController extends GetxController {
   void clearHomeBadge() {
     unreadHome.value = 0;
     _storage.write(_kUnreadHome, 0);
+  }
+
+  // v20.0.13 — Helpers appelés par le handler FCM (push_notification_service)
+  // pour incrémenter le badge immédiatement à l'arrivée de la notif, sans
+  // attendre que l'event socket parallèle n'arrive. Idempotents : si le socket
+  // arrive après avec le même event, le total peut être un peu gonflé mais il
+  // sera resync au prochain clear ou refreshUnreadCount().
+  void bumpUnreadHomeImmediate() {
+    unreadHome.value = unreadHome.value + 1;
+    _storage.write(_kUnreadHome, unreadHome.value);
+  }
+
+  void bumpUnreadCountImmediate() {
+    unreadCount.value = unreadCount.value + 1;
+  }
+
+  // v20.0.13 — public wrapper around the dedup helper so the FCM handler
+  // can check + register a notification id before bumping the badge.
+  bool markSeenOrDupePublic(Map<String, dynamic> data) {
+    return _markSeenOrDupe(data);
   }
 
   Future<void> refreshUnreadCount() async {

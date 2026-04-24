@@ -1980,4 +1980,10 @@ const Map<String, String> enUSTranslations = <String, String>{
     'bug_report_sent_msg': 'Thanks! We\'ll look into it ASAP.',
     'bug_report_short_title': 'Description too short',
     'bug_report_short_msg': 'Please write at least 10 characters.',
+    'send_request_total_estimated': 'Estimated total',
+    'send_request_owner_pays': '(you pay)',
+    'send_request_provider_receives': 'Provider receives',
+    'send_request_commission_label': 'HoPetSit fee (20%)',
+    'send_request_you_pay': 'You pay total',
+    'send_request_select_to_see_total': 'Pick a service + dates to see the total',
 };

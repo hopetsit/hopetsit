@@ -171,6 +171,11 @@ const sanitizeBooking = (bookingDoc) => {
       totalPrice: bookingDoc.pricing.totalPrice || 0,
       commission: bookingDoc.pricing.commission || 0,
       netPayout: bookingDoc.pricing.netPayout || 0,
+      // v20.0.11 — alias explicite `netAmount` pour le frontend Flutter
+      // qui lit ce champ (BookingPricing.netAmount). Avant cet alias le
+      // frontend retombait sur `total * 0.8` et faisait toucher 4.80€ au
+      // lieu de 5€ pour un tarif walker de 5€ + 20% commission.
+      netAmount: bookingDoc.pricing.netPayout || 0,
       commissionRate: bookingDoc.pricing.commissionRate || 0.2,
       currency: bookingDoc.pricing.currency || DEFAULT_CURRENCY,
     };
