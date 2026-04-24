@@ -1752,4 +1752,13 @@ const Map<String, String> itITTranslations = <String, String>{
     'edit_pet_height_label': 'Altezza (cm)',
     'edit_pet_height_hint': 'es. 50 cm',
     'edit_pet_bio_label': 'Bio',
-    'edit_pet_bio_hint':
+    'edit_pet_bio_hint': 'Inserisci una bio',
+    'edit_pet_color_label': 'Colore',
+    'edit_pet_color_hint': 'es. nero, marrone…',
+    'edit_pet_chip_label': 'N. microchip',
+    'edit_pet_chip_hint': 'Inserisci il numero',
+    'edit_pet_medication_label': 'Farmaci',
+    'edit_pet_medication_hint': 'Nome e dosaggio',
+    'edit_pet_passport_label': 'Passaporto',
+    'edit_pet_passport_hint': 'Numero passaporto',
+};

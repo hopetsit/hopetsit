@@ -697,7 +697,7 @@ class SignUpScreen extends StatelessWidget {
     );
   }
 }
-                                                                           
+
 
 /// v20 — Sélecteur photo de profil pour l'inscription (3 rôles).
 /// Encapsule l'état local ImagePicker sans toucher au SignUpController.
@@ -788,17 +788,16 @@ class _SignupPhotoPickerState extends State<_SignupPhotoPicker> {
             ),
           ),
           SizedBox(height: 8.h),
-          InterText(
-            text: _file != null
-                ? 'signup_photo_change'.tr
-                : 'signup_photo_add'.tr,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: _accent,
+          Text(
+            _file == null ? 'signup_photo_add'.tr : 'signup_photo_change'.tr,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
+              color: _accent,
+            ),
           ),
         ],
       ),
     );
   }
 }
-

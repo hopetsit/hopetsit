@@ -146,11 +146,11 @@ class PetEnrichedFields extends StatelessWidget {
               ),
             ),
             Obx(() => emergencyAuthAccepted.value
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
+                ? Padding(
+                    padding: const EdgeInsets.all(12),
                     child: Text(
                       'pet_emergency_legal'.tr,
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   )
                 : const SizedBox.shrink()),

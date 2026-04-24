@@ -1810,4 +1810,15 @@ const Map<String, String> esESTranslations = <String, String>{
     'edit_pet_weight_label': 'Peso (kg)',
     'edit_pet_weight_hint': 'ej. 12 kg',
     'edit_pet_height_label': 'Altura (cm)',
-    'edit_pet_height_hint': 'ej. 
+    'edit_pet_height_hint': 'ej. 50 cm',
+    'edit_pet_bio_label': 'Bio',
+    'edit_pet_bio_hint': 'Introduce una bio',
+    'edit_pet_color_label': 'Color',
+    'edit_pet_color_hint': 'ej. negro, marrón…',
+    'edit_pet_chip_label': 'Nº de chip',
+    'edit_pet_chip_hint': 'Introduce el número',
+    'edit_pet_medication_label': 'Medicación',
+    'edit_pet_medication_hint': 'Nombre y dosis',
+    'edit_pet_passport_label': 'Pasaporte',
+    'edit_pet_passport_hint': 'Número de pasaporte',
+};

@@ -1899,4 +1899,13 @@ const Map<String, String> enUSTranslations = <String, String>{
     'edit_pet_height_label': 'Height (cm)',
     'edit_pet_height_hint': 'e.g. 50 cm',
     'edit_pet_bio_label': 'Bio',
-    'edit_pet_bio_hint': 'Enter a bio
+    'edit_pet_bio_hint': 'Enter a bio',
+    'edit_pet_color_label': 'Color',
+    'edit_pet_color_hint': 'e.g. black, brown…',
+    'edit_pet_chip_label': 'Chip no.',
+    'edit_pet_chip_hint': 'Enter the number',
+    'edit_pet_medication_label': 'Medication',
+    'edit_pet_medication_hint': 'Name and dosage',
+    'edit_pet_passport_label': 'Passport',
+    'edit_pet_passport_hint': 'Passport number',
+};

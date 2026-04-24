@@ -1838,4 +1838,12 @@ const Map<String, String> frFRTranslations = <String, String>{
     'edit_pet_height_hint': 'ex. 50 cm',
     'edit_pet_bio_label': 'Bio',
     'edit_pet_bio_hint': 'Entre une bio',
-    'edit_pet_color_labe
+    'edit_pet_color_label': 'Couleur',
+    'edit_pet_color_hint': 'ex. noir, brun…',
+    'edit_pet_chip_label': 'N° de puce',
+    'edit_pet_chip_hint': 'Entre le numéro',
+    'edit_pet_medication_label': 'Médicaments',
+    'edit_pet_medication_hint': 'Nom et posologie',
+    'edit_pet_passport_label': 'Passeport',
+    'edit_pet_passport_hint': 'Numéro de passeport',
+};

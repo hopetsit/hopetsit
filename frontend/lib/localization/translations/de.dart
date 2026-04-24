@@ -1799,4 +1799,13 @@ const Map<String, String> deDETranslations = <String, String>{
     'edit_pet_height_label': 'Größe (cm)',
     'edit_pet_height_hint': 'z. B. 50 cm',
     'edit_pet_bio_label': 'Bio',
-    'edit_
+    'edit_pet_bio_hint': 'Bio eingeben',
+    'edit_pet_color_label': 'Farbe',
+    'edit_pet_color_hint': 'z. B. schwarz, braun…',
+    'edit_pet_chip_label': 'Chip-Nr.',
+    'edit_pet_chip_hint': 'Nummer eingeben',
+    'edit_pet_medication_label': 'Medikamente',
+    'edit_pet_medication_hint': 'Name und Dosierung',
+    'edit_pet_passport_label': 'Pass',
+    'edit_pet_passport_hint': 'Passnummer',
+};
