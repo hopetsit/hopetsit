@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 const pinoHttp = require('pino-http');
 const logger = require('./utils/logger');
 const sentry = require('./utils/sentry');
@@ -106,6 +107,23 @@ app.use(
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
+
+// v20.0.7 — Serve admin_dashboard.html from the repo root so every Render
+// deploy auto-updates the admin page. No more "admin is cached" issues.
+// The file lives at <repo>/admin_dashboard.html; backend/src/app.js is 3
+// levels deep so we go up ../../..
+const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html');
+const noAdminCache = (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+};
+app.get(['/admin', '/admin.html', '/admin_dashboard.html'], noAdminCache, (req, res) => {
+  res.sendFile(ADMIN_HTML_PATH, (err) => {
+    if (err) res.status(404).send('admin_dashboard.html not found in repo root');
+  });
+});
 // Sprint 8 step 5 — structured request logger (pino-http) with reqId + duration.
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 
