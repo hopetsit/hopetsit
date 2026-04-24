@@ -3,13 +3,13 @@
     "title": "Réservation acceptée",
     "body": "Bonjour {{name}}, les deux parties ont accepté la réservation. Procédez au paiement pour démarrer la conversation.",
     "emailSubject": "Votre réservation HopeTSIT est confirmée",
-    "emailBody": "<p>Bonjour {{name}},</p><p>La réservation vient d'être acceptée par les deux parties. Finalisez le paiement pour débloquer le chat et confirmer la réservation.</p><p>— L'équipe HopeTSIT</p>"
+    "emailBody": "<p>Bonjour {{name}},</p><p>La réservation vient d'être acceptée par les deux parties. Finalisez le paiement pour débloquer le chat et confirmer la réservation.</p><p>— L'équipe HopeTSIT</p><p><a href=\"hopetsit://pay/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Payer maintenant</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'app HoPetSit manuellement.</p>"
   },
   "booking_new": {
     "title": "Nouvelle demande de réservation",
     "body": "Vous avez reçu une nouvelle demande de réservation.",
     "emailSubject": "Nouvelle demande de réservation — HopeTSIT",
-    "emailBody": "<p>Vous avez reçu une nouvelle demande de réservation sur HopeTSIT. Ouvrez l'application pour la consulter.</p>"
+    "emailBody": "<p>Vous avez reçu une nouvelle demande de réservation sur HopeTSIT. Ouvrez l'application pour la consulter.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la demande</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'app HoPetSit manuellement.</p>"
   },
   "booking_accepted": {
     "title": "Réservation acceptée",
@@ -27,7 +27,7 @@
     "title": "Nouvelle candidature",
     "body": "Un prestataire vous a envoyé une demande.",
     "emailSubject": "Nouvelle candidature — HopeTSIT",
-    "emailBody": "<p>Un prestataire a candidaté à votre annonce. Ouvrez l'application pour l'examiner.</p>"
+    "emailBody": "<p>Un prestataire a candidaté à votre annonce. Ouvrez l'application pour l'examiner.</p><p><a href=\"hopetsit://bookings\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la candidature</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'app HoPetSit manuellement.</p>"
   },
   "application_accepted": {
     "title": "Candidature acceptée",
@@ -45,7 +45,7 @@
     "title": "Nouveau message de {{senderName}}",
     "body": "{{preview}}",
     "emailSubject": "Nouveau message sur HopeTSIT",
-    "emailBody": "<p><strong>{{senderName}}</strong> vous a envoyé un nouveau message :</p><blockquote>{{preview}}</blockquote><p>Ouvrez l'application pour répondre.</p>"
+    "emailBody": "<p><strong>{{senderName}}</strong> vous a envoyé un nouveau message :</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Ouvrez l'application pour répondre.</p><p><a href=\"hopetsit://chat/{{conversationId}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir la conversation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'app HoPetSit manuellement.</p>"
   },
   "NEW_REVIEW": {
     "title": "Vous avez reçu un nouvel avis",

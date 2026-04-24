@@ -58,17 +58,31 @@ class DeepLinkService {
   }
 
   Future<void> _handle(Uri uri) async {
-    // Accepte hopetsit://pay/:bookingId ET https://app.hopetsit.com/pay/:bookingId.
+    // Accepte hopetsit://* ET https://app.hopetsit.com/*
     if (uri.scheme != 'hopetsit' && !uri.host.contains('hopetsit')) return;
 
     final segs = uri.pathSegments;
-    final first = uri.host.isNotEmpty ? uri.host : (segs.isNotEmpty ? segs.first : '');
+    final first =
+        uri.host.isNotEmpty ? uri.host : (segs.isNotEmpty ? segs.first : '');
+
+    // v19.2.0 — 4 chemins supportés :
+    //   hopetsit://pay/:bookingId          → écran paiement
+    //   hopetsit://chat[/:conversationId]  → écran chat (liste ou conversation)
+    //   hopetsit://bookings[/:bookingId]   → écran réservations (provider accepte)
+    //   hopetsit://notifications           → écran notifications
     if (first == 'pay') {
-      // hopetsit://pay/:bookingId  →  host=pay, pathSegments=[bookingId]
       final bookingId = segs.isNotEmpty ? segs.last : '';
       if (bookingId.isNotEmpty) {
         await _openPayment(bookingId);
       }
+    } else if (first == 'chat') {
+      // Récupère ?conversationId ou /chat/:id. Pour l'instant on navigue vers
+      // le tab Chat — l'écran individuel sera ouvert via le badge si besoin.
+      Get.toNamed('/chat');
+    } else if (first == 'bookings') {
+      Get.toNamed('/bookings');
+    } else if (first == 'notifications') {
+      Get.toNamed('/notifications');
     }
   }
 

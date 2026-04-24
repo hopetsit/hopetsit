@@ -3,13 +3,13 @@
     "title": "Reserva aceite",
     "body": "Olá {{name}}, ambas as partes aceitaram a reserva. Conclua o pagamento para começar a conversar.",
     "emailSubject": "A sua reserva HopeTSIT está confirmada",
-    "emailBody": "<p>Olá {{name}},</p><p>A reserva foi aceite por ambas as partes. Conclua o pagamento para desbloquear o chat e confirmar a reserva.</p><p>— A equipa HopeTSIT</p>"
+    "emailBody": "<p>Olá {{name}},</p><p>A reserva foi aceite por ambas as partes. Conclua o pagamento para desbloquear o chat e confirmar a reserva.</p><p>— A equipa HopeTSIT</p><p><a href=\"hopetsit://pay/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pagar agora</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, abre a app HoPetSit manualmente.</p>"
   },
   "NEW_MESSAGE": {
     "title": "Nova mensagem de {{senderName}}",
     "body": "{{preview}}",
     "emailSubject": "Nova mensagem no HopeTSIT",
-    "emailBody": "<p><strong>{{senderName}}</strong> enviou-lhe uma nova mensagem:</p><blockquote>{{preview}}</blockquote><p>Abra a aplicação para responder.</p>"
+    "emailBody": "<p><strong>{{senderName}}</strong> enviou-lhe uma nova mensagem:</p><blockquote>{{preview}}</blockquote><p>Abra a aplicação para responder.</p><p><a href=\"hopetsit://chat/{{conversationId}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir conversa</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, abre a app HoPetSit manualmente.</p>"
   },
   "NEW_REVIEW": {
     "title": "Recebeu uma nova avaliação",
@@ -70,5 +70,41 @@
     "body": "Olá 👋 Vamos combinar aqui o local exato e os detalhes do serviço.",
     "emailSubject": "",
     "emailBody": ""
+  },
+  "booking_new": {
+    "title": "Novo pedido de reserva",
+    "body": "Recebeste um novo pedido de reserva.",
+    "emailSubject": "Novo pedido de reserva — HopeTSIT",
+    "emailBody": "<p>Recebeste um novo pedido de reserva no HopeTSIT. Abre a app para o visualizar.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver pedido</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, abre a app HoPetSit manualmente.</p>"
+  },
+  "booking_accepted": {
+    "title": "Reserva aceite",
+    "body": "O teu pedido foi aceite. Procede ao pagamento.",
+    "emailSubject": "A tua reserva foi aceite — HoPetSit",
+    "emailBody": "<p>Boas notícias! O teu pedido de reserva foi aceite.</p><p><a href=\"hopetsit://pay/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pagar agora</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, abre a app HoPetSit manualmente.</p>"
+  },
+  "booking_rejected": {
+    "title": "Reserva recusada",
+    "body": "O teu pedido de reserva foi recusado.",
+    "emailSubject": "O teu pedido foi recusado — HopeTSIT",
+    "emailBody": "<p>O teu pedido de reserva foi recusado. Podes enviar outro a outro prestador.</p>"
+  },
+  "application_new": {
+    "title": "Nova candidatura",
+    "body": "Um prestador enviou-te um pedido.",
+    "emailSubject": "Nova candidatura — HopeTSIT",
+    "emailBody": "<p>Um prestador candidatou-se ao teu anúncio. Abre a app para a examinar.</p><p><a href=\"hopetsit://bookings\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver candidatura</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, abre a app HoPetSit manualmente.</p>"
+  },
+  "application_accepted": {
+    "title": "Candidatura aceite",
+    "body": "A tua candidatura foi aceite.",
+    "emailSubject": "A tua candidatura foi aceite — HopeTSIT",
+    "emailBody": "<p>A tua candidatura foi aceite. Abre a app para ver os detalhes.</p>"
+  },
+  "application_rejected": {
+    "title": "Candidatura recusada",
+    "body": "A tua candidatura foi recusada.",
+    "emailSubject": "A tua candidatura foi recusada — HopeTSIT",
+    "emailBody": "<p>A tua candidatura foi recusada pelo proprietário. Continua a candidatar-te a outros anúncios.</p>"
   }
 }

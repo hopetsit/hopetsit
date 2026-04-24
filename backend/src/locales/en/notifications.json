@@ -3,13 +3,13 @@
     "title": "Booking accepted",
     "body": "Hi {{name}}, both parties accepted the booking. Complete the payment to start chatting.",
     "emailSubject": "Your HopeTSIT booking is confirmed",
-    "emailBody": "<p>Hi {{name}},</p><p>The booking has been accepted by both parties. Complete the payment to unlock the chat and finalize the reservation.</p><p>— The HopeTSIT team</p>"
+    "emailBody": "<p>Hi {{name}},</p><p>The booking has been accepted by both parties. Complete the payment to unlock the chat and finalize the reservation.</p><p>— The HopeTSIT team</p><p><a href=\"hopetsit://pay/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Pay now</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
   },
   "booking_new": {
     "title": "New booking request",
     "body": "You received a new booking request.",
     "emailSubject": "New booking request — HopeTSIT",
-    "emailBody": "<p>You have a new booking request on HopeTSIT. Open the app to review it.</p>"
+    "emailBody": "<p>You have a new booking request on HopeTSIT. Open the app to review it.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Review request</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
   },
   "booking_accepted": {
     "title": "Booking accepted",
@@ -27,7 +27,7 @@
     "title": "New application",
     "body": "A provider sent you a request.",
     "emailSubject": "New application — HopeTSIT",
-    "emailBody": "<p>A provider applied to your listing. Open the app to review it.</p>"
+    "emailBody": "<p>A provider applied to your listing. Open the app to review it.</p><p><a href=\"hopetsit://bookings\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Review application</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
   },
   "application_accepted": {
     "title": "Application accepted",
@@ -45,7 +45,7 @@
     "title": "New message from {{senderName}}",
     "body": "{{preview}}",
     "emailSubject": "New message on HopeTSIT",
-    "emailBody": "<p><strong>{{senderName}}</strong> sent you a new message:</p><blockquote>{{preview}}</blockquote><p>Open the app to reply.</p>"
+    "emailBody": "<p><strong>{{senderName}}</strong> sent you a new message:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Open the app to reply.</p><p><a href=\"hopetsit://chat/{{conversationId}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Open conversation</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
   },
   "NEW_REVIEW": {
     "title": "You received a new review",
