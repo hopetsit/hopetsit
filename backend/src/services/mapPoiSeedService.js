@@ -270,9 +270,11 @@ function runSeedBatch({ countries, categories, limit }) {
       }
       batch.perCountry[upper] = { status: 'running', inserted: 0 };
       try {
+        // v20.0.15 — same fix as runSeed : exclude `trainerByName` which is a
+        // helper tag for the `trainer` category, not a real category itself.
         const cats = categories && categories.length > 0
           ? categories
-          : Object.keys(CATEGORY_TAGS);
+          : Object.keys(CATEGORY_TAGS).filter((k) => k !== 'trainerByName');
         let inserted = 0;
         for (const cat of cats) {
           const res = await seedCategory({
@@ -298,19 +300,24 @@ function runSeedBatch({ countries, categories, limit }) {
       }
     }
     batch.status = 'done';
-    batch.endedAt = Date.now();
+    batch.finishedAt = new Date();
     return batch;
   })();
 
-  return { jobId, status: 'running' };
+  // v20.0.15 — fix: return the batch id (string) like runSeed does, so
+  // adminRoutes can put it in the response as { jobId }. Previously we
+  // returned { jobId: undefined } (the `jobId` var didn't exist in this
+  // scope, only `batchId`), causing the admin button to show 400 "X" toast.
+  return batchId;
 }
 
 function getSeedJob(jobId) {
-  return SEED_JOBS.get(jobId) || null;
+  // v20.0.15 — fix: the Map is named `jobs` (line 79), not `SEED_JOBS`.
+  return jobs.get(jobId) || null;
 }
 
 function listSeedJobs() {
-  return Array.from(SEED_JOBS.values()).sort(
+  return Array.from(jobs.values()).sort(
     (a, b) => (b.startedAt || 0) - (a.startedAt || 0),
   );
 }
