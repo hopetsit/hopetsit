@@ -1,5 +1,8 @@
 const UserSubscription = require('../models/UserSubscription');
 const UserChatAddon = require('../models/UserChatAddon');
+const Owner = require('../models/Owner');
+const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 
 /**
  * chatAccessService — session v3.2.
@@ -13,6 +16,14 @@ const UserChatAddon = require('../models/UserChatAddon');
  */
 
 const ROLE_TO_MODEL = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
+const MODEL_CTOR = { Owner, Sitter, Walker };
+
+async function isStaffUser(userId, userModel) {
+  const Model = MODEL_CTOR[userModel];
+  if (!Model) return false;
+  const doc = await Model.findById(userId).select('isStaff').lean();
+  return !!(doc && doc.isStaff);
+}
 
 /**
  * Returns a compact descriptor of the user's chat access:
@@ -48,10 +59,14 @@ async function getChatAccess(userId, userModelOrRole) {
     addon.currentPeriodEnd &&
     new Date(addon.currentPeriodEnd) > now;
 
+  // v19.1.5 — Staff users (Daniel + employees) bypass all paywalls.
+  const staff = await isStaffUser(userId, userModel);
+
   return {
-    hasPremium,
-    hasChatAddon,
-    hasAny: hasPremium || hasChatAddon,
+    hasPremium: hasPremium || staff,
+    hasChatAddon: hasChatAddon || staff,
+    hasAny: hasPremium || hasChatAddon || staff,
+    isStaff: staff,
   };
 }
 

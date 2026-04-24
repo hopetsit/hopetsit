@@ -31,6 +31,7 @@ const sitterSchema = new mongoose.Schema(
     termsVersion: { type: String, default: '' },
     service: { type: [String], default: [] },
     verified: { type: Boolean, default: false },
+    isStaff: { type: Boolean, default: false, index: true },
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
     // External authentication information

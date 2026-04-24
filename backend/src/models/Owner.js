@@ -29,6 +29,7 @@ const ownerSchema = new mongoose.Schema(
     termsVersion: { type: String, default: '' },
     service: { type: [String], default: [] },
     verified: { type: Boolean, default: false },
+    isStaff: { type: Boolean, default: false, index: true },
     // External authentication information
     firebaseUid: { type: String, default: null, index: true },
     authProvider: { type: String, enum: ['password', 'google', 'apple'], default: 'password' },

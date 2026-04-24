@@ -90,6 +90,32 @@ router.get('/status', requireAuth, async (req, res) => {
     const userModel = userModelFromRole(req.user.role);
 
     const sub = await UserSubscription.findOne({ userId, userModel });
+
+    // v19.1.5 — Staff users (Daniel + employees) get Premium for free.
+    const ModelCtor = {
+      Owner: require('../models/Owner'),
+      Sitter: require('../models/Sitter'),
+      Walker: require('../models/Walker'),
+    }[userModel];
+    if (ModelCtor) {
+      const u = await ModelCtor.findById(userId).select('isStaff').lean();
+      if (u && u.isStaff) {
+        return res.json({
+          plan: 'staff',
+          status: 'active',
+          isPremium: true,
+          isStaff: true,
+          features: { ...PREMIUM_FEATURES_DEFAULT, mapReportsVisible: true, mapReportsCreate: true, socialFriendsMap: true, socialChat: true, socialProximityAlerts: true, mapBoostMonthlyCredit: 999 },
+          currentPeriodStart: new Date(0),
+          currentPeriodEnd: new Date('2099-12-31'),
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          mapBoostCreditsRemaining: 999,
+          payments: [],
+        });
+      }
+    }
+
     res.json(serializeSubscription(sub));
   } catch (e) {
     logger.error('[subscription/status]', e);

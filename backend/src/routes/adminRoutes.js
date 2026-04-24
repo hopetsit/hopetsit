@@ -2122,4 +2122,38 @@ router.delete('/messages/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// v19.1.5 — Toggle isStaff flag on a user (owner/sitter/walker). Staff users
+// get Premium + Chat + all paywalls bypassed for free. Reserved to Daniel
+// (platform owner) and HoPetSit employees.
+router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
+  try {
+    const { role, id } = req.params;
+    const { isStaff } = req.body || {};
+    const Model = role === 'sitter'
+      ? require('../models/Sitter')
+      : role === 'walker'
+        ? require('../models/Walker')
+        : role === 'owner'
+          ? require('../models/Owner')
+          : null;
+    if (!Model) return res.status(400).json({ error: 'Invalid role.' });
+    const updated = await Model.findByIdAndUpdate(
+      id,
+      { $set: { isStaff: !!isStaff } },
+      { new: true },
+    ).select('name email isStaff');
+    if (!updated) return res.status(404).json({ error: 'User not found.' });
+    logger.info(`[admin] ${role} ${id} isStaff=${!!isStaff}`);
+    res.json({
+      id: updated._id.toString(),
+      name: updated.name,
+      email: updated.email,
+      isStaff: updated.isStaff,
+    });
+  } catch (e) {
+    logger.error('[admin/users/staff]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

@@ -69,6 +69,7 @@ const walkerSchema = new mongoose.Schema(
     service: { type: [String], default: ['dog_walking'] },
 
     verified: { type: Boolean, default: false },
+    isStaff: { type: Boolean, default: false, index: true },
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
 
