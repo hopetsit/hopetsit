@@ -119,7 +119,7 @@ class _WalkerRates extends StatelessWidget {
                         : 'edit_profile_button'.tr,
                     onTap: controller.isLoading.value
                         ? null
-                        : () => controller.handleUpdateProfileWithNavigation(),
+                        : () => controller.updateRatesOnly(),
                     bgColor: accent,
                     textColor: AppColors.whiteColor,
                     height: 48.h,
@@ -246,7 +246,7 @@ class _SitterRates extends StatelessWidget {
                         : 'edit_profile_button'.tr,
                     onTap: controller.isLoading.value
                         ? null
-                        : () => controller.handleUpdateProfileWithNavigation(),
+                        : () => controller.updateRatesOnly(),
                     bgColor: accent,
                     textColor: AppColors.whiteColor,
                     height: 48.h,
@@ -285,15 +285,23 @@ class _HeaderCard extends StatelessWidget {
         border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.euro_rounded, size: 22.sp, color: accent),
+          Padding(
+            padding: EdgeInsets.only(top: 2.h),
+            child: Icon(Icons.euro_rounded, size: 22.sp, color: accent),
+          ),
           SizedBox(width: 10.w),
+          // v20.0.10 — explicit maxLines + softWrap so long translations
+          // (DE / IT multi-word phrases) ne depassent plus du cadre.
           Expanded(
             child: InterText(
               text: subtitle,
               fontSize: 12.sp,
               fontWeight: FontWeight.w500,
               color: AppColors.textPrimary(context),
+              maxLines: 5,
+              overflow: TextOverflow.visible,
             ),
           ),
         ],

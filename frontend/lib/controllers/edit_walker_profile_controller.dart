@@ -449,4 +449,80 @@ class EditWalkerProfileController extends GetxController {
       Get.back();
     }
   }
+
+  /// v20.0.10 — Save only the walk rates (30 min / 60 min + currency)
+  /// without triggering the form-key validation. Used by MyRatesScreen
+  /// which renders ONLY the 2 rate fields (no Form ancestor), so calling
+  /// the full validateAndUpdateProfile would crash on formKey.currentState
+  /// being null.
+  Future<void> updateRatesOnly() async {
+    isLoading.value = true;
+    try {
+      final thirtyText =
+          halfHourRateController.text.trim().replaceAll(',', '.');
+      final sixtyText = hourlyRateController.text.trim().replaceAll(',', '.');
+      final thirtyParsed = double.tryParse(thirtyText);
+      final sixtyParsed = double.tryParse(sixtyText);
+
+      if ((thirtyParsed == null || thirtyParsed <= 0) &&
+          (sixtyParsed == null || sixtyParsed <= 0)) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'walker_rate_invalid'.tr,
+        );
+        return;
+      }
+
+      final existing = await _walkerRepository.getMyWalkerRates();
+      final byDuration = <int, WalkRate>{
+        for (final r in existing) r.durationMinutes: r,
+      };
+      final chosenCurrency =
+          selectedCurrency.value.isNotEmpty ? selectedCurrency.value : 'EUR';
+
+      if (thirtyParsed != null && thirtyParsed > 0) {
+        byDuration[30] = WalkRate(
+          durationMinutes: 30,
+          basePrice: thirtyParsed,
+          currency: chosenCurrency,
+          enabled: true,
+        );
+      }
+      if (sixtyParsed != null && sixtyParsed > 0) {
+        byDuration[60] = WalkRate(
+          durationMinutes: 60,
+          basePrice: sixtyParsed,
+          currency: chosenCurrency,
+          enabled: true,
+        );
+      }
+      final sorted = byDuration.values.toList()
+        ..sort((a, b) => a.durationMinutes.compareTo(b.durationMinutes));
+      await _walkerRepository.updateMyWalkerRates(sorted);
+
+      // Also update the walker's default currency on the profile so the
+      // app reads it consistently next time.
+      try {
+        await _walkerRepository.updateMyWalkerProfile({
+          'currency': chosenCurrency,
+        });
+      } catch (_) {
+        // non-blocking — rates are already saved.
+      }
+
+      await loadProfileData();
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'edit_profile_success_message'.tr,
+      );
+      Get.back();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString(),
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
 }

@@ -608,4 +608,69 @@ class EditSitterProfileController extends GetxController {
       Get.back();
     }
   }
+
+  /// v20.0.10 — Save ONLY the sitter rates (daily / weekly / monthly)
+  /// without running the full form validation. Used by MyRatesScreen which
+  /// doesn't wrap fields in a Form widget so formKey.currentState is null.
+  Future<void> updateRatesOnly() async {
+    isLoading.value = true;
+    try {
+      final dailyText =
+          dailyRateController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), '');
+      final weeklyText =
+          weeklyRateController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), '');
+      final monthlyText =
+          monthlyRateController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), '');
+      final hourlyText =
+          hourlyRateController.text.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), '');
+
+      final dailyRate = double.tryParse(dailyText) ?? 0;
+      final weeklyRate = double.tryParse(weeklyText) ?? 0;
+      final monthlyRate = double.tryParse(monthlyText) ?? 0;
+      final hourlyRate = double.tryParse(hourlyText) ?? 0;
+
+      if (dailyRate <= 0 && weeklyRate <= 0 && monthlyRate <= 0 && hourlyRate <= 0) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'error_rate_required'.tr,
+        );
+        return;
+      }
+
+      await _sitterRepository.setMyRates(
+        hourlyRate: hourlyRate,
+        dailyRate: dailyRate,
+        weeklyRate: weeklyRate,
+        monthlyRate: monthlyRate,
+      );
+
+      // Persist chosen currency on the sitter profile too.
+      try {
+        final chosenCurrency = selectedCurrency.value.isNotEmpty
+            ? selectedCurrency.value
+            : 'EUR';
+        await _sitterRepository.updateSitterProfileMe(
+          {'currency': chosenCurrency},
+        );
+      } catch (_) {
+        // non-blocking — rates are already saved.
+      }
+
+      if (Get.isRegistered<SitterProfileController>()) {
+        await Get.find<SitterProfileController>().loadMyProfile();
+      }
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'edit_profile_success_message'.tr,
+      );
+      Get.back();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString(),
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
 }

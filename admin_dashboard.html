@@ -3016,6 +3016,25 @@ async function deleteBugReport(id) {
     showToast('Bug supprime.', 'success');
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
+
+// v20.0.10 - Toggle Staff flag on owner/sitter/walker. Grants free Premium
+// + free Boosts. This function was accidentally dropped during an earlier
+// admin HTML reconstruction — re-added here.
+async function toggleStaff(role, userId, isStaff) {
+  const label = isStaff
+    ? 'Accorder Premium GRATUIT + tous les Boost a cet utilisateur ?'
+    : 'Retirer l\'acces Premium gratuit (Staff) ?';
+  if (!confirm(label)) return;
+  try {
+    await api('/admin/users/' + role + '/' + userId + '/staff', 'POST', { isStaff: !!isStaff });
+    showToast(isStaff ? 'Staff active (Premium + Boost gratuits).' : 'Staff retire.', 'success');
+    if (role === 'owner') loadOwners();
+    else if (role === 'sitter') { loadSitters(); loadOwners(); }
+    else if (role === 'walker') { loadWalkers(); loadOwners(); }
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
   </script>
 </body>
 </html>
