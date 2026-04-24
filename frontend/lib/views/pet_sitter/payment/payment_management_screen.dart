@@ -10,6 +10,7 @@ import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_s
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/views/profile/add_card_screen.dart' as legacy_card;
+import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/provider_payout_history_screen.dart';
 import 'package:hopetsit/services/donation_service.dart';
 import 'package:hopetsit/widgets/paypal_email_dialog.dart';
@@ -122,9 +123,11 @@ class PaymentManagementScreen extends StatelessWidget {
               )),
               SizedBox(height: 10.h),
 
-              // v18.8 — Ajouter carte. Ouvre l'écran AddCardScreen partagé
-              // (userType='pet_sitter'). Permet au provider d'enregistrer
-              // une carte pour les paiements rapides.
+              // v20.0.17 — Route vers OwnerPaymentsScreen qui fait le VRAI
+              // flow Stripe (SetupIntent + attach au Stripe Customer + list
+              // saved cards + icône verte quand connectée). L'ancien
+              // AddCardScreen envoyait les données en raw à /users/me/card
+              // (endpoint legacy) qui ne liaient rien à Stripe.
               _buildPaymentMethodCard(
                 context: context,
                 icon: Icons.credit_card_rounded,
@@ -133,10 +136,7 @@ class PaymentManagementScreen extends StatelessWidget {
                 title: 'payment_add_card_title'.tr,
                 subtitle: 'payment_add_card_subtitle'.tr,
                 isConnected: false,
-                onTap: () => Get.to(
-                  () =>
-                      const legacy_card.AddCardScreen(userType: 'pet_sitter'),
-                ),
+                onTap: () => Get.to(() => const OwnerPaymentsScreen()),
                 buttonLabel: 'payment_add_card_button'.tr,
               ),
               SizedBox(height: 10.h),
@@ -329,18 +329,23 @@ class PaymentManagementScreen extends StatelessWidget {
                     ],
                   ),
                   SizedBox(height: 2.h),
+                  // v20.0.17 — maxLines 3 + visible overflow pour que les
+                  // traductions longues (DE / IT) ne soient plus tronquées.
                   InterText(
                     text: subtitle,
                     fontSize: 12.sp,
                     color: AppColors.textSecondary(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: 3,
+                    overflow: TextOverflow.visible,
                   ),
                 ],
               ),
             ),
+            // v20.0.17 — Wrap the button label so it can flow on 2 lines and
+            // width-limit for very long labels (ex. DE "IBAN konfigurieren").
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+              constraints: BoxConstraints(maxWidth: 110.w),
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
               decoration: BoxDecoration(
                 color: isConnected
                     ? Colors.green.withValues(alpha: 0.1)
@@ -352,6 +357,8 @@ class PaymentManagementScreen extends StatelessWidget {
                 fontSize: 11.sp,
                 fontWeight: FontWeight.w600,
                 color: isConnected ? Colors.green : iconColor,
+                maxLines: 2,
+                overflow: TextOverflow.visible,
               ),
             ),
           ],

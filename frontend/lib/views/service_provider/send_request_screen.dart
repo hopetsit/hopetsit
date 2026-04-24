@@ -1153,37 +1153,33 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           breakdown = notSetNotice;
         }
       } else if (service == 'day_care' || service == 'garderie') {
-        // v20.0.16 — Garderie (même jour) : calcul sur les heures de la
-        // journée. Besoin de startTime + endTime sur le même jour.
+        // v20.0.17 — Garderie (même jour) : facture le TARIF JOURNALIER du
+        // petsitter quelle que soit la durée. 1 jour = 1 × dailyRate
+        // (convention : une journée de garde, même partielle, est une
+        // prestation à la journée). Plus de calcul horaire absurde.
         final st = controller.startTime.value;
         final et = controller.endTime.value;
         if (sDate != null && st != null && et != null) {
           final startMin = st.hour * 60 + st.minute;
           final endMin = et.hour * 60 + et.minute;
-          final mins = endMin - startMin;
-          if (mins > 0) {
-            final hours = mins / 60.0;
-            // Préférence : dailyRate / 8h, sinon weekly/56h, sinon monthly/240h.
-            // (SendRequestScreen n'expose pas sitterHourlyRate en prop — le
-            // backend dérive l'horaire depuis dailyRate de la même façon.)
-            double? hourlyDerived;
-            if (widget.sitterDailyRate != null &&
-                widget.sitterDailyRate! > 0) {
-              hourlyDerived = widget.sitterDailyRate! / 8;
-            } else if (widget.sitterWeeklyRate != null &&
-                widget.sitterWeeklyRate! > 0) {
-              hourlyDerived = widget.sitterWeeklyRate! / 56; // 7j × 8h
-            } else if (widget.sitterMonthlyRate != null &&
-                widget.sitterMonthlyRate! > 0) {
-              hourlyDerived = widget.sitterMonthlyRate! / 240; // 30j × 8h
+          if (endMin > startMin) {
+            double? dailyRate = widget.sitterDailyRate;
+            if (dailyRate == null || dailyRate <= 0) {
+              if (widget.sitterWeeklyRate != null &&
+                  widget.sitterWeeklyRate! > 0) {
+                dailyRate = widget.sitterWeeklyRate! / 7;
+              } else if (widget.sitterMonthlyRate != null &&
+                  widget.sitterMonthlyRate! > 0) {
+                dailyRate = widget.sitterMonthlyRate! / 30;
+              }
             }
-            if (hourlyDerived != null && hourlyDerived > 0) {
-              providerGross = hourlyDerived * hours;
+            if (dailyRate != null && dailyRate > 0) {
+              providerGross = dailyRate;
               final commission = providerGross * commissionRate;
               final ownerTotal = providerGross + commission;
               totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
               breakdown =
-                  '${hours.toStringAsFixed(1)} h × ${hourlyDerived.toStringAsFixed(2)} $currency/h + ${commission.toStringAsFixed(2)} $currency commission (20%)';
+                  '1 journée × ${dailyRate.toStringAsFixed(2)} $currency/j + ${commission.toStringAsFixed(2)} $currency commission (20%)';
             }
           }
         }

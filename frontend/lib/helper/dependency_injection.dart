@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 import '../controllers/auth_controller.dart';
+import '../controllers/notifications_controller.dart';
 import '../controllers/subscription_controller.dart';
 import '../controllers/user_controller.dart';
 import '../data/network/api_client.dart';
@@ -127,6 +128,19 @@ void setupDependencies() {
   // when the user opens the Boutique / Premium tab or other premium-gated UI.
   if (!Get.isRegistered<SubscriptionController>()) {
     Get.lazyPut<SubscriptionController>(() => SubscriptionController(), fenix: true);
+  }
+
+  // v20.0.18 — CRITICAL FIX : NotificationsController doit être init AU BOOT
+  // pour que les badges (unreadHome/unreadChat/unreadBookings) s'affichent
+  // dès l'ouverture de l'app. Avant ce fix, le controller n'était jamais
+  // enregistré nulle part → les badges restaient à 0 et le socket listener
+  // `notification.new` ne s'attachait pas. Permanent pour survivre aux
+  // redémarrages de route.
+  if (!Get.isRegistered<NotificationsController>()) {
+    Get.put<NotificationsController>(
+      NotificationsController(),
+      permanent: true,
+    );
   }
 
   // v18.6 — FCM push notifications fix.

@@ -402,6 +402,16 @@ class SitterProfileScreen extends StatelessWidget {
           _sitterAccent,
           controller.navigateToEditProfile,
         ),
+        // v20.0.17 — Vérif identité remontée juste après Edit profile
+        // (comme sur walker profile) car c'est un gate critique pour
+        // apparaître dans les recherches.
+        _buildSettingsTile(
+          'profile_verify_identity'.tr,
+          'sitter_verify_identity_subtitle'.tr,
+          Icons.verified_user_outlined,
+          AppColors.greenColor,
+          () => Get.to(() => const IdentityVerificationScreen()),
+        ),
         // v20.0.7 — Mes paiements remonté en haut (comme owner) pour que
         // le sitter puisse ajouter sa CB dès le début sans la chercher.
         _buildSettingsTile(
@@ -433,13 +443,6 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.map_rounded,
           _palePurple,
           () => Get.to(() => const PawMapScreen()),
-        ),
-        _buildSettingsTile(
-          'profile_verify_identity'.tr,
-          'sitter_verify_identity_subtitle'.tr,
-          Icons.verified_user_outlined,
-          AppColors.greenColor,
-          () => Get.to(() => const IdentityVerificationScreen()),
         ),
         // v19.0 — Mon portefeuille (solde + retraits IBAN/PayPal)
         _buildSettingsTile(

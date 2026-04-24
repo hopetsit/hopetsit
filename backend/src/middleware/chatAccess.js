@@ -53,6 +53,47 @@ const requirePaidBooking = async (req, res, next) => {
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
+
+    // v20.0.18 — bypass pour Staff (Daniel + employés) et pour les users
+    // avec Premium actif ou Chat add-on. Avant, seul un booking payé
+    // ouvrait le chat → Staff ne pouvait pas tester le chat sans passer
+    // par un paiement réel. Désormais les 3 entry-points sont :
+    //   1) booking payé existant
+    //   2) isStaff === true
+    //   3) Premium actif ou Chat add-on actif
+    try {
+      const Owner = require('../models/Owner');
+      const Sitter = require('../models/Sitter');
+      const Walker = require('../models/Walker');
+      const UserSubscription = require('../models/UserSubscription');
+
+      const role = req.user?.role;
+      const userId = req.user?.id;
+      if (role && userId) {
+        const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
+        const me = await Model.findById(userId).select('isStaff').lean();
+        if (me && me.isStaff === true) return next();
+
+        const userModel =
+          role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';
+        const sub = await UserSubscription.findOne({ userId, userModel })
+          .select('status currentPeriodEnd chatAddonActive chatAddonExpiresAt')
+          .lean();
+        const now = new Date();
+        const premiumActive =
+          sub && sub.status === 'active' &&
+          sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now;
+        const chatAddonActive =
+          sub && sub.chatAddonActive === true &&
+          sub.chatAddonExpiresAt && new Date(sub.chatAddonExpiresAt) > now;
+        if (premiumActive || chatAddonActive) return next();
+      }
+    } catch (staffErr) {
+      // Ne pas bloquer l'accès si le check Staff plante — on tombe sur le
+      // flow booking-payé classique.
+      logger.warn?.('[requirePaidBooking] staff bypass check failed', staffErr?.message);
+    }
+
     const access = await evaluateChatAccess({
       ownerId: conversation.ownerId,
       sitterId: conversation.sitterId,
