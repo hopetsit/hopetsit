@@ -119,16 +119,32 @@ class SitterCard extends StatelessWidget {
             // Header: avatar + name (+ verified / top / boost) + rating/city/dist
             Row(
               children: [
-                CircleAvatar(
-                  radius: 26.r,
-                  backgroundColor: AppColors.grey300Color,
-                  backgroundImage: avatarUrl.isNotEmpty
-                      ? CachedNetworkImageProvider(avatarUrl)
-                      : null,
-                  child: avatarUrl.isEmpty
-                      ? Icon(Icons.pets_rounded,
-                          size: 24.sp, color: Colors.white)
-                      : null,
+                // v20.0.9 — Role-accent ring (sitter = blue) + soft halo
+                // so the provider type is readable at a glance on list cards.
+                Container(
+                  padding: EdgeInsets.all(2.w),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _sitterBlue, width: 2.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _sitterBlue.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 26.r,
+                    backgroundColor: AppColors.grey300Color,
+                    backgroundImage: avatarUrl.isNotEmpty
+                        ? CachedNetworkImageProvider(avatarUrl)
+                        : null,
+                    child: avatarUrl.isEmpty
+                        ? Icon(Icons.pets_rounded,
+                            size: 24.sp, color: Colors.white)
+                        : null,
+                  ),
                 ),
                 SizedBox(width: 12.w),
                 Expanded(

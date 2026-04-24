@@ -17,6 +17,7 @@ import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 // v18.2 — Mes paiements entry point.
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
+import 'package:hopetsit/views/profile/bug_report_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -412,6 +413,17 @@ class ProfileScreen extends StatelessWidget {
           Icons.privacy_tip_outlined,
           AppColors.textSecondary(context),
           () => Get.to(() => const PrivacyPolicyScreen()),
+        ),
+
+        // ── SUPPORT ──────────────────────────────────────
+        // v20.0.8 — Bug report tile at the bottom of every profile.
+        _sectionHeader('profile_section_support'.tr),
+        _buildSettingsTile(
+          'bug_report_title'.tr,
+          'bug_report_subtitle'.tr,
+          Icons.bug_report_rounded,
+          const Color(0xFFF59E0B),
+          () => Get.to(() => const BugReportScreen()),
         ),
 
         // ── ZONE DANGER ───────────────────────────────────

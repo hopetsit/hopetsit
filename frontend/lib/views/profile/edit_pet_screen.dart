@@ -218,7 +218,13 @@ class EditPetScreen extends StatelessWidget {
                       ),
                     ),
 
-                    SizedBox(height: 32.h),
+                    SizedBox(height: 24.h),
+                    _ModernSectionHeader(
+                      icon: Icons.pets_rounded,
+                      title: 'edit_pet_section_basics'.tr,
+                      color: AppColors.primaryColor,
+                    ),
+                    SizedBox(height: 14.h),
 
                     CustomTextField(
                       labelText: 'edit_pet_name_label'.tr,
@@ -300,7 +306,13 @@ class EditPetScreen extends StatelessWidget {
                       ],
                     ),
 
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 28.h),
+                    _ModernSectionHeader(
+                      icon: Icons.palette_rounded,
+                      title: 'edit_pet_section_appearance'.tr,
+                      color: const Color(0xFF6A5AE0),
+                    ),
+                    SizedBox(height: 14.h),
 
                     CustomTextField(
                       labelText: 'edit_pet_bio_label'.tr,
@@ -319,7 +331,13 @@ class EditPetScreen extends StatelessWidget {
                       textInputAction: TextInputAction.next,
                     ),
 
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 28.h),
+                    _ModernSectionHeader(
+                      icon: Icons.badge_rounded,
+                      title: 'edit_pet_section_identity'.tr,
+                      color: const Color(0xFF1A73E8),
+                    ),
+                    SizedBox(height: 14.h),
 
                     CustomTextField(
                       labelText: 'edit_pet_passport_label'.tr,
@@ -337,7 +355,13 @@ class EditPetScreen extends StatelessWidget {
                       textInputAction: TextInputAction.next,
                     ),
 
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 28.h),
+                    _ModernSectionHeader(
+                      icon: Icons.medication_rounded,
+                      title: 'edit_pet_section_health'.tr,
+                      color: const Color(0xFF16A34A),
+                    ),
+                    SizedBox(height: 14.h),
 
                     CustomTextField(
                       labelText: 'edit_pet_medication_label'.tr,
@@ -563,30 +587,63 @@ class EditPetScreen extends StatelessWidget {
             tf(controller.emergencyVetAddressController, 'common_address'.tr),
           ],
         ),
-        ExpansionTile(
-          title: Text('edit_pet_emergency_auth'.tr),
-          children: [
-            Obx(
-              () => CheckboxListTile(
-                value: controller.emergencyAuthAccepted.value,
-                onChanged: (v) =>
-                    controller.emergencyAuthAccepted.value = v ?? false,
-                title: Text('edit_pet_emergency_auth_checkbox'.tr),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-            ),
-            Obx(() => controller.emergencyAuthAccepted.value
-                ? Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      EditPetController.emergencyLegalText,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  )
-                : const SizedBox.shrink()),
-          ],
+        Obx(
+          () => CheckboxListTile(
+            value: controller.emergencyAuthAccepted.value,
+            onChanged: (v) =>
+                controller.emergencyAuthAccepted.value = v ?? false,
+            title: Text('edit_pet_emergency_auth_checkbox'.tr),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
         ),
       ],
+    );
+  }
+}
+
+/// v20.0.7 — Section header with icon + title, used to group form fields
+/// visually (appearance / identity / health / etc.). Replaces plain
+/// ExpansionTiles that made the form feel like a boring checklist.
+class _ModernSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color color;
+  const _ModernSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

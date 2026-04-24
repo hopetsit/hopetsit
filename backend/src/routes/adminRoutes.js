@@ -2216,4 +2216,131 @@ router.get('/loyalty', requireAdmin, async (req, res) => {
   }
 });
 
+// ── v20.0.8 — BUG REPORTS ─────────────────────────────────────────────────────
+const BugReport = require('../models/BugReport');
+
+router.get('/bug-reports', requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = status ? { status } : {};
+    const [reports, openCount, totalCount] = await Promise.all([
+      BugReport.find(filter).sort({ createdAt: -1 }).limit(300).lean(),
+      BugReport.countDocuments({ status: 'open' }),
+      BugReport.countDocuments({}),
+    ]);
+    res.json({ reports, openCount, totalCount });
+  } catch (e) {
+    logger.error('[admin/bug-reports]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/bug-reports/:id', requireAdmin, async (req, res) => {
+  try {
+    const { status, adminNote } = req.body || {};
+    const update = {};
+    if (status) update.status = status;
+    if (typeof adminNote === 'string') update.adminNote = adminNote;
+    const doc = await BugReport.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+    });
+    if (!doc) return res.status(404).json({ error: 'Report not found.' });
+    res.json({ report: doc });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/bug-reports/:id', requireAdmin, async (req, res) => {
+  try {
+    await BugReport.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── v20.0.8 — PLATFORM PAYOUTS / REVENUE ─────────────────────────────────────
+router.get('/payouts', requireAdmin, async (req, res) => {
+  try {
+    const Subscription = require('../models/UserSubscription');
+    let Donation = null;
+    try { Donation = require('../models/Donation'); } catch (_) {}
+
+    const now = new Date();
+    const start30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const start7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [agg, last30Agg, last7Agg, monthAgg] = await Promise.all([
+      Booking.aggregate([
+        { $match: { paymentStatus: 'paid' } },
+        { $group: {
+            _id: null,
+            totalGross: { $sum: { $ifNull: ['$totalAmount', 0] } },
+            totalCommission: { $sum: { $ifNull: ['$commissionAmount', 0] } },
+            count: { $sum: 1 },
+        } },
+      ]),
+      Booking.aggregate([
+        { $match: { paymentStatus: 'paid', paidAt: { $gte: start30d } } },
+        { $group: { _id: null, commission: { $sum: { $ifNull: ['$commissionAmount', 0] } }, count: { $sum: 1 } } },
+      ]),
+      Booking.aggregate([
+        { $match: { paymentStatus: 'paid', paidAt: { $gte: start7d } } },
+        { $group: { _id: null, commission: { $sum: { $ifNull: ['$commissionAmount', 0] } }, count: { $sum: 1 } } },
+      ]),
+      Booking.aggregate([
+        { $match: { paymentStatus: 'paid', paidAt: { $gte: startMonth } } },
+        { $group: { _id: null, commission: { $sum: { $ifNull: ['$commissionAmount', 0] } }, count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const subAgg = await Subscription.aggregate([
+      { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$payments.amount', 0] } }, count: { $sum: 1 } } },
+    ]);
+
+    let donationsTotal = 0; let donationsCount = 0;
+    if (Donation) {
+      try {
+        const dAgg = await Donation.aggregate([
+          { $match: { status: 'succeeded' } },
+          { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } }, count: { $sum: 1 } } },
+        ]);
+        donationsTotal = dAgg[0]?.total || 0;
+        donationsCount = dAgg[0]?.count || 0;
+      } catch (_) {}
+    }
+
+    const a = agg[0] || {};
+    const commissionAllTime = a.totalCommission || 0;
+    const subscriptionAllTime = subAgg[0]?.total || 0;
+    const platformRevenue = commissionAllTime + subscriptionAllTime + donationsTotal;
+
+    res.json({
+      summary: {
+        platformRevenue,
+        commissionAllTime,
+        subscriptionAllTime,
+        donationsTotal,
+        bookingCount: a.count || 0,
+        subscriptionPaymentCount: subAgg[0]?.count || 0,
+        donationsCount,
+      },
+      bookings: {
+        grossAllTime: a.totalGross || 0,
+        commissionAllTime,
+        count: a.count || 0,
+        last7d: { commission: last7Agg[0]?.commission || 0, count: last7Agg[0]?.count || 0 },
+        last30d: { commission: last30Agg[0]?.commission || 0, count: last30Agg[0]?.count || 0 },
+        thisMonth: { commission: monthAgg[0]?.commission || 0, count: monthAgg[0]?.count || 0 },
+      },
+    });
+  } catch (e) {
+    logger.error('[admin/payouts]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

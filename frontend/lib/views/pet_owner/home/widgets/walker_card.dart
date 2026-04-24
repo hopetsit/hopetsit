@@ -69,16 +69,31 @@ class WalkerCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 26.r,
-                  backgroundColor: AppColors.grey300Color,
-                  backgroundImage: avatarUrl.isNotEmpty
-                      ? CachedNetworkImageProvider(avatarUrl)
-                      : null,
-                  child: avatarUrl.isEmpty
-                      ? Icon(Icons.directions_walk_rounded,
-                          size: 24.sp, color: Colors.white)
-                      : null,
+                // v20.0.9 — Role-accent ring (walker = green) + soft halo.
+                Container(
+                  padding: EdgeInsets.all(2.w),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: AppColors.walkerAccent, width: 2.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.walkerAccent.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 26.r,
+                    backgroundColor: AppColors.grey300Color,
+                    backgroundImage: avatarUrl.isNotEmpty
+                        ? CachedNetworkImageProvider(avatarUrl)
+                        : null,
+                    child: avatarUrl.isEmpty
+                        ? Icon(Icons.directions_walk_rounded,
+                            size: 24.sp, color: Colors.white)
+                        : null,
+                  ),
                 ),
                 SizedBox(width: 12.w),
                 Expanded(

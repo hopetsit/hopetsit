@@ -45,6 +45,8 @@ const mapBoostRoutes = require('./routes/mapBoostRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const chatAddonRoutes = require('./routes/chatAddonRoutes');
 const friendRoutes = require('./routes/friendRoutes');
+// v20.0.8 — in-app "Signaler un bug" from 3 profiles, emails hopetsit@gmail.com.
+const bugReportRoutes = require('./routes/bugReportRoutes');
 const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
@@ -194,6 +196,7 @@ const versionedRoutes = [
   // (before the JSON parser) so signatures can be verified on raw body.
   { path: '/identity-verification', mw: [sensitiveLimiter], router: identityVerificationRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
+  { path: '/bug-reports', mw: [sensitiveLimiter], router: bugReportRoutes },
   // v19.0 — Wallet Vinted-style (sitter+walker balance + withdrawals).
   { path: '/wallet', mw: [], router: require('./routes/walletRoutes') },
 ];

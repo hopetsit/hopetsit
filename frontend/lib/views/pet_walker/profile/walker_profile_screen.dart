@@ -26,6 +26,8 @@ import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/widgets/top_walker_card.dart';
+import 'package:hopetsit/views/profile/bug_report_screen.dart';
 
 /// Walker profile screen — full redesign (session avril 2026).
 ///
@@ -590,6 +592,13 @@ class WalkerProfileScreen extends StatelessWidget {
           Icons.person_outline_rounded,
           () => Get.to(() => const EditWalkerProfileScreen()),
         ),
+        // v20.0.7 — Paiement management (ajouter CB) remonté en section
+        // COMPTE pour être immédiatement accessible, comme chez owner/sitter.
+        _settingsTile(
+          'profile_payment_management'.tr,
+          Icons.credit_card_rounded,
+          () => Get.to(() => const PaymentManagementScreen()),
+        ),
         // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak 30/60 min
         // rates without scrolling through the full edit profile form.
         _settingsTile(
@@ -608,6 +617,12 @@ class WalkerProfileScreen extends StatelessWidget {
           () => Get.to(() => const WalkerIdentityVerificationScreen()),
         ),
 
+        // v20.0.7 — Top Walker loyalty card (Avantages walker) — mirrors
+        // TopSitterCard used in sitter profile so the walker sees his
+        // progress vers 20 balades + 4.5★ → 15% commission.
+        _sectionHeader('profile_section_my_services'.tr),
+        const TopWalkerCard(),
+
         _sectionHeader('profile_section_payments'.tr),
         // v19.0 — Mon portefeuille en tête des paiements : c'est le solde
         // des gains du walker, d'où il peut retirer vers IBAN/PayPal ou
@@ -622,11 +637,7 @@ class WalkerProfileScreen extends StatelessWidget {
           Icons.storefront_rounded,
           () => Get.to(() => const CoinShopScreen()),
         ),
-        _settingsTile(
-          'profile_payment_management'.tr,
-          Icons.account_balance_wallet_rounded,
-          () => Get.to(() => const PaymentManagementScreen()),
-        ),
+        // v20.0.7 — Payment Management remonté en section COMPTE en haut.
         _settingsTile(
           'profile_referrals'.tr,
           Icons.group_add_rounded,
@@ -668,6 +679,14 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_privacy'.tr,
           Icons.privacy_tip_outlined,
           () => Get.to(() => const PrivacyPolicyScreen()),
+        ),
+
+        // v20.0.8 — Bug report tile.
+        _sectionHeader('profile_section_support'.tr),
+        _settingsTile(
+          'bug_report_title'.tr,
+          Icons.bug_report_rounded,
+          () => Get.to(() => const BugReportScreen()),
         ),
 
         _sectionHeader('profile_section_danger'.tr),

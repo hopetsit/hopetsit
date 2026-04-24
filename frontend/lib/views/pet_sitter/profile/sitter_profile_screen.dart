@@ -22,6 +22,7 @@ import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
+import 'package:hopetsit/views/profile/bug_report_screen.dart';
 
 class SitterProfileScreen extends StatelessWidget {
   const SitterProfileScreen({super.key});
@@ -401,6 +402,15 @@ class SitterProfileScreen extends StatelessWidget {
           _sitterAccent,
           controller.navigateToEditProfile,
         ),
+        // v20.0.7 — Mes paiements remonté en haut (comme owner) pour que
+        // le sitter puisse ajouter sa CB dès le début sans la chercher.
+        _buildSettingsTile(
+          'payment_management_title'.tr,
+          'payment_management_subtitle'.tr,
+          Icons.credit_card_rounded,
+          _sitterAccent,
+          () => Get.to(() => const PaymentManagementScreen()),
+        ),
         // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak daily/weekly/
         // monthly rates without reopening the full edit profile form.
         _buildSettingsTile(
@@ -452,14 +462,9 @@ class SitterProfileScreen extends StatelessWidget {
         ),
 
         // ── PAIEMENTS & SERVICES ──────────────────────────
+        // v20.0.7 — Mes paiements déplacé en section COMPTE en haut.
+        // Ici on garde seulement Parrainage.
         _sectionHeader('profile_section_payments'.tr),
-        _buildSettingsTile(
-          'payment_management_title'.tr,
-          'payment_management_subtitle'.tr,
-          Icons.account_balance_wallet_rounded,
-          AppColors.primaryColor,
-          () => Get.to(() => const PaymentManagementScreen()),
-        ),
         _buildSettingsTile(
           'referrals_title'.tr,
           'referrals_subtitle'.tr,
@@ -510,6 +515,17 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.privacy_tip_outlined,
           AppColors.textSecondary(context),
           () => Get.to(() => const PrivacyPolicyScreen()),
+        ),
+
+        // ── SUPPORT ──────────────────────────────────────
+        // v20.0.8 — Bug report tile.
+        _sectionHeader('profile_section_support'.tr),
+        _buildSettingsTile(
+          'bug_report_title'.tr,
+          'bug_report_subtitle'.tr,
+          Icons.bug_report_rounded,
+          const Color(0xFFF59E0B),
+          () => Get.to(() => const BugReportScreen()),
         ),
 
         // ── ZONE DANGER ───────────────────────────────────

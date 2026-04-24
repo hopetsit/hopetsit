@@ -230,6 +230,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> <span data-i18n="nav_chat">Chat Moderation</span></div>
       <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💰</span> <span data-i18n="nav_wallets">Wallets</span></div>
       <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages</span></div>
+      <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> <span data-i18n="nav_payouts">Mes revenus</span></div>
+      <div class="nav-item" onclick="showPage('bugs')"><span class="nav-icon">🐛</span> <span data-i18n="nav_bugs">Bug reports</span></div>
       <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> <span data-i18n="nav_shop">Shop Activity</span></div>
       <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> <span data-i18n="nav_pricing">Pricing</span></div>
       <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> <span data-i18n="nav_services">Services</span></div>
@@ -592,6 +594,38 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </p>
         <div class="stats-grid" id="loyalty-summary"></div>
         <div style="margin-top:20px" id="loyalty-tables"></div>
+      </div>
+
+      <!-- PAYOUTS / REVENUE (v20.0.8) -->
+      <div id="page-payouts" class="page">
+        <div class="section-title">💰 Mes revenus / Payouts plateforme</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+          Récapitulatif de tous les revenus HoPetSit : commissions booking (20% ou 15% pour Top Sitter/Walker), abonnements Premium, donations. Chiffres en temps réel depuis la DB.
+        </p>
+        <div class="stats-grid" id="payouts-summary"></div>
+        <div style="margin-top:20px" id="payouts-details"></div>
+      </div>
+
+      <!-- BUG REPORTS (v20.0.8) -->
+      <div id="page-bugs" class="page">
+        <div class="section-title">🐛 Bug Reports</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+          Tous les bugs signalés par les utilisateurs depuis leur profil. Un email part automatiquement à hopetsit@gmail.com à chaque signalement.
+        </p>
+        <div class="stats-grid" id="bugs-summary"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <div class="table-toolbar">
+            <select class="filter-select" id="bug-status-filter" onchange="loadBugReports()">
+              <option value="">Tous statuts</option>
+              <option value="open">🔴 Open</option>
+              <option value="in_progress">🟡 In progress</option>
+              <option value="fixed">✅ Fixed</option>
+              <option value="wontfix">⚪ Won't fix</option>
+              <option value="duplicate">📋 Duplicate</option>
+            </select>
+          </div>
+          <div id="bugs-table-body"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
       </div>
 
       <!-- BOOSTS -->
@@ -1063,6 +1097,8 @@ function showPage(name) {
   if (name === 'chat') loadChatConversations();
   if (name === 'wallets') loadAdminWallets();
   if (name === 'loyalty') loadAdminLoyalty();
+  if (name === 'payouts') loadAdminPayouts();
+  if (name === 'bugs') loadBugReports();
   if (name === 'boosts') loadBoosts();
   if (name === 'pricing') loadPricing();
   if (name === 'services') loadServices();
@@ -2849,6 +2885,35 @@ async function adminDeleteMessage(msgId) {
   }
 }
 
+// v20.0.8 - Admin Loyalty tab
+async function loadAdminLoyalty() {
+  const sum = document.getElementById('loyalty-summary');
+  const tbl = document.getElementById('loyalty-tables');
+  if (!sum || !tbl) return;
+  sum.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  tbl.innerHTML = '';
+  try {
+    const d = await api('/admin/loyalty');
+    const s = d.summary || {};
+    sum.innerHTML =
+      '<div class="stat-card"><div class="stat-label">Owners Premium</div><div class="stat-value">' + (s.ownersPremiumCount||0) + ' / ' + (s.ownerTotal||0) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Top Sitters</div><div class="stat-value">' + (s.sittersTopCount||0) + ' / ' + (s.sitterTotal||0) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Top Walkers</div><div class="stat-value">' + (s.walkersTopCount||0) + ' / ' + (s.walkerTotal||0) + '</div></div>';
+    const owners = (d.ownersPremium||[]).map(o => '<tr><td><strong>'+(o.name||'-')+'</strong></td><td>'+(o.email||'-')+'</td><td>'+fmtDate(o.createdAt)+'</td></tr>').join('');
+    const sitters = (d.sittersTop||[]).map(x => '<tr><td><strong>'+(x.name||'-')+'</strong></td><td>'+(x.email||'-')+'</td><td>'+(x.completed||0)+'</td><td>'+(x.rating||0).toFixed(2)+' *</td></tr>').join('');
+    const walkers = (d.walkersTop||[]).map(w => '<tr><td><strong>'+(w.name||'-')+'</strong></td><td>'+(w.email||'-')+'</td><td>'+(w.completed||0)+'</td><td>'+(w.rating||0).toFixed(2)+' *</td></tr>').join('');
+    tbl.innerHTML =
+      '<h3 style="font-size:16px;margin:20px 0 10px">Owners Premium</h3>' +
+      '<table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Inscrit</th></tr></thead><tbody>' + (owners || '<tr><td colspan="3" style="color:var(--text-muted)">Aucun</td></tr>') + '</tbody></table>' +
+      '<h3 style="font-size:16px;margin:20px 0 10px">Top Sitters (15% commission)</h3>' +
+      '<table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Prestations</th><th>Note</th></tr></thead><tbody>' + (sitters || '<tr><td colspan="4" style="color:var(--text-muted)">Aucun</td></tr>') + '</tbody></table>' +
+      '<h3 style="font-size:16px;margin:20px 0 10px">Top Walkers (15% commission)</h3>' +
+      '<table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Balades</th><th>Note</th></tr></thead><tbody>' + (walkers || '<tr><td colspan="4" style="color:var(--text-muted)">Aucun</td></tr>') + '</tbody></table>';
+  } catch (e) {
+    tbl.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
+  }
+}
+
 // v19.1.3 - Admin Wallet panel
 async function loadAdminWallets() {
   const sum = document.getElementById('wallets-summary');
@@ -2859,215 +2924,98 @@ async function loadAdminWallets() {
     const s = data.summary || {};
     if (sum) {
       sum.innerHTML =
-        '<div class="stat-card"><div class="stat-label">Total balance</div><div class="stat-value">' +
-        (s.totalBalance || 0).toFixed(2) + ' EUR</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Providers with balance</div><div class="stat-value">' +
-        (s.providerCount || 0) + '</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Stripe-connected</div><div class="stat-value">' +
-        (s.stripeConnectedCount || 0) + '</div></div>';
+        '<div class="stat-card"><div class="stat-label">Total balance</div><div class="stat-value">' + (s.totalBalance||0).toFixed(2) + ' EUR</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Providers with balance</div><div class="stat-value">' + (s.providerCount||0) + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Stripe-connected</div><div class="stat-value">' + (s.stripeConnectedCount||0) + '</div></div>';
     }
-    const rows = (data.wallets || []).map(w => {
+    const rows = (data.wallets||[]).map(w => {
       const role = w.role === 'walker' ? 'Walker' : 'Sitter';
-      const stripeOk = !!w.stripeAccountId;
-      const payoutOk = !!w.stripePayoutsEnabled;
-      return '<tr>' +
-        '<td>' + role + '</td>' +
-        '<td>' + (w.name || '-') + '</td>' +
-        '<td>' + (w.email || '-') + '</td>' +
-        '<td style="text-align:right">' + (w.walletBalance || 0).toFixed(2) + ' ' + (w.walletCurrency || 'EUR') + '</td>' +
-        '<td>' + (stripeOk ? '<span style="color:#16A34A">Connected</span>' : '<span style="color:#EF4444">None</span>') + '</td>' +
-        '<td>' + (payoutOk ? '<span style="color:#16A34A">Auto</span>' : '<span style="color:#F59E0B">Manual</span>') + '</td>' +
-        '</tr>';
+      return '<tr><td>'+role+'</td><td><strong>'+(w.name||'-')+'</strong></td><td>'+(w.email||'-')+'</td><td>'+(w.balance||0).toFixed(2)+' '+(w.currency||'EUR')+'</td><td>'+(w.stripeAccountId ? '<span class="badge badge-green">OK</span>' : '<span class="badge badge-orange">-</span>')+'</td></tr>';
     }).join('');
-    if (tbl) {
-      tbl.innerHTML = rows ?
-        '<table><thead><tr><th>Role</th><th>Name</th><th>Email</th><th>Balance</th><th>Stripe</th><th>Payouts</th></tr></thead><tbody>' + rows + '</tbody></table>' :
-        '<div style="color:var(--text-muted)">Aucun wallet avec solde.</div>';
-    }
+    if (tbl) tbl.innerHTML = '<table class="table"><thead><tr><th>Role</th><th>Nom</th><th>Email</th><th>Solde</th><th>Stripe</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun wallet</td></tr>') + '</tbody></table>';
   } catch (e) {
     if (tbl) tbl.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
   }
 }
 
-
-// v19.1.5 - Toggle Staff flag on any user (owner/sitter/walker) — free Premium.
-async function toggleStaff(role, userId, isStaff) {
-  const label = isStaff ? 'Give this user FREE Premium access?' : 'Revoke free Premium access?';
-  if (!confirm(label)) return;
+// v20.0.8 - Admin Payouts / Revenue
+async function loadAdminPayouts() {
+  const sum = document.getElementById('payouts-summary');
+  const det = document.getElementById('payouts-details');
+  if (!sum || !det) return;
+  sum.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  det.innerHTML = '';
   try {
-    await api('/admin/users/' + role + '/' + userId + '/staff', 'POST', { isStaff });
-    showToast(isStaff ? 'User is now Staff (free Premium).' : 'Staff access revoked.', 'success');
-    if (role === 'owner') loadOwners();
-    else if (role === 'sitter') loadSitters();
-    else if (role === 'walker') loadWalkers();
+    const d = await api('/admin/payouts');
+    const s = d.summary || {};
+    const b = d.bookings || {};
+    sum.innerHTML =
+      '<div class="stat-card" style="--accent:#16A34A"><div class="stat-label">Revenu total</div><div class="stat-value">' + (s.platformRevenue||0).toFixed(2) + ' EUR</div><div class="stat-sub">All-time</div></div>' +
+      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">Commissions booking</div><div class="stat-value">' + (s.commissionAllTime||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.bookingCount||0)+' bookings</div></div>' +
+      '<div class="stat-card" style="--accent:#1A73E8"><div class="stat-label">Abos Premium</div><div class="stat-value">' + (s.subscriptionAllTime||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.subscriptionPaymentCount||0)+' paiements</div></div>' +
+      '<div class="stat-card" style="--accent:#F59E0B"><div class="stat-label">Donations</div><div class="stat-value">' + (s.donationsTotal||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.donationsCount||0)+' dons</div></div>';
+    det.innerHTML =
+      '<h3 style="font-size:16px;margin:20px 0 10px">Commissions booking par periode</h3>' +
+      '<table class="table"><thead><tr><th>Periode</th><th>Commissions</th><th>Bookings</th></tr></thead><tbody>' +
+      '<tr><td><strong>7 derniers jours</strong></td><td>'+(b.last7d?.commission||0).toFixed(2)+' EUR</td><td>'+(b.last7d?.count||0)+'</td></tr>' +
+      '<tr><td><strong>30 derniers jours</strong></td><td>'+(b.last30d?.commission||0).toFixed(2)+' EUR</td><td>'+(b.last30d?.count||0)+'</td></tr>' +
+      '<tr><td><strong>Ce mois</strong></td><td>'+(b.thisMonth?.commission||0).toFixed(2)+' EUR</td><td>'+(b.thisMonth?.count||0)+'</td></tr>' +
+      '<tr><td><strong>Depuis le debut</strong></td><td>'+(b.commissionAllTime||0).toFixed(2)+' EUR</td><td>'+(b.count||0)+'</td></tr>' +
+      '</tbody></table>' +
+      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Chiffre d\'affaires brut (bookings payes): <strong style="color:var(--text-primary)">' + (b.grossAllTime||0).toFixed(2) + ' EUR</strong></p>';
   } catch (e) {
-    showToast('Error: ' + e.message, 'error');
+    det.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
   }
 }
 
-
-// v20 — Admin Loyalty tab: Owners Premium + Top Sitters + Top Walkers
-async function loadAdminLoyalty() {
-  const summary = document.getElementById('loyalty-summary');
-  const tables = document.getElementById('loyalty-tables');
-  if (!summary || !tables) return;
-  summary.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Loading…</div>';
-  tables.innerHTML = '';
+// v20.0.8 - Bug reports
+async function loadBugReports() {
+  const sum = document.getElementById('bugs-summary');
+  const tbl = document.getElementById('bugs-table-body');
+  if (!sum || !tbl) return;
+  tbl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const status = document.getElementById('bug-status-filter')?.value || '';
   try {
-    const data = await api('/admin/loyalty');
-    const s = data.summary || {};
-    summary.innerHTML = `
-      <div class="stat-card"><div class="stat-label">Owners Premium</div><div class="stat-value">${s.ownersPremium||0}<span style="font-size:14px;color:var(--text-muted);margin-left:6px">/ ${s.ownerTotal||0}</span></div></div>
-      <div class="stat-card"><div class="stat-label">Top Sitters ⭐</div><div class="stat-value">${s.sittersTop||0}<span style="font-size:14px;color:var(--text-muted);margin-left:6px">/ ${s.sitterTotal||0}</span></div></div>
-      <div class="stat-card"><div class="stat-label">Top Walkers ⭐</div><div class="stat-value">${s.walkersTop||0}<span style="font-size:14px;color:var(--text-muted);margin-left:6px">/ ${s.walkerTotal||0}</span></div></div>
-    `;
-    const rowsOwners = (data.ownersPremium || []).map(o =>
-      `<tr><td>${o.name||'—'}</td><td>${o.email||'—'}</td><td>${fmtDate(o.createdAt)}</td></tr>`
-    ).join('') || '<tr><td colspan="3" style="color:var(--text-muted)">Aucun Owner Premium.</td></tr>';
-    const rowsSitters = (data.sittersTop || []).map(s =>
-      `<tr><td>${s.name||'—'}</td><td>${s.email||'—'}</td><td>${s.completedServicesCount||0}</td><td>${(s.averageRating||0).toFixed(2)} ★</td></tr>`
-    ).join('') || '<tr><td colspan="4" style="color:var(--text-muted)">Aucun Top Sitter.</td></tr>';
-    const rowsWalkers = (data.walkersTop || []).map(w =>
-      `<tr><td>${w.name||'—'}</td><td>${w.email||'—'}</td><td>${w.completedWalksCount||0}</td><td>${(w.averageRating||0).toFixed(2)} ★</td></tr>`
-    ).join('') || '<tr><td colspan="4" style="color:var(--text-muted)">Aucun Top Walker.</td></tr>';
-    tables.innerHTML = `
-      <div style="margin-bottom:24px">
-        <h3 style="font-size:16px;margin-bottom:10px">👑 Owners Premium (10+ réservations)</h3>
-        <table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Inscrit</th></tr></thead><tbody>${rowsOwners}</tbody></table>
-      </div>
-      <div style="margin-bottom:24px">
-        <h3 style="font-size:16px;margin-bottom:10px">⭐ Top Sitters (20+ prestations + 4.5★) — commission 15%</h3>
-        <table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Prestations</th><th>Note</th></tr></thead><tbody>${rowsSitters}</tbody></table>
-      </div>
-      <div>
-        <h3 style="font-size:16px;margin-bottom:10px">⭐ Top Walkers (20+ balades + 4.5★) — commission 15%</h3>
-        <table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Balades</th><th>Note</th></tr></thead><tbody>${rowsWalkers}</tbody></table>
-      </div>
-    `;
+    const qs = status ? ('?status=' + encodeURIComponent(status)) : '';
+    const d = await api('/admin/bug-reports' + qs);
+    sum.innerHTML =
+      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">Open</div><div class="stat-value">' + (d.openCount||0) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">' + (d.totalCount||0) + '</div></div>';
+    const rows = (d.reports||[]).map(r => {
+      const statusColor = r.status === 'open' ? '#EF4324' : r.status === 'in_progress' ? '#F59E0B' : r.status === 'fixed' ? '#16A34A' : '#6B7280';
+      return '<tr>' +
+        '<td style="font-size:11px;color:var(--text-muted)">'+fmtDate(r.createdAt)+'</td>' +
+        '<td><span style="background:'+statusColor+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+r.status+'</span></td>' +
+        '<td><strong>'+(r.userName||'-')+'</strong><br><span style="font-size:11px;color:var(--text-muted)">'+r.userRole+' '+(r.userEmail||'-')+'</span></td>' +
+        '<td><strong>'+(r.title||'(sans titre)')+'</strong><br><span style="font-size:12px;white-space:pre-wrap">'+(r.description||'').replace(/</g,'&lt;').substring(0,300)+'</span></td>' +
+        '<td style="font-size:11px;color:var(--text-muted)">'+(r.platform||'-')+' '+(r.appVersion||'')+'</td>' +
+        '<td style="display:flex;gap:4px;flex-wrap:wrap">' +
+          '<button class="action-btn" onclick="updateBugStatus(\''+r._id+'\',\'in_progress\')">In progress</button>' +
+          '<button class="action-btn btn-verify" onclick="updateBugStatus(\''+r._id+'\',\'fixed\')">Fixed</button>' +
+          '<button class="action-btn btn-delete" onclick="deleteBugReport(\''+r._id+'\')">Delete</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+    tbl.innerHTML = '<table class="table"><thead><tr><th>Date</th><th>Statut</th><th>Utilisateur</th><th>Sujet / Description</th><th>Version</th><th>Actions</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" style="color:var(--text-muted)">Aucun bug signale. :)</td></tr>') + '</tbody></table>';
   } catch (e) {
-    tables.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
+    tbl.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
   }
 }
-
-
-// v19.2 — Simple admin dashboard i18n (FR default / EN / ES).
-const ADMIN_I18N = {
-  fr: {
-    loyalty_desc: 'Owners Premium (10+ réservations) · Top Sitters (20+ prestations + 4.5★) · Top Walkers (20+ balades + 4.5★). Commission réduite à 15% pour Top Sitter/Walker.',
-    loyalty_title: 'Avantages fidélité',
-    nav_loyalty: 'Avantages',
-    logout: 'Déconnexion',
-    login_sub: 'Dashboard admin · Accès réservé',
-    backend_url: 'URL du backend',
-    admin_email: 'Email admin',
-    admin_password: 'Mot de passe admin',
-    access_dashboard: 'Accéder au dashboard →',
-    nav_dashboard: 'Tableau de bord',
-    nav_bookings: 'Réservations',
-    nav_sitters: 'Pet-sitters',
-    nav_owners: 'Propriétaires',
-    nav_walkers: 'Promeneurs',
-    nav_payments: 'Paiements',
-    nav_iban: 'Virements IBAN',
-    nav_identity: "Vérif d'identité",
-    nav_reviews: 'Modération avis',
-    nav_moderation: 'Modération users',
-    nav_terms: 'CGU',
-    nav_privacy: 'Politique de confidentialité',
-    nav_reports: 'Signalements',
-    nav_chat: 'Modération chat',
-    nav_wallets: 'Portefeuilles',
-    nav_shop: 'Activité shop',
-    nav_pricing: 'Tarifs',
-    nav_services: 'Services',
-    nav_pawmap: 'PawMap',
-    nav_annonces: 'Annonces',
-  },
-  en: {
-    loyalty_desc: 'Owners Premium (10+ bookings) · Top Sitters (20+ services + 4.5★) · Top Walkers (20+ walks + 4.5★). Reduced 15% commission for Top Sitter/Walker.',
-    loyalty_title: 'Loyalty benefits',
-    nav_loyalty: 'Loyalty',
-    logout: 'Logout',
-    login_sub: 'Admin Dashboard · Restricted Access',
-    backend_url: 'Backend URL',
-    admin_email: 'Admin Email',
-    admin_password: 'Admin Password',
-    access_dashboard: 'Access Dashboard →',
-    nav_dashboard: 'Dashboard',
-    nav_bookings: 'Bookings',
-    nav_sitters: 'Sitters',
-    nav_owners: 'Owners',
-    nav_walkers: 'Walkers',
-    nav_payments: 'Payments',
-    nav_iban: 'IBAN Payouts',
-    nav_identity: 'Identity verifications',
-    nav_reviews: 'Review moderation',
-    nav_moderation: 'User moderation',
-    nav_terms: 'Terms & Conditions',
-    nav_privacy: 'Privacy Policy',
-    nav_reports: 'Reports',
-    nav_chat: 'Chat Moderation',
-    nav_wallets: 'Wallets',
-    nav_shop: 'Shop Activity',
-    nav_pricing: 'Pricing',
-    nav_services: 'Services',
-    nav_pawmap: 'PawMap',
-    nav_annonces: 'Annonces',
-  },
-  es: {
-    loyalty_desc: 'Owners Premium (10+ reservas) · Top Cuidadores · Top Paseadores. Comisión reducida al 15%.',
-    loyalty_title: 'Ventajas de fidelidad',
-    nav_loyalty: 'Ventajas',
-    logout: 'Cerrar sesión',
-    login_sub: 'Panel admin · Acceso restringido',
-    backend_url: 'URL backend',
-    admin_email: 'Email admin',
-    admin_password: 'Contraseña admin',
-    access_dashboard: 'Acceder al panel →',
-    nav_dashboard: 'Panel',
-    nav_bookings: 'Reservas',
-    nav_sitters: 'Cuidadores',
-    nav_owners: 'Propietarios',
-    nav_walkers: 'Paseadores',
-    nav_payments: 'Pagos',
-    nav_iban: 'Pagos IBAN',
-    nav_identity: 'Verif. identidad',
-    nav_reviews: 'Moderación reseñas',
-    nav_moderation: 'Moderación usuarios',
-    nav_terms: 'Términos',
-    nav_privacy: 'Privacidad',
-    nav_reports: 'Denuncias',
-    nav_chat: 'Moderación chat',
-    nav_wallets: 'Carteras',
-    nav_shop: 'Actividad shop',
-    nav_pricing: 'Precios',
-    nav_services: 'Servicios',
-    nav_pawmap: 'PawMap',
-    nav_annonces: 'Anuncios',
-  },
-};
-
-function setAdminLang(lang) {
-  const dict = ADMIN_I18N[lang] || ADMIN_I18N.fr;
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    if (dict[key]) el.textContent = dict[key];
-  });
-  try { localStorage.setItem('admin_lang', lang); } catch (_) {}
-  const sel = document.getElementById('lang-switcher');
-  if (sel && sel.value !== lang) sel.value = lang;
+async function updateBugStatus(id, status) {
+  try {
+    await api('/admin/bug-reports/' + id, 'PATCH', { status });
+    showToast('Bug mis a jour.', 'success');
+    loadBugReports();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
-
-// Apply saved language at startup (FR default).
-(function initAdminLang() {
-  let saved = 'fr';
-  try { saved = localStorage.getItem('admin_lang') || 'fr'; } catch (_) {}
-  const sel = document.getElementById('lang-switcher');
-  if (sel) sel.value = saved;
-  // Defer until DOM fully parsed.
-  document.addEventListener('DOMContentLoaded', () => setAdminLang(saved));
-})();
-
-</script>
+async function deleteBugReport(id) {
+  if (!confirm('Supprimer ce bug report ?')) return;
+  try {
+    await api('/admin/bug-reports/' + id, 'DELETE');
+    loadBugReports();
+    showToast('Bug supprime.', 'success');
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+  </script>
 </body>
 </html>

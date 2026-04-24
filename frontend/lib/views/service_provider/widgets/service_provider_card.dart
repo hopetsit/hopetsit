@@ -182,44 +182,63 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                 // Profile Picture and Info
                 Row(
                   children: [
-                    widget.profileImagePath != null &&
-                            (widget.profileImagePath!.startsWith('http://') ||
-                                widget.profileImagePath!.startsWith('https://'))
-                        ? ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: widget.profileImagePath!,
-                              width: 100.w,
-                              height: 100.h,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
+                    // v20.0.9 — Role-accent ring around the home-card avatar
+                    // (bleu sitter / vert walker / orange owner). Uses the
+                    // existing _roleAccent getter which derives role from
+                    // booking.serviceType.
+                    Container(
+                      padding: EdgeInsets.all(3.w),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _roleAccent, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _roleAccent.withValues(alpha: 0.28),
+                            blurRadius: 12,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: widget.profileImagePath != null &&
+                              (widget.profileImagePath!.startsWith('http://') ||
+                                  widget.profileImagePath!.startsWith('https://'))
+                          ? ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: widget.profileImagePath!,
                                 width: 100.w,
                                 height: 100.h,
-                                color: AppColors.lightGrey,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.primaryColor,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  width: 100.w,
+                                  height: 100.h,
+                                  color: AppColors.lightGrey,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                        _roleAccent,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  CircleAvatar(
-                                    radius: 50.r,
-                                    backgroundImage: AssetImage(
-                                      AppImages.placeholderImage,
+                                errorWidget: (context, url, error) =>
+                                    CircleAvatar(
+                                      radius: 50.r,
+                                      backgroundImage: AssetImage(
+                                        AppImages.placeholderImage,
+                                      ),
                                     ),
-                                  ),
+                              ),
+                            )
+                          : CircleAvatar(
+                              radius: 50.r,
+                              backgroundImage: AssetImage(
+                                widget.profileImagePath ??
+                                    AppImages.placeholderImage,
+                              ),
                             ),
-                          )
-                        : CircleAvatar(
-                            radius: 50.r,
-                            backgroundImage: AssetImage(
-                              widget.profileImagePath ??
-                                  AppImages.placeholderImage,
-                            ),
-                          ),
+                    ),
                     SizedBox(width: 12.w),
                     Expanded(
                       child: Padding(
