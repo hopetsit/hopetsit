@@ -182,9 +182,12 @@ function runSeed({ country, categories, limit }) {
   if (!bbox) {
     throw new Error(`Unknown country: ${country}`);
   }
+  // v20.0.4 — excluded `trainerByName` (it's a helper tag for `trainer`,
+  // not a real category). Without this filter the auto-iterate seeds POIs
+  // with category='trainerByName' which pollutes the DB and breaks analytics.
   const cats = categories && categories.length > 0
     ? categories
-    : Object.keys(CATEGORY_TAGS);
+    : Object.keys(CATEGORY_TAGS).filter((k) => k !== 'trainerByName');
 
   const jobId = `${upperCountry}-${Date.now()}`;
   const job = {

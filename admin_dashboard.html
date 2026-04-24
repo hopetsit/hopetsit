@@ -2035,7 +2035,7 @@ function renderSitters() {
   });
   if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>No sitters found.</div></div>'; return; }
   document.getElementById('sitters-table-body').innerHTML = `
-    <table><thead><tr><th>Name</th><th>Email</th><th>Hourly Rate</th><th>Services</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Name</th><th>Email</th><th>Hourly Rate</th><th>Services</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(s => {
       const boosted = s.boostExpiry && new Date(s.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(s.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
@@ -2048,6 +2048,7 @@ function renderSitters() {
         <td>${s.verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${s.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${s.payoutMethod||'stripe'}</span></td>
+        <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
           <button class="action-btn" style="background:${s.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Delete</button>
@@ -2145,7 +2146,7 @@ function renderWalkers() {
     return;
   }
   document.getElementById('walkers-table-body').innerHTML = `
-    <table><thead><tr><th>Name</th><th>Email</th><th>Rate</th><th>Coverage</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Name</th><th>Email</th><th>Rate</th><th>Coverage</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(w => {
       const boosted = w.boostExpiry && new Date(w.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(w.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
@@ -2164,6 +2165,7 @@ function renderWalkers() {
         <td>${w.verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${w.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${w.payoutMethod||'stripe'}</span></td>
+        <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
           <button class="action-btn" style="background:${w.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}','${w.name}')">Delete</button>
