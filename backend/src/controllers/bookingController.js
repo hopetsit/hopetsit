@@ -2247,6 +2247,36 @@ const confirmBookingPayment = async (req, res) => {
             bookingId: booking._id.toString(),
           });
         }
+
+        // v20.0.16 — FIX : le webhook envoie PAYMENT_SUCCESS (push+email) aux
+        // 2 parties mais ce fallback ne l'avait pas. Résultat : quand le
+        // webhook Stripe n'arrivait pas (réseau, test mode), ni l'owner ni
+        // le provider ne recevaient la notif/email de paiement réussi.
+        const { sendNotification: _sendNotif } = require(
+          '../services/notificationSender',
+        );
+        const paymentData = {
+          bookingId: booking._id.toString(),
+          amount: (booking.pricing?.totalPrice || 0).toFixed(2),
+          currency: (booking.pricing?.currency || 'EUR').toUpperCase(),
+        };
+        Promise.allSettled([
+          _sendNotif({
+            userId:
+              booking.ownerId?.toString?.() || String(booking.ownerId),
+            role: 'owner',
+            type: 'PAYMENT_SUCCESS',
+            data: paymentData,
+          }),
+          providerId
+            ? _sendNotif({
+                userId: providerId,
+                role: providerRole,
+                type: 'PAYMENT_SUCCESS',
+                data: paymentData,
+              })
+            : Promise.resolve(),
+        ]).catch(() => {});
       } catch (fallbackErr) {
         logger.error(
           '[confirmBookingPayment] client-confirm fallback failed (non-blocking)',

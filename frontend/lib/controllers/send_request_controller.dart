@@ -330,8 +330,15 @@ class SendRequestController extends GetxController {
 
   /// Returns true if duration field should be shown (for dog_walking)
   bool get shouldShowDuration => selectedServiceType.value == 'dog_walking';
+  // v20.0.16 — afficher les options "Chez toi / Chez le sitter / Les deux"
+  // pour les 3 services de garde : day_care (Garderie), pet_sitting
+  // (Garde multi-jours) et house_sitting (legacy). Avant seul house_sitting
+  // affichait les options → l'owner ne savait pas indiquer le lieu pour
+  // Garderie ou Multi-jours.
   bool get shouldShowHouseSittingVenue =>
-      selectedServiceType.value == 'house_sitting';
+      selectedServiceType.value == 'house_sitting' ||
+      selectedServiceType.value == 'pet_sitting' ||
+      selectedServiceType.value == 'day_care';
 
   /// Formats selected date to display format (e.g., "Thu, Apr 25, 2024")
   String get formattedDate {

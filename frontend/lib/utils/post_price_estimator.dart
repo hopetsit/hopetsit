@@ -186,6 +186,13 @@ PostPriceEstimate? estimatePostPrice({
   }
   // Short bookings (< 7 days) — always hourly, matches backend.
   if (effectiveHourly > 0) {
+    // v20.0.16 — sanity check : si le tarif horaire dérivé est absurde
+    // (< 1€/h) c'est que le sitter n'a pas configuré ses tarifs proprement.
+    // On retourne null pour afficher "À confirmer" plutôt qu'un chiffre
+    // bidon (ex. "1,08€ pour 5h" comme vu dans le bug report day_care).
+    if (effectiveHourly < 1.0) {
+      return null;
+    }
     final hoursRaw = math.max(totalMinutes / 60.0, 1.0);
     final hours = (hoursRaw * 100).round() / 100;
     final brut = effectiveHourly * hours;

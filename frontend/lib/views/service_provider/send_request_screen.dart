@@ -1152,6 +1152,42 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         } else if (notSetNotice != null) {
           breakdown = notSetNotice;
         }
+      } else if (service == 'day_care' || service == 'garderie') {
+        // v20.0.16 — Garderie (même jour) : calcul sur les heures de la
+        // journée. Besoin de startTime + endTime sur le même jour.
+        final st = controller.startTime.value;
+        final et = controller.endTime.value;
+        if (sDate != null && st != null && et != null) {
+          final startMin = st.hour * 60 + st.minute;
+          final endMin = et.hour * 60 + et.minute;
+          final mins = endMin - startMin;
+          if (mins > 0) {
+            final hours = mins / 60.0;
+            // Préférence : dailyRate / 8h, sinon hourlyRate, sinon weekly/56h
+            double? hourlyDerived;
+            if (widget.sitterDailyRate != null &&
+                widget.sitterDailyRate! > 0) {
+              hourlyDerived = widget.sitterDailyRate! / 8;
+            } else if (widget.sitterHourlyRate != null &&
+                widget.sitterHourlyRate! > 0) {
+              hourlyDerived = widget.sitterHourlyRate;
+            } else if (widget.sitterWeeklyRate != null &&
+                widget.sitterWeeklyRate! > 0) {
+              hourlyDerived = widget.sitterWeeklyRate! / 56; // 7j × 8h
+            } else if (widget.sitterMonthlyRate != null &&
+                widget.sitterMonthlyRate! > 0) {
+              hourlyDerived = widget.sitterMonthlyRate! / 240; // 30j × 8h
+            }
+            if (hourlyDerived != null && hourlyDerived > 0) {
+              providerGross = hourlyDerived * hours;
+              final commission = providerGross * commissionRate;
+              final ownerTotal = providerGross + commission;
+              totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
+              breakdown =
+                  '${hours.toStringAsFixed(1)} h × ${hourlyDerived.toStringAsFixed(2)} $currency/h + ${commission.toStringAsFixed(2)} $currency commission (20%)';
+            }
+          }
+        }
       } else if (service != null && service.isNotEmpty) {
         if (sDate != null && eDate != null) {
           final raw = eDate.difference(sDate).inDays;
