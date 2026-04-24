@@ -1785,7 +1785,6 @@ const Map<String, String> enUSTranslations = <String, String>{
     'profile_payment_management': 'Payment management',
     'profile_referrals': 'Referrals',
     'profile_password': 'Password',
-    'profile_blocked_users': 'Blocked users',
     'profile_terms': 'Terms of service',
     'profile_privacy': 'Privacy',
     'switch_role_dialog_title': 'Switch role',
@@ -1874,11 +1873,4 @@ const Map<String, String> enUSTranslations = <String, String>{
     'sign_up_as_pet_walker': 'Sign up as Dog Walker',
     'auth_role_pet_walker': 'Dog Walker',
     'walker_home_title': 'Walker Home',
-    'walker_home_welcome_title': 'Welcome, Walker!',
-    'walker_home_welcome_body': 'Set up your walk rates and coverage area to start receiving walk requests.',
-    'walker_home_coming_soon': 'Dedicated walker features are coming very soon.',
-    'walker_profile_title': 'My Profile',
-    'walker_profile_welcome': 'Walker Profile',
-    'walker_profile_subtitle': 'Manage your profile, rates and availability',
-    'walker_profile_coming_soon': 'Profile editing coming soon.',
-};
+    'walker_home_welcome_title'

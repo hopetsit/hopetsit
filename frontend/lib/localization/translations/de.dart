@@ -1685,7 +1685,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'profile_payment_management': 'Zahlungsverwaltung',
     'profile_referrals': 'Empfehlungen',
     'profile_password': 'Passwort',
-    'profile_blocked_users': 'Blockierte Nutzer',
     'profile_terms': 'AGB',
     'profile_privacy': 'Datenschutz',
     'switch_role_dialog_title': 'Rolle wechseln',
@@ -1774,11 +1773,4 @@ const Map<String, String> deDETranslations = <String, String>{
     'sign_up_as_pet_walker': 'Als Hundeausführer registrieren',
     'auth_role_pet_walker': 'Hundeausführer',
     'walker_home_title': 'Startseite Hundeausführer',
-    'walker_home_welcome_title': 'Willkommen, Hundeausführer!',
-    'walker_home_welcome_body': 'Richte deine Tarife und Einsatzgebiete ein, um Anfragen zu erhalten.',
-    'walker_home_coming_soon': 'Dedizierte Hundeausführer-Funktionen kommen sehr bald.',
-    'walker_profile_title': 'Mein Profil',
-    'walker_profile_welcome': 'Hundeausführer-Profil',
-    'walker_profile_subtitle': 'Verwalte dein Profil, Tarife und Verfügbarkeit',
-    'walker_profile_coming_soon': 'Profilbearbeitung kommt bald.',
-};
+    
