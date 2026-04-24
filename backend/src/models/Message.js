@@ -50,6 +50,14 @@ const messageSchema = new mongoose.Schema(
       enum: ['text', 'attachment', 'phone_share'],
       default: 'text',
     },
+    // v19.1.3 — soft-delete so history stays available for admin moderation
+    // even after the sender removes the message on their phone.
+    deletedAt: { type: Date, default: null },
+    deletedBy: {
+      type: String,
+      enum: ['sender', 'admin', null],
+      default: null,
+    },
   },
   { timestamps: true }
 );

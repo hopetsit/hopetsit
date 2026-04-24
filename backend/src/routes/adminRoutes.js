@@ -1999,4 +1999,129 @@ router.post(
   },
 );
 
+// ============================================================================
+// v19.1.3 - Chat moderation panel
+// ============================================================================
+const Message = require('../models/Message');
+const Conversation = require('../models/Conversation');
+
+// GET /admin/conversations — list recent conversations with metadata
+router.get('/conversations', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    const rows = await Conversation.find({})
+      .sort({ lastMessageAt: -1, updatedAt: -1 })
+      .limit(limit)
+      .lean();
+    res.json({
+      conversations: rows.map((c) => ({
+        id: c._id.toString(),
+        ownerId: c.ownerId ? c.ownerId.toString() : null,
+        sitterId: c.sitterId ? c.sitterId.toString() : null,
+        walkerId: c.walkerId ? c.walkerId.toString() : null,
+        lastMessage: c.lastMessage || '',
+        lastMessageAt: c.lastMessageAt || c.updatedAt,
+        ownerUnreadCount: c.ownerUnreadCount || 0,
+        sitterUnreadCount: c.sitterUnreadCount || 0,
+        walkerUnreadCount: c.walkerUnreadCount || 0,
+      })),
+    });
+  } catch (e) {
+    logger.error('[admin/conversations]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /admin/conversations/:id/messages — full message history for moderation
+// (includes soft-deleted messages so admins can audit content that was hidden
+// from end users).
+router.get('/conversations/:id/messages', requireAdmin, async (req, res) => {
+  try {
+    const messages = await Message.find({ conversationId: req.params.id })
+      .sort({ createdAt: 1 })
+      .lean();
+    res.json({
+      messages: messages.map((m) => ({
+        id: m._id.toString(),
+        conversationId: m.conversationId.toString(),
+        senderRole: m.senderRole,
+        senderId: m.senderId ? m.senderId.toString() : null,
+        body: m.body || '',
+        attachments: m.attachments || [],
+        type: m.type || 'text',
+        createdAt: m.createdAt,
+        deletedAt: m.deletedAt || null,
+        deletedBy: m.deletedBy || null,
+      })),
+    });
+  } catch (e) {
+    logger.error('[admin/conversation/messages]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// v19.1.3 — Admin Wallet overview. Lists provider wallet balances joined
+// with Stripe Connect account status so admin can audit who has money
+// waiting vs. who has auto-managed payouts enabled.
+router.get('/wallets', requireAdmin, async (req, res) => {
+  try {
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    const [sitters, walkers] = await Promise.all([
+      Sitter.find({ walletBalance: { $gt: 0 } })
+        .select('name email walletBalance walletCurrency stripeAccountId stripePayoutsEnabled')
+        .limit(200)
+        .lean(),
+      Walker.find({ walletBalance: { $gt: 0 } })
+        .select('name email walletBalance walletCurrency stripeAccountId stripePayoutsEnabled')
+        .limit(200)
+        .lean(),
+    ]);
+    const rows = [
+      ...sitters.map((s) => ({ role: 'sitter', ...s, id: s._id.toString() })),
+      ...walkers.map((w) => ({ role: 'walker', ...w, id: w._id.toString() })),
+    ].sort((a, b) => (b.walletBalance || 0) - (a.walletBalance || 0));
+
+    const totalBalance = rows.reduce((sum, r) => sum + (r.walletBalance || 0), 0);
+    const connectedCount = rows.filter((r) => !!r.stripeAccountId).length;
+
+    res.json({
+      wallets: rows,
+      summary: {
+        totalBalance: Math.round(totalBalance * 100) / 100,
+        providerCount: rows.length,
+        stripeConnectedCount: connectedCount,
+      },
+    });
+  } catch (e) {
+    logger.error('[admin/wallets]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /admin/messages/:id — admin soft-deletes a message regardless of
+// sender. Fans out message:deleted to the conversation room.
+router.delete('/messages/:id', requireAdmin, async (req, res) => {
+  try {
+    const msg = await Message.findById(req.params.id);
+    if (!msg) return res.status(404).json({ error: 'Message not found.' });
+    if (!msg.deletedAt) {
+      msg.deletedAt = new Date();
+      msg.deletedBy = 'admin';
+      await msg.save();
+    }
+    try {
+      const { emitToConversation } = require('../sockets/emitter');
+      emitToConversation(msg.conversationId.toString(), 'message:deleted', {
+        conversationId: msg.conversationId.toString(),
+        messageId: msg._id.toString(),
+      });
+    } catch (_) {}
+    res.json({ deleted: true, messageId: msg._id.toString() });
+  } catch (e) {
+    logger.error('[admin/messages/delete]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

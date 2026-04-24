@@ -7,7 +7,7 @@ const {
   sanitizeMessage,
 } = require('../utils/sanitize');
 const { HttpError } = require('../utils/errors');
-const { maskPhonesInText } = require('../utils/phoneMask');
+const { maskPhonesInText, maskEmailsInText } = require('../utils/phoneMask');
 const { decrypt } = require('../utils/encryption');
 const { createNotificationSafe } = require('./notificationService');
 const { sendNotification } = require('./notificationSender');
@@ -226,7 +226,14 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   // when the booking is not paid. Today the check above already rejects
   // unpaid chat, but masking here enforces the rule at the service layer so
   // future changes in the gating policy can't leak phone numbers.
-  const effectiveBody = hasPaidBooking ? trimmedBody : maskPhonesInText(trimmedBody);
+  //
+  // v19.1.3 — emails are ALWAYS masked in chat (paid or not) to prevent
+  // off-platform contact bypass. Phone numbers still follow the pre-payment
+  // gate (allowed once the booking is paid).
+  const withPhoneMask = hasPaidBooking
+    ? trimmedBody
+    : maskPhonesInText(trimmedBody);
+  const effectiveBody = maskEmailsInText(withPhoneMask);
 
   const message = await Message.create({
     conversationId: conversation._id,

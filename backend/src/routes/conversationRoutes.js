@@ -469,5 +469,69 @@ router.post(
   }
 );
 
+// v19.1.3 — Soft-delete a message. Only the original sender can delete their
+// own message. Admins have their own admin-only endpoint (see adminRoutes).
+// Socket fans out `message:deleted` so the other party sees the placeholder
+// appear in realtime.
+const { emitToConversation } = require('../sockets/emitter');
+router.delete(
+  '/:id/messages/:messageId',
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { id, messageId } = req.params;
+      const conversation = await Conversation.findById(id);
+      if (!conversation) {
+        return res.status(404).json({ error: 'Conversation not found.' });
+      }
+
+      const idToString = (v) =>
+        v ? (v._id ? v._id.toString() : v.toString()) : null;
+      const userId = req.user.id;
+      const isParticipant =
+        idToString(conversation.ownerId) === userId ||
+        idToString(conversation.sitterId) === userId ||
+        idToString(conversation.walkerId) === userId;
+      if (!isParticipant) {
+        return res.status(403).json({ error: 'Not a conversation participant.' });
+      }
+
+      const message = await Message.findById(messageId);
+      if (!message || message.conversationId.toString() !== conversation._id.toString()) {
+        return res.status(404).json({ error: 'Message not found.' });
+      }
+
+      // Only the sender can delete their own message.
+      if (message.senderId.toString() !== userId) {
+        return res.status(403).json({ error: 'Only the sender can delete this message.' });
+      }
+      if (message.deletedAt) {
+        return res.status(200).json({ deleted: true, messageId });
+      }
+
+      message.deletedAt = new Date();
+      message.deletedBy = 'sender';
+      await message.save();
+
+      try {
+        emitToConversation(id, 'message:deleted', {
+          conversationId: id,
+          messageId,
+        });
+      } catch (socketErr) {
+        logger.warn('emit message:deleted failed', socketErr?.message || socketErr);
+      }
+
+      return res.status(200).json({ deleted: true, messageId });
+    } catch (error) {
+      logger.error('delete message error', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({ error: 'Invalid id.' });
+      }
+      return res.status(500).json({ error: 'Unable to delete message.' });
+    }
+  }
+);
+
 module.exports = router;
 

@@ -491,6 +491,16 @@ const sanitizeMessage = (messageDoc) => {
   if (typeof message.body !== 'string') {
     message.body = '';
   }
+  // v19.1.3 — soft-deleted messages: hide body + attachments, keep metadata
+  // so the chat still renders a "[message supprimé]" placeholder in order
+  // (admin can still see the full body from the moderation panel).
+  if (message.deletedAt) {
+    message.body = '';
+    message.attachments = [];
+    message.isDeleted = true;
+  } else {
+    message.isDeleted = false;
+  }
   return message;
 };
 

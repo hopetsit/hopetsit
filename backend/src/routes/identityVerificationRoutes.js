@@ -110,11 +110,29 @@ router.post('/webhook', async (req, res) => {
     const Model = role === 'sitter' ? Sitter : role === 'walker' ? Walker : null;
     if (!Model) return res.json({ received: true, ignored: true });
 
-    // Map Stripe session statuses to our own.
+    // v19.1.3 — harden auto-approval: even when Stripe reports "verified"
+    // we require the full verified_outputs (first_name + last_name + dob)
+    // to be present. A monkey selfie in test mode doesn't return these
+    // fields, so we drop to "pending_review" instead of granting verified.
     let newStatus = null;
     let rejectionReason = '';
     if (type === 'identity.verification_session.verified') {
-      newStatus = 'verified';
+      const vo = session.verified_outputs || {};
+      const hasNames = !!(vo.first_name && vo.last_name);
+      const hasDob = !!(vo.dob && (vo.dob.year || vo.dob.month));
+      if (hasNames && hasDob) {
+        newStatus = 'verified';
+      } else {
+        // Stripe thinks it's good but our stricter policy requires a fully
+        // populated verified_outputs. Route to admin manual review.
+        newStatus = 'pending_review';
+        rejectionReason = 'Missing full verified_outputs; admin review required.';
+        logger.warn('[identity-webhook] verified event without full outputs', {
+          userId,
+          hasNames,
+          hasDob,
+        });
+      }
     } else if (type === 'identity.verification_session.requires_input') {
       newStatus = 'rejected';
       rejectionReason = session.last_error?.reason || 'Verification failed.';
@@ -130,12 +148,13 @@ router.post('/webhook', async (req, res) => {
           'identityVerification.reviewedAt': new Date(),
           'identityVerification.rejectionReason': rejectionReason,
           // Convenience top-level flag used by many existing queries.
+          // Only flip to true when verified AND verified_outputs passed
+          // our stricter policy (see hardening block above).
           verified: newStatus === 'verified',
         },
       });
       logger.info(`[identity-webhook] ${role} ${userId} → ${newStatus}`);
     }
-
     res.json({ received: true });
   } catch (e) {
     logger.error('[identity-webhook] handler error', e);

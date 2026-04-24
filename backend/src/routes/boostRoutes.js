@@ -219,4 +219,88 @@ router.post('/confirm', requireAuth, async (req, res) => {
   }
 });
 
+// v19.1.3 — BUY BOOST WITH WALLET BALANCE (sitter/walker only).
+// Debits the wallet atomically and applies the boost in one call, so the
+// provider's earnings can fund their own visibility upgrade without touching
+// Stripe. Fails with 402 INSUFFICIENT_BALANCE if the wallet is short.
+const { debitWallet } = require('../services/walletService');
+router.post('/purchase/wallet', requireAuth, async (req, res) => {
+  try {
+    const { tier } = req.body;
+    const currency = normalizeCurrency(req.body.currency);
+    const pricing = getBoostPricing(tier, currency);
+    if (!pricing) {
+      return res.status(400).json({ error: 'Invalid tier.' });
+    }
+    const userId = req.user.id;
+    const role = req.user.role;
+    if (role !== 'sitter' && role !== 'walker') {
+      return res.status(403).json({
+        error: 'Wallet payment is only available for sitters and walkers.',
+      });
+    }
+
+    // Debit first so we never activate a boost we couldn't charge for.
+    try {
+      await debitWallet({
+        userId,
+        userRole: role,
+        amount: pricing.amount,
+        currency: pricing.currency,
+        type: 'debit_shop',
+        productType: `boost_${tier}`,
+        meta: { tier, days: pricing.days, source: 'boost/purchase/wallet' },
+      });
+    } catch (err) {
+      if (err.code === 'INSUFFICIENT_BALANCE') {
+        return res
+          .status(402)
+          .json({ error: 'Insufficient wallet balance.', code: 'INSUFFICIENT_BALANCE' });
+      }
+      throw err;
+    }
+
+    const Model = role === 'walker' ? require('../models/Walker') : Sitter;
+    const user = await Model.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const now = new Date();
+    const currentExpiry = user.boostExpiry && new Date(user.boostExpiry) > now
+      ? new Date(user.boostExpiry)
+      : now;
+    const newExpiry = new Date(currentExpiry.getTime() + pricing.days * 86400000);
+    user.boostExpiry = newExpiry;
+    user.boostTier = tier;
+    if (!user.boostPurchases) user.boostPurchases = [];
+    user.boostPurchases.push({
+      tier,
+      amount: pricing.amount,
+      currency: pricing.currency,
+      days: pricing.days,
+      purchasedAt: now,
+      paymentProvider: 'wallet',
+      paymentId: '',
+    });
+    await user.save();
+
+    logger.info(
+      `[boost/wallet] ${role} ${userId} bought ${tier} via wallet (${pricing.currency} ${pricing.amount}) — expires ${newExpiry.toISOString()}`,
+    );
+
+    res.json({
+      message: 'Boost activated with wallet balance.',
+      paymentMethod: 'wallet',
+      tier,
+      days: pricing.days,
+      amount: pricing.amount,
+      currency: pricing.currency,
+      expiresAt: newExpiry,
+      remainingDays: pricing.days,
+    });
+  } catch (e) {
+    logger.error('[boost/purchase/wallet] Error', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
