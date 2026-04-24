@@ -8,10 +8,45 @@ const { emitToConversation, userRoom, walkRoom } = require('./emitter');
 const WalkSession = require('../models/WalkSession');
 const { evaluateChatAccess } = require('../middleware/chatAccess');
 
-const assertChatPaid = async (conversation) => {
+// v20.0.19 — align with REST chatAccess.js middleware:
+//   1) pass walkerId (walker convos were always blocked before)
+//   2) bypass gate for isStaff === true
+//   3) bypass gate for Premium active OR Chat add-on active
+// Before this fix, walker chats failed at socket join with PAYMENT_REQUIRED
+// even after a paid booking, because evaluateChatAccess was called with
+// sitterId:null/undefined → Booking.findOne returned a stale unrelated doc.
+const assertChatPaid = async (conversation, actorRole, actorId) => {
+  // Staff / Premium / Chat add-on bypass.
+  try {
+    if (actorRole && actorId) {
+      const Owner = require('../models/Owner');
+      const Sitter = require('../models/Sitter');
+      const Walker = require('../models/Walker');
+      const UserSubscription = require('../models/UserSubscription');
+      const Model = actorRole === 'walker' ? Walker : actorRole === 'sitter' ? Sitter : Owner;
+      const me = await Model.findById(actorId).select('isStaff').lean();
+      if (me && me.isStaff === true) return;
+
+      const userModel =
+        actorRole === 'walker' ? 'Walker' : actorRole === 'sitter' ? 'Sitter' : 'Owner';
+      const sub = await UserSubscription.findOne({ userId: actorId, userModel })
+        .select('status currentPeriodEnd chatAddonActive chatAddonExpiresAt')
+        .lean();
+      const now = new Date();
+      const premiumActive =
+        sub && sub.status === 'active' &&
+        sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now;
+      const chatAddonActive =
+        sub && sub.chatAddonActive === true &&
+        sub.chatAddonExpiresAt && new Date(sub.chatAddonExpiresAt) > now;
+      if (premiumActive || chatAddonActive) return;
+    }
+  } catch (_) { /* fall through to paid-booking check */ }
+
   const access = await evaluateChatAccess({
     ownerId: conversation.ownerId,
     sitterId: conversation.sitterId,
+    walkerId: conversation.walkerId,
   });
   if (access.blocked) {
     const err = new HttpError(403, 'Payment required');
@@ -41,7 +76,7 @@ const registerChatHandlers = (io, socket) => {
     try {
       const { conversationId, role, userId } = payload;
       const conversation = await assertAccessAndFetch({ conversationId, role, userId });
-      await assertChatPaid(conversation);
+      await assertChatPaid(conversation, role, userId);
 
       socket.join(conversationId);
       // Also ensure we're in the per-user room for targeted notifications.
@@ -110,7 +145,7 @@ const registerChatHandlers = (io, socket) => {
         role: senderRole,
         userId: senderId,
       });
-      await assertChatPaid(conversation);
+      await assertChatPaid(conversation, senderRole, senderId);
 
       const result = await sendMessage({
         conversationId,

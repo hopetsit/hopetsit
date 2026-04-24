@@ -118,6 +118,11 @@ class ChatController extends GetxController {
       _socketService.onNewMessage((messageData) {
         _handleNewMessage(messageData);
       });
+      // v20.0.19 — listen for soft-delete events so the other party sees the
+      // "message deleted" placeholder appear in real time (no refresh needed).
+      _socketService.onMessageDeleted((payload) {
+        _handleMessageDeleted(payload);
+      });
     } catch (e) {
       AppLogger.logError('Failed to initialize socket', error: e);
       final errorMessageStr = e.toString();
@@ -131,7 +136,38 @@ class ChatController extends GetxController {
     if (currentChatId.value.isNotEmpty) {
       _socketService.leaveConversation(currentChatId.value);
     }
-    _socketService.removeListener('new_message');
+    // v20.0.19 — backend emits `message:new` (colon), not `new_message`.
+    _socketService.removeListener('message:new');
+    _socketService.removeListener('message:deleted');
+  }
+
+  // v20.0.19 — marks a message as deleted when the OTHER party soft-deletes it.
+  // Optimistic delete for our own messages is handled in deleteMessage().
+  void _handleMessageDeleted(Map<String, dynamic> payload) {
+    try {
+      final conversationId = payload['conversationId']?.toString() ?? '';
+      final messageId = payload['messageId']?.toString() ?? '';
+      if (conversationId.isEmpty || messageId.isEmpty) return;
+      if (conversationId != currentChatId.value) return;
+      final idx = currentChatMessages.indexWhere((m) => m.id == messageId);
+      if (idx < 0) return;
+      final original = currentChatMessages[idx];
+      if (original.isDeleted) return;
+      currentChatMessages[idx] = ChatMessage(
+        id: original.id,
+        senderId: original.senderId,
+        senderName: original.senderName,
+        senderImage: original.senderImage,
+        message: '',
+        timestamp: original.timestamp,
+        isFromCurrentUser: original.isFromCurrentUser,
+        attachments: const [],
+        isDeleted: true,
+      );
+      currentChatMessages.refresh();
+    } catch (e) {
+      AppLogger.logError('Error handling message deleted', error: e);
+    }
   }
 
   void _handleNewMessage(Map<String, dynamic> messageData) {

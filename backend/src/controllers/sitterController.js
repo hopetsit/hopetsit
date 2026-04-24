@@ -339,10 +339,16 @@ const updateSitterPricing = async (req, res) => {
       return res.status(403).json({ error: 'Only sitters can update their pricing.' });
     }
 
+    // v20.0.19 — CRITICAL FIX : dailyRate était absent du destructuring donc
+    // le tarif journalier envoyé par le frontend (setMyRates) était ignoré.
+    // C'est exactement ce que l'utilisateur a signalé : "le profil petsitter
+    // n'enregistre pas le tarif journalier". Désormais dailyRate est parsé
+    // et persisté comme les autres tiers.
     const {
       location,
       servicePricing,
       hourlyRate,
+      dailyRate,
       weeklyRate,
       monthlyRate,
     } = req.body || {};
@@ -442,6 +448,15 @@ const updateSitterPricing = async (req, res) => {
         return res.status(400).json({ error: 'hourlyRate must be a non-negative number.' });
       }
       sitter.hourlyRate = value;
+    }
+
+    // v20.0.19 — persist dailyRate (était manquant, cf. destructuring ci-dessus).
+    if (dailyRate !== undefined) {
+      const value = Number(dailyRate);
+      if (!Number.isFinite(value) || value < 0) {
+        return res.status(400).json({ error: 'dailyRate must be a non-negative number.' });
+      }
+      sitter.dailyRate = value;
     }
 
     if (weeklyRate !== undefined) {
@@ -830,6 +845,13 @@ const updateSitterProfile = async (req, res) => {
     }
 
     // Update location: only persist when valid coordinates exist (2dsphere index)
+    // v20.0.19 — BUG FIX : accepter lat/lng (envoyés par le city_location_picker
+    // de Nominatim) en plus du format GeoJSON coordinates:[lng,lat]. Avant ce
+    // fix, le frontend envoyait `{ lat, lng, city }` mais le backend ne lisait
+    // que `location.coordinates` → pour un sitter sans position existante, la
+    // ville et les coords étaient systématiquement effacées (_unsetLocation).
+    // Accepter aussi une ville seule (sans lat/lng) pour permettre à l'user
+    // de taper une ville même s'il n'a pas encore activé la géoloc.
     if (location !== undefined && typeof location === 'object' && location !== null) {
       if (location.locationType !== undefined && !LOCATION_TYPES[location.locationType.toUpperCase()]) {
         return res.status(400).json({
@@ -843,10 +865,26 @@ const updateSitterProfile = async (req, res) => {
       const locationType = location.locationType !== undefined
         ? location.locationType
         : currentLocation.locationType || LOCATION_TYPES.STANDARD;
-      const coords = location.coordinates ?? currentLocation.coordinates;
+
+      // Coords — accept either `coordinates: [lng, lat]` OR flat `lat` / `lng`.
+      let coords = null;
+      if (Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+        coords = location.coordinates;
+      } else if (
+        typeof location.lat === 'number' && typeof location.lng === 'number'
+      ) {
+        coords = [location.lng, location.lat]; // GeoJSON: [longitude, latitude]
+      } else if (
+        Array.isArray(currentLocation.coordinates) &&
+        currentLocation.coordinates.length === 2
+      ) {
+        coords = currentLocation.coordinates;
+      }
+
       const hasValidCoords = Array.isArray(coords) && coords.length === 2 &&
         typeof coords[0] === 'number' && typeof coords[1] === 'number' &&
         coords[0] >= -180 && coords[0] <= 180 && coords[1] >= -90 && coords[1] <= 90;
+
       if (hasValidCoords) {
         updateData.location = {
           type: 'Point',
@@ -854,6 +892,12 @@ const updateSitterProfile = async (req, res) => {
           city,
           locationType,
         };
+      } else if (city) {
+        // Pas de coords mais une ville → on persiste la ville sans géoloc
+        // pour éviter de perdre le champ (user a juste tapé "Paris").
+        // Le 2dsphere reste skippé via _unsetLocation: le city est sauvé
+        // directement dans un update séparé après save().
+        updateData._cityOnly = city;
       } else {
         updateData._unsetLocation = true;
       }
@@ -878,14 +922,23 @@ const updateSitterProfile = async (req, res) => {
 
     const unsetLocation = updateData._unsetLocation;
     delete updateData._unsetLocation;
+    // v20.0.19 — city-only path: sitter a tapé une ville sans activer la
+    // géoloc. On persiste uniquement location.city sans toucher aux coords.
+    const cityOnly = updateData._cityOnly;
+    delete updateData._cityOnly;
 
-    if (Object.keys(updateData).length === 0 && !unsetLocation) {
+    if (Object.keys(updateData).length === 0 && !unsetLocation && !cityOnly) {
       return res.status(400).json({ error: 'No profile fields provided to update.' });
     }
 
     const updateOps = {};
     if (Object.keys(updateData).length > 0) updateOps.$set = updateData;
     if (unsetLocation) updateOps.$unset = { location: '' };
+    if (cityOnly) {
+      updateOps.$set = updateOps.$set || {};
+      updateOps.$set['location.city'] = cityOnly;
+      updateOps.$set['location.type'] = 'Point';
+    }
 
     const updatedSitter = await Sitter.findByIdAndUpdate(
       sitterId,

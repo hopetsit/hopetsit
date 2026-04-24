@@ -214,6 +214,13 @@ const updateMyWalkerProfile = async (req, res) => {
           ...(loc.city ? { city: String(loc.city).trim() } : {}),
           ...(loc.locationType ? { locationType: loc.locationType } : {}),
         };
+      } else if (loc.city) {
+        // v20.0.19 — pas de coords mais une ville : on persiste location.city
+        // en nested update pour ne pas perdre le champ. Avant, location était
+        // intégralement droppé → la ville tapée par l'user disparaissait.
+        delete update.location;
+        update['location.city'] = String(loc.city).trim();
+        update['location.type'] = 'Point';
       } else {
         // No valid coordinates — drop to avoid GeoJSON validation error.
         delete update.location;

@@ -94,12 +94,12 @@ const _unlockChatAndWelcome = async ({ ownerId, providerId, providerRole, bookin
 
   // Real-time socket push.
   try {
-    emitToUser('owner', ownerId, 'message.new', {
+    emitToUser('owner', ownerId, 'message:new', {
       conversationId: convo._id.toString(),
       messageId: sysMessage._id.toString(),
       body: welcomeBody,
     });
-    emitToUser(providerRole, providerId, 'message.new', {
+    emitToUser(providerRole, providerId, 'message:new', {
       conversationId: convo._id.toString(),
       messageId: sysMessage._id.toString(),
       body: welcomeBody,

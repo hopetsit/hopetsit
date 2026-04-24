@@ -420,7 +420,15 @@ class EditSitterProfileController extends GetxController {
         return false;
       }
 
-      // Update profile using the new /sitters/me/profile endpoint
+      // v20.0.19 — Save ONLY identity + location + bio/skills/language.
+      // Tarifs + devise sont gérés exclusivement dans MyRatesScreen pour
+      // supprimer le doublon. On ne passe plus `hourlyRate` ni `currency` :
+      // le backend garde les valeurs courantes et MyRatesScreen les écrit.
+      // AVANT ce fix, un save depuis "Modifier profil" envoyait currency =
+      // selectedCurrency.value (qui était à sa valeur par défaut si jamais
+      // l'utilisateur n'avait pas ouvert le dropdown) et écrasait la devise
+      // choisie dans MyRatesScreen. Idem pour le tarif journalier qui
+      // disparaissait parce que hourlyRate écrasait la tier-pricing logic.
       await _sitterRepository.updateSitterProfileMe(
         name: nameController.text.trim(),
         email: emailController.text.trim(),
@@ -439,34 +447,13 @@ class EditSitterProfileController extends GetxController {
         language: languageController.text.trim().isNotEmpty
             ? languageController.text.trim()
             : null,
-        // Hourly rate is no longer editable from the UI (sitters work on a
-        // min 1-day basis). We send `null` so the backend keeps whatever
-        // value is currently stored without overwriting it.
-        hourlyRate: null,
-        currency: selectedCurrency.value,
+        hourlyRate: null,   // géré dans MyRatesScreen
+        currency: null,     // géré dans MyRatesScreen
       );
 
-      // Primary rates endpoint: PUT /sitters/me/rates.
-      if (hourlyRate != null || dailyRate != null || weeklyRate != null || monthlyRate != null) {
-        final currentHourly = double.tryParse(
-          hourlyRateController.text.replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-        final currentDaily = double.tryParse(
-          dailyRateController.text.replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-        final currentWeekly = double.tryParse(
-          weeklyRateController.text.replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-        final currentMonthly = double.tryParse(
-          monthlyRateController.text.replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-        await _sitterRepository.setMyRates(
-          hourlyRate: hourlyRate ?? currentHourly ?? 0,
-          dailyRate: dailyRate ?? currentDaily ?? 0,
-          weeklyRate: weeklyRate ?? currentWeekly ?? 0,
-          monthlyRate: monthlyRate ?? currentMonthly ?? 0,
-        );
-      }
+      // v20.0.19 — Ne plus appeler setMyRates depuis l'écran Modifier profil.
+      // Les tarifs sont écrits uniquement par MyRatesScreen → pas de race
+      // condition et le dailyRate choisi dans "Mes tarifs" reste persistant.
 
       // Note: Profile image is uploaded immediately when picked,
       // so we don't need to upload it again here

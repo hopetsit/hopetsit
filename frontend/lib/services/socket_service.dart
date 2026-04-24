@@ -5,6 +5,21 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 
 /// Service for managing Socket.IO connections for real-time messaging.
+///
+/// v20.0.19 — CRITICAL FIX: event names realigned with backend protocol
+/// (chatSocket.js). Before this fix, the app emitted `join_conversation`,
+/// `leave_conversation` and listened to `new_message` / `message_sent`
+/// (underscore convention), but the backend uses colon-based names
+/// (`conversation:join`, `conversation:leave`, `message:new`,
+/// `message:deleted`, `conversation:read`). As a result:
+///   - joining a conversation room silently failed
+///   - no real-time messages ever arrived (no badge bump, no chat list
+///     refresh, no unread count update)
+///   - delete-message UI never updated on the other party's side
+///   - read receipts never propagated
+///
+/// Additionally the `conversation:join` payload must be a MAP
+/// `{ conversationId, role, userId }`, not the raw id string.
 class SocketService {
   SocketService({GetStorage? storage}) : _storage = storage ?? GetStorage();
 
@@ -94,25 +109,65 @@ class SocketService {
   }
 
   /// Joins a conversation room.
+  ///
+  /// v20.0.19 — backend handler at chatSocket.js line 40 expects
+  /// event `conversation:join` with payload `{ conversationId, role, userId }`.
+  /// The previous implementation emitted `join_conversation` with the raw
+  /// id string, which the backend silently ignored — so the socket never
+  /// joined the conversation room and no `message:new` events were ever
+  /// delivered to this socket.
   void joinConversation(String conversationId) {
     if (_socket != null && _isConnected) {
-      _socket!.emit('join_conversation', conversationId);
+      final profile = _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final role = _storage.read<String>(StorageKeys.userRole);
+      final userId = profile?['id']?.toString();
+      _socket!.emit('conversation:join', {
+        'conversationId': conversationId,
+        if (role != null) 'role': role,
+        if (userId != null) 'userId': userId,
+      });
       AppLogger.logInfo('Joined conversation: $conversationId');
     }
   }
 
   /// Leaves a conversation room.
+  ///
+  /// v20.0.19 — backend handler at chatSocket.js line 89 expects
+  /// event `conversation:leave` with payload `{ conversationId }`.
   void leaveConversation(String conversationId) {
     if (_socket != null && _isConnected) {
-      _socket!.emit('leave_conversation', conversationId);
+      _socket!.emit('conversation:leave', {'conversationId': conversationId});
       AppLogger.logInfo('Left conversation: $conversationId');
     }
   }
 
+  /// Marks a conversation as read so the other party's unread count drops
+  /// to 0 in real time (no app refresh required).
+  ///
+  /// v20.0.19 — backend handler at chatSocket.js line 139 expects
+  /// event `conversation:read` with payload `{ conversationId, role, userId }`.
+  void markConversationRead(String conversationId) {
+    if (_socket != null && _isConnected) {
+      final profile = _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final role = _storage.read<String>(StorageKeys.userRole);
+      final userId = profile?['id']?.toString();
+      _socket!.emit('conversation:read', {
+        'conversationId': conversationId,
+        if (role != null) 'role': role,
+        if (userId != null) 'userId': userId,
+      });
+    }
+  }
+
   /// Listens for new messages in a conversation.
+  ///
+  /// v20.0.19 — backend emits `message:new` (colon) from 3 places:
+  ///   - chatSocket.js line 122 (socket-driven `message:send`)
+  ///   - conversationController.js (REST POST /messages and booking events)
+  ///   - stripeWebhookController.js (post-payment system message)
   void onNewMessage(Function(Map<String, dynamic>) callback) {
     if (_socket != null) {
-      _socket!.on('new_message', (data) {
+      _socket!.on('message:new', (data) {
         try {
           final messageData = data as Map<String, dynamic>;
           AppLogger.logInfo('Received new message: $messageData');
@@ -125,15 +180,58 @@ class SocketService {
   }
 
   /// Listens for message sent confirmation.
+  ///
+  /// v20.0.19 — backend does NOT emit a dedicated `message:sent` event;
+  /// the sender receives the same `message:new` payload via the
+  /// emitToConversation fan-out. We therefore subscribe to `message:new`
+  /// here too and let the caller de-duplicate by message id.
   void onMessageSent(Function(Map<String, dynamic>) callback) {
     if (_socket != null) {
-      _socket!.on('message_sent', (data) {
+      _socket!.on('message:new', (data) {
         try {
           final messageData = data as Map<String, dynamic>;
           AppLogger.logInfo('Message sent confirmation: $messageData');
           callback(messageData);
         } catch (e) {
           AppLogger.logError('Error handling message sent', error: e);
+        }
+      });
+    }
+  }
+
+  /// Listens for soft-deleted messages.
+  ///
+  /// v20.0.19 — backend emits `message:deleted` from:
+  ///   - DELETE /conversations/:id/messages/:messageId (sender self-delete)
+  ///   - DELETE /admin/messages/:id (admin moderation)
+  /// Payload contains `{ conversationId, messageId, ... }`.
+  void onMessageDeleted(Function(Map<String, dynamic>) callback) {
+    if (_socket != null) {
+      _socket!.on('message:deleted', (data) {
+        try {
+          final payload = data as Map<String, dynamic>;
+          AppLogger.logInfo('Message deleted: $payload');
+          callback(payload);
+        } catch (e) {
+          AppLogger.logError('Error handling message deleted', error: e);
+        }
+      });
+    }
+  }
+
+  /// Listens for read-receipt updates emitted when the other party opens
+  /// the conversation (unreadCount → 0).
+  ///
+  /// v20.0.19 — backend emits `conversation:read` with
+  /// `{ conversationId, conversation, triggeredBy: { role, userId } }`.
+  void onConversationRead(Function(Map<String, dynamic>) callback) {
+    if (_socket != null) {
+      _socket!.on('conversation:read', (data) {
+        try {
+          final payload = data as Map<String, dynamic>;
+          callback(payload);
+        } catch (e) {
+          AppLogger.logError('Error handling conversation read', error: e);
         }
       });
     }
