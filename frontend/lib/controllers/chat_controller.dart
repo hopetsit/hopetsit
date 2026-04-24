@@ -682,12 +682,17 @@ class ChatController extends GetxController {
 
   /// v19.1.3 — Delete one of my own messages. Optimistic: flip local state to
   /// deleted immediately, then call backend; revert on error.
+  /// v20.0.19 — removed the `!isFromCurrentUser` early return. The backend
+  /// already enforces "only sender can delete" with a 403. If the UI marked
+  /// isFromCurrentUser=false by mistake (senderId/userId string mismatch),
+  /// the old code silently blocked the delete → Daniel saw "effacer marche
+  /// pas". Now we always try; backend 403/404/500 surfaces a real error.
   Future<bool> deleteMessage(String messageId) async {
     if (currentChatId.value.isEmpty) return false;
     final idx = currentChatMessages.indexWhere((m) => m.id == messageId);
     if (idx < 0) return false;
     final original = currentChatMessages[idx];
-    if (!original.isFromCurrentUser || original.isDeleted) return false;
+    if (original.isDeleted) return true; // already deleted, idempotent
 
     // Optimistic UI update
     currentChatMessages[idx] = ChatMessage(
@@ -709,12 +714,20 @@ class ChatController extends GetxController {
         messageId: messageId,
       );
       if (!ok) {
-        // Revert on failure
+        // v20.0.19 — Revert optimistic update ET afficher feedback clair.
+        // Avant : revert silencieux → Daniel voyait le message re-apparaître
+        // sans comprendre pourquoi.
         currentChatMessages[idx] = original;
         currentChatMessages.refresh();
+        Get.snackbar(
+          'common_error'.tr,
+          'chat_delete_message_error'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
       return ok;
     } catch (e) {
+      AppLogger.logError('deleteMessage failed', error: e);
       currentChatMessages[idx] = original;
       currentChatMessages.refresh();
       Get.snackbar(

@@ -20,17 +20,28 @@ const logger = require('../utils/logger');
 //   beach  : natural=beach + dog=yes  (plus courant que leisure=beach_resort)
 //   trainer: shop=dog_training OU match de nom multi-langues (FR/EN/DE/IT/ES/PT)
 //            (car il n'y a pas de tag OSM standard pour les éducateurs canins).
+// v20.0.19 — widened filters again : les filtres stricts `["dog"="yes"]`
+// sur beach/hotel/restaurant renvoyaient ~zéro POI parce que ce tag est
+// très rare dans OSM. On relâche :
+//   beach      : toutes les plages naturelles (la plupart acceptent les
+//                chiens ou signalent l'interdiction sur place)
+//   hotel      : tous les hôtels (user peut check pet-friendly lui-même)
+//   restaurant : tous les restaurants (idem)
+//   groomer    : aussi `shop=pet` (certaines toiletteurs sont taggés ainsi)
+//   trainer    : shop=dog_training + club_sport ∈ {dog_training, agility}
+// Avant ce fix, Daniel voyait "Batch done 0 POIs" sur les 29 pays pour
+// toutes les nouvelles catégories.
 const CATEGORY_TAGS = {
   vet: '["amenity"="veterinary"]',
   shop: '["shop"~"pet"]',
   groomer: '["shop"="pet_grooming"]',
   park: '["leisure"="dog_park"]',
-  beach: '["natural"="beach"]["dog"="yes"]',
+  beach: '["natural"="beach"]',
   water: '["amenity"="drinking_water"]',
   trainer: '["shop"="dog_training"]',
   trainerByName: '["name"~"dog trainer|educateur canin|éducateur canin|hundetrainer|addestratore cani|adiestrador canino|treinador canino",i]',
-  hotel: '["tourism"="hotel"]["dog"="yes"]',
-  restaurant: '["amenity"="restaurant"]["dog"="yes"]',
+  hotel: '["tourism"="hotel"]',
+  restaurant: '["amenity"="restaurant"]',
 };
 
 // ─── Country bboxes — [south, west, north, east] ────────────────────────────
@@ -78,12 +89,20 @@ const ALL_EU_COUNTRIES = Object.keys(COUNTRY_BBOX);
 // and the admin can just re-trigger the seed if it was interrupted.
 const jobs = new Map();
 
-function buildOverpassQuery(bbox, tagFilters) {
+function buildOverpassQuery(bbox, tagFilters, { limit } = {}) {
   const bboxStr = bbox.join(',');
   const unions = tagFilters
     .map((tf) => `node${tf}(${bboxStr});way${tf}(${bboxStr});`)
     .join('');
-  return `[out:json][timeout:60];(${unions});out center tags;`;
+  // v20.0.19 — appliquer le limit au niveau Overpass pour éviter les
+  // timeouts sur les grosses requêtes (ex: tous les restaurants de France).
+  // Overpass supporte `out center tags N;` pour capper le nombre de résultats
+  // avant envoi. Sans ce limit, les pays denses tapaient le timeout 60s et
+  // renvoyaient une erreur → seed 0 POI.
+  const outClause = (Number.isFinite(Number(limit)) && Number(limit) > 0)
+    ? `out center tags ${Number(limit)};`
+    : 'out center tags;';
+  return `[out:json][timeout:90];(${unions});${outClause}`;
 }
 
 async function fetchOverpass(query) {
@@ -130,6 +149,22 @@ function elementToPoi(el, category, country) {
   };
 }
 
+// v20.0.19 — per-category safety caps to prevent Overpass timeouts on
+// categories that have millions of entries in OSM (hotels, restaurants,
+// beaches). Previous widened filters removed the `["dog"="yes"]` gate so
+// the result counts explode → timeout → 0 POI inserted.
+const CATEGORY_DEFAULT_LIMITS = {
+  vet: 2000,
+  shop: 2000,
+  groomer: 2000,
+  park: 2000,
+  beach: 500,
+  water: 2000,
+  trainer: 500,
+  hotel: 1500,
+  restaurant: 2000,
+};
+
 async function seedCategory({ category, bbox, country, limit }) {
   const tag = CATEGORY_TAGS[category];
   if (!tag) return { inserted: 0, skipped: 0 };
@@ -139,7 +174,13 @@ async function seedCategory({ category, bbox, country, limit }) {
   if (category === 'trainer' && CATEGORY_TAGS.trainerByName) {
     extraTags.push(CATEGORY_TAGS.trainerByName);
   }
-  const query = buildOverpassQuery(bbox, [tag, ...extraTags]);
+  // v20.0.19 — applique un cap même si le caller n'a pas passé de limit.
+  const effectiveLimit = (Number.isFinite(Number(limit)) && Number(limit) > 0)
+    ? Number(limit)
+    : (CATEGORY_DEFAULT_LIMITS[category] || 2000);
+  const query = buildOverpassQuery(bbox, [tag, ...extraTags], {
+    limit: effectiveLimit,
+  });
   let elements;
   try {
     elements = await fetchOverpass(query);

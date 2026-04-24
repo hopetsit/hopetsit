@@ -47,6 +47,17 @@ class NotificationsController extends GetxController {
     // backend ne lui arrivait jamais → aucun badge.
     _attachSocketListener(); // best-effort, au cas où socket déjà up
     _ensureSocketConnectedAndListen();
+    // v20.0.19 — CRITICAL : s'enregistrer sur le hook onConnected du
+    // SocketService. Avant ce fix, si l'user se loguait APRÈS le boot (ce
+    // qui est toujours le cas en pratique : onInit au boot, login après),
+    // _attachSocketListener était appelé à vide (socket.socket == null)
+    // et le listener n'était JAMAIS attaché. Résultat : aucun badge ne
+    // se bumpait en temps réel — l'user devait tuer/relancer l'app pour
+    // que le onInit re-tourne avec un socket déjà connecté par ailleurs.
+    try {
+      final svc = Get.find<SocketService>();
+      svc.addOnConnectedHook(_attachSocketListener);
+    } catch (_) { /* SocketService pas encore enregistré */ }
     refreshUnreadCount();
   }
 

@@ -27,6 +27,24 @@ class SocketService {
   io.Socket? _socket;
   bool _isConnected = false;
 
+  // v20.0.19 — hooks exécutés à chaque onConnect du socket. Permet au
+  // NotificationsController (et à tout autre consommateur) de (ré)attacher
+  // ses listeners après une connexion tardive (ex: user qui se logue
+  // APRÈS le boot, donc après l'onInit du NotificationsController).
+  final List<void Function()> _onConnectedHooks = [];
+
+  /// Registers a callback that runs every time the socket successfully
+  /// connects (including reconnects). The callback may be called multiple
+  /// times — make your logic idempotent (off → on).
+  void addOnConnectedHook(void Function() cb) {
+    _onConnectedHooks.add(cb);
+    if (_isConnected) {
+      try { cb(); } catch (e) {
+        AppLogger.logError('onConnected hook threw', error: e);
+      }
+    }
+  }
+
   /// Gets the current socket instance.
   io.Socket? get socket => _socket;
 
@@ -76,6 +94,14 @@ class SocketService {
         final userId = profile?['id']?.toString();
         if (role != null && role.isNotEmpty && userId != null && userId.isNotEmpty) {
           _socket!.emit('user:identify', {'role': role, 'userId': userId});
+        }
+        // v20.0.19 — fire all post-connect hooks (NotificationsController,
+        // chat controllers, etc.). Wrapped in try/catch so one buggy hook
+        // can't break the others.
+        for (final cb in _onConnectedHooks) {
+          try { cb(); } catch (e) {
+            AppLogger.logError('onConnected hook threw', error: e);
+          }
         }
       });
 

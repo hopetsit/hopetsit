@@ -2272,27 +2272,32 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     const start7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // v20.0.19 — CRITICAL FIX : le schéma Booking stocke les prix sous
+    // `pricing.totalPrice` / `pricing.commission` / `pricing.netPayout`
+    // (nested). L'aggregation admin sommait `$totalAmount` / `$commissionAmount`
+    // qui N'EXISTENT PAS dans le schéma → "Commissions booking: 0.00 EUR"
+    // en permanence même avec 16 bookings payés. On utilise les bons champs.
     const [agg, last30Agg, last7Agg, monthAgg] = await Promise.all([
       Booking.aggregate([
         { $match: { paymentStatus: 'paid' } },
         { $group: {
             _id: null,
-            totalGross: { $sum: { $ifNull: ['$totalAmount', 0] } },
-            totalCommission: { $sum: { $ifNull: ['$commissionAmount', 0] } },
+            totalGross: { $sum: { $ifNull: ['$pricing.totalPrice', 0] } },
+            totalCommission: { $sum: { $ifNull: ['$pricing.commission', 0] } },
             count: { $sum: 1 },
         } },
       ]),
       Booking.aggregate([
         { $match: { paymentStatus: 'paid', paidAt: { $gte: start30d } } },
-        { $group: { _id: null, commission: { $sum: { $ifNull: ['$commissionAmount', 0] } }, count: { $sum: 1 } } },
+        { $group: { _id: null, commission: { $sum: { $ifNull: ['$pricing.commission', 0] } }, count: { $sum: 1 } } },
       ]),
       Booking.aggregate([
         { $match: { paymentStatus: 'paid', paidAt: { $gte: start7d } } },
-        { $group: { _id: null, commission: { $sum: { $ifNull: ['$commissionAmount', 0] } }, count: { $sum: 1 } } },
+        { $group: { _id: null, commission: { $sum: { $ifNull: ['$pricing.commission', 0] } }, count: { $sum: 1 } } },
       ]),
       Booking.aggregate([
         { $match: { paymentStatus: 'paid', paidAt: { $gte: startMonth } } },
-        { $group: { _id: null, commission: { $sum: { $ifNull: ['$commissionAmount', 0] } }, count: { $sum: 1 } } },
+        { $group: { _id: null, commission: { $sum: { $ifNull: ['$pricing.commission', 0] } }, count: { $sum: 1 } } },
       ]),
     ]);
 

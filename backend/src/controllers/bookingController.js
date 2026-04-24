@@ -415,6 +415,24 @@ const createBooking = async (req, res) => {
       }
     }
 
+    // v20.0.19 — CRITICAL FIX : pour day_care, si le client n'a pas envoyé
+    // endDate (ancien client, ou parce que le UI ne capturait que endTime
+    // sans endDate), on force une plage journée de 8h à partir de startDate.
+    // Sans ce filet de sécurité, tierPricing fallback à 1h et avec
+    // durationMinutes éventuellement à 30, on facturait 2.5€ au lieu de
+    // dailyRate. Le frontend v20.0.19 sync désormais endDate=startDate mais
+    // on garde ce filet pour les anciens clients installés.
+    const rawServiceType = String(serviceType || '').toLowerCase();
+    const isDayCareBooking =
+      rawServiceType === 'day_care' || rawServiceType === 'garderie';
+    let effectiveEndDateForPricing = normalizedEndDate;
+    if (isDayCareBooking && !effectiveEndDateForPricing && normalizedStartDate) {
+      const startMs = new Date(normalizedStartDate).getTime();
+      if (Number.isFinite(startMs)) {
+        effectiveEndDateForPricing = new Date(startMs + 8 * 60 * 60 * 1000);
+      }
+    }
+
     const tierPricing = calculateTierBasePrice({
       hourlyRate: sitter.hourlyRate,
       // v18.9.5 — pass dailyRate pour le tier "daily" (pet_sitting /
@@ -423,9 +441,15 @@ const createBooking = async (req, res) => {
       weeklyRate: sitter.weeklyRate,
       monthlyRate: sitter.monthlyRate,
       startDate: normalizedStartDate,
-      endDate: normalizedEndDate,
+      endDate: effectiveEndDateForPricing,
       serviceDate: normalizedDate,
-      durationMinutes: durationNum || duration,
+      // v20.0.19 — pour day_care on IGNORE explicitement le durationMinutes
+      // (souvent 30 si le UI walker a laissé traîner une sélection). Le tier
+      // daily doit être calculé sur la plage 8h forcée ci-dessus.
+      durationMinutes:
+        canonicalServiceType === SERVICE_TYPES.DAY_CARE
+          ? null
+          : (durationNum || duration),
     });
 
     // Calculate pricing breakdown with commission in booking currency

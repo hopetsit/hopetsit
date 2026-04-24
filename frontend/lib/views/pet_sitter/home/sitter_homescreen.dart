@@ -626,11 +626,17 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         body: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
-              // Refresh both posts and profile data
+              // v20.0.19 — also reload rates so the "Estimation" block on
+              // post cards updates when the sitter just saved new rates in
+              // "Mes tarifs". Avant ce fix, _loadProviderRates ne tournait
+              // qu'au initState : un sitter qui modifiait son tarif et
+              // revenait sur la home voyait toujours l'ancien estimé (ou
+              // pas d'estimé du tout si dailyRate était à 0).
               await Future.wait([
                 postsController.refreshPosts(),
                 profileController.loadMyProfile(),
                 _loadPendingApplications(),
+                _loadProviderRates(),
               ]);
             },
             color: AppColors.primaryColor,

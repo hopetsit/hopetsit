@@ -483,6 +483,20 @@ class SendRequestController extends GetxController {
       selectedTimeSlot.value = _formatTime(startTime.value!);
     }
 
+    // v20.0.19 — CRITICAL FIX : pour day_care (Garderie), le UI demande
+    // uniquement l'heure de fin (même jour). Le picker ne met à jour que
+    // `endTime.value` et laisse `endDate.value = null`. Résultat avant ce
+    // fix : endDateIso était null, le backend fallback à 1h, et avec
+    // dailyRate=40€ (hEffective=5€/h) ça facturait 0.5×5 = 2.5€ au lieu
+    // de la journée complète. On recopie donc startDate→endDate pour que
+    // la plage soit cohérente (ex 10:00 → 18:00 même jour = 8h → tier
+    // daily → 1 × dailyRate).
+    final svc = (selectedServiceType.value ?? '').toLowerCase();
+    final isDayCare = svc == 'day_care' || svc == 'garderie';
+    if (isDayCare && startDate.value != null && endDate.value == null) {
+      endDate.value = startDate.value;
+    }
+
     // Validate date/time range first
     if (!validateDateTimeRange()) {
       CustomSnackbar.showError(

@@ -63,12 +63,18 @@ const _unlockChatAndWelcome = async ({ ownerId, providerId, providerRole, bookin
   }
   let convo = await Conversation.findOne(query);
   if (!convo) {
+    // v20.0.19 — sitterUnreadCount sert de compteur générique "provider
+    // unread" pour sitter ET walker (le schema n'a pas de walkerUnreadCount
+    // séparé — même convention que conversationService.sendMessage qui
+    // incrémente sitterUnreadCount quand le provider est walker). Avant ce
+    // fix, un walker qui recevait le welcome après paiement ne voyait
+    // aucun badge de message non lu.
     convo = await Conversation.create({
       ownerId,
       sitterId: providerRole === 'sitter' ? providerId : null,
       walkerId: providerRole === 'walker' ? providerId : null,
       ownerUnreadCount: 1,
-      sitterUnreadCount: providerRole === 'sitter' ? 1 : 0,
+      sitterUnreadCount: 1, // provider unread = 1 (sitter ou walker)
     });
   }
 
@@ -86,9 +92,10 @@ const _unlockChatAndWelcome = async ({ ownerId, providerId, providerRole, bookin
   });
   convo.lastMessage = welcomeBody;
   convo.lastMessageAt = new Date();
-  if (providerRole === 'sitter') {
-    convo.sitterUnreadCount = (convo.sitterUnreadCount || 0) + 1;
-  }
+  // v20.0.19 — sitterUnreadCount = "provider unread" générique (sitter ou
+  // walker). Pas de branche providerRole — le walker doit aussi voir son
+  // badge +1 quand le welcome arrive.
+  convo.sitterUnreadCount = (convo.sitterUnreadCount || 0) + 1;
   convo.ownerUnreadCount = (convo.ownerUnreadCount || 0) + 1;
   await convo.save();
 
@@ -107,6 +114,12 @@ const _unlockChatAndWelcome = async ({ ownerId, providerId, providerRole, bookin
   } catch (_) {}
 
   // 3) Send BOOKING_PAID_CHAT_UNLOCKED to both (in-app + FCM + email).
+  // v20.0.19 — on envoie AUSSI NEW_MESSAGE à chaque destinataire pour que :
+  //   - le badge chat (NotificationsController.unreadChat) se bump
+  //     (NotificationsController ne bumpe que pour type NEW_MESSAGE)
+  //   - une push FCM "Nouveau message" tombe sur le téléphone
+  // Avant ce fix, le welcome arrivait via socket message:new (chat ouvre)
+  // mais aucun badge ni push ne bumpait → impression que rien ne marche.
   await Promise.allSettled([
     sendNotification({
       userId: ownerId,
@@ -119,6 +132,28 @@ const _unlockChatAndWelcome = async ({ ownerId, providerId, providerRole, bookin
       role: providerRole,
       type: 'BOOKING_PAID_CHAT_UNLOCKED',
       data: { bookingId, conversationId: convo._id.toString() },
+    }),
+    sendNotification({
+      userId: ownerId,
+      role: 'owner',
+      type: 'NEW_MESSAGE',
+      data: {
+        conversationId: convo._id.toString(),
+        messageId: sysMessage._id.toString(),
+        senderName: 'HoPetSit',
+        preview: welcomeBody.slice(0, 120),
+      },
+    }),
+    sendNotification({
+      userId: providerId,
+      role: providerRole,
+      type: 'NEW_MESSAGE',
+      data: {
+        conversationId: convo._id.toString(),
+        messageId: sysMessage._id.toString(),
+        senderName: 'HoPetSit',
+        preview: welcomeBody.slice(0, 120),
+      },
     }),
   ]);
 };

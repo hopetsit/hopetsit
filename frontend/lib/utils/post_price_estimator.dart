@@ -50,10 +50,22 @@ PostPriceEstimate? estimatePostPrice({
   required String currency,
   double commissionRate = 0.20,
 }) {
+  // v20.0.19 — soften the date requirement so the price block appears on
+  // publications that don't carry a full end date. Most owners publish a
+  // "Garderie du 24 avril" with only startDate, and the estimator used to
+  // return null → Daniel voyait aucun montant estimé sur le feed sitter.
+  // Rule:
+  //   - start + end present : use the range as-is
+  //   - start only, end null : assume 1 day service (garderie / petsitting)
+  //     OR 1 hour for walker (handled below via hasExplicitDuration)
+  //   - start null           : no estimate possible, return null
   final start = post.startDate;
-  final end = post.endDate;
-  if (start == null || end == null) return null;
-  if (end.isBefore(start)) return null;
+  DateTime? end = post.endDate;
+  if (start == null) return null;
+  if (end != null && end.isBefore(start)) {
+    end = null; // bad data → fall back to 1-day default
+  }
+  end ??= start.add(const Duration(hours: 24));
 
   final role = userRole.toLowerCase();
   final services = post.serviceTypes.map((s) => s.toLowerCase()).toSet();
