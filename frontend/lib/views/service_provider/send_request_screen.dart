@@ -1163,14 +1163,13 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           final mins = endMin - startMin;
           if (mins > 0) {
             final hours = mins / 60.0;
-            // Préférence : dailyRate / 8h, sinon hourlyRate, sinon weekly/56h
+            // Préférence : dailyRate / 8h, sinon weekly/56h, sinon monthly/240h.
+            // (SendRequestScreen n'expose pas sitterHourlyRate en prop — le
+            // backend dérive l'horaire depuis dailyRate de la même façon.)
             double? hourlyDerived;
             if (widget.sitterDailyRate != null &&
                 widget.sitterDailyRate! > 0) {
               hourlyDerived = widget.sitterDailyRate! / 8;
-            } else if (widget.sitterHourlyRate != null &&
-                widget.sitterHourlyRate! > 0) {
-              hourlyDerived = widget.sitterHourlyRate;
             } else if (widget.sitterWeeklyRate != null &&
                 widget.sitterWeeklyRate! > 0) {
               hourlyDerived = widget.sitterWeeklyRate! / 56; // 7j × 8h
