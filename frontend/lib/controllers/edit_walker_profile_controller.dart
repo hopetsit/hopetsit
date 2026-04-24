@@ -477,14 +477,17 @@ class EditWalkerProfileController extends GetxController {
       final byDuration = <int, WalkRate>{
         for (final r in existing) r.durationMinutes: r,
       };
-      final chosenCurrency =
-          selectedCurrency.value.isNotEmpty ? selectedCurrency.value : 'EUR';
+      // v20.0.10 — reuse whatever currency exists on the existing rates
+      // (or EUR). The walker edit profile screen is where currency picker
+      // lives; My Rates screen is for the 2 amounts only.
+      final existingCurrency =
+          existing.isNotEmpty ? existing.first.currency : 'EUR';
 
       if (thirtyParsed != null && thirtyParsed > 0) {
         byDuration[30] = WalkRate(
           durationMinutes: 30,
           basePrice: thirtyParsed,
-          currency: chosenCurrency,
+          currency: byDuration[30]?.currency ?? existingCurrency,
           enabled: true,
         );
       }
@@ -492,23 +495,13 @@ class EditWalkerProfileController extends GetxController {
         byDuration[60] = WalkRate(
           durationMinutes: 60,
           basePrice: sixtyParsed,
-          currency: chosenCurrency,
+          currency: byDuration[60]?.currency ?? existingCurrency,
           enabled: true,
         );
       }
       final sorted = byDuration.values.toList()
         ..sort((a, b) => a.durationMinutes.compareTo(b.durationMinutes));
       await _walkerRepository.updateMyWalkerRates(sorted);
-
-      // Also update the walker's default currency on the profile so the
-      // app reads it consistently next time.
-      try {
-        await _walkerRepository.updateMyWalkerProfile({
-          'currency': chosenCurrency,
-        });
-      } catch (_) {
-        // non-blocking — rates are already saved.
-      }
 
       await loadProfileData();
       CustomSnackbar.showSuccess(

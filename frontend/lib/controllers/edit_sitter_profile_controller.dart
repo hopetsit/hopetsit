@@ -637,24 +637,15 @@ class EditSitterProfileController extends GetxController {
         return;
       }
 
+      // v20.0.10 — setMyRates covers the 4 rate tiers. Currency is saved
+      // through the full profile edit screen (needs name/email/mobile),
+      // not here — this screen is rates-only.
       await _sitterRepository.setMyRates(
         hourlyRate: hourlyRate,
         dailyRate: dailyRate,
         weeklyRate: weeklyRate,
         monthlyRate: monthlyRate,
       );
-
-      // Persist chosen currency on the sitter profile too.
-      try {
-        final chosenCurrency = selectedCurrency.value.isNotEmpty
-            ? selectedCurrency.value
-            : 'EUR';
-        await _sitterRepository.updateSitterProfileMe(
-          {'currency': chosenCurrency},
-        );
-      } catch (_) {
-        // non-blocking — rates are already saved.
-      }
 
       if (Get.isRegistered<SitterProfileController>()) {
         await Get.find<SitterProfileController>().loadMyProfile();
