@@ -146,6 +146,46 @@ router.post('/purchase', requireAuth, async (req, res) => {
       });
     }
 
+    // v20.0.2 — Staff users (Daniel + employees) get Map Boost for free.
+    // We short-circuit Stripe entirely: activate expiry directly and return
+    // a `staff: true` flag so the frontend skips the payment sheet.
+    const Model = roleToModel(req.user.role);
+    const userDoc = await Model.findById(req.user.id);
+    if (!userDoc) return res.status(404).json({ error: 'User not found.' });
+    if (userDoc.isStaff) {
+      const now = new Date();
+      const currentExpiry = userDoc.mapBoostExpiry && new Date(userDoc.mapBoostExpiry) > now
+        ? new Date(userDoc.mapBoostExpiry)
+        : now;
+      const newExpiry = new Date(currentExpiry.getTime() + pricing.days * 86_400_000);
+      userDoc.mapBoostExpiry = newExpiry;
+      userDoc.mapBoostTier = tier;
+      userDoc.boostPurchases = userDoc.boostPurchases || [];
+      userDoc.boostPurchases.push({
+        tier,
+        amount: 0,
+        currency: pricing.currency,
+        days: pricing.days,
+        purchasedAt: now,
+        paymentProvider: 'staff_free',
+        paymentId: '',
+        kind: 'map',
+      });
+      await userDoc.save();
+      logger.info(
+        `[mapBoost/staff] ${req.user.role} ${req.user.id} activated ${tier} FREE (staff) → ${newExpiry.toISOString()}`,
+      );
+      return res.json({
+        staff: true,
+        activated: true,
+        tier,
+        days: pricing.days,
+        currency: pricing.currency,
+        amount: 0,
+        expiresAt: newExpiry,
+      });
+    }
+
     const amountCents = Math.round(pricing.amount * 100);
     const paymentIntent = await createPlatformPaymentIntent({
       amount: amountCents,

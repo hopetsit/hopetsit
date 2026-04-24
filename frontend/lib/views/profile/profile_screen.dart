@@ -307,6 +307,17 @@ class ProfileScreen extends StatelessWidget {
           AppColors.primaryColor,
           controller.navigateToEditProfile,
         ),
+        // v20.0.2 — Mes paiements remonté en haut pour que l'owner puisse
+        // ajouter sa carte facilement s'il ne l'a pas fait à l'inscription.
+        _buildSettingsTile(
+          'owner_payments_title'.tr == 'owner_payments_title'
+              ? 'owner_payments_fallback'.tr
+              : 'owner_payments_title'.tr,
+          'owner_payments_subtitle'.tr,
+          Icons.credit_card_rounded,
+          AppColors.primaryColor,
+          () => Get.to(() => const OwnerPaymentsScreen()),
+        ),
         _buildSettingsTile(
           'profile_choose_service'.tr,
           'profile_choose_service_subtitle'.tr,
@@ -340,20 +351,10 @@ class ProfileScreen extends StatelessWidget {
         ),
 
         // ── PAIEMENTS & SERVICES ──────────────────────────
+        // v20.0.2 — Mes paiements déplacé en section COMPTE en haut.
+        // Ici on garde le LoyaltyCard + Parrainage.
         _sectionHeader('profile_section_payments'.tr),
         const LoyaltyCard(),
-        // Session v18.2 — entry point to the "Mes paiements" screen
-        // (saved cards + history). Route via lazy import so that removing
-        // this line later doesn't leave a dead reference.
-        _buildSettingsTile(
-          'owner_payments_title'.tr == 'owner_payments_title'
-              ? 'owner_payments_fallback'.tr
-              : 'owner_payments_title'.tr,
-          'owner_payments_subtitle'.tr,
-          Icons.credit_card_rounded,
-          AppColors.primaryColor,
-          () => Get.to(() => const OwnerPaymentsScreen()),
-        ),
         _buildSettingsTile(
           'referrals_title'.tr,
           'referrals_subtitle'.tr,

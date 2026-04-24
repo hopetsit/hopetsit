@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -32,6 +33,9 @@ class SignUpController extends GetxController {
   final skillsController = TextEditingController();
   final cityController = TextEditingController();
   final paypalEmailController = TextEditingController();
+  // v20 — Photo de profil uploadée pendant l'inscription. Assignée par
+  // _SignupPhotoPicker. Uploadée en post-signup via users/me/profile-picture.
+  File? profileImageFile;
 
   // Observable state - Sign Up
   final RxBool isLoading = false.obs;

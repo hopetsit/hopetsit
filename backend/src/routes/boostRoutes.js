@@ -128,6 +128,42 @@ router.post('/purchase', requireAuth, async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
 
+    // v20.0.2 — Staff users get Profile Boost FREE (bypass Stripe).
+    const StaffModel = role === 'walker'
+      ? require('../models/Walker')
+      : role === 'sitter' ? Sitter : Owner;
+    const staffUser = await StaffModel.findById(userId);
+    if (staffUser && staffUser.isStaff) {
+      const now = new Date();
+      const currentExpiry = staffUser.boostExpiry && new Date(staffUser.boostExpiry) > now
+        ? new Date(staffUser.boostExpiry)
+        : now;
+      const newExpiry = new Date(currentExpiry.getTime() + pricing.days * 86400000);
+      staffUser.boostExpiry = newExpiry;
+      staffUser.boostTier = tier;
+      staffUser.boostPurchases = staffUser.boostPurchases || [];
+      staffUser.boostPurchases.push({
+        tier,
+        amount: 0,
+        currency: pricing.currency,
+        days: pricing.days,
+        purchasedAt: now,
+        paymentProvider: 'staff_free',
+        paymentId: '',
+      });
+      await staffUser.save();
+      logger.info(`[boost/staff] ${role} ${userId} activated ${tier} FREE → ${newExpiry.toISOString()}`);
+      return res.json({
+        staff: true,
+        activated: true,
+        tier,
+        days: pricing.days,
+        currency: pricing.currency,
+        amount: 0,
+        expiresAt: newExpiry,
+      });
+    }
+
     const amountCents = Math.round(pricing.amount * 100);
     const paymentIntent = await createPlatformPaymentIntent({
       amount: amountCents,

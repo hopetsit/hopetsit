@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/api/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -63,6 +66,10 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
   /// v18.9 — payment method ID sélectionné parmi saved cards. null = nouvelle carte.
   String? _selectedSavedPmId;
 
+  /// v20.0.3 — Enregistrer cette CB pour les prochains paiements (setupFutureUsage
+  /// + attach serveur via /owner/payments/methods/attach).
+  bool _saveCard = true;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +77,20 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
     if (widget.savedPaymentMethods.isNotEmpty) {
       _selectedSavedPmId =
           widget.savedPaymentMethods.first['id']?.toString();
+    }
+  }
+
+  /// v20.0.3 — couleur effective : prop explicite > couleur rôle stockée > primary.
+  /// Permet d'avoir un écran paiement bleu (sitter) ou vert (walker) sans changer
+  /// les 3 callers (boost / map-boost / subscription).
+  Color _effectivePrimary() {
+    if (widget.primaryColor != null) return widget.primaryColor!;
+    try {
+      final storage = GetStorage();
+      final role = storage.read<String>(StorageKeys.userRole);
+      return AppColors.roleAccent(role);
+    } catch (_) {
+      return AppColors.primaryColor;
     }
   }
 
@@ -167,7 +188,7 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
         ),
       );
 
-      await Stripe.instance.confirmPayment(
+      final result = await Stripe.instance.confirmPayment(
         paymentIntentClientSecret: widget.clientSecret,
         data: PaymentMethodParams.card(
           paymentMethodData: PaymentMethodData(
@@ -175,6 +196,26 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
           ),
         ),
       );
+
+      // v20.0.3 — Si "Enregistrer cette carte" est coché, on attache le
+      // PaymentMethod au customer Stripe côté serveur pour qu'il apparaisse
+      // dans Mes paiements (walker / sitter / owner). Non-bloquant.
+      if (_saveCard) {
+        try {
+          final String? pmId = result.paymentMethodId;
+          if (pmId != null && pmId.isNotEmpty) {
+            final api = Get.find<ApiClient>();
+            await api.post(
+              '/owner/payments/methods/attach',
+              body: {'paymentMethodId': pmId},
+              requiresAuth: true,
+            );
+          }
+        } catch (_) {
+          // On ignore l'erreur d'attach : le paiement a réussi, l'utilisateur
+          // pourra retenter depuis Mes paiements.
+        }
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true); // success
@@ -205,7 +246,7 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = widget.primaryColor ?? AppColors.primaryColor;
+    final primary = _effectivePrimary();
     final sym = _currencySymbol(widget.currency);
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -443,6 +484,87 @@ class _ModernCardPaymentScreenState extends State<ModernCardPaymentScreen> {
                 ),
               ),
             ),
+
+            // v20.0.3 — "Enregistrer cette carte" toggle, visible seulement
+            // quand on utilise une nouvelle carte. Couleur rôle (orange owner /
+             // bleu sitter / vert walker) via _effectivePrimary().
+            if (_selectedSavedPmId == null)
+              Padding(
+                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 8.h),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14.r),
+                  onTap: () => setState(() => _saveCard = !_saveCard),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 14.w,
+                      vertical: 12.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _saveCard
+                          ? primary.withValues(alpha: 0.08)
+                          : AppColors.card(context),
+                      borderRadius: BorderRadius.circular(14.r),
+                      border: Border.all(
+                        color: _saveCard ? primary : AppColors.divider(context),
+                        width: _saveCard ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 22.w,
+                          height: 22.w,
+                          decoration: BoxDecoration(
+                            color: _saveCard ? primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6.r),
+                            border: Border.all(
+                              color: _saveCard
+                                  ? primary
+                                  : AppColors.divider(context),
+                              width: 2,
+                            ),
+                          ),
+                          child: _saveCard
+                              ? Icon(
+                                  Icons.check_rounded,
+                                  size: 16.sp,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              PoppinsText(
+                                text: 'save_card_title'.tr,
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary(context),
+                              ),
+                              SizedBox(height: 2.h),
+                              InterText(
+                                text: 'save_card_subtitle'.tr,
+                                fontSize: 11.sp,
+                                color: AppColors.textSecondary(context),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 18.sp,
+                          color: _saveCard ? primary : AppColors.greyColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
             // Pay button pinned to bottom with SafeArea.
             Padding(

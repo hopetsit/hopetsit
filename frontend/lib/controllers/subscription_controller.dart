@@ -185,6 +185,12 @@ class SubscriptionController extends GetxController {
         requiresAuth: true,
       ) as Map<String, dynamic>;
 
+      // v20.0.2 — Staff short-circuit: Premium is free for staff.
+      if (piData['staff'] == true && piData['activated'] == true) {
+        await loadStatus();
+        return true;
+      }
+
       final clientSecret = piData['clientSecret'] as String?;
       final paymentIntentId = piData['paymentIntentId'] as String?;
       if (clientSecret == null || clientSecret.isEmpty) {

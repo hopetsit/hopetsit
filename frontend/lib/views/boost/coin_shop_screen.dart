@@ -230,6 +230,22 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
         requiresAuth: true,
       );
       final map = piData as Map<String, dynamic>;
+
+      // v20.0.2 — Staff short-circuit: server already activated the boost
+      // for free. Skip the Stripe payment sheet entirely.
+      if (map['staff'] == true && map['activated'] == true) {
+        CustomSnackbar.showSuccess(
+          title: 'boost_purchase_success_title'.tr,
+          message: 'boost_purchase_success_msg'.tr,
+        );
+        await _loadBoostStatus();
+        setState(() {
+          _purchasing = false;
+          _selectedTier = null;
+        });
+        return;
+      }
+
       final clientSecret = map['clientSecret'] as String?;
       final paymentIntentId = map['paymentIntentId'] as String?;
 

@@ -226,6 +226,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> <span data-i18n="nav_reports">Reports</span></div>
       <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> <span data-i18n="nav_chat">Chat Moderation</span></div>
       <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💰</span> <span data-i18n="nav_wallets">Wallets</span></div>
+      <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages</span></div>
       <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> <span data-i18n="nav_shop">Shop Activity</span></div>
       <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> <span data-i18n="nav_pricing">Pricing</span></div>
       <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> <span data-i18n="nav_services">Services</span></div>
@@ -561,6 +562,17 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <div id="chat-messages-list" style="display:grid;gap:8px;max-height:70vh;overflow-y:auto"></div>
           </div>
         </div>
+      </div>
+
+      <!-- LOYALTY (v20) -->
+      <div id="page-loyalty" class="page">
+        <div class="section-title">🏆 <span data-i18n="loyalty_title">Avantages fidélité</span></div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px" data-i18n="loyalty_desc">
+          Owners Premium (10+ réservations) · Top Sitters (20+ prestations + note 4.5★) · Top Walkers (20+ balades + note 4.5★).
+          Commission réduite à 15% pour Top Sitter/Walker.
+        </p>
+        <div class="stats-grid" id="loyalty-summary"></div>
+        <div style="margin-top:20px" id="loyalty-tables"></div>
       </div>
 
       <!-- BOOSTS -->
@@ -1031,6 +1043,7 @@ function showPage(name) {
   if (name === 'reports') initReportsPage();
   if (name === 'chat') loadChatConversations();
   if (name === 'wallets') loadAdminWallets();
+  if (name === 'loyalty') loadAdminLoyalty();
   if (name === 'boosts') loadBoosts();
   if (name === 'pricing') loadPricing();
   if (name === 'services') loadServices();
@@ -2827,9 +2840,56 @@ async function toggleStaff(role, userId, isStaff) {
 }
 
 
+// v20 — Admin Loyalty tab: Owners Premium + Top Sitters + Top Walkers
+async function loadAdminLoyalty() {
+  const summary = document.getElementById('loyalty-summary');
+  const tables = document.getElementById('loyalty-tables');
+  if (!summary || !tables) return;
+  summary.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Loading…</div>';
+  tables.innerHTML = '';
+  try {
+    const data = await api('/admin/loyalty');
+    const s = data.summary || {};
+    summary.innerHTML = `
+      <div class="stat-card"><div class="stat-label">Owners Premium</div><div class="stat-value">${s.ownersPremium||0}<span style="font-size:14px;color:var(--text-muted);margin-left:6px">/ ${s.ownerTotal||0}</span></div></div>
+      <div class="stat-card"><div class="stat-label">Top Sitters ⭐</div><div class="stat-value">${s.sittersTop||0}<span style="font-size:14px;color:var(--text-muted);margin-left:6px">/ ${s.sitterTotal||0}</span></div></div>
+      <div class="stat-card"><div class="stat-label">Top Walkers ⭐</div><div class="stat-value">${s.walkersTop||0}<span style="font-size:14px;color:var(--text-muted);margin-left:6px">/ ${s.walkerTotal||0}</span></div></div>
+    `;
+    const rowsOwners = (data.ownersPremium || []).map(o =>
+      `<tr><td>${o.name||'—'}</td><td>${o.email||'—'}</td><td>${fmtDate(o.createdAt)}</td></tr>`
+    ).join('') || '<tr><td colspan="3" style="color:var(--text-muted)">Aucun Owner Premium.</td></tr>';
+    const rowsSitters = (data.sittersTop || []).map(s =>
+      `<tr><td>${s.name||'—'}</td><td>${s.email||'—'}</td><td>${s.completedServicesCount||0}</td><td>${(s.averageRating||0).toFixed(2)} ★</td></tr>`
+    ).join('') || '<tr><td colspan="4" style="color:var(--text-muted)">Aucun Top Sitter.</td></tr>';
+    const rowsWalkers = (data.walkersTop || []).map(w =>
+      `<tr><td>${w.name||'—'}</td><td>${w.email||'—'}</td><td>${w.completedWalksCount||0}</td><td>${(w.averageRating||0).toFixed(2)} ★</td></tr>`
+    ).join('') || '<tr><td colspan="4" style="color:var(--text-muted)">Aucun Top Walker.</td></tr>';
+    tables.innerHTML = `
+      <div style="margin-bottom:24px">
+        <h3 style="font-size:16px;margin-bottom:10px">👑 Owners Premium (10+ réservations)</h3>
+        <table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Inscrit</th></tr></thead><tbody>${rowsOwners}</tbody></table>
+      </div>
+      <div style="margin-bottom:24px">
+        <h3 style="font-size:16px;margin-bottom:10px">⭐ Top Sitters (20+ prestations + 4.5★) — commission 15%</h3>
+        <table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Prestations</th><th>Note</th></tr></thead><tbody>${rowsSitters}</tbody></table>
+      </div>
+      <div>
+        <h3 style="font-size:16px;margin-bottom:10px">⭐ Top Walkers (20+ balades + 4.5★) — commission 15%</h3>
+        <table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Balades</th><th>Note</th></tr></thead><tbody>${rowsWalkers}</tbody></table>
+      </div>
+    `;
+  } catch (e) {
+    tables.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
+  }
+}
+
+
 // v19.2 — Simple admin dashboard i18n (FR default / EN / ES).
 const ADMIN_I18N = {
   fr: {
+    loyalty_desc: 'Owners Premium (10+ réservations) · Top Sitters (20+ prestations + 4.5★) · Top Walkers (20+ balades + 4.5★). Commission réduite à 15% pour Top Sitter/Walker.',
+    loyalty_title: 'Avantages fidélité',
+    nav_loyalty: 'Avantages',
     logout: 'Déconnexion',
     login_sub: 'Dashboard admin · Accès réservé',
     backend_url: 'URL du backend',
@@ -2858,6 +2918,9 @@ const ADMIN_I18N = {
     nav_annonces: 'Annonces',
   },
   en: {
+    loyalty_desc: 'Owners Premium (10+ bookings) · Top Sitters (20+ services + 4.5★) · Top Walkers (20+ walks + 4.5★). Reduced 15% commission for Top Sitter/Walker.',
+    loyalty_title: 'Loyalty benefits',
+    nav_loyalty: 'Loyalty',
     logout: 'Logout',
     login_sub: 'Admin Dashboard · Restricted Access',
     backend_url: 'Backend URL',
@@ -2886,6 +2949,9 @@ const ADMIN_I18N = {
     nav_annonces: 'Annonces',
   },
   es: {
+    loyalty_desc: 'Owners Premium (10+ reservas) · Top Cuidadores · Top Paseadores. Comisión reducida al 15%.',
+    loyalty_title: 'Ventajas de fidelidad',
+    nav_loyalty: 'Ventajas',
     logout: 'Cerrar sesión',
     login_sub: 'Panel admin · Acceso restringido',
     backend_url: 'URL backend',

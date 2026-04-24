@@ -68,6 +68,7 @@ const createPaymentIntent = async ({
   sitterId,
   providerType,
   isTopSitter = false,
+  isTopWalker = false,
   // Session v18.2 — when provided, Stripe attaches the PaymentMethod used
   // for this payment to the Customer, so the owner's "Mes paiements" page
   // can list and reuse the card later. setupFutureUsage default 'off_session'
@@ -85,7 +86,7 @@ const createPaymentIntent = async ({
 
   // Sprint 7 step 2 — Top Sitters pay reduced commission (15% instead of 20%).
   // Only used when destination charges are active (connectedAccountId set).
-  const commissionRate = isTopSitter ? 0.15 : PLATFORM_COMMISSION_RATE;
+  const commissionRate = (isTopSitter || isTopWalker) ? 0.15 : PLATFORM_COMMISSION_RATE;
   const applicationFeeAmount = Math.round(amount * commissionRate);
 
   // Base PaymentIntent parameters — shared across destination charges and
@@ -474,6 +475,21 @@ const detachOwnerPaymentMethod = async (paymentMethodId) => {
   return stripe.paymentMethods.detach(paymentMethodId);
 };
 
+// v20.0.3 — Attach an already-confirmed PaymentMethod to a Stripe Customer.
+// Called after the user ticks "Enregistrer cette carte" on ModernCardPaymentScreen.
+const attachOwnerPaymentMethod = async (paymentMethodId, customerId) => {
+  if (!paymentMethodId || !customerId) return null;
+  try {
+    return await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId,
+    });
+  } catch (e) {
+    // Already attached is fine.
+    if (e && e.code === 'payment_method_already_attached') return null;
+    throw e;
+  }
+};
+
 module.exports = {
   PLATFORM_COMMISSION_RATE,
   createPaymentIntent,
@@ -492,5 +508,6 @@ module.exports = {
   createSetupIntentForOwner,
   listOwnerPaymentMethods,
   detachOwnerPaymentMethod,
+  attachOwnerPaymentMethod,
 };
 

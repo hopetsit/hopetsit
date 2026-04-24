@@ -9,6 +9,7 @@ const {
   createSetupIntent,
   deletePaymentMethod,
   getPaymentHistory,
+  attachPaymentMethod,
 } = require('../controllers/ownerPaymentsController');
 
 const router = express.Router();
@@ -20,6 +21,7 @@ const router = express.Router();
 router.use(requireAuth, requireRole('owner', 'sitter', 'walker'));
 
 router.get('/methods', getPaymentMethods);
+router.post('/methods/attach', attachPaymentMethod); // v20.0.3
 router.post('/setup-intent', createSetupIntent);
 router.delete('/methods/:id', deletePaymentMethod);
 router.get('/history', getPaymentHistory);

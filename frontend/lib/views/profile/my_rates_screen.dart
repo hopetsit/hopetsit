@@ -74,6 +74,28 @@ class _WalkerRates extends StatelessWidget {
                   subtitle: 'my_rates_walker_hint'.tr,
                 ),
                 SizedBox(height: 20.h),
+                // v20 — Simple currency dropdown (walker has no per-rate currency,
+                // so we just display EUR by default). Info text for user.
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.euro_rounded, color: accent, size: 18.sp),
+                      SizedBox(width: 8.w),
+                      InterText(
+                        text: 'walker_currency_info'.tr,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16.h),
                 _RateField(
                   label: 'walker_rate_30min_label'.tr,
                   hint: 'walker_rate_hint_8'.tr,
@@ -155,6 +177,44 @@ class _SitterRates extends StatelessWidget {
                   subtitle: 'my_rates_sitter_hint'.tr,
                 ),
                 SizedBox(height: 20.h),
+                // v20 — Currency picker (EUR / USD). Mandatory BEFORE rates so
+                // the user picks the currency then fills amounts.
+                InterText(
+                  text: 'currency_label'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary(context),
+                ),
+                SizedBox(height: 6.h),
+                Obx(() {
+                  final current = controller.selectedCurrency.value;
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.inputFill(context),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(color: accent.withValues(alpha: 0.25)),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 14.w),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: ['EUR', 'USD', 'GBP', 'CHF'].contains(current)
+                            ? current
+                            : 'EUR',
+                        items: const [
+                          DropdownMenuItem(value: 'EUR', child: Text('EUR (€)')),
+                          DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),
+                          DropdownMenuItem(value: 'GBP', child: Text('GBP (£)')),
+                          DropdownMenuItem(value: 'CHF', child: Text('CHF')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) controller.updateCurrency(v);
+                        },
+                      ),
+                    ),
+                  );
+                }),
+                SizedBox(height: 16.h),
                 CustomTextField(
                   labelText: 'sitter_detail_daily_rate_label'.tr,
                   hintText: '0.00',

@@ -318,6 +318,11 @@ class EditOwnerProfileScreen extends StatelessWidget {
                             controller.getCurrentLocationFromMaps(),
                         isGettingLocation: controller.isGettingLocation.value,
                         detectedCity: controller.userCity.value,
+                        onLocationSelected: (city, lat, lng) {
+                          controller.userCity.value = city;
+                          controller.userLatitude.value = lat;
+                          controller.userLongitude.value = lng;
+                        },
                       ),
                     ),
 

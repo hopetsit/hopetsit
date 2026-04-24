@@ -2156,4 +2156,64 @@ router.post('/users/:role/:id/staff', requireAdmin, async (req, res) => {
   }
 });
 
+// v20 — Loyalty stats for the admin "Avantages" tab.
+// Returns counts + top lists for: owners with isPremium (10+ bookings),
+// sitters with isTopSitter (20+ completed + 4.5 rating), walkers with isTopWalker.
+router.get('/loyalty', requireAdmin, async (req, res) => {
+  try {
+    const Owner = require('../models/Owner');
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+
+    const [ownersPremium, sittersTop, walkersTop,
+           ownerTotal, sitterTotal, walkerTotal] = await Promise.all([
+      Owner.find({ isPremium: true })
+        .select('name email createdAt')
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .lean(),
+      Sitter.find({ isTopSitter: true })
+        .select('name email completedServicesCount averageRating createdAt')
+        .sort({ averageRating: -1, completedServicesCount: -1 })
+        .limit(200)
+        .lean(),
+      Walker.find({ isTopWalker: true })
+        .select('name email completedWalksCount averageRating createdAt')
+        .sort({ averageRating: -1, completedWalksCount: -1 })
+        .limit(200)
+        .lean(),
+      Owner.countDocuments({}),
+      Sitter.countDocuments({}),
+      Walker.countDocuments({}),
+    ]);
+
+    res.json({
+      summary: {
+        ownerTotal,
+        sitterTotal,
+        walkerTotal,
+        ownersPremiumCount: ownersPremium.length,
+        sittersTopCount: sittersTop.length,
+        walkersTopCount: walkersTop.length,
+      },
+      ownersPremium: ownersPremium.map((o) => ({
+        id: o._id.toString(), name: o.name, email: o.email, createdAt: o.createdAt,
+      })),
+      sittersTop: sittersTop.map((s) => ({
+        id: s._id.toString(), name: s.name, email: s.email,
+        completed: s.completedServicesCount || 0,
+        rating: s.averageRating || 0,
+      })),
+      walkersTop: walkersTop.map((w) => ({
+        id: w._id.toString(), name: w.name, email: w.email,
+        completed: w.completedWalksCount || 0,
+        rating: w.averageRating || 0,
+      })),
+    });
+  } catch (e) {
+    logger.error('[admin/loyalty]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

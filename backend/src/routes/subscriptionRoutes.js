@@ -138,6 +138,26 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
 
+    // v20.0.2 — Staff users get Premium FREE forever. Just return success;
+    // the /status endpoint already returns a synthetic Premium payload for them.
+    const StaffModel = role === 'walker'
+      ? require('../models/Walker')
+      : role === 'sitter'
+        ? require('../models/Sitter')
+        : require('../models/Owner');
+    const staffUser = await StaffModel.findById(userId).select('isStaff').lean();
+    if (staffUser && staffUser.isStaff) {
+      logger.info(`[subscription/staff] ${role} ${userId} — Premium free (staff)`);
+      return res.json({
+        staff: true,
+        activated: true,
+        plan,
+        amount: 0,
+        currency: pricing.currency,
+        intervalDays: pricing.intervalDays,
+      });
+    }
+
     const amountCents = Math.round(pricing.amount * 100);
     const paymentIntent = await createPlatformPaymentIntent({
       amount: amountCents,

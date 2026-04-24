@@ -177,6 +177,13 @@ class MapBoostController extends GetxController {
         requiresAuth: true,
       ) as Map<String, dynamic>;
 
+      // v20.0.2 — Staff short-circuit: server activated Map Boost for free.
+      // Skip Stripe entirely and refresh status.
+      if (piData['staff'] == true && piData['activated'] == true) {
+        await loadStatus();
+        return true;
+      }
+
       final clientSecret = piData['clientSecret'] as String?;
       final paymentIntentId = piData['paymentIntentId'] as String?;
       if (clientSecret == null || clientSecret.isEmpty) {

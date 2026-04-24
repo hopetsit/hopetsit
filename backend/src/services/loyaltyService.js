@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const Review = require('../models/Review');
 const OwnerCredit = require('../models/OwnerCredit');
 const { sendNotification } = require('./notificationSender');
@@ -44,6 +45,10 @@ const onBookingCompleted = async (booking) => {
   // Sprint 7 step 2 — also recompute sitter Top status.
   if (booking.sitterId) {
     recomputeSitterStatus(booking.sitterId).catch(() => {});
+  }
+  // v20 — same for walker if the booking is a walk (walkerId set).
+  if (booking.walkerId) {
+    recomputeWalkerStatus(booking.walkerId).catch(() => {});
   }
 
   // Sprint 7 step 3 — referral credit on referred user's 1st completed booking.
@@ -145,4 +150,45 @@ const recomputeSitterStatus = async (sitterId) => {
   return { count, avgRating, isTopSitter: shouldBeTop };
 };
 
-module.exports = { getOwnerStats, onBookingCompleted, consumeLoyaltyDiscount, recomputeSitterStatus };
+
+/**
+ * v20 — Recompute Walker.isTopWalker + completedServicesCount + averageRating.
+ * Fires TOP_SITTER_ACHIEVED (reused key) when the walker crosses the threshold
+ * (20 completed walks + avg rating > 4.5). Same bar as Top Sitter for parity.
+ */
+const recomputeWalkerStatus = async (walkerId) => {
+  if (!walkerId) return null;
+  const [count, agg] = await Promise.all([
+    Booking.countDocuments({ walkerId, status: 'completed' }),
+    Review.aggregate([
+      { $match: { revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(walkerId)) } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } },
+    ]).catch(() => []),
+  ]);
+  const avgRating = (agg && agg[0]?.avg) ? Number(agg[0].avg.toFixed(2)) : 0;
+  const shouldBeTop = count >= 20 && avgRating > 4.5;
+  const walker = await Walker.findById(walkerId).select('isTopWalker').lean();
+  if (!walker) return null;
+  const wasTop = walker.isTopWalker === true;
+  await Walker.updateOne(
+    { _id: walkerId },
+    {
+      $set: {
+        isTopWalker: shouldBeTop,
+        completedWalksCount: count,
+        averageRating: avgRating,
+      },
+    }
+  );
+  if (!wasTop && shouldBeTop) {
+    sendNotification({
+      userId: String(walkerId),
+      role: 'walker',
+      type: 'TOP_SITTER_ACHIEVED',
+      data: { count, avgRating },
+    }).catch(() => {});
+  }
+  return { count, avgRating, isTopWalker: shouldBeTop };
+};
+
+module.exports = { getOwnerStats, onBookingCompleted, consumeLoyaltyDiscount, recomputeSitterStatus, recomputeWalkerStatus };

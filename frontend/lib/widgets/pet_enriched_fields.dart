@@ -56,16 +56,16 @@ class PetEnrichedFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ExpansionTile(
-          title: const Text('Age & behavior'),
+          title: Text('pet_age_behavior'.tr),
           childrenPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           children: [
-            _tf(ageController, 'Age (years)', kb: TextInputType.number),
+            _tf(ageController, 'pet_age_years'.tr, kb: TextInputType.number),
             const SizedBox(height: 12),
-            _tf(behaviorController, 'Behavior (max 500 chars)', maxLines: 4),
+            _tf(behaviorController, 'pet_behavior_hint'.tr, maxLines: 4),
           ],
         ),
         ExpansionTile(
-          title: const Text('Vaccinations'),
+          title: Text('pet_vaccinations'.tr),
           children: [
             Obx(
               () => Column(
@@ -82,7 +82,7 @@ class PetEnrichedFields extends StatelessWidget {
                               ),
                               onChanged: (v) =>
                                   onSetVaccinationField(i, 'name', v),
-                              decoration: const InputDecoration(labelText: 'Name'),
+                              decoration: InputDecoration(labelText: 'pet_vaccine_name'.tr),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -94,7 +94,7 @@ class PetEnrichedFields extends StatelessWidget {
                               onChanged: (v) =>
                                   onSetVaccinationField(i, 'date', v),
                               decoration:
-                                  const InputDecoration(labelText: 'YYYY-MM-DD'),
+                                  InputDecoration(labelText: 'pet_vaccine_date'.tr),
                             ),
                           ),
                           IconButton(
@@ -106,7 +106,7 @@ class PetEnrichedFields extends StatelessWidget {
                     ),
                   TextButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Add vaccination'),
+                    label: Text('pet_add_vaccination'.tr),
                     onPressed: onAddVaccination,
                   ),
                 ],
@@ -115,33 +115,33 @@ class PetEnrichedFields extends StatelessWidget {
           ],
         ),
         ExpansionTile(
-          title: const Text('Regular vet'),
+          title: Text('pet_regular_vet'.tr),
           children: [
-            _tf(regularVetNameController, 'Name'),
+            _tf(regularVetNameController, 'pet_vet_name'.tr),
             const SizedBox(height: 8),
-            _tf(regularVetPhoneController, 'Phone', kb: TextInputType.phone),
+            _tf(regularVetPhoneController, 'pet_vet_phone'.tr, kb: TextInputType.phone),
             const SizedBox(height: 8),
-            _tf(regularVetAddressController, 'Address'),
+            _tf(regularVetAddressController, 'pet_vet_address'.tr),
           ],
         ),
         ExpansionTile(
-          title: const Text('Emergency vet'),
+          title: Text('pet_emergency_vet'.tr),
           children: [
-            _tf(emergencyVetNameController, 'Name'),
+            _tf(emergencyVetNameController, 'pet_vet_name'.tr),
             const SizedBox(height: 8),
-            _tf(emergencyVetPhoneController, 'Phone', kb: TextInputType.phone),
+            _tf(emergencyVetPhoneController, 'pet_vet_phone'.tr, kb: TextInputType.phone),
             const SizedBox(height: 8),
-            _tf(emergencyVetAddressController, 'Address'),
+            _tf(emergencyVetAddressController, 'pet_vet_address'.tr),
           ],
         ),
         ExpansionTile(
-          title: const Text('Emergency intervention authorization'),
+          title: Text('pet_emergency_auth'.tr),
           children: [
             Obx(
               () => CheckboxListTile(
                 value: emergencyAuthAccepted.value,
                 onChanged: (v) => emergencyAuthAccepted.value = v ?? false,
-                title: const Text('I authorize emergency intervention'),
+                title: Text('pet_authorize_emergency'.tr),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ),
@@ -149,7 +149,7 @@ class PetEnrichedFields extends StatelessWidget {
                 ? const Padding(
                     padding: EdgeInsets.all(12),
                     child: Text(
-                      emergencyLegalText,
+                      'pet_emergency_legal'.tr,
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   )

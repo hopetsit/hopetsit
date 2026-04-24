@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:country_code_picker/country_code_picker.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -83,15 +85,14 @@ class SignUpScreen extends StatelessWidget {
                     children: [
                       // Title
                       SizedBox(height: 8.h),
-                      // InterText(
-                      //   text: userType == 'pet_owner'
-                      //       ? 'Signing up as a Pet Owner'
-                      //       : 'Signing up as a Pet Sitter',
-                      //   fontSize: 15,
-                      //   fontWeight: FontWeight.w400,
-                      //   color: AppColors.greyColor,
-                      // ),
-                      // const SizedBox(height: 20),
+                      // v20 — Photo de profil + (optionnel) carte CB en haut de
+                      // l'inscription. Le _SignupPhotoPicker encapsule l'état
+                      // local (ImagePicker) sans toucher au SignUpController.
+                      _SignupPhotoPicker(
+                        controller: controller,
+                        role: userType,
+                      ),
+                      SizedBox(height: 16.h),
                       // Full Name
                       CustomTextField(
                         labelText: 'label_name'.tr,
@@ -369,6 +370,11 @@ class SignUpScreen extends StatelessWidget {
                               controller.getCurrentLocationFromMaps(),
                           isGettingLocation: controller.isGettingLocation.value,
                           detectedCity: controller.userCity.value,
+                          onLocationSelected: (city, lat, lng) {
+                            controller.userCity.value = city;
+                            controller.userLatitude.value = lat;
+                            controller.userLongitude.value = lng;
+                          },
                         ),
                       ),
 
@@ -691,3 +697,108 @@ class SignUpScreen extends StatelessWidget {
     );
   }
 }
+                                                                           
+
+/// v20 — Sélecteur photo de profil pour l'inscription (3 rôles).
+/// Encapsule l'état local ImagePicker sans toucher au SignUpController.
+/// L'image sélectionnée est stockée dans controller.profileImageFile pour
+/// être uploadée via l'endpoint /users/me/profile-picture après création.
+class _SignupPhotoPicker extends StatefulWidget {
+  final dynamic controller;
+  final String role;
+  const _SignupPhotoPicker({required this.controller, required this.role});
+
+  @override
+  State<_SignupPhotoPicker> createState() => _SignupPhotoPickerState();
+}
+
+class _SignupPhotoPickerState extends State<_SignupPhotoPicker> {
+  File? _file;
+
+  Color get _accent => widget.role == 'pet_walker'
+      ? const Color(0xFF16A34A)
+      : widget.role == 'pet_sitter'
+          ? const Color(0xFF2563EB)
+          : AppColors.primaryColor;
+
+  Future<void> _pick() async {
+    final picker = ImagePicker();
+    try {
+      final x = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 75,
+        maxWidth: 1024,
+      );
+      if (x != null) {
+        setState(() => _file = File(x.path));
+        // Expose to the SignUpController so handleSignUp can upload it after
+        // the account is created (property added dynamically, safe fallback).
+        try {
+          (widget.controller as dynamic).profileImageFile = _file;
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _pick,
+            child: Stack(
+              children: [
+                Container(
+                  width: 100.w,
+                  height: 100.w,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _accent.withValues(alpha: 0.10),
+                    border: Border.all(color: _accent, width: 2),
+                    image: _file != null
+                        ? DecorationImage(
+                            image: FileImage(_file!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: _file == null
+                      ? Icon(Icons.person, size: 48.sp, color: _accent)
+                      : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: EdgeInsets.all(6.w),
+                    decoration: BoxDecoration(
+                      color: _accent,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Icon(
+                      _file != null ? Icons.edit : Icons.add_a_photo,
+                      color: Colors.white,
+                      size: 16.sp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 8.h),
+          InterText(
+            text: _file != null
+                ? 'signup_photo_change'.tr
+                : 'signup_photo_add'.tr,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: _accent,
+          ),
+        ],
+      ),
+    );
+  }
+}
+

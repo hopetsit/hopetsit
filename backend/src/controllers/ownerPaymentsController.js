@@ -23,6 +23,7 @@ const {
   createSetupIntentForOwner,
   listOwnerPaymentMethods,
   detachOwnerPaymentMethod,
+  attachOwnerPaymentMethod,
 } = require('../services/stripeService');
 
 // v18.9 — helper role-agnostic. Retourne le model ET le doc chargé.
@@ -101,6 +102,46 @@ const createSetupIntent = async (req, res) => {
   } catch (err) {
     logger.error('[ownerPayments] createSetupIntent failed', err);
     return res.status(500).json({ error: 'Unable to start card setup.' });
+  }
+};
+
+/**
+ * POST /owner/payments/methods/attach   (v20.0.3)
+ * After the user ticks "Enregistrer cette carte" on ModernCardPaymentScreen
+ * (post-confirmPayment), we attach that PaymentMethod to the user's Stripe
+ * Customer so it shows up in "Mes paiements" for the next purchase.
+ *
+ * Body: { paymentMethodId: 'pm_...' }
+ */
+const attachPaymentMethod = async (req, res) => {
+  const guard = assertOwner(req);
+  if (guard) return res.status(guard.status).json({ error: guard.error });
+
+  const { paymentMethodId } = req.body || {};
+  if (!paymentMethodId || !String(paymentMethodId).startsWith('pm_')) {
+    return res.status(400).json({ error: 'Invalid payment method id.' });
+  }
+
+  try {
+    const Model = _roleModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const customerId = await getOrCreateStripeCustomerForProvider({
+      userId: user._id.toString(),
+      role: req.user.role,
+      email: user.email,
+      name: user.name,
+    });
+
+    await attachOwnerPaymentMethod(paymentMethodId, customerId);
+    return res.json({
+      message: 'Payment method saved.',
+      paymentMethodId,
+    });
+  } catch (err) {
+    logger.error('[ownerPayments] attachPaymentMethod failed', err);
+    return res.status(500).json({ error: 'Unable to save payment method.' });
   }
 };
 
@@ -201,4 +242,5 @@ module.exports = {
   createSetupIntent,
   deletePaymentMethod,
   getPaymentHistory,
+  attachPaymentMethod,
 };
