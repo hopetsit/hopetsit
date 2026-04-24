@@ -1727,4 +1727,10 @@ const Map<String, String> itITTranslations = <String, String>{
     'auth_role_pet_walker': 'Dog Walker',
     'walker_home_title': 'Home Dog Walker',
     'walker_home_welcome_title': 'Benvenuto, Dog Walker!',
-    'walker_home_welcome_body':
+    'walker_home_welcome_body': 'Configura le tue tariffe e la zona di copertura per iniziare a ricevere richieste di passeggiata.',
+    'walker_home_coming_soon': 'Le funzioni dedicate ai dog walker arrivano molto presto.',
+    'walker_profile_title': 'Il mio profilo',
+    'walker_profile_welcome': 'Profilo dog walker',
+    'walker_profile_subtitle': 'Gestisci il tuo profilo, le tariffe e la disponibilità',
+    'walker_profile_coming_soon': 'Modifica del profilo disponibile presto.',
+};

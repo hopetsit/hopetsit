@@ -1786,4 +1786,11 @@ const Map<String, String> esESTranslations = <String, String>{
     'sign_up_as_pet_walker': 'Registrarse como paseador',
     'auth_role_pet_walker': 'Paseador',
     'walker_home_title': 'Inicio Paseador',
-    'walker_home_welcome_title': '¡Bienvenido,
+    'walker_home_welcome_title': '¡Bienvenido, Paseador!',
+    'walker_home_welcome_body': 'Configura tus tarifas y zona de cobertura para empezar a recibir solicitudes de paseo.',
+    'walker_home_coming_soon': 'Las funciones dedicadas a paseadores llegan muy pronto.',
+    'walker_profile_title': 'Mi perfil',
+    'walker_profile_welcome': 'Perfil de paseador',
+    'walker_profile_subtitle': 'Gestiona tu perfil, tarifas y disponibilidad',
+    'walker_profile_coming_soon': 'Edición de perfil próximamente.',
+};

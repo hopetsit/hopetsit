@@ -1812,4 +1812,10 @@ const Map<String, String> frFRTranslations = <String, String>{
     'auth_role_pet_walker': 'Promeneur',
     'walker_home_title': 'Accueil Promeneur',
     'walker_home_welcome_title': 'Bienvenue, Promeneur !',
-    'walker_home_welcome_body'
+    'walker_home_welcome_body': 'Configure tes tarifs de promenade et tes zones de couverture pour commencer à recevoir des demandes.',
+    'walker_home_coming_soon': 'Les fonctionnalités dédiées aux promeneurs arrivent très bientôt.',
+    'walker_profile_title': 'Mon profil',
+    'walker_profile_welcome': 'Profil promeneur',
+    'walker_profile_subtitle': 'Gère ton profil, tes tarifs et tes disponibilités',
+    'walker_profile_coming_soon': 'Édition du profil bientôt disponible.',
+};
