@@ -1899,4 +1899,10 @@ const Map<String, String> esESTranslations = <String, String>{
     'send_request_commission_label': 'Comisión HoPetSit (20%)',
     'send_request_you_pay': 'Pagas total',
     'send_request_select_to_see_total': 'Elige servicio + fechas para ver el total',
+    'send_request_fill_required_fields': 'Rellena los campos marcados en naranja.',
+    'send_request_day_label': 'Día',
+    'send_request_end_time_same_day': 'Hora de fin (mismo día)',
+    'edit_profile_success_message': 'Perfil actualizado con éxito.',
+    'map_boost_purchase_failed': 'Compra de Map Boost falló.',
+    'map_boost_purchase_success': '¡Map Boost activado!',
 };

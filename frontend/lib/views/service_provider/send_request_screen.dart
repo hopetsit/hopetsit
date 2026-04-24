@@ -105,6 +105,47 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 ),
                 SizedBox(height: 14.h),
 
+                // v20.0.14 — Service type en 2ème position (juste après
+                // les pets). Avant c'était après les dates et l'utilisateur
+                // devait redéfiler pour comprendre quel format de dates
+                // attendre. Maintenant : on choisit d'abord le service →
+                // les dates s'adaptent (Garderie = 1 jour, Multi-jours =
+                // plage, Promenade = début + durée).
+                Obx(() => _sectionCard(
+                      context: context,
+                      icon: Icons.work_outline_rounded,
+                      title: 'send_request_service_type_label'.tr,
+                      child: _buildServiceTypeSection(controller),
+                      hasError: controller.attemptedSubmit.value &&
+                          (controller.selectedServiceType.value ?? '')
+                              .isEmpty,
+                    )),
+                SizedBox(height: 14.h),
+
+                Obx(() {
+                  final svc = (controller.selectedServiceType.value ?? '')
+                      .toLowerCase();
+                  final isWalker = widget.serviceProviderRole == 'walker';
+                  final isDayCare =
+                      svc == 'day_care' || svc == 'garderie';
+                  final missingDates = controller.startDate.value == null ||
+                      controller.startTime.value == null ||
+                      (isDayCare && controller.endTime.value == null) ||
+                      (!isWalker &&
+                          !isDayCare &&
+                          (controller.endDate.value == null ||
+                              controller.endTime.value == null));
+                  return _sectionCard(
+                    context: context,
+                    icon: Icons.calendar_today_rounded,
+                    title: 'send_request_dates_label'.tr,
+                    child: _buildDatesSection(context, controller),
+                    hasError:
+                        controller.attemptedSubmit.value && missingDates,
+                  );
+                }),
+                SizedBox(height: 14.h),
+
                 _sectionCard(
                   context: context,
                   icon: Icons.edit_note_rounded,
@@ -116,22 +157,6 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                     maxLines: 4,
                     radius: 21,
                   ),
-                ),
-                SizedBox(height: 14.h),
-
-                _sectionCard(
-                  context: context,
-                  icon: Icons.calendar_today_rounded,
-                  title: 'send_request_dates_label'.tr,
-                  child: _buildDatesSection(context, controller),
-                ),
-                SizedBox(height: 14.h),
-
-                _sectionCard(
-                  context: context,
-                  icon: Icons.work_outline_rounded,
-                  title: 'send_request_service_type_label'.tr,
-                  child: _buildServiceTypeSection(controller),
                 ),
                 SizedBox(height: 14.h),
 
@@ -182,16 +207,59 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                         : 'send_request_button'.tr,
                     onTap: controller.isLoading.value
                         ? null
-                        : controller.dateTimeValidationError.value == null
-                        ? () => controller.sendRequest(
-                            isAllDay: controller.isAllDay.value,
-                            fallbackDate: controller.focusedDate.value,
-                          )
                         : () {
-                            CustomSnackbar.showError(
-                              title: 'send_request_validation_error_title'.tr,
-                              message:
-                                  controller.dateTimeValidationError.value!,
+                            // v20.0.14 — check required sections before
+                            // sending. If any missing, turn them orange via
+                            // attemptedSubmit.
+                            final missingService =
+                                (controller.selectedServiceType.value ?? '')
+                                    .isEmpty;
+                            final svc = (controller
+                                        .selectedServiceType.value ??
+                                    '')
+                                .toLowerCase();
+                            final isDayCare = svc == 'day_care' ||
+                                svc == 'garderie';
+                            final isWalker =
+                                widget.serviceProviderRole == 'walker';
+                            final missingStartDate =
+                                controller.startDate.value == null;
+                            final missingStartTime =
+                                controller.startTime.value == null;
+                            final missingEnd = !isWalker &&
+                                !isDayCare &&
+                                (controller.endDate.value == null ||
+                                    controller.endTime.value == null);
+                            final missingEndTimeDayCare = isDayCare &&
+                                controller.endTime.value == null;
+                            final hasAnyMissing = missingService ||
+                                missingStartDate ||
+                                missingStartTime ||
+                                missingEnd ||
+                                missingEndTimeDayCare;
+                            if (hasAnyMissing) {
+                              controller.attemptedSubmit.value = true;
+                              CustomSnackbar.showError(
+                                title:
+                                    'send_request_validation_error_title'.tr,
+                                message:
+                                    'send_request_fill_required_fields'.tr,
+                              );
+                              return;
+                            }
+                            if (controller.dateTimeValidationError.value !=
+                                null) {
+                              CustomSnackbar.showError(
+                                title:
+                                    'send_request_validation_error_title'.tr,
+                                message: controller
+                                    .dateTimeValidationError.value!,
+                              );
+                              return;
+                            }
+                            controller.sendRequest(
+                              isAllDay: controller.isAllDay.value,
+                              fallbackDate: controller.focusedDate.value,
                             );
                           },
                     bgColor: _roleColor,
@@ -241,7 +309,10 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     required IconData icon,
     required String title,
     required Widget child,
+    // v20.0.14 — if true the card is outlined in orange to signal a missing field
+    bool hasError = false,
   }) {
+    final errorColor = const Color(0xFFF59E0B); // amber-500
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
@@ -250,14 +321,18 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            color: hasError
+                ? errorColor.withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: hasError ? 14 : 10,
             offset: const Offset(0, 2),
           ),
         ],
         border: Border.all(
-          color: AppColors.divider(context).withValues(alpha: 0.5),
-          width: 1,
+          color: hasError
+              ? errorColor
+              : AppColors.divider(context).withValues(alpha: 0.5),
+          width: hasError ? 2 : 1,
         ),
       ),
       child: Column(
@@ -405,6 +480,16 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       controller.endDate.value;
       controller.startTime.value;
       controller.endTime.value;
+
+      // v20.0.14 — layout des dates adapté au service choisi :
+      //   - Walker (dog_walking)        : 1 date + 1 heure début (durée séparée)
+      //   - Garderie (day_care)         : 1 date + heure début + heure fin (même jour)
+      //   - Multi-jours (pet_sitting/boarding) : début (date+heure) + fin (date+heure)
+      final service =
+          (controller.selectedServiceType.value ?? '').toLowerCase();
+      final isDayCare = service == 'day_care' || service == 'garderie';
+      final isMultiDay = !isWalker && !isDayCare;
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -421,7 +506,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               ),
               SizedBox(width: 8.w),
               InterText(
-                text: 'send_request_start_label'.tr,
+                text: isDayCare
+                    ? 'send_request_day_label'.tr
+                    : 'send_request_start_label'.tr,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary(context),
@@ -443,7 +530,43 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             onTimeTap: () =>
                 _pickTime(context, controller, isStart: true),
           ),
-          if (!isWalker) ...[
+          if (isDayCare) ...[
+            SizedBox(height: 14.h),
+            // Garderie : seulement une heure de fin (même jour), pas de 2e date.
+            Row(
+              children: [
+                Container(
+                  width: 6.w,
+                  height: 6.w,
+                  decoration: BoxDecoration(
+                    color: _roleColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                InterText(
+                  text: 'send_request_end_time_same_day'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                ),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            _buildDateTimeRow(
+              dateText: '', // hidden
+              timeText: controller.formattedEndTime.isEmpty
+                  ? 'send_request_select_time'.tr
+                  : controller.formattedEndTime,
+              isDatePlaceholder: false,
+              isTimePlaceholder: controller.formattedEndTime.isEmpty,
+              onDateTap: null, // disabled — same day as start
+              onTimeTap: () =>
+                  _pickTime(context, controller, isStart: false),
+              hideDate: true,
+            ),
+          ],
+          if (isMultiDay) ...[
             SizedBox(height: 14.h),
             // End label + pill
             Row(
@@ -512,13 +635,15 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   }
 
   /// One row inside the dates container: date (left) | vertical line | time (right) | arrow.
+  /// v20.0.14 — add `hideDate` for Garderie layout (time only, full-width).
   Widget _buildDateTimeRow({
     required String dateText,
     required String timeText,
     required bool isDatePlaceholder,
     required bool isTimePlaceholder,
-    required VoidCallback onDateTap,
+    required VoidCallback? onDateTap,
     required VoidCallback onTimeTap,
+    bool hideDate = false,
   }) {
     return Container(
       height: 50.h,
@@ -530,28 +655,30 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: onDateTap,
-              behavior: HitTestBehavior.opaque,
-              child: Center(
-                child: InterText(
-                  text: dateText,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: isDatePlaceholder
-                      ? AppColors.textSecondary(context)
-                      : AppColors.textPrimary(context),
+          if (!hideDate) ...[
+            Expanded(
+              child: GestureDetector(
+                onTap: onDateTap,
+                behavior: HitTestBehavior.opaque,
+                child: Center(
+                  child: InterText(
+                    text: dateText,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    color: isDatePlaceholder
+                        ? AppColors.textSecondary(context)
+                        : AppColors.textPrimary(context),
+                  ),
                 ),
               ),
             ),
-          ),
-          Container(
-            width: 1,
-            height: 24.h,
-            margin: EdgeInsets.symmetric(horizontal: 12.w),
-            color: AppColors.divider(context),
-          ),
+            Container(
+              width: 1,
+              height: 24.h,
+              margin: EdgeInsets.symmetric(horizontal: 12.w),
+              color: AppColors.divider(context),
+            ),
+          ],
           Expanded(
             child: GestureDetector(
               onTap: onTimeTap,

@@ -64,6 +64,9 @@ class SendRequestController extends GetxController {
       RxnString(); // For dog_walking: '30' or '60'
   final RxnString houseSittingVenue = RxnString();
   final RxBool isLoading = false.obs;
+  // v20.0.14 — passé à true lors du premier clic "Envoyer" → les sections
+  // incomplètes s'entourent en orange pour guider l'utilisateur.
+  final RxBool attemptedSubmit = false.obs;
   final RxBool _petNameHasText = false.obs;
   final RxBool _descriptionHasText = false.obs;
   final Rxn<SitterModel> _sitter = Rxn<SitterModel>();
