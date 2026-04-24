@@ -16,14 +16,19 @@ const MapPOI = require('../models/MapPOI');
 const logger = require('../utils/logger');
 
 // ─── Overpass tag filters per category ──────────────────────────────────────
+// v19.1.5 — widened filters so beach + trainer return something.
+//   beach  : natural=beach + dog=yes  (plus courant que leisure=beach_resort)
+//   trainer: shop=dog_training OU match de nom multi-langues (FR/EN/DE/IT/ES/PT)
+//            (car il n'y a pas de tag OSM standard pour les éducateurs canins).
 const CATEGORY_TAGS = {
   vet: '["amenity"="veterinary"]',
   shop: '["shop"~"pet"]',
   groomer: '["shop"="pet_grooming"]',
   park: '["leisure"="dog_park"]',
-  beach: '["leisure"="beach_resort"]["dog"="yes"]',
+  beach: '["natural"="beach"]["dog"="yes"]',
   water: '["amenity"="drinking_water"]',
   trainer: '["shop"="dog_training"]',
+  trainerByName: '["name"~"dog trainer|educateur canin|éducateur canin|hundetrainer|addestratore cani|adiestrador canino|treinador canino",i]',
   hotel: '["tourism"="hotel"]["dog"="yes"]',
   restaurant: '["amenity"="restaurant"]["dog"="yes"]',
 };
@@ -128,7 +133,13 @@ function elementToPoi(el, category, country) {
 async function seedCategory({ category, bbox, country, limit }) {
   const tag = CATEGORY_TAGS[category];
   if (!tag) return { inserted: 0, skipped: 0 };
-  const query = buildOverpassQuery(bbox, [tag]);
+  // v19.1.5 — some categories merge multiple tag filters (e.g. trainer uses
+  // BOTH shop=dog_training AND a multilingual name regex).
+  const extraTags = [];
+  if (category === 'trainer' && CATEGORY_TAGS.trainerByName) {
+    extraTags.push(CATEGORY_TAGS.trainerByName);
+  }
+  const query = buildOverpassQuery(bbox, [tag, ...extraTags]);
   let elements;
   try {
     elements = await fetchOverpass(query);
@@ -272,7 +283,7 @@ function runSeedBatch({ countries, categories, limit }) {
         batch.perCountry[upper] = { status: 'done', inserted };
         batch.totalInserted += inserted;
         logger.info?.(
-          `[seed:batch] ${upper} done — ${inserted} POIs`,
+          `[seed:batch] ${upper} done - ${inserted} POIs`,
         );
       } catch (e) {
         batch.perCountry[upper] = {
@@ -284,29 +295,32 @@ function runSeedBatch({ countries, categories, limit }) {
       }
     }
     batch.status = 'done';
-    batch.finishedAt = new Date();
-    logger.info?.(
-      `[seed:batch] ALL DONE — ${batch.totalInserted} POIs inserted total`,
-    );
+    batch.endedAt = Date.now();
+    return batch;
   })();
 
-  return batchId;
+  return { jobId, status: 'running' };
 }
 
-function getJobStatus(jobId) {
-  return jobs.get(jobId) || null;
+function getSeedJob(jobId) {
+  return SEED_JOBS.get(jobId) || null;
 }
 
-function listJobs() {
-  return Array.from(jobs.values()).sort((a, b) => b.startedAt - a.startedAt);
+function listSeedJobs() {
+  return Array.from(SEED_JOBS.values()).sort(
+    (a, b) => (b.startedAt || 0) - (a.startedAt || 0),
+  );
 }
 
 module.exports = {
+  // Public API used by adminRoutes.js.
   runSeed,
   runSeedBatch,
-  getJobStatus,
-  listJobs,
+  getJobStatus: getSeedJob,
+  listJobs: listSeedJobs,
+  // Internal helpers also re-exported for tests / reuse.
+  seedCategory,
   COUNTRY_BBOX,
-  ALL_EU_COUNTRIES,
   CATEGORY_TAGS,
+  ALL_EU_COUNTRIES,
 };

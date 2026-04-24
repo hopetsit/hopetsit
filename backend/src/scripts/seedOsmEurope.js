@@ -44,16 +44,33 @@ const COUNTRIES = {
 // Park: restrict to leisure=dog_park only. Including leisure=park was
 // returning 60k+ generic municipal parks per country, most of which are
 // not dog-specific and would drown the map in useless markers.
+//
+// v19.1.5 — extended to the full 9-category taxonomy matching MapPOI.js:
+//   vet, shop, groomer, park, beach, water, trainer, hotel, restaurant.
+// Pet-friendly hotels/restaurants rely on `dog=yes`. Dog trainers have no
+// canonical OSM tag, so we match by name substring in several languages.
 const QUERIES = {
-  vet:  '["amenity"="veterinary"]',
-  shop: '["shop"="pet"]',
-  park: '["leisure"="dog_park"]',
+  vet:        '["amenity"="veterinary"]',
+  shop:       '["shop"="pet"]',
+  groomer:    '["shop"="pet_grooming"]',
+  park:       '["leisure"="dog_park"]',
+  beach:      '["natural"="beach"]["dog"="yes"]',
+  water:      '["amenity"="drinking_water"]',
+  trainer:    '["name"~"dog trainer|educateur canin|éducateur canin|hundetrainer|addestratore cani|adiestrador canino|treinador canino",i]',
+  hotel:      '["tourism"="hotel"]["dog"="yes"]',
+  restaurant: '["amenity"="restaurant"]["dog"="yes"]',
 };
 
 const CATEGORY_TO_TITLE_FALLBACK = {
-  vet:  'Veterinary clinic',
-  shop: 'Pet shop',
-  park: 'Park',
+  vet:        'Veterinary clinic',
+  shop:       'Pet shop',
+  groomer:    'Pet grooming',
+  park:       'Dog park',
+  beach:      'Dog-friendly beach',
+  water:      'Drinking water point',
+  trainer:    'Dog trainer',
+  hotel:      'Pet-friendly hotel',
+  restaurant: 'Pet-friendly restaurant',
 };
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
