@@ -11,7 +11,10 @@ plugins {
 android {
     namespace = "com.hopetsit.app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // v20.0.6 — Pinned NDK to 27.0.12077973 (stable on Windows). NDK 28.2
+    // had a CMake bug "CMAKE_CXX_COMPILER not set, after EnableLanguage"
+    // that broke `flutter build apk --release` on Windows builds.
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
