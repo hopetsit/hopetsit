@@ -1659,6 +1659,17 @@ const Map<String, String> deDETranslations = <String, String>{
     'wallet_withdraw_success_title': 'Abhebung in Warteschlange',
     'wallet_withdraw_success_iban': 'Deine IBAN-Überweisung wird innerhalb von 3 Werktagen bearbeitet.',
     'wallet_withdraw_success_paypal': 'Deine PayPal-Überweisung wird innerhalb von 1 Werktag bearbeitet.',
+    // v20.0.19 — wallet withdraw error UX.
+    'wallet_paypal_needed_title': 'Richte dein PayPal ein',
+    'wallet_paypal_needed_message':
+        'Du musst deine PayPal-E-Mail hinzufügen, bevor du Geld abheben kannst. Dauert 30 Sekunden.',
+    'wallet_configure_paypal': 'PayPal einrichten',
+    'wallet_iban_needed_title': 'Richte deine IBAN ein',
+    'wallet_iban_needed_message':
+        'Du musst deine IBAN hinzufügen und verifizieren, bevor du Geld abheben kannst. Weniger als eine Minute.',
+    'wallet_configure_iban': 'IBAN einrichten',
+    'wallet_withdraw_error_generic':
+        'Abhebung derzeit nicht verfügbar. Bitte versuche es gleich noch einmal.',
     'wallet_status_pending': 'Ausstehend',
     'wallet_type_credit_booking': 'Zahlung erhalten',
     'wallet_type_debit_withdrawal': 'Abhebung',
@@ -1742,6 +1753,13 @@ const Map<String, String> deDETranslations = <String, String>{
     'stat_reviews': 'Bewertungen',
     'stat_services': 'Dienste',
     'service_dog_walking': 'Spaziergang',
+    // v20.0.19 — service type labels.
+    'service_day_care': 'Tagesbetreuung',
+    'service_pet_sitting': 'Tierbetreuung',
+    'service_house_sitting': 'Haustier-Sitting zuhause',
+    'service_overnight_stay': 'Übernachtung beim Sitter',
+    'service_long_stay': 'Langer Aufenthalt',
+    'service_home_visit': 'Hausbesuch',
     // v19.1.3 — Nachricht im Chat löschen
     'chat_delete_message': 'Nachricht löschen',
     'chat_delete_message_subtitle': 'Die Nachricht wird für den Gesprächspartner ausgeblendet',

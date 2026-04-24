@@ -1612,6 +1612,17 @@ const Map<String, String> itITTranslations = <String, String>{
     'wallet_withdraw_success_title': 'Prelievo in coda',
     'wallet_withdraw_success_iban': 'Il tuo bonifico IBAN sarà elaborato in 3 giorni lavorativi.',
     'wallet_withdraw_success_paypal': 'Il tuo trasferimento PayPal sarà elaborato in 1 giorno lavorativo.',
+    // v20.0.19 — wallet withdraw error UX.
+    'wallet_paypal_needed_title': 'Configura il tuo PayPal',
+    'wallet_paypal_needed_message':
+        'Devi aggiungere la tua email PayPal prima di poter prelevare denaro. Ci vogliono 30 secondi.',
+    'wallet_configure_paypal': 'Configura il mio PayPal',
+    'wallet_iban_needed_title': 'Configura il tuo IBAN',
+    'wallet_iban_needed_message':
+        'Devi aggiungere e verificare il tuo IBAN prima di poter prelevare denaro. Meno di un minuto.',
+    'wallet_configure_iban': 'Configura il mio IBAN',
+    'wallet_withdraw_error_generic':
+        'Prelievo non disponibile al momento. Riprova tra poco.',
     'wallet_status_pending': 'In attesa',
     'wallet_type_credit_booking': 'Pagamento ricevuto',
     'wallet_type_debit_withdrawal': 'Prelievo',
@@ -1695,6 +1706,13 @@ const Map<String, String> itITTranslations = <String, String>{
     'stat_reviews': 'Recensioni',
     'stat_services': 'Servizi',
     'service_dog_walking': 'Passeggiata',
+    // v20.0.19 — service type labels.
+    'service_day_care': 'Asilo',
+    'service_pet_sitting': 'Pet sitting',
+    'service_house_sitting': 'Sitter a domicilio',
+    'service_overnight_stay': 'Notte dal sitter',
+    'service_long_stay': 'Soggiorno lungo',
+    'service_home_visit': 'Visita a domicilio',
     // v19.1.3 — Elimina messaggio in chat
     'chat_delete_message': 'Elimina messaggio',
     'chat_delete_message_subtitle': 'Il messaggio sarà nascosto all\'altra persona',

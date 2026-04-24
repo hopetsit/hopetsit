@@ -3,11 +3,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
+import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:intl/intl.dart';
 
 /// Mon portefeuille — v19.0.
@@ -388,13 +391,88 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
       );
       widget.onSuccess();
     } catch (e) {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.toString(),
-      );
+      // v20.0.19 — before this fix, errors were rendered as the raw
+      // "ApiException(statusCode: 400, message: ...)" which looked broken.
+      // Now we detect the structured error codes PAYPAL_NOT_CONFIGURED
+      // and IBAN_NOT_CONFIGURED returned by the backend and show a clear
+      // dialog with a "Configurer maintenant" CTA that deep-links the
+      // provider to the right config screen.
+      if (!mounted) return;
+      final code = _extractErrorCode(e);
+      if (code == 'PAYPAL_NOT_CONFIGURED') {
+        _showConfigNeededDialog(
+          title: 'wallet_paypal_needed_title'.tr,
+          message: 'wallet_paypal_needed_message'.tr,
+          ctaLabel: 'wallet_configure_paypal'.tr,
+          onConfigure: () {
+            Navigator.of(context).pop();
+            Get.to(() => const PaymentManagementScreen());
+          },
+        );
+      } else if (code == 'IBAN_NOT_CONFIGURED') {
+        _showConfigNeededDialog(
+          title: 'wallet_iban_needed_title'.tr,
+          message: 'wallet_iban_needed_message'.tr,
+          ctaLabel: 'wallet_configure_iban'.tr,
+          onConfigure: () {
+            Navigator.of(context).pop();
+            Get.to(() => const IbanSetupScreen());
+          },
+        );
+      } else {
+        // Fallback generic message — no more raw ApiException toString.
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: e is ApiException && e.message.isNotEmpty
+              ? e.message
+              : 'wallet_withdraw_error_generic'.tr,
+        );
+      }
     } finally {
       if (mounted) setState(() => _processing = false);
     }
+  }
+
+  /// v20.0.19 — extract the backend error code from an ApiException.
+  /// Backend returns `{ error, code }` in the details map on 4xx.
+  String? _extractErrorCode(Object e) {
+    if (e is! ApiException) return null;
+    final d = e.details;
+    if (d is Map) {
+      final code = d['code']?.toString();
+      if (code != null && code.isNotEmpty) return code;
+    }
+    return null;
+  }
+
+  /// v20.0.19 — dialog "Configuration requise" avec bouton d'action direct.
+  void _showConfigNeededDialog({
+    required String title,
+    required String message,
+    required String ctaLabel,
+    required VoidCallback onConfigure,
+  }) {
+    Get.dialog<void>(
+      AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(Get.overlayContext!).pop(),
+            child: Text('common_cancel'.tr),
+          ),
+          ElevatedButton(
+            onPressed: onConfigure,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(ctaLabel),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
   }
 
   @override

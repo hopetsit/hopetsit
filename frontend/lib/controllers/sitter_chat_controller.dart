@@ -443,13 +443,22 @@ class SitterChatController extends GetxController {
     // Extract sender ID
     final senderId =
         data['senderId']?.toString() ??
-        data['sender']?.toString() ??
+        (data['sender'] is Map
+            ? ((data['sender'] as Map)['_id']?.toString() ??
+                  (data['sender'] as Map)['id']?.toString() ??
+                  '')
+            : data['sender']?.toString()) ??
         data['userId']?.toString() ??
         '';
 
-    // Determine if message is from current user
-    // Check if senderId matches currentUserId
-    final isFromCurrentUser = senderId == currentUserId;
+    // v20.0.19 — comparison tolérante : trim + lowercase pour éviter les
+    // mismatch du type "61A2B3..." vs "61a2b3..." ou whitespace surnuméraire
+    // qui faisaient croire que le message n'appartenait pas à l'utilisateur.
+    // Conséquence du bug : le sitter/walker ne pouvait plus long-press son
+    // propre message → pas de menu Effacer → "le bouton effacer marche pas".
+    final _sid = senderId.trim().toLowerCase();
+    final _cid = currentUserId.trim().toLowerCase();
+    final isFromCurrentUser = _sid.isNotEmpty && _sid == _cid;
 
     // Extract sender name - check multiple possible fields
     String senderName = '';
@@ -669,13 +678,19 @@ class SitterChatController extends GetxController {
     );
   }
 
-  /// v19.1.3 — Delete my own message (sitter side).
+  /// v19.1.3 — Delete my own message (sitter + walker side).
+  /// v20.0.19 — même fix que ChatController (owner) :
+  ///   - retiré le blocage silencieux `!isFromCurrentUser` qui empêchait
+  ///     la suppression quand le mapping senderId/userId était foireux
+  ///   - ajouté un snackbar d'erreur visible en cas d'échec (avant c'était
+  ///     un revert silencieux → l'user ne comprenait pas pourquoi le
+  ///     message "réapparaissait" tout seul).
   Future<bool> deleteMessage(String messageId) async {
     if (currentChatId.value.isEmpty) return false;
     final idx = currentChatMessages.indexWhere((m) => m.id == messageId);
     if (idx < 0) return false;
     final original = currentChatMessages[idx];
-    if (!original.isFromCurrentUser || original.isDeleted) return false;
+    if (original.isDeleted) return true; // idempotent
 
     currentChatMessages[idx] = SitterChatMessage(
       id: original.id,
@@ -684,7 +699,7 @@ class SitterChatController extends GetxController {
       senderImage: original.senderImage,
       message: '',
       timestamp: original.timestamp,
-      isFromCurrentUser: true,
+      isFromCurrentUser: original.isFromCurrentUser,
       attachments: const [],
       isDeleted: true,
     );
@@ -698,11 +713,22 @@ class SitterChatController extends GetxController {
       if (!ok) {
         currentChatMessages[idx] = original;
         currentChatMessages.refresh();
+        Get.snackbar(
+          'common_error'.tr,
+          'chat_delete_message_error'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
       return ok;
-    } catch (_) {
+    } catch (e) {
+      AppLogger.logError('deleteMessage failed (sitter/walker)', error: e);
       currentChatMessages[idx] = original;
       currentChatMessages.refresh();
+      Get.snackbar(
+        'common_error'.tr,
+        'chat_delete_message_error'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return false;
     }
   }

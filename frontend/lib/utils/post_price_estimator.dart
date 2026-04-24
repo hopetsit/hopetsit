@@ -103,6 +103,36 @@ PostPriceEstimate? estimatePostPrice({
   final totalMinutes = end.difference(start).inMinutes;
   int days = math.max(1, (totalMinutes / (60 * 24)).ceil());
 
+  // v20.0.19 — CRITICAL : pour la GARDERIE (day_care), la règle métier est
+  // "1 jour = 1 × dailyRate" quelle que soit la plage horaire. Avant ce
+  // fix, une garderie 10h05 → 20h06 (10h) tombait dans le tier "hourly"
+  // (puisque days < 7) → facturée 10h × (daily/8) = 12.52€ au lieu de
+  // 10€ (1 × dailyRate). Daniel a vu ça sur sa publication.
+  final isDayCare = services.contains('day_care') || services.contains('garderie');
+  if (isDayCare) {
+    final effectiveDailyForCare = dailyRate > 0
+        ? dailyRate
+        : (hourlyRate > 0
+            ? hourlyRate * 8
+            : (weeklyRate > 0
+                ? weeklyRate / 7
+                : (monthlyRate > 0 ? monthlyRate / 30 : 0)));
+    if (effectiveDailyForCare > 0) {
+      final brut = effectiveDailyForCare * days;
+      final commission = brut * commissionRate;
+      return PostPriceEstimate(
+        brut: brut + commission, // owner pays brut + 20%
+        net: brut,               // sitter keeps full dailyRate × days
+        commission: commission,
+        currency: currency,
+        breakdown: days == 1
+            ? '1 jour × ${_money(effectiveDailyForCare, currency)}'
+            : '$days jours × ${_money(effectiveDailyForCare, currency)}',
+        unit: 'day',
+      );
+    }
+  }
+
   // Session v17.1 — derive missing rate tiers from whichever one the
   // sitter has configured. Mirrors the backend logic in createBooking.js
   // (L.364-372): most sitters only fill ONE rate via the edit UI, but the

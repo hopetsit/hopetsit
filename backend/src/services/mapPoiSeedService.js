@@ -94,15 +94,16 @@ function buildOverpassQuery(bbox, tagFilters, { limit } = {}) {
   const unions = tagFilters
     .map((tf) => `node${tf}(${bboxStr});way${tf}(${bboxStr});`)
     .join('');
-  // v20.0.19 — appliquer le limit au niveau Overpass pour éviter les
-  // timeouts sur les grosses requêtes (ex: tous les restaurants de France).
-  // Overpass supporte `out center tags N;` pour capper le nombre de résultats
-  // avant envoi. Sans ce limit, les pays denses tapaient le timeout 60s et
-  // renvoyaient une erreur → seed 0 POI.
+  // v20.0.19 — syntaxe Overpass stricte : ordre documenté est
+  // `out [limit] [verbosity] [geometry];`. Avant ce fix on avait
+  // `out center tags 2000;` que certains parsers Overpass rejettent
+  // silencieusement → retourne {} au lieu de {elements:[...]} →
+  // elements array undefined → seed 0 POI (avec status:done).
+  // On ajoute aussi maxsize pour éviter le rejet sur grosse bbox.
   const outClause = (Number.isFinite(Number(limit)) && Number(limit) > 0)
-    ? `out center tags ${Number(limit)};`
-    : 'out center tags;';
-  return `[out:json][timeout:90];(${unions});${outClause}`;
+    ? `out ${Number(limit)} center;`
+    : 'out center;';
+  return `[out:json][timeout:90][maxsize:536870912];(${unions});${outClause}`;
 }
 
 async function fetchOverpass(query) {
@@ -114,7 +115,18 @@ async function fetchOverpass(query) {
       timeout: 120000,
     },
   );
-  return res.data.elements || [];
+  // v20.0.19 — log explicite quand la réponse Overpass n'a pas de champ
+  // `elements`. C'est le cas quand la query est invalide (Overpass renvoie
+  // du HTML d'erreur à la place du JSON) — auparavant on retournait
+  // silencieusement [] et le seed disait "done 0 POIs" sans signaler le bug.
+  if (!res.data || !Array.isArray(res.data.elements)) {
+    const preview = typeof res.data === 'string'
+      ? res.data.slice(0, 300)
+      : JSON.stringify(res.data || {}).slice(0, 300);
+    logger.warn?.(`[seed] Overpass réponse inattendue (pas d'elements): ${preview}`);
+    return [];
+  }
+  return res.data.elements;
 }
 
 function elementToPoi(el, category, country) {

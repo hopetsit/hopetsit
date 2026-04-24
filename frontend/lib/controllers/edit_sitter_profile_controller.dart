@@ -13,6 +13,16 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/services/location_service.dart';
 
+/// v20.0.19 — Broadcast global "les tarifs sitter/walker viennent de changer".
+/// Observé par sitter_homescreen (et les autres écrans qui cachent les rates
+/// provider) pour recharger leurs valeurs sans attendre un pull-to-refresh.
+///
+/// Usage dans le controller qui écoute :
+///   ever(providerRatesVersion, (_) => _loadProviderRates());
+/// Usage dans le controller qui publie :
+///   providerRatesVersion.value = providerRatesVersion.value + 1;
+final RxInt providerRatesVersion = 0.obs;
+
 class EditSitterProfileController extends GetxController {
   EditSitterProfileController({
     SitterRepository? sitterRepository,
@@ -633,6 +643,10 @@ class EditSitterProfileController extends GetxController {
         weeklyRate: weeklyRate,
         monthlyRate: monthlyRate,
       );
+
+      // v20.0.19 — publie le broadcast "rates changed" pour que sitter_homescreen
+      // (et tout écran qui cache les rates) recharge instant sans pull-to-refresh.
+      providerRatesVersion.value = providerRatesVersion.value + 1;
 
       if (Get.isRegistered<SitterProfileController>()) {
         await Get.find<SitterProfileController>().loadMyProfile();

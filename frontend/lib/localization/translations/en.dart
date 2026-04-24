@@ -1759,6 +1759,17 @@ const Map<String, String> enUSTranslations = <String, String>{
     'wallet_withdraw_success_title': 'Withdrawal queued',
     'wallet_withdraw_success_iban': 'Your IBAN transfer will be processed within 3 business days.',
     'wallet_withdraw_success_paypal': 'Your PayPal transfer will be processed within 1 business day.',
+    // v20.0.19 — wallet withdraw error UX.
+    'wallet_paypal_needed_title': 'Set up your PayPal',
+    'wallet_paypal_needed_message':
+        'You need to add your PayPal email before you can withdraw money. It takes 30 seconds.',
+    'wallet_configure_paypal': 'Set up my PayPal',
+    'wallet_iban_needed_title': 'Set up your IBAN',
+    'wallet_iban_needed_message':
+        'You need to add and verify your IBAN before you can withdraw money. Takes less than a minute.',
+    'wallet_configure_iban': 'Set up my IBAN',
+    'wallet_withdraw_error_generic':
+        'Withdrawal unavailable right now. Please try again shortly.',
     'wallet_status_pending': 'Pending',
     'wallet_type_credit_booking': 'Payment received',
     'wallet_type_debit_withdrawal': 'Withdrawal',
@@ -1842,6 +1853,13 @@ const Map<String, String> enUSTranslations = <String, String>{
     'stat_reviews': 'Reviews',
     'stat_services': 'Services',
     'service_dog_walking': 'Dog walking',
+    // v20.0.19 — service type labels.
+    'service_day_care': 'Day care',
+    'service_pet_sitting': 'Pet sitting',
+    'service_house_sitting': 'House sitting',
+    'service_overnight_stay': 'Overnight stay',
+    'service_long_stay': 'Long stay',
+    'service_home_visit': 'Home visit',
     // v19.1.3 — Delete message in chat
     'chat_delete_message': 'Delete message',
     'chat_delete_message_subtitle': 'The message will be hidden from the other person',

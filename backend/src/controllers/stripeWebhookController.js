@@ -63,18 +63,17 @@ const _unlockChatAndWelcome = async ({ ownerId, providerId, providerRole, bookin
   }
   let convo = await Conversation.findOne(query);
   if (!convo) {
-    // v20.0.19 — sitterUnreadCount sert de compteur générique "provider
-    // unread" pour sitter ET walker (le schema n'a pas de walkerUnreadCount
-    // séparé — même convention que conversationService.sendMessage qui
-    // incrémente sitterUnreadCount quand le provider est walker). Avant ce
-    // fix, un walker qui recevait le welcome après paiement ne voyait
-    // aucun badge de message non lu.
+    // v20.0.19 — compteurs unread initialisés à 0 ; ils seront incrémentés
+    // une seule fois plus bas après la création du Message (évite le +2
+    // off-by-one qu'on avait avant : init=1 puis +1 = 2).
+    // Note : sitterUnreadCount sert de compteur générique "provider unread"
+    // pour sitter ET walker (le schema n'a pas de walkerUnreadCount séparé).
     convo = await Conversation.create({
       ownerId,
       sitterId: providerRole === 'sitter' ? providerId : null,
       walkerId: providerRole === 'walker' ? providerId : null,
-      ownerUnreadCount: 1,
-      sitterUnreadCount: 1, // provider unread = 1 (sitter ou walker)
+      ownerUnreadCount: 0,
+      sitterUnreadCount: 0,
     });
   }
 

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart'
+    show providerRatesVersion;
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/walker_model.dart';
@@ -502,6 +504,10 @@ class EditWalkerProfileController extends GetxController {
       final sorted = byDuration.values.toList()
         ..sort((a, b) => a.durationMinutes.compareTo(b.durationMinutes));
       await _walkerRepository.updateMyWalkerRates(sorted);
+
+      // v20.0.19 — publie le broadcast "rates changed" pour que sitter_homescreen
+      // (walker feed aussi) recharge instant sans pull-to-refresh.
+      providerRatesVersion.value = providerRatesVersion.value + 1;
 
       await loadProfileData();
       CustomSnackbar.showSuccess(

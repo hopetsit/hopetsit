@@ -1694,6 +1694,17 @@ const Map<String, String> frFRTranslations = <String, String>{
     'wallet_withdraw_success_title': 'Demande enregistrée',
     'wallet_withdraw_success_iban': 'Ton virement IBAN sera exécuté dans les 3 jours ouvrés.',
     'wallet_withdraw_success_paypal': 'Ton transfert PayPal sera exécuté sous 1 jour ouvré.',
+    // v20.0.19 — wallet withdraw error UX (PAYPAL / IBAN not configured).
+    'wallet_paypal_needed_title': 'Configure ton PayPal',
+    'wallet_paypal_needed_message':
+        'Tu dois renseigner ton email PayPal avant de pouvoir retirer de l\'argent. Ça prend 30 secondes.',
+    'wallet_configure_paypal': 'Configurer mon PayPal',
+    'wallet_iban_needed_title': 'Configure ton IBAN',
+    'wallet_iban_needed_message':
+        'Tu dois enregistrer et vérifier ton IBAN avant de pouvoir retirer de l\'argent. Ça prend moins d\'une minute.',
+    'wallet_configure_iban': 'Configurer mon IBAN',
+    'wallet_withdraw_error_generic':
+        'Retrait impossible pour l\'instant. Réessaie dans quelques instants.',
     'wallet_status_pending': 'En attente',
     'wallet_type_credit_booking': 'Paiement reçu',
     'wallet_type_debit_withdrawal': 'Retrait',
@@ -1780,6 +1791,13 @@ const Map<String, String> frFRTranslations = <String, String>{
     'stat_reviews': 'Avis',
     'stat_services': 'Services',
     'service_dog_walking': 'Promenade',
+    // v20.0.19 — service type labels (used on sitter feed cards + elsewhere).
+    'service_day_care': 'Garderie',
+    'service_pet_sitting': 'Pet-sitting',
+    'service_house_sitting': 'Garde à domicile',
+    'service_overnight_stay': 'Nuit chez le sitter',
+    'service_long_stay': 'Long séjour',
+    'service_home_visit': 'Visite à domicile',
     // v19.1.3 — Delete message in chat
     'chat_delete_message': 'Supprimer le message',
     'chat_delete_message_subtitle': 'Le message sera masqué pour votre interlocuteur',

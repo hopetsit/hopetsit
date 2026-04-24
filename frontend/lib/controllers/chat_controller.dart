@@ -450,16 +450,24 @@ class ChatController extends GetxController {
         data['messageId']?.toString() ??
         DateTime.now().millisecondsSinceEpoch.toString();
 
-    // Extract sender ID
+    // Extract sender ID — robust against backend shapes where `sender` is
+    // a populated Map { _id, name, avatar } instead of a plain string id.
     final senderId =
         data['senderId']?.toString() ??
-        data['sender']?.toString() ??
+        (data['sender'] is Map
+            ? ((data['sender'] as Map)['_id']?.toString() ??
+                  (data['sender'] as Map)['id']?.toString() ??
+                  '')
+            : data['sender']?.toString()) ??
         data['userId']?.toString() ??
         '';
 
-    // Determine if message is from current user
-    // Check if senderId matches currentUserId
-    final isFromCurrentUser = senderId == currentUserId;
+    // v20.0.19 — comparison tolérante (trim + lowercase) pour éviter qu'un
+    // mismatch de casse/whitespace fasse croire que le message n'est pas
+    // à l'utilisateur → long-press désactivé → "effacer marche pas".
+    final _sid = senderId.trim().toLowerCase();
+    final _cid = currentUserId.trim().toLowerCase();
+    final isFromCurrentUser = _sid.isNotEmpty && _sid == _cid;
 
     // Extract sender name - check multiple possible fields
     String senderName = '';

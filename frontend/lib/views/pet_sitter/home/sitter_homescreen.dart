@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart'
+    show providerRatesVersion;
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
@@ -65,12 +67,28 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   double _providerMonthlyRate = 0.0;
   String _providerCurrency = 'EUR';
 
+  Worker? _ratesVersionWorker;
+
   @override
   void initState() {
     super.initState();
     _loadPendingApplications();
     _loadUserPosition();
     _loadProviderRates();
+    // v20.0.19 — écoute le broadcast "tarifs modifiés" publié par
+    // edit_sitter_profile_controller.updateRatesOnly. Dès que le sitter ou
+    // walker save ses tarifs dans "Mes tarifs", on recharge immédiatement
+    // les rates locaux → les estimations sur les cards se mettent à jour
+    // sans avoir besoin de pull-to-refresh.
+    _ratesVersionWorker = ever<int>(providerRatesVersion, (_) {
+      if (mounted) _loadProviderRates();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ratesVersionWorker?.dispose();
+    super.dispose();
   }
 
   /// v16.3i — fetch the current provider's rates so the price block on
@@ -282,9 +300,45 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return d.minute == 0 ? '${h}h' : '${h}h$m';
   }
 
+  // v20.0.19 — i18n des service types sur les cards de publication côté sitter.
+  // Avant ce fix, on affichait juste `t.replaceAll('_', ' ')` → "day care",
+  // "dog walking", "pet sitting" en anglais brut même en FR/ES/etc.
+  // Maintenant on mappe chaque valeur canonique vers une clé i18n existante.
   static String _serviceTypesDisplay(List<String> types) {
     if (types.isEmpty) return '';
-    return types.map((t) => t.replaceAll('_', ' ')).join(', ');
+    return types.map(_localizeServiceType).join(', ');
+  }
+
+  static String _localizeServiceType(String raw) {
+    final v = raw.trim().toLowerCase();
+    switch (v) {
+      case 'day_care':
+      case 'daycare':
+      case 'garderie':
+        return 'choose_service_card_day_care_title'.tr;
+      case 'dog_walking':
+      case 'walking':
+      case 'promenade':
+        return 'choose_service_card_dog_walking_title'.tr;
+      case 'pet_sitting':
+      case 'petsitting':
+        return 'service_pet_sitting'.tr;
+      case 'house_sitting':
+      case 'housesitting':
+        return 'service_house_sitting'.tr;
+      case 'overnight_stay':
+      case 'overnight':
+        return 'service_overnight_stay'.tr;
+      case 'long_stay':
+      case 'longstay':
+        return 'service_long_stay'.tr;
+      case 'home_visit':
+      case 'homevisit':
+        return 'service_home_visit'.tr;
+      default:
+        // Fallback : raw humanisé (avec majuscule) si la clé n'existe pas.
+        return raw.replaceAll('_', ' ');
+    }
   }
 
   /// v16.3g — Build an earning estimate for [post] using the rates loaded by
