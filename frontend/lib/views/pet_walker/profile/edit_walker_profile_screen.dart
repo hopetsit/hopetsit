@@ -431,9 +431,45 @@ class EditWalkerProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 24.h),
 
+                    // v19.1.3 — "Mes tarifs" section header, modern card.
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF16A34A).withValues(alpha: 0.10),
+                            const Color(0xFF16A34A).withValues(alpha: 0.03),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14.r),
+                        border: Border.all(
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.euro_rounded,
+                            size: 20.sp,
+                            color: const Color(0xFF16A34A),
+                          ),
+                          SizedBox(width: 10.w),
+                          PoppinsText(
+                            text: 'my_rates_section_title'.tr,
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 14.h),
+
                     // Walker-specific: 30-min walk rate (short walks).
                     InterText(
-                      text: 'Tarif pour 30 min de balade',
+                      text: 'walker_rate_30min_label'.tr,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary(context),
@@ -451,7 +487,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                       ],
                       textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
-                        hintText: 'Ex : 8',
+                        hintText: 'walker_rate_hint_8'.tr,
                         suffixText: '€',
                         suffixStyle: TextStyle(
                           fontSize: 14.sp,
@@ -479,7 +515,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                         if (v.isEmpty) return null; // optional
                         final parsed = double.tryParse(v);
                         if (parsed == null || parsed < 0) {
-                          return 'Tarif invalide';
+                          return 'walker_rate_invalid'.tr;
                         }
                         return null;
                       },
@@ -489,7 +525,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
 
                     // Walker-specific: 60-min walk rate (aka "hourly rate").
                     InterText(
-                      text: 'Tarif pour 60 min de balade',
+                      text: 'walker_rate_60min_label'.tr,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary(context),
@@ -507,7 +543,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                       ],
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(
-                        hintText: 'Ex : 15',
+                        hintText: 'walker_rate_hint_15'.tr,
                         suffixText: '€',
                         suffixStyle: TextStyle(
                           fontSize: 14.sp,
@@ -535,7 +571,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                         if (v.isEmpty) return null; // optional
                         final parsed = double.tryParse(v);
                         if (parsed == null || parsed < 0) {
-                          return 'Tarif invalide';
+                          return 'walker_rate_invalid'.tr;
                         }
                         return null;
                       },
@@ -547,7 +583,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                     Obx(
                       () => SwitchListTile(
                         title: Text(
-                          'J\'accepte d\'aller chercher le chien chez le propriétaire',
+                          'walker_pickup_at_owner'.tr,
                           style: TextStyle(
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w500,

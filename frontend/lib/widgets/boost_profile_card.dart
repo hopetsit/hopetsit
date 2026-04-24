@@ -28,6 +28,8 @@ class BoostProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v19.1.3 — 3 boutons : Boost (couleur rôle) / Premium (vert) / MapBoost
+    // (bleu). Chacun ouvre un onglet dédié dans CoinShopScreen.
     return SizedBox(
       height: 90.h,
       child: Row(
@@ -41,13 +43,23 @@ class BoostProfileCard extends StatelessWidget {
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
             ),
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: 8.w),
           Expanded(
             child: _BoostChip(
-              accent: const Color(0xFF3B82F6),
+              accent: const Color(0xFF16A34A),
+              icon: Icons.workspace_premium_rounded,
+              title: 'premium_choose_plan'.tr,
+              subtitle: 'premium_choose_plan_subtitle'.tr,
+              onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _BoostChip(
+              accent: const Color(0xFF2563EB),
               icon: Icons.push_pin_rounded,
-              title: 'profile_boost_map_title'.tr,
-              subtitle: 'profile_boost_map_subtitle'.tr,
+              title: 'mapboost_header_title'.tr,
+              subtitle: 'mapboost_header_subtitle'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
             ),
           ),

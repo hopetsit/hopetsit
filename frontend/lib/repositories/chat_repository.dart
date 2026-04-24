@@ -163,6 +163,22 @@ class ChatRepository {
     );
   }
 
+  /// v19.1.3 — Soft-delete a message. Only the sender can call this; backend
+  /// enforces that and replies 200 with `{deleted: true, messageId}`.
+  Future<bool> deleteMessage({
+    required String conversationId,
+    required String messageId,
+  }) async {
+    final endpoint =
+        '${ApiEndpoints.sendMessage}/$conversationId/messages/$messageId';
+    final response = await _apiClient.delete(
+      endpoint,
+      requiresAuth: true,
+    );
+    if (response is Map && response['deleted'] == true) return true;
+    return false;
+  }
+
   /// Sitter-only: share profile phone number as a special phone_share message.
   /// Backend gates by paymentStatus === 'paid'. Sprint 3 step 6.
   Future<Map<String, dynamic>> sharePhone({required String conversationId}) async {

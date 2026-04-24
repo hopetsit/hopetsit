@@ -299,125 +299,125 @@ class ProfileScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── COMPTE ─────────────────────────────────────────
-        _sectionHeader('Compte'),
+        _sectionHeader('profile_section_account'.tr),
         _buildSettingsTile(
           'profile_edit_profile'.tr,
-          'Modifier ton profil et ta photo',
+          'profile_edit_profile_subtitle'.tr,
           Icons.person_outline_rounded,
           AppColors.primaryColor,
           controller.navigateToEditProfile,
         ),
         _buildSettingsTile(
           'profile_choose_service'.tr,
-          'Change le type de service recherché',
+          'profile_choose_service_subtitle'.tr,
           Icons.work_outline_rounded,
           AppColors.primaryColor,
           controller.navigateToChooseService,
         ),
         _buildSettingsTile(
-          'Carte',
-          'PawMap — vétos, points d\'eau, amis',
+          'profile_pawmap'.tr,
+          'profile_pawmap_subtitle'.tr,
           Icons.map_rounded,
           _palePurple,
           () => Get.to(() => const PawMapScreen()),
         ),
 
         // ── TÂCHES ─────────────────────────────────────────
-        _sectionHeader('Tâches'),
+        _sectionHeader('profile_section_tasks'.tr),
         _buildSettingsTile(
           'profile_add_tasks'.tr,
-          'Programme une nouvelle tâche',
+          'profile_add_tasks_subtitle'.tr,
           Icons.add_task_rounded,
           AppColors.greenColor,
           controller.navigateToAddTasks,
         ),
         _buildSettingsTile(
           'profile_view_tasks'.tr,
-          'Consulte tes tâches existantes',
+          'profile_view_tasks_subtitle'.tr,
           Icons.task_alt_rounded,
           AppColors.greenColor,
           controller.navigateToViewTask,
         ),
 
         // ── PAIEMENTS & SERVICES ──────────────────────────
-        _sectionHeader('Paiements & services'),
+        _sectionHeader('profile_section_payments'.tr),
         const LoyaltyCard(),
         // Session v18.2 — entry point to the "Mes paiements" screen
         // (saved cards + history). Route via lazy import so that removing
         // this line later doesn't leave a dead reference.
         _buildSettingsTile(
           'owner_payments_title'.tr == 'owner_payments_title'
-              ? 'Mes paiements'
+              ? 'owner_payments_fallback'.tr
               : 'owner_payments_title'.tr,
-          'Cartes enregistrées et historique',
+          'owner_payments_subtitle'.tr,
           Icons.credit_card_rounded,
           AppColors.primaryColor,
           () => Get.to(() => const OwnerPaymentsScreen()),
         ),
         _buildSettingsTile(
           'referrals_title'.tr,
-          'Invite tes amis, gagne des crédits',
+          'referrals_subtitle'.tr,
           Icons.group_add_rounded,
           _paleOrange,
           () => Get.to(() => const MyReferralsScreen()),
         ),
 
         // ── PRÉFÉRENCES ───────────────────────────────────
-        _sectionHeader('Préférences'),
+        _sectionHeader('profile_section_preferences'.tr),
         _buildSettingsTile(
           'profile_change_language'.tr,
-          'Change la langue de l\'app',
+          'profile_change_language_subtitle'.tr,
           Icons.language_rounded,
           _paleBlue,
           controller.showLanguageDialog,
         ),
         _buildSettingsTile(
           'theme_setting_title'.tr,
-          'Clair / sombre / système',
+          'theme_setting_subtitle'.tr,
           Icons.brightness_6_rounded,
           _palePurple,
           () => _showThemeDialog(),
         ),
 
         // ── SÉCURITÉ ──────────────────────────────────────
-        _sectionHeader('Sécurité'),
+        _sectionHeader('profile_section_security'.tr),
         _buildSettingsTile(
           'profile_change_password'.tr,
-          'Modifier ton mot de passe',
+          'profile_change_password_subtitle'.tr,
           Icons.lock_outline_rounded,
           AppColors.primaryColor,
           controller.navigateToChangePassword,
         ),
         _buildSettingsTile(
           'profile_blocked_users'.tr,
-          'Gérer les personnes bloquées',
+          'profile_blocked_users_subtitle'.tr,
           Icons.block_rounded,
           AppColors.errorColor,
           controller.navigateToBlockedUsers,
         ),
 
         // ── LÉGAL ─────────────────────────────────────────
-        _sectionHeader('Légal'),
+        _sectionHeader('profile_section_legal'.tr),
         _buildSettingsTile(
           'terms_read_button'.tr,
-          'CGU de la plateforme',
+          'terms_read_subtitle'.tr,
           Icons.description_outlined,
           AppColors.textSecondary(context),
           () => Get.to(() => const TermsAndConditionsScreen()),
         ),
         _buildSettingsTile(
-          'Confidentialité',
-          'Politique de confidentialité et RGPD',
+          'profile_privacy'.tr,
+          'profile_privacy_subtitle'.tr,
           Icons.privacy_tip_outlined,
           AppColors.textSecondary(context),
           () => Get.to(() => const PrivacyPolicyScreen()),
         ),
 
         // ── ZONE DANGER ───────────────────────────────────
-        _sectionHeader('Zone danger'),
+        _sectionHeader('profile_section_danger'.tr),
         _buildSettingsTileDanger(
           'profile_delete_account'.tr,
-          'Action irréversible',
+          'profile_delete_account_subtitle'.tr,
           Icons.delete_outline_rounded,
           () => controller.showDeleteAccountDialog(context),
         ),

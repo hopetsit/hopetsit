@@ -21,6 +21,8 @@ class SitterChatMessage {
   final DateTime timestamp;
   final bool isFromCurrentUser;
   final List<String> attachments;
+  // v19.1.3 — soft-delete flag, mirrors ChatMessage.
+  final bool isDeleted;
 
   SitterChatMessage({
     required this.id,
@@ -31,6 +33,7 @@ class SitterChatMessage {
     required this.timestamp,
     required this.isFromCurrentUser,
     this.attachments = const [],
+    this.isDeleted = false,
   });
 }
 
@@ -611,6 +614,10 @@ class SitterChatController extends GetxController {
       AppLogger.logDebug('Attachment URLs: $attachments');
     }
 
+    // v19.1.3 — soft-deleted flag from backend.
+    final isDeleted = data['isDeleted'] == true ||
+        data['deletedAt'] != null;
+
     return SitterChatMessage(
       id: id,
       senderId: senderId,
@@ -620,7 +627,46 @@ class SitterChatController extends GetxController {
       timestamp: timestamp,
       isFromCurrentUser: isFromCurrentUser,
       attachments: attachments,
+      isDeleted: isDeleted,
     );
+  }
+
+  /// v19.1.3 — Delete my own message (sitter side).
+  Future<bool> deleteMessage(String messageId) async {
+    if (currentChatId.value.isEmpty) return false;
+    final idx = currentChatMessages.indexWhere((m) => m.id == messageId);
+    if (idx < 0) return false;
+    final original = currentChatMessages[idx];
+    if (!original.isFromCurrentUser || original.isDeleted) return false;
+
+    currentChatMessages[idx] = SitterChatMessage(
+      id: original.id,
+      senderId: original.senderId,
+      senderName: original.senderName,
+      senderImage: original.senderImage,
+      message: '',
+      timestamp: original.timestamp,
+      isFromCurrentUser: true,
+      attachments: const [],
+      isDeleted: true,
+    );
+    currentChatMessages.refresh();
+
+    try {
+      final ok = await _chatRepository.deleteMessage(
+        conversationId: currentChatId.value,
+        messageId: messageId,
+      );
+      if (!ok) {
+        currentChatMessages[idx] = original;
+        currentChatMessages.refresh();
+      }
+      return ok;
+    } catch (_) {
+      currentChatMessages[idx] = original;
+      currentChatMessages.refresh();
+      return false;
+    }
   }
 
   /// Sprint 3 step 6 — share sitter's profile phone via the dedicated endpoint.

@@ -742,14 +742,14 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         InterText(
-                          text: 'Choisir un forfait Premium',
+                          text: 'premium_choose_plan'.tr,
                           fontSize: 18.sp,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 4.h),
                         InterText(
-                          text: 'Débloquez la PawMap complète et le social',
+                          text: 'premium_choose_plan_subtitle'.tr,
                           fontSize: 13.sp,
                           color: AppColors.greyText,
                         ),
@@ -978,7 +978,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InterText(
-                  text: isPremium ? 'Premium actif' : 'Plan gratuit',
+                  text: isPremium ? 'premium_active'.tr : 'premium_free_plan'.tr,
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w700,
                   color: isPremium ? Colors.white : AppColors.blackColor,
@@ -1344,14 +1344,14 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         InterText(
-                          text: 'Booster mon pin sur la map',
+                          text: 'mapboost_header_title'.tr,
                           fontSize: 18.sp,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 4.h),
                         InterText(
-                          text: 'Pin surligné sur la PawMap — les voisins vous voient en premier',
+                          text: 'mapboost_header_subtitle'.tr,
                           fontSize: 12.sp,
                           color: AppColors.greyText,
                         ),
@@ -1410,7 +1410,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InterText(
-                  text: isActive ? 'Map Boost actif' : 'Map Boost inactif',
+                  text: isActive ? 'mapboost_active'.tr : 'mapboost_inactive'.tr,
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w700,
                   color: isActive ? Colors.white : AppColors.blackColor,
@@ -1823,14 +1823,14 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
   String _mapBoostTierLabel(String tier) {
     switch (tier.toLowerCase()) {
       case 'bronze':
-        return 'Découverte';
+        return 'mapboost_tier_bronze'.tr;
       case 'silver':
-        return 'Visible';
+        return 'mapboost_tier_silver'.tr;
       case 'gold':
-        return 'Pin Doré';
+        return 'mapboost_tier_gold'.tr;
       case 'platinum':
       case 'diamond':
-        return 'Map Premium';
+        return 'mapboost_tier_platinum'.tr;
       default:
         return tier;
     }

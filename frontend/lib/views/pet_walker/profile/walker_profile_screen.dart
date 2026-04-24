@@ -219,7 +219,7 @@ class WalkerProfileScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4.r),
                               ),
                               child: InterText(
-                                text: 'Promenade',
+                                text: 'service_dog_walking'.tr,
                                 fontSize: 10.sp,
                                 color: Colors.white.withValues(alpha: 0.9),
                                 fontWeight: FontWeight.w500,
@@ -332,31 +332,32 @@ class WalkerProfileScreen extends StatelessWidget {
   Widget _buildQuickActions(BuildContext context) {
     return Row(
       children: [
+        // v19.1.3 — "Mes revenus" replaced by "Mon portefeuille" (wallet).
         _quickAction(
           context,
-          icon: Icons.bar_chart_rounded,
-          label: 'Mes revenus',
-          onTap: () => Get.to(() => const EarningsHistoryScreen()),
+          icon: Icons.account_balance_wallet_rounded,
+          label: 'wallet_menu_title'.tr,
+          onTap: () => Get.to(() => const WalletScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
           icon: Icons.calendar_month_rounded,
-          label: 'Mon calendrier',
+          label: 'profile_quick_calendar'.tr,
           onTap: () => Get.to(() => const AvailabilityCalendarScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
           icon: Icons.rocket_launch_rounded,
-          label: 'Boutique boost',
+          label: 'profile_quick_boost_shop'.tr,
           onTap: () => Get.to(() => const CoinShopScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
           icon: Icons.account_balance_rounded,
-          label: 'IBAN',
+          label: 'profile_quick_iban'.tr,
           onTap: () => Get.to(() => const IbanSetupScreen()),
         ),
       ],
@@ -476,14 +477,14 @@ class WalkerProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   InterText(
-                    text: 'Passer en $roleLabel',
+                    text: 'switch_role_to'.trParams({'role': roleLabel}),
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w700,
                     color: accentColor,
                   ),
                   SizedBox(height: 3.h),
                   InterText(
-                    text: 'Basculer vers le rôle $targetRole',
+                    text: 'switch_role_subtitle'.trParams({'role': targetRole}),
                     fontSize: 12.sp,
                     color: AppColors.greyText,
                   ),
@@ -515,7 +516,7 @@ class WalkerProfileScreen extends StatelessWidget {
           final isLoading = auth.isSwitchingRole.value;
           return AlertDialog(
             backgroundColor: AppColors.card(dialogContext),
-            title: Text('Changer de rôle',
+            title: Text('switch_role_dialog_title'.tr,
                 style: TextStyle(color: AppColors.textPrimary(dialogContext))),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -527,8 +528,8 @@ class WalkerProfileScreen extends StatelessWidget {
                   ),
                 Text(
                   isLoading
-                      ? 'Bascule vers $roleLabel…'
-                      : 'Tu vas basculer vers le rôle $roleLabel. Continuer ?',
+                      ? 'switch_role_loading'.trParams({'role': roleLabel})
+                      : 'switch_role_confirm'.trParams({'role': roleLabel}),
                   style:
                       TextStyle(color: AppColors.textPrimary(dialogContext)),
                 ),
@@ -540,7 +541,7 @@ class WalkerProfileScreen extends StatelessWidget {
                     ? null
                     : () => Navigator.of(dialogContext).pop(),
                 child: Text(
-                  'Annuler',
+                  'common_cancel'.tr,
                   style: TextStyle(
                       color: AppColors.textSecondary(dialogContext)),
                 ),
@@ -556,7 +557,7 @@ class WalkerProfileScreen extends StatelessWidget {
                         }
                       },
                 child: Text(
-                  'Passer en $roleLabel',
+                  'switch_role_to'.trParams({'role': roleLabel}),
                   style: TextStyle(
                     color: isLoading
                         ? AppColors.textSecondary(dialogContext)
@@ -582,27 +583,24 @@ class WalkerProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Compte'),
+        _sectionHeader('profile_section_account'.tr),
         _settingsTile(
-          'Modifier mon profil',
+          'profile_edit_my_profile'.tr,
           Icons.person_outline_rounded,
-          // Dedicated walker edit screen — includes a 60-min walk rate field
-          // and a single pickup toggle ("I'll pick up at the owner's home").
-          // Owners still use EditOwnerProfileScreen via their own profile.
           () => Get.to(() => const EditWalkerProfileScreen()),
         ),
         _settingsTile(
-          'Carte (PawMap)',
+          'profile_pawmap'.tr,
           Icons.map_rounded,
           () => Get.to(() => const PawMapScreen()),
         ),
         _settingsTile(
-          'Vérification d\'identité',
+          'profile_identity_verification'.tr,
           Icons.verified_user_outlined,
           () => Get.to(() => const WalkerIdentityVerificationScreen()),
         ),
 
-        _sectionHeader('Paiements & services'),
+        _sectionHeader('profile_section_payments'.tr),
         // v19.0 — Mon portefeuille en tête des paiements : c'est le solde
         // des gains du walker, d'où il peut retirer vers IBAN/PayPal ou
         // dépenser dans le shop.
@@ -612,22 +610,22 @@ class WalkerProfileScreen extends StatelessWidget {
           () => Get.to(() => const WalletScreen()),
         ),
         _settingsTile(
-          'Boutique',
+          'profile_shop'.tr,
           Icons.storefront_rounded,
           () => Get.to(() => const CoinShopScreen()),
         ),
         _settingsTile(
-          'Gestion paiement',
+          'profile_payment_management'.tr,
           Icons.account_balance_wallet_rounded,
           () => Get.to(() => const PaymentManagementScreen()),
         ),
         _settingsTile(
-          'Parrainages',
+          'profile_referrals'.tr,
           Icons.group_add_rounded,
           () => Get.to(() => const MyReferralsScreen()),
         ),
 
-        _sectionHeader('Préférences'),
+        _sectionHeader('profile_section_preferences'.tr),
         _settingsTile(
           'profile_change_language'.tr,
           Icons.language_rounded,
@@ -639,32 +637,32 @@ class WalkerProfileScreen extends StatelessWidget {
           () => _showThemeDialog(),
         ),
 
-        _sectionHeader('Sécurité'),
+        _sectionHeader('profile_section_security'.tr),
         _settingsTile(
-          'Mot de passe',
+          'profile_password'.tr,
           Icons.lock_outline_rounded,
           () => Get.to(() => const ChangePasswordScreen()),
         ),
         _settingsTile(
-          'Utilisateurs bloqués',
+          'profile_blocked_users'.tr,
           Icons.block_rounded,
           () =>
               Get.to(() => const BlockedUsersScreen(userType: 'pet_walker')),
         ),
 
-        _sectionHeader('Légal'),
+        _sectionHeader('profile_section_legal'.tr),
         _settingsTile(
-          'Conditions d\'utilisation',
+          'profile_terms'.tr,
           Icons.description_outlined,
           () => Get.to(() => const TermsAndConditionsScreen()),
         ),
         _settingsTile(
-          'Confidentialité',
+          'profile_privacy'.tr,
           Icons.privacy_tip_outlined,
           () => Get.to(() => const PrivacyPolicyScreen()),
         ),
 
-        _sectionHeader('Zone danger'),
+        _sectionHeader('profile_section_danger'.tr),
         _settingsTileDanger(
           'profile_delete_account'.tr,
           Icons.delete_outline_rounded,

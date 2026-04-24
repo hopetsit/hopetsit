@@ -286,11 +286,11 @@ class SitterProfileScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _statItem('0.0', 'Rating', Icons.star_rounded, Colors.amber),
+            _statItem('0.0', 'stat_rating'.tr, Icons.star_rounded, Colors.amber),
             Container(width: 1, height: 32.h, color: AppColors.divider(context)),
-            _statItem('0', 'Avis', Icons.reviews_outlined, accent),
+            _statItem('0', 'stat_reviews'.tr, Icons.reviews_outlined, accent),
             Container(width: 1, height: 32.h, color: AppColors.divider(context)),
-            _statItem('${profile?.service.length ?? 0}', 'Services', Icons.work_outline_rounded, AppColors.greenColor),
+            _statItem('${profile?.service.length ?? 0}', 'stat_services'.tr, Icons.work_outline_rounded, AppColors.greenColor),
           ],
         ),
         ),
@@ -315,8 +315,9 @@ class SitterProfileScreen extends StatelessWidget {
   Widget _buildSitterQuickActions(SitterProfileController controller, Color accent, Color accentLight) {
     return Row(
       children: [
-        _sitterQuickAction(Icons.bar_chart_rounded, 'earnings_title'.tr, accent, accentLight,
-            () => Get.to(() => const EarningsHistoryScreen())),
+        // v19.1.3 — "Mes revenus" replaced by "Mon portefeuille" (wallet).
+        _sitterQuickAction(Icons.account_balance_wallet_rounded, 'wallet_menu_title'.tr, accent, accentLight,
+            () => Get.to(() => const WalletScreen())),
         SizedBox(width: 8.w),
         _sitterQuickAction(Icons.calendar_month_rounded, 'profile_my_availability'.tr, accent, accentLight,
             () => Get.to(() => const AvailabilityCalendarScreen())),
@@ -391,31 +392,31 @@ class SitterProfileScreen extends StatelessWidget {
         _buildSwitchRoleCards(context),
 
         // ── COMPTE ─────────────────────────────────────────
-        _sectionHeader('Compte'),
+        _sectionHeader('profile_section_account'.tr),
         _buildSettingsTile(
           'profile_edit_profile'.tr,
-          'Modifier ton profil et ta photo',
+          'profile_edit_profile_subtitle'.tr,
           Icons.person_outline_rounded,
           _sitterAccent,
           controller.navigateToEditProfile,
         ),
         _buildSettingsTile(
           'profile_choose_service'.tr,
-          'Change les services que tu proposes',
+          'sitter_choose_service_subtitle'.tr,
           Icons.work_outline_rounded,
           _sitterAccent,
           controller.navigateToChooseService,
         ),
         _buildSettingsTile(
-          'Carte',
-          'PawMap — POIs, reports, amis, demandes',
+          'profile_pawmap'.tr,
+          'sitter_pawmap_subtitle'.tr,
           Icons.map_rounded,
           _palePurple,
           () => Get.to(() => const PawMapScreen()),
         ),
         _buildSettingsTile(
           'profile_verify_identity'.tr,
-          'Sois vérifié pour rassurer les propriétaires',
+          'sitter_verify_identity_subtitle'.tr,
           Icons.verified_user_outlined,
           AppColors.greenColor,
           () => Get.to(() => const IdentityVerificationScreen()),
@@ -430,82 +431,82 @@ class SitterProfileScreen extends StatelessWidget {
         ),
 
         // ── MES SERVICES ──────────────────────────────────
-        _sectionHeader('Mes services'),
+        _sectionHeader('profile_section_my_services'.tr),
         const TopSitterCard(),
         _buildSettingsTile(
           'bookings_tab_title'.tr,
-          'Tes réservations en cours',
+          'bookings_tab_subtitle'.tr,
           Icons.event_rounded,
           _sitterAccent,
           controller.navigateToBookings,
         ),
 
         // ── PAIEMENTS & SERVICES ──────────────────────────
-        _sectionHeader('Paiements & services'),
+        _sectionHeader('profile_section_payments'.tr),
         _buildSettingsTile(
           'payment_management_title'.tr,
-          'Moyens de paiement & payouts',
+          'payment_management_subtitle'.tr,
           Icons.account_balance_wallet_rounded,
           AppColors.primaryColor,
           () => Get.to(() => const PaymentManagementScreen()),
         ),
         _buildSettingsTile(
           'referrals_title'.tr,
-          'Invite tes amis, gagne des crédits',
+          'referrals_subtitle'.tr,
           Icons.group_add_rounded,
           _paleOrange,
           () => Get.to(() => const MyReferralsScreen()),
         ),
 
         // ── PRÉFÉRENCES ───────────────────────────────────
-        _sectionHeader('Préférences'),
+        _sectionHeader('profile_section_preferences'.tr),
         _buildSettingsTile(
           'profile_change_language'.tr,
-          'Change la langue de l\'app',
+          'profile_change_language_subtitle'.tr,
           Icons.language_rounded,
           _sitterAccent,
           controller.showLanguageDialog,
         ),
         _buildSettingsTile(
           'theme_setting_title'.tr,
-          'Clair / sombre / système',
+          'theme_setting_subtitle'.tr,
           Icons.brightness_6_rounded,
           _palePurple,
           () => _showThemeDialog(),
         ),
 
         // ── SÉCURITÉ ──────────────────────────────────────
-        _sectionHeader('Sécurité'),
+        _sectionHeader('profile_section_security'.tr),
         _buildSettingsTile(
           'profile_change_password'.tr,
-          'Modifier ton mot de passe',
+          'profile_change_password_subtitle'.tr,
           Icons.lock_outline_rounded,
           _sitterAccent,
           controller.navigateToChangePassword,
         ),
 
         // ── LÉGAL ─────────────────────────────────────────
-        _sectionHeader('Légal'),
+        _sectionHeader('profile_section_legal'.tr),
         _buildSettingsTile(
           'terms_read_button'.tr,
-          'CGU de la plateforme',
+          'terms_read_subtitle'.tr,
           Icons.description_outlined,
           AppColors.textSecondary(context),
           () => Get.to(() => const TermsAndConditionsScreen()),
         ),
         _buildSettingsTile(
-          'Confidentialité',
-          'Politique de confidentialité et RGPD',
+          'profile_privacy'.tr,
+          'profile_privacy_subtitle'.tr,
           Icons.privacy_tip_outlined,
           AppColors.textSecondary(context),
           () => Get.to(() => const PrivacyPolicyScreen()),
         ),
 
         // ── ZONE DANGER ───────────────────────────────────
-        _sectionHeader('Zone danger'),
+        _sectionHeader('profile_section_danger'.tr),
         _buildSettingsTileDanger(
           'profile_delete_account'.tr,
-          'Action irréversible',
+          'profile_delete_account_subtitle'.tr,
           Icons.delete_outline_rounded,
           () => controller.showDeleteAccountDialog(context),
         ),

@@ -236,7 +236,11 @@ class _SitterIndividualChatScreenState
     SitterChatMessage message,
     SitterChatController controller,
   ) {
-    return Container(
+    return GestureDetector(
+      onLongPress: (message.isDeleted || !message.isFromCurrentUser)
+          ? null
+          : () => _showSitterDeleteSheet(message, controller),
+      child: Container(
       margin: EdgeInsets.only(bottom: 15.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +335,23 @@ class _SitterIndividualChatScreenState
             ),
 
           // Message text
-          if (message.message.isNotEmpty)
+          if (message.isDeleted)
+            Padding(
+              padding: EdgeInsets.only(left: 41.w),
+              child: Row(
+                children: [
+                  Icon(Icons.block_rounded, size: 13.sp, color: AppColors.textSecondary(context)),
+                  SizedBox(width: 6.w),
+                  InterText(
+                    text: 'chat_message_deleted'.tr,
+                    fontSize: 13.sp,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ],
+              ),
+            )
+          else if (message.message.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(left: 41.w),
               child: InterText(
@@ -343,6 +363,81 @@ class _SitterIndividualChatScreenState
             ),
         ],
       ),
+      ),
+    );
+  }
+
+  // v19.1.3 — Sitter: long-press own message → Delete sheet.
+  void _showSitterDeleteSheet(
+    SitterChatMessage message,
+    SitterChatController controller,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.card(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.delete_outline_rounded, color: AppColors.errorColor),
+                  title: InterText(
+                    text: 'chat_delete_message'.tr,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.errorColor,
+                  ),
+                  subtitle: InterText(
+                    text: 'chat_delete_message_subtitle'.tr,
+                    fontSize: 12.sp,
+                    color: AppColors.textSecondary(context),
+                  ),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    final confirmed = await Get.dialog<bool>(
+                      AlertDialog(
+                        title: Text('chat_delete_message'.tr),
+                        content: Text('chat_delete_message_confirm'.tr),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Get.back(result: false),
+                            child: Text('common_cancel'.tr),
+                          ),
+                          TextButton(
+                            onPressed: () => Get.back(result: true),
+                            child: Text(
+                              'chat_delete_message'.tr,
+                              style: TextStyle(color: AppColors.errorColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await controller.deleteMessage(message.id);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.close_rounded, color: AppColors.textSecondary(context)),
+                  title: InterText(
+                    text: 'common_cancel'.tr,
+                    fontSize: 14.sp,
+                    color: AppColors.textPrimary(context),
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

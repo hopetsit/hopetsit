@@ -597,6 +597,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               : '',
           showNotificationIcon: true,
           notificationUnreadRx: notificationsController.unreadCount,
+          // v19.1.3 — role-colored bell for sitter/walker (shared home).
+          role: Get.isRegistered<AuthController>()
+              ? (Get.find<AuthController>().userRole.value ?? 'sitter')
+              : 'sitter',
           onNotificationTap: () {
             Get.to(() => const SitterNotificationsScreen())?.then((_) {
               notificationsController.refreshUnreadCount();
@@ -653,6 +657,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                     }
 
                     if (combinedPosts.isEmpty) {
+                      // v19.1.3 — role-colored refresh button (green walker,
+                      // blue sitter, orange owner fallback).
+                      final resolvedRole = Get.isRegistered<AuthController>()
+                          ? (Get.find<AuthController>().userRole.value ?? 'sitter')
+                          : 'sitter';
+                      final accent = resolvedRole == 'walker'
+                          ? const Color(0xFF16A34A)
+                          : resolvedRole == 'sitter'
+                              ? const Color(0xFF2563EB)
+                              : AppColors.primaryColor;
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -669,6 +683,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               onTap: () => postsController.refreshPosts(),
                               title: 'common_refresh'.tr,
                               width: Get.size.width / 2,
+                              bgColor: accent,
                             ),
                           ],
                         ),

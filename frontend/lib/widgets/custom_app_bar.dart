@@ -14,10 +14,24 @@ class NotificationBellAction extends StatelessWidget {
     super.key,
     required this.count,
     required this.onTap,
+    this.role = 'owner',
   });
 
   final int count;
   final VoidCallback onTap;
+  /// v19.1.3 — role-colored bell : owner=orange, sitter=bleu, walker=vert.
+  final String role;
+
+  Color get _bellBg {
+    switch (role) {
+      case 'walker':
+        return const Color(0xFF16A34A);
+      case 'sitter':
+        return const Color(0xFF2563EB);
+      default:
+        return AppColors.primaryColor;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +42,7 @@ class NotificationBellAction extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Material(
-            color: AppColors.primaryColor,
+            color: _bellBg,
             borderRadius: BorderRadius.circular(12),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -142,6 +156,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool automaticallyImplyLeading;
   final Widget? leading;
+  /// v19.1.3 — role-colored bell: owner=orange, sitter=blue, walker=green.
+  final String role;
 
   const CustomAppBar({
     super.key,
@@ -156,6 +172,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.automaticallyImplyLeading = false,
     this.leading,
+    this.role = 'owner',
   });
 
   @override
@@ -175,6 +192,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             () => NotificationBellAction(
               count: notificationUnreadRx!.value,
               onTap: onTap,
+              role: role,
             ),
           ),
         );
@@ -183,6 +201,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           NotificationBellAction(
             count: notificationBadgeCount ?? 0,
             onTap: onTap,
+            role: role,
           ),
         );
       }

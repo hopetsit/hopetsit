@@ -21,6 +21,8 @@ class ChatMessage {
   final DateTime timestamp;
   final bool isFromCurrentUser;
   final List<String> attachments;
+  // v19.1.3 — soft-delete flag, backend hides body+attachments for deleted.
+  final bool isDeleted;
 
   ChatMessage({
     required this.id,
@@ -31,6 +33,7 @@ class ChatMessage {
     required this.timestamp,
     required this.isFromCurrentUser,
     this.attachments = const [],
+    this.isDeleted = false,
   });
 }
 
@@ -623,6 +626,11 @@ class ChatController extends GetxController {
       AppLogger.logDebug('Attachment URLs: $attachments');
     }
 
+    // v19.1.3 — soft-deleted flag from backend (body + attachments are already
+    // redacted server-side, we just flip the UI bit).
+    final isDeleted = data['isDeleted'] == true ||
+        data['deletedAt'] != null;
+
     return ChatMessage(
       id: id,
       senderId: senderId,
@@ -632,7 +640,54 @@ class ChatController extends GetxController {
       timestamp: timestamp,
       isFromCurrentUser: isFromCurrentUser,
       attachments: attachments,
+      isDeleted: isDeleted,
     );
+  }
+
+  /// v19.1.3 — Delete one of my own messages. Optimistic: flip local state to
+  /// deleted immediately, then call backend; revert on error.
+  Future<bool> deleteMessage(String messageId) async {
+    if (currentChatId.value.isEmpty) return false;
+    final idx = currentChatMessages.indexWhere((m) => m.id == messageId);
+    if (idx < 0) return false;
+    final original = currentChatMessages[idx];
+    if (!original.isFromCurrentUser || original.isDeleted) return false;
+
+    // Optimistic UI update
+    currentChatMessages[idx] = ChatMessage(
+      id: original.id,
+      senderId: original.senderId,
+      senderName: original.senderName,
+      senderImage: original.senderImage,
+      message: '',
+      timestamp: original.timestamp,
+      isFromCurrentUser: true,
+      attachments: const [],
+      isDeleted: true,
+    );
+    currentChatMessages.refresh();
+
+    try {
+      final ok = await _chatRepository.deleteMessage(
+        conversationId: currentChatId.value,
+        messageId: messageId,
+      );
+      if (!ok) {
+        // Revert on failure
+        currentChatMessages[idx] = original;
+        currentChatMessages.refresh();
+      }
+      return ok;
+    } catch (e) {
+      currentChatMessages[idx] = original;
+      currentChatMessages.refresh();
+      Get.snackbar(
+        'common_error'.tr,
+        'chat_delete_message_error'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    }
   }
 
   Future<void> sendMessage() async {
@@ -793,14 +848,16 @@ class ChatController extends GetxController {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
+    // v19.1.2 — localized via i18n keys (time_days_ago / _hours_ago / _minutes_ago
+     // already exist in all 6 locales).
     if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
+      return 'time_days_ago'.trParams({'count': difference.inDays.toString()});
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
+      return 'time_hours_ago'.trParams({'count': difference.inHours.toString()});
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
+      return 'time_minutes_ago'.trParams({'count': difference.inMinutes.toString()});
     } else {
-      return 'Just now';
+      return 'time_just_now'.tr;
     }
   }
 

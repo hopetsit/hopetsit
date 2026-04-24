@@ -355,6 +355,42 @@ class EditSitterProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
+                    // v19.1.3 — "Mes tarifs" section header, modern card (bleu sitter).
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF2563EB).withValues(alpha: 0.10),
+                            const Color(0xFF2563EB).withValues(alpha: 0.03),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14.r),
+                        border: Border.all(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.euro_rounded,
+                            size: 20.sp,
+                            color: const Color(0xFF2563EB),
+                          ),
+                          SizedBox(width: 10.w),
+                          PoppinsText(
+                            text: 'my_rates_section_title'.tr,
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 14.h),
+
                     // Hourly rate field removed: pet-sitters work on a minimum
                     // 1-day basis. The backend field is kept for compatibility
                     // (not sent on save) and the controller still declares

@@ -118,13 +118,26 @@ class _PawMapScreenState extends State<PawMapScreen> {
     super.dispose();
   }
 
-  /// Search bar widget — typing a city name and submitting geocodes the
-  /// query and recenters the map there.
+  /// v19.1.3 — Modernized search bar: pill-shaped glassmorphic surface with
+  /// subtle green accent border, matching the Signaler FAB so the top and
+  /// bottom controls feel like one system.
   Widget _buildCitySearchBar(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14.r),
-      elevation: 4,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28.r),
+        border: Border.all(
+          color: AppColors.primaryColor.withValues(alpha: 0.15),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: TextField(
         controller: _cityCtrl,
         textInputAction: TextInputAction.search,
@@ -134,11 +147,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
           hintStyle: TextStyle(
             color: AppColors.textSecondary(context),
             fontSize: 13.sp,
+            fontWeight: FontWeight.w500,
           ),
           prefixIcon: Icon(
             Icons.search_rounded,
             size: 20.sp,
-            color: AppColors.textSecondary(context),
+            color: AppColors.primaryColor,
           ),
           suffixIcon: _cityCtrl.text.isNotEmpty
               ? IconButton(
@@ -150,11 +164,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
+          contentPadding:
+              EdgeInsets.symmetric(vertical: 13.h, horizontal: 10.w),
           isDense: true,
         ),
         onChanged: (_) => setState(() {}),
-        style: TextStyle(fontSize: 13.sp),
+        style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -290,6 +305,17 @@ class _PawMapScreenState extends State<PawMapScreen> {
         title: 'Suivi activé',
         message: 'Tes amis voient ta position et celle de ton animal en live.',
       );
+      // v19.1.3 — zoom in to "pedestrian level" (street level ~17) so the
+      // user can actually see their own moving pin instead of a country-wide view.
+      _mapCtl.future.then((ctl) async {
+        try {
+          await ctl.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: _currentCenter, zoom: 17),
+            ),
+          );
+        } catch (_) {}
+      });
     }
   }
 
@@ -769,27 +795,32 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   );
                 }),
 
-                // Premium upsell banner — shown statiquement pour tous les
-                // utilisateurs free. Plus de Obx ici (ça déclenchait le
-                // warning "[Get] improper use of GetX" chez certains users
-                // quand les controllers n'étaient pas encore initialisés).
-                // Le masquage pour Premium se fait via une simple check
-                // synchrone lue depuis le SubscriptionController si présent.
-                // Upsell stack : Premium (masqué si déjà abonné) + Map Boost
-                // (toujours visible — Map Boost se vend aussi aux Premium qui
-                // veulent utiliser leur crédit mensuel gratuit).
+                // v19.1.3 — compact upsell pins in the LEFT corner so they
+                // stop covering the map (users complained the wide banner at
+                // the bottom blocked freemium browsing). Premium = green
+                // circular icon, Map Boost = blue circular icon. Tapping opens
+                // the full CoinShop screen.
                 Positioned(
                   left: 12.w,
-                  right: 12.w,
-                  bottom: 170.h,
+                  bottom: 100.h,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (!_isUserPremium()) ...[
-                        const _PremiumUpsell(),
-                        SizedBox(height: 8.h),
-                      ],
-                      const _MapBoostUpsell(),
+                      if (!_isUserPremium())
+                        _buildMapCornerButton(
+                          color: const Color(0xFF16A34A),
+                          icon: Icons.workspace_premium_rounded,
+                          tooltip: 'Premium',
+                          onTap: () => Get.to(() => const CoinShopScreen()),
+                        ),
+                      if (!_isUserPremium()) SizedBox(height: 8.h),
+                      _buildMapCornerButton(
+                        color: const Color(0xFF2563EB),
+                        icon: Icons.rocket_launch_rounded,
+                        tooltip: 'Map Boost',
+                        onTap: () => Get.to(() => const CoinShopScreen()),
+                      ),
                     ],
                   ),
                 ),
@@ -1121,6 +1152,33 @@ class _PawMapScreenState extends State<PawMapScreen> {
   // ─── Floating action button for creating reports ─────────────────────────
   // Post-freemium refactor: the FAB is always active. Free users can open the
   // sheet and pick among the 3 free types (lost_pet, found_pet, water_active).
+  // v19.1.3 — Compact circular corner button used for Premium + MapBoost in
+  // the lower-left of the PawMap. Design matches the Signaler FAB scale so
+  // the 3 CTAs feel part of the same visual system without blocking the map.
+  Widget _buildMapCornerButton({
+    required Color color,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: color,
+        shape: const CircleBorder(),
+        elevation: 4,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.all(11.w),
+            child: Icon(icon, color: Colors.white, size: 22.sp),
+          ),
+        ),
+      ),
+    );
+  }
+
   // Premium users see all 9 types. The CreateReportSheet handles the per-type
   // lock UI and the final submit guard.
   Widget _buildReportFab() {
