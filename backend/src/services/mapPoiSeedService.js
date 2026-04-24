@@ -107,18 +107,23 @@ function buildOverpassQuery(bbox, tagFilters, { limit } = {}) {
 }
 
 async function fetchOverpass(query) {
+  // v20.0.19 — CRITICAL : Overpass API renvoie HTTP 406 "Not Acceptable"
+  // sur les User-Agent génériques (axios/X.Y.Z). La politique fair-use
+  // Overpass exige un User-Agent identifiant l'application ET un Accept
+  // explicite pour JSON. Avant ce fix, TOUTES les requêtes de seed ont
+  // été rejetées en 406 → "0 POIs" sur tous les pays, toutes catégories.
   const res = await axios.post(
     'https://overpass-api.de/api/interpreter',
     `data=${encodeURIComponent(query)}`,
     {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'User-Agent': 'HoPetSit/1.0 (admin seed; contact: hopetsit@gmail.com)',
+      },
       timeout: 120000,
     },
   );
-  // v20.0.19 — log explicite quand la réponse Overpass n'a pas de champ
-  // `elements`. C'est le cas quand la query est invalide (Overpass renvoie
-  // du HTML d'erreur à la place du JSON) — auparavant on retournait
-  // silencieusement [] et le seed disait "done 0 POIs" sans signaler le bug.
   if (!res.data || !Array.isArray(res.data.elements)) {
     const preview = typeof res.data === 'string'
       ? res.data.slice(0, 300)
