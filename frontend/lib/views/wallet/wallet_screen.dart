@@ -7,6 +7,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:intl/intl.dart';
 
 /// Mon portefeuille — v19.0.
@@ -178,7 +179,19 @@ class _WalletScreenState extends State<WalletScreen> {
             icon: Icons.call_made_rounded,
             label: 'wallet_withdraw_button'.tr,
             primary: true,
-            onTap: _balance >= _minWithdrawal ? _openWithdrawSheet : null,
+            // v19.1.5 — quand le solde est insuffisant, on affiche un snackbar
+            // explicite au lieu de simplement griser le bouton (utilisateur
+            // ne comprenait pas pourquoi rien ne se passait).
+            onTap: _balance >= _minWithdrawal
+                ? _openWithdrawSheet
+                : () {
+                    CustomSnackbar.showWarning(
+                      title: 'wallet_withdraw_button'.tr,
+                      message: 'wallet_withdraw_min_required'.trParams({
+                        'amount': _minWithdrawal.toStringAsFixed(2),
+                      }),
+                    );
+                  },
           ),
         ),
         SizedBox(width: 10.w),
@@ -187,11 +200,10 @@ class _WalletScreenState extends State<WalletScreen> {
             icon: Icons.storefront_rounded,
             label: 'wallet_spend_button'.tr,
             primary: false,
-            onTap: () {
-              // Le shop (Boost/Premium/MapBoost) vérifie ensuite si le solde
-              // suffit et propose "Payer avec mon solde" au lieu de CB.
-              Get.back();
-            },
+            // v19.1.5 — Ouvre le shop direct (onglet Boost). L'user choisit
+            // ensuite Boost/Premium/MapBoost et peut payer avec son solde
+            // wallet (endpoint /boost/purchase/wallet).
+            onTap: () => Get.to(() => const CoinShopScreen()),
           ),
         ),
       ],

@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" width="600" height="120">
-  <g transform="translate(50, 55)">
-    <path d="M0,-46 C-46,-46 -46,-18 -46,6 C-46,32 -23,52 0,59 C23,52 46,32 46,6 C46,-18 46,-46 0,-46 Z" fill="#EF4324"/>
-    <ellipse cx="-21" cy="-17" rx="6.4" ry="7.1" fill="white"/>
-    <ellipse cx="-7" cy="-25" rx="6.4" ry="7.1" fill="#1A73E8"/>
-    <ellipse cx="7" cy="-25" rx="6.4" ry="7.1" fill="#008000"/>
-    <ellipse cx="21" cy="-17" rx="6.4" ry="7.1" fill="white"/>
-    <path d="M-31,12 C-31,-5 -19,-14 0,-14 C19,-14 31,-5 31,12 C31,26 19,35 0,35 C-19,35 -31,26 -31,12 Z" fill="#1A1A1A"/>
-    <ellipse cx="0" cy="12" rx="22" ry="11" fill="#0D0D0D"/>
-    <circle cx="0" cy="12" r="11" fill="#EF4324"/>
-    <circle cx="0" cy="12" r="6" fill="#0D0D0D"/>
-    <circle cx="2.8" cy="8.5" r="2.8" fill="white"/>
+  <g transform="translate(55, 55)">
+    <path d="M0,-48 C-48,-48 -48,-19 -48,6 C-48,34 -24,55 0,62 C24,55 48,34 48,6 C48,-19 48,-48 0,-48 Z" fill="#EF4324"/>
+    <ellipse cx="-22" cy="-17" rx="6.6" ry="7.3" fill="white"/>
+    <ellipse cx="-8" cy="-26" rx="6.6" ry="7.3" fill="#1A73E8"/>
+    <ellipse cx="8" cy="-26" rx="6.6" ry="7.3" fill="#008000"/>
+    <ellipse cx="22" cy="-17" rx="6.6" ry="7.3" fill="white"/>
+    <path d="M-32,13 C-32,-4 -20,-13 0,-13 C20,-13 32,-4 32,13 C32,26 20,35 0,35 C-20,35 -32,26 -32,13 Z" fill="#1A1A1A"/>
+    <ellipse cx="0" cy="13" rx="23" ry="11" fill="#0D0D0D"/>
+    <circle cx="0" cy="13" r="11" fill="#EF4324"/>
+    <circle cx="0" cy="13" r="6" fill="#0D0D0D"/>
+    <circle cx="2.8" cy="9.5" r="2.9" fill="white"/>
   </g>
-  <line x1="110" y1="15" x2="110" y2="105" stroke="#E0E0E0" stroke-width="1"/>
-  <text x="130" y="52" font-family="DM Sans, sans-serif" font-size="38" font-weight="700" fill="#EF4324" letter-spacing="0.5">Hope</text>
-  <text x="266" y="52" font-family="DM Sans, sans-serif" font-size="38" font-weight="700" fill="#1A1A1A" letter-spacing="0.5">TSIT</text>
-  <text x="130" y="76" font-family="DM Sans, sans-serif" font-size="13" fill="#AAAAAA" letter-spacing="2">PET-SITTING · PAWMAP</text>
+  <line x1="118" y1="15" x2="118" y2="105" stroke="#E0E0E0" stroke-width="1"/>
+  <text x="138" y="52" font-family="DM Sans, sans-serif" font-size="38" font-weight="700" fill="#EF4324" letter-spacing="0.5">Hope</text>
+  <text x="274" y="52" font-family="DM Sans, sans-serif" font-size="38" font-weight="700" fill="#1A1A1A" letter-spacing="0.5">TSIT</text>
+  <text x="138" y="76" font-family="DM Sans, sans-serif" font-size="13" fill="#AAAAAA" letter-spacing="2">PET-SITTING · PAWMAP</text>
 </svg>

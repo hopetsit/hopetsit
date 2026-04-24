@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
-  <g transform="translate(48, 44.2) scale(0.1)">
-    <path d="M0,-393 C-393,-393 -393,-157 -393,55 C-393,273 -198,444 0,505 C198,444 393,273 393,55 C393,-157 393,-393 0,-393 Z" fill="white"/>
-    <ellipse cx="-177" cy="-143" rx="55" ry="61" fill="white"/>
-    <ellipse cx="-61" cy="-218" rx="55" ry="61" fill="white"/>
-    <ellipse cx="61"  cy="-218" rx="55" ry="61" fill="white"/>
-    <ellipse cx="177" cy="-143" rx="55" ry="61" fill="white"/>
-    <path d="M-266,102 C-266,-44 -164,-119 0,-119 C164,-119 266,-44 266,102 C266,215 164,290 0,290 C-164,290 -266,215 -266,102 Z" fill="white"/>
-    <ellipse cx="0" cy="102" rx="188" ry="95" fill="#EF4324"/>
-    <circle cx="0" cy="102" r="75" fill="white"/>
+  <g transform="translate(48, 44.2) scale(0.095)">
+    <path d="M0,-427 C-427,-427 -427,-171 -427,55 C-427,300 -215,478 0,539 C215,478 427,300 427,55 C427,-171 427,-427 0,-427 Z" fill="white"/>
+    <ellipse cx="-195" cy="-154" rx="58" ry="65" fill="white"/>
+    <ellipse cx="-68" cy="-235" rx="58" ry="65" fill="white"/>
+    <ellipse cx="68"  cy="-235" rx="58" ry="65" fill="white"/>
+    <ellipse cx="195" cy="-154" rx="58" ry="65" fill="white"/>
+    <path d="M-290,120 C-290,-34 -181,-119 0,-119 C181,-119 290,-34 290,120 C290,239 181,314 0,314 C-181,314 -290,239 -290,120 Z" fill="white"/>
+    <ellipse cx="0" cy="120" rx="205" ry="102" fill="#EF4324"/>
+    <circle cx="0" cy="120" r="80" fill="white"/>
   </g>
 </svg>

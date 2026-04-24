@@ -34,7 +34,7 @@ class EditPetScreen extends StatelessWidget {
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
-          text: 'Edit Pet Profile',
+          text: 'edit_pet_profile_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
@@ -221,8 +221,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 32.h),
 
                     CustomTextField(
-                      labelText: 'Pet name',
-                      hintText: 'Enter your Pet name',
+                      labelText: 'edit_pet_name_label'.tr,
+                      hintText: 'edit_pet_name_hint'.tr,
                       controller: controller.petNameController,
                       textInputAction: TextInputAction.next,
                     ),
@@ -230,8 +230,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     CustomTextField(
-                      labelText: 'Breed',
-                      hintText: 'Enter your Breed',
+                      labelText: 'edit_pet_breed_label'.tr,
+                      hintText: 'edit_pet_breed_hint'.tr,
                       controller: controller.breedController,
                       textInputAction: TextInputAction.next,
                     ),
@@ -239,8 +239,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     CustomTextField(
-                      labelText: 'Date of Birth',
-                      hintText: 'Enter your Date of Birth',
+                      labelText: 'edit_pet_dob_label'.tr,
+                      hintText: 'edit_pet_dob_hint'.tr,
                       controller: controller.dateOfBirthController,
                       textInputAction: TextInputAction.next,
                       readOnly: true,
@@ -264,8 +264,8 @@ class EditPetScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: CustomTextField(
-                            labelText: 'Weight (KG)',
-                            hintText: 'eg 12kgs',
+                            labelText: 'edit_pet_weight_label'.tr,
+                            hintText: 'edit_pet_weight_hint'.tr,
                             controller: controller.weightController,
                             keyboardType: TextInputType.number,
                             textInputAction: TextInputAction.next,
@@ -274,8 +274,8 @@ class EditPetScreen extends StatelessWidget {
                         SizedBox(width: 16.w),
                         Expanded(
                           child: CustomTextField(
-                            labelText: 'Height (CM)',
-                            hintText: 'eg 50cms',
+                            labelText: 'edit_pet_height_label'.tr,
+                            hintText: 'edit_pet_height_hint'.tr,
                             controller: controller.heightController,
                             keyboardType: TextInputType.number,
                             textInputAction: TextInputAction.next,
@@ -303,8 +303,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     CustomTextField(
-                      labelText: 'Bio',
-                      hintText: 'Enter pet bio',
+                      labelText: 'edit_pet_bio_label'.tr,
+                      hintText: 'edit_pet_bio_hint'.tr,
                       controller: controller.bioController,
                       textInputAction: TextInputAction.next,
                       maxLines: 3,
@@ -313,8 +313,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     CustomTextField(
-                      labelText: 'Color',
-                      hintText: 'Enter pet color',
+                      labelText: 'edit_pet_color_label'.tr,
+                      hintText: 'edit_pet_color_hint'.tr,
                       controller: controller.colourController,
                       textInputAction: TextInputAction.next,
                     ),
@@ -322,8 +322,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     CustomTextField(
-                      labelText: 'Passport number',
-                      hintText: 'Enter Passport number',
+                      labelText: 'edit_pet_passport_label'.tr,
+                      hintText: 'edit_pet_passport_hint'.tr,
                       controller: controller.passportNumberController,
                       textInputAction: TextInputAction.next,
                     ),
@@ -331,8 +331,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     CustomTextField(
-                      labelText: 'Chip number',
-                      hintText: 'Enter Chip number',
+                      labelText: 'edit_pet_chip_label'.tr,
+                      hintText: 'edit_pet_chip_hint'.tr,
                       controller: controller.chipNumberController,
                       textInputAction: TextInputAction.next,
                     ),
@@ -340,8 +340,8 @@ class EditPetScreen extends StatelessWidget {
                     SizedBox(height: 20.h),
 
                     CustomTextField(
-                      labelText: 'Medication Allergies',
-                      hintText: 'Enter Medication Allergies',
+                      labelText: 'edit_pet_medication_label'.tr,
+                      hintText: 'edit_pet_medication_hint'.tr,
                       controller: controller.medicationAllergiesController,
                       textInputAction: TextInputAction.next,
                     ),

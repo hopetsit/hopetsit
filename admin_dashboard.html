@@ -172,18 +172,20 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
 <!-- LOGIN -->
 <div id="login-screen">
-  <div class="login-card">
+  <form class="login-card" id="login-form" autocomplete="on"
+        onsubmit="event.preventDefault(); login(); return false;"
+        action="javascript:void(0)">
     <div class="login-logo">🐾 HopeTSIT</div>
     <div class="login-sub">Admin Dashboard · Restricted Access</div>
-    <label class="login-label">Backend URL</label>
-    <input id="api-url" class="login-input" type="url" placeholder="https://your-api.onrender.com" value=""/>
-    <label class="login-label">Admin Email</label>
-    <input id="admin-email" class="login-input" type="email" placeholder="admin@hopetsit.local"/>
-    <label class="login-label">Admin Password</label>
-    <input id="admin-secret" class="login-input" type="password" placeholder="Enter admin password"/>
-    <button class="login-btn" onclick="login()">Access Dashboard →</button>
+    <label class="login-label" for="api-url">Backend URL</label>
+    <input id="api-url" class="login-input" type="url" autocomplete="url" name="url" placeholder="https://your-api.onrender.com" value=""/>
+    <label class="login-label" for="admin-email">Admin Email</label>
+    <input id="admin-email" class="login-input" type="email" autocomplete="username" name="email" placeholder="admin@hopetsit.local"/>
+    <label class="login-label" for="admin-secret">Admin Password</label>
+    <input id="admin-secret" class="login-input" type="password" autocomplete="current-password" name="password" placeholder="Enter admin password"/>
+    <button type="submit" class="login-btn">Access Dashboard →</button>
     <div class="login-error" id="login-error"></div>
-  </div>
+  </form>
 </div>
 
 <!-- MAIN APP -->
@@ -740,6 +742,29 @@ function fmtDate(d, withTime) {
     return String(d);
   }
 }
+
+// v19.1.5 — global helpers (statusBadge + payBadge + showToast) promoted from
+// the old local scope so they work in Bookings/Sitters/Owners loaders.
+function statusBadge(s) {
+  const map = { pending: 'badge-orange', agreed: 'badge-blue', completed: 'badge-green', cancelled: 'badge-red' };
+  return `<span class="badge ${map[s] || 'badge-gray'}">${s || 'unknown'}</span>`;
+}
+function payBadge(s) {
+  const map = { paid: 'badge-green', pending: 'badge-orange', failed: 'badge-red' };
+  return `<span class="badge ${map[s] || 'badge-gray'}">${s || 'pending'}</span>`;
+}
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.className = `toast ${type} show`;
+  t.innerHTML = (type === 'success' ? '✓ ' : '✕ ') + msg;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
 
 // Sprint 6.5 step 4 — persisted auth keys
 const LS_TOKEN_KEY = 'admin_token';
@@ -2006,7 +2031,7 @@ function renderSitters() {
         <td><span class="badge badge-blue">${s.payoutMethod||'stripe'}</span></td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Delete</button>
+          <button class="action-btn" style="background:${s.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Delete</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -2044,14 +2069,18 @@ function renderOwners() {
   const filtered = allOwners.filter(o => !search || o.name?.toLowerCase().includes(search) || o.email?.toLowerCase().includes(search));
   if (!filtered.length) { document.getElementById('owners-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><div>No owners found.</div></div>'; return; }
   document.getElementById('owners-table-body').innerHTML = `
-    <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(o => `
       <tr>
         <td><strong>${o.name||'-'}</strong></td>
         <td style="color:var(--text-muted)">${o.email||'-'}</td>
         <td>${o.mobile||'-'}</td>
         <td>${fmtDate(o.createdAt)}</td>
-        <td><button class="action-btn btn-delete" onclick="deleteOwner('${o._id}','${o.name}')">Delete</button></td>
+        <td>${o.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td>
+          <button class="action-btn" style="background:${o.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('owner','${o._id}',${!o.isStaff})">${o.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
+          <button class="action-btn btn-delete" onclick="deleteOwner('${o._id}','${o.name}')">Delete</button>
+        </td>
       </tr>
     `).join('')}</tbody></table>
   `;
@@ -2118,7 +2147,7 @@ function renderWalkers() {
         <td><span class="badge badge-blue">${w.payoutMethod||'stripe'}</span></td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn btn-delete" onclick="deleteWalker('${w._id}','${w.name}')">Delete</button>
+          <button class="action-btn" style="background:${w.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}','${w.name}')">Delete</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -2775,31 +2804,22 @@ async function loadAdminWallets() {
   }
 }
 
-</script>
-</body>
-</html>
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); }
-function statusBadge(s) {
-  const map = { pending:'badge-orange', agreed:'badge-blue', completed:'badge-green', cancelled:'badge-red' };
-  return `<span class="badge ${map[s]||'badge-gray'}">${s||'unknown'}</span>`;
+// v19.1.5 - Toggle Staff flag on any user (owner/sitter/walker) — free Premium.
+async function toggleStaff(role, userId, isStaff) {
+  const label = isStaff ? 'Give this user FREE Premium access?' : 'Revoke free Premium access?';
+  if (!confirm(label)) return;
+  try {
+    await api('/admin/users/' + role + '/' + userId + '/staff', 'POST', { isStaff });
+    showToast(isStaff ? 'User is now Staff (free Premium).' : 'Staff access revoked.', 'success');
+    if (role === 'owner') loadOwners();
+    else if (role === 'sitter') loadSitters();
+    else if (role === 'walker') loadWalkers();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
 }
-function payBadge(s) {
-  const map = { paid:'badge-green', pending:'badge-orange', failed:'badge-red' };
-  return `<span class="badge ${map[s]||'badge-gray'}">${s||'pending'}</span>`;
-}
-function showToast(msg, type='success') {
-  const t = document.getElementById('toast');
-  t.className = `toast ${type} show`;
-  t.innerHTML = (type === 'success' ? '✓ ' : '✕ ') + msg;
-  setTimeout(() => t.classList.remove('show'), 3500);
-}
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
-// Enter key on login
-document.getElementById('admin-secret').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
 </script>
 </body>
 </html>

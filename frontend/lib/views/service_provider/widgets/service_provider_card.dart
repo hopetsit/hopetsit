@@ -541,7 +541,17 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      ClipOval(
+                      // v19.1.5 — role-colored ring around provider avatar
+                      // (green walker, blue sitter, orange owner).
+                      Container(
+                        width: 36.w,
+                        height: 36.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: accent, width: 2),
+                        ),
+                        padding: EdgeInsets.all(2.w),
+                        child: ClipOval(
                         child: widget.profileImagePath != null &&
                                 widget.profileImagePath!.isNotEmpty &&
                                 (widget.profileImagePath!.startsWith('http://') ||
@@ -557,6 +567,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                     _compactAvatarPlaceholder(accent),
                               )
                             : _compactAvatarPlaceholder(accent),
+                      ),
                       ),
                       SizedBox(width: 8.w),
                       Flexible(
@@ -679,7 +690,17 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      ClipOval(
+                      // v19.1.5 — role-colored ring around provider avatar
+                      // (green walker, blue sitter, orange owner).
+                      Container(
+                        width: 36.w,
+                        height: 36.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: accent, width: 2),
+                        ),
+                        padding: EdgeInsets.all(2.w),
+                        child: ClipOval(
                         child: widget.profileImagePath != null &&
                                 widget.profileImagePath!.isNotEmpty &&
                                 (widget.profileImagePath!.startsWith('http://') ||
@@ -695,6 +716,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                     _compactAvatarPlaceholder(accent),
                               )
                             : _compactAvatarPlaceholder(accent),
+                      ),
                       ),
                       SizedBox(width: 8.w),
                       Flexible(

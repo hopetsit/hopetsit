@@ -292,31 +292,49 @@ class _PawMapScreenState extends State<PawMapScreen> {
   /// Session v3.2 — opened to ALL roles/tiers (was Premium-gated); Daniel
   /// wants every user to be able to share their pet's live position to help
   /// find lost animals and keep friends in the loop.
-  void _toggleBroadcast() {
+  void _toggleBroadcast() async {
     if (_liveMap.broadcasting.value) {
       _liveMap.stopBroadcasting();
       CustomSnackbar.showSuccess(
         title: 'Suivi désactivé',
         message: 'Tes amis ne voient plus ta position.',
       );
-    } else {
-        _liveMap.startBroadcasting(() => _currentCenter);
-      CustomSnackbar.showSuccess(
-        title: 'Suivi activé',
-        message: 'Tes amis voient ta position et celle de ton animal en live.',
-      );
-      // v19.1.3 — zoom in to "pedestrian level" (street level ~17) so the
-      // user can actually see their own moving pin instead of a country-wide view.
-      _mapCtl.future.then((ctl) async {
-        try {
-          await ctl.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(target: _currentCenter, zoom: 17),
-            ),
-          );
-        } catch (_) {}
-      });
+      return;
     }
+
+    // v19.1.5 — refresh GPS FIRST, then zoom. Before this fix we used the
+    // stale `_currentCenter` which could be the last panned position on the
+    // map (parfois "à côté" de l'utilisateur réel).
+    LatLng target = _currentCenter;
+    try {
+      final loc = await LocationService()
+          .getCurrentLocation()
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+      if (loc != null) {
+        target = LatLng(loc.latitude, loc.longitude);
+        if (mounted) {
+          setState(() => _currentCenter = target);
+        }
+      }
+    } catch (_) {
+      // GPS indispo → on garde l'ancien _currentCenter.
+    }
+
+    _liveMap.startBroadcasting(() => _currentCenter);
+    CustomSnackbar.showSuccess(
+      title: 'Suivi activé',
+      message: 'Tes amis voient ta position et celle de ton animal en live.',
+    );
+
+    // Zoom "piéton" (street level ~17) centré sur la position GPS fraîche.
+    try {
+      final ctl = await _mapCtl.future;
+      await ctl.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: 17),
+        ),
+      );
+    } catch (_) {}
   }
 
   // ─── Marker building ─────────────────────────────────────────────────────
@@ -812,14 +830,18 @@ class _PawMapScreenState extends State<PawMapScreen> {
                           color: const Color(0xFF16A34A),
                           icon: Icons.workspace_premium_rounded,
                           tooltip: 'Premium',
-                          onTap: () => Get.to(() => const CoinShopScreen()),
+                          // v19.1.4 — pin vert ouvre l'onglet Premium (tab 1).
+                          onTap: () =>
+                              Get.to(() => const CoinShopScreen(initialTab: 1)),
                         ),
                       if (!_isUserPremium()) SizedBox(height: 8.h),
                       _buildMapCornerButton(
                         color: const Color(0xFF2563EB),
                         icon: Icons.rocket_launch_rounded,
                         tooltip: 'Map Boost',
-                        onTap: () => Get.to(() => const CoinShopScreen()),
+                        // v19.1.4 — pin bleu ouvre l'onglet Map Boost (tab 2).
+                        onTap: () =>
+                            Get.to(() => const CoinShopScreen(initialTab: 2)),
                       ),
                     ],
                   ),

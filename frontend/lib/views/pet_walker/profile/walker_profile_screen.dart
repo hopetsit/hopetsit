@@ -20,6 +20,7 @@ import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
 import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
+import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
@@ -588,6 +589,13 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_edit_my_profile'.tr,
           Icons.person_outline_rounded,
           () => Get.to(() => const EditWalkerProfileScreen()),
+        ),
+        // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak 30/60 min
+        // rates without scrolling through the full edit profile form.
+        _settingsTile(
+          'my_rates_section_title'.tr,
+          Icons.euro_rounded,
+          () => Get.to(() => const MyRatesScreen(role: 'walker')),
         ),
         _settingsTile(
           'profile_pawmap'.tr,

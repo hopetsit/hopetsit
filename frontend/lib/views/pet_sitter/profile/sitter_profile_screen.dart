@@ -9,6 +9,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
+import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
@@ -399,6 +400,15 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.person_outline_rounded,
           _sitterAccent,
           controller.navigateToEditProfile,
+        ),
+        // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak daily/weekly/
+        // monthly rates without reopening the full edit profile form.
+        _buildSettingsTile(
+          'my_rates_section_title'.tr,
+          'my_rates_sitter_hint'.tr,
+          Icons.euro_rounded,
+          _sitterAccent,
+          () => Get.to(() => const MyRatesScreen(role: 'sitter')),
         ),
         _buildSettingsTile(
           'profile_choose_service'.tr,

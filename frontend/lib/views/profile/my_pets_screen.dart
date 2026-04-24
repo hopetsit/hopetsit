@@ -253,7 +253,7 @@ class MyPetsScreen extends StatelessWidget {
                                       ),
                                       SizedBox(width: 4.w),
                                       InterText(
-                                        text: pet.category,
+                                        text: _localizedCategory(pet.category),
                                         fontSize: 11.sp,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.whiteColor,
@@ -577,6 +577,56 @@ class MyPetsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // v19.1.5 — Localize user-entered category values. Some pets were created
+  // with the category label in the user's previous locale (e.g. "Chien" when
+  // they were in French). Map those known French/English values to the i18n
+  // keys so the chip follows the current locale regardless of saved data.
+  String _localizedCategory(String raw) {
+    final lower = raw.trim().toLowerCase();
+    // Match common free-text values to canonical keys.
+    switch (lower) {
+      case 'dog':
+      case 'chien':
+      case 'perro':
+      case 'hund':
+      case 'cane':
+      case 'cão':
+      case 'cao':
+        return 'create_pet_category_dog'.tr;
+      case 'cat':
+      case 'chat':
+      case 'gato':
+      case 'katze':
+      case 'gatto':
+        return 'create_pet_category_cat'.tr;
+      case 'bird':
+      case 'oiseau':
+      case 'pájaro':
+      case 'pajaro':
+      case 'vogel':
+      case 'uccello':
+      case 'pássaro':
+      case 'passaro':
+        return 'create_pet_category_bird'.tr;
+      case 'rabbit':
+      case 'lapin':
+      case 'conejo':
+      case 'kaninchen':
+      case 'coniglio':
+      case 'coelho':
+        return 'create_pet_category_rabbit'.tr;
+      case 'other':
+      case 'autre':
+      case 'otro':
+      case 'andere':
+      case 'altro':
+      case 'outro':
+        return 'create_pet_category_other'.tr;
+      default:
+        return raw; // keep as-is if not recognized
+    }
   }
 
   Widget _buildCompactInfoItem(IconData icon, String label, String value) {

@@ -9,6 +9,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/auth/choose_service_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 
 enum VerificationType { signup, login }
 
@@ -302,11 +303,15 @@ class OtpVerificationController extends GetxController {
         // Get the user role to navigate appropriately
         final role = authController.userRole.value;
 
-        // Navigate based on user role
+        // v19.1.5 — Navigate based on user role. Walker was falling through
+        // the else branch (→ "unknown user role" or stale Sitter screen);
+        // now routed explicitly to the dedicated Walker wrapper.
         if (role == 'owner') {
           Get.offAll(() => const BottomNavWrapper());
         } else if (role == 'sitter') {
           Get.offAll(() => const SitterNavWrapper());
+        } else if (role == 'walker') {
+          Get.offAll(() => const WalkerNavWrapper());
         } else {
           // Fallback: go back to login if role is not recognized
           Get.back();

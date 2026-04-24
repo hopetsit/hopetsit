@@ -382,44 +382,14 @@ class SignUpScreen extends StatelessWidget {
                       ),
 
                       // Pet Sitter specific fields
+                      // v19.1.4 — PayPal field removed from signup (user can
+                      // add it later from Payment Management). Currency
+                      // dropdown moved ABOVE rates so user picks currency
+                      // first, then fills the 3 rates.
                       if (userType == 'pet_sitter') ...[
                         SizedBox(height: 20.h),
-                        CustomTextField(
-                          labelText: 'PayPal Email (Optional)',
-                          hintText: 'sitter-payments@example.com',
-                          controller: controller.paypalEmailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          validator: controller.validatePayPalEmail,
-                        ),
-                        SizedBox(height: 20.h),
-                        CustomTextField(
-                          labelText: 'label_rate_per_hour'.tr,
-                          hintText: 'hint_rate_per_hour'.tr,
-                          controller: controller.ratePerHourController,
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.next,
-                          validator: controller.validateRatePerHour,
-                        ),
-                        SizedBox(height: 20.h),
-                        CustomTextField(
-                          labelText: 'sitter_detail_weekly_rate_label'.tr,
-                          hintText: 'hint_rate_per_hour'.tr,
-                          controller: controller.ratePerWeekController,
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.next,
-                          validator: controller.validateRatePerWeek,
-                        ),
-                        SizedBox(height: 20.h),
-                        CustomTextField(
-                          labelText: 'sitter_detail_monthly_rate_label'.tr,
-                          hintText: 'hint_rate_per_hour'.tr,
-                          controller: controller.ratePerMonthController,
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.next,
-                          validator: controller.validateRatePerMonth,
-                        ),
-                        SizedBox(height: 20.h),
+                        // Currency selector — placed with the rates group so
+                        // the user picks currency first, then fills the 3 rates.
                         Obx(
                           () => CustomDropdown<String>(
                             items: controller.currencyOptions,
@@ -449,6 +419,33 @@ class SignUpScreen extends StatelessWidget {
                                   ),
                                 ),
                           ),
+                        ),
+                        SizedBox(height: 20.h),
+                        CustomTextField(
+                          labelText: 'label_rate_per_hour'.tr,
+                          hintText: 'hint_rate_per_hour'.tr,
+                          controller: controller.ratePerHourController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          validator: controller.validateRatePerHour,
+                        ),
+                        SizedBox(height: 20.h),
+                        CustomTextField(
+                          labelText: 'sitter_detail_weekly_rate_label'.tr,
+                          hintText: 'hint_rate_per_hour'.tr,
+                          controller: controller.ratePerWeekController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          validator: controller.validateRatePerWeek,
+                        ),
+                        SizedBox(height: 20.h),
+                        CustomTextField(
+                          labelText: 'sitter_detail_monthly_rate_label'.tr,
+                          hintText: 'hint_rate_per_hour'.tr,
+                          controller: controller.ratePerMonthController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          validator: controller.validateRatePerMonth,
                         ),
                         SizedBox(height: 20.h),
                         CustomTextField(

@@ -877,7 +877,9 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     child: InterText(
                       text: chat.isPurchasing.value
                           ? '…'
-                          : (alreadyActive ? 'Renouveler' : 'Acheter'),
+                          : (alreadyActive
+                              ? 'shop_button_renew'.tr
+                              : 'shop_button_buy'.tr),
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -986,8 +988,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 SizedBox(height: 4.h),
                 InterText(
                   text: isPremium
-                      ? 'Il vous reste $remainingDays jours'
-                      : 'Passez Premium pour débloquer toutes les fonctionnalités',
+                      ? 'premium_remaining_days'.trParams({
+                          'days': '$remainingDays',
+                        })
+                      : 'premium_upsell_text'.tr,
                   fontSize: 13.sp,
                   color: isPremium ? Colors.white.withValues(alpha: 0.9) : AppColors.greyText,
                 ),
@@ -1160,33 +1164,33 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // to the Map Boost tab (where the user can claim the credit). The
     // other features stay static since they're already unlocked by
     // Premium itself.
+    // v19.1.5 — i18n : all Premium features are pulled from translation keys
+    // so the list follows the current locale instead of staying in French.
     final features = <Map<String, dynamic>>[
       {
         'icon': Icons.warning_amber_rounded,
-        'text':
-            '18 types d\'alertes temps réel — dont 7 signalements Premium exclusifs (chien agressif, danger véhicule, incendie, inondation, faune sauvage…)',
+        'text': 'premium_feature_alerts'.tr,
       },
       {
         'icon': Icons.notifications_active_outlined,
-        'text':
-            'Notifications instantanées — soyez le premier alerté quand un signalement apparaît près de vous',
+        'text': 'premium_feature_notifications'.tr,
       },
       {
         'icon': Icons.chat_bubble_outline,
-        'text': 'Chat illimité avec les utilisateurs croisés sur la map',
+        'text': 'premium_feature_chat'.tr,
       },
       {
         'icon': Icons.people_outline,
-        'text': 'Suivi d\'amis en temps réel (façon Waze)',
+        'text': 'premium_feature_friends_tracking'.tr,
       },
       {
         'icon': Icons.push_pin_rounded,
-        'text': '1 boost map offert chaque mois — touchez pour réclamer',
+        'text': 'premium_feature_monthly_boost'.tr,
         'goToMapBoost': true,
       },
       {
         'icon': Icons.verified_rounded,
-        'text': 'Badge Premium sur votre profil',
+        'text': 'premium_feature_badge'.tr,
       },
     ];
 
@@ -1201,7 +1205,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InterText(
-            text: 'Ce que Premium débloque',
+            text: 'premium_what_unlocks_title'.tr,
             fontSize: 15.sp,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary(context),
@@ -1418,8 +1422,10 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                 SizedBox(height: 4.h),
                 InterText(
                   text: isActive
-                      ? 'Il vous reste ${status!.remainingDays} jour(s)'
-                      : 'Votre pin s\'affiche en taille normale',
+                      ? 'mapboost_remaining_days'.trParams({
+                          'days': '${status!.remainingDays}',
+                        })
+                      : 'mapboost_pin_default'.tr,
                   fontSize: 12.sp,
                   color: isActive
                       ? Colors.white.withValues(alpha: 0.9)
@@ -1746,22 +1752,24 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     // L'ancien set utilisait 4 icônes très proches visuellement (rond plein,
     // tiret montant, étoile…), ce qui brouillait la lecture. Passage à un
     // pin + œil + courbe + flèche de recyclage pour mieux différencier.
+    // v19.1.5 — i18n so the "How Map Boost works" list is translated instead
+    // of staying in French.
     final steps = [
       {
         'icon': Icons.push_pin_rounded,
-        'text': 'Votre pin ressort en doré sur la PawMap des voisins',
+        'text': 'mapboost_how_step_1'.tr,
       },
       {
         'icon': Icons.remove_red_eye_rounded,
-        'text': 'Les propriétaires vous voient en haut de la liste',
+        'text': 'mapboost_how_step_2'.tr,
       },
       {
         'icon': Icons.query_stats_rounded,
-        'text': 'Plus de demandes pendant toute la durée du boost',
+        'text': 'mapboost_how_step_3'.tr,
       },
       {
         'icon': Icons.autorenew_rounded,
-        'text': 'Sans engagement — renouvelable à la demande',
+        'text': 'mapboost_how_step_4'.tr,
       },
     ];
     return Container(
@@ -1775,7 +1783,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InterText(
-            text: 'Comment fonctionne Map Boost ?',
+            text: 'mapboost_how_title'.tr,
             fontSize: 14.sp,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary(context),

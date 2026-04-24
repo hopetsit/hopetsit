@@ -28,38 +28,36 @@ class BoostProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // v19.1.3 — 3 boutons : Boost (couleur rôle) / Premium (vert) / MapBoost
-    // (bleu). Chacun ouvre un onglet dédié dans CoinShopScreen.
+    // v19.1.5 — 3 tuiles compactes, labels courts et LISIBLES (plus de texte
+    // tronqué). Layout vertical : icône en haut, label unique en dessous.
+    // Couleurs fixes : Boost=orange, Premium=vert, MapBoost=bleu.
     return SizedBox(
-      height: 90.h,
+      height: 86.h,
       child: Row(
         children: [
           Expanded(
             child: _BoostChip(
-              accent: _accent,
+              accent: const Color(0xFFEF4324),
               icon: Icons.rocket_launch_rounded,
-              title: 'profile_boost_profile_title'.tr,
-              subtitle: 'profile_boost_profile_subtitle'.tr,
+              label: 'shop_tile_boost'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 10.w),
           Expanded(
             child: _BoostChip(
               accent: const Color(0xFF16A34A),
               icon: Icons.workspace_premium_rounded,
-              title: 'premium_choose_plan'.tr,
-              subtitle: 'premium_choose_plan_subtitle'.tr,
+              label: 'shop_tile_premium'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 10.w),
           Expanded(
             child: _BoostChip(
               accent: const Color(0xFF2563EB),
               icon: Icons.push_pin_rounded,
-              title: 'mapboost_header_title'.tr,
-              subtitle: 'mapboost_header_subtitle'.tr,
+              label: 'shop_tile_map_boost'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
             ),
           ),
@@ -73,15 +71,13 @@ class _BoostChip extends StatelessWidget {
   const _BoostChip({
     required this.accent,
     required this.icon,
-    required this.title,
-    required this.subtitle,
+    required this.label,
     required this.onTap,
   });
 
   final Color accent;
   final IconData icon;
-  final String title;
-  final String subtitle;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -89,58 +85,43 @@ class _BoostChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 10.h),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [accent, accent.withValues(alpha: 0.78)],
+            colors: [accent, accent.withValues(alpha: 0.82)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
-              color: accent.withValues(alpha: 0.28),
+              color: accent.withValues(alpha: 0.30),
               blurRadius: 12,
               offset: const Offset(0, 5),
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 36.w,
-              height: 36.w,
+              width: 34.w,
+              height: 34.w,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
+                color: Colors.white.withValues(alpha: 0.24),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: Colors.white, size: 20.sp),
             ),
-            SizedBox(width: 10.w),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  PoppinsText(
-                    text: title,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: subtitle,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+            SizedBox(height: 6.h),
+            PoppinsText(
+              text: label,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
