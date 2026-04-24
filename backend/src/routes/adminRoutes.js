@@ -2099,8 +2099,6 @@ router.get('/wallets', requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /admin/messages/:id — admin soft-deletes a message regardless of
-// sender. Fans out message:deleted to the conversation room.
 router.delete('/messages/:id', requireAdmin, async (req, res) => {
   try {
     const msg = await Message.findById(req.params.id);

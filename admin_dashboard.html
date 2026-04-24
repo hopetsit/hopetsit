@@ -726,6 +726,21 @@ let ADMIN_TOKEN = '';
 let allBookings = [], allSitters = [], allOwners = [];
 let currentBookingId = null, currentIbanSitterId = null;
 
+// v19.1.5 — global date formatter (used across Bookings/Sitters/Owners/Payments).
+// Previously scoped to individual functions and failed with "fmtDate is not
+// defined" when other loaders referenced it.
+function fmtDate(d, withTime) {
+  if (!d) return '-';
+  try {
+    const opts = withTime
+      ? { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+      : { day: '2-digit', month: 'short', year: 'numeric' };
+    return new Date(d).toLocaleDateString('fr-FR', opts);
+  } catch (_) {
+    return String(d);
+  }
+}
+
 // Sprint 6.5 step 4 — persisted auth keys
 const LS_TOKEN_KEY = 'admin_token';
 const LS_URL_KEY = 'admin_api_url';
@@ -2671,8 +2686,7 @@ async function loadChatConversations() {
   if (!list) return;
   list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const res = await adminFetch('/admin/conversations?limit=100');
-    const data = await res.json();
+    const data = await api('/admin/conversations?limit=100');
     const rows = (data.conversations || []).map(c => {
       const when = c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleString() : '';
       const preview = (c.lastMessage || '').slice(0, 60);
@@ -2693,8 +2707,7 @@ async function loadChatMessages(convId) {
   if (header) header.textContent = 'Conversation ' + convId.slice(-6);
   if (listEl) listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const res = await adminFetch('/admin/conversations/' + convId + '/messages');
-    const data = await res.json();
+    const data = await api('/admin/conversations/' + convId + '/messages');
     const rows = (data.messages || []).map(m => {
       const when = m.createdAt ? new Date(m.createdAt).toLocaleString() : '';
       const deleted = m.deletedAt ? `<span style="color:var(--error);font-size:11px">[deleted by ${m.deletedBy} at ${new Date(m.deletedAt).toLocaleString()}]</span>` : '';
@@ -2715,8 +2728,7 @@ async function loadChatMessages(convId) {
 async function adminDeleteMessage(msgId) {
   if (!confirm('Supprimer ce message ?')) return;
   try {
-    const res = await adminFetch('/admin/messages/' + msgId, { method: 'DELETE' });
-    if (!res.ok) throw new Error('status ' + res.status);
+    await api('/admin/messages/' + msgId, 'DELETE');
     if (currentChatConvId) loadChatMessages(currentChatConvId);
   } catch (e) {
     alert('Erreur: ' + e.message);
@@ -2729,8 +2741,7 @@ async function loadAdminWallets() {
   const tbl = document.getElementById('wallets-table-wrap');
   if (tbl) tbl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const res = await adminFetch('/admin/wallets');
-    const data = await res.json();
+    const data = await api('/admin/wallets');
     const s = data.summary || {};
     if (sum) {
       sum.innerHTML =
