@@ -107,7 +107,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'Please enter a new password.': 'Please enter a new password.',
       'Please enter the complete verification code':
           'Please enter the complete verification code',
-      'Please enter your PayPal email.': 'Please enter your PayPal email.',
+      'Please enter your PayPal email.': 'Bitte geben Sie Ihre Zahlungs-E-Mail ein.',
       'Please fill in all fields correctly.':
           'Please fill in all fields correctly.',
       'Please fill in all required fields':
@@ -580,27 +580,27 @@ const Map<String, String> deDETranslations = <String, String>{
       'blocked_users_save_success':
           'Blockierte Benutzer erfolgreich gespeichert',
       'donate_coming_soon': 'Die Spendenfunktion wird bald verfügbar sein',
-      'stripe_connect_title': 'Stripe-Konto verbinden',
+      'stripe_connect_title': 'Auszahlungskonto einrichten',
       'payout_status_screen_title': 'Auszahlungsstatus',
-      'payout_connect_stripe_account': 'Stripe-Konto verbinden',
-      'payout_paypal_email_title': 'PayPal-Auszahlungs-E-Mail',
-      'payout_add_paypal_email_title': 'PayPal-Auszahlungs-E-Mail hinzufuegen',
+      'payout_connect_stripe_account': 'Auszahlungskonto einrichten',
+      'payout_paypal_email_title': 'Auszahlungs-E-Mail',
+      'payout_add_paypal_email_title': 'Auszahlungs-E-Mail hinzufügen',
       'payout_add_paypal_email_subtitle':
           'Lege die E-Mail fest, an die Auszahlungen gesendet werden. Du kannst sie spaeter im Auszahlungsstatus aktualisieren.',
       'payout_status_saved': 'Gespeichert',
       'payout_status_not_set': 'Nicht gesetzt',
       'payout_paypal_email_hint':
-          'Fuege eine E-Mail hinzu, um Auszahlungen ueber PayPal zu erhalten.',
-      'payout_update_paypal_email': 'PayPal-E-Mail aktualisieren',
+          'Füge eine E-Mail hinzu, um Überweisungen zu erhalten.',
+      'payout_update_paypal_email': 'Auszahlungs-E-Mail aktualisieren',
       'payout_paypal_dialog_subtitle':
-          'Diese E-Mail wird fuer PayPal-Auszahlungen verwendet. Stelle sicher, dass sie zu deinem PayPal-Konto passt.',
-      'payout_stripe_connect_title': 'Stripe Connect',
+          'Diese E-Mail wird für Überweisungen verwendet. Stelle sicher, dass sie korrekt ist.',
+      'payout_stripe_connect_title': 'Auszahlungskonto',
       'payout_status_connected': 'Verbunden',
       'payout_status_not_connected': 'Nicht verbunden',
       'payout_stripe_connected_message':
-          'Dein Stripe-Konto ist verbunden und bereit, Zahlungen zu empfangen.',
+          'Dein Auszahlungskonto ist eingerichtet und bereit, Überweisungen zu empfangen.',
       'payout_stripe_not_connected_message':
-          'Verbinde dein Stripe-Konto, um Auszahlungen zu erhalten.',
+          'Richte dein Auszahlungskonto ein, um Überweisungen zu erhalten.',
       'payout_account_id_label': 'Konto-ID',
       'payout_verification_title': 'Verifizierungsstatus',
       'payout_status_title': 'Auszahlungsstatus',
@@ -632,13 +632,13 @@ const Map<String, String> deDETranslations = <String, String>{
       'payout_message_restricted':
           'Deine Auszahlungen sind derzeit eingeschraenkt. Bitte kontaktiere den Support.',
       'payout_message_not_connected':
-          'Verbinde dein Stripe-Konto, um Auszahlungen zu erhalten.',
-      'stripe_get_paid_title': 'Mit Stripe bezahlt werden',
+          'Richte dein Auszahlungskonto ein, um Überweisungen zu erhalten.',
+      'stripe_get_paid_title': 'Erhalte deine Überweisungen',
       'stripe_connect_description':
-          'Verbinde dein Stripe-Konto, um Zahlungen direkt von Tierbesitzern zu erhalten. Deine Einnahmen werden auf dein Bankkonto überwiesen.',
+          'Richte dein Konto ein, um Zahlungen direkt zu erhalten. Deine Einnahmen werden auf dein Bankkonto überwiesen.',
       'stripe_account_status_title': 'Kontostatus',
       'stripe_continue_onboarding': 'Onboarding fortsetzen',
-      'stripe_connect_account_button': 'Stripe-Konto verbinden',
+      'stripe_connect_account_button': 'Konto einrichten',
       'stripe_benefit_secure': 'Sichere Zahlungsabwicklung',
       'stripe_benefit_fast_payouts': 'Schnelle Auszahlungen auf dein Bankkonto',
       'stripe_benefit_no_fees': 'Keine Einrichtungsgebühren',
@@ -650,21 +650,21 @@ const Map<String, String> deDETranslations = <String, String>{
           'Konto erstellt - Onboarding ausstehend',
       'stripe_account_created': 'Konto erstellt',
       'stripe_account_connected_message':
-          'Dein Stripe-Konto ist vollständig eingerichtet und bereit, Zahlungen zu empfangen.',
+          'Dein Auszahlungskonto ist vollständig eingerichtet und bereit, Überweisungen zu empfangen.',
       'stripe_account_created_message':
-          'Dein Stripe-Konto wurde erstellt. Bitte schließe den Onboarding-Prozess ab, um Zahlungen zu empfangen.',
+          'Dein Konto wurde erstellt. Bitte schließe die Einrichtung ab, um Überweisungen zu empfangen.',
       'stripe_account_created_partial_message':
           'Dein Zahlungskonto wurde erstellt. Einige Verifizierungsschritte stehen noch aus. Du kannst sie in den Kontoeinstellungen abschließen.',
       'stripe_account_id_label': 'Konto-ID',
-      'stripe_loading_onboarding': 'Stripe-Onboarding wird geladen...',
-      'stripe_account_connected_success': 'Stripe-Konto erfolgreich verbunden!',
-      'stripe_onboarding_completed': 'Stripe-Onboarding abgeschlossen!',
-      'stripe_onboarding_cancelled': 'Das Stripe-Onboarding wurde abgebrochen.',
+      'stripe_loading_onboarding': 'Einrichtung wird geladen...',
+      'stripe_account_connected_success': 'Auszahlungskonto erfolgreich eingerichtet!',
+      'stripe_onboarding_completed': 'Einrichtung abgeschlossen!',
+      'stripe_onboarding_cancelled': 'Die Einrichtung wurde abgebrochen.',
       'stripe_onboarding_load_error':
-          'Fehler beim Laden der Stripe-Onboarding-Seite: @error',
+          'Fehler beim Laden der Einrichtungsseite: @error',
       'stripe_cancel_onboarding_title': 'Onboarding abbrechen?',
       'stripe_cancel_onboarding_message':
-          'Möchtest du das Stripe-Onboarding wirklich abbrechen? Du kannst es später in den Einstellungen abschließen.',
+          'Möchtest du die Einrichtung wirklich abbrechen? Du kannst sie später in den Einstellungen abschließen.',
       'stripe_connect_payment_title': 'Zahlungskonto verbinden',
       'stripe_connect_payment_description':
           'Um als Pet Sitter Zahlungen zu erhalten, musst du dein Zahlungskonto verbinden. Dies ist ein erforderlicher Schritt, um die Einrichtung deines Profils abzuschließen.',
@@ -676,26 +676,26 @@ const Map<String, String> deDETranslations = <String, String>{
       'stripe_connect_now': 'Jetzt verbinden',
       'stripe_already_connected': 'Bereits verbunden',
       'stripe_already_connected_message':
-          'Dein Stripe-Konto ist bereits verbunden und aktiv.',
+          'Dein Auszahlungskonto ist bereits eingerichtet und aktiv.',
       'stripe_connect_platform_not_enabled':
-          'Stripe-Zahlungen sind auf der Plattform noch nicht aktiviert. Bitte später erneut versuchen oder den Support kontaktieren.',
+          'Das Zahlungssystem ist auf der Plattform noch nicht aktiviert. Bitte später erneut versuchen oder den Support kontaktieren.',
       'stripe_connect_error':
-          'Fehler beim Verbinden des Stripe-Kontos. Bitte versuche es erneut.',
+          'Fehler beim Einrichten des Kontos. Bitte versuche es erneut.',
       'stripe_no_onboarding_url':
-          'Keine Onboarding-URL verfügbar. Bitte erstelle zuerst ein Stripe-Konto.',
+          'Keine Einrichtungs-URL verfügbar. Bitte erstelle zuerst ein Konto.',
       'stripe_onboarding_expired_title': 'Abgelaufen',
       'stripe_onboarding_expired_message':
           'Der Onboarding-Link ist abgelaufen. Bitte erstelle einen neuen.',
-      'stripe_disconnect_success': 'Stripe-Konto erfolgreich getrennt!',
+      'stripe_disconnect_success': 'Auszahlungskonto erfolgreich gelöscht!',
       'stripe_disconnect_error':
-          'Fehler beim Trennen des Stripe-Kontos. Bitte versuche es erneut.',
+          'Fehler beim Löschen des Auszahlungskontos. Bitte versuche es erneut.',
       'payment_title': 'Zahlung',
       'payment_info_message':
-          'Klicke unten auf "Bezahlen", um deine Zahlungsdaten sicher über das sichere Stripe-Zahlungsformular einzugeben.',
+          'Klicke unten auf "Bezahlen", um deine Zahlungsdaten sicher einzugeben.',
       'payment_paypal_info':
-          'Du wirst zu PayPal weitergeleitet, um die Zahlung zu bestätigen. Danach bestätigen wir sie hier.',
-      'payment_pay_with_stripe': 'Mit Stripe bezahlen @amount',
-      'payment_pay_with_paypal': 'Mit PayPal bezahlen @amount',
+          'Du wirst weitergeleitet, um die Zahlung zu bestätigen. Danach bestätigen wir sie hier.',
+      'payment_pay_with_stripe': 'Bezahlen @amount',
+      'payment_pay_with_paypal': 'Bezahlen @amount',
       'booking_agreement_title': 'Buchungsvereinbarung',
       'booking_agreement_payment_completed': 'Zahlung abgeschlossen',
       'booking_agreement_booking_cancelled': 'Buchung storniert',
@@ -718,7 +718,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'booking_agreement_today_at': 'Heute um @time',
       'booking_agreement_yesterday_at': 'Gestern um @time',
       'booking_agreement_at': 'um',
-      'payment_method_paypal': 'PayPal',
+      'payment_method_paypal': 'Überweisung',
       'payment_pay_button': '@amount bezahlen',
       'payment_amount_label': 'Zu zahlender Betrag',
       'payment_loading_page': 'Zahlungsseite wird geladen...',
@@ -739,9 +739,9 @@ const Map<String, String> deDETranslations = <String, String>{
       'payment_error_client_secret_missing':
           'Fehler beim Erstellen der Zahlungsabsicht. Client-Geheimnis fehlt.',
       'payment_error_publishable_key_missing':
-          'Stripe-Veröffentlichungsschlüssel fehlt.',
+          'Zahlungskonfiguration fehlt.',
       'payment_error_invalid_publishable_key':
-          'Ungültiger Stripe-Veröffentlichungsschlüssel.',
+          'Ungültige Zahlungskonfiguration.',
       'payment_processing_failed':
           'Zahlungsverarbeitung fehlgeschlagen. Bitte versuche es erneut.',
       'payment_error_title': 'Zahlungsfehler',
@@ -1017,7 +1017,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'booking_agreement_city_label': 'Stadt',
       'identity_verification_started_title': 'Verifizierung gestartet',
       'identity_verification_started_followup':
-          'Folge dem Stripe-Link zum Abschluss.',
+          'Folge dem Link zum Abschluss.',
       'identity_verification_started_sdk':
           'Identity-Sitzung erstellt, öffne das SDK.',
       'identity_verification_upload_success':
@@ -1336,11 +1336,11 @@ const Map<String, String> deDETranslations = <String, String>{
       'snackbar_choose_service_controller_007':
           'Please select at least one service.',
       'snackbar_sitter_paypal_payout_controller_001':
-          'Die PayPal-Auszahlungs-E-Mail ist erforderlich.',
+          'Die Auszahlungs-E-Mail ist erforderlich.',
       'snackbar_sitter_paypal_payout_controller_002':
-          'PayPal-Auszahlungs-E-Mail erfolgreich aktualisiert!',
+          'Auszahlungs-E-Mail erfolgreich aktualisiert!',
       'snackbar_sitter_paypal_payout_controller_003':
-          'PayPal-Auszahlungs-E-Mail konnte nicht aktualisiert werden. Bitte versuche es erneut.',
+          'Auszahlungs-E-Mail konnte nicht aktualisiert werden. Bitte versuche es erneut.',
       'task_add_failed': 'Failed to add task. Please try again.',
       'task_add_success': 'Task added successfully!',
       'task_fetch_failed': 'Failed to fetch tasks.',
@@ -1405,7 +1405,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'snackbar_text_please_accept_the_terms_and_conditions':
           'Bitte akzeptieren Sie die Allgemeinen Geschäftsbedingungen',
       'snackbar_text_please_enter_your_paypal_email':
-          'Bitte geben Sie Ihre PayPal-E-Mail-Adresse ein.',
+          'Bitte geben Sie Ihre Auszahlungs-E-Mail-Adresse ein.',
       'snackbar_text_please_fill_in_all_required_fields':
           'Bitte füllen Sie alle erforderlichen Felder aus',
       'snackbar_text_please_try_logging_in_again':
@@ -1504,9 +1504,9 @@ const Map<String, String> deDETranslations = <String, String>{
     'payment_cardholder_email_optional': 'E-Mail (optional)',
     'payment_card_incomplete_title': 'Karte unvollständig',
     'save_card_title': 'Diese Karte speichern',
-    'save_card_subtitle': 'Schnellerer Bezahlvorgang beim nächsten Mal. Gesichert durch Stripe.',
+    'save_card_subtitle': 'Schnellerer Bezahlvorgang beim nächsten Mal. Verschlüsselt.',
     'save_my_card_button': 'Meine Karte speichern',
-    'add_card_stripe_secure': 'Zahlung abgesichert durch Stripe. Wir speichern niemals Ihre Kartennummern.',
+    'add_card_stripe_secure': 'Sichere Zahlung. Wir speichern niemals Ihre Kartennummern.',
     'payment_card_incomplete_message': 'Bitte füllen Sie alle Kartenfelder aus, bevor Sie zahlen.',
     'payment_cardholder_required_title': 'Name erforderlich',
     'payment_cardholder_required_message': 'Bitte geben Sie den Namen des Karteninhabers ein.',
@@ -1556,7 +1556,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'payment_methods_section': 'Zahlungsmethoden',
     'payment_stripe_connected': 'Konto verbunden und aktiv',
     'payment_stripe_not_connected': 'Nicht verbunden — tippen zum Einrichten',
-    'payment_paypal_not_set': 'Keine PayPal-E-Mail konfiguriert',
+    'payment_paypal_not_set': 'Keine Auszahlungs-E-Mail konfiguriert',
     'payment_iban_title': 'Bankkonto (IBAN)',
     'payment_iban_subtitle': 'Zahlungen per Überweisung erhalten',
     'payment_add_card_title': 'Karte hinzufügen',
@@ -1626,8 +1626,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'payment_transaction_error': 'Während der Transaktion ist ein Fehler aufgetreten.',
     'payment_name_required_title': 'Name erforderlich',
     'payment_name_required_message': 'Füge den Namen des Karteninhabers hinzu.',
-    'payment_stripe_not_configured': 'Stripe nicht konfiguriert. Schließe die App und öffne sie erneut.',
-    'identity_verify_with_stripe': 'Mit Stripe Identity verifizieren',
+    'payment_stripe_not_configured': 'Zahlung nicht konfiguriert. Schließe die App und öffne sie erneut.',
+    'identity_verify_with_stripe': 'Identität verifizieren',
     'identity_upload_manual': 'Ausweisfoto manuell hochladen',
     'identity_verifying': 'Wird überprüft...',
     'identity_launch_failed': 'Verifizierungsseite konnte nicht geöffnet werden. Erneut versuchen.',
@@ -1653,17 +1653,17 @@ const Map<String, String> deDETranslations = <String, String>{
     'wallet_amount_exceeds': 'Du kannst nicht mehr als dein Guthaben abheben',
     'wallet_method_iban': 'IBAN-Überweisung',
     'wallet_method_iban_desc': 'Ankunft in 3 Werktagen',
-    'wallet_method_paypal': 'PayPal',
+    'wallet_method_paypal': 'Email-Überweisung',
     'wallet_method_paypal_desc': 'Ankunft in 1 Werktag',
     'wallet_confirm_withdrawal': 'Abhebung bestätigen',
     'wallet_withdraw_success_title': 'Abhebung in Warteschlange',
     'wallet_withdraw_success_iban': 'Deine IBAN-Überweisung wird innerhalb von 3 Werktagen bearbeitet.',
-    'wallet_withdraw_success_paypal': 'Deine PayPal-Überweisung wird innerhalb von 1 Werktag bearbeitet.',
+    'wallet_withdraw_success_paypal': 'Deine Überweisung wird innerhalb von 1 Werktag bearbeitet.',
     // v20.0.19 — wallet withdraw error UX.
-    'wallet_paypal_needed_title': 'Richte dein PayPal ein',
+    'wallet_paypal_needed_title': 'Richte deine Auszahlungs-E-Mail ein',
     'wallet_paypal_needed_message':
         'Du musst deine PayPal-E-Mail hinzufügen, bevor du Geld abheben kannst. Dauert 30 Sekunden.',
-    'wallet_configure_paypal': 'PayPal einrichten',
+    'wallet_configure_paypal': 'Email einrichten',
     'wallet_iban_needed_title': 'Richte deine IBAN ein',
     'wallet_iban_needed_message':
         'Du musst deine IBAN hinzufügen und verifizieren, bevor du Geld abheben kannst. Weniger als eine Minute.',
@@ -1677,7 +1677,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'wallet_type_refund': 'Rückerstattung',
     'wallet_type_admin_adjustment': 'Anpassung',
     'wallet_to_iban': 'Zur IBAN',
-    'wallet_to_paypal': 'Zu PayPal',
+    'wallet_to_paypal': 'Zu Auszahlungs-E-Mail',
     'wallet_pay_with_balance': 'Mit Guthaben bezahlen (@amount)',
     'wallet_insufficient_balance': 'Unzureichendes Guthaben, Kartenzahlung erforderlich',
     'profile_boost_profile_title': 'Profil boosten',

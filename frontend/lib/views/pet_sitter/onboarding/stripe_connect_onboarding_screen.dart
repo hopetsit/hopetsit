@@ -49,7 +49,7 @@ class StripeConnectOnboardingScreen extends StatelessWidget {
                   child: Icon(
                     Icons.account_balance_wallet,
                     size: 40.sp,
-                    color: Color(0xFF635BFF), // Stripe brand color
+                    color: Color(0xFFEF4324), // HoPetSit brand orange
                   ),
                 ),
               ),

@@ -18,6 +18,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -81,6 +82,13 @@ void main() async {
       '${stripePk.isEmpty ? '(empty)' : '(invalid format)'}',
     );
   }
+
+  // v20.1 — Airwallex SDK init (lives next to Stripe; both kept active during
+  // the migration so the donation_service can dispatch by `provider` returned
+  // from the backend). Defaults to live since HoPetSit doesn't have a Demo
+  // workspace; flip with AIRWALLEX_USE_DEMO=true in .env if needed later.
+  final useDemo = (dotenv.env['AIRWALLEX_USE_DEMO'] ?? 'false').toLowerCase() == 'true';
+  await AirwallexPaymentService.init(live: !useDemo);
 
   // Sprint 8 step 6 — optional Sentry. Opt-in via SENTRY_DSN_FRONTEND in .env.
   final sentryDsn = dotenv.env['SENTRY_DSN_FRONTEND'] ?? '';

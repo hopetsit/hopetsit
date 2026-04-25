@@ -108,7 +108,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'Please enter a new password.': 'Please enter a new password.',
       'Please enter the complete verification code':
           'Please enter the complete verification code',
-      'Please enter your PayPal email.': 'Please enter your PayPal email.',
+      'Please enter your PayPal email.': 'Please enter your payout email.',
       'Please fill in all fields correctly.':
           'Please fill in all fields correctly.',
       'Please fill in all required fields':
@@ -510,26 +510,26 @@ const Map<String, String> enUSTranslations = <String, String>{
       'blocked_users_unblock_success': 'User unblocked successfully',
       'blocked_users_save_success': 'Blocked users saved successfully',
       'donate_coming_soon': 'Donate feature will be available soon',
-      'stripe_connect_title': 'Connect Stripe Account',
+      'stripe_connect_title': 'Set up payouts',
       'payout_status_screen_title': 'Payout Status',
-      'payout_connect_stripe_account': 'Connect Stripe Account',
-      'payout_paypal_email_title': 'PayPal Payout Email',
+      'payout_connect_stripe_account': 'Set up payout account',
+      'payout_paypal_email_title': 'Payout Email',
       'payout_status_saved': 'Saved',
       'payout_status_not_set': 'Not Set',
-      'payout_paypal_email_hint': 'Add an email to receive payouts via PayPal.',
-      'payout_add_paypal_email_title': 'Add PayPal payout email',
+      'payout_paypal_email_hint': 'Add an email to receive payout notifications.',
+      'payout_add_paypal_email_title': 'Add payout email',
       'payout_add_paypal_email_subtitle':
-          'Set the email where you want to receive payouts. You can update it later from Payout Status.',
-      'payout_update_paypal_email': 'Update PayPal Email',
+          'Set the email where you want to receive payout notifications. You can update it later from Payout Status.',
+      'payout_update_paypal_email': 'Update Email',
       'payout_paypal_dialog_subtitle':
-          'This email will be used for PayPal payouts. Make sure it matches your PayPal account.',
-      'payout_stripe_connect_title': 'Stripe Connect',
+          'This email will be used for payout notifications. Make sure it is your active address.',
+      'payout_stripe_connect_title': 'Payout account',
       'payout_status_connected': 'Connected',
       'payout_status_not_connected': 'Not Connected',
       'payout_stripe_connected_message':
-          'Your Stripe account is connected and ready to receive payments.',
+          'Your payout account is connected and ready to receive payments.',
       'payout_stripe_not_connected_message':
-          'Connect your Stripe account to start receiving payouts.',
+          'Set up your payout account to start receiving payments.',
       'payout_account_id_label': 'Account ID',
       'payout_verification_title': 'Verification Status',
       'payout_status_title': 'Payout Status',
@@ -561,70 +561,70 @@ const Map<String, String> enUSTranslations = <String, String>{
       'payout_message_restricted':
           'Your payouts are currently restricted. Please contact support for assistance.',
       'payout_message_not_connected':
-          'Connect your Stripe account to start receiving payouts.',
-      'stripe_get_paid_title': 'Get Paid with Stripe',
+          'Set up your payout account to start receiving payments.',
+      'stripe_get_paid_title': 'Set Up Payouts',
       'stripe_connect_description':
-          'Connect your Stripe account to receive payments directly from pet owners. Your earnings will be transferred to your bank account.',
+          'Set up your payout account to receive payments directly from pet owners. Your earnings will be transferred to your bank account.',
       'stripe_account_status_title': 'Account Status',
       'stripe_continue_onboarding': 'Continue Onboarding',
-      'stripe_connect_account_button': 'Connect Stripe Account',
+      'stripe_connect_account_button': 'Set up payout account',
       'stripe_benefit_secure': 'Secure payment processing',
       'stripe_benefit_fast_payouts': 'Fast payouts to your bank account',
       'stripe_benefit_no_fees': 'No setup fees',
       'stripe_benefit_support': '24/7 customer support',
       'stripe_benefit_required': 'Required to receive payments from pet owners',
       'stripe_account_connected': 'Account Connected',
-      'stripe_account_created_pending': 'Account Created - Onboarding Pending',
+      'stripe_account_created_pending': 'Account Created - Verification Pending',
       'stripe_account_created': 'Account Created',
       'stripe_account_connected_message':
-          'Your Stripe account is fully set up and ready to receive payments.',
+          'Your payout account is fully set up and ready to receive payments.',
       'stripe_account_created_message':
-          'Your Stripe account has been created. Please complete the onboarding process to start receiving payments.',
+          'Your payout account has been created. Please complete the verification process to start receiving payments.',
       'stripe_account_created_partial_message':
           'Your payment account has been created. Some verification steps are remaining. You can complete them in your account settings.',
       'stripe_account_id_label': 'Account ID',
-      'stripe_loading_onboarding': 'Loading Stripe onboarding...',
+      'stripe_loading_onboarding': 'Loading payout setup...',
       'stripe_account_connected_success':
-          'Stripe account connected successfully!',
-      'stripe_onboarding_completed': 'Stripe onboarding completed!',
-      'stripe_onboarding_cancelled': 'Stripe onboarding was cancelled.',
+          'Payout account connected successfully!',
+      'stripe_onboarding_completed': 'Payout setup completed!',
+      'stripe_onboarding_cancelled': 'Payout setup was cancelled.',
       'stripe_onboarding_load_error':
-          'Failed to load Stripe onboarding page: @error',
-      'stripe_cancel_onboarding_title': 'Cancel Onboarding?',
+          'Failed to load payout setup page: @error',
+      'stripe_cancel_onboarding_title': 'Cancel Setup?',
       'stripe_cancel_onboarding_message':
-          'Are you sure you want to cancel Stripe onboarding? You can complete it later from settings.',
-      'stripe_connect_payment_title': 'Connect Your Payment Account',
+          'Are you sure you want to cancel the payout setup? You can complete it later from settings.',
+      'stripe_connect_payment_title': 'Set Up Your Payment Account',
       'stripe_connect_payment_description':
-          'To start receiving payments as a Pet Sitter, you need to connect your payment account. This is a required step to complete your profile setup.',
+          'To start receiving payments as a Pet Sitter, you need to set up your payment account. This is a required step to complete your profile setup.',
       'stripe_connect_payment_partial_description':
           'Your payment account has been created. Some verification steps are remaining. You can complete them later in your account settings.',
       'stripe_connect_payment_partial_info':
           'Your account is connected, but some verification steps are remaining. You can complete them in your account settings.',
       'stripe_payment_connected_success': 'Payment Connected Successfully!',
-      'stripe_connect_now': 'Connect Now',
+      'stripe_connect_now': 'Set Up Now',
       'stripe_already_connected': 'Already Connected',
       'stripe_already_connected_message':
-          'Your Stripe account is already connected and active.',
+          'Your payout account is already connected and active.',
       'stripe_connect_platform_not_enabled':
-          'Stripe payments are not yet enabled on the platform. Please try again later or contact support.',
+          'Payouts are not yet enabled on the platform. Please try again later or contact support.',
       'stripe_connect_error':
-          'Failed to connect Stripe account. Please try again.',
+          'Failed to set up payout account. Please try again.',
       'stripe_no_onboarding_url':
-          'No onboarding URL available. Please create a Stripe account first.',
+          'No setup URL available. Please create a payout account first.',
       'stripe_onboarding_expired_title': 'Expired',
       'stripe_onboarding_expired_message':
-          'The onboarding link has expired. Please create a new one.',
-      'stripe_disconnect_success': 'Stripe account disconnected successfully!',
+          'The setup link has expired. Please create a new one.',
+      'stripe_disconnect_success': 'Payout account disconnected successfully!',
       'stripe_disconnect_error':
-          'Failed to disconnect Stripe account. Please try again.',
+          'Failed to disconnect payout account. Please try again.',
       'payment_title': 'Payment',
       'payment_info_message':
-          'Click "Pay" below to securely enter your payment details using Stripe\'s secure payment form.',
+          'Click "Pay" below to securely enter your payment details on our secure payment form.',
       'payment_paypal_info':
-          'You will be redirected to PayPal to approve the payment, then we will confirm it here.',
-      'payment_pay_with_stripe': 'Pay with Stripe @amount',
-      'payment_pay_with_paypal': 'Pay with PayPal @amount',
-      'payment_method_paypal': 'PayPal',
+          'You will be redirected to confirm the payment, then we will process it here.',
+      'payment_pay_with_stripe': 'Pay @amount',
+      'payment_pay_with_paypal': 'Pay @amount',
+      'payment_method_paypal': 'Bank transfer',
       'payment_pay_button': 'Pay @amount',
       'payment_amount_label': 'Amount to Pay',
       'payment_loading_page': 'Loading payment page...',
@@ -646,9 +646,9 @@ const Map<String, String> enUSTranslations = <String, String>{
       'payment_error_client_secret_missing':
           'Failed to create payment intent. Client secret is missing.',
       'payment_error_publishable_key_missing':
-          'Stripe publishable key missing.',
+          'Payment configuration incomplete.',
       'payment_error_invalid_publishable_key':
-          'Invalid Stripe publishable key.',
+          'Payment configuration invalid.',
       'payment_processing_failed':
           'Payment processing failed. Please try again.',
       'payment_error_title': 'Payment Error',
@@ -977,7 +977,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'booking_agreement_city_label': 'City',
       'identity_verification_started_title': 'Verification started',
       'identity_verification_started_followup':
-          'Follow the Stripe link to complete verification.',
+          'Follow the link to complete verification.',
       'identity_verification_started_sdk':
           'Identity session created, open the SDK.',
       'identity_verification_upload_success':
@@ -1461,11 +1461,11 @@ const Map<String, String> enUSTranslations = <String, String>{
       'snackbar_choose_service_controller_007':
           'Please select at least one service.',
       'snackbar_sitter_paypal_payout_controller_001':
-          'PayPal payout email is required.',
+          'Payout email is required.',
       'snackbar_sitter_paypal_payout_controller_002':
-          'PayPal payout email updated successfully!',
+          'Payout email updated successfully!',
       'snackbar_sitter_paypal_payout_controller_003':
-          'Failed to update PayPal payout email. Please try again.',
+          'Failed to update payout email. Please try again.',
 
       'snackbar_text_application_accepted_successfully':
           'Application accepted successfully',
@@ -1623,9 +1623,9 @@ const Map<String, String> enUSTranslations = <String, String>{
     'payment_cardholder_email_optional': 'Email (optional)',
     'payment_card_incomplete_title': 'Card incomplete',
     'save_card_title': 'Save this card',
-    'save_card_subtitle': 'Faster checkout next time. Secured by Stripe.',
+    'save_card_subtitle': 'Faster checkout next time. Securely encrypted.',
     'save_my_card_button': 'Save my card',
-    'add_card_stripe_secure': 'Payment secured by Stripe. We never store your card numbers.',
+    'add_card_stripe_secure': 'Secure payment. We never store your card numbers.',
     'payment_card_incomplete_message': 'Please fill in all card fields before paying.',
     'payment_cardholder_required_title': 'Name required',
     'payment_cardholder_required_message': 'Please enter the cardholder name.',
@@ -1655,7 +1655,7 @@ const Map<String, String> enUSTranslations = <String, String>{
     'payment_methods_section': 'Payment Methods',
     'payment_stripe_connected': 'Account connected and active',
     'payment_stripe_not_connected': 'Not connected — tap to set up',
-    'payment_paypal_not_set': 'No PayPal email configured',
+    'payment_paypal_not_set': 'No payout email configured',
     'payment_iban_title': 'Bank Account (IBAN)',
     'payment_iban_subtitle': 'Receive payments by bank transfer',
     'payment_add_card_title': 'Add a card',
@@ -1726,8 +1726,8 @@ const Map<String, String> enUSTranslations = <String, String>{
     'payment_transaction_error': 'An error occurred during the transaction.',
     'payment_name_required_title': 'Name required',
     'payment_name_required_message': 'Add the cardholder\'s name.',
-    'payment_stripe_not_configured': 'Stripe not configured. Close and relaunch the app.',
-    'identity_verify_with_stripe': 'Verify with Stripe Identity',
+    'payment_stripe_not_configured': 'Payment method not configured. Close and relaunch the app.',
+    'identity_verify_with_stripe': 'Verify identity',
     'identity_upload_manual': 'Upload an ID photo manually',
     'identity_verifying': 'Verifying...',
     'identity_launch_failed': 'Could not open the verification page. Try again.',
@@ -1753,17 +1753,17 @@ const Map<String, String> enUSTranslations = <String, String>{
     'wallet_amount_exceeds': 'You cannot withdraw more than your balance',
     'wallet_method_iban': 'IBAN transfer',
     'wallet_method_iban_desc': 'Arrives within 3 business days',
-    'wallet_method_paypal': 'PayPal',
+    'wallet_method_paypal': 'Email transfer',
     'wallet_method_paypal_desc': 'Arrives within 1 business day',
     'wallet_confirm_withdrawal': 'Confirm withdrawal',
     'wallet_withdraw_success_title': 'Withdrawal queued',
     'wallet_withdraw_success_iban': 'Your IBAN transfer will be processed within 3 business days.',
-    'wallet_withdraw_success_paypal': 'Your PayPal transfer will be processed within 1 business day.',
+    'wallet_withdraw_success_paypal': 'Your payout will be processed within 1 business day.',
     // v20.0.19 — wallet withdraw error UX.
-    'wallet_paypal_needed_title': 'Set up your PayPal',
+    'wallet_paypal_needed_title': 'Set up payout email',
     'wallet_paypal_needed_message':
-        'You need to add your PayPal email before you can withdraw money. It takes 30 seconds.',
-    'wallet_configure_paypal': 'Set up my PayPal',
+        'You need to add your payout email before you can withdraw money. It takes 30 seconds.',
+    'wallet_configure_paypal': 'Set up payout email',
     'wallet_iban_needed_title': 'Set up your IBAN',
     'wallet_iban_needed_message':
         'You need to add and verify your IBAN before you can withdraw money. Takes less than a minute.',
@@ -1777,7 +1777,7 @@ const Map<String, String> enUSTranslations = <String, String>{
     'wallet_type_refund': 'Refund',
     'wallet_type_admin_adjustment': 'Adjustment',
     'wallet_to_iban': 'To IBAN',
-    'wallet_to_paypal': 'To PayPal',
+    'wallet_to_paypal': 'To payout email',
     'wallet_pay_with_balance': 'Pay with my balance (@amount)',
     'wallet_insufficient_balance': 'Insufficient balance, card payment required',
     'profile_boost_profile_title': 'Boost profile',

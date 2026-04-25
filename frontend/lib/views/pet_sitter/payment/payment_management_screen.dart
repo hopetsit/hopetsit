@@ -63,13 +63,13 @@ class PaymentManagementScreen extends StatelessWidget {
               ),
               SizedBox(height: 12.h),
 
-              // Stripe Connect Card
+              // Payout account card
               _buildPaymentMethodCard(
                 context: context,
                 icon: Icons.account_balance_wallet_rounded,
-                iconColor: const Color(0xFF635BFF),
-                iconBg: const Color(0xFF635BFF).withValues(alpha: 0.1),
-                title: 'Stripe',
+                iconColor: const Color(0xFFEF4324),
+                iconBg: const Color(0xFFEF4324).withValues(alpha: 0.1),
+                title: 'payout_stripe_connect_title'.tr,
                 subtitle: stripeCtrl.isConnected.value
                     ? 'payment_stripe_connected'.tr
                     : 'payment_stripe_not_connected'.tr,
@@ -195,23 +195,16 @@ class PaymentManagementScreen extends StatelessWidget {
   ) {
     return Obx(() => Row(
       children: [
+        // v20.1 — payment provider neutralised (Stripe → Airwallex migration).
         _quickIcon(
           context,
           Icons.account_balance_wallet_rounded,
-          'Stripe',
+          'Payouts',
           stripeCtrl.isConnected.value,
-          const Color(0xFF635BFF),
+          const Color(0xFFEF4324),
         ),
         SizedBox(width: 10.w),
-        _quickIcon(
-          context,
-          Icons.paypal_rounded,
-          'PayPal',
-          paypalCtrl.paypalEmail.value.isNotEmpty,
-          const Color(0xFF003087),
-        ),
-        SizedBox(width: 10.w),
-        // v18.9 — icône Carte CB en 4e position.
+        // v18.9 — icône Carte CB.
         _quickIcon(
           context,
           Icons.credit_card_rounded,

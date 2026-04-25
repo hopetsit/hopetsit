@@ -45,12 +45,20 @@ export function getStoredUser(): AuthUser | null {
   } catch { return null; }
 }
 
+function notifyAuthChange() {
+  if (typeof window === "undefined") return;
+  // Custom event so the same tab can react instantly (`storage` only fires
+  // across other tabs). The `useAuth` hook in lib/useAuth.ts listens to both.
+  try { window.dispatchEvent(new Event("hopetsit:auth-changed")); } catch { /* ignore */ }
+}
+
 function persistAuth(token: string, user: AuthUser) {
   try {
     window.localStorage.setItem(TOKEN_KEY, token);
     window.localStorage.setItem(ROLE_KEY, user.role);
     window.localStorage.setItem(USER_KEY, JSON.stringify(user));
   } catch { /* ignore */ }
+  notifyAuthChange();
 }
 
 export function clearAuth() {
@@ -59,6 +67,7 @@ export function clearAuth() {
     window.localStorage.removeItem(ROLE_KEY);
     window.localStorage.removeItem(USER_KEY);
   } catch { /* ignore */ }
+  notifyAuthChange();
 }
 
 async function request<T>(
@@ -181,21 +190,36 @@ export async function googleSignIn(idToken: string, defaultRole: AuthRole = "own
 
 // ─── Contact form ───────────────────────────────────────────────────────────
 
+// Posts to the website's own /api/contact Edge route (which uses Resend to
+// deliver the message to contact@hopetsit.com). No call to the Render backend
+// for this — the website owns the contact channel end-to-end.
 export async function sendContactMessage(input: {
   name: string;
   email: string;
   message: string;
 }) {
-  // Falls back to a no-op success if the backend doesn't expose this route
-  // yet — we don't want the public site to error out before that ships.
+  let res: Response;
   try {
-    await request<{ ok: boolean }>("/contact", {
+    res = await fetch("/api/contact", {
       method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(input),
     });
-    return { ok: true };
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) return { ok: true };
-    throw e;
+    throw new ApiError(
+      "Network error. Please check your connection and try again.",
+      0,
+      e instanceof Error ? e.message : String(e),
+    );
   }
+  let data: { ok?: boolean; error?: string } = {};
+  try { data = await res.json(); } catch { /* ignore */ }
+  if (!res.ok) {
+    throw new ApiError(
+      data.error || "Failed to send your message. Please try again.",
+      res.status,
+      data,
+    );
+  }
+  return { ok: true };
 }

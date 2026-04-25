@@ -110,16 +110,18 @@ PostPriceEstimate? estimatePostPrice({
   // 10€ (1 × dailyRate). Daniel a vu ça sur sa publication.
   final isDayCare = services.contains('day_care') || services.contains('garderie');
   if (isDayCare) {
-    final effectiveDailyForCare = dailyRate > 0
+    // v20.0.19 — cast explicite en double (sinon Dart infère num à cause du
+    // fallback `0` int et le build échoue avec "num can't be assigned to double").
+    final double effectiveDailyForCare = dailyRate > 0
         ? dailyRate
         : (hourlyRate > 0
             ? hourlyRate * 8
             : (weeklyRate > 0
                 ? weeklyRate / 7
-                : (monthlyRate > 0 ? monthlyRate / 30 : 0)));
+                : (monthlyRate > 0 ? monthlyRate / 30 : 0.0)));
     if (effectiveDailyForCare > 0) {
-      final brut = effectiveDailyForCare * days;
-      final commission = brut * commissionRate;
+      final double brut = effectiveDailyForCare * days;
+      final double commission = brut * commissionRate;
       return PostPriceEstimate(
         brut: brut + commission, // owner pays brut + 20%
         net: brut,               // sitter keeps full dailyRate × days

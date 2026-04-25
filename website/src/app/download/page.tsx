@@ -23,7 +23,7 @@ export default function DownloadPage() {
           <span className="flex items-center gap-3">
             <span className="text-2xl">🤖</span>
             <span>
-              <span className="block text-xs uppercase tracking-wider opacity-80">Android</span>
+              <span className="block text-xs uppercase tracking-wider opacity-80">Android · APK · 93 MB</span>
               <span className="text-base font-bold">{t("dl_apk")}</span>
             </span>
           </span>

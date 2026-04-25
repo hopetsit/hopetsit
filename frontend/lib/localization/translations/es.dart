@@ -107,7 +107,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'Please enter a new password.': 'Please enter a new password.',
       'Please enter the complete verification code':
           'Please enter the complete verification code',
-      'Please enter your PayPal email.': 'Please enter your PayPal email.',
+      'Please enter your PayPal email.': 'Ingresa tu correo de pagos.',
       'Please fill in all fields correctly.':
           'Please fill in all fields correctly.',
       'Please fill in all required fields':
@@ -525,27 +525,27 @@ const Map<String, String> esESTranslations = <String, String>{
       'blocked_users_save_success':
           'Usuarios bloqueados guardados exitosamente',
       'donate_coming_soon': 'La función de donación estará disponible pronto',
-      'stripe_connect_title': 'Conectar cuenta de Stripe',
+      'stripe_connect_title': 'Configurar mi cuenta de pagos',
       'payout_status_screen_title': 'Estado de pagos',
-      'payout_connect_stripe_account': 'Conectar cuenta de Stripe',
-      'payout_paypal_email_title': 'Correo de pago PayPal',
-      'payout_add_paypal_email_title': 'Agregar correo de pagos de PayPal',
+      'payout_connect_stripe_account': 'Configurar mi cuenta de pagos',
+      'payout_paypal_email_title': 'Correo de pago',
+      'payout_add_paypal_email_title': 'Agregar correo de pagos',
       'payout_add_paypal_email_subtitle':
           'Define el correo donde quieres recibir pagos. Podras actualizarlo mas tarde desde el estado de pagos.',
       'payout_status_saved': 'Guardado',
       'payout_status_not_set': 'Sin configurar',
       'payout_paypal_email_hint':
-          'Agrega un correo para recibir pagos a traves de PayPal.',
-      'payout_update_paypal_email': 'Actualizar correo PayPal',
+          'Agrega un correo para recibir transferencias.',
+      'payout_update_paypal_email': 'Actualizar correo de pagos',
       'payout_paypal_dialog_subtitle':
-          'Este correo se usara para pagos de PayPal. Asegurate de que coincida con tu cuenta de PayPal.',
-      'payout_stripe_connect_title': 'Stripe Connect',
+          'Este correo se usará para transferencias. Asegúrate de que sea correcto.',
+      'payout_stripe_connect_title': 'Cuenta de pagos',
       'payout_status_connected': 'Conectado',
       'payout_status_not_connected': 'No conectado',
       'payout_stripe_connected_message':
-          'Tu cuenta de Stripe esta conectada y lista para recibir pagos.',
+          'Tu cuenta de pagos está conectada y lista para recibir transferencias.',
       'payout_stripe_not_connected_message':
-          'Conecta tu cuenta de Stripe para comenzar a recibir pagos.',
+          'Configura tu cuenta de pagos para comenzar a recibir transferencias.',
       'payout_account_id_label': 'ID de cuenta',
       'payout_verification_title': 'Estado de verificacion',
       'payout_status_title': 'Estado de pagos',
@@ -577,13 +577,13 @@ const Map<String, String> esESTranslations = <String, String>{
       'payout_message_restricted':
           'Tus pagos estan restringidos actualmente. Contacta con soporte.',
       'payout_message_not_connected':
-          'Conecta tu cuenta de Stripe para comenzar a recibir pagos.',
-      'stripe_get_paid_title': 'Recibe pagos con Stripe',
+          'Configura tu cuenta de pagos para comenzar a recibir transferencias.',
+      'stripe_get_paid_title': 'Recibe tus transferencias',
       'stripe_connect_description':
-          'Conecta tu cuenta de Stripe para recibir pagos directamente de los dueños de mascotas. Tus ganancias se transferirán a tu cuenta bancaria.',
+          'Configura tu cuenta para recibir tus ganancias directamente. Tus ingresos se transferirán a tu cuenta bancaria.',
       'stripe_account_status_title': 'Estado de la cuenta',
       'stripe_continue_onboarding': 'Continuar integración',
-      'stripe_connect_account_button': 'Conectar cuenta de Stripe',
+      'stripe_connect_account_button': 'Configurar mi cuenta',
       'stripe_benefit_secure': 'Procesamiento seguro de pagos',
       'stripe_benefit_fast_payouts': 'Pagos rápidos a tu cuenta bancaria',
       'stripe_benefit_no_fees': 'Sin tarifas de configuración',
@@ -594,22 +594,22 @@ const Map<String, String> esESTranslations = <String, String>{
       'stripe_account_created_pending': 'Cuenta creada - Integración pendiente',
       'stripe_account_created': 'Cuenta creada',
       'stripe_account_connected_message':
-          'Tu cuenta de Stripe está completamente configurada y lista para recibir pagos.',
+          'Tu cuenta de pagos está completamente configurada y lista para recibir transferencias.',
       'stripe_account_created_message':
-          'Tu cuenta de Stripe ha sido creada. Por favor completa el proceso de integración para comenzar a recibir pagos.',
+          'Tu cuenta ha sido creada. Por favor completa la configuración para comenzar a recibir tus transferencias.',
       'stripe_account_created_partial_message':
           'Tu cuenta de pago ha sido creada. Algunos pasos de verificación están pendientes. Puedes completarlos en la configuración de tu cuenta.',
       'stripe_account_id_label': 'ID de cuenta',
-      'stripe_loading_onboarding': 'Cargando integración de Stripe...',
+      'stripe_loading_onboarding': 'Cargando configuración...',
       'stripe_account_connected_success':
-          '¡Cuenta de Stripe conectada exitosamente!',
-      'stripe_onboarding_completed': '¡Integración de Stripe completada!',
-      'stripe_onboarding_cancelled': 'La integración de Stripe fue cancelada.',
+          '¡Cuenta de pagos configurada exitosamente!',
+      'stripe_onboarding_completed': '¡Configuración completada!',
+      'stripe_onboarding_cancelled': 'La configuración fue cancelada.',
       'stripe_onboarding_load_error':
-          'Error al cargar la página de integración de Stripe: @error',
+          'Error al cargar la página de configuración: @error',
       'stripe_cancel_onboarding_title': '¿Cancelar integración?',
       'stripe_cancel_onboarding_message':
-          '¿Seguro que quieres cancelar la integración de Stripe? Puedes completarla más tarde desde la configuración.',
+          '¿Seguro que quieres cancelar la configuración? Puedes completarla más tarde desde la configuración.',
       'stripe_connect_payment_title': 'Conecta tu cuenta de pago',
       'stripe_connect_payment_description':
           'Para comenzar a recibir pagos como Pet Sitter, necesitas conectar tu cuenta de pago. Este es un paso requerido para completar la configuración de tu perfil.',
@@ -621,27 +621,27 @@ const Map<String, String> esESTranslations = <String, String>{
       'stripe_connect_now': 'Conectar ahora',
       'stripe_already_connected': 'Ya conectado',
       'stripe_already_connected_message':
-          'Tu cuenta de Stripe ya está conectada y activa.',
+          'Tu cuenta de pagos ya está configurada y activa.',
       'stripe_connect_platform_not_enabled':
-          'Los pagos con Stripe aún no están activados en la plataforma. Vuelve a intentarlo más tarde o contacta con soporte.',
+          'El sistema de pagos aún no está activado. Vuelve a intentarlo más tarde o contacta con soporte.',
       'stripe_connect_error':
-          'Error al conectar la cuenta de Stripe. Por favor intenta de nuevo.',
+          'Error al configurar la cuenta. Por favor intenta de nuevo.',
       'stripe_no_onboarding_url':
-          'No hay URL de integración disponible. Por favor crea una cuenta de Stripe primero.',
+          'No hay URL de configuración disponible. Por favor crea una cuenta primero.',
       'stripe_onboarding_expired_title': 'Expirado',
       'stripe_onboarding_expired_message':
           'El enlace de integración ha expirado. Por favor crea uno nuevo.',
       'stripe_disconnect_success':
-          '¡Cuenta de Stripe desconectada exitosamente!',
+          '¡Cuenta de pagos eliminada exitosamente!',
       'stripe_disconnect_error':
-          'Error al desconectar la cuenta de Stripe. Por favor intenta de nuevo.',
+          'Error al eliminar la cuenta de pagos. Por favor intenta de nuevo.',
       'payment_title': 'Pago',
       'payment_info_message':
-          'Haz clic en "Pagar" a continuación para ingresar de forma segura tus datos de pago usando el formulario de pago seguro de Stripe.',
+          'Haz clic en "Pagar" a continuación para ingresar de forma segura tus datos de pago.',
       'payment_paypal_info':
-          'Serás redirigido a PayPal para aprobar el pago y luego lo confirmaremos aquí.',
-      'payment_pay_with_stripe': 'Pagar con Stripe @amount',
-      'payment_pay_with_paypal': 'Pagar con PayPal @amount',
+          'Serás redirigido para aprobar el pago y luego lo confirmaremos aquí.',
+      'payment_pay_with_stripe': 'Pagar @amount',
+      'payment_pay_with_paypal': 'Pagar @amount',
       'booking_agreement_title': 'Acuerdo de reserva',
       'booking_agreement_payment_completed': 'Pago completado',
       'booking_agreement_booking_cancelled': 'Reserva cancelada',
@@ -665,7 +665,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'booking_agreement_today_at': 'Hoy a las @time',
       'booking_agreement_yesterday_at': 'Ayer a las @time',
       'booking_agreement_at': 'a las',
-      'payment_method_paypal': 'PayPal',
+      'payment_method_paypal': 'Transferencia',
       'payment_pay_button': 'Pagar @amount',
       'payment_amount_label': 'Monto a pagar',
       'payment_loading_page': 'Cargando página de pago...',
@@ -686,9 +686,9 @@ const Map<String, String> esESTranslations = <String, String>{
       'payment_error_client_secret_missing':
           'Error al crear la intención de pago. Falta el secreto del cliente.',
       'payment_error_publishable_key_missing':
-          'Falta la clave pública de Stripe.',
+          'Falta la configuración de pagos.',
       'payment_error_invalid_publishable_key':
-          'Clave pública de Stripe inválida.',
+          'Configuración de pagos inválida.',
       'payment_processing_failed':
           'Error al procesar el pago. Por favor intenta de nuevo.',
       'payment_error_title': 'Error de pago',
@@ -1021,7 +1021,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'booking_agreement_city_label': 'Ciudad',
       'identity_verification_started_title': 'Verificación iniciada',
       'identity_verification_started_followup':
-          'Sigue el enlace de Stripe para completar.',
+          'Sigue el enlace para completar.',
       'identity_verification_started_sdk':
           'Sesión Identity creada, abre el SDK.',
       'identity_verification_upload_success':
@@ -1369,11 +1369,11 @@ const Map<String, String> esESTranslations = <String, String>{
       'snackbar_choose_service_controller_007':
           'Please select at least one service.',
       'snackbar_sitter_paypal_payout_controller_001':
-          'Se requiere el correo de pagos de PayPal.',
+          'Se requiere el correo de pagos.',
       'snackbar_sitter_paypal_payout_controller_002':
-          'Correo de pagos de PayPal actualizado correctamente!',
+          'Correo de pagos actualizado correctamente!',
       'snackbar_sitter_paypal_payout_controller_003':
-          'No se pudo actualizar el correo de pagos de PayPal. Intentalo de nuevo.',
+          'No se pudo actualizar el correo de pagos. Intenta de nuevo.',
       'task_add_failed': 'Failed to add task. Please try again.',
       'task_add_success': 'Task added successfully!',
       'task_fetch_failed': 'Failed to fetch tasks.',
@@ -1438,7 +1438,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'snackbar_text_please_accept_the_terms_and_conditions':
           'Por favor acepte los Términos y Condiciones',
       'snackbar_text_please_enter_your_paypal_email':
-          'Por favor ingrese su correo electrónico de PayPal.',
+          'Por favor ingresa tu correo de pagos.',
       'snackbar_text_please_fill_in_all_required_fields':
           'Por favor complete todos los campos requeridos',
       'snackbar_text_please_try_logging_in_again':
@@ -1537,9 +1537,9 @@ const Map<String, String> esESTranslations = <String, String>{
     'payment_cardholder_email_optional': 'Email (opcional)',
     'payment_card_incomplete_title': 'Tarjeta incompleta',
     'save_card_title': 'Guardar esta tarjeta',
-    'save_card_subtitle': 'Pago más rápido la próxima vez. Protegido por Stripe.',
+    'save_card_subtitle': 'Pago más rápido la próxima vez. Encriptado.',
     'save_my_card_button': 'Guardar mi tarjeta',
-    'add_card_stripe_secure': 'Pago protegido por Stripe. Nunca almacenamos los números de su tarjeta.',
+    'add_card_stripe_secure': 'Pago seguro. Nunca almacenamos los números de su tarjeta.',
     'payment_card_incomplete_message': 'Rellene todos los campos de la tarjeta antes de pagar.',
     'payment_cardholder_required_title': 'Nombre obligatorio',
     'payment_cardholder_required_message': 'Introduzca el nombre del titular de la tarjeta.',
@@ -1569,7 +1569,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'payment_methods_section': 'Métodos de pago',
     'payment_stripe_connected': 'Cuenta conectada y activa',
     'payment_stripe_not_connected': 'No conectado — toca para configurar',
-    'payment_paypal_not_set': 'Ningún correo PayPal configurado',
+    'payment_paypal_not_set': 'Ningún correo de pago configurado',
     'payment_iban_title': 'Cuenta bancaria (IBAN)',
     'payment_iban_subtitle': 'Recibir pagos por transferencia',
     'payment_add_card_title': 'Añadir una tarjeta',
@@ -1639,8 +1639,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'payment_transaction_error': 'Ocurrió un error durante la transacción.',
     'payment_name_required_title': 'Nombre requerido',
     'payment_name_required_message': 'Añade el nombre del titular de la tarjeta.',
-    'payment_stripe_not_configured': 'Stripe no configurado. Cierra y vuelve a abrir la app.',
-    'identity_verify_with_stripe': 'Verificar con Stripe Identity',
+    'payment_stripe_not_configured': 'Pago no configurado. Cierra y vuelve a abrir la app.',
+    'identity_verify_with_stripe': 'Verificar identidad',
     'identity_upload_manual': 'Subir foto de identidad manualmente',
     'identity_verifying': 'Verificando...',
     'identity_launch_failed': 'No se pudo abrir la página de verificación. Inténtalo de nuevo.',
@@ -1666,17 +1666,17 @@ const Map<String, String> esESTranslations = <String, String>{
     'wallet_amount_exceeds': 'No puedes retirar más de tu saldo',
     'wallet_method_iban': 'Transferencia IBAN',
     'wallet_method_iban_desc': 'Llega en 3 días hábiles',
-    'wallet_method_paypal': 'PayPal',
+    'wallet_method_paypal': 'Transferencia de correo',
     'wallet_method_paypal_desc': 'Llega en 1 día hábil',
     'wallet_confirm_withdrawal': 'Confirmar retiro',
     'wallet_withdraw_success_title': 'Retiro en cola',
     'wallet_withdraw_success_iban': 'Tu transferencia IBAN se procesará en 3 días hábiles.',
-    'wallet_withdraw_success_paypal': 'Tu transferencia PayPal se procesará en 1 día hábil.',
+    'wallet_withdraw_success_paypal': 'Tu transferencia se procesará en 1 día hábil.',
     // v20.0.19 — wallet withdraw error UX.
-    'wallet_paypal_needed_title': 'Configura tu PayPal',
+    'wallet_paypal_needed_title': 'Configura tu correo de pago',
     'wallet_paypal_needed_message':
-        'Debes añadir tu email de PayPal antes de poder retirar dinero. Lleva 30 segundos.',
-    'wallet_configure_paypal': 'Configurar mi PayPal',
+        'Debes añadir tu correo de pago antes de poder retirar dinero. Lleva 30 segundos.',
+    'wallet_configure_paypal': 'Configurar mi correo',
     'wallet_iban_needed_title': 'Configura tu IBAN',
     'wallet_iban_needed_message':
         'Debes añadir y verificar tu IBAN antes de poder retirar dinero. Menos de un minuto.',
@@ -1690,7 +1690,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'wallet_type_refund': 'Reembolso',
     'wallet_type_admin_adjustment': 'Ajuste',
     'wallet_to_iban': 'A IBAN',
-    'wallet_to_paypal': 'A PayPal',
+    'wallet_to_paypal': 'A correo de pago',
     'wallet_pay_with_balance': 'Pagar con mi saldo (@amount)',
     'wallet_insufficient_balance': 'Saldo insuficiente, se requiere pago con tarjeta',
     'profile_boost_profile_title': 'Boost perfil',

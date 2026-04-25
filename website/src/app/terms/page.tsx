@@ -41,7 +41,7 @@ export default function TermsPage() {
         Owners pay the service price plus a 20% platform commission (15% for
         Top Sitter / Top Walker badges). Payments are processed by a regulated
         payment provider. Funds are held until the service is delivered, then
-        released to the provider&apos;s registered IBAN or PayPal.
+        released to the provider&apos;s registered IBAN.
       </p>
       <p>
         Providers receive 100% of the rate they advertise. The platform fee is

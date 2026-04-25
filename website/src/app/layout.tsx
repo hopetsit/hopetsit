@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description:
     "Book trusted pet sitters and dog walkers in 29 European countries, or earn money taking care of pets you love. One app, three roles, full transparency.",
   applicationName: "HoPetSit",
-  authors: [{ name: "HoPetSit Limited" }],
+  authors: [{ name: "CARDELLI HERMANOS LIMITED" }],
   keywords: [
     "pet sitter", "dog walker", "pet sitting Europe", "dog boarding",
     "pet care marketplace", "HoPetSit", "garde animaux", "promeneur de chien",
@@ -28,15 +28,29 @@ export const metadata: Metadata = {
     title: "HoPetSit — Pet sitters and dog walkers across Europe",
     description:
       "Trusted marketplace connecting pet owners with sitters and dog walkers in 29 European countries.",
+    images: [
+      {
+        url: "/logo.svg",
+        width: 1024,
+        height: 1024,
+        alt: "HoPetSit",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "HoPetSit",
     description:
       "Pet sitters and dog walkers across Europe. One app, three roles, full transparency.",
+    images: ["/logo.svg"],
   },
   robots: { index: true, follow: true },
-  icons: { icon: "/favicon.svg" },
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/logo.svg",
+  },
 };
 
 export const viewport: Viewport = {

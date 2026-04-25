@@ -37,7 +37,7 @@ export default function PrivacyPage() {
       <h2>3. Sharing</h2>
       <p>We share data with:</p>
       <ul>
-        <li>The payment processor (PCI-DSS compliant) for card transactions and IBAN/PayPal payouts.</li>
+        <li>The payment processor (PCI-DSS compliant) for card transactions and IBAN payouts.</li>
         <li>Cloud infrastructure (Render, MongoDB, Cloudinary) under strict data-processing agreements.</li>
         <li>Other users only as needed for a booking (e.g. your name and avatar are shown to the sitter you booked).</li>
         <li>Authorities when required by law.</li>
