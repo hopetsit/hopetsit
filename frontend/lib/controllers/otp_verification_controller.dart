@@ -256,13 +256,13 @@ class OtpVerificationController extends GetxController {
         await _storage.remove(StorageKeys.pendingSignupPhotoPath);
         return;
       }
-      // Use a one-off UserRepository instance — at this stage we may not
-      // be inside the dependency-injection lifecycle yet (controller built
-      // outside of setupDependencies), so falling back to a fresh instance
-      // is safer than Get.find<UserRepository>().
-      final repo = Get.isRegistered<UserRepository>()
+      // Resolve UserRepository via GetIt-style lookup. At this stage the
+      // dependency injection container should already have it registered
+      // (it's set up at app boot in helper/dependency_injection.dart).
+      // If not, fall back to constructing one with a fresh ApiClient.
+      final UserRepository repo = Get.isRegistered<UserRepository>()
           ? Get.find<UserRepository>()
-          : UserRepository();
+          : UserRepository(Get.find());
       await repo.updateProfilePicture(file);
       await _storage.remove(StorageKeys.pendingSignupPhotoPath);
       AppLogger.logInfo('[otp] post-signup profile photo uploaded OK');

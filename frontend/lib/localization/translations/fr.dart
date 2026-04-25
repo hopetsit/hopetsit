@@ -839,7 +839,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'home_no_sitters_message': 'Aucun pet sitter disponible pour le moment.',
       'home_post_success': 'Publication créée avec succès !',
       'home_post_failed': 'Publication échouée',
-      'home_post_failed_generic': 'Une erreur s'est produite. Veuillez réessayer.',
+      'home_post_failed_generic': "Une erreur s'est produite. Veuillez réessayer.",
       'home_block_sitter_message':
           'Voulez-vous vraiment bloquer @name ? Vous ne pourrez plus voir son profil ni lui envoyer de demandes.',
       'home_block_sitter_yes': 'Annuler',

@@ -1214,8 +1214,6 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'home_post_success': 'Publicação criada com sucesso!',
       'home_post_failed': 'Publicação falhou',
       'home_post_failed_generic': 'Algo deu errado. Por favor, tente novamente.',
-      'home_post_failed': 'Post Failed',
-      'home_post_failed_generic': 'Something went wrong. Please try again.',
       'home_image_pick_failed': 'Failed to pick images. Please try again.',
       'home_block_success': 'User blocked successfully',
       'home_block_failed': 'Block Failed',

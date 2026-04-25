@@ -28,42 +28,6 @@ class SignUpScreen extends StatelessWidget {
 
   const SignUpScreen({super.key, required this.userType});
 
-  Color _getRoleColor() {
-    switch (userType) {
-      case 'pet_walker':
-        return AppColors.walkerAccent;
-      case 'pet_sitter':
-        return AppColors.sitterAccent;
-      case 'pet_owner':
-      default:
-        return AppColors.primaryColor;
-    }
-  }
-
-  String _getRoleEmoji() {
-    switch (userType) {
-      case 'pet_walker':
-        return '🚶';
-      case 'pet_sitter':
-        return '🏠';
-      case 'pet_owner':
-      default:
-        return '🐾';
-    }
-  }
-
-  String _getRoleLabel() {
-    switch (userType) {
-      case 'pet_walker':
-        return 'role_walker'.tr;
-      case 'pet_sitter':
-        return 'role_sitter'.tr;
-      case 'pet_owner':
-      default:
-        return 'role_owner'.tr;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Check if controller is already registered, if not create it
@@ -85,9 +49,15 @@ class SignUpScreen extends StatelessWidget {
             permanent: true, // Prevents disposal during navigation
           );
 
-    final roleColor = _getRoleColor();
-    final roleEmoji = _getRoleEmoji();
-    final roleLabel = _getRoleLabel();
+    // v21 — Role-aware accent for the whole sign-up surface (submit button,
+    // checkbox, terms link, loading spinner). Owner = orange (primary),
+    // sitter = blue, walker = green. Keeps the form visually distinct from
+    // the role selector screen without restructuring the layout.
+    final Color roleColor = userType == 'pet_walker'
+        ? AppColors.walkerAccent
+        : userType == 'pet_sitter'
+            ? AppColors.sitterAccent
+            : AppColors.primaryColor;
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -116,144 +86,61 @@ class SignUpScreen extends StatelessWidget {
         children: [
           SafeArea(
             child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header band with role-aware gradient
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 24.h),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          roleColor.withValues(alpha: 0.12),
-                          roleColor.withValues(alpha: 0.06),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.0.w),
+                child: Form(
+                  key: controller.formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      SizedBox(height: 8.h),
+                      // v20 — Photo de profil + (optionnel) carte CB en haut de
+                      // l'inscription. Le _SignupPhotoPicker encapsule l'état
+                      // local (ImagePicker) sans toucher au SignUpController.
+                      _SignupPhotoPicker(
+                        controller: controller,
+                        role: userType,
                       ),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: roleColor.withValues(alpha: 0.2),
-                          width: 2,
+                      SizedBox(height: 16.h),
+                      // v20.0.6 — Banner expliquant que la CB se rajoute APRÈS
+                      // l'inscription (pas pendant — on n'a pas encore de
+                      // userId ni de Stripe Customer).
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 14.w,
+                          vertical: 12.h,
                         ),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A73E8).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14.r),
+                          border: Border.all(
+                            color: const Color(0xFF1A73E8).withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
                           children: [
-                            Text(
-                              roleEmoji,
-                              style: TextStyle(fontSize: 28.sp),
+                            Icon(
+                              Icons.credit_card_rounded,
+                              color: const Color(0xFF1A73E8),
+                              size: 20.sp,
                             ),
-                            SizedBox(width: 8.w),
-                            PoppinsText(
-                              text: roleLabel,
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w700,
-                              color: roleColor,
+                            SizedBox(width: 10.w),
+                            Expanded(
+                              child: Text(
+                                'signup_cb_later_hint'.tr,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF1A73E8),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 6.h),
-                        InterText(
-                          text: 'signup_form_subtitle'.tr,
-                          fontSize: 13.sp,
-                          color: AppColors.textSecondary(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 24.h),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24.0.w),
-                    child: Form(
-                      key: controller.formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // v20 — Photo de profil + (optionnel) carte CB en haut de
-                          // l'inscription. Le _SignupPhotoPicker encapsule l'état
-                          // local (ImagePicker) sans toucher au SignUpController.
-                          _SignupPhotoPicker(
-                            controller: controller,
-                            role: userType,
-                          ),
-                          SizedBox(height: 24.h),
-                          // Role-specific hints
-                          if (userType == 'pet_sitter' || userType == 'pet_walker')
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14.w,
-                                vertical: 12.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: roleColor.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(14.r),
-                                border: Border.all(
-                                  color: roleColor.withValues(alpha: 0.25),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.wallet_giftcard_rounded,
-                                    color: roleColor,
-                                    size: 18.sp,
-                                  ),
-                                  SizedBox(width: 10.w),
-                                  Expanded(
-                                    child: Text(
-                                      'signup_payouts_hint'.tr,
-                                      style: TextStyle(
-                                        fontSize: 12.sp,
-                                        fontWeight: FontWeight.w500,
-                                        color: roleColor,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14.w,
-                                vertical: 12.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: roleColor.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(14.r),
-                                border: Border.all(
-                                  color: roleColor.withValues(alpha: 0.25),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.pets_rounded,
-                                    color: roleColor,
-                                    size: 18.sp,
-                                  ),
-                                  SizedBox(width: 10.w),
-                                  Expanded(
-                                    child: Text(
-                                      'signup_owner_pets_hint'.tr,
-                                      style: TextStyle(
-                                        fontSize: 12.sp,
-                                        fontWeight: FontWeight.w500,
-                                        color: roleColor,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          SizedBox(height: 20.h),
+                      ),
+                      SizedBox(height: 16.h),
                       // Full Name
                       CustomTextField(
                         labelText: 'label_name'.tr,
@@ -887,13 +774,15 @@ class SignUpScreen extends StatelessWidget {
                       SizedBox(height: 24.h),
 
                       SizedBox(height: 45.h),
-                      // Sign Up Button with role color
+                      // Sign Up Button — v21 : role-coloured (orange owner /
+                      // bleu sitter / vert walker) pour qu'on identifie d'un
+                      // coup d'œil quel rôle est en cours d'inscription.
                       Obx(
                         () => CustomButton(
-                          bgColor: roleColor,
                           title: controller.isLoading.value
                               ? 'button_creating_account'.tr
                               : 'button_create_account'.tr,
+                          bgColor: roleColor,
                           onTap: controller.isLoading.value
                               ? null
                               : () => controller.handleSignUpWithNavigation(
