@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
@@ -9,6 +10,7 @@ import 'package:hopetsit/views/auth/otp_verification_screen.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 
 class SignUpController extends GetxController {
   SignUpController({
@@ -331,6 +333,30 @@ class SignUpController extends GetxController {
 
     try {
       await _authRepository.signup(role: _apiRole, user: _buildUserPayload());
+
+      // v20.2.1 — bug fix : la photo profil sélectionnée pendant l'inscription
+      // n'était jamais uploadée car aucun token d'auth n'existe encore à ce
+      // stade (signup retourne juste "compte créé, vérifie ton email"). On
+      // persiste le chemin du fichier en GetStorage ; OtpVerificationController
+      // l'upload via /users/me/profile-picture dès que /auth/verify renvoie
+      // un token. Le fichier reste sur le téléphone le temps de la vérif OTP.
+      try {
+        final pending = profileImageFile;
+        if (pending != null && pending.existsSync()) {
+          await GetStorage().write(
+            StorageKeys.pendingSignupPhotoPath,
+            pending.path,
+          );
+          AppLogger.logInfo(
+            '[signup] queued profile photo for post-OTP upload: ${pending.path}',
+          );
+        }
+      } catch (e) {
+        AppLogger.logError(
+          '[signup] failed to queue profile photo (non-fatal)',
+          error: e,
+        );
+      }
 
       CustomSnackbar.showSuccess(
         title: 'signup_account_created_title'.tr,

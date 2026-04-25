@@ -19,12 +19,15 @@ const { requireAuth } = require('../middleware/auth');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const { createPlatformPaymentIntent } = require('../services/stripeService');
+const airwallex = require('../services/airwallexService');
 const UserSubscription = require('../models/UserSubscription');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 const pricingService = require('../services/pricingService');
 
 const router = express.Router();
+
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
 
 const MAP_BOOST_PACKAGES = {
   bronze: { days: 3, label: '3 days' },
@@ -187,6 +190,46 @@ router.post('/purchase', requireAuth, async (req, res) => {
     }
 
     const amountCents = Math.round(pricing.amount * 100);
+
+    // ─── Airwallex flow ────────────────────────────────────────────────────
+    if (PROVIDER === 'airwallex') {
+      try {
+        const intent = await airwallex.createPlatformPaymentIntent({
+          amount: amountCents,
+          currency: pricing.currency,
+          metadata: {
+            type: 'map_boost_purchase',
+            userId: String(req.user.id),
+            role: req.user.role,
+            tier,
+            currency: pricing.currency,
+            days: String(pricing.days),
+          },
+        });
+
+        logger.info(
+          `[mapBoost] airwallex PI created ${intent.id} ${pricing.amount} ${pricing.currency} ` +
+          `tier ${tier} by ${req.user.role} ${req.user.id}`,
+        );
+
+        return res.json({
+          clientSecret: intent.client_secret,
+          paymentIntentId: intent.id,
+          provider: 'airwallex',
+          tier,
+          amount: pricing.amount,
+          currency: pricing.currency,
+          days: pricing.days,
+        });
+      } catch (e) {
+        logger.error('[mapBoost] airwallex create-intent failed', e);
+        return res.status(502).json({
+          error: 'Unable to start map boost purchase right now. Please try again later.',
+        });
+      }
+    }
+
+    // ─── Stripe flow (default / rollback) ──────────────────────────────────
     const paymentIntent = await createPlatformPaymentIntent({
       amount: amountCents,
       currency: pricing.currency.toLowerCase(),
@@ -203,6 +246,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
     res.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      provider: 'stripe',
       tier,
       amount: pricing.amount,
       currency: pricing.currency,

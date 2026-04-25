@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/user_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
-import 'package:hopetsit/views/reviews/reviews_screen.dart';
 
 class PaymentResultScreen extends StatelessWidget {
   final bool isSuccess;
@@ -147,24 +148,19 @@ class PaymentResultScreen extends StatelessWidget {
 
               if (!isSuccess) SizedBox(height: 32.h),
 
-              // v18.5 — #17 : on retire le bouton "Noter le pet sitter" de
-              // l'écran paiement réussi car le service n'a pas encore eu
-              // lieu à ce moment-là. L'avis sera proposé à l'utilisateur
-              // sur l'écran "Mes réservations" quand le booking passe en
-              // statut 'completed'. Sur l'écran paiement réussi on garde
-              // juste "Retour à l'accueil" en succès et "Réessayer" en
-              // échec — avec la couleur du rôle (vert walker / bleu sitter)
-              // quand c'est un succès.
+              // v20.1 — #P3 fix : auto-open chat avec le sitter/walker dès
+              // que le paiement passe (le backend a déjà unlock la
+              // conversation côté webhook). Le primary CTA devient
+              // "Discuter avec le sitter/walker" en succès. L'ancien bouton
+              // "Retour à l'accueil" reste en secondary text-link pour
+              // ceux qui veulent juste fermer.
               CustomButton(
                 title: isSuccess
-                    ? 'common_back_to_home'.tr
+                    ? _chatButtonLabel()
                     : 'payment_try_again'.tr,
                 onTap: () {
                   if (isSuccess) {
-                    Get.until(
-                      (route) =>
-                          route.isFirst || route.settings.name == '/home',
-                    );
+                    _openChatWithProvider();
                   } else {
                     onContinue ?? Get.back();
                   }
@@ -177,6 +173,22 @@ class PaymentResultScreen extends StatelessWidget {
                 radius: 48.r,
                 width: double.infinity,
               ),
+
+              if (isSuccess) ...[
+                SizedBox(height: 12.h),
+                TextButton(
+                  onPressed: () => Get.until(
+                    (route) =>
+                        route.isFirst || route.settings.name == '/home',
+                  ),
+                  child: InterText(
+                    text: 'common_back_to_home'.tr,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ),
+              ],
 
               if (!isSuccess) ...[
                 SizedBox(height: 16.h),
@@ -316,29 +328,81 @@ class PaymentResultScreen extends StatelessWidget {
     return AppColors.primaryColor;
   }
 
-  bool _alreadyReviewed(List<dynamic> reviewsGiven, String sitterId) {
-    for (final review in reviewsGiven) {
-      // Sometimes the API might return a list of ids.
-      if (review is String && review == sitterId) {
-        return true;
-      }
+  // ─── v20.1 — chat auto-open after payment ──────────────────────────────
 
-      if (review is! Map) continue;
-
-      // Common shapes:
-      // - { revieweeId: "..." }
-      // - { reviewee: "..." }
-      // - { reviewee: { id: "..."} } or { reviewee: { _id: "..." } }
-      final dynamic revieweeId =
-          review['revieweeId'] ??
-          review['reviewee'] ??
-          (review['reviewee'] is Map ? (review['reviewee']['id']) : null) ??
-          (review['reviewee'] is Map ? (review['reviewee']['_id']) : null);
-
-      if (revieweeId is String && revieweeId == sitterId) {
-        return true;
-      }
+  /// Returns the localised CTA label for the success-mode primary button.
+  /// Falls back to "Back to home" if we don't have a provider on the
+  /// booking (defensive — shouldn't happen on a real booking flow).
+  String _chatButtonLabel() {
+    if (booking == null) return 'common_back_to_home'.tr;
+    final service = (booking!.serviceType ?? '').toLowerCase();
+    if (service.contains('dog_walking') || service.contains('walking')) {
+      return 'payment_chat_with_walker'.tr;
     }
-    return false;
+    return 'payment_chat_with_sitter'.tr;
   }
+
+  /// Hits POST /conversations/start?sitterId=XXX with a one-line opener
+  /// then navigates to IndividualChatScreen with the returned conversation.
+  /// The backend already created/unlocked the conversation on
+  /// payment_intent.succeeded → /start is therefore an idempotent op that
+  /// just returns the existing one (and posts an additional opener msg).
+  ///
+  /// On any failure we fall back gracefully to the home screen so the
+  /// user is never stranded on a dead button.
+  Future<void> _openChatWithProvider() async {
+    final providerId = booking?.sitter.id ?? '';
+    if (providerId.isEmpty) {
+      AppLogger.logError(
+        '[payment_result] missing providerId on booking — falling back to home',
+      );
+      Get.until((route) => route.isFirst || route.settings.name == '/home');
+      return;
+    }
+    try {
+      final api = Get.find<ApiClient>();
+      final res = await api.post(
+        '/conversations/start?sitterId=$providerId',
+        body: {
+          // The webhook already posted a system welcome — this opener
+          // is the owner's first message, kept neutral & short.
+          'message': 'payment_chat_opener_message'.tr,
+        },
+        requiresAuth: true,
+      );
+
+      String conversationId = '';
+      if (res is Map && res['conversation'] is Map) {
+        conversationId =
+            (res['conversation']['id'] ??
+                    res['conversation']['_id'] ??
+                    '')
+                .toString();
+      }
+      if (conversationId.isEmpty) {
+        throw Exception('no conversation id in response');
+      }
+
+      // Use Get.offAll to clear the stack — owner never wants to land
+      // back on the payment screen by tapping back from the chat.
+      Get.offAll(
+        () => IndividualChatScreen(
+          conversationId: conversationId,
+          contactName: booking?.sitter.name ?? '',
+          contactImage: booking?.sitter.avatar.url ?? '',
+        ),
+      );
+    } catch (e) {
+      AppLogger.logError(
+        '[payment_result] failed to open chat after payment',
+        error: e,
+      );
+      CustomSnackbar.showWarning(
+        title: 'common_info'.tr,
+        message: 'payment_chat_open_fallback'.tr,
+      );
+      Get.until((route) => route.isFirst || route.settings.name == '/home');
+    }
+  }
+
 }

@@ -757,6 +757,11 @@ const Map<String, String> deDETranslations = <String, String>{
           'Fehler beim Initiieren der Zahlung. Bitte versuche es erneut.',
       'payment_confirmation_failed':
           'Zahlungsbestätigung fehlgeschlagen. Bitte kontaktiere den Support.',
+      'payment_chat_with_sitter': 'Mit deinem Sitter chatten',
+      'payment_chat_with_walker': 'Mit deinem Walker chatten',
+      'payment_chat_opener_message': 'Hallo, ich habe gerade gebucht — freue mich! 🐾',
+      'payment_chat_open_fallback': 'Chat konnte nicht geöffnet werden. Du findest ihn im Chat-Tab.',
+      'common_info': 'Info',
       'review_already_reviewed_title': 'Bereits bewertet',
       'review_already_reviewed_message':
           'Du hast diesen Pet Sitter bereits bewertet. Du kannst nur eine Bewertung pro Pet Sitter abgeben.',
@@ -872,6 +877,9 @@ const Map<String, String> deDETranslations = <String, String>{
       // Home screen & applications
       'home_default_user_name': 'Benutzer',
       'home_no_sitters_message': 'Derzeit sind keine Tiersitter verfügbar.',
+      'home_post_success': 'Beitrag erfolgreich erstellt!',
+      'home_post_failed': 'Beitrag fehlgeschlagen',
+      'home_post_failed_generic': 'Etwas ist schief gelaufen. Bitte versuche es erneut.',
       'home_block_sitter_message':
           'Möchtest du @name wirklich blockieren? Du kannst sein Profil dann nicht mehr sehen oder Anfragen senden.',
       'home_block_sitter_yes': 'Abbrechen',
@@ -1619,6 +1627,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'boost_duration_weeks': '@count Wochen',
     'boost_duration_one_month': '1 Monat',
     'friends_share_position_label': 'Teilen',
+    'pawmap_search_placeholder': 'Stadt durchsuchen…',
+    'pawmap_report_button': 'Melden',
     'pawmap_premium_title': 'Premium werden',
     'pawmap_premium_subtitle': 'Alle Meldungen, Zonen und Live-Tracking freischalten',
     'pawmap_boost_title': 'Meinen Pin boosten',
@@ -1875,6 +1885,10 @@ const Map<String, String> deDETranslations = <String, String>{
     'sitter_no_': 'Derzeit kein Sitter.',
     'terms_title': 'Nutzungsbedingungen',
     'signup_cb_later_hint': 'Du kannst deine Karte direkt nach der Anmeldung unter Meine Zahlungen hinzufügen.',
+    'signup_form_subtitle': 'Vervollständige dein Profil um zu beginnen',
+    'signup_payouts_hint': 'Wir werden deine IBAN später abfragen um Auszahlungen einzurichten.',
+    'signup_owner_pets_hint': 'Du kannst deine Haustiere nach der Anmeldung hinzufügen.',
+    'role_owner': 'Tierhalter',
     'top_walker_achieved': 'Sie sind ein Top Walker!',
     'top_walker_badge': 'Werde Top Walker',
     'top_walker_progress': '@done / @goal Spaziergänge · @rating ★',

@@ -17,10 +17,13 @@ const {
   getChatAddonPricing,
 } = require('../models/UserChatAddon');
 const { createPlatformPaymentIntent } = require('../services/stripeService');
+const airwallex = require('../services/airwallexService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
 
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
 const userModelFromRole = (role) => ROLE_TO_MODEL_NAME[role] || 'Owner';
@@ -90,6 +93,43 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     const role = req.user.role;
     const amountCents = Math.round(pricing.amount * 100);
 
+    // ─── Airwallex flow ────────────────────────────────────────────────────
+    if (PROVIDER === 'airwallex') {
+      try {
+        const intent = await airwallex.createPlatformPaymentIntent({
+          amount: amountCents,
+          currency: pricing.currency,
+          metadata: {
+            type: 'chat_addon_purchase',
+            userId: String(userId),
+            role,
+            currency: pricing.currency,
+            intervalDays: String(pricing.intervalDays),
+          },
+        });
+
+        logger.info(
+          `[chatAddon] airwallex PI created ${intent.id} ${pricing.amount} ${pricing.currency} ` +
+          `by ${role} ${userId}`,
+        );
+
+        return res.json({
+          clientSecret: intent.client_secret,
+          paymentIntentId: intent.id,
+          provider: 'airwallex',
+          amount: pricing.amount,
+          currency: pricing.currency,
+          intervalDays: pricing.intervalDays,
+        });
+      } catch (e) {
+        logger.error('[chatAddon] airwallex create-intent failed', e);
+        return res.status(502).json({
+          error: 'Unable to start chat add-on purchase right now. Please try again later.',
+        });
+      }
+    }
+
+    // ─── Stripe flow (default / rollback) ──────────────────────────────────
     const paymentIntent = await createPlatformPaymentIntent({
       amount: amountCents,
       currency: pricing.currency.toLowerCase(),
@@ -105,6 +145,7 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     res.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      provider: 'stripe',
       amount: pricing.amount,
       currency: pricing.currency,
       intervalDays: pricing.intervalDays,

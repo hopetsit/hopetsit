@@ -23,10 +23,13 @@ const {
   getPlanPricing,
 } = require('../models/UserSubscription');
 const { createPlatformPaymentIntent } = require('../services/stripeService');
+const airwallex = require('../services/airwallexService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
@@ -159,6 +162,46 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     }
 
     const amountCents = Math.round(pricing.amount * 100);
+
+    // ─── Airwallex flow ────────────────────────────────────────────────────
+    if (PROVIDER === 'airwallex') {
+      try {
+        const intent = await airwallex.createPlatformPaymentIntent({
+          amount: amountCents,
+          currency: pricing.currency,
+          metadata: {
+            type: 'subscription_purchase',
+            userId: String(userId),
+            role,
+            plan,
+            currency: pricing.currency,
+            intervalDays: String(pricing.intervalDays),
+          },
+        });
+
+        logger.info(
+          `[subscription] airwallex PI created ${intent.id} ${pricing.amount} ${pricing.currency} ` +
+          `plan ${plan} by ${role} ${userId}`,
+        );
+
+        return res.json({
+          clientSecret: intent.client_secret,
+          paymentIntentId: intent.id,
+          provider: 'airwallex',
+          plan,
+          amount: pricing.amount,
+          currency: pricing.currency,
+          intervalDays: pricing.intervalDays,
+        });
+      } catch (e) {
+        logger.error('[subscription] airwallex create-intent failed', e);
+        return res.status(502).json({
+          error: 'Unable to start premium subscription right now. Please try again later.',
+        });
+      }
+    }
+
+    // ─── Stripe flow (default / rollback) ──────────────────────────────────
     const paymentIntent = await createPlatformPaymentIntent({
       amount: amountCents,
       currency: pricing.currency.toLowerCase(),
@@ -175,6 +218,7 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     res.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      provider: 'stripe',
       plan,
       amount: pricing.amount,
       currency: pricing.currency,

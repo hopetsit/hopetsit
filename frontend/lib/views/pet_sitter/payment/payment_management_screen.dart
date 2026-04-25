@@ -1,32 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/stripe_connect_controller.dart';
-import 'package:hopetsit/controllers/sitter_paypal_payout_controller.dart';
 import 'package:hopetsit/controllers/iban_status_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
-import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
-import 'package:hopetsit/views/profile/add_card_screen.dart' as legacy_card;
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/provider_payout_history_screen.dart';
 import 'package:hopetsit/services/donation_service.dart';
-import 'package:hopetsit/widgets/paypal_email_dialog.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
-/// Unified payment management screen — Stripe, PayPal, IBAN, and status
-/// all in one modern place.
+/// v20.1 — Unified payment management screen pour walker + petsitter.
+///
+/// Migration Airwallex : retiré "Compte de paiement" (Stripe Connect) et
+/// "PayPal" du flow walker/sitter. Les payouts passent désormais
+/// uniquement par IBAN (qui est branché sur Airwallex Beneficiaries côté
+/// backend dès que la migration P4 est terminée).
+///
+/// Sections affichées :
+///   • Compte bancaire (IBAN) — pour recevoir les paiements
+///   • Ajouter une carte CB — pour payer (utile au walker/sitter quand il
+///     joue aussi le rôle d'owner ou veut acheter Boost/Premium)
+///   • Historique de paiement
+///   • Soutenir HoPetSit (donation)
 class PaymentManagementScreen extends StatelessWidget {
   const PaymentManagementScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final stripeCtrl = Get.put(StripeConnectController());
-    final paypalCtrl = Get.put(SitterPayPalPayoutController());
     // v18.5 — #9 fix : charger le statut IBAN pour peindre le point vert
-    // dans la rangée des 4 icônes et sur la carte "Compte bancaire (IBAN)".
+    // dans la rangée des icônes du haut et sur la carte "Compte bancaire".
     final ibanCtrl = Get.put(IbanStatusController());
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -50,8 +52,8 @@ class PaymentManagementScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header with 4 quick-status icons ──
-              _buildQuickStatusRow(stripeCtrl, paypalCtrl, ibanCtrl, context),
+              // ── Header with quick-status icons ──
+              _buildQuickStatusRow(ibanCtrl, context),
               SizedBox(height: 24.h),
 
               // ── Payment Methods Section ──
@@ -62,42 +64,6 @@ class PaymentManagementScreen extends StatelessWidget {
                 color: AppColors.textPrimary(context),
               ),
               SizedBox(height: 12.h),
-
-              // Payout account card
-              _buildPaymentMethodCard(
-                context: context,
-                icon: Icons.account_balance_wallet_rounded,
-                iconColor: const Color(0xFFEF4324),
-                iconBg: const Color(0xFFEF4324).withValues(alpha: 0.1),
-                title: 'payout_stripe_connect_title'.tr,
-                subtitle: stripeCtrl.isConnected.value
-                    ? 'payment_stripe_connected'.tr
-                    : 'payment_stripe_not_connected'.tr,
-                isConnected: stripeCtrl.isConnected.value,
-                onTap: () => Get.to(() => const StripeConnectOnboardingScreen()),
-                buttonLabel: stripeCtrl.isConnected.value
-                    ? 'payment_manage'.tr
-                    : 'payment_connect'.tr,
-              ),
-              SizedBox(height: 10.h),
-
-              // PayPal Card
-              Obx(() => _buildPaymentMethodCard(
-                context: context,
-                icon: Icons.paypal_rounded,
-                iconColor: const Color(0xFF003087),
-                iconBg: const Color(0xFF003087).withValues(alpha: 0.1),
-                title: 'PayPal',
-                subtitle: paypalCtrl.paypalEmail.value.isNotEmpty
-                    ? paypalCtrl.paypalEmail.value
-                    : 'payment_paypal_not_set'.tr,
-                isConnected: paypalCtrl.paypalEmail.value.isNotEmpty,
-                onTap: () => _showPayPalDialog(paypalCtrl),
-                buttonLabel: paypalCtrl.paypalEmail.value.isNotEmpty
-                    ? 'payment_manage'.tr
-                    : 'payment_connect'.tr,
-              )),
-              SizedBox(height: 10.h),
 
               // IBAN / Bank Account Card
               Obx(() => _buildPaymentMethodCard(
@@ -123,11 +89,7 @@ class PaymentManagementScreen extends StatelessWidget {
               )),
               SizedBox(height: 10.h),
 
-              // v20.0.17 — Route vers OwnerPaymentsScreen qui fait le VRAI
-              // flow Stripe (SetupIntent + attach au Stripe Customer + list
-              // saved cards + icône verte quand connectée). L'ancien
-              // AddCardScreen envoyait les données en raw à /users/me/card
-              // (endpoint legacy) qui ne liaient rien à Stripe.
+              // Add card CB — utile pour acheter Boost / Premium / MapBoost.
               _buildPaymentMethodCard(
                 context: context,
                 icon: Icons.credit_card_rounded,
@@ -141,7 +103,7 @@ class PaymentManagementScreen extends StatelessWidget {
               ),
               SizedBox(height: 10.h),
 
-              // v18.8 — Historique de paiement (versements reçus).
+              // Historique de paiement (versements reçus).
               _buildPaymentMethodCard(
                 context: context,
                 icon: Icons.receipt_long_rounded,
@@ -157,24 +119,6 @@ class PaymentManagementScreen extends StatelessWidget {
 
               SizedBox(height: 28.h),
 
-              // ── Verification & Status Section ──
-              PoppinsText(
-                text: 'payment_verification_section'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-              ),
-              SizedBox(height: 12.h),
-
-              // v18.9.8 — "Vérification d'identité" a été déplacée sur
-              // l'écran profil sitter (et walker). Elle n'a rien à faire
-              // dans "Gérer les paiements" puisque c'est une étape
-              // d'onboarding utilisateur, pas un moyen de paiement.
-              // Le badge "Identité vérifiée" apparaît désormais sur la
-              // carte publique du profil.
-
-              SizedBox(height: 28.h),
-
               // ── Donation Section ──
               _buildDonationCard(context),
 
@@ -186,25 +130,15 @@ class PaymentManagementScreen extends StatelessWidget {
     );
   }
 
-  /// 4 quick status icons at the top
+  /// 2 quick status icons at the top: Carte + IBAN
   Widget _buildQuickStatusRow(
-    StripeConnectController stripeCtrl,
-    SitterPayPalPayoutController paypalCtrl,
     IbanStatusController ibanCtrl,
     BuildContext context,
   ) {
     return Obx(() => Row(
       children: [
-        // v20.1 — payment provider neutralised (Stripe → Airwallex migration).
-        _quickIcon(
-          context,
-          Icons.account_balance_wallet_rounded,
-          'Payouts',
-          stripeCtrl.isConnected.value,
-          const Color(0xFFEF4324),
-        ),
-        SizedBox(width: 10.w),
-        // v18.9 — icône Carte CB.
+        // Carte CB (pour payer Boost/Premium si profil sitter/walker fait
+        // aussi des achats internes).
         _quickIcon(
           context,
           Icons.credit_card_rounded,
@@ -213,7 +147,7 @@ class PaymentManagementScreen extends StatelessWidget {
           const Color(0xFF7C3AED),
         ),
         SizedBox(width: 10.w),
-        // v18.5 — #9 fix : bind to the real IBAN status.
+        // IBAN — réel statut binding.
         _quickIcon(
           context,
           Icons.account_balance_rounded,
@@ -221,9 +155,6 @@ class PaymentManagementScreen extends StatelessWidget {
           ibanCtrl.ibanConfigured.value,
           const Color(0xFF1A73E8),
         ),
-        // v18.6 — icône "ID" retirée. La vérification d'identité a sa propre
-        // section ci-dessous ("Vérification & Statut") identique pour walker
-        // et petsitter (pas de doublon dans la rangée du haut).
       ],
     ));
   }
@@ -360,82 +291,6 @@ class PaymentManagementScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusCard({
-    required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String description,
-    required String statusLabel,
-    required bool statusActive,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(16.w),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: AppColors.cardShadow(context),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44.w,
-              height: 44.w,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Icon(icon, size: 22.sp, color: iconColor),
-            ),
-            SizedBox(width: 14.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  PoppinsText(
-                    text: title,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary(context),
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: description,
-                    fontSize: 11.sp,
-                    color: AppColors.textSecondary(context),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-              decoration: BoxDecoration(
-                color: statusActive
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: InterText(
-                text: statusLabel,
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w600,
-                color: statusActive ? Colors.green : Colors.orange,
-              ),
-            ),
-            if (onTap != null) ...[
-              SizedBox(width: 6.w),
-              Icon(Icons.arrow_forward_ios, size: 14.sp, color: AppColors.textSecondary(context)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildDonationCard(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(20.w),
@@ -492,7 +347,8 @@ class PaymentManagementScreen extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          // v18.9.3 — don réel via Stripe. Parse "5€" → 5.0.
+          // v18.9.3 — don réel via provider actif (Stripe ou Airwallex).
+          // Parse "5€" → 5.0.
           final parsed = double.tryParse(
                 amount.replaceAll('€', '').replaceAll(',', '.').trim(),
               ) ??
@@ -519,29 +375,6 @@ class PaymentManagementScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  void _showPayPalDialog(SitterPayPalPayoutController controller) {
-    controller.emailController.text = controller.paypalEmail.value;
-    Get.dialog(
-      PayPalEmailDialog(
-        controller: controller.emailController,
-        initialEmail: controller.paypalEmail.value,
-        title: 'payout_update_paypal_email'.tr,
-        subtitle: 'payout_paypal_dialog_subtitle'.tr,
-        primaryText: 'common_save'.tr,
-        secondaryText: 'common_cancel'.tr,
-        isLoading: controller.isSaving.value,
-        onSecondary: () => Get.back(),
-        onPrimary: () async {
-          await controller.savePayPalEmail();
-          if (Get.isDialogOpen == true) {
-            Get.back();
-          }
-        },
-      ),
-      barrierDismissible: false,
     );
   }
 }

@@ -27,13 +27,33 @@ class LoginScreen extends StatelessWidget {
       backgroundColor: AppColors.scaffold(context),
       body: Stack(
         children: [
+          // ── Subtle gradient overlay at top ──
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 200.h,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.primaryColor.withValues(alpha: 0.06),
+                    AppColors.scaffold(context).withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           SafeArea(
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: Form(
                 key: controller.formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SizedBox(height: 12.h),
 
@@ -86,58 +106,63 @@ class LoginScreen extends StatelessWidget {
                       ],
                     ),
 
-                    SizedBox(height: 28.h),
+                    SizedBox(height: 40.h),
 
-                    // ── Logo + Welcome ──
-                    // v18.5 — logo V4 officiel (SVG) à la place de l'icône
-                    // Icons.pets générique. Container en dessous garde le
-                    // boxShadow/gradient mais affiche la patte HoPetSit.
-                    Center(
-                      child: Container(
-                        width: 72.w,
-                        height: 72.h,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor,
-                          borderRadius: BorderRadius.circular(20.r),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primaryColor.withValues(alpha: 0.3),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
+                    // ── Welcome greeting card with logo ──
+                    Container(
+                      padding: EdgeInsets.all(24.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.card(context),
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(
+                          color: AppColors.primaryColor.withValues(alpha: 0.15),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Logo in a circle
+                          Container(
+                            width: 64.w,
+                            height: 64.h,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16.r),
                             ),
-                          ],
-                        ),
-                        padding: EdgeInsets.all(10.w),
-                        child: SvgPicture.asset(
-                          'assets/brand/apple/apple-icon-original.svg',
-                          fit: BoxFit.contain,
-                        ),
+                            padding: EdgeInsets.all(8.w),
+                            child: SvgPicture.asset(
+                              'assets/brand/apple/apple-icon-original.svg',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          SizedBox(height: 16.h),
+                          PoppinsText(
+                            text: 'welcome_back'.tr,
+                            fontSize: 26.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                          ),
+                          SizedBox(height: 8.h),
+                          InterText(
+                            text: 'login_subtitle'.tr,
+                            fontSize: 13.sp,
+                            color: AppColors.textSecondary(context),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
 
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 40.h),
 
-                    Center(
-                      child: PoppinsText(
-                        text: 'welcome_back'.tr,
-                        fontSize: 26.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary(context),
-                      ),
-                    ),
-                    SizedBox(height: 6.h),
-                    Center(
-                      child: InterText(
-                        text: 'login_subtitle'.tr,
-                        fontSize: 14.sp,
-                        color: AppColors.textSecondary(context),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-
-                    SizedBox(height: 32.h),
-
-                    // ── Email field ──
+                    // ── Email field with icon ──
                     CustomTextField(
                       labelText: 'label_email'.tr,
                       hintText: 'hint_email'.tr,
@@ -145,10 +170,16 @@ class LoginScreen extends StatelessWidget {
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       validator: controller.validateEmail,
+                      prefixIcon: Icon(
+                        Icons.mail_outline_rounded,
+                        size: 20.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      radius: 16.r,
                     ),
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 16.h),
 
-                    // ── Password field ──
+                    // ── Password field with icon and show/hide toggle ──
                     CustomTextField(
                       labelText: 'label_password'.tr,
                       hintText: 'hint_password_login'.tr,
@@ -157,9 +188,16 @@ class LoginScreen extends StatelessWidget {
                       showPasswordToggle: true,
                       textInputAction: TextInputAction.done,
                       validator: controller.validatePassword,
+                      prefixIcon: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 20.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      radius: 16.r,
                     ),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 12.h),
 
+                    // ── Forgot password link (right-aligned, small) ──
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -169,33 +207,38 @@ class LoginScreen extends StatelessWidget {
                         ),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primaryColor,
-                          padding: EdgeInsets.zero,
+                          padding: EdgeInsets.symmetric(horizontal: 0.w, vertical: 4.h),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: InterText(
                           text: 'forgot_password'.tr,
-                          fontSize: 13.sp,
+                          fontSize: 12.sp,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primaryColor,
+                          textDecoration: TextDecoration.underline,
                         ),
                       ),
                     ),
                     SizedBox(height: 28.h),
 
-                    // ── Login button ──
+                    // ── Sign in button (full-width, modern) ──
                     Obx(
-                      () => CustomButton(
-                        title: controller.isLoading.value
-                            ? 'logging_in'.tr
-                            : 'title_login'.tr,
-                        onTap: controller.isLoading.value
-                            ? null
-                            : () => controller.handleLoginWithNavigation(),
+                      () => SizedBox(
+                        width: double.infinity,
+                        height: 48.h,
+                        child: CustomButton(
+                          title: controller.isLoading.value
+                              ? 'logging_in'.tr
+                              : 'title_login'.tr,
+                          onTap: controller.isLoading.value
+                              ? null
+                              : () => controller.handleLoginWithNavigation(),
+                        ),
                       ),
                     ),
                     SizedBox(height: 24.h),
 
-                    // ── Divider ──
+                    // ── Divider with "OR" text ──
                     Row(
                       children: [
                         Expanded(
@@ -207,11 +250,12 @@ class LoginScreen extends StatelessWidget {
                           ),
                         ),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w),
+                          padding: EdgeInsets.symmetric(horizontal: 12.w),
                           child: InterText(
                             text: 'or_continue_with'.tr,
                             fontSize: 12.sp,
                             color: AppColors.textSecondary(context),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         Expanded(
@@ -226,7 +270,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 24.h),
 
-                    // ── Social buttons ──
+                    // ── Social buttons (Google + Apple on iOS) ──
                     Row(
                       children: [
                         Expanded(
@@ -256,12 +300,12 @@ class LoginScreen extends StatelessWidget {
                         ],
                       ],
                     ),
-                    SizedBox(height: 28.h),
+                    SizedBox(height: 32.h),
 
-                    // ── Sign up link ──
+                    // ── Sign up link (footer) ──
                     Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
                         children: [
                           InterText(
                             text: 'dont_have_account'.tr,
@@ -272,13 +316,13 @@ class LoginScreen extends StatelessWidget {
                             onPressed: () =>
                                 Get.to(() => const SignUpAsScreen()),
                             style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
+                              padding: EdgeInsets.symmetric(horizontal: 4.w),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             child: PoppinsText(
                               text: 'sign_up'.tr,
                               fontSize: 13.sp,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.primaryColor,
                             ),
                           ),
@@ -370,7 +414,9 @@ class LoginScreen extends StatelessWidget {
   }
 }
 
-/// Clean social login button with icon + label.
+/// Modern social login button with icon + label (Google/Apple).
+/// Google: white background with subtle grey border.
+/// Apple: black background with white text.
 class _SocialLoginButton extends StatelessWidget {
   final VoidCallback? onTap;
   final String? imagePath;
@@ -386,35 +432,64 @@ class _SocialLoginButton extends StatelessWidget {
     required this.isDark,
   });
 
+  bool get _isApple => icon == Icons.apple;
+
   @override
   Widget build(BuildContext context) {
+    final isAppleButton = _isApple;
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14.r),
+      borderRadius: BorderRadius.circular(24.r),
       child: Container(
-        height: 52.h,
+        height: 48.h,
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(
-            color: isDark ? AppColors.dividerDark : AppColors.grey300Color,
-          ),
+          color: isAppleButton
+              ? AppColors.blackColor
+              : (isDark ? AppColors.surfaceDark : Colors.white),
+          borderRadius: BorderRadius.circular(24.r),
+          border: isAppleButton
+              ? null
+              : Border.all(
+                  color: isDark ? AppColors.dividerDark : Colors.grey.shade300,
+                  width: 1.5,
+                ),
+          boxShadow: isAppleButton
+              ? null
+              : [
+                  BoxShadow(
+                    color: AppColors.blackColor.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (imagePath != null)
-              Image.asset(imagePath!, height: 20.sp, width: 20.sp, fit: BoxFit.cover)
-            else if (icon != null)
-              Icon(icon, size: 22.sp, color: AppColors.textPrimary(context)),
-            SizedBox(width: 8.w),
-            InterText(
-              text: label,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary(context),
-            ),
-          ],
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (imagePath != null)
+                Image.asset(
+                  imagePath!,
+                  height: 20.sp,
+                  width: 20.sp,
+                  fit: BoxFit.cover,
+                )
+              else if (icon != null)
+                Icon(
+                  icon,
+                  size: 20.sp,
+                  color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
+                ),
+              SizedBox(width: 8.w),
+              InterText(
+                text: label,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+                color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
+              ),
+            ],
+          ),
         ),
       ),
     );

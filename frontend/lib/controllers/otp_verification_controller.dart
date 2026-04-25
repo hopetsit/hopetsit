@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
+import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/auth/choose_service_screen.dart';
@@ -207,6 +210,15 @@ class OtpVerificationController extends GetxController {
         Get.find<AuthController>().userRole.value = role;
       }
 
+      // v20.2.1 — bug fix : si une photo de profil a été sélectionnée pendant
+      // l'inscription, on l'upload maintenant que /auth/verify a renvoyé un
+      // token (donc /users/me/profile-picture peut être appelé authentifié).
+      // Fire-and-forget : on ne bloque pas la nav si l'upload rate ; on log
+      // simplement et on garde le path pour qu'un nouvel essai puisse se
+      // faire la prochaine fois (ou que l'user le re-uploade depuis profil).
+      // ignore: discarded_futures
+      _uploadPendingSignupPhotoIfAny();
+
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
         message: 'email_verification_success'.tr,
@@ -226,6 +238,42 @@ class OtpVerificationController extends GetxController {
       return false;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// v20.2.1 — Reads the pending profile-photo path persisted by
+  /// SignUpController (see signup_controller.dart) and uploads it now that
+  /// /auth/verify has returned an auth token. Best-effort : never throws,
+  /// only logs failures so the OTP flow continues uninterrupted.
+  Future<void> _uploadPendingSignupPhotoIfAny() async {
+    try {
+      final path = (_storage.read(StorageKeys.pendingSignupPhotoPath) ?? '')
+          .toString()
+          .trim();
+      if (path.isEmpty) return;
+      final file = File(path);
+      if (!file.existsSync()) {
+        await _storage.remove(StorageKeys.pendingSignupPhotoPath);
+        return;
+      }
+      // Use a one-off UserRepository instance — at this stage we may not
+      // be inside the dependency-injection lifecycle yet (controller built
+      // outside of setupDependencies), so falling back to a fresh instance
+      // is safer than Get.find<UserRepository>().
+      final repo = Get.isRegistered<UserRepository>()
+          ? Get.find<UserRepository>()
+          : UserRepository();
+      await repo.updateProfilePicture(file);
+      await _storage.remove(StorageKeys.pendingSignupPhotoPath);
+      AppLogger.logInfo('[otp] post-signup profile photo uploaded OK');
+    } catch (e) {
+      AppLogger.logError(
+        '[otp] failed to upload post-signup profile photo (will retry next session)',
+        error: e,
+      );
+      // Don't clear the storage key on failure — leave it so a future
+      // session can retry, OR the user can re-upload from profile screen
+      // and that path overrides this one.
     }
   }
 

@@ -16,11 +16,14 @@ const { requireAuth } = require('../middleware/auth');
 const Sitter = require('../models/Sitter');
 const Owner = require('../models/Owner');
 const { createPlatformPaymentIntent } = require('../services/stripeService');
+const airwallex = require('../services/airwallexService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 const pricingService = require('../services/pricingService');
 
 const router = express.Router();
+
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
 
 // ── BOOST PACKAGES — multi-currency pricing ──────────────────────────────────
 // Base amounts in EUR; other currencies scale to clean local values.
@@ -165,6 +168,46 @@ router.post('/purchase', requireAuth, async (req, res) => {
     }
 
     const amountCents = Math.round(pricing.amount * 100);
+
+    // ─── Airwallex flow ────────────────────────────────────────────────────
+    if (PROVIDER === 'airwallex') {
+      try {
+        const intent = await airwallex.createPlatformPaymentIntent({
+          amount: amountCents,
+          currency: pricing.currency,
+          metadata: {
+            type: 'boost_purchase',
+            userId,
+            role,
+            tier,
+            currency: pricing.currency,
+            days: pricing.days,
+          },
+        });
+
+        logger.info(
+          `[boost] airwallex PI created ${intent.id} ${pricing.amount} ${pricing.currency} ` +
+          `tier ${tier} by ${role} ${userId}`,
+        );
+
+        return res.json({
+          clientSecret: intent.client_secret,
+          paymentIntentId: intent.id,
+          provider: 'airwallex',
+          amount: pricing.amount,
+          currency: pricing.currency,
+          tier,
+          days: pricing.days,
+        });
+      } catch (e) {
+        logger.error('[boost] airwallex create-intent failed', e);
+        return res.status(502).json({
+          error: 'Unable to start boost purchase right now. Please try again later.',
+        });
+      }
+    }
+
+    // ─── Stripe flow (default / rollback) ──────────────────────────────────
     const paymentIntent = await createPlatformPaymentIntent({
       amount: amountCents,
       currency: pricing.currency.toLowerCase(),
@@ -181,6 +224,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
     res.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      provider: 'stripe',
       amount: pricing.amount,
       currency: pricing.currency,
       tier,

@@ -622,6 +622,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'payment_initiate_error': 'Failed to initiate payment. Please try again.',
       'payment_confirmation_failed':
           'Payment confirmation failed. Please contact support.',
+      'payment_chat_with_sitter': 'Conversa com o teu sitter',
+      'payment_chat_with_walker': 'Conversa com o teu passeador',
+      'payment_chat_opener_message': 'Olá, acabei de reservar — até já! 🐾',
+      'payment_chat_open_fallback': 'Não foi possível abrir o chat. Está disponível na aba Chat.',
+      'common_info': 'Info',
       'review_already_reviewed_title': 'Already Reviewed',
       'review_already_reviewed_message':
           'You have already reviewed this sitter. You can only submit one review per sitter.',
@@ -1204,6 +1209,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'edit_profile_location_error':
           'Failed to get your location. Please try again.',
       'edit_profile_invalid_hourly_rate': 'Invalid Hourly Rate',
+
+      // Missing home controller translations
+      'home_post_success': 'Publicação criada com sucesso!',
+      'home_post_failed': 'Publicação falhou',
+      'home_post_failed_generic': 'Algo deu errado. Por favor, tente novamente.',
       'home_post_failed': 'Post Failed',
       'home_post_failed_generic': 'Something went wrong. Please try again.',
       'home_image_pick_failed': 'Failed to pick images. Please try again.',
@@ -1560,6 +1570,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'boost_duration_weeks': '@count semanas',
     'boost_duration_one_month': '1 mês',
     'friends_share_position_label': 'Partilhar',
+    'pawmap_search_placeholder': 'Procurar uma cidade…',
+    'pawmap_report_button': 'Reportar',
     'pawmap_premium_title': 'Passar a Premium',
     'pawmap_premium_subtitle': 'Desbloqueia todos os alertas, zonas e rastreamento ao vivo',
     'pawmap_boost_title': 'Impulsionar o meu pin',
@@ -1816,6 +1828,10 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'sitter_no_': 'Sem sitter no momento.',
     'terms_title': 'Termos e condições',
     'signup_cb_later_hint': 'Podes adicionar o teu cartão logo após o registo, em Os meus pagamentos.',
+    'signup_form_subtitle': 'Completa o teu perfil para começar',
+    'signup_payouts_hint': 'Pediremos o teu IBAN mais tarde para configurar os pagamentos.',
+    'signup_owner_pets_hint': 'Podes adicionar os teus animais após o registo.',
+    'role_owner': 'Proprietário',
     'top_walker_achieved': 'És um Top Walker!',
     'top_walker_badge': 'Torna-te Top Walker',
     'top_walker_progress': '@done / @goal passeios · @rating ★',

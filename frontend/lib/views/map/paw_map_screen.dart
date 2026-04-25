@@ -118,23 +118,19 @@ class _PawMapScreenState extends State<PawMapScreen> {
     super.dispose();
   }
 
-  /// v19.1.3 — Modernized search bar: pill-shaped glassmorphic surface with
-  /// subtle green accent border, matching the Signaler FAB so the top and
-  /// bottom controls feel like one system.
+  /// v20.2 — Modernized search bar: pill-shaped (radius 24+) with subtle shadow,
+  /// leading 🔍 icon, trailing clear icon. Uses i18n and dark mode support.
   Widget _buildCitySearchBar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28.r),
-        border: Border.all(
-          color: AppColors.primaryColor.withValues(alpha: 0.15),
-          width: 1,
-        ),
+        color: isDark ? AppColors.card(context) : Colors.white,
+        borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -143,7 +139,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
         textInputAction: TextInputAction.search,
         onSubmitted: _searchCity,
         decoration: InputDecoration(
-          hintText: 'Chercher une ville…',
+          hintText: 'pawmap_search_placeholder'.tr,
           hintStyle: TextStyle(
             color: AppColors.textSecondary(context),
             fontSize: 13.sp,
@@ -436,6 +432,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
   /// Home screen — proper deep-link to the request detail / send-request
   /// flow will be wired in a follow-up when the backend exposes a
   /// canonical detail-by-id endpoint.
+  /// v20.2 — added drag handle + modern styling
   void _showRequestBottomSheet(NearbyRequestPost r) {
     showModalBottomSheet(
       context: context,
@@ -444,17 +441,30 @@ class _PawMapScreenState extends State<PawMapScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       useSafeArea: true,
-      builder: (sheetCtx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20.w,
-          20.h,
-          20.w,
-          20.h + MediaQuery.of(sheetCtx).viewPadding.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      builder: (sheetCtx) => SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20.w,
+            16.h,
+            20.w,
+            20.h + MediaQuery.of(sheetCtx).viewPadding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 40.w,
+                  height: 4.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider(context),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16.h),
             Row(
               children: [
                 Text('📣', style: TextStyle(fontSize: 22.sp)),
@@ -546,9 +556,11 @@ class _PawMapScreenState extends State<PawMapScreen> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+            ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1202,32 +1214,32 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   // Premium users see all 9 types. The CreateReportSheet handles the per-type
-  // lock UI and the final submit guard.
+  // lock UI and the final submit guard. v20.2 — pill-shaped FAB with modern shadow.
   Widget _buildReportFab() {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32.r),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryColor.withValues(alpha: 0.45),
-            blurRadius: 18,
-            spreadRadius: 2,
+            color: AppColors.primaryColor.withValues(alpha: 0.4),
+            blurRadius: 16,
+            spreadRadius: 0,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: FloatingActionButton.extended(
         backgroundColor: AppColors.primaryColor,
-        elevation: 6,
+        elevation: 0,
         icon: Icon(Icons.add_alert_rounded, color: Colors.white, size: 22.sp),
         label: InterText(
-          text: 'Signaler',
+          text: 'pawmap_report_button'.tr,
           fontSize: 14.sp,
           color: Colors.white,
           fontWeight: FontWeight.w800,
         ),
         onPressed: () async {
-                final created = await CreateReportSheet.show(
+          final created = await CreateReportSheet.show(
             context,
             initialPoint: _currentCenter,
           );
@@ -1238,6 +1250,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   // ─── POI details sheet ───────────────────────────────────────────────────
+  // v20.2 — modernized bottom sheet with drag handle + rounded corners (24r) + shadow
   void _showPoiBottomSheet(MapPOI poi) {
     showModalBottomSheet(
       context: context,
@@ -1246,68 +1259,81 @@ class _PawMapScreenState extends State<PawMapScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       useSafeArea: true,
-      builder: (sheetCtx) => Padding(
-        // Respect the system nav bar / gesture area so the bottom of the
-        // sheet is never hidden under Android's 3-button bar.
-        padding: EdgeInsets.fromLTRB(
-          20.w,
-          20.h,
-          20.w,
-          20.h + MediaQuery.of(sheetCtx).viewPadding.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(PoiCategories.emoji(poi.category), style: TextStyle(fontSize: 28.sp)),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: PoppinsText(
-                    text: poi.title,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
+      builder: (sheetCtx) => SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20.w,
+            16.h,
+            20.w,
+            20.h + MediaQuery.of(sheetCtx).viewPadding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 40.w,
+                  height: 4.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider(context),
+                    borderRadius: BorderRadius.circular(2.r),
                   ),
                 ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8.r),
+              ),
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  Text(PoiCategories.emoji(poi.category), style: TextStyle(fontSize: 28.sp)),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: PoppinsText(
+                      text: poi.title,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                    ),
                   ),
-                  child: InterText(
-                    text: PoiCategories.label(poi.category),
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryColor,
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: InterText(
+                      text: PoiCategories.label(poi.category),
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryColor,
+                    ),
                   ),
+                ],
+              ),
+              if (poi.description.isNotEmpty) ...[
+                SizedBox(height: 8.h),
+                InterText(
+                  text: poi.description,
+                  fontSize: 13.sp,
+                  color: AppColors.textSecondary(context),
                 ),
               ],
-            ),
-            if (poi.description.isNotEmpty) ...[
-              SizedBox(height: 8.h),
-              InterText(
-                text: poi.description,
-                fontSize: 13.sp,
-                color: AppColors.textSecondary(context),
-              ),
+              if (poi.address.isNotEmpty)
+                _iconLine(Icons.place_outlined, poi.address),
+              if (poi.phone.isNotEmpty)
+                _iconLine(Icons.phone_outlined, poi.phone),
+              if (poi.openingHours.isNotEmpty)
+                _iconLine(Icons.schedule_outlined, poi.openingHours),
+              SizedBox(height: 16.h),
             ],
-            if (poi.address.isNotEmpty)
-              _iconLine(Icons.place_outlined, poi.address),
-            if (poi.phone.isNotEmpty)
-              _iconLine(Icons.phone_outlined, poi.phone),
-            if (poi.openingHours.isNotEmpty)
-              _iconLine(Icons.schedule_outlined, poi.openingHours),
-            SizedBox(height: 16.h),
-          ],
+          ),
         ),
       ),
     );
   }
 
   // ─── Report details sheet ────────────────────────────────────────────────
+  // v20.2 — drag handle + rounded corners + modern styling
   void _showReportBottomSheet(MapReport report) {
     showModalBottomSheet(
       context: context,
@@ -1317,132 +1343,146 @@ class _PawMapScreenState extends State<PawMapScreen> {
       ),
       useSafeArea: true,
       builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20.w,
-            16.h,
-            20.w,
-            24.h + MediaQuery.of(sheetContext).viewPadding.bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(ReportTypes.emoji(report.type),
-                      style: TextStyle(fontSize: 28.sp)),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: PoppinsText(
-                      text: ReportTypes.labelFr(report.type),
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20.w,
+              16.h,
+              20.w,
+              24.h + MediaQuery.of(sheetContext).viewPadding.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider(context),
+                      borderRadius: BorderRadius.circular(2.r),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Row(
+                  children: [
+                    Text(ReportTypes.emoji(report.type),
+                        style: TextStyle(fontSize: 28.sp)),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: PoppinsText(
+                        text: ReportTypes.labelFr(report.type),
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary(context),
+                      ),
+                    ),
+                    // TTL countdown badge
+                    _TtlBadge(expiresAt: report.expiresAt),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                InterText(
+                  text: ReportTypes.hintFr(report.type),
+                  fontSize: 12.sp,
+                  color: AppColors.textSecondary(context),
+                ),
+                if (report.note.isNotEmpty) ...[
+                  SizedBox(height: 12.h),
+                  Container(
+                    padding: EdgeInsets.all(10.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.scaffold(context),
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                    child: InterText(
+                      text: report.note,
+                      fontSize: 13.sp,
                       color: AppColors.textPrimary(context),
                     ),
                   ),
-                  // TTL countdown badge
-                  _TtlBadge(expiresAt: report.expiresAt),
                 ],
-              ),
-              SizedBox(height: 6.h),
-              InterText(
-                text: ReportTypes.hintFr(report.type),
-                fontSize: 12.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              if (report.note.isNotEmpty) ...[
                 SizedBox(height: 12.h),
-                Container(
-                  padding: EdgeInsets.all(10.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.scaffold(context),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: InterText(
-                    text: report.note,
-                    fontSize: 13.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.thumb_up_alt_outlined,
+                        size: 14.sp, color: AppColors.greyText),
+                    SizedBox(width: 4.w),
+                    InterText(
+                      text: '${report.confirmationsCount} confirmation(s)',
+                      fontSize: 11.sp,
+                      color: AppColors.greyText,
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16.h),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final ok = await _reportController.confirm(report.id);
+                          if (!mounted || !sheetContext.mounted) return;
+                          Navigator.of(sheetContext).pop();
+                          if (ok) {
+                            CustomSnackbar.showSuccess(
+                              title: 'Merci !',
+                              message: 'Signalement prolongé de 12h.',
+                            );
+                          }
+                        },
+                        icon: Icon(Icons.check_circle_outline, size: 16.sp),
+                        label: InterText(
+                          text: 'Confirmer +12h',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final ok = await _reportController.flag(report.id);
+                          if (!mounted || !sheetContext.mounted) return;
+                          Navigator.of(sheetContext).pop();
+                          if (ok) {
+                            CustomSnackbar.showSuccess(
+                              title: 'Signalé',
+                              message: 'Merci, un modérateur va vérifier.',
+                            );
+                          }
+                        },
+                        icon: Icon(Icons.flag_outlined,
+                            size: 16.sp, color: Colors.red),
+                        label: InterText(
+                          text: 'Signaler abus',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
+                          side: const BorderSide(color: Colors.red),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-              SizedBox(height: 12.h),
-              Row(
-                children: [
-                  Icon(Icons.thumb_up_alt_outlined,
-                      size: 14.sp, color: AppColors.greyText),
-                  SizedBox(width: 4.w),
-                  InterText(
-                    text: '${report.confirmationsCount} confirmation(s)',
-                    fontSize: 11.sp,
-                    color: AppColors.greyText,
-                  ),
-                ],
-              ),
-              SizedBox(height: 16.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final ok = await _reportController.confirm(report.id);
-                        if (!mounted || !sheetContext.mounted) return;
-                        Navigator.of(sheetContext).pop();
-                        if (ok) {
-                          CustomSnackbar.showSuccess(
-                            title: 'Merci !',
-                            message: 'Signalement prolongé de 12h.',
-                          );
-                        }
-                      },
-                      icon: Icon(Icons.check_circle_outline, size: 16.sp),
-                      label: InterText(
-                        text: 'Confirmer +12h',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final ok = await _reportController.flag(report.id);
-                        if (!mounted || !sheetContext.mounted) return;
-                        Navigator.of(sheetContext).pop();
-                        if (ok) {
-                          CustomSnackbar.showSuccess(
-                            title: 'Signalé',
-                            message: 'Merci, un modérateur va vérifier.',
-                          );
-                        }
-                      },
-                      icon: Icon(Icons.flag_outlined,
-                          size: 16.sp, color: Colors.red),
-                      label: InterText(
-                        text: 'Signaler abus',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.red,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        side: const BorderSide(color: Colors.red),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -1493,6 +1533,15 @@ class _Chip extends StatelessWidget {
           border: Border.all(
             color: selected ? AppColors.primaryColor : AppColors.divider(context),
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

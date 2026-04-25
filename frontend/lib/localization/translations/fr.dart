@@ -717,6 +717,11 @@ const Map<String, String> frFRTranslations = <String, String>{
           'Échec de l\'initiation du paiement. Veuillez réessayer.',
       'payment_confirmation_failed':
           'Échec de la confirmation du paiement. Veuillez contacter le support.',
+      'payment_chat_with_sitter': 'Discuter avec ton sitter',
+      'payment_chat_with_walker': 'Discuter avec ton promeneur',
+      'payment_chat_opener_message': 'Bonjour, je viens de réserver — au plaisir d\'échanger ! 🐾',
+      'payment_chat_open_fallback': "Impossible d'ouvrir le chat maintenant. Tu peux le retrouver dans l'onglet Chat.",
+      'common_info': 'Info',
       'review_already_reviewed_title': 'Déjà noté',
       'review_already_reviewed_message':
           'Vous avez déjà noté ce pet sitter. Vous ne pouvez soumettre qu\'une seule note par pet sitter.',
@@ -832,6 +837,9 @@ const Map<String, String> frFRTranslations = <String, String>{
       // Home screen & applications
       'home_default_user_name': 'Utilisateur',
       'home_no_sitters_message': 'Aucun pet sitter disponible pour le moment.',
+      'home_post_success': 'Publication créée avec succès !',
+      'home_post_failed': 'Publication échouée',
+      'home_post_failed_generic': 'Une erreur s'est produite. Veuillez réessayer.',
       'home_block_sitter_message':
           'Voulez-vous vraiment bloquer @name ? Vous ne pourrez plus voir son profil ni lui envoyer de demandes.',
       'home_block_sitter_yes': 'Annuler',
@@ -1649,6 +1657,8 @@ const Map<String, String> frFRTranslations = <String, String>{
     // v18.9.8 — amis / partage position
     'friends_share_position_label': 'Partager',
     // v18.9.8 — CTA cards PawMap (Premium vert + Booster pin bleu)
+    'pawmap_search_placeholder': 'Chercher une ville…',
+    'pawmap_report_button': 'Signaler',
     'pawmap_premium_title': 'Passer Premium',
     'pawmap_premium_subtitle': 'Débloque tous les signalements, zones et suivis live',
     'pawmap_boost_title': 'Booster mon pin',
@@ -1913,6 +1923,10 @@ const Map<String, String> frFRTranslations = <String, String>{
     'sitter_no_': 'Aucun pet-sitter pour le moment.',
     'terms_title': 'Conditions d\'utilisation',
     'signup_cb_later_hint': 'Tu pourras ajouter ta carte bancaire juste après l\'inscription, depuis Mes paiements.',
+    'signup_form_subtitle': 'Complète ton profil pour commencer',
+    'signup_payouts_hint': 'Nous te demanderons ton IBAN plus tard pour configurer les paiements.',
+    'signup_owner_pets_hint': 'Tu pourras ajouter tes animaux après l\'inscription.',
+    'role_owner': 'Propriétaire',
     'top_walker_achieved': 'Vous êtes Top Walker !',
     'top_walker_badge': 'Deviens Top Walker',
     'top_walker_progress': '@done / @goal balades · @rating ★',

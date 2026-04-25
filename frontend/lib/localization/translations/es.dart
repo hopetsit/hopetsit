@@ -704,6 +704,11 @@ const Map<String, String> esESTranslations = <String, String>{
           'Error al iniciar el pago. Por favor intenta de nuevo.',
       'payment_confirmation_failed':
           'Error al confirmar el pago. Por favor contacta al soporte.',
+      'payment_chat_with_sitter': 'Chatea con tu cuidador',
+      'payment_chat_with_walker': 'Chatea con tu paseador',
+      'payment_chat_opener_message': 'Hola, acabo de reservar — ¡un placer! 🐾',
+      'payment_chat_open_fallback': 'No se pudo abrir el chat. Puedes encontrarlo en la pestaña Chat.',
+      'common_info': 'Información',
       'review_already_reviewed_title': 'Ya calificado',
       'review_already_reviewed_message':
           'Ya has calificado a este pet sitter. Solo puedes enviar una calificación por pet sitter.',
@@ -821,6 +826,9 @@ const Map<String, String> esESTranslations = <String, String>{
       'home_default_user_name': 'Usuario',
       'home_no_sitters_message':
           'No hay cuidadores disponibles en este momento.',
+      'home_post_success': '¡Publicación creada exitosamente!',
+      'home_post_failed': 'Publicación fallida',
+      'home_post_failed_generic': 'Algo salió mal. Por favor intenta de nuevo.',
       'home_block_sitter_message':
           '¿Seguro que quieres bloquear a @name? No podrás ver su perfil ni enviarle solicitudes.',
       'home_block_sitter_yes': 'Cancelar',
@@ -1632,6 +1640,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'boost_duration_weeks': '@count semanas',
     'boost_duration_one_month': '1 mes',
     'friends_share_position_label': 'Compartir',
+    'pawmap_search_placeholder': 'Buscar una ciudad…',
+    'pawmap_report_button': 'Reportar',
     'pawmap_premium_title': 'Hazte Premium',
     'pawmap_premium_subtitle': 'Desbloquea todos los avisos, zonas y seguimiento en vivo',
     'pawmap_boost_title': 'Potenciar mi pin',
@@ -1888,6 +1898,10 @@ const Map<String, String> esESTranslations = <String, String>{
     'sitter_no_': 'Sin cuidadores por ahora.',
     'terms_title': 'Términos y condiciones',
     'signup_cb_later_hint': 'Podrás añadir tu tarjeta justo después del registro, desde Mis pagos.',
+    'signup_form_subtitle': 'Completa tu perfil para empezar',
+    'signup_payouts_hint': 'Te pediremos tu IBAN más tarde para configurar los pagos.',
+    'signup_owner_pets_hint': 'Podrás añadir tus mascotas después de registrarte.',
+    'role_owner': 'Propietario',
     'top_walker_achieved': '¡Eres Top Paseador!',
     'top_walker_badge': 'Conviértete en Top Paseador',
     'top_walker_progress': '@done / @goal paseos · @rating ★',
