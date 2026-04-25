@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Inter from Google Fonts (loaded via next/font in layout for prod). */
+:root {
+  color-scheme: light;
+}
+
+html, body {
+  background: #ffffff;
+  color: #111827;
+}
+
+/* Gentle global focus ring (accessibility) */
+*:focus-visible {
+  outline: 2px solid #1A73E8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Keep <details> markers neutral so the FAQ accordion looks intentional. */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker { display: none; }
