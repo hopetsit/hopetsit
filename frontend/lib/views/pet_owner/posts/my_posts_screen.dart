@@ -71,7 +71,21 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
 
   String _serviceTypesDisplay(List<String> types) {
     if (types.isEmpty) return '';
-    return types.map((t) => t.replaceAll('_', ' ')).join(', ');
+    // v21 — translate each raw service key (e.g. 'day_care' → 'Garderie' in
+    // FR, 'Day Care' in EN) instead of just replacing underscores. Keys live
+    // under 'service_*' in the i18n dictionaries. Fallback : capitalised
+    // raw key when no translation exists (defensive — no key should be
+    // missing, but better than showing 'day_care').
+    return types.map((t) {
+      final key = 'service_${t.toLowerCase()}';
+      final translated = key.tr;
+      if (translated != key) return translated; // i18n hit
+      // Fallback : "day_care" → "Day Care"
+      return t
+          .split('_')
+          .map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1))
+          .join(' ');
+    }).join(', ');
   }
 
   String? _postDateRangeLabel(PostModel post) {

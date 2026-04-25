@@ -22,6 +22,12 @@ const {
   createRefund,
   sendPayoutToIBAN,
 } = require('../services/stripeService');
+// v21 — Airwallex platform-only PI fallback when PAYMENT_PROVIDER=airwallex.
+// Marketplace split (Beneficiaries + Payouts API) lands in v21.1 ;
+// in the meantime funds accumulate on the HoPetSit Airwallex wallet and
+// payout-scheduler manually releases the 80% to the provider's IBAN.
+const airwallex = require('../services/airwallexService');
+const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
 const {
   createPaypalOrder,
   capturePaypalOrder,
@@ -1780,27 +1786,51 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
     logger.warn('[_prepareOwnerPaymentForAgreedBooking] Stripe Customer create/find failed', custErr?.message || custErr);
   }
 
-  const paymentIntent = await createPaymentIntent({
-    amount: amountInCents,
-    connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
-    bookingId: booking._id.toString(),
-    ownerId: booking.ownerId._id.toString(),
-    sitterId: providerRef.id,
-    providerType: providerRef.type,
-    currency: bookingCurrency.toLowerCase(),
-    isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
-    stripeCustomerId: ownerStripeCustomerId,
-  });
+  // v21 — dual-provider switch. Airwallex flow uses platform-only PI ; the
+  // 80% sitter cut is released later by payoutScheduler via IBAN payout.
+  let paymentIntent;
+  let usedProvider = 'stripe';
+  if (PAYMENT_PROVIDER === 'airwallex') {
+    paymentIntent = await airwallex.createPlatformPaymentIntent({
+      amount: amountInCents,
+      currency: bookingCurrency.toUpperCase(),
+      metadata: {
+        type: 'booking',
+        bookingId: booking._id.toString(),
+        ownerId: booking.ownerId._id.toString(),
+        sitterId: providerRef.id,
+        providerType: providerRef.type,
+      },
+    });
+    usedProvider = 'airwallex';
+    logger.info(
+      `[booking._prepare] airwallex PI created ${paymentIntent.id} ` +
+      `${amountInCents / 100} ${bookingCurrency.toUpperCase()} ` +
+      `for booking ${booking._id}`
+    );
+  } else {
+    paymentIntent = await createPaymentIntent({
+      amount: amountInCents,
+      connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
+      bookingId: booking._id.toString(),
+      ownerId: booking.ownerId._id.toString(),
+      sitterId: providerRef.id,
+      providerType: providerRef.type,
+      currency: bookingCurrency.toLowerCase(),
+      isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
+      stripeCustomerId: ownerStripeCustomerId,
+    });
+  }
 
   booking.stripePaymentIntentId = paymentIntent.id;
   // Session v18.0 — only persist the connected account id when destination
   // charges are actually used. Otherwise leave it null so that
   // processProviderPayoutForBooking falls through to the IBAN / PayPal
   // branches at service-start time.
-  booking.petsitterConnectedAccountId = hasStripeConnect
+  booking.petsitterConnectedAccountId = (usedProvider === 'stripe' && hasStripeConnect)
     ? sitter.stripeConnectAccountId
     : null;
-  booking.paymentProvider = 'stripe';
+  booking.paymentProvider = usedProvider;
   booking.paymentStatus = 'pending';
   await booking.save();
 
@@ -1971,24 +2001,49 @@ const createBookingPaymentIntent = async (req, res) => {
       logger.warn('[createBookingPaymentIntent] Stripe Customer create/find failed, charge will not be attached', custErr?.message || custErr);
     }
 
-    const paymentIntent = await createPaymentIntent({
-      amount: amountInCents,
-      connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
-      bookingId: booking._id.toString(),
-      ownerId: booking.ownerId._id.toString(),
-      sitterId: providerRef.id,
-      providerType: providerRef.type,
-      currency: bookingCurrency.toLowerCase(),
-      isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
-      stripeCustomerId: ownerStripeCustomerId,
-    });
+    // v21 — dual-provider switch (cf. _prepareOwnerPaymentForAgreedBooking
+    // for the same pattern). Airwallex flow uses a platform-only PI ; the
+    // 80% sitter cut is released later by payoutScheduler.
+    let paymentIntent;
+    let usedProvider = 'stripe';
+    if (PAYMENT_PROVIDER === 'airwallex') {
+      paymentIntent = await airwallex.createPlatformPaymentIntent({
+        amount: amountInCents,
+        currency: bookingCurrency.toUpperCase(),
+        metadata: {
+          type: 'booking',
+          bookingId: booking._id.toString(),
+          ownerId: booking.ownerId._id.toString(),
+          sitterId: providerRef.id,
+          providerType: providerRef.type,
+        },
+      });
+      usedProvider = 'airwallex';
+      logger.info(
+        `[booking.createPaymentIntent] airwallex PI created ${paymentIntent.id} ` +
+        `${amountInCents / 100} ${bookingCurrency.toUpperCase()} ` +
+        `for booking ${booking._id}`
+      );
+    } else {
+      paymentIntent = await createPaymentIntent({
+        amount: amountInCents,
+        connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
+        bookingId: booking._id.toString(),
+        ownerId: booking.ownerId._id.toString(),
+        sitterId: providerRef.id,
+        providerType: providerRef.type,
+        currency: bookingCurrency.toLowerCase(),
+        isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
+        stripeCustomerId: ownerStripeCustomerId,
+      });
+    }
 
     // Save PaymentIntent ID and (conditionally) connected account ID.
     booking.stripePaymentIntentId = paymentIntent.id;
-    booking.petsitterConnectedAccountId = hasStripeConnect
+    booking.petsitterConnectedAccountId = (usedProvider === 'stripe' && hasStripeConnect)
       ? sitter.stripeConnectAccountId
       : null;
-    booking.paymentProvider = 'stripe';
+    booking.paymentProvider = usedProvider;
     booking.paymentStatus = 'pending';
     await booking.save();
 
