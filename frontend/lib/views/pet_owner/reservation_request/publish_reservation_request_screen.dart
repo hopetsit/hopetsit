@@ -311,12 +311,20 @@ class _PublishReservationRequestScreenState
             color: AppColors.grey700Color,
           ),
           SizedBox(height: 8.h),
+          // v21 — frame in red when the user tapped "Publish" without
+          // selecting a pet. Reactive on petSelectionError so it clears as
+          // soon as they pick one.
           Container(
             height: 50.h,
             decoration: BoxDecoration(
               color: AppColors.inputFill(context),
               borderRadius: BorderRadius.circular(30.r),
-              border: Border.all(color: AppColors.divider(context), width: 1),
+              border: Border.all(
+                color: controller.petSelectionError.value
+                    ? AppColors.errorColor
+                    : AppColors.divider(context),
+                width: controller.petSelectionError.value ? 1.5 : 1,
+              ),
             ),
             child: Row(
               children: [

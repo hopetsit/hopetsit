@@ -18,6 +18,8 @@ const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const { validateIBAN, cleanIban } = require('../utils/ibanValidator');
 const { encrypt, decrypt } = require('../utils/encryption');
+const airwallex = require('../services/airwallexService');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -63,6 +65,44 @@ router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
     }).select('-password');
 
     if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+
+    // v21 — When PAYMENT_PROVIDER=airwallex, lazy-create (or refresh) the
+    // Airwallex Beneficiary tied to this IBAN so we can later trigger
+    // automatic payouts. Best-effort : if Airwallex API is down we still
+    // return success — the next IBAN-save attempt or a daily reconciliation
+    // cron will retry.
+    const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+    if (PAYMENT_PROVIDER === 'airwallex') {
+      (async () => {
+        try {
+          // If a previous Beneficiary exists, delete it first (IBAN may have
+          // changed) so the dashboard stays clean and the provider only has
+          // ONE active beneficiary at any time.
+          if (provider.airwallexBeneficiaryId) {
+            try { await airwallex.deleteBeneficiary(provider.airwallexBeneficiaryId); }
+            catch (_) { /* tolerate 404 (already gone) */ }
+          }
+          const ben = await airwallex.createBeneficiary({
+            providerId: provider._id.toString(),
+            holderName: ibanUpdate.ibanHolder,
+            iban:       normalizedIban,
+            bic:        ibanUpdate.ibanBic,
+            currency:   'EUR',
+          });
+          if (ben && ben.id) {
+            await Model.findByIdAndUpdate(provider._id, {
+              airwallexBeneficiaryId: ben.id,
+            });
+            logger.info(
+              `[iban] airwallex beneficiary ${ben.id} created/updated for ` +
+              `${req.user.role} ${provider._id}`,
+            );
+          }
+        } catch (awxErr) {
+          logger.error('[iban] failed to sync Airwallex beneficiary', awxErr?.message || awxErr);
+        }
+      })();
+    }
 
     // v18.9.8 — l'IBAN enregistré côté sitter est aussi disponible côté
     // walker (et inversement) pour le MÊME user (matché par email), car

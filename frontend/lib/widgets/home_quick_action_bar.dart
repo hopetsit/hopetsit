@@ -1,0 +1,451 @@
+// v21 — Home Quick Action Bar.
+//
+// A self-contained, reactive notification bar that sits below the AppBar on
+// the 3 home screens (owner / sitter / walker). It is INVISIBLE by default
+// and only renders when the user has an urgent action to take :
+//
+//   OWNER  →  ① a sitter/walker just accepted their request → "Pay €X"
+//             ② a payment is pending past its deadline → "Pay now" (orange)
+//
+//   SITTER →  ① a new booking request is waiting → "Accept ✓ / Refuse ✗"
+//             ② a payment was just received → "Voir détails"
+//
+//   WALKER →  same as sitter, with green accent.
+//
+// The widget reuses the existing `BookingsController` / `SitterBookingsController`
+// / `WalkerBookingsController` — it does NOT make its own API calls, just
+// observes the existing RxList<BookingModel>. If the controller isn't
+// registered yet (rare race), it renders nothing and waits for the next frame.
+//
+// USAGE (single line) :
+//   HomeQuickActionBar(role: 'owner')
+//
+// Insert directly under the AppBar in each home screen's body, before the
+// existing scrollable content. NOTHING else needs to change.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
+import 'package:hopetsit/controllers/walker_bookings_controller.dart';
+import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/views/booking/bookings_history_screen.dart';
+import 'package:hopetsit/widgets/app_text.dart';
+
+class HomeQuickActionBar extends StatefulWidget {
+  final String role; // 'owner' | 'sitter' | 'walker'
+  const HomeQuickActionBar({super.key, required this.role});
+
+  @override
+  State<HomeQuickActionBar> createState() => _HomeQuickActionBarState();
+}
+
+class _HomeQuickActionBarState extends State<HomeQuickActionBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  // ─── Helpers ────────────────────────────────────────────────────────────
+
+  /// Read the right Rx list of bookings depending on the user role.
+  /// Returns null if the controller isn't registered yet (the bar simply
+  /// hides until the controller boots).
+  RxList<BookingModel>? _bookingsRxForRole() {
+    switch (widget.role) {
+      case 'walker':
+        return Get.isRegistered<WalkerBookingsController>()
+            ? Get.find<WalkerBookingsController>().bookings
+            : null;
+      case 'sitter':
+        return Get.isRegistered<SitterBookingsController>()
+            ? Get.find<SitterBookingsController>().bookings
+            : null;
+      case 'owner':
+      default:
+        return Get.isRegistered<BookingsController>()
+            ? Get.find<BookingsController>().bookings
+            : null;
+    }
+  }
+
+  /// Pick the most-urgent action across the booking list, or null when
+  /// nothing actionable shows up.
+  _QuickAction? _pickAction(List<BookingModel> bookings) {
+    if (bookings.isEmpty) return null;
+
+    // Priority 1 — pending payment for OWNER.
+    if (widget.role == 'owner') {
+      // First : a booking accepted by the provider but not yet paid.
+      for (final b in bookings) {
+        final status = (b.status ?? '').toLowerCase();
+        final pay    = (b.paymentStatus ?? '').toLowerCase();
+        if (pay == 'paid') continue;
+        if (status == 'accepted' || status == 'agreed' || status == 'mutually_accepted') {
+          final isWalker = (b.serviceType ?? '').toLowerCase().contains('walking');
+          return _QuickAction(
+            kind: _Kind.ownerPay,
+            color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+            icon: Icons.celebration_rounded,
+            title: '${b.sitter.name} a accepté !',
+            subtitle: '${_serviceLabel(b.serviceType)} ${b.pet.petName} — '
+                '${_dateLabel(b)}',
+            ctaLabel: 'Payer ${CurrencyHelper.format(
+              b.pricing?.currency ?? b.sitter.currency,
+              (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
+            )}',
+            booking: b,
+            pulse: false,
+          );
+        }
+      }
+      // Lower priority — payment pending warning (orange).
+      // (We don't model a deadline here, so just look for status=pending_payment.)
+      for (final b in bookings) {
+        final pay = (b.paymentStatus ?? '').toLowerCase();
+        if (pay == 'pending_payment' || pay == 'requires_payment') {
+          return _QuickAction(
+            kind: _Kind.ownerPay,
+            color: const Color(0xFFFF9800),
+            icon: Icons.timer_rounded,
+            title: 'Paiement en attente !',
+            subtitle: 'Confirme ton paiement avant l\'expiration.',
+            ctaLabel: 'Payer maintenant',
+            booking: b,
+            pulse: true,
+          );
+        }
+      }
+      return null;
+    }
+
+    // Priority 1 — a new booking request awaiting accept/refuse.
+    for (final b in bookings) {
+      final status = (b.status ?? '').toLowerCase();
+      if (status == 'pending' || status == 'requested') {
+        final isWalker = widget.role == 'walker';
+        final estimated = (b.pricing?.netAmount ?? b.pricing?.basePrice ?? 0).toDouble();
+        final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
+        return _QuickAction(
+          kind: _Kind.providerAccept,
+          color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+          icon: Icons.notifications_active_rounded,
+          title: 'Nouvelle demande !',
+          subtitle: '$ownerName • ${b.pet.petName} • ${_dateLabel(b)} → '
+              '${CurrencyHelper.format(
+                b.pricing?.currency ?? 'EUR',
+                estimated,
+              )} estimé',
+          ctaLabel: '',
+          booking: b,
+          pulse: true,
+        );
+      }
+    }
+
+    // Priority 2 — payment received → confirmation banner.
+    // Heuristic : show whenever paymentStatus = paid AND status is still
+    // 'agreed' or 'paid' (we have no per-user "seen" flag, so the bar
+    // disappears as soon as the booking moves to 'completed').
+    for (final b in bookings) {
+      final pay = (b.paymentStatus ?? '').toLowerCase();
+      final st  = (b.status ?? '').toLowerCase();
+      if (pay == 'paid' && st != 'completed') {
+        final isWalker = widget.role == 'walker';
+        final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
+        return _QuickAction(
+          kind: _Kind.providerPaid,
+          color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+          icon: Icons.check_circle_rounded,
+          title: 'Paiement reçu !',
+          subtitle: '$ownerName a payé '
+              '${CurrencyHelper.format(
+                b.pricing?.currency ?? 'EUR',
+                (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
+              )} • ${_dateLabel(b)}',
+          ctaLabel: 'Voir détails',
+          booking: b,
+          pulse: false,
+        );
+      }
+    }
+    return null;
+  }
+
+  String _serviceLabel(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final s = raw.toLowerCase();
+    if (s.contains('walking')) return 'Promenade';
+    if (s.contains('day_care')) return 'Garderie';
+    if (s.contains('boarding') || s.contains('overnight')) return 'Garde nuit';
+    if (s.contains('sitting')) return 'Pet-sitting';
+    return raw.replaceAll('_', ' ');
+  }
+
+  String _dateLabel(BookingModel b) {
+    final d = b.date;
+    if (d.isEmpty) return '';
+    return d.split('T').first;
+  }
+
+  // ─── Build ──────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final rx = _bookingsRxForRole();
+    if (rx == null) return const SizedBox.shrink();
+
+    return Obx(() {
+      final action = _pickAction(rx.toList());
+      if (action == null) return const SizedBox.shrink();
+      return _ActionBanner(
+        action: action,
+        pulse: _pulse,
+        onTap: () => _onActionTap(action),
+        onAccept: () => _onAccept(action),
+        onRefuse: () => _onRefuse(action),
+      );
+    });
+  }
+
+  // ─── Tap handlers (graceful degradation if a route is missing) ─────────
+
+  void _onActionTap(_QuickAction a) {
+    // Open the bookings history screen — the user picks the right booking
+    // from there and proceeds (Pay / Accept / Refuse / View details). This
+    // keeps the quick-action bar decoupled from the existing payment flow.
+    Get.to(() => const BookingsHistoryScreen());
+  }
+
+  void _onAccept(_QuickAction a) {
+    // Provider side accept — defer to the existing booking detail screen
+    // which already exposes Accept/Refuse logic. This keeps the widget
+    // free of API coupling.
+    _onActionTap(a);
+  }
+
+  void _onRefuse(_QuickAction a) {
+    _onActionTap(a);
+  }
+}
+
+// ─── Banner widget ──────────────────────────────────────────────────────────
+
+class _ActionBanner extends StatelessWidget {
+  final _QuickAction action;
+  final AnimationController pulse;
+  final VoidCallback onTap;
+  final VoidCallback onAccept;
+  final VoidCallback onRefuse;
+
+  const _ActionBanner({
+    required this.action,
+    required this.pulse,
+    required this.onTap,
+    required this.onAccept,
+    required this.onRefuse,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 4.h),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedBuilder(
+          animation: pulse,
+          builder: (context, _) {
+            final scale = action.pulse ? 1.0 + 0.012 * pulse.value : 1.0;
+            return Transform.scale(
+              scale: scale,
+              child: Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: action.color,
+                  borderRadius: BorderRadius.circular(12.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: action.color.withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 36.w,
+                      height: 36.w,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      child: Icon(action.icon, color: Colors.white, size: 20.sp),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          PoppinsText(
+                            text: action.title,
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                          if (action.subtitle.isNotEmpty) ...[
+                            SizedBox(height: 2.h),
+                            InterText(
+                              text: action.subtitle,
+                              fontSize: 11.5.sp,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withValues(alpha: 0.95),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    if (action.kind == _Kind.providerAccept) ...[
+                      _BannerSmallButton(
+                        label: '✓',
+                        bg: Colors.white,
+                        fg: action.color,
+                        onTap: onAccept,
+                      ),
+                      SizedBox(width: 6.w),
+                      _BannerSmallButton(
+                        label: '✗',
+                        bg: const Color(0xFFE53935),
+                        fg: Colors.white,
+                        onTap: onRefuse,
+                      ),
+                    ] else if (action.ctaLabel.isNotEmpty)
+                      _BannerCtaButton(
+                        label: action.ctaLabel,
+                        bg: Colors.white,
+                        fg: action.color,
+                        onTap: onTap,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _BannerCtaButton extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  const _BannerCtaButton({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        child: PoppinsText(
+          text: label,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+class _BannerSmallButton extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  const _BannerSmallButton({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32.w,
+        height: 32.w,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10.r),
+        ),
+        alignment: Alignment.center,
+        child: PoppinsText(
+          text: label,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w800,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Internal action descriptor ─────────────────────────────────────────────
+
+enum _Kind { ownerPay, providerAccept, providerPaid }
+
+class _QuickAction {
+  final _Kind kind;
+  final Color color;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String ctaLabel;
+  final BookingModel booking;
+  final bool pulse;
+  const _QuickAction({
+    required this.kind,
+    required this.color,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.ctaLabel,
+    required this.booking,
+    required this.pulse,
+  });
+}
+

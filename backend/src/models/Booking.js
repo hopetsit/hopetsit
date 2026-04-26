@@ -73,6 +73,13 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // v21 — Airwallex Payout id created by payoutScheduler when releasing
+    // the sitter's 80% cut after a successful booking. Used by admin to
+    // track payout status and by the reconciliation cron.
+    airwallexPayoutId: {
+      type: String,
+      default: null,
+    },
     // PayPal payment information
     paypalOrderId: {
       type: String,

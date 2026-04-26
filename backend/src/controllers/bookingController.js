@@ -859,6 +859,53 @@ const processProviderPayoutForBooking = async (booking) => {
         ibanNumber.length >= 8
           ? ibanNumber.slice(0, 4) + '****' + ibanNumber.slice(-4)
           : ibanNumber;
+
+      // v21 — Automatic Airwallex Payout. When the provider has an
+      // airwallexBeneficiaryId tied to this IBAN AND PAYMENT_PROVIDER is
+      // airwallex, we trigger a SEPA payout via /payouts/create instead of
+      // queueing a manual transfer. Falls back to manual queue if anything
+      // throws so a failed payout can still be reconciled by admin.
+      const useAirwallexPayout =
+        (PAYMENT_PROVIDER === 'airwallex')
+        && !!sitter.airwallexBeneficiaryId
+        && String(sitter.airwallexBeneficiaryId).trim().length > 0;
+
+      if (useAirwallexPayout) {
+        try {
+          const payoutAmountCents = Math.round(Number(netPayout) * 100);
+          const payout = await airwallex.createPayout({
+            beneficiaryId: sitter.airwallexBeneficiaryId,
+            amount: payoutAmountCents,
+            currency: (currency || 'EUR').toUpperCase(),
+            reference: `HoPetSit ${(booking._id.toString()).slice(-8)}`,
+            metadata: {
+              type: 'booking_payout',
+              bookingId: booking._id.toString(),
+              providerId: sitter._id.toString(),
+              providerRole: provider.type,
+            },
+          });
+          booking.payoutMethod = 'iban';
+          booking.payoutStatus = 'processing';
+          booking.airwallexPayoutId = payout?.id || '';
+          booking.payoutError = null;
+          await booking.save();
+          logger.info(
+            `🚀 Airwallex payout created for booking=${booking._id.toString()} ` +
+            `provider=${provider.type}:${sitter._id} amount=${netPayout} ${currency} ` +
+            `payoutId=${payout?.id || '?'}`,
+          );
+          return;
+        } catch (awxErr) {
+          logger.error(
+            `❌ Airwallex payout failed (falling back to manual transfer queue) ` +
+            `booking=${booking._id.toString()} : ${awxErr?.message || awxErr}`,
+          );
+          // Fall through to the manual-transfer queue below.
+        }
+      }
+
+      // Stripe-era / fallback : queue for manual SEPA transfer by admin.
       booking.payoutStatus = 'pending_manual_transfer';
       booking.payoutMethod = 'iban';
       booking.manualPayoutDetails = {

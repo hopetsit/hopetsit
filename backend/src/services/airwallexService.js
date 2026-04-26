@@ -373,26 +373,139 @@ function constructWebhookEvent(rawBody, headers) {
   return event;
 }
 
-// ─── TODO: Marketplace / Connect equivalent (next session) ──────────────────
+// ─── Beneficiaries (= sitter/walker IBAN destinations) ─────────────────────
 //
-// To replace Stripe Connect with Airwallex Beneficiaries:
-//   - createBeneficiary({ sitterId, name, iban, country, currency })
-//   - getBeneficiary(beneficiaryId)
-//   - createPayout({ beneficiaryId, amount, currency, reference })
-//   - listPayouts({ beneficiaryId, fromDate, toDate })
-//
-// Endpoints:
-//   POST /api/v1/beneficiaries/create
-//   GET  /api/v1/beneficiaries/{id}
-//   POST /api/v1/payouts/create
-//   GET  /api/v1/payouts
-//
-// Flow:
-//   1. On booking.payment_intent.succeeded webhook:
-//      → fetch sitter's beneficiaryId (lazy-create if missing)
-//      → call createPayout for (amount × 0.8)
-//      → mark booking as paid & sitter as paid_out
-//   2. Daily reconciliation cron checks pending payouts.
+// Replaces Stripe Connect destination accounts. Each provider (sitter or
+// walker) gets ONE Beneficiary record on Airwallex tied to their IBAN.
+// We lazy-create it the first time they save their IBAN, store the returned
+// beneficiary_id on the Mongo Sitter/Walker document, then reuse it for
+// every subsequent payout.
+
+/**
+ * Create a Beneficiary on Airwallex tied to the provider's IBAN.
+ *
+ * @param {Object} params
+ * @param {string} params.providerId — Mongo _id of the sitter/walker
+ *                                     (used as `nickname` for traceability).
+ * @param {string} params.holderName — IBAN account holder name.
+ * @param {string} params.iban       — Full IBAN, no spaces.
+ * @param {string} [params.bic]      — BIC/SWIFT (optional but recommended).
+ * @param {string} [params.currency] — ISO 4217, defaults to 'EUR'.
+ * @param {string} [params.bankCountryCode] — ISO-2, defaults to first 2 chars of IBAN.
+ * @returns {Promise<Object>} the Airwallex beneficiary object incl. `id`.
+ */
+async function createBeneficiary({
+  providerId,
+  holderName,
+  iban,
+  bic,
+  currency = 'EUR',
+  bankCountryCode,
+}) {
+  if (!providerId) throw new Error('providerId is required');
+  if (!holderName) throw new Error('holderName is required');
+  if (!iban)       throw new Error('iban is required');
+
+  const cleanIban = iban.replace(/\s+/g, '').toUpperCase();
+  const country   = (bankCountryCode || cleanIban.slice(0, 2)).toUpperCase();
+
+  return awxFetch('/api/v1/beneficiaries/create', {
+    method: 'POST',
+    body: {
+      request_id: genRequestId('benef'),
+      nickname: `provider_${providerId}`,
+      transfer_methods: ['LOCAL'],
+      beneficiary: {
+        type: 'INDIVIDUAL',
+        entity_type: 'PERSONAL',
+        bank_details: {
+          account_currency: currency.toUpperCase(),
+          account_name: holderName.trim(),
+          account_number: cleanIban,
+          bank_country_code: country,
+          ...(bic ? { swift_code: bic.replace(/\s+/g, '').toUpperCase() } : {}),
+        },
+        first_name: holderName.split(' ')[0] || holderName,
+        last_name:  holderName.split(' ').slice(1).join(' ') || holderName,
+      },
+      payment_methods: ['LOCAL'],
+    },
+  });
+}
+
+/**
+ * Retrieve a Beneficiary by ID.
+ * @param {string} id — Airwallex beneficiary id
+ */
+async function getBeneficiary(id) {
+  if (!id) throw new Error('beneficiary id is required');
+  return awxFetch(`/api/v1/beneficiaries/${encodeURIComponent(id)}`);
+}
+
+/**
+ * Delete a Beneficiary (e.g. when provider changes their IBAN — we delete
+ * the old one before creating a new one to keep the dashboard clean).
+ * @param {string} id
+ */
+async function deleteBeneficiary(id) {
+  if (!id) throw new Error('beneficiary id is required');
+  return awxFetch(`/api/v1/beneficiaries/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ─── Payouts (= release of sitter cut after a successful booking) ──────────
+
+/**
+ * Initiate a Payout from the HoPetSit Airwallex wallet to a Beneficiary.
+ *
+ * Used after a booking PaymentIntent succeeds : the platform keeps 20%
+ * commission on its wallet, and 80% goes back to the sitter via a Local
+ * (SEPA) payout to their IBAN.
+ *
+ * @param {Object} params
+ * @param {string} params.beneficiaryId — Airwallex beneficiary id
+ * @param {number} params.amount        — in CENTS (minor units), like Stripe
+ * @param {string} params.currency      — ISO 4217, e.g. 'EUR'
+ * @param {string} [params.reference]   — appears on the recipient's bank
+ *                                        statement (max 35 chars).
+ * @param {Object} [params.metadata]    — bookingId, sitterId, …
+ * @returns {Promise<Object>}
+ */
+async function createPayout({ beneficiaryId, amount, currency, reference, metadata = {} }) {
+  if (!beneficiaryId) throw new Error('beneficiaryId is required');
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Amount must be a positive integer in cents');
+  }
+
+  const awxMetadata = {};
+  for (const [k, v] of Object.entries(metadata || {})) {
+    if (v !== undefined && v !== null) awxMetadata[k] = String(v);
+  }
+
+  return awxFetch('/api/v1/payouts/create', {
+    method: 'POST',
+    body: {
+      request_id: genRequestId('payout'),
+      beneficiary_id: beneficiaryId,
+      amount: centsToMajor(amount),
+      source_currency: currency.toUpperCase(),
+      payment_currency: currency.toUpperCase(),
+      reason: 'service_charges',
+      reference: (reference || 'HoPetSit booking payout').slice(0, 35),
+      metadata: awxMetadata,
+    },
+  });
+}
+
+/**
+ * Retrieve a Payout by ID — used by the reconciliation cron to confirm
+ * actual settlement before flagging the booking `paid_out=true`.
+ */
+async function retrievePayout(id) {
+  if (!id) throw new Error('payout id is required');
+  return awxFetch(`/api/v1/payouts/${encodeURIComponent(id)}`);
+}
 
 module.exports = {
   // Auth (exposed for debugging)
@@ -410,6 +523,13 @@ module.exports = {
   detachPaymentMethod,
   // Webhooks
   constructWebhookEvent,
+  // Beneficiaries (provider IBAN destinations) — v21
+  createBeneficiary,
+  getBeneficiary,
+  deleteBeneficiary,
+  // Payouts (sitter/walker payouts) — v21
+  createPayout,
+  retrievePayout,
   // Constants
   PLATFORM_COMMISSION_RATE,
 };

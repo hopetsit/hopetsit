@@ -30,14 +30,14 @@ class BoostProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // v19.1.5 — 3 tuiles compactes, labels courts et LISIBLES (plus de texte
     // tronqué). Layout vertical : icône en haut, label unique en dessous.
-    // Couleurs fixes : Boost=orange, Premium=vert, MapBoost=bleu.
+    // Couleurs fixes : Boost=red #E8472A, PawPass=gold #F5A623, PawSpot=blue #2196F3.
     return SizedBox(
       height: 86.h,
       child: Row(
         children: [
           Expanded(
             child: _BoostChip(
-              accent: const Color(0xFFEF4324),
+              accent: const Color(0xFFE8472A),
               icon: Icons.rocket_launch_rounded,
               label: 'shop_tile_boost'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
@@ -46,8 +46,8 @@ class BoostProfileCard extends StatelessWidget {
           SizedBox(width: 10.w),
           Expanded(
             child: _BoostChip(
-              accent: const Color(0xFF16A34A),
-              icon: Icons.workspace_premium_rounded,
+              accent: const Color(0xFFF5A623),
+              icon: Icons.star_rounded,
               label: 'shop_tile_premium'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),
             ),
@@ -55,8 +55,8 @@ class BoostProfileCard extends StatelessWidget {
           SizedBox(width: 10.w),
           Expanded(
             child: _BoostChip(
-              accent: const Color(0xFF2563EB),
-              icon: Icons.push_pin_rounded,
+              accent: const Color(0xFF2196F3),
+              icon: Icons.location_on_rounded,
               label: 'shop_tile_map_boost'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
             ),

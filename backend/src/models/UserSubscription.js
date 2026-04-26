@@ -13,11 +13,17 @@ function loadPricingService() {
 }
 
 /**
- * UserSubscription — Tracks Premium subscription for Owners / Sitters / Walkers.
+ * UserSubscription — Tracks PawPass subscription for Owners / Sitters / Walkers,
+ * and PawFollow subscriptions for tracking features.
  *
  * Pricing (Phase 1) — multi-currency:
- *   monthly : €3.90 / £3.29 / CHF 3.90 / $4.29  (30-day interval)
- *   yearly  : €30.00 / £24.99 / CHF 29.99 / $32.99  (365-day interval, ~35% off)
+ *   PawPass monthly : €6.99 / £5.89 / CHF 6.99 / $7.69  (30-day interval)
+ *   PawPass yearly  : €49.99 / £42.19 / CHF 49.99 / $54.99  (365-day interval)
+ *
+ *   Chat add-on     : €2.99 / £2.59 / CHF 2.99 / $3.29 (monthly, free with booking)
+ *
+ *   PawFollow Solo  : €6.99 / £5.89 / CHF 6.99 / $7.69 (monthly)
+ *   PawFollow Family: €9.99 / £8.49 / CHF 9.99 / $10.99 (monthly, POPULAIRE badge)
  *
  * Payment model:
  *   Phase 1 uses one-time PaymentIntents that extend `currentPeriodEnd` by the
@@ -31,15 +37,53 @@ function loadPricingService() {
  * frontend can gate UI without hitting the pricing config on every screen.
  */
 const PREMIUM_PLAN_INTERVALS = {
-  monthly: { intervalDays: 30, label: 'Premium Mensuel' },
-  yearly: { intervalDays: 365, label: 'Premium Annuel' },
+  monthly: { intervalDays: 30, label: 'PawPass Mensuel' },
+  yearly: { intervalDays: 365, label: 'PawPass Annuel' },
 };
 
 const PREMIUM_PRICING = {
-  EUR: { monthly: 3.90, yearly: 30.00 },
-  GBP: { monthly: 3.29, yearly: 24.99 },
-  CHF: { monthly: 3.90, yearly: 29.99 },
-  USD: { monthly: 4.29, yearly: 32.99 },
+  EUR: { monthly: 6.99, yearly: 49.99 },
+  GBP: { monthly: 5.89, yearly: 42.19 },
+  CHF: { monthly: 6.99, yearly: 49.99 },
+  USD: { monthly: 7.69, yearly: 54.99 },
+};
+
+const PAWFOLLOW_PLAN_INTERVALS = {
+  solo: { intervalDays: 30, label: 'PawFollow Solo' },
+  famille: { intervalDays: 30, label: 'PawFollow Famille' },
+};
+
+const PAWFOLLOW_PRICING = {
+  EUR: { solo: 6.99, famille: 9.99 },
+  GBP: { solo: 5.89, famille: 8.49 },
+  CHF: { solo: 6.99, famille: 9.99 },
+  USD: { solo: 7.69, famille: 10.99 },
+};
+
+const PAWFOLLOW_FEATURES = {
+  solo: {
+    slug: 'pawfollow_solo',
+    name: 'PawFollow Solo',
+    badge: null,
+    features: [
+      'live position 10s',
+      'history journey',
+      'safety zone alert',
+      'direct chat walker/sitter',
+    ],
+  },
+  famille: {
+    slug: 'pawfollow_family',
+    name: 'PawFollow Famille',
+    badge: 'POPULAIRE',
+    features: [
+      'all PawFollow Solo',
+      '5 family members tracking',
+      'see who walks the pet',
+      'shared real-time notifications',
+      'family group chat with walker/sitter',
+    ],
+  },
 };
 
 /** Returns { amount, currency, intervalDays, label } for a (plan, currency) pair.
@@ -68,6 +112,27 @@ function getPlanPricing(plan, currency = 'EUR') {
   };
 }
 
+function getPawFollowPricing(plan, currency = 'EUR') {
+  const interval = PAWFOLLOW_PLAN_INTERVALS[plan];
+  if (!interval) return null;
+  const upper = String(currency || 'EUR').toUpperCase();
+  const svc = loadPricingService();
+  const servicePricing = svc && svc.get ? svc.get('pawfollow') || {} : {};
+  const currencyRow =
+    servicePricing[upper] ||
+    servicePricing.EUR ||
+    PAWFOLLOW_PRICING[upper] ||
+    PAWFOLLOW_PRICING.EUR;
+  return {
+    amount: currencyRow[plan],
+    currency:
+      servicePricing[upper] || PAWFOLLOW_PRICING[upper] ? upper : 'EUR',
+    intervalDays: interval.intervalDays,
+    label: interval.label,
+    ...PAWFOLLOW_FEATURES[plan],
+  };
+}
+
 /** Legacy export kept for any caller that imports PREMIUM_PLANS — uses EUR. */
 const PREMIUM_PLANS = {
   monthly: getPlanPricing('monthly', 'EUR'),
@@ -78,16 +143,16 @@ const PREMIUM_FEATURES_DEFAULT = {
   // Couche 1 — always true for everyone (free tier shows it too)
   mapPoiVisible: true,
 
-  // Couche 2 — reports (Premium only)
+  // Couche 2 — reports (PawPass only)
   mapReportsVisible: true,
   mapReportsCreate: true,
 
-  // Couche 3 — social (Premium only)
+  // Couche 3 — social (PawPass only)
   socialFriendsMap: true,
   socialChat: true,
   socialProximityAlerts: true,
 
-  // Couche 4 — one free map-boost per month
+  // Couche 4 — one free PawSpot per month
   mapBoostMonthlyCredit: 1,
 };
 
@@ -106,11 +171,17 @@ const userSubscriptionSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Plan type: pawpass (formerly premium), pawfollow, or none
     plan: {
       type: String,
-      enum: ['none', 'monthly', 'yearly'],
+      enum: ['none', 'monthly', 'yearly', 'solo', 'famille'],
       default: 'none',
       index: true,
+    },
+    planType: {
+      type: String,
+      enum: ['pawpass', 'pawfollow', 'chat'],
+      default: 'pawpass',
     },
     status: {
       type: String,
@@ -135,7 +206,7 @@ const userSubscriptionSchema = new mongoose.Schema(
     // Payment history (similar to boostPurchases on User models)
     payments: [
       {
-        plan: { type: String, enum: ['monthly', 'yearly'] },
+        plan: { type: String, enum: ['monthly', 'yearly', 'solo', 'famille'] },
         amount: Number,
         currency: { type: String, default: 'EUR' },
         paidAt: { type: Date, default: Date.now },
@@ -152,7 +223,7 @@ const userSubscriptionSchema = new mongoose.Schema(
       default: () => ({ ...PREMIUM_FEATURES_DEFAULT }),
     },
 
-    // Map boost monthly credit ledger
+    // PawSpot monthly credit ledger
     mapBoostCreditsRemaining: { type: Number, default: 0, min: 0 },
     mapBoostCreditsResetAt: { type: Date, default: null },
   },
@@ -179,3 +250,7 @@ module.exports.PREMIUM_PLAN_INTERVALS = PREMIUM_PLAN_INTERVALS;
 module.exports.PREMIUM_PRICING = PREMIUM_PRICING;
 module.exports.PREMIUM_FEATURES_DEFAULT = PREMIUM_FEATURES_DEFAULT;
 module.exports.getPlanPricing = getPlanPricing;
+module.exports.PAWFOLLOW_PLAN_INTERVALS = PAWFOLLOW_PLAN_INTERVALS;
+module.exports.PAWFOLLOW_PRICING = PAWFOLLOW_PRICING;
+module.exports.PAWFOLLOW_FEATURES = PAWFOLLOW_FEATURES;
+module.exports.getPawFollowPricing = getPawFollowPricing;

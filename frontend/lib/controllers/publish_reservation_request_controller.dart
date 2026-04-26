@@ -51,6 +51,10 @@ class PublishReservationRequestController extends GetxController {
   final RxList<PetModel> myPets = <PetModel>[].obs;
   final RxBool isPetsLoading = false.obs;
   final RxnString selectedPetId = RxnString();
+  // v21 — Visual highlight flag : when the user taps "Publish" without
+  // having picked a pet, we set this true so the pet selector frames in
+  // red. Reset to false the moment they pick one.
+  final RxBool petSelectionError = false.obs;
 
   final RxBool isGettingLocation = false.obs;
   final RxString detectedCity = ''.obs;
@@ -185,6 +189,8 @@ class PublishReservationRequestController extends GetxController {
 
   void selectPet(String petId) {
     selectedPetId.value = petId;
+    // v21 — clear the highlight as soon as the user complies.
+    petSelectionError.value = false;
   }
 
   void selectServiceType(String? value) {
@@ -325,11 +331,17 @@ class PublishReservationRequestController extends GetxController {
 
   Future<void> submit() async {
     final isValid = formKey.currentState?.validate() ?? false;
+    // v21 — flag the pet selector specifically if it's the missing field,
+    // so the user sees a red border instead of just a generic snackbar.
+    final missingPet = selectedPetId.value == null || selectedPetId.value!.isEmpty;
+    if (missingPet) petSelectionError.value = true;
     if (!isValid || !isFormComplete || isSubmitting.value) {
       if (!isValid || !isFormComplete) {
         CustomSnackbar.showWarning(
           title: 'send_request_validation_error_title'.tr,
-          message: 'publish_request_fill_required'.tr,
+          message: missingPet
+              ? 'publish_request_pet_required'.tr
+              : 'publish_request_fill_required'.tr,
         );
       }
       return;

@@ -92,6 +92,15 @@ app.use(cors({
 // Stripe webhook route must use raw body (register before JSON middleware)
 app.use('/webhooks', stripeWebhookRoutes);
 
+// v21 — Airwallex webhook. Same pattern as Stripe : raw body required so the
+// HMAC signature can be verified against the exact bytes Airwallex signed.
+const { handleAirwallexWebhook } = require('./controllers/airwallexWebhookController');
+app.post(
+  '/webhooks/airwallex',
+  express.raw({ type: 'application/json' }),
+  handleAirwallexWebhook,
+);
+
 // Session v3.3 — Stripe Identity webhook. Must also receive the raw body
 // so the signature can be verified. Scoped to just the /webhook endpoint
 // so the /session POST keeps working with regular JSON.

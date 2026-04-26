@@ -29,6 +29,7 @@ import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_segmented_control.dart';
 import 'package:hopetsit/widgets/expandable_post_input.dart';
+import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:share_plus/share_plus.dart';
@@ -820,6 +821,9 @@ class _HomeScreenState extends State<HomeScreen> {
         body: SafeArea(
           child: Column(
             children: [
+              // v21 — Quick action bar (only renders when an urgent action
+              // is pending : payment due, booking accepted, etc.).
+              const HomeQuickActionBar(role: 'owner'),
               Flexible(flex: 0, child: const ExpandablePostInput()),
               SizedBox(height: 12.h),
 

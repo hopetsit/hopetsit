@@ -220,6 +220,9 @@ const walkerSchema = new mongoose.Schema(
     ibanNumber: { type: String, default: '' },
     ibanBic: { type: String, default: '' },
     ibanVerified: { type: Boolean, default: false },
+    // v21 — Airwallex Beneficiary tied to this IBAN. Created on first IBAN
+    // save when PAYMENT_PROVIDER=airwallex ; reused for every payout.
+    airwallexBeneficiaryId: { type: String, default: '' },
     payoutMethod: {
       type: String,
       enum: ['stripe', 'paypal', 'iban'],

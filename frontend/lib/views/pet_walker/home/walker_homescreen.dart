@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
+import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 
 /// Walker home screen — Phase-1 placeholder.
 /// Presents a welcome state until the walker-specific widgets (today's walks,
@@ -37,6 +38,9 @@ class WalkerHomescreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // v21 — Quick action bar (renders only when urgent action
+              // pending : new request, payment received…).
+              const HomeQuickActionBar(role: 'walker'),
               SizedBox(height: 24.h),
               // Welcome card with green accent.
               Container(

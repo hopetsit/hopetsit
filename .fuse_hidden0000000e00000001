@@ -640,7 +640,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <option value="">All Products</option>
             <option value="profile_boost">🚀 Profile Boost</option>
             <option value="map_boost">🗺️ PawSpot</option>
-            <option value="premium">⭐ PawPass</option>
+            <option value="premium">⭐ Premium</option>
             <option value="chat_addon">💬 Chat add-on</option>
           </select>
           <select class="filter-select" id="boost-tier-filter" onchange="loadBoosts()">
@@ -975,7 +975,7 @@ async function loadPlatformStats() {
       <div class="stat-card">👥 Users: <strong>${s.totalUsers}</strong> (${s.totalOwners} owners + ${s.totalSitters} sitters)</div>
       <div class="stat-card">📅 Bookings completed: <strong>${s.totalBookingsCompleted}</strong> / ${s.totalBookings}</div>
       <div class="stat-card">💰 Platform revenue: <strong>${Number(s.platformRevenue).toFixed(2)}</strong></div>
-      <div class="stat-card">👑 PawPass owners: <strong>${s.premiumCount}</strong></div>
+      <div class="stat-card">👑 Premium owners: <strong>${s.premiumCount}</strong></div>
       <div class="stat-card">🏆 Top sitters: <strong>${s.topSitterCount}</strong></div>
     `;
   } catch (e) {
@@ -1596,7 +1596,7 @@ let _pricingState = null;          // current server snapshot + local edits
 const PRICING_CATS = [
   { key: 'boost',    label: '🚀 Boost',     tiers: ['bronze','silver','gold','platinum'] },
   { key: 'mapBoost', label: '🗺️ PawSpot', tiers: ['bronze','silver','gold','platinum'] },
-  { key: 'premium',  label: '⭐ PawPass',    tiers: ['monthly','yearly'] },
+  { key: 'premium',  label: '⭐ Premium',    tiers: ['monthly','yearly'] },
   // Session v3.2 — cheap chat add-on to unlock chat between friends.
   { key: 'chat',     label: '💬 Chat add-on', tiers: ['monthly'] },
 ];
@@ -1617,8 +1617,8 @@ function tierLabel(catKey, tier) {
     'mapBoost.silver':   '🔆 Visible',
     'mapBoost.gold':     '✨ Pin Doré',
     'mapBoost.platinum': '🗺️ PawSpot Premium',
-    'premium.monthly':   '📆 Mensuel PawPass',
-    'premium.yearly':    '📅 Annuel PawPass',
+    'premium.monthly':   '📆 Mensuel',
+    'premium.yearly':    '📅 Annuel',
     'chat.monthly':      '💬 Mensuel',
   };
   const key = `${catKey}.${tier}`;
@@ -2729,7 +2729,7 @@ const TIER_COLORS = {
 const PRODUCT_LABELS = {
   profile_boost: '🚀 Profile Boost',
   map_boost: '🗺️ PawSpot',
-  premium: '⭐ PawPass',
+  premium: '⭐ Premium',
   chat_addon: '💬 Chat add-on',
 };
 const PRODUCT_COLORS = {

@@ -96,6 +96,20 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
     if (_addingCard) return;
     setState(() => _addingCard = true);
     try {
+      // v21.1 — Stripe SetupIntent flow disabled : Stripe account is
+      // closed and we haven't migrated to Airwallex PaymentConsent yet
+      // (queued for v22). With Airwallex Hosted Payment Page, the card
+      // is automatically saved on the customer profile at the FIRST real
+      // payment (donation / boost / booking), so a separate "Add card"
+      // step is unnecessary. Show a friendly notice instead of the
+      // 500 ApiException the user was getting.
+      CustomSnackbar.showWarning(
+        title: 'common_info'.tr,
+        message:
+            'Tes cartes sont enregistrées automatiquement lors du premier paiement. Plus besoin de les ajouter manuellement !',
+      );
+      return;
+      // ignore: dead_code
       final setup = await _repo.createOwnerSetupIntent();
       final clientSecret = setup['clientSecret']?.toString();
       if (clientSecret == null || clientSecret.isEmpty) {

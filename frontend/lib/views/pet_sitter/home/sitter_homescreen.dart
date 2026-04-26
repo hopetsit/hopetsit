@@ -24,6 +24,7 @@ import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dia
 import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
+import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // Comments removed from publications
 import 'package:hopetsit/widgets/rounded_text_button.dart';
@@ -699,6 +700,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               padding: EdgeInsets.all(16.w),
               child: Column(
                 children: [
+                  // v21 — Quick action bar (renders only when an urgent
+                  // action is pending : new request, payment received…).
+                  const HomeQuickActionBar(role: 'sitter'),
                   Obx(() {
                     // Session v15-6 — the Sitter/Walker feed is now driven by
                     // `reservationRequests` which comes from /posts/requests

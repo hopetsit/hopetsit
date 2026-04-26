@@ -451,8 +451,11 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w400,
                     color: AppColors.primaryColor,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    // v21 — bumped from 2 → 4 maxLines + visible overflow so
+                    // longer translations (FR/DE/IT especially) aren't cut
+                    // mid-sentence with an ellipsis.
+                    maxLines: 4,
+                    overflow: TextOverflow.visible,
                   ),
                 ),
               ],
