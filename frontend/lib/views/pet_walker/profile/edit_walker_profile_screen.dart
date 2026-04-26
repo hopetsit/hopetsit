@@ -30,7 +30,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.primaryColor),
+        iconTheme: IconThemeData(color: AppColors.walkerAccent),
         leading: const BackButton(),
         title: PoppinsText(
           text: 'edit_profile_title'.tr,
@@ -44,7 +44,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
           return const Center(
             child: CircularProgressIndicator(
               valueColor:
-                  AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                  AlwaysStoppedAnimation<Color>(AppColors.walkerAccent),
             ),
           );
         }
@@ -102,7 +102,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                                           strokeWidth: 2,
                                           valueColor:
                                               AlwaysStoppedAnimation<Color>(
-                                            AppColors.primaryColor,
+                                            AppColors.walkerAccent,
                                           ),
                                         ),
                                       )
@@ -497,7 +497,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                         suffixStyle: TextStyle(
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primaryColor,
+                          color: AppColors.walkerAccent,
                         ),
                         filled: true,
                         fillColor: AppColors.inputFill(context),
@@ -553,7 +553,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                         suffixStyle: TextStyle(
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primaryColor,
+                          color: AppColors.walkerAccent,
                         ),
                         filled: true,
                         fillColor: AppColors.inputFill(context),
@@ -596,7 +596,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                           ),
                         ),
                         value: controller.pickupAtOwner.value,
-                        activeThumbColor: AppColors.primaryColor,
+                        activeThumbColor: AppColors.walkerAccent,
                         contentPadding: EdgeInsets.zero,
                         onChanged: (v) =>
                             controller.pickupAtOwner.value = v,
@@ -615,7 +615,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                             ? null
                             : () => controller
                                 .handleUpdateProfileWithNavigation(),
-                        bgColor: AppColors.primaryColor,
+                        bgColor: AppColors.walkerAccent,
                         textColor: AppColors.whiteColor,
                         height: 48.h,
                         radius: 48.r,

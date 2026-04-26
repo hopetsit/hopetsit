@@ -6,8 +6,10 @@ import 'package:hopetsit/controllers/chat_addon_controller.dart';
 import 'package:hopetsit/controllers/map_boost_controller.dart';
 import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/boost/widgets/map_boost_pin_icon.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -248,15 +250,10 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
 
       final clientSecret = map['clientSecret'] as String?;
       final paymentIntentId = map['paymentIntentId'] as String?;
+      final provider = (map['provider']?.toString() ?? 'stripe').toLowerCase();
 
       if (clientSecret == null || clientSecret.isEmpty) {
         throw Exception('Failed to create payment intent.');
-      }
-
-      final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
-      if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
-        Stripe.publishableKey = pk;
-        await Stripe.instance.applySettings();
       }
 
       // In-app card screen replaces the native PaymentSheet that was
@@ -269,6 +266,59 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       final displayAmount =
           ((pkgMap['amount'] as num?) ?? 0).toDouble();
       final days = (pkgMap['days'] as num?)?.toInt();
+
+      // ─── Branche Airwallex (v20.1) ──────────────────────────────────────
+      if (provider == 'airwallex') {
+        AppLogger.logInfo('[boost] using AIRWALLEX flow ($displayAmount $currency)');
+        final result = await AirwallexPaymentService.confirmPaymentIntent(
+          intentId: paymentIntentId ?? '',
+          clientSecret: clientSecret,
+          amount: displayAmount,
+          currency: currency,
+        );
+        if (!mounted) {
+          setState(() {
+            _purchasing = false;
+            _selectedTier = null;
+          });
+          return;
+        }
+        if (result.isSuccess) {
+          await api.post(
+            '/boost/confirm',
+            body: {
+              'tier': tier,
+              'paymentIntentId': paymentIntentId,
+              'currency': currency,
+            },
+            requiresAuth: true,
+          );
+          CustomSnackbar.showSuccess(
+            title: 'boost_purchase_success_title'.tr,
+            message: 'boost_purchase_success_msg'.tr,
+          );
+          await _loadBoostStatus();
+        } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: result.errorMessage ?? 'boost_purchase_error'.tr,
+          );
+        }
+        setState(() {
+          _purchasing = false;
+          _selectedTier = null;
+        });
+        return;
+      }
+
+      // ─── Branche Stripe (défaut) ────────────────────────────────────────
+      AppLogger.logInfo('[boost] using STRIPE flow ($displayAmount $currency)');
+
+      final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
+      if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
+        Stripe.publishableKey = pk;
+        await Stripe.instance.applySettings();
+      }
 
       // v18.9 — récupère les saved cards pour proposer un paiement direct
       // sans re-saisie à chaque achat de boost.

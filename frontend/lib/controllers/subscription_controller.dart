@@ -4,7 +4,9 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 
 /// Single plan description as returned by GET /subscriptions/plans.
@@ -193,9 +195,46 @@ class SubscriptionController extends GetxController {
 
       final clientSecret = piData['clientSecret'] as String?;
       final paymentIntentId = piData['paymentIntentId'] as String?;
+      final provider = (piData['provider']?.toString() ?? 'stripe').toLowerCase();
       if (clientSecret == null || clientSecret.isEmpty) {
         throw Exception('Failed to create subscription payment intent.');
       }
+
+      // 3. Resolve display amount for the chosen plan+currency.
+      final planRow = plans.firstWhereOrNull((p) => p.plan == plan);
+      final displayAmount = planRow?.amount ?? 0;
+
+      // ─── Branche Airwallex (v20.1) ──────────────────────────────────────
+      if (provider == 'airwallex') {
+        AppLogger.logInfo('[subscription] using AIRWALLEX flow ($displayAmount $currency)');
+        final result = await AirwallexPaymentService.confirmPaymentIntent(
+          intentId: paymentIntentId ?? '',
+          clientSecret: clientSecret,
+          amount: displayAmount,
+          currency: currency.value,
+        );
+        if (result.isSuccess) {
+          await api.post(
+            '/subscriptions/confirm',
+            body: {
+              'plan': plan,
+              'paymentIntentId': paymentIntentId,
+              'currency': currency.value,
+            },
+            requiresAuth: true,
+          );
+          await loadStatus();
+          return true;
+        } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+          AppLogger.logError('[subscription] Airwallex failed', error: result.errorMessage);
+          return false;
+        }
+        // outcome == cancelled → silent (user closed the sheet on purpose).
+        return false;
+      }
+
+      // ─── Branche Stripe (défaut) ────────────────────────────────────────
+      AppLogger.logInfo('[subscription] using STRIPE flow ($displayAmount $currency)');
 
       // 2. Ensure Stripe publishable key is set (defensive — main.dart
       //    already inits at boot but we keep this as a fallback).
@@ -204,10 +243,6 @@ class SubscriptionController extends GetxController {
         Stripe.publishableKey = pk;
         await Stripe.instance.applySettings();
       }
-
-      // 3. Resolve display amount for the chosen plan+currency.
-      final planRow = plans.firstWhereOrNull((p) => p.plan == plan);
-      final displayAmount = planRow?.amount ?? 0;
 
       // v18.9.8 — charge les saved cards (endpoint role-aware : owner /
       // sitter / walker) pour permettre paiement direct sans ressaisie.

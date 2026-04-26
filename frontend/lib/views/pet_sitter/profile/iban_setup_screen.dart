@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -28,6 +30,18 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
   bool _isSaved = false;
   String _maskedIban = '';
   bool _ibanVerified = false;
+
+  /// v21 — Role-aware accent color. Reads the user role from GetStorage so
+  /// the IBAN screen feels native to walker (green) AND sitter (blue) AND
+  /// owner (orange — even though IBAN isn't normally for owners, we keep
+  /// it defensive). Falls back to primaryColor (orange) if role is unknown.
+  Color get _accent {
+    final role =
+        (GetStorage().read(StorageKeys.userRole) ?? '').toString().toLowerCase();
+    if (role == 'walker') return AppColors.walkerAccent;
+    if (role == 'sitter') return AppColors.sitterAccent;
+    return _accent;
+  }
 
   @override
   void initState() {
@@ -141,20 +155,20 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
               Container(
                 padding: EdgeInsets.all(16.w),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.08),
+                  color: _accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.3)),
+                  border: Border.all(color: _accent.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: AppColors.primaryColor, size: 20.sp),
+                    Icon(Icons.info_outline, color: _accent, size: 20.sp),
                     SizedBox(width: 10.w),
                     Expanded(
                       child: InterText(
                         text: 'iban_info_message'.tr,
                         fontSize: 13.sp,
-                        color: AppColors.primaryColor,
+                        color: _accent,
                         maxLines: 5,
                       ),
                     ),
@@ -262,7 +276,7 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
                 height: 52.h,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
+                    backgroundColor: _accent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14.r),
                     ),
@@ -335,7 +349,7 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: AppColors.primaryColor, width: 1.5),
+        borderSide: BorderSide(color: _accent, width: 1.5),
       ),
       contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
     );

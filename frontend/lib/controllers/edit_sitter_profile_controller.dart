@@ -634,6 +634,26 @@ class EditSitterProfileController extends GetxController {
         return;
       }
 
+      // v21 — Sanity check on rate progression. A weekly rate < daily rate
+      // doesn't make economic sense (week should cost more than a single
+      // day, even with a discount). Same for monthly vs weekly. We block the
+      // save with a clear error so the sitter doesn't end up with non-sense
+      // pricing showing on their public profile.
+      if (dailyRate > 0 && weeklyRate > 0 && weeklyRate < dailyRate) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'error_rate_weekly_below_daily'.tr,
+        );
+        return;
+      }
+      if (weeklyRate > 0 && monthlyRate > 0 && monthlyRate < weeklyRate) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'error_rate_monthly_below_weekly'.tr,
+        );
+        return;
+      }
+
       // v20.0.10 — setMyRates covers the 4 rate tiers. Currency is saved
       // through the full profile edit screen (needs name/email/mobile),
       // not here — this screen is rates-only.

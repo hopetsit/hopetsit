@@ -8,6 +8,7 @@ import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/payment/payment_result_screen.dart';
@@ -92,10 +93,63 @@ class StripePaymentController extends GetxController {
           paymentIntentResponse['publishableKey'] as String? ??
           paymentIntentResponse['publishable_key'] as String? ??
           dotenv.env['STRIPE_PUBLISHABLE_KEY'];
+      final provider = (paymentIntentResponse['provider']?.toString() ?? 'stripe').toLowerCase();
 
       if (_clientSecret == null || _clientSecret!.isEmpty) {
         throw ApiException('payment_error_client_secret_missing'.tr);
       }
+
+      AppLogger.logUserAction(
+        'Payment Intent Created',
+        data: {'bookingId': booking.id, 'paymentIntentId': _paymentIntentId, 'provider': provider},
+      );
+
+      log('clientSecret: $_clientSecret');
+      log('paymentIntentId: $_paymentIntentId');
+      log('provider: $provider');
+
+      // ─── Branche Airwallex (v20.1) ──────────────────────────────────────
+      if (provider == 'airwallex') {
+        AppLogger.logInfo('[booking] using AIRWALLEX flow (€$totalAmount)');
+        final result = await AirwallexPaymentService.confirmPaymentIntent(
+          intentId: _paymentIntentId ?? '',
+          clientSecret: _clientSecret!,
+          amount: totalAmount,
+          currency: currency,
+        );
+        if (result.isSuccess) {
+          AppLogger.logUserAction(
+            'Airwallex Payment Confirmed',
+            data: {'bookingId': booking.id, 'paymentIntentId': _paymentIntentId},
+          );
+          Get.off(
+            () => PaymentResultScreen(
+              isSuccess: true,
+              message: 'payment_success_message'.tr,
+              transactionId: _paymentIntentId,
+              amount: totalAmount,
+              currency: currency,
+              booking: booking,
+              onContinue: () {
+                Get.until((route) => route.isFirst);
+              },
+            ),
+          );
+        } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+          AppLogger.logError('Airwallex payment failed', error: result.errorMessage);
+          CustomSnackbar.showError(
+            title: 'payment_failed_title'.tr,
+            message: result.errorMessage ?? 'common_error_message'.tr,
+          );
+        }
+        // outcome == cancelled → silent (user closed the sheet on purpose).
+        isProcessing.value = false;
+        return;
+      }
+
+      // ─── Branche Stripe (défaut, rollback) ─────────────────────────────
+      AppLogger.logInfo('[booking] using STRIPE flow (€$totalAmount)');
+
       if (_publishableKey == null || _publishableKey!.isEmpty) {
         throw ApiException('payment_error_publishable_key_missing'.tr);
       }
@@ -105,15 +159,6 @@ class StripePaymentController extends GetxController {
 
       Stripe.publishableKey = _publishableKey!;
       await Stripe.instance.applySettings();
-
-      AppLogger.logUserAction(
-        'Payment Intent Created',
-        data: {'bookingId': booking.id, 'paymentIntentId': _paymentIntentId},
-      );
-
-      log('clientSecret: $_clientSecret');
-      log('publishableKey: $_publishableKey');
-      log('paymentIntentId: $_paymentIntentId');
 
       // Step 2 : Confirm Stripe payment inline (no screen detour).
       await Stripe.instance.confirmPayment(
@@ -267,10 +312,53 @@ class StripePaymentController extends GetxController {
           piResponse['publishableKey'] as String? ??
           piResponse['publishable_key'] as String? ??
           dotenv.env['STRIPE_PUBLISHABLE_KEY'];
+      final provider = (piResponse['provider']?.toString() ?? 'stripe').toLowerCase();
 
       if (_clientSecret == null || _clientSecret!.isEmpty) {
         throw ApiException('payment_error_client_secret_missing'.tr);
       }
+
+      // ─── Branche Airwallex ──────────────────────────────────────────────
+      if (provider == 'airwallex') {
+        AppLogger.logInfo('[booking] using AIRWALLEX flow with saved card (€$totalAmount)');
+        final result = await AirwallexPaymentService.confirmPaymentIntent(
+          intentId: _paymentIntentId ?? '',
+          clientSecret: _clientSecret!,
+          amount: totalAmount,
+          currency: currency,
+        );
+        if (result.isSuccess) {
+          AppLogger.logUserAction(
+            'Airwallex Payment (Saved Card) Confirmed',
+            data: {'bookingId': booking.id, 'paymentIntentId': _paymentIntentId},
+          );
+          Get.off(
+            () => PaymentResultScreen(
+              isSuccess: true,
+              message: 'payment_success_message'.tr,
+              transactionId: _paymentIntentId,
+              amount: totalAmount,
+              currency: currency,
+              booking: booking,
+              onContinue: () {
+                Get.until((route) => route.isFirst);
+              },
+            ),
+          );
+        } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+          AppLogger.logError('Airwallex payment (saved card) failed', error: result.errorMessage);
+          CustomSnackbar.showError(
+            title: 'payment_failed_title'.tr,
+            message: result.errorMessage ?? 'common_error_message'.tr,
+          );
+        }
+        isProcessing.value = false;
+        return;
+      }
+
+      // ─── Branche Stripe (défaut) ────────────────────────────────────────
+      AppLogger.logInfo('[booking] using STRIPE flow with saved card (€$totalAmount)');
+
       if (_publishableKey == null || _publishableKey!.isEmpty) {
         throw ApiException('payment_error_publishable_key_missing'.tr);
       }

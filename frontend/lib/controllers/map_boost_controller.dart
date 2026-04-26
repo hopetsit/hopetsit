@@ -3,7 +3,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 
 class MapBoostPackage {
@@ -186,20 +188,53 @@ class MapBoostController extends GetxController {
 
       final clientSecret = piData['clientSecret'] as String?;
       final paymentIntentId = piData['paymentIntentId'] as String?;
+      final provider = (piData['provider']?.toString() ?? 'stripe').toLowerCase();
       if (clientSecret == null || clientSecret.isEmpty) {
         throw Exception('No client secret.');
-      }
-
-      final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
-      if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
-        Stripe.publishableKey = pk;
-        await Stripe.instance.applySettings();
       }
 
       // In-app card screen replaces the native PaymentSheet (unreliable on
       // some Android devices — card number field wouldn't accept input).
       final pkg = packages.firstWhereOrNull((p) => p.tier == tier);
       final displayAmount = pkg?.amount ?? 0;
+
+      // ─── Branche Airwallex (v20.1) ──────────────────────────────────────
+      if (provider == 'airwallex') {
+        AppLogger.logInfo('[map-boost] using AIRWALLEX flow ($displayAmount $currency)');
+        final result = await AirwallexPaymentService.confirmPaymentIntent(
+          intentId: paymentIntentId ?? '',
+          clientSecret: clientSecret,
+          amount: displayAmount,
+          currency: currency.value,
+        );
+        if (result.isSuccess) {
+          await api.post(
+            '/map-boost/confirm',
+            body: {
+              'tier': tier,
+              'paymentIntentId': paymentIntentId,
+              'currency': currency.value,
+            },
+            requiresAuth: true,
+          );
+          await loadStatus();
+          return true;
+        } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+          AppLogger.logError('[map-boost] Airwallex failed', error: result.errorMessage);
+          return false;
+        }
+        // outcome == cancelled → silent (user closed the sheet on purpose).
+        return false;
+      }
+
+      // ─── Branche Stripe (défaut) ────────────────────────────────────────
+      AppLogger.logInfo('[map-boost] using STRIPE flow ($displayAmount $currency)');
+
+      final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
+      if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
+        Stripe.publishableKey = pk;
+        await Stripe.instance.applySettings();
+      }
 
       // v18.9.8 — récupère les saved cards (endpoint role-aware : owner /
       // sitter / walker) pour proposer un paiement direct sans ressaisir.

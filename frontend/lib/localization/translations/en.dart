@@ -375,6 +375,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'error_address_required': 'Please enter your address',
       'error_address_length': 'Address must be at least 2 characters',
       'error_rate_required': 'Please enter your rate per hour',
+      'error_rate_weekly_below_daily': 'Your weekly rate must be higher than your daily rate.',
+      'error_rate_monthly_below_weekly': 'Your monthly rate must be higher than your weekly rate.',
       'error_rate_invalid': 'Please enter a valid rate',
       'error_rate_zero': 'Hourly rate cannot be 0',
       'error_skills_required': 'Please enter your skills',
