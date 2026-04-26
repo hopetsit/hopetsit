@@ -13,7 +13,8 @@ class PetDetailScreen extends StatefulWidget {
   final String gender;
   final String weight;
   final String height;
-  final String color;
+  // v21.1 — `color` (couleur de l'animal) retiré : info peu utile pour le sitter
+  // et redondante avec la galerie photo. Allège la fiche pet.
   final String description;
   final List<String> vaccinations;
   final List<String> galleryImages;
@@ -37,7 +38,6 @@ class PetDetailScreen extends StatefulWidget {
     required this.gender,
     required this.weight,
     required this.height,
-    required this.color,
     required this.description,
     required this.vaccinations,
     required this.galleryImages,
@@ -290,7 +290,6 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           children: [
             _buildDetailBox('pet_detail_weight'.tr, widget.weight, AppColors.primaryColor),
             _buildDetailBox('pet_detail_height'.tr, widget.height, AppColors.primaryColor),
-            _buildDetailBox('pet_detail_color'.tr, widget.color, AppColors.primaryColor),
           ],
         ),
         SizedBox(height: 16.h),
@@ -346,7 +345,9 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             text: value,
             fontSize: 12.sp,
             fontWeight: FontWeight.w400,
-            color: AppColors.blackColor,
+            // v21.1 — fix dark mode : textPrimary(context) au lieu de blackColor
+            // (texte noir invisible sur fond sombre).
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],
@@ -365,7 +366,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               text: 'pet_detail_vaccinations'.tr.replaceAll('@name', widget.petName),
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              // v21.1 — fix dark mode (titre Vaccinations).
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),
@@ -393,7 +395,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               text: 'pet_detail_gallery'.tr.replaceAll('@name', widget.petName),
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.blackColor,
+              // v21.1 — fix dark mode (titre Galerie).
+              color: AppColors.textPrimary(context),
             ),
           ],
         ),

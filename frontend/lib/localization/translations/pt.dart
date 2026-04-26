@@ -329,10 +329,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'onboarding_continue_with_google': 'Continue with Google',
       'onboarding_continue_with_apple': 'Continue with Apple',
       'onboarding_have_account': 'Have an account?',
-      'onboarding_tagline': 'Encontre o cuidador ideal para o seu animal',
-      'onboarding_feature_trusted': 'Cuidadores\nverificados',
-      'onboarding_feature_chat': 'Chat\nintegrado',
-      'onboarding_feature_nearby': 'Perto\nde si',
+      'onboarding_signup': 'Registar',
+      'onboarding_tagline': 'Pet-sitting, PawMap e acompanhamento do seu animal',
+      'onboarding_feature_trusted': 'Pet-\nsitting',
+      'onboarding_feature_chat': 'PawMap',
+      'onboarding_feature_nearby': 'PawFollow',
       'onboarding_or': 'ou',
 
       // Validation / errors

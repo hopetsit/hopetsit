@@ -1594,9 +1594,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       final height = pet.height.isNotEmpty
           ? '${pet.height} cm'
           : 'label_not_available'.tr;
-      final color = pet.colour.isNotEmpty
-          ? pet.colour
-          : 'label_not_available'.tr;
+      // v21.1 — `color` (couleur de l'animal) supprimé de PetDetailScreen.
       final description = pet.bio.isNotEmpty
           ? pet.bio
           : 'pet_detail_no_description'.tr;
@@ -1666,7 +1664,6 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               gender: gender,
               weight: weight,
               height: height,
-              color: color,
               description: description,
               vaccinations: vaccinations,
               galleryImages: galleryImages,

@@ -98,19 +98,23 @@ class OnboardingScreen extends StatelessWidget {
                   SizedBox(height: 40.h),
 
                   // ── Feature highlights ──
+                  // v21.1 — icônes refondues pour mieux refléter les 3 piliers de
+                  // l'app : Pet-sitting (cœur du produit), PawMap (carte sociale
+                  // owners/sitters/walkers), PawFollow (suivi GPS famille). On
+                  // garde Pet-sitting en premier pour ancrer le focus produit.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _FeatureChip(
-                        icon: Icons.verified_user_outlined,
+                        icon: Icons.pets,
                         label: 'onboarding_feature_trusted'.tr,
                       ),
                       _FeatureChip(
-                        icon: Icons.chat_bubble_outline_rounded,
+                        icon: Icons.map_outlined,
                         label: 'onboarding_feature_chat'.tr,
                       ),
                       _FeatureChip(
-                        icon: Icons.location_on_outlined,
+                        icon: Icons.family_restroom,
                         label: 'onboarding_feature_nearby'.tr,
                       ),
                     ],
@@ -127,9 +131,13 @@ class OnboardingScreen extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        // Create account button
+                        // Create account / sign up button.
+                        // v21.1 — clé dédiée `onboarding_signup` pour avoir un
+                        // verbe d'action court ("S'inscrire" / "Sign up") sur
+                        // l'écran de bienvenue, sans toucher au texte plus
+                        // long ("Créer un compte") du formulaire d'inscription.
                         CustomButton(
-                          title: 'button_create_account'.tr,
+                          title: 'onboarding_signup'.tr,
                           onTap: () => Get.to(() => SignUpAsScreen()),
                         ),
 
