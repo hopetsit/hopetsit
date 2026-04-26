@@ -5,7 +5,6 @@ import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
-import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_screen.dart';
 
 class PetsitterOnboardingController extends GetxController {
   final formKey = GlobalKey<FormState>();
@@ -158,8 +157,10 @@ class PetsitterOnboardingController extends GetxController {
         message: 'snackbar_text_profile_completed_successfully',
       );
 
-      // Navigate to Stripe Connect onboarding
-      Get.off(() => const StripeConnectOnboardingScreen());
+      // v21.1.1 — Stripe Connect onboarding retiré (Stripe purgé). On retourne
+      // simplement à la racine — le sitter renseignera son IBAN plus tard via
+      // Profil → Compte bancaire (Airwallex Beneficiary auto-créé).
+      Get.until((route) => route.isFirst);
     } on ApiException catch (error) {
       AppLogger.logError('Failed to complete onboarding', error: error.message);
       CustomSnackbar.showError(

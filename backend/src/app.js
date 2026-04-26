@@ -24,8 +24,6 @@ const blockRoutes = require('./routes/blockRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const pricingRoutes = require('./routes/pricingRoutes');
-const stripeConnectRoutes = require('./routes/stripeConnectRoutes');
-const stripeWebhookRoutes = require('./routes/stripeWebhookRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const ibanRoutes = require('./routes/ibanRoutes');
 // Session v18.2 — owner "Mes paiements" endpoints (list/add/delete cards,
@@ -51,7 +49,7 @@ const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
 
-// Configure helmet with CSP that allows Stripe scripts and inline scripts for test pages
+// Configure helmet with CSP
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -59,16 +57,14 @@ app.use(helmet({
       scriptSrc: [
         "'self'",
         "'unsafe-inline'", // Allow inline scripts for test pages
-        "https://js.stripe.com", // Allow Stripe.js
       ],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
       styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
       imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
       connectSrc: [
         "'self'",
-        "https://api.stripe.com", // Allow Stripe API calls
       ],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"], // Allow Stripe iframes
+      frameSrc: ["'self'"], // Allow iframes
     },
   },
 }));
@@ -89,31 +85,13 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
 
-// Stripe webhook route must use raw body (register before JSON middleware)
-app.use('/webhooks', stripeWebhookRoutes);
-
-// v21 — Airwallex webhook. Same pattern as Stripe : raw body required so the
-// HMAC signature can be verified against the exact bytes Airwallex signed.
+// v21 — Airwallex webhook. Raw body required so the HMAC signature can be verified 
+// against the exact bytes Airwallex signed.
 const { handleAirwallexWebhook } = require('./controllers/airwallexWebhookController');
 app.post(
   '/webhooks/airwallex',
   express.raw({ type: 'application/json' }),
   handleAirwallexWebhook,
-);
-
-// Session v3.3 — Stripe Identity webhook. Must also receive the raw body
-// so the signature can be verified. Scoped to just the /webhook endpoint
-// so the /session POST keeps working with regular JSON.
-const identityVerificationRoutes = require('./routes/identityVerificationRoutes');
-app.use(
-  '/identity-verification/webhook',
-  express.raw({ type: 'application/json' }),
-  (req, res, next) => {
-    // Forward as if the router was mounted normally — the webhook route
-    // inside identityVerificationRoutes is declared at POST '/webhook'.
-    req.url = '/webhook';
-    identityVerificationRoutes(req, res, next);
-  },
 );
 
 app.use(express.json({ limit: '25mb' }));
@@ -160,9 +138,8 @@ app.use(
 
 // Sprint 8 step 9 — API versioning. All routes are mounted under /api/v1
 // AND also aliased at the root for 6-month backwards compatibility. The
-// alias logs a deprecation warning; Stripe webhooks stay at /webhooks because
-// Stripe configures them by absolute URL and moving them would break
-// existing registrations.
+// alias logs a deprecation warning; Airwallex webhook stays at /webhooks because
+// it needs raw body processing.
 const versionedRoutes = [
   { path: '/health', mw: [], router: healthRoutes },
   { path: '/auth', mw: [authLimiter], router: authRoutes },
@@ -179,7 +156,6 @@ const versionedRoutes = [
   { path: '/reviews', mw: [], router: reviewRoutes },
   { path: '/uploads', mw: [], router: uploadRoutes },
   { path: '/pricing', mw: [], router: pricingRoutes },
-  { path: '/stripe-connect', mw: [sensitiveLimiter], router: stripeConnectRoutes },
   { path: '/admin', mw: [], router: adminRoutes },
   { path: '/sitter', mw: [], router: ibanRoutes },
   // v18.5 — #7 fix : expose IBAN routes sous /walker aussi. Le router
@@ -201,9 +177,6 @@ const versionedRoutes = [
   { path: '/map-boost', mw: [sensitiveLimiter], router: mapBoostRoutes },
   { path: '/subscriptions', mw: [sensitiveLimiter], router: subscriptionRoutes },
   { path: '/chat-addon', mw: [sensitiveLimiter], router: chatAddonRoutes },
-  // Session v3.3 — Stripe Identity. The webhook is mounted separately above
-  // (before the JSON parser) so signatures can be verified on raw body.
-  { path: '/identity-verification', mw: [sensitiveLimiter], router: identityVerificationRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
   { path: '/bug-reports', mw: [sensitiveLimiter], router: bugReportRoutes },
   // v19.0 — Wallet Vinted-style (sitter+walker balance + withdrawals).
@@ -254,4 +227,3 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-

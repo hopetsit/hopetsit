@@ -583,9 +583,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'blocked_users_save_success':
           'Blockierte Benutzer erfolgreich gespeichert',
       'donate_coming_soon': 'Die Spendenfunktion wird bald verfügbar sein',
-      'stripe_connect_title': 'Auszahlungskonto einrichten',
       'payout_status_screen_title': 'Auszahlungsstatus',
-      'payout_connect_stripe_account': 'Auszahlungskonto einrichten',
       'payout_paypal_email_title': 'Auszahlungs-E-Mail',
       'payout_add_paypal_email_title': 'Auszahlungs-E-Mail hinzufügen',
       'payout_add_paypal_email_subtitle':
@@ -597,17 +595,9 @@ const Map<String, String> deDETranslations = <String, String>{
       'payout_update_paypal_email': 'Auszahlungs-E-Mail aktualisieren',
       'payout_paypal_dialog_subtitle':
           'Diese E-Mail wird für Überweisungen verwendet. Stelle sicher, dass sie korrekt ist.',
-      'payout_stripe_connect_title': 'Auszahlungskonto',
-      'payout_status_connected': 'Verbunden',
-      'payout_status_not_connected': 'Nicht verbunden',
-      'payout_stripe_connected_message':
-          'Dein Auszahlungskonto ist eingerichtet und bereit, Überweisungen zu empfangen.',
-      'payout_stripe_not_connected_message':
-          'Richte dein Auszahlungskonto ein, um Überweisungen zu erhalten.',
       'payout_account_id_label': 'Konto-ID',
       'payout_verification_title': 'Verifizierungsstatus',
       'payout_status_title': 'Auszahlungsstatus',
-      'payout_verification_step_identity': 'Identitaetspruefung',
       'payout_verification_step_bank': 'Bankkonto-Verifizierung',
       'payout_verification_step_business': 'Unternehmensinformationen',
       'payout_next_payout_label': 'Naechste Auszahlung',
@@ -636,22 +626,6 @@ const Map<String, String> deDETranslations = <String, String>{
           'Deine Auszahlungen sind derzeit eingeschraenkt. Bitte kontaktiere den Support.',
       'payout_message_not_connected':
           'Richte dein Auszahlungskonto ein, um Überweisungen zu erhalten.',
-      'stripe_get_paid_title': 'Erhalte deine Überweisungen',
-      'stripe_connect_description':
-          'Richte dein Konto ein, um Zahlungen direkt zu erhalten. Deine Einnahmen werden auf dein Bankkonto überwiesen.',
-      'stripe_account_status_title': 'Kontostatus',
-      'stripe_continue_onboarding': 'Onboarding fortsetzen',
-      'stripe_connect_account_button': 'Konto einrichten',
-      'stripe_benefit_secure': 'Sichere Zahlungsabwicklung',
-      'stripe_benefit_fast_payouts': 'Schnelle Auszahlungen auf dein Bankkonto',
-      'stripe_benefit_no_fees': 'Keine Einrichtungsgebühren',
-      'stripe_benefit_support': '24/7 Kundensupport',
-      'stripe_benefit_required':
-          'Erforderlich, um Zahlungen von Tierbesitzern zu erhalten',
-      'stripe_account_connected': 'Konto verbunden',
-      'stripe_account_created_pending':
-          'Konto erstellt - Onboarding ausstehend',
-      'stripe_account_created': 'Konto erstellt',
       'stripe_account_connected_message':
           'Dein Auszahlungskonto ist vollständig eingerichtet und bereit, Überweisungen zu empfangen.',
       'stripe_account_created_message':
@@ -1620,6 +1594,9 @@ const Map<String, String> deDETranslations = <String, String>{
     'cancel_72h_success': 'Buchung storniert und Rückerstattung eingeleitet.',
     'cancel_72h_error': 'Diese Buchung konnte nicht storniert werden.',
     'boost_shop_title': 'Boost-Shop',
+    'shop_tab_boost': 'Boost',
+    'shop_tab_pawpass': 'PawPass',
+    'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Geboostet',
     'boost_choose_package': 'Paket wählen',
     'boost_choose_subtitle': 'Boosten Sie Ihr Profil ganz oben im Feed!',
@@ -1805,7 +1782,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'premium_feature_alerts': '18 Arten von Echtzeit-Warnungen — darunter 7 exklusive PawPass-Meldungen (aggressiver Hund, Fahrzeuggefahr, Feuer, Überschwemmung, Wildtiere…)',
     'premium_feature_notifications': 'Sofort-Benachrichtigungen — sei der Erste, der es erfährt, wenn in deiner Nähe eine Meldung erscheint',
     'premium_feature_chat': 'Unbegrenzter Chat mit Nutzern, die du auf der Karte triffst',
-    'premium_feature_friends_tracking': 'Echtzeit-Freunde-Tracking (Waze-Stil)',
+    'premium_feature_friends_tracking': 'Echtzeit-Tracking von Freunden & Familie (Waze-Stil)',
+    'premium_feature_family_plan': 'Familienpaket verfügbar (bis zu 5 Nutzer) — 9,99€/Monat',
     'premium_feature_monthly_boost': '1 kostenloser PawSpot pro Monat — tippen zum Einlösen',
     'premium_feature_badge': 'PawPass-Abzeichen auf deinem Profil',
     'premium_upsell_text': 'Werde PawPass, um alle Funktionen freizuschalten',

@@ -36,11 +36,8 @@ class AppRoutes {
   static const String sitterBookings = '/sitter-bookings';
   static const String sitterBookingDetail = '/booking/sitter-detail';
   static const String sitterOnboarding = '/sitter-onboarding';
-  static const String stripeConnectOnboarding = '/stripe-connect-onboarding';
-  static const String stripeConnectWebview = '/stripe-connect-webview';
   static const String sitterApplication = '/sitter-application';
   static const String availability = '/sitter/availability';
-  static const String identityVerification = '/sitter/identity-verification';
   static const String walkTracking = '/walk/tracking';
   static const String submitVisitReport = '/visit-report/submit';
 
@@ -62,8 +59,6 @@ class AppRoutes {
   static const String reviews = '/reviews';
 
   // Payment
-  static const String stripePayment = '/payment/stripe';
-  static const String stripeWebviewPayment = '/payment/stripe-webview';
   static const String paypalPayment = '/payment/paypal';
   static const String paypalWebviewPayment = '/payment/paypal-webview';
   static const String paymentResult = '/payment/result';

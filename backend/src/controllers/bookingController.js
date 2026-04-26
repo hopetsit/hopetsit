@@ -15,19 +15,17 @@ const {
   SERVICE_TYPES,
   LOCATION_TYPES,
 } = require('../utils/pricing');
-const {
-  createPaymentIntent,
-  getPaymentIntent,
-  confirmPaymentIntent,
-  createRefund,
-  sendPayoutToIBAN,
-} = require('../services/stripeService');
+// Stripe disabled (v21.1.1 purge) — removed createPaymentIntent, getPaymentIntent, confirmPaymentIntent, createRefund, sendPayoutToIBAN
 // v21 — Airwallex platform-only PI fallback when PAYMENT_PROVIDER=airwallex.
 // Marketplace split (Beneficiaries + Payouts API) lands in v21.1 ;
 // in the meantime funds accumulate on the HoPetSit Airwallex wallet and
 // payout-scheduler manually releases the 80% to the provider's IBAN.
 const airwallex = require('../services/airwallexService');
-const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+// v21.1.1 — Stripe purgé. Le default passe à 'airwallex' : si PAYMENT_PROVIDER
+// n'est pas configuré côté Render, on tombe sur Airwallex et pas Stripe (qui
+// est mort, compte fermé). Variable env optionnelle conservée pour rollback
+// d'urgence éventuel sur un autre PSP futur.
+const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
 const {
   createPaypalOrder,
   capturePaypalOrder,
@@ -1816,58 +1814,27 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   const amountInCents = Math.round(effectiveTotal * 100);
   if (isNaN(amountInCents) || amountInCents <= 0) throw new Error('Invalid payment amount.');
 
-  // Session v18.0 — only pass connectedAccountId when Stripe Connect is
-  // active. When it's not, createPaymentIntent falls back to a plain
-  // platform charge and the payout is released by the scheduler later.
-  //
-  // Session v18.2 — attach to Stripe Customer for "Mes paiements" reuse.
-  let ownerStripeCustomerId = null;
-  try {
-    const { getOrCreateStripeCustomerForOwner } = require('../services/stripeService');
-    ownerStripeCustomerId = await getOrCreateStripeCustomerForOwner({
-      ownerId: booking.ownerId._id.toString(),
-      email: booking.ownerId.email,
-      name: booking.ownerId.name,
-    });
-  } catch (custErr) {
-    logger.warn('[_prepareOwnerPaymentForAgreedBooking] Stripe Customer create/find failed', custErr?.message || custErr);
-  }
-
-  // v21 — dual-provider switch. Airwallex flow uses platform-only PI ; the
+  // v21.1.1 — Stripe purgé. Airwallex only. No more Stripe Customer creation.
+  // v21 — Airwallex flow uses platform-only PI ; the
   // 80% sitter cut is released later by payoutScheduler via IBAN payout.
   let paymentIntent;
-  let usedProvider = 'stripe';
-  if (PAYMENT_PROVIDER === 'airwallex') {
-    paymentIntent = await airwallex.createPlatformPaymentIntent({
-      amount: amountInCents,
-      currency: bookingCurrency.toUpperCase(),
-      metadata: {
-        type: 'booking',
-        bookingId: booking._id.toString(),
-        ownerId: booking.ownerId._id.toString(),
-        sitterId: providerRef.id,
-        providerType: providerRef.type,
-      },
-    });
-    usedProvider = 'airwallex';
-    logger.info(
-      `[booking._prepare] airwallex PI created ${paymentIntent.id} ` +
-      `${amountInCents / 100} ${bookingCurrency.toUpperCase()} ` +
-      `for booking ${booking._id}`
-    );
-  } else {
-    paymentIntent = await createPaymentIntent({
-      amount: amountInCents,
-      connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
+  let usedProvider = 'airwallex';
+  paymentIntent = await airwallex.createPlatformPaymentIntent({
+    amount: amountInCents,
+    currency: bookingCurrency.toUpperCase(),
+    metadata: {
+      type: 'booking',
       bookingId: booking._id.toString(),
       ownerId: booking.ownerId._id.toString(),
       sitterId: providerRef.id,
       providerType: providerRef.type,
-      currency: bookingCurrency.toLowerCase(),
-      isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
-      stripeCustomerId: ownerStripeCustomerId,
-    });
-  }
+    },
+  });
+  logger.info(
+    `[booking._prepare] airwallex PI created ${paymentIntent.id} ` +
+    `${amountInCents / 100} ${bookingCurrency.toUpperCase()} ` +
+    `for booking ${booking._id}`
+  );
 
   booking.stripePaymentIntentId = paymentIntent.id;
   // Session v18.0 — only persist the connected account id when destination
@@ -2034,56 +2001,28 @@ const createBookingPaymentIntent = async (req, res) => {
     // to a plain platform charge and let payoutScheduler release the 80%
     // via the provider's IBAN or PayPal at service-start.
     //
-    // Session v18.2 — attach the charge to the owner's Stripe Customer so
-    // the card ends up in "Mes paiements" automatically.
-    let ownerStripeCustomerId = null;
-    try {
-      const { getOrCreateStripeCustomerForOwner } = require('../services/stripeService');
-      ownerStripeCustomerId = await getOrCreateStripeCustomerForOwner({
-        ownerId: booking.ownerId._id.toString(),
-        email: booking.ownerId.email,
-        name: booking.ownerId.name,
-      });
-    } catch (custErr) {
-      logger.warn('[createBookingPaymentIntent] Stripe Customer create/find failed, charge will not be attached', custErr?.message || custErr);
-    }
-
+    // v21.1.1 — Stripe purgé. Airwallex only. No more Stripe Customer creation.
     // v21 — dual-provider switch (cf. _prepareOwnerPaymentForAgreedBooking
     // for the same pattern). Airwallex flow uses a platform-only PI ; the
     // 80% sitter cut is released later by payoutScheduler.
     let paymentIntent;
-    let usedProvider = 'stripe';
-    if (PAYMENT_PROVIDER === 'airwallex') {
-      paymentIntent = await airwallex.createPlatformPaymentIntent({
-        amount: amountInCents,
-        currency: bookingCurrency.toUpperCase(),
-        metadata: {
-          type: 'booking',
-          bookingId: booking._id.toString(),
-          ownerId: booking.ownerId._id.toString(),
-          sitterId: providerRef.id,
-          providerType: providerRef.type,
-        },
-      });
-      usedProvider = 'airwallex';
-      logger.info(
-        `[booking.createPaymentIntent] airwallex PI created ${paymentIntent.id} ` +
-        `${amountInCents / 100} ${bookingCurrency.toUpperCase()} ` +
-        `for booking ${booking._id}`
-      );
-    } else {
-      paymentIntent = await createPaymentIntent({
-        amount: amountInCents,
-        connectedAccountId: hasStripeConnect ? sitter.stripeConnectAccountId : null,
+    let usedProvider = 'airwallex';
+    paymentIntent = await airwallex.createPlatformPaymentIntent({
+      amount: amountInCents,
+      currency: bookingCurrency.toUpperCase(),
+      metadata: {
+        type: 'booking',
         bookingId: booking._id.toString(),
         ownerId: booking.ownerId._id.toString(),
         sitterId: providerRef.id,
         providerType: providerRef.type,
-        currency: bookingCurrency.toLowerCase(),
-        isTopSitter: sitter.isTopSitter === true || sitter.isTopWalker === true,
-        stripeCustomerId: ownerStripeCustomerId,
-      });
-    }
+      },
+    });
+    logger.info(
+      `[booking.createPaymentIntent] airwallex PI created ${paymentIntent.id} ` +
+      `${amountInCents / 100} ${bookingCurrency.toUpperCase()} ` +
+      `for booking ${booking._id}`
+    );
 
     // Save PaymentIntent ID and (conditionally) connected account ID.
     booking.stripePaymentIntentId = paymentIntent.id;
@@ -2313,132 +2252,8 @@ const confirmBookingPayment = async (req, res) => {
       });
     }
 
-    // Confirm the payment intent
-    const confirmOptions = {};
-    if (payment_method) {
-      confirmOptions.payment_method = payment_method;
-    }
-    if (return_url) {
-      confirmOptions.return_url = return_url;
-    }
-
-    const confirmedPaymentIntent = await confirmPaymentIntent(paymentIntentId, confirmOptions);
-
-    // Update booking with payment intent ID if not already set (for tracking only)
-    if (!booking.stripePaymentIntentId) {
-      booking.stripePaymentIntentId = paymentIntentId;
-      await booking.save();
-    }
-
-    // v18.7 — FALLBACK quand le webhook Stripe n'arrive pas / est en retard.
-    // On marque la booking comme paid IMMEDIATEMENT si Stripe confirme
-    // succeeded, ET on déclenche le chat unlock. Le webhook fera la même
-    // chose en idempotent si/quand il arrive (guard status déjà 'paid').
-    if (
-      confirmedPaymentIntent.status === 'succeeded' &&
-      booking.status !== 'paid'
-    ) {
-      try {
-        booking.status = 'paid';
-        booking.paymentStatus = 'paid';
-        booking.paidAt = new Date();
-        booking.paymentProvider = 'stripe';
-        if (confirmedPaymentIntent.latest_charge) {
-          booking.stripeChargeId =
-            typeof confirmedPaymentIntent.latest_charge === 'string'
-              ? confirmedPaymentIntent.latest_charge
-              : confirmedPaymentIntent.latest_charge.id;
-        }
-        await booking.save();
-        logger.info(
-          `[confirmBookingPayment] Booking ${booking._id} marked as PAID via client-confirm fallback (webhook race-proof).`
-        );
-
-        // Schedule payout + unlock chat + send notifications — same as webhook.
-        await schedulePayoutForBooking(booking);
-
-        const providerId = booking.walkerId
-          ? (booking.walkerId.toString?.() || String(booking.walkerId))
-          : (booking.sitterId?.toString?.() || String(booking.sitterId));
-        const providerRole = booking.walkerId ? 'walker' : 'sitter';
-
-        // Load the webhook helper lazily (it's a controller-local function).
-        const stripeWebhookController = require('./stripeWebhookController');
-        if (typeof stripeWebhookController._unlockChatAndWelcome === 'function') {
-          await stripeWebhookController._unlockChatAndWelcome({
-            ownerId:
-              booking.ownerId?.toString?.() || String(booking.ownerId),
-            providerId,
-            providerRole,
-            bookingId: booking._id.toString(),
-          });
-        }
-
-        // v20.0.16 — FIX : le webhook envoie PAYMENT_SUCCESS (push+email) aux
-        // 2 parties mais ce fallback ne l'avait pas. Résultat : quand le
-        // webhook Stripe n'arrivait pas (réseau, test mode), ni l'owner ni
-        // le provider ne recevaient la notif/email de paiement réussi.
-        const { sendNotification: _sendNotif } = require(
-          '../services/notificationSender',
-        );
-        const paymentData = {
-          bookingId: booking._id.toString(),
-          amount: (booking.pricing?.totalPrice || 0).toFixed(2),
-          currency: (booking.pricing?.currency || 'EUR').toUpperCase(),
-        };
-        Promise.allSettled([
-          _sendNotif({
-            userId:
-              booking.ownerId?.toString?.() || String(booking.ownerId),
-            role: 'owner',
-            type: 'PAYMENT_SUCCESS',
-            data: paymentData,
-          }),
-          providerId
-            ? _sendNotif({
-                userId: providerId,
-                role: providerRole,
-                type: 'PAYMENT_SUCCESS',
-                data: paymentData,
-              })
-            : Promise.resolve(),
-        ]).catch(() => {});
-      } catch (fallbackErr) {
-        logger.error(
-          '[confirmBookingPayment] client-confirm fallback failed (non-blocking)',
-          fallbackErr?.message || fallbackErr
-        );
-      }
-    }
-
-    // Return payment intent status
-    if (confirmedPaymentIntent.status === 'requires_action') {
-      // Payment requires additional action (e.g., 3D Secure)
-      return res.json({
-        paymentIntentId: confirmedPaymentIntent.id,
-        status: confirmedPaymentIntent.status,
-        clientSecret: confirmedPaymentIntent.client_secret,
-        requiresAction: true,
-        nextAction: confirmedPaymentIntent.next_action,
-        booking: sanitizeBooking(booking),
-        message: 'Payment requires additional authentication. Please complete the required action.',
-        note: 'Booking status will be updated automatically via webhook after payment confirmation.',
-      });
-    }
-
-    // Return current payment intent status
-    // Note: If status is 'succeeded', the webhook will update booking status to 'paid'
-    res.json({
-      paymentIntentId: confirmedPaymentIntent.id,
-      status: confirmedPaymentIntent.status,
-      booking: sanitizeBooking(booking),
-      message: confirmedPaymentIntent.status === 'succeeded' 
-        ? 'Payment confirmed. Booking status will be updated automatically via webhook.' 
-        : confirmedPaymentIntent.status === 'processing'
-        ? 'Payment is being processed. Please wait for confirmation via webhook.'
-        : `Payment status: ${confirmedPaymentIntent.status}`,
-      note: 'Booking status updates are handled automatically by Stripe webhooks for security and reliability.',
-    });
+    // v21.1.1 — Stripe disabled (Airwallex only)
+    return res.status(502).json({ error: 'Stripe payment confirmation disabled — Airwallex only' });
   } catch (error) {
     logger.error('Confirm payment error', error);
     if (error.name === 'CastError') {
@@ -3209,4 +3024,3 @@ module.exports = {
   // immediate Stripe PaymentSheet right after accepting an application.
   _prepareOwnerPaymentForAgreedBooking,
 };
-

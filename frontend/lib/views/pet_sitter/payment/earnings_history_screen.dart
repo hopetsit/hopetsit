@@ -338,15 +338,16 @@ class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
               ),
               SizedBox(width: 14.w),
 
-              // Provider
+              // Provider — v21.1.1 : Stripe purgé. Défaut Airwallex, fallback
+              // PayPal pour les anciennes payouts en historique.
               Icon(
-                provider == 'stripe' ? Icons.credit_card : Icons.paypal,
+                provider == 'paypal' ? Icons.paypal : Icons.account_balance,
                 size: 13.sp,
                 color: AppColors.textSecondary(context),
               ),
               SizedBox(width: 4.w),
               InterText(
-                text: provider == 'stripe' ? 'Stripe' : 'PayPal',
+                text: provider == 'paypal' ? 'PayPal' : 'Airwallex',
                 fontSize: 11.sp,
                 color: AppColors.textSecondary(context),
               ),

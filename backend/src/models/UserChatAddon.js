@@ -87,7 +87,7 @@ const userChatAddonSchema = new mongoose.Schema(
     cancelAtPeriodEnd: { type: Boolean, default: false },
     canceledAt: { type: Date, default: null },
 
-    lastPaymentIntentId: { type: String, default: null },
+    // v21.1.1 — Stripe fields removed.
 
     payments: [
       {

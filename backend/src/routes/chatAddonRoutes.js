@@ -16,14 +16,14 @@ const {
   CHAT_ADDON_INTERVAL_DAYS,
   getChatAddonPricing,
 } = require('../models/UserChatAddon');
-const { createPlatformPaymentIntent } = require('../services/stripeService');
 const airwallex = require('../services/airwallexService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 
 const router = express.Router();
 
-const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+// v21.1.1 — Stripe purgé. Default 'airwallex'.
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
 
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
 const userModelFromRole = (role) => ROLE_TO_MODEL_NAME[role] || 'Owner';
@@ -129,27 +129,8 @@ router.post('/subscribe', requireAuth, async (req, res) => {
       }
     }
 
-    // ─── Stripe flow (default / rollback) ──────────────────────────────────
-    const paymentIntent = await createPlatformPaymentIntent({
-      amount: amountCents,
-      currency: pricing.currency.toLowerCase(),
-      metadata: {
-        type: 'chat_addon_purchase',
-        userId: String(userId),
-        role,
-        currency: pricing.currency,
-        intervalDays: String(pricing.intervalDays),
-      },
-    });
-
-    res.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      provider: 'stripe',
-      amount: pricing.amount,
-      currency: pricing.currency,
-      intervalDays: pricing.intervalDays,
-    });
+    // ─── Stripe disabled (v21.1.1 purge) ─────────────────────────────────
+    return res.status(502).json({ error: 'Stripe payment disabled — Airwallex only' });
   } catch (e) {
     logger.error('[chatAddon/subscribe]', e);
     res.status(500).json({ error: e.message });

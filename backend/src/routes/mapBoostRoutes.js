@@ -18,7 +18,6 @@ const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
-const { createPlatformPaymentIntent } = require('../services/stripeService');
 const airwallex = require('../services/airwallexService');
 const UserSubscription = require('../models/UserSubscription');
 const { normalizeCurrency } = require('../utils/currency');
@@ -27,7 +26,8 @@ const pricingService = require('../services/pricingService');
 
 const router = express.Router();
 
-const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+// v21.1.1 — Stripe purgé. Default 'airwallex'.
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
 
 const MAP_BOOST_PACKAGES = {
   bronze: { days: 3, label: '3 days' },
@@ -229,29 +229,8 @@ router.post('/purchase', requireAuth, async (req, res) => {
       }
     }
 
-    // ─── Stripe flow (default / rollback) ──────────────────────────────────
-    const paymentIntent = await createPlatformPaymentIntent({
-      amount: amountCents,
-      currency: pricing.currency.toLowerCase(),
-      metadata: {
-        type: 'map_boost_purchase',
-        userId: String(req.user.id),
-        role: req.user.role,
-        tier,
-        currency: pricing.currency,
-        days: String(pricing.days),
-      },
-    });
-
-    res.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      provider: 'stripe',
-      tier,
-      amount: pricing.amount,
-      currency: pricing.currency,
-      days: pricing.days,
-    });
+    // ─── Stripe disabled (v21.1.1 purge) ─────────────────────────────────
+    return res.status(502).json({ error: 'Stripe payment disabled — Airwallex only' });
   } catch (e) {
     logger.error('[mapBoost/purchase]', e);
     res.status(500).json({ error: e.message });

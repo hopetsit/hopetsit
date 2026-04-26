@@ -14,22 +14,20 @@
  * On garde le code Stripe pour rollback instantané si besoin pendant la
  * période de bascule.
  */
-const Stripe = require('stripe');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
-const { getOrCreateStripeCustomerForProvider } = require('../services/stripeService');
 const airwallex = require('../services/airwallexService');
 const logger = require('../utils/logger');
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
 
 const _modelForRole = (role) =>
   role === 'owner' ? Owner : role === 'walker' ? Walker : Sitter;
 
 const ALLOWED_AMOUNTS_EUR = [2, 5, 10, 20];
 
-const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+// v21.1.1 — Stripe purgé. Default passe à 'airwallex' (compte Stripe fermé,
+// tomber sur Stripe par défaut casserait toute donation).
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
 
 const createDonationIntent = async (req, res) => {
   try {
@@ -101,36 +99,8 @@ const createDonationIntent = async (req, res) => {
       }
     }
 
-    // ─── Stripe flow (default / rollback) ──────────────────────────────────
-    const customerId = await getOrCreateStripeCustomerForProvider({
-      userId: doc._id.toString(),
-      role,
-      email: doc.email,
-      name: doc.name,
-    });
-
-    const intent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: currency.toLowerCase(),
-      customer: customerId,
-      setup_future_usage: 'off_session',
-      description: `HoPetSit donation ${rawAmount} ${currency} by ${role} ${doc.name}`,
-      metadata: {
-        type: 'donation',
-        userId: doc._id.toString(),
-        userRole: role,
-        currency,
-      },
-      automatic_payment_methods: { enabled: true },
-    });
-
-    return res.json({
-      clientSecret:    intent.client_secret,
-      paymentIntentId: intent.id,
-      provider:        'stripe',
-      amount:          rawAmount,
-      currency,
-    });
+    // ─── Stripe disabled (v21.1.1 purge) ─────────────────────────────────
+    return res.status(502).json({ error: 'Stripe payment disabled — Airwallex only' });
   } catch (err) {
     logger.error('[donations] createDonationIntent failed', err);
     return res.status(500).json({

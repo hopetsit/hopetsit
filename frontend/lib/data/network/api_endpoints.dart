@@ -111,13 +111,6 @@ class ApiEndpoints {
   /// Usage (capture): '${ApiEndpoints.bookings}/$bookingId${ApiEndpoints.paypalCapture}/$orderId'
   static const String paypalCapture = '/paypal/capture';
 
-  /// Stripe Connect endpoints
-  static const String stripeConnect = '/stripe-connect';
-  static const String stripeConnectCreateAccount =
-      '/stripe-connect/create-account';
-  static const String stripeConnectAccountStatus =
-      '/stripe-connect/account-status';
-
   /// Sitter PayPal payout email (Sitter only)
   /// Usage: PUT '${ApiEndpoints.sittersPayPalEmail}'
   static const String sittersPayPalEmail = '/sitters/paypal-email';

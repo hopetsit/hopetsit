@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:get/get.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/services/donation_service.dart';
-import 'package:hopetsit/views/pet_owner/payments/add_card_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -96,59 +94,14 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
     if (_addingCard) return;
     setState(() => _addingCard = true);
     try {
-      // v21.1 — Stripe SetupIntent flow disabled : Stripe account is
-      // closed and we haven't migrated to Airwallex PaymentConsent yet
-      // (queued for v22). With Airwallex Hosted Payment Page, the card
-      // is automatically saved on the customer profile at the FIRST real
-      // payment (donation / boost / booking), so a separate "Add card"
-      // step is unnecessary. Show a friendly notice instead of the
-      // 500 ApiException the user was getting.
+      // v21.1.1 — Stripe purgé. Avec Airwallex la carte est enregistrée
+      // automatiquement lors du premier vrai paiement (HPP), pas besoin
+      // d'un flow "ajouter carte" séparé. PaymentConsent à venir v22.
       CustomSnackbar.showWarning(
         title: 'common_info'.tr,
         message:
             'Tes cartes sont enregistrées automatiquement lors du premier paiement. Plus besoin de les ajouter manuellement !',
       );
-      return;
-      // ignore: dead_code
-      final setup = await _repo.createOwnerSetupIntent();
-      final clientSecret = setup['clientSecret']?.toString();
-      if (clientSecret == null || clientSecret.isEmpty) {
-        throw 'Missing clientSecret from backend';
-      }
-      // v18.7 — remplace PaymentSheet natif (focus bug Android) par
-      // AddCardScreen custom avec CardFormField + confirmSetupIntent.
-      // Résout le problème où le champ numéro de carte refuse les taps.
-      final publishableKey = setup['publishableKey']?.toString();
-      if (!mounted) return;
-      final ok = await Get.to<bool>(
-        () => AddCardScreen(
-          setupIntentClientSecret: clientSecret,
-          publishableKey: publishableKey,
-        ),
-      );
-      if (ok != true) {
-        // User cancelled ou échec — ne rien faire de plus.
-        return;
-      }
-
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: 'card_added_success'.tr == 'card_added_success'
-            ? 'Carte ajoutée'
-            : 'card_added_success'.tr,
-      );
-      // Retry fetch jusqu'à voir la nouvelle PaymentMethod côté Stripe.
-      await _loadWithRetry();
-    } on stripe.StripeException catch (e) {
-      // User cancelled or Stripe refused — don't treat as hard error.
-      final code = e.error.code.name;
-      if (code != 'Canceled' && code != 'canceled') {
-        AppLogger.logError('Stripe setup failed', error: e.error.localizedMessage);
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: e.error.localizedMessage ?? 'Stripe error',
-        );
-      }
     } catch (e) {
       AppLogger.logError('Add card failed', error: e);
       CustomSnackbar.showError(

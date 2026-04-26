@@ -13,9 +13,6 @@ import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
-// Session v3.2 — walker has its own identity verification screen (endpoints
-// /walkers/identity-verification) so we no longer import the sitter one here.
-import 'package:hopetsit/views/pet_walker/profile/walker_identity_verification_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
@@ -611,11 +608,7 @@ class WalkerProfileScreen extends StatelessWidget {
           Icons.map_rounded,
           () => Get.to(() => const PawMapScreen()),
         ),
-        _settingsTile(
-          'profile_identity_verification'.tr,
-          Icons.verified_user_outlined,
-          () => Get.to(() => const WalkerIdentityVerificationScreen()),
-        ),
+        // v21.1.1 — Tile "Vérifier identité" retirée : Stripe Identity purgé.
 
         // v20.0.7 — Top Walker loyalty card (Avantages walker) — mirrors
         // TopSitterCard used in sitter profile so the walker sees his

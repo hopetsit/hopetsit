@@ -60,15 +60,7 @@ const bookingSchema = new mongoose.Schema(
       enum: ['stripe', 'paypal'],
       default: null,
     },
-    // Stripe payment information
-    stripePaymentIntentId: {
-      type: String,
-      default: null,
-    },
-    stripeChargeId: {
-      type: String,
-      default: null,
-    },
+    // v21.1.1 — Stripe fields removed.
     petsitterConnectedAccountId: {
       type: String,
       default: null,

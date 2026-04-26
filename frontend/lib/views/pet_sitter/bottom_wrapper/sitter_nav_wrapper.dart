@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
@@ -21,6 +22,13 @@ class _SitterNavWrapperState extends State<SitterNavWrapper> {
     super.initState();
     if (!Get.isRegistered<NotificationsController>()) {
       Get.put(NotificationsController(), permanent: true);
+    }
+    // v21.1.1 — eager-register SitterBookingsController so the
+    // HomeQuickActionBar dans le SitterHomescreen peut lire la liste de
+    // bookings dès le 1er rendu (sinon le user devait visiter Réservations
+    // une fois pour que le contrôleur s'enregistre).
+    if (!Get.isRegistered<SitterBookingsController>()) {
+      Get.put(SitterBookingsController(), permanent: true);
     }
   }
 

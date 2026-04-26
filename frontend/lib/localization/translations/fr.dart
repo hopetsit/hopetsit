@@ -543,9 +543,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'blocked_users_save_success':
           'Utilisateurs bloqués enregistrés avec succès',
       'donate_coming_soon': 'La fonctionnalité de don sera bientôt disponible',
-      'stripe_connect_title': 'Configurer mon compte de paiement',
       'payout_status_screen_title': 'Statut des paiements',
-      'payout_connect_stripe_account': 'Configurer mon compte de paiement',
       'payout_paypal_email_title': 'Email de paiement',
       'payout_add_paypal_email_title': 'Ajouter un email de paiement',
       'payout_add_paypal_email_subtitle':
@@ -557,17 +555,9 @@ const Map<String, String> frFRTranslations = <String, String>{
       'payout_update_paypal_email': 'Mettre à jour l\'email de paiement',
       'payout_paypal_dialog_subtitle':
           'Cet email sera utilise pour les paiements PayPal. Assurez-vous qu\'il correspond a votre compte PayPal.',
-      'payout_stripe_connect_title': 'Compte de paiement',
-      'payout_status_connected': 'Connecte',
-      'payout_status_not_connected': 'Non connecte',
-      'payout_stripe_connected_message':
-          'Votre compte de paiement est configuré et prêt à recevoir des virements.',
-      'payout_stripe_not_connected_message':
-          'Configurez votre compte de paiement pour commencer à recevoir des virements.',
       'payout_account_id_label': 'ID du compte',
       'payout_verification_title': 'Statut de verification',
       'payout_status_title': 'Statut des paiements',
-      'payout_verification_step_identity': 'Verification d\'identite',
       'payout_verification_step_bank': 'Verification du compte bancaire',
       'payout_verification_step_business': 'Informations de l\'entreprise',
       'payout_next_payout_label': 'Prochain paiement',
@@ -596,69 +586,11 @@ const Map<String, String> frFRTranslations = <String, String>{
           'Vos paiements sont actuellement restreints. Veuillez contacter le support.',
       'payout_message_not_connected':
           'Configurez votre compte de paiement pour commencer à recevoir des virements.',
-      'stripe_get_paid_title': 'Recevez vos virements',
-      'stripe_connect_description':
-          'Connectez votre compte Stripe pour recevoir des paiements directement des propriétaires d\'animaux. Vos gains seront transférés sur votre compte bancaire.',
-      'stripe_account_status_title': 'État du compte',
-      'stripe_continue_onboarding': 'Continuer l\'intégration',
-      'stripe_connect_account_button': 'Configurer mon compte',
-      'stripe_benefit_secure': 'Traitement sécurisé des paiements',
-      'stripe_benefit_fast_payouts':
-          'Paiements rapides sur votre compte bancaire',
-      'stripe_benefit_no_fees': 'Aucuns frais d\'installation',
-      'stripe_benefit_support': 'Support client 24/7',
-      'stripe_benefit_required':
-          'Requis pour recevoir des paiements des propriétaires d\'animaux',
-      'stripe_account_connected': 'Compte connecté',
-      'stripe_account_created_pending': 'Compte créé - Intégration en attente',
-      'stripe_account_created': 'Compte créé',
-      'stripe_account_connected_message':
-          'Votre compte de paiement est entièrement configuré et prêt à recevoir des virements.',
-      'stripe_account_created_message':
-          'Votre compte Stripe a été créé. Veuillez compléter le processus d\'intégration pour commencer à recevoir des paiements.',
-      'stripe_account_created_partial_message':
-          'Votre compte de paiement a été créé. Certaines étapes de vérification restent à compléter. Vous pouvez les compléter dans les paramètres de votre compte.',
-      'stripe_account_id_label': 'ID du compte',
-      'stripe_loading_onboarding': 'Chargement de l\'intégration Stripe...',
-      'stripe_account_connected_success':
-          'Compte de paiement configuré avec succès !',
-      'stripe_onboarding_completed': 'Configuration terminée !',
-      'stripe_onboarding_cancelled': 'L\'intégration Stripe a été annulée.',
-      'stripe_onboarding_load_error':
-          'Échec du chargement de la page d\'intégration Stripe : @error',
-      'stripe_cancel_onboarding_title': 'Annuler l\'intégration ?',
-      'stripe_cancel_onboarding_message':
-          'Voulez-vous vraiment annuler l\'intégration Stripe ? Vous pourrez la compléter plus tard depuis les paramètres.',
-      'stripe_connect_payment_title': 'Connectez votre compte de paiement',
-      'stripe_connect_payment_description':
-          'Pour commencer à recevoir des paiements en tant que Gardien, vous devez connecter votre compte de paiement. C\'est une étape requise pour compléter la configuration de votre profil.',
-      'stripe_connect_payment_partial_description':
-          'Votre compte de paiement a été créé. Certaines étapes de vérification restent à compléter. Vous pouvez les compléter plus tard dans les paramètres de votre compte.',
-      'stripe_connect_payment_partial_info':
-          'Votre compte est connecté, mais certaines étapes de vérification restent à compléter. Vous pouvez les compléter dans les paramètres de votre compte.',
-      'stripe_payment_connected_success': 'Paiement connecté avec succès !',
-      'stripe_connect_now': 'Connecter maintenant',
-      'stripe_already_connected': 'Déjà connecté',
-      'stripe_already_connected_message':
-          'Votre compte de paiement est déjà configuré et actif.',
-      'stripe_connect_platform_not_enabled':
-          'Le paiement par Stripe n\'est pas encore activé côté plateforme. Réessayez plus tard ou contactez le support.',
-      'stripe_connect_error':
-          'Échec de la configuration du compte. Veuillez réessayer.',
-      'stripe_no_onboarding_url':
-          'Aucune URL d\'intégration disponible. Veuillez d\'abord créer un compte Stripe.',
-      'stripe_onboarding_expired_title': 'Expiré',
-      'stripe_onboarding_expired_message':
-          'Le lien d\'intégration a expiré. Veuillez en créer un nouveau.',
-      'stripe_disconnect_success': 'Compte de paiement supprimé avec succès !',
-      'stripe_disconnect_error':
-          'Échec de la suppression du compte de paiement. Veuillez réessayer.',
       'payment_title': 'Paiement',
       'payment_info_message':
           'Cliquez sur "Payer" ci-dessous pour saisir en toute sécurité vos informations de paiement.',
       'payment_paypal_info':
           'Vous serez redirigé pour approuver le paiement, puis nous le confirmerons ici.',
-      'payment_pay_with_stripe': 'Payer @amount',
       'payment_pay_with_paypal': 'Payer @amount',
       'booking_agreement_title': 'Accord de réservation',
       'booking_agreement_payment_completed': 'Paiement effectué',
@@ -1647,6 +1579,9 @@ const Map<String, String> frFRTranslations = <String, String>{
     'cancel_72h_success': 'Réservation annulée et remboursement initié.',
     'cancel_72h_error': 'Impossible d\'annuler cette réservation.',
     'boost_shop_title': 'Boutique',
+    'shop_tab_boost': 'Boost',
+    'shop_tab_pawpass': 'PawPass',
+    'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Boosté',
     'boost_choose_package': 'Choisir un forfait',
     'boost_choose_subtitle': 'Boostez votre profil en haut du feed pour être vu en premier !',
@@ -1843,7 +1778,8 @@ const Map<String, String> frFRTranslations = <String, String>{
     'premium_feature_alerts': '18 types d\'alertes temps réel — dont 7 signalements PawPass exclusifs (chien agressif, danger véhicule, incendie, inondation, faune sauvage…)',
     'premium_feature_notifications': 'Notifications instantanées — soyez le premier alerté quand un signalement apparaît près de vous',
     'premium_feature_chat': 'Chat illimité avec les utilisateurs croisés sur la map',
-    'premium_feature_friends_tracking': 'Suivi d\'amis en temps réel (façon Waze)',
+    'premium_feature_friends_tracking': "Suivi d'amis & famille en temps réel (façon Waze)",
+    'premium_feature_family_plan': 'Forfait Famille disponible (jusqu\'à 5 utilisateurs) — 9,99€/mois',
     'premium_feature_monthly_boost': '1 PawSpot offert chaque mois — touchez pour réclamer',
     'premium_feature_badge': 'Badge PawPass sur votre profil',
     'premium_upsell_text': 'Passez PawPass pour débloquer toutes les fonctionnalités',

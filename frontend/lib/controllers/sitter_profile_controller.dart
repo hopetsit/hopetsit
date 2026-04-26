@@ -16,7 +16,6 @@ import 'package:hopetsit/views/profile/change_password_screen.dart';
 import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
 import 'package:hopetsit/views/pet_sitter/onboarding/petsitter_onboarding_screen.dart';
-import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payout_status_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/edit_sitter_profile_screen.dart';
 import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
@@ -407,8 +406,13 @@ class SitterProfileController extends GetxController {
     Get.to(() => const PetsitterOnboardingScreen());
   }
 
+  // v21.1.1 — Stripe Connect onboarding retiré (Stripe purgé). Le sitter
+  // configure désormais ses payouts via l'écran IBAN (Airwallex Beneficiary).
   void navigateToStripeConnect() {
-    Get.to(() => const StripeConnectOnboardingScreen());
+    CustomSnackbar.showWarning(
+      title: 'Configuration de paiement',
+      message: 'Renseigne ton IBAN dans Profil → Compte bancaire pour recevoir tes paiements.',
+    );
   }
 
   void navigateToPayoutStatus() {

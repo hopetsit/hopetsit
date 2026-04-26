@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 21.1.0+43
+version: 21.1.1+44
 
 environment:
   sdk: ^3.9.2
@@ -41,7 +41,7 @@ dependencies:
   get_storage: ^2.1.1
   webview_flutter: ^4.13.1
   photo_view: ^0.14.0
-  flutter_stripe: ^11.1.0
+  # v21.1.1 — flutter_stripe SUPPRIMÉ. Pure Airwallex via webview HPP.
   # v20.1 — Airwallex Payment SDK officiel (drop-in UI + Apple Pay + Google Pay).
   # Stripe est conservé pendant la transition pour rollback instantané ; le
   # provider est dispatché au runtime selon le champ `provider` retourné par

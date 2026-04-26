@@ -273,10 +273,9 @@ router.post('/bookings/:id/refund', requireAdmin, async (req, res) => {
     // Attempt provider-specific refund
     let refundResult = null;
     try {
+      // v21.1.1 — Stripe disabled (Airwallex only)
       if (booking.paymentProvider === 'stripe') {
-        const { createRefund } = require('../services/stripeService');
-        const chargeId = booking.stripeChargeId || booking.stripePaymentIntentId;
-        if (chargeId) refundResult = await createRefund(chargeId);
+        logger.warn('[admin/refund] Stripe refunds disabled (Airwallex only). Booking marked as refunded in DB only.');
       } else if (booking.paymentProvider === 'paypal') {
         const { refundPaypalCapture } = require('../services/paypalService');
         if (booking.paypalCaptureId) refundResult = await refundPaypalCapture(booking.paypalCaptureId);

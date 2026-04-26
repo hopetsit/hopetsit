@@ -528,9 +528,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'blocked_users_save_success':
           'Usuarios bloqueados guardados exitosamente',
       'donate_coming_soon': 'La función de donación estará disponible pronto',
-      'stripe_connect_title': 'Configurar mi cuenta de pagos',
       'payout_status_screen_title': 'Estado de pagos',
-      'payout_connect_stripe_account': 'Configurar mi cuenta de pagos',
       'payout_paypal_email_title': 'Correo de pago',
       'payout_add_paypal_email_title': 'Agregar correo de pagos',
       'payout_add_paypal_email_subtitle':
@@ -542,17 +540,9 @@ const Map<String, String> esESTranslations = <String, String>{
       'payout_update_paypal_email': 'Actualizar correo de pagos',
       'payout_paypal_dialog_subtitle':
           'Este correo se usará para transferencias. Asegúrate de que sea correcto.',
-      'payout_stripe_connect_title': 'Cuenta de pagos',
-      'payout_status_connected': 'Conectado',
-      'payout_status_not_connected': 'No conectado',
-      'payout_stripe_connected_message':
-          'Tu cuenta de pagos está conectada y lista para recibir transferencias.',
-      'payout_stripe_not_connected_message':
-          'Configura tu cuenta de pagos para comenzar a recibir transferencias.',
       'payout_account_id_label': 'ID de cuenta',
       'payout_verification_title': 'Estado de verificacion',
       'payout_status_title': 'Estado de pagos',
-      'payout_verification_step_identity': 'Verificacion de identidad',
       'payout_verification_step_bank': 'Verificacion de cuenta bancaria',
       'payout_verification_step_business': 'Informacion del negocio',
       'payout_next_payout_label': 'Proximo pago',
@@ -581,63 +571,6 @@ const Map<String, String> esESTranslations = <String, String>{
           'Tus pagos estan restringidos actualmente. Contacta con soporte.',
       'payout_message_not_connected':
           'Configura tu cuenta de pagos para comenzar a recibir transferencias.',
-      'stripe_get_paid_title': 'Recibe tus transferencias',
-      'stripe_connect_description':
-          'Configura tu cuenta para recibir tus ganancias directamente. Tus ingresos se transferirán a tu cuenta bancaria.',
-      'stripe_account_status_title': 'Estado de la cuenta',
-      'stripe_continue_onboarding': 'Continuar integración',
-      'stripe_connect_account_button': 'Configurar mi cuenta',
-      'stripe_benefit_secure': 'Procesamiento seguro de pagos',
-      'stripe_benefit_fast_payouts': 'Pagos rápidos a tu cuenta bancaria',
-      'stripe_benefit_no_fees': 'Sin tarifas de configuración',
-      'stripe_benefit_support': 'Soporte al cliente 24/7',
-      'stripe_benefit_required':
-          'Requerido para recibir pagos de dueños de mascotas',
-      'stripe_account_connected': 'Cuenta conectada',
-      'stripe_account_created_pending': 'Cuenta creada - Integración pendiente',
-      'stripe_account_created': 'Cuenta creada',
-      'stripe_account_connected_message':
-          'Tu cuenta de pagos está completamente configurada y lista para recibir transferencias.',
-      'stripe_account_created_message':
-          'Tu cuenta ha sido creada. Por favor completa la configuración para comenzar a recibir tus transferencias.',
-      'stripe_account_created_partial_message':
-          'Tu cuenta de pago ha sido creada. Algunos pasos de verificación están pendientes. Puedes completarlos en la configuración de tu cuenta.',
-      'stripe_account_id_label': 'ID de cuenta',
-      'stripe_loading_onboarding': 'Cargando configuración...',
-      'stripe_account_connected_success':
-          '¡Cuenta de pagos configurada exitosamente!',
-      'stripe_onboarding_completed': '¡Configuración completada!',
-      'stripe_onboarding_cancelled': 'La configuración fue cancelada.',
-      'stripe_onboarding_load_error':
-          'Error al cargar la página de configuración: @error',
-      'stripe_cancel_onboarding_title': '¿Cancelar integración?',
-      'stripe_cancel_onboarding_message':
-          '¿Seguro que quieres cancelar la configuración? Puedes completarla más tarde desde la configuración.',
-      'stripe_connect_payment_title': 'Conecta tu cuenta de pago',
-      'stripe_connect_payment_description':
-          'Para comenzar a recibir pagos como Pet Sitter, necesitas conectar tu cuenta de pago. Este es un paso requerido para completar la configuración de tu perfil.',
-      'stripe_connect_payment_partial_description':
-          'Tu cuenta de pago ha sido creada. Algunos pasos de verificación están pendientes. Puedes completarlos más tarde en la configuración de tu cuenta.',
-      'stripe_connect_payment_partial_info':
-          'Tu cuenta está conectada, pero algunos pasos de verificación están pendientes. Puedes completarlos en la configuración de tu cuenta.',
-      'stripe_payment_connected_success': '¡Pago conectado exitosamente!',
-      'stripe_connect_now': 'Conectar ahora',
-      'stripe_already_connected': 'Ya conectado',
-      'stripe_already_connected_message':
-          'Tu cuenta de pagos ya está configurada y activa.',
-      'stripe_connect_platform_not_enabled':
-          'El sistema de pagos aún no está activado. Vuelve a intentarlo más tarde o contacta con soporte.',
-      'stripe_connect_error':
-          'Error al configurar la cuenta. Por favor intenta de nuevo.',
-      'stripe_no_onboarding_url':
-          'No hay URL de configuración disponible. Por favor crea una cuenta primero.',
-      'stripe_onboarding_expired_title': 'Expirado',
-      'stripe_onboarding_expired_message':
-          'El enlace de integración ha expirado. Por favor crea uno nuevo.',
-      'stripe_disconnect_success':
-          '¡Cuenta de pagos eliminada exitosamente!',
-      'stripe_disconnect_error':
-          'Error al eliminar la cuenta de pagos. Por favor intenta de nuevo.',
       'payment_title': 'Pago',
       'payment_info_message':
           'Haz clic en "Pagar" a continuación para ingresar de forma segura tus datos de pago.',
@@ -1633,6 +1566,9 @@ const Map<String, String> esESTranslations = <String, String>{
     'cancel_72h_success': 'Reserva cancelada y reembolso iniciado.',
     'cancel_72h_error': 'No se pudo cancelar esta reserva.',
     'boost_shop_title': 'Tienda Boost',
+    'shop_tab_boost': 'Boost',
+    'shop_tab_pawpass': 'PawPass',
+    'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Destacado',
     'boost_choose_package': 'Elige un paquete',
     'boost_choose_subtitle': 'Impulsa tu perfil a lo más alto del feed para ser visto primero!',
@@ -1818,7 +1754,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'premium_feature_alerts': '18 tipos de alertas en tiempo real — incluidos 7 reportes PawPass exclusivos (perro agresivo, peligro vehicular, incendio, inundación, fauna salvaje…)',
     'premium_feature_notifications': 'Notificaciones instantáneas — sé el primero en enterarte cuando aparece un reporte cerca',
     'premium_feature_chat': 'Chat ilimitado con los usuarios cruzados en el mapa',
-    'premium_feature_friends_tracking': 'Seguimiento de amigos en tiempo real (tipo Waze)',
+    'premium_feature_friends_tracking': 'Seguimiento de amigos y familia en tiempo real (tipo Waze)',
+    'premium_feature_family_plan': 'Plan Familia disponible (hasta 5 usuarios) — 9,99€/mes',
     'premium_feature_monthly_boost': '1 PawSpot gratis cada mes — tócalo para reclamarlo',
     'premium_feature_badge': 'Insignia PawPass en tu perfil',
     'premium_upsell_text': 'Pasa a PawPass para desbloquear todas las funciones',

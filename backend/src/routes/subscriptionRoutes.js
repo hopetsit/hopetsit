@@ -22,14 +22,14 @@ const {
   PREMIUM_FEATURES_DEFAULT,
   getPlanPricing,
 } = require('../models/UserSubscription');
-const { createPlatformPaymentIntent } = require('../services/stripeService');
 const airwallex = require('../services/airwallexService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
 
 const router = express.Router();
 
-const PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+// v21.1.1 — Stripe purgé. Default 'airwallex' (compte Stripe fermé).
+const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
@@ -201,29 +201,8 @@ router.post('/subscribe', requireAuth, async (req, res) => {
       }
     }
 
-    // ─── Stripe flow (default / rollback) ──────────────────────────────────
-    const paymentIntent = await createPlatformPaymentIntent({
-      amount: amountCents,
-      currency: pricing.currency.toLowerCase(),
-      metadata: {
-        type: 'subscription_purchase',
-        userId: String(userId),
-        role,
-        plan,
-        currency: pricing.currency,
-        intervalDays: String(pricing.intervalDays),
-      },
-    });
-
-    res.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      provider: 'stripe',
-      plan,
-      amount: pricing.amount,
-      currency: pricing.currency,
-      intervalDays: pricing.intervalDays,
-    });
+    // ─── Stripe disabled (v21.1.1 purge) ─────────────────────────────────
+    return res.status(502).json({ error: 'Stripe payment disabled — Airwallex only' });
   } catch (e) {
     logger.error('[subscription/subscribe] Error creating PaymentIntent', e);
     res.status(500).json({ error: e.message });

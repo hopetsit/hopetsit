@@ -1,36 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/stripe_payment_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
-import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
-import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:intl/intl.dart';
 
-/// v18.5 — #1/#2/#8 fix : UNIFIED payment screen.
+/// v21.1.1 — Écran de paiement de réservation, pure Airwallex.
 ///
-/// Merged StripePaymentScreen (summary) + ModernCardPaymentScreen (card
-/// form) into a single scrollable page. Before v18.5, tapping "Accepter
-/// et payer" from a notification took the owner through 2 screens
-/// (summary → card form) which felt laggy and double-tap heavy.
+/// Stripe purgé. L'écran affiche le résumé de la réservation + un bouton
+/// "Payer" qui ouvre le hosted payment page Airwallex (webview). C'est
+/// Airwallex qui collecte les détails carte / billing — plus de CardFormField
+/// inline, plus de saved cards (PaymentConsent à venir v22).
 ///
-/// Now: 1 screen, 1 tap on "Pay €X.XX".
-/// Role-coloured:
-///   walker → green  (#16A34A)
-///   sitter → blue   (#2563EB)
-///   fallback → app primary
-///
-/// Provider type is taken from the [providerType] argument when supplied,
-/// otherwise derived from `booking.serviceType`.
-///
-/// The card collection still goes through Stripe's `CardFormField` widget
-/// so PCI compliance is preserved — only the visual shell is ours.
+/// Le nom de classe `StripePaymentScreen` est conservé pour ne pas casser
+/// les imports existants (notifications, owner_bookings, deep_link...).
 class StripePaymentScreen extends StatefulWidget {
   final BookingModel booking;
   final double totalAmount;
@@ -53,24 +40,6 @@ class StripePaymentScreen extends StatefulWidget {
 }
 
 class _StripePaymentScreenState extends State<StripePaymentScreen> {
-  // v18.9.8 — couleurs rôles centralisées via AppColors.roleAccent().
-  // Avant, ces constantes étaient dupliquées dans ~10 screens.
-
-  // Card form state.
-  CardFieldInputDetails? _cardDetails;
-  final TextEditingController _holderNameCtrl = TextEditingController();
-  final TextEditingController _holderEmailCtrl = TextEditingController();
-  String _country = 'FR';
-
-  // v18.5 — #19 saved card auto-populate
-  // Si l'owner a une carte sauvegardée (via "Mes paiements"), on la propose
-  // en haut du formulaire en radio. Sélection = payer avec pm_xxx sans
-  // ressaisir le numéro. Tap "Utiliser une nouvelle carte" = révèle les
-  // CardFormField + form holder.
-  List<Map<String, dynamic>> _savedMethods = const [];
-  String? _selectedSavedPmId; // null = nouvelle carte
-  bool _loadingMethods = true;
-
   late final StripePaymentController _controller;
 
   @override
@@ -90,34 +59,6 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
       ),
       tag: tag,
     );
-    _loadSavedMethods();
-  }
-
-  /// v18.5 — #19 : fetch saved cards so the owner doesn't re-type.
-  Future<void> _loadSavedMethods() async {
-    try {
-      final repo = Get.find<OwnerRepository>();
-      final methods = await repo.getOwnerPaymentMethods();
-      if (!mounted) return;
-      setState(() {
-        _savedMethods = methods;
-        // Si au moins une carte, on présélectionne la 1re pour accélérer.
-        if (methods.isNotEmpty) {
-          _selectedSavedPmId = methods.first['id']?.toString();
-        }
-        _loadingMethods = false;
-      });
-    } catch (e) {
-      AppLogger.logDebug('StripePaymentScreen: load saved methods failed: $e');
-      if (mounted) setState(() => _loadingMethods = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _holderNameCtrl.dispose();
-    _holderEmailCtrl.dispose();
-    super.dispose();
   }
 
   bool get _isWalker {
@@ -140,7 +81,6 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   }
 
   Color _accent() {
-    // v18.9.8 — helper centralisé (voir AppColors.roleAccent).
     if (_isWalker) return AppColors.walkerAccent;
     if (_isSitter) return AppColors.sitterAccent;
     return AppColors.primaryColor;
@@ -167,27 +107,19 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
         .join(' ');
   }
 
-  /// v18.8 — avant on affichait booking.date brut (ex
-  /// "2026-04-24T00:00:00.000Z") + booking.timeSlot brut ("11:19 PM").
-  /// Désormais si la date arrive en ISO, on parse et on reformate dans
-  /// la locale courante : "mer. 24 avr. 2026".
   String _formatDate(String raw, String lang) {
     if (raw.isEmpty) return '';
-    // Détecte un ISO timestamp (ex 2026-04-24T00:00:00.000Z).
     if (raw.contains('T') || raw.contains('-')) {
       try {
         final dt = DateTime.parse(raw).toLocal();
         return DateFormat('EEE, d MMM y', lang).format(dt);
-      } catch (_) {
-        // fall through — laisser la chaîne brute si pas parseable.
-      }
+      } catch (_) {}
     }
     return raw;
   }
 
   String _formatTime(String raw, String lang) {
     if (raw.isEmpty) return '';
-    // Tente de parser un ISO (cas où timeSlot contient déjà la date).
     if (raw.contains('T')) {
       try {
         final dt = DateTime.parse(raw).toLocal();
@@ -195,7 +127,6 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
         return DateFormat(pattern, lang).format(dt);
       } catch (_) {}
     }
-    // Tente "11:19 PM" → DateTime + format localisé.
     final m = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)?$',
             caseSensitive: false)
         .firstMatch(raw.trim());
@@ -231,53 +162,17 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   }
 
   Future<void> _onPayTap() async {
-    // v18.5 — #19 : 2 routes possibles au moment du paiement.
-    // (A) Saved card sélectionnée → confirmPayment avec payment_method=pm_id
-    //     (pas de CardFormField, pas de holder name obligatoire).
-    // (B) Nouvelle carte → flow CardFormField comme avant.
-    if (_selectedSavedPmId != null && _selectedSavedPmId!.isNotEmpty) {
-      await _controller.initiateAndConfirmPaymentWithSavedMethod(
-        paymentMethodId: _selectedSavedPmId!,
-      );
-      return;
-    }
-
-    if (_cardDetails == null || !(_cardDetails!.complete)) {
-      CustomSnackbar.showError(
-        title: 'payment_card_incomplete_title'.tr,
-        message: 'payment_card_incomplete_message'.tr,
-      );
-      return;
-    }
-    if (_holderNameCtrl.text.trim().isEmpty) {
-      CustomSnackbar.showError(
-        title: 'payment_cardholder_required_title'.tr,
-        message: 'payment_cardholder_required_message'.tr,
-      );
-      return;
-    }
-
-    final billingDetails = BillingDetails(
-      name: _holderNameCtrl.text.trim(),
-      email: _holderEmailCtrl.text.trim().isEmpty
-          ? null
-          : _holderEmailCtrl.text.trim(),
-      address: Address(
-        country: _country,
-        city: null,
-        line1: null,
-        line2: null,
-        postalCode: null,
-        state: null,
-      ),
-    );
-
-    await _controller.initiateAndConfirmPayment(billingDetails: billingDetails);
+    // v21.1.1 — Airwallex HPP collecte la carte directement dans son webview.
+    // Plus besoin de billingDetails côté Flutter.
+    await _controller.initiateAndConfirmPayment();
   }
 
   @override
   Widget build(BuildContext context) {
     final accent = _accent();
+    final currency = widget.currency ??
+        widget.booking.pricing?.currency ??
+        widget.booking.sitter.currency;
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -304,82 +199,26 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSummaryCard(context, accent),
+                    _buildSummaryCard(context, accent, currency),
                     SizedBox(height: 20.h),
-                    if (_savedMethods.isNotEmpty) ...[
-                      _buildSavedCardsSection(context, accent),
-                      SizedBox(height: 16.h),
-                    ],
-                    // La section carte inline n'apparaît que si l'user
-                    // choisit "Nouvelle carte" (ou n'a aucune carte).
-                    if (_selectedSavedPmId == null)
-                      _buildCardFormSection(context, accent),
-                    if (_selectedSavedPmId == null) SizedBox(height: 16.h),
                     _buildInfoBanner(context, accent),
                   ],
                 ),
               ),
             ),
+            // Sticky pay button at the bottom.
             Padding(
-              padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
-              child: Row(
-                children: [
-                  // Cancel (red) — left
-                  Expanded(
-                    child: Obx(
-                      () => CustomButton(
-                        title: 'common_cancel'.tr,
-                        onTap: !_controller.isProcessing.value
-                            ? () => Get.back()
-                            : null,
-                        bgColor: const Color(0xFFEF4444),
-                        textColor: AppColors.whiteColor,
-                        height: 48.h,
-                        radius: 48.r,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12.w),
-                  // Pay (role-coloured) — right
-                  Expanded(
-                    flex: 2,
-                    child: Obx(
-                      () => CustomButton(
-                        title: _controller.isProcessing.value
-                            ? null
-                            : 'payment_pay_button'.tr.replaceAll(
-                                '@amount',
-                                _formatPrice(
-                                  widget.totalAmount,
-                                  _controller.currency,
-                                ),
-                              ),
-                        onTap: !_controller.isProcessing.value
-                            ? _onPayTap
-                            : null,
-                        bgColor: _controller.isProcessing.value
-                            ? accent.withValues(alpha: 0.7)
-                            : accent,
-                        textColor: AppColors.whiteColor,
-                        height: 48.h,
-                        radius: 48.r,
-                        child: _controller.isProcessing.value
-                            ? SizedBox(
-                                height: 20.h,
-                                width: 20.w,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.whiteColor,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 20.h),
+              child: Obx(() => CustomButton(
+                    title: _controller.isProcessing.value
+                        ? 'payment_processing'.tr
+                        : '${'button_pay'.tr} ${CurrencyHelper.format(
+                            currency,
+                            widget.totalAmount,
+                          )}',
+                    onTap: _controller.isProcessing.value ? () {} : _onPayTap,
+                    bgColor: accent,
+                  )),
             ),
           ],
         ),
@@ -387,208 +226,7 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, Color accent) {
-    return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: accent.withValues(alpha: 0.4), width: 1.2),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: PoppinsText(
-                  text: _providerName(),
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: InterText(
-                  text: _isWalker
-                      ? 'role_walker'.tr
-                      : _isSitter
-                          ? 'role_sitter'.tr
-                          : 'role_provider'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
-                  color: accent,
-                ),
-              ),
-            ],
-          ),
-          if (_serviceLabel().isNotEmpty) ...[
-            SizedBox(height: 6.h),
-            InterText(
-              text: _serviceLabel(),
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary(context),
-            ),
-          ],
-          if (_dateLabel().isNotEmpty) ...[
-            SizedBox(height: 4.h),
-            Row(
-              children: [
-                Icon(Icons.event, size: 16.sp, color: AppColors.textSecondary(context)),
-                SizedBox(width: 6.w),
-                InterText(
-                  text: _dateLabel(),
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary(context),
-                ),
-              ],
-            ),
-          ],
-          SizedBox(height: 18.h),
-          Divider(color: accent.withValues(alpha: 0.2), height: 1),
-          SizedBox(height: 14.h),
-          PoppinsText(
-            text: 'payment_amount_label'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary(context),
-          ),
-          SizedBox(height: 6.h),
-          PoppinsText(
-            text: _formatPrice(
-              widget.totalAmount,
-              widget.currency ??
-                  widget.booking.pricing?.currency ??
-                  widget.booking.sitter.currency,
-            ),
-            fontSize: 26.sp,
-            fontWeight: FontWeight.w700,
-            color: accent,
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// v18.5 — #19 : section "Cartes enregistrées" au-dessus du CardFormField.
-  /// Permet à l'owner de payer en 1 tap avec une carte déjà sauvegardée via
-  /// "Mes paiements", sans ressaisir le numéro.
-  Widget _buildSavedCardsSection(BuildContext context, Color accent) {
-    return Container(
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.credit_card_rounded, size: 20.sp, color: accent),
-              SizedBox(width: 8.w),
-              PoppinsText(
-                text: 'payment_saved_cards_title'.tr,
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-              ),
-            ],
-          ),
-          SizedBox(height: 10.h),
-          for (final m in _savedMethods) _buildSavedCardOption(m, accent),
-          Divider(color: AppColors.grey300Color, height: 20.h),
-          GestureDetector(
-            onTap: () {
-              setState(() => _selectedSavedPmId = null);
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 4.w),
-              child: Row(
-                children: [
-                  Radio<String?>(
-                    value: null,
-                    groupValue: _selectedSavedPmId,
-                    onChanged: (v) =>
-                        setState(() => _selectedSavedPmId = null),
-                    activeColor: accent,
-                  ),
-                  SizedBox(width: 4.w),
-                  Icon(Icons.add_card_outlined, size: 18.sp, color: accent),
-                  SizedBox(width: 8.w),
-                  InterText(
-                    text: 'payment_use_new_card'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSavedCardOption(Map<String, dynamic> method, Color accent) {
-    // v18.5 — #19 : le backend listOwnerPaymentMethods renvoie les champs
-    // à plat : {id, brand, last4, expMonth, expYear, holder}. Pas de
-    // nested `card`. Si la forme change, les fallbacks vides évitent
-    // un crash UI.
-    final id = method['id']?.toString() ?? '';
-    final brand = (method['brand'] ?? '').toString().toUpperCase();
-    final last4 = (method['last4'] ?? '').toString();
-    final expMonth = (method['expMonth'] ?? '').toString();
-    final expYear = (method['expYear'] ?? '').toString();
-    final expLabel = (expMonth.isNotEmpty && expYear.isNotEmpty)
-        ? ' — $expMonth/${expYear.length >= 2 ? expYear.substring(expYear.length - 2) : expYear}'
-        : '';
-    final label = '${brand.isNotEmpty ? brand : "CARD"} •••• $last4$expLabel';
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedSavedPmId = id),
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 4.w),
-        child: Row(
-          children: [
-            Radio<String?>(
-              value: id,
-              groupValue: _selectedSavedPmId,
-              onChanged: (v) => setState(() => _selectedSavedPmId = v),
-              activeColor: accent,
-            ),
-            SizedBox(width: 4.w),
-            Icon(Icons.credit_card, size: 18.sp, color: accent),
-            SizedBox(width: 8.w),
-            Expanded(
-              child: InterText(
-                text: label,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary(context),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// v18.5 — card collection inline (Stripe CardFormField + cardholder
-  /// details). Replaces the old ModernCardPaymentScreen detour.
-  Widget _buildCardFormSection(BuildContext context, Color accent) {
+  Widget _buildSummaryCard(BuildContext context, Color accent, String currency) {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -601,90 +239,140 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.credit_card_rounded, size: 20.sp, color: accent),
-              SizedBox(width: 8.w),
+              CircleAvatar(
+                radius: 22.r,
+                backgroundColor: accent.withValues(alpha: 0.15),
+                child: Icon(Icons.person, color: accent, size: 22.sp),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(
+                      text: _providerName(),
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                    ),
+                    if (_serviceLabel().isNotEmpty) ...[
+                      SizedBox(height: 2.h),
+                      InterText(
+                        text: _serviceLabel(),
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14.h),
+          Divider(color: AppColors.divider(context), height: 1),
+          SizedBox(height: 14.h),
+          if (_dateLabel().isNotEmpty) ...[
+            _summaryRow(
+              context,
+              icon: Icons.event_outlined,
+              label: 'payment_date_label'.tr,
+              value: _dateLabel(),
+            ),
+            SizedBox(height: 10.h),
+          ],
+          if (widget.booking.petName.isNotEmpty) ...[
+            _summaryRow(
+              context,
+              icon: Icons.pets,
+              label: 'payment_pet_label'.tr,
+              value: widget.booking.petName,
+            ),
+            SizedBox(height: 10.h),
+          ],
+          SizedBox(height: 4.h),
+          Divider(color: AppColors.divider(context), height: 1),
+          SizedBox(height: 14.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
               PoppinsText(
-                text: 'payment_card_section_title'.tr,
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
+                text: 'payment_total_label'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary(context),
+              ),
+              PoppinsText(
+                text: CurrencyHelper.format(currency, widget.totalAmount),
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w800,
+                color: accent,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18.sp, color: AppColors.textSecondary(context)),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InterText(
+                text: label,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textSecondary(context),
+              ),
+              SizedBox(height: 1.h),
+              PoppinsText(
+                text: value,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary(context),
               ),
             ],
           ),
-          SizedBox(height: 12.h),
-          // Stripe CardFormField — PCI-compliant, card stays in Stripe's
-          // sandbox, we just render the chrome around it.
-          CardFormField(
-            style: CardFormStyle(
-              borderColor: accent.withValues(alpha: 0.25),
-              borderRadius: 12,
-              borderWidth: 1,
-              textColor: AppColors.textPrimary(context),
-              placeholderColor: AppColors.textSecondary(context),
-              backgroundColor: AppColors.scaffold(context),
-              fontSize: 14,
-            ),
-            onCardChanged: (details) {
-              setState(() => _cardDetails = details);
-            },
-          ),
-          SizedBox(height: 14.h),
-          // Cardholder name
-          TextField(
-            controller: _holderNameCtrl,
-            decoration: InputDecoration(
-              labelText: 'payment_cardholder_name'.tr,
-              prefixIcon: Icon(Icons.person_outline, color: accent),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          SizedBox(height: 10.h),
-          // Cardholder email (optional)
-          TextField(
-            controller: _holderEmailCtrl,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'payment_cardholder_email_optional'.tr,
-              prefixIcon: Icon(Icons.mail_outline, color: accent),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-            ),
-            textInputAction: TextInputAction.done,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildInfoBanner(BuildContext context, Color accent) {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lock_outline, size: 20.sp, color: accent),
-          SizedBox(width: 12.w),
+          Icon(Icons.lock_outline, color: accent, size: 18.sp),
+          SizedBox(width: 10.w),
           Expanded(
             child: InterText(
-              text: 'payment_stripe_info'.tr,
-              fontSize: 13.sp,
-              color: accent,
+              text: 'payment_secure_info'.tr,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w400,
+              color: AppColors.textPrimary(context),
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatPrice(double price, String currency) {
-    return CurrencyHelper.format(currency, price);
   }
 }

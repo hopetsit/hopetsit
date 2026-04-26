@@ -198,10 +198,7 @@ const userSubscriptionSchema = new mongoose.Schema(
     cancelAtPeriodEnd: { type: Boolean, default: false },
     canceledAt: { type: Date, default: null },
 
-    // Stripe references
-    stripeCustomerId: { type: String, default: null, index: true, sparse: true },
-    stripeSubscriptionId: { type: String, default: null, index: true, sparse: true },
-    lastPaymentIntentId: { type: String, default: null },
+    // v21.1.1 — Stripe references removed.
 
     // Payment history (similar to boostPurchases on User models)
     payments: [

@@ -1,32 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get.dart';
-import 'package:hopetsit/controllers/stripe_payment_controller.dart';
-import 'package:hopetsit/models/booking_model.dart';
-import 'package:hopetsit/services/stripe_payment_service.dart';
-import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/views/payment/payment_result_screen.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-
-/// Screen that displays Stripe payment in a webview
-class StripeWebviewPaymentScreen extends StatefulWidget {
-  final BookingModel booking;
-  final double totalAmount;
-  final String clientSecret;
-  final String? paymentIntentId;
-  final String? publishableKey;
-  final String? paymentPageUrl;
-
-  const StripeWebviewPaymentScreen({
-    super.key,
-    required this.booking,
-    required this.totalAmount,
-    required this.clientSecret,
-    this.paymentIntentId,
-    this.publishableKey,
-    this.paymentPageUrl,
-  });
+// DEPRECATED: Stripe webview payment screen has been removed.
+// All owner payment handling is now via Airwallex integration.
 
   @override
   State<StripeWebviewPaymentScreen> createState() =>

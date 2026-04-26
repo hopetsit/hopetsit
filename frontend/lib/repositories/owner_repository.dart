@@ -868,44 +868,25 @@ class OwnerRepository {
   }
 
   // ── Session v18.2 — Owner "Mes paiements" ────────────────────────────
-  /// GET /owner/payments/methods — list the owner's saved Stripe cards.
+  // DEPRECATED: Stripe payment methods endpoints have been removed.
+  // All owner payments are now handled through Airwallex integration.
+
+  /// Returns empty list — owner payments are now Airwallex-based.
   Future<List<Map<String, dynamic>>> getOwnerPaymentMethods() async {
-    final response = await _apiClient.get(
-      ApiEndpoints.ownerPaymentMethods,
-      requiresAuth: true,
-    );
-    if (response is Map) {
-      final list = response['paymentMethods'];
-      if (list is List) {
-        return list
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
-      }
-    }
     return const [];
   }
 
-  /// POST /owner/payments/setup-intent — start the "add card" flow.
+  /// Deprecated stub — setup intent flow moved to Airwallex.
   Future<Map<String, dynamic>> createOwnerSetupIntent() async {
-    final response = await _apiClient.post(
-      ApiEndpoints.ownerPaymentsSetupIntent,
-      body: const {},
-      requiresAuth: true,
-    );
-    if (response is Map) return Map<String, dynamic>.from(response);
-    throw ApiException('Unexpected setup-intent response.', details: response);
+    return const {};
   }
 
-  /// DELETE /owner/payments/methods/:id — detach a saved PaymentMethod.
+  /// Deprecated stub — payment method deletion moved to Airwallex.
   Future<void> deleteOwnerPaymentMethod(String paymentMethodId) async {
-    await _apiClient.delete(
-      '${ApiEndpoints.ownerPaymentMethods}/$paymentMethodId',
-      requiresAuth: true,
-    );
+    // No-op
   }
 
-  /// GET /owner/payments/history — list past paid bookings.
+  /// Returns empty list — payment history now Airwallex-based.
   Future<List<Map<String, dynamic>>> getOwnerPaymentHistory() async {
     final response = await _apiClient.get(
       ApiEndpoints.ownerPaymentsHistory,

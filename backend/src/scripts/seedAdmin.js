@@ -4,6 +4,9 @@ const Admin = require('../models/Admin');
 const logger = require('../utils/logger');
 
 // Sprint 6.5 step 5 — exposed as function so runAllMigrations can chain it.
+// v21.1.1 — passe en upsert : si l'admin existe déjà, on resync son password
+// avec ADMIN_SEED_PASSWORD au lieu de skipper. Comme ça l'admin perdu de
+// password peut juste set la var d'env et redeploy pour reset.
 const seedAdmin = async () => {
   const email = process.env.ADMIN_SEED_EMAIL;
   const password = process.env.ADMIN_SEED_PASSWORD;
@@ -11,14 +14,17 @@ const seedAdmin = async () => {
     logger.info('[seedAdmin] ADMIN_SEED_EMAIL/PASSWORD not set — skipped.');
     return { skipped: true };
   }
-  const existing = await Admin.findOne({ email: email.toLowerCase() });
-  if (existing) {
-    logger.info(`[seedAdmin] admin already exists: ${existing.email} — skipped.`);
-    return { existing: true };
-  }
   const passwordHash = await Admin.hashPassword(password);
+  const lowered = email.toLowerCase();
+  const existing = await Admin.findOne({ email: lowered });
+  if (existing) {
+    existing.passwordHash = passwordHash;
+    await existing.save();
+    logger.info(`[seedAdmin] admin password resynced for ${existing.email}`);
+    return { updated: true };
+  }
   const admin = await Admin.create({
-    email: email.toLowerCase(),
+    email: lowered,
     passwordHash,
     name: 'Root Admin',
   });

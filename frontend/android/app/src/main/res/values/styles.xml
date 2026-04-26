@@ -12,7 +12,11 @@
          running.
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="Theme.MaterialComponents">
+    <!-- v21.1.1 — parent passé de Theme.MaterialComponents à un thème Android
+         stock après la purge flutter_stripe (qui apportait la dep transitive
+         com.google.android.material:material). Flutter rend lui-même ses
+         widgets Material, on n'a besoin que d'un Window propre. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 </resources>

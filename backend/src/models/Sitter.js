@@ -85,9 +85,8 @@ const sitterSchema = new mongoose.Schema(
       submittedAt: { type: Date, default: null },
       reviewedAt: { type: Date, default: null },
       rejectionReason: { type: String, default: '' },
-      // Session v3.3 — Stripe Identity linkage.
-      stripeSessionId: { type: String, default: '' },
-      provider: { type: String, default: '' }, // 'stripe_identity' | '' (legacy)
+      // v21.1.1 — Stripe Identity removed. Identity verification now uses manual upload.
+      provider: { type: String, default: '' },
     },
     avatar: {
       url: { type: String, default: '' },
@@ -172,22 +171,7 @@ const sitterSchema = new mongoose.Schema(
         currency: { type: String, default: 'EUR' },
       },
     },
-    // Stripe Connect account information
-    stripeConnectAccountId: {
-      type: String,
-      default: null,
-    },
-    stripeConnectAccountStatus: {
-      type: String,
-      enum: ['not_connected', 'pending', 'restricted', 'active'],
-      default: 'not_connected',
-    },
-    // v18.9 — Stripe Customer côté sitter (pour carte enregistrée, ex paiement
-    // d'addon ou boost). Créé à la demande via getOrCreateStripeCustomerForProvider.
-    stripeCustomerId: {
-      type: String,
-      default: null,
-    },
+    // v21.1.1 — Stripe Connect fields removed.
     card: {
       holderName: { type: String, default: '' },
       number: { type: String, default: '' },

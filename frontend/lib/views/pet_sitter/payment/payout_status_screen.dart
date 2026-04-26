@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/sitter_paypal_payout_controller.dart';
-import 'package:hopetsit/controllers/stripe_connect_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
-import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_onboarding_screen.dart';
 import 'package:hopetsit/widgets/paypal_email_dialog.dart';
 import 'package:hopetsit/utils/app_constants.dart';
 
@@ -19,7 +17,6 @@ class PayoutStatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(StripeConnectController());
     final payPalController = Get.put(SitterPayPalPayoutController());
 
     return Scaffold(
@@ -45,8 +42,7 @@ class PayoutStatusScreen extends StatelessWidget {
             () => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Stripe Connect Status Card
-                _buildStripeConnectStatusCard(controller, context),
+                // Stripe Connect Status Card — deprecated
                 SizedBox(height: 24.h),
 
                 // PayPal Payout Email Card — hidden for new sitters (feature flag),
@@ -65,18 +61,9 @@ class PayoutStatusScreen extends StatelessWidget {
                 _buildPayoutStatusCard(context),
                 SizedBox(height: 24.h),
 
-                // Action Buttons
-                if (!controller.isConnected.value)
-                  CustomButton(
-                    title: 'payout_connect_stripe_account'.tr,
-                    onTap: () {
-                      Get.to(() => const StripeConnectOnboardingScreen());
-                    },
-                    bgColor: AppColors.primaryColor,
-                    textColor: AppColors.whiteColor,
-                    height: 48.h,
-                    radius: 48.r,
-                  ),
+                // v21.1.1 — Bouton "Connecter compte Stripe" retiré (Stripe
+                // purgé). Le sitter configure ses payouts via IBAN dans
+                // Profil → Compte bancaire (Airwallex Beneficiary auto-créé).
               ],
             ),
           ),
@@ -186,63 +173,7 @@ class PayoutStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStripeConnectStatusCard(StripeConnectController controller, BuildContext context) {
-    final isConnected = controller.isConnected.value;
-
-    return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.account_balance_wallet,
-                size: 24.sp,
-                color: isConnected ? Colors.green : AppColors.greyColor,
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: PoppinsText(
-                  text: 'payout_stripe_connect_title'.tr,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-              _buildStatusBadge(
-                isConnected
-                    ? 'payout_status_connected'.tr
-                    : 'payout_status_not_connected'.tr,
-                isConnected,
-              ),
-            ],
-          ),
-          SizedBox(height: 16.h),
-          InterText(
-            text: isConnected
-                ? 'payout_stripe_connected_message'.tr
-                : 'payout_stripe_not_connected_message'.tr,
-            fontSize: 14.sp,
-            color: AppColors.textSecondary(context),
-          ),
-          if (isConnected && controller.stripeAccountId.value.isNotEmpty) ...[
-            SizedBox(height: 12.h),
-            _buildDetailRow(
-              'payout_account_id_label'.tr,
-              controller.stripeAccountId.value,
-              context,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  // v21.1.1 — _buildStripeConnectStatusCard supprimée (Stripe Connect purgé).
 
   Widget _buildVerificationStatusCard(BuildContext context) {
     // TODO: Get actual verification status from API

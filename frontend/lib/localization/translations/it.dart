@@ -572,9 +572,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'blocked_users_unblock_success': 'Utente sbloccato con successo',
       'blocked_users_save_success': 'Utenti bloccati salvati con successo',
       'donate_coming_soon': 'La funzione di donazione sarà disponibile a breve',
-      'stripe_connect_title': 'Collega conto di pagamento',
       'payout_status_screen_title': 'Stato pagamenti',
-      'payout_connect_stripe_account': 'Collega conto di pagamento',
       'payout_paypal_email_title': 'Email pagamenti',
       'payout_add_paypal_email_title': 'Aggiungi email pagamenti',
       'payout_add_paypal_email_subtitle':
@@ -586,17 +584,9 @@ const Map<String, String> itITTranslations = <String, String>{
       'payout_update_paypal_email': 'Aggiorna email pagamenti',
       'payout_paypal_dialog_subtitle':
           'Questa email verra usata per i pagamenti. Assicurati che sia corretta.',
-      'payout_stripe_connect_title': 'Conto di pagamento',
-      'payout_status_connected': 'Connesso',
-      'payout_status_not_connected': 'Non connesso',
-      'payout_stripe_connected_message':
-          'Il tuo conto di pagamento e connesso e pronto a ricevere pagamenti.',
-      'payout_stripe_not_connected_message':
-          'Collega il tuo conto di pagamento per iniziare a ricevere pagamenti.',
       'payout_account_id_label': 'ID account',
       'payout_verification_title': 'Stato verifica',
       'payout_status_title': 'Stato pagamenti',
-      'payout_verification_step_identity': 'Verifica identita',
       'payout_verification_step_bank': 'Verifica conto bancario',
       'payout_verification_step_business': 'Informazioni aziendali',
       'payout_next_payout_label': 'Prossimo pagamento',
@@ -624,14 +614,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'payout_message_restricted':
           'I tuoi pagamenti sono attualmente limitati. Contatta il supporto.',
       'payout_message_not_connected':
-          'Collega il tuo account Stripe per iniziare a ricevere pagamenti.',
-      'stripe_get_paid_title': 'Ricevi pagamenti',
-      'stripe_connect_description':
-          'Collega il tuo conto di pagamento per ricevere pagamenti direttamente dai proprietari di animali. I tuoi guadagni verranno trasferiti sul tuo conto bancario.',
-      'stripe_account_status_title': 'Stato account',
-      'stripe_continue_onboarding': 'Continua onboarding',
-      'stripe_connect_account_button': 'Collega conto di pagamento',
-      'stripe_benefit_secure': 'Elaborazione pagamenti sicura',
+          'Collega il tuo account di pagamento per iniziare a ricevere pagamenti.',
       'stripe_benefit_fast_payouts': 'Pagamenti rapidi sul tuo conto bancario',
       'stripe_benefit_no_fees': 'Nessuna commissione di configurazione',
       'stripe_benefit_support': 'Supporto clienti 24/7',
@@ -1573,6 +1556,9 @@ const Map<String, String> itITTranslations = <String, String>{
     'cancel_72h_success': 'Prenotazione annullata e rimborso avviato.',
     'cancel_72h_error': 'Impossibile annullare questa prenotazione.',
     'boost_shop_title': 'Negozio Boost',
+    'shop_tab_boost': 'Boost',
+    'shop_tab_pawpass': 'PawPass',
+    'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'In evidenza',
     'boost_choose_package': 'Scegli un pacchetto',
     'boost_choose_subtitle': 'Potenzia il tuo profilo in cima al feed per essere visto per primo!',
@@ -1758,7 +1744,8 @@ const Map<String, String> itITTranslations = <String, String>{
     'premium_feature_alerts': '18 tipi di avvisi in tempo reale — inclusi 7 segnalazioni PawPass esclusive (cane aggressivo, pericolo veicoli, incendio, alluvione, fauna selvatica…)',
     'premium_feature_notifications': 'Notifiche istantanee — sii il primo a sapere quando compare una segnalazione vicino a te',
     'premium_feature_chat': 'Chat illimitata con gli utenti incontrati sulla mappa',
-    'premium_feature_friends_tracking': 'Tracciamento amici in tempo reale (stile Waze)',
+    'premium_feature_friends_tracking': 'Tracciamento amici e famiglia in tempo reale (stile Waze)',
+    'premium_feature_family_plan': 'Piano Famiglia disponibile (fino a 5 utenti) — 9,99€/mese',
     'premium_feature_monthly_boost': '1 PawSpot gratuito ogni mese — tocca per richiederlo',
     'premium_feature_badge': 'Badge PawPass sul tuo profilo',
     'premium_upsell_text': 'Passa a PawPass per sbloccare tutte le funzionalità',

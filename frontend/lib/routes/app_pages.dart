@@ -10,7 +10,6 @@ import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
-import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 
 /// Sprint 8 step 1 — named-route registry.
 ///
@@ -50,9 +49,6 @@ class AppPages {
       name: AppRoutes.availability,
       page: () => const AvailabilityCalendarScreen(),
     ),
-    GetPage(
-      name: AppRoutes.identityVerification,
-      page: () => const IdentityVerificationScreen(),
-    ),
+    // v21.1.1 — Stripe Identity verification route retirée (Stripe purgé).
   ];
 }

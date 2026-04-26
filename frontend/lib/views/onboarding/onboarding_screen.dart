@@ -52,25 +52,33 @@ class OnboardingScreen extends StatelessWidget {
                 children: [
                   SizedBox(height: 30.h),
 
-                  // v18.7 — logo V4 officiel (SVG) à la place de Icons.pets.
+                  // v21.1.1 — logo officiel. Le SVG `apple-icon-original.svg`
+                  // a déjà son propre fond orange arrondi → on supprime le
+                  // wrapper blanc qui doublait le rounded et déformait l'icône
+                  // (width=96.w + height=96.h utilisaient deux scalings
+                  // différents → conteneur non-carré → SVG aplati par
+                  // BoxFit.contain). Maintenant : carré strict via 96.w sur
+                  // les 2 axes, ombre portée pour conserver le halo, le SVG
+                  // fournit lui-même les coins arrondis.
                   Container(
                     width: 96.w,
-                    height: 96.h,
+                    height: 96.w,
                     decoration: BoxDecoration(
-                      color: Colors.white,
                       borderRadius: BorderRadius.circular(24.r),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.18),
+                          color: Colors.black.withValues(alpha: 0.22),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                    padding: EdgeInsets.all(14.w),
-                    child: SvgPicture.asset(
-                      'assets/brand/apple/apple-icon-original.svg',
-                      fit: BoxFit.contain,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24.r),
+                      child: SvgPicture.asset(
+                        'assets/brand/apple/apple-icon-original.svg',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
 

@@ -71,7 +71,8 @@ router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
     // automatic payouts. Best-effort : if Airwallex API is down we still
     // return success — the next IBAN-save attempt or a daily reconciliation
     // cron will retry.
-    const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+    // v21.1.1 — Stripe purgé. Default 'airwallex'.
+    const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
     if (PAYMENT_PROVIDER === 'airwallex') {
       (async () => {
         try {

@@ -700,9 +700,21 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               padding: EdgeInsets.all(16.w),
               child: Column(
                 children: [
-                  // v21 — Quick action bar (renders only when an urgent
-                  // action is pending : new request, payment received…).
-                  const HomeQuickActionBar(role: 'sitter'),
+                  // v21.1.1 — Quick action bar. Le rôle EST détecté au
+                  // runtime depuis GetStorage : SitterHomescreen est aussi
+                  // utilisé par WalkerNavWrapper (feed partagé), donc on
+                  // ne peut pas hardcoder 'sitter' sinon le walker charge
+                  // les bookings du sitter (vides) et la barre reste muette.
+                  HomeQuickActionBar(
+                    role: () {
+                      final r = (GetStorage().read(StorageKeys.userRole) ?? '')
+                          .toString()
+                          .toLowerCase();
+                      if (r == 'walker') return 'walker';
+                      if (r == 'owner') return 'owner';
+                      return 'sitter';
+                    }(),
+                  ),
                   Obx(() {
                     // Session v15-6 — the Sitter/Walker feed is now driven by
                     // `reservationRequests` which comes from /posts/requests

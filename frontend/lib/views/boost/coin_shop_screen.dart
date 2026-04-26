@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/chat_addon_controller.dart';
@@ -13,8 +12,6 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/boost/widgets/map_boost_pin_icon.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 
 /// Boutique screen — 3 tabs:
 ///   1. Boost     — one-time profile boost (existing feature)
@@ -75,10 +72,11 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             indicatorColor: AppColors.primaryColor,
             labelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700),
             unselectedLabelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w500),
-            tabs: const [
-              Tab(icon: Icon(Icons.trending_up, size: 20), text: 'Boost'),
-              Tab(icon: Icon(Icons.star_rounded, size: 22), text: 'Premium'),
-              Tab(icon: Icon(Icons.map_outlined, size: 20), text: 'Map Boost'),
+            // v21.1.1 — rebrand : Premium → PawPass, Map Boost → PawSpot.
+            tabs: [
+              Tab(icon: const Icon(Icons.trending_up, size: 20), text: 'shop_tab_boost'.tr),
+              Tab(icon: const Icon(Icons.star_rounded, size: 22), text: 'shop_tab_pawpass'.tr),
+              Tab(icon: const Icon(Icons.location_on_outlined, size: 20), text: 'shop_tab_pawspot'.tr),
             ],
           ),
         ),
@@ -250,144 +248,57 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
 
       final clientSecret = map['clientSecret'] as String?;
       final paymentIntentId = map['paymentIntentId'] as String?;
-      final provider = (map['provider']?.toString() ?? 'stripe').toLowerCase();
 
       if (clientSecret == null || clientSecret.isEmpty) {
         throw Exception('Failed to create payment intent.');
       }
 
-      // In-app card screen replaces the native PaymentSheet that was
-      // unreliable on some Android devices. `_packages` is a local list
-      // of Maps (tier/amount/days) so we look up the row by tier string.
       final pkgMap = _packages.firstWhere(
         (p) => p['tier'] == tier,
         orElse: () => const <String, dynamic>{},
       );
       final displayAmount =
           ((pkgMap['amount'] as num?) ?? 0).toDouble();
-      final days = (pkgMap['days'] as num?)?.toInt();
 
-      // ─── Branche Airwallex (v20.1) ──────────────────────────────────────
-      if (provider == 'airwallex') {
-        AppLogger.logInfo('[boost] using AIRWALLEX flow ($displayAmount $currency)');
-        final result = await AirwallexPaymentService.confirmPaymentIntent(
-          intentId: paymentIntentId ?? '',
-          clientSecret: clientSecret,
-          amount: displayAmount,
-          currency: currency,
+      // v21.1.1 — Stripe purgé. Pure Airwallex.
+      AppLogger.logInfo('[boost] AIRWALLEX flow ($displayAmount $currency)');
+      final result = await AirwallexPaymentService.confirmPaymentIntent(
+        intentId: paymentIntentId ?? '',
+        clientSecret: clientSecret,
+        amount: displayAmount,
+        currency: currency,
+      );
+      if (!mounted) {
+        setState(() {
+          _purchasing = false;
+          _selectedTier = null;
+        });
+        return;
+      }
+      if (result.isSuccess) {
+        await api.post(
+          '/boost/confirm',
+          body: {
+            'tier': tier,
+            'paymentIntentId': paymentIntentId,
+            'currency': currency,
+          },
+          requiresAuth: true,
         );
-        if (!mounted) {
-          setState(() {
-            _purchasing = false;
-            _selectedTier = null;
-          });
-          return;
-        }
-        if (result.isSuccess) {
-          await api.post(
-            '/boost/confirm',
-            body: {
-              'tier': tier,
-              'paymentIntentId': paymentIntentId,
-              'currency': currency,
-            },
-            requiresAuth: true,
-          );
-          CustomSnackbar.showSuccess(
-            title: 'boost_purchase_success_title'.tr,
-            message: 'boost_purchase_success_msg'.tr,
-          );
-          await _loadBoostStatus();
-        } else if (result.outcome == AirwallexPaymentOutcome.failed) {
-          CustomSnackbar.showError(
-            title: 'common_error'.tr,
-            message: result.errorMessage ?? 'boost_purchase_error'.tr,
-          );
-        }
-        setState(() {
-          _purchasing = false;
-          _selectedTier = null;
-        });
-        return;
-      }
-
-      // ─── Branche Stripe (défaut) ────────────────────────────────────────
-      AppLogger.logInfo('[boost] using STRIPE flow ($displayAmount $currency)');
-
-      final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
-      if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
-        Stripe.publishableKey = pk;
-        await Stripe.instance.applySettings();
-      }
-
-      // v18.9 — récupère les saved cards pour proposer un paiement direct
-      // sans re-saisie à chaque achat de boost.
-      List<Map<String, dynamic>> savedCards = const [];
-      try {
-        final resp = await api.get('/owner/payments/methods', requiresAuth: true);
-        if (resp is Map) {
-          final list = resp['paymentMethods'];
-          if (list is List) {
-            savedCards = list
-                .whereType<Map>()
-                .map((e) => Map<String, dynamic>.from(e))
-                .toList();
-          }
-        }
-      } catch (_) {
-        // Non bloquant. On tombe sur le flow saisie carte.
-      }
-
-      final ok = await Get.to<bool>(
-        () => ModernCardPaymentScreen(
-          clientSecret: clientSecret,
-          amount: displayAmount,
-          currency: currency,
-          productLabel:
-              'Boost ${tier[0].toUpperCase()}${tier.substring(1)}',
-          productSubtitle:
-              days != null ? '$days jours de visibilité' : null,
-          savedPaymentMethods: savedCards,
-        ),
-      );
-      if (ok != true) {
-        setState(() {
-          _purchasing = false;
-          _selectedTier = null;
-        });
-        return;
-      }
-
-      await api.post(
-        '/boost/confirm',
-        body: {
-          'tier': tier,
-          'paymentIntentId': paymentIntentId,
-          'currency': currency,
-        },
-        requiresAuth: true,
-      );
-
-      CustomSnackbar.showSuccess(
-        title: 'boost_purchase_success_title'.tr,
-        message: 'boost_purchase_success_msg'.tr,
-      );
-
-      await _loadBoostStatus();
-    } on StripeException catch (e) {
-      if (e.error.code != FailureCode.Canceled) {
+        CustomSnackbar.showSuccess(
+          title: 'boost_purchase_success_title'.tr,
+          message: 'boost_purchase_success_msg'.tr,
+        );
+        await _loadBoostStatus();
+      } else if (result.outcome == AirwallexPaymentOutcome.failed) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: e.error.localizedMessage ?? 'boost_purchase_error'.tr,
+          message: result.errorMessage ?? 'boost_purchase_error'.tr,
         );
       }
     } catch (e) {
       String errorMsg = e.toString();
-      if (errorMsg.contains('StripeConfigException') ||
-          errorMsg.contains('Stripe has not been correctly initialized')) {
-        errorMsg =
-            'Erreur de configuration Stripe. Ferme et relance l\'application, puis réessaie.';
-      } else if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html')) {
+      if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html')) {
         errorMsg = 'boost_service_unavailable'.tr;
       } else if (errorMsg.contains('404')) {
         errorMsg = 'boost_service_unavailable'.tr;
@@ -1249,6 +1160,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         'icon': Icons.people_outline,
         'text': 'premium_feature_friends_tracking'.tr,
       },
+      // v21.1.1 — Forfait Famille mis en évidence (jusqu'à 5 personnes).
+      {
+        'icon': Icons.family_restroom,
+        'text': 'premium_feature_family_plan'.tr,
+      },
       {
         'icon': Icons.push_pin_rounded,
         'text': 'premium_feature_monthly_boost'.tr,
@@ -1307,7 +1223,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     child: InterText(
                       text: f['text'] as String,
                       fontSize: 13.sp,
-                      color: AppColors.blackColor,
+                      // v21.1.1 — fix dark mode (texte noir invisible).
+                      color: AppColors.textPrimary(context),
                     ),
                   ),
                   if (isShortcut) ...[
@@ -1349,20 +1266,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           message: 'Profitez de toutes les fonctionnalités.',
         );
       }
-    } on StripeException catch (e) {
-      if (!mounted) return;
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.error.localizedMessage ?? 'Paiement échoué.',
-      );
     } catch (e) {
       if (!mounted) return;
       String msg = e.toString();
-      if (msg.contains('StripeConfigException') ||
-          msg.contains('Stripe has not been correctly initialized')) {
-        msg =
-            'Erreur de configuration Stripe. Ferme et relance l\'application, puis réessaie.';
-      } else if (msg.contains('<!DOCTYPE') || msg.contains('<html')) {
+      if (msg.contains('<!DOCTYPE') || msg.contains('<html')) {
         msg = 'Service indisponible.';
       }
       CustomSnackbar.showError(title: 'common_error'.tr, message: msg);

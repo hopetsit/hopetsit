@@ -1,23 +1,6 @@
-import 'package:get/get.dart';
-import 'package:hopetsit/data/network/api_exception.dart';
-import 'package:hopetsit/repositories/sitter_repository.dart';
-import 'package:hopetsit/utils/logger.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:hopetsit/views/pet_sitter/onboarding/stripe_connect_webview_screen.dart';
-
-class StripeConnectController extends GetxController {
-  StripeConnectController({SitterRepository? sitterRepository})
-    : _sitterRepository = sitterRepository ?? Get.find<SitterRepository>();
-
-  final SitterRepository _sitterRepository;
-
-  final RxBool isConnecting = false.obs;
-  final RxBool isLoadingStatus = false.obs;
-  final RxString stripeAccountId = ''.obs;
-  final RxBool isConnected = false.obs;
-  final RxString accountStatus = ''.obs;
-  final RxString onboardingUrl = ''.obs;
-  final RxInt expiresAt = 0.obs;
+// DEPRECATED: Stripe Connect controller has been removed.
+// This file is kept empty for compatibility — all Stripe Connect functionality
+// has been migrated to Airwallex integration.
 
   @override
   void onInit() {

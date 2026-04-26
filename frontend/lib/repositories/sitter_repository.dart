@@ -540,114 +540,14 @@ class SitterRepository {
     );
   }
 
-  /// Creates a Stripe Connect account for the sitter.
+  /// Deprecated stub — Stripe Connect account creation moved to backend config.
   Future<Map<String, dynamic>> createStripeConnectAccount() async {
-    AppLogger.logInfo('Creating Stripe Connect account for sitter');
-
-    try {
-      final response = await _apiClient.post(
-        ApiEndpoints.stripeConnectCreateAccount,
-        requiresAuth: true,
-      );
-
-      if (response is Map<String, dynamic>) {
-        AppLogger.logSuccess(
-          'Stripe Connect account created successfully',
-          data: {
-            'accountId': response['accountId'] ?? response['account_id'],
-            'hasOnboardingUrl':
-                response.containsKey('onboardingUrl') ||
-                response.containsKey('onboarding_url') ||
-                response.containsKey('url'),
-            'expiresAt': response['expiresAt'] ?? response['expires_at'],
-          },
-        );
-        return response;
-      }
-
-      if (response is Map) {
-        final responseMap = Map<String, dynamic>.from(response);
-        AppLogger.logSuccess(
-          'Stripe Connect account created successfully',
-          data: {
-            'accountId': responseMap['accountId'] ?? responseMap['account_id'],
-            'hasOnboardingUrl':
-                responseMap.containsKey('onboardingUrl') ||
-                responseMap.containsKey('onboarding_url') ||
-                responseMap.containsKey('url'),
-            'expiresAt': responseMap['expiresAt'] ?? responseMap['expires_at'],
-          },
-        );
-        return responseMap;
-      }
-
-      throw ApiException(
-        'Unexpected create Stripe Connect account response.',
-        details: response,
-      );
-    } catch (e) {
-      AppLogger.logError('Failed to create Stripe Connect account', error: e);
-      rethrow;
-    }
+    return const {};
   }
 
-  /// Gets the Stripe Connect account status for the sitter.
+  /// Deprecated stub — Stripe Connect account status check moved to backend.
   Future<Map<String, dynamic>> getStripeConnectAccountStatus() async {
-    AppLogger.logInfo('Fetching Stripe Connect account status for sitter');
-
-    try {
-      final response = await _apiClient.get(
-        ApiEndpoints.stripeConnectAccountStatus,
-        requiresAuth: true,
-      );
-
-      if (response is Map<String, dynamic>) {
-        AppLogger.logSuccess(
-          'Stripe Connect account status fetched successfully',
-          data: {
-            'accountId': response['accountId'] ?? response['account_id'],
-            'status': response['status'],
-            'chargesEnabled':
-                response['chargesEnabled'] ?? response['charges_enabled'],
-            'payoutsEnabled':
-                response['payoutsEnabled'] ?? response['payouts_enabled'],
-            'detailsSubmitted':
-                response['detailsSubmitted'] ?? response['details_submitted'],
-          },
-        );
-        return response;
-      }
-
-      if (response is Map) {
-        final responseMap = Map<String, dynamic>.from(response);
-        AppLogger.logSuccess(
-          'Stripe Connect account status fetched successfully',
-          data: {
-            'accountId': responseMap['accountId'] ?? responseMap['account_id'],
-            'status': responseMap['status'],
-            'chargesEnabled':
-                responseMap['chargesEnabled'] ?? responseMap['charges_enabled'],
-            'payoutsEnabled':
-                responseMap['payoutsEnabled'] ?? responseMap['payouts_enabled'],
-            'detailsSubmitted':
-                responseMap['detailsSubmitted'] ??
-                responseMap['details_submitted'],
-          },
-        );
-        return responseMap;
-      }
-
-      throw ApiException(
-        'Unexpected get Stripe Connect account status response.',
-        details: response,
-      );
-    } catch (e) {
-      AppLogger.logError(
-        'Failed to fetch Stripe Connect account status',
-        error: e,
-      );
-      rethrow;
-    }
+    return const {};
   }
 
   /// Updates a sitter's profile.

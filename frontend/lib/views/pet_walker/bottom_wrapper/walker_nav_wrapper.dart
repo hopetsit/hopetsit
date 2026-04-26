@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
@@ -26,6 +27,13 @@ class _WalkerNavWrapperState extends State<WalkerNavWrapper> {
     super.initState();
     if (!Get.isRegistered<NotificationsController>()) {
       Get.put(NotificationsController(), permanent: true);
+    }
+    // v21.1.1 — eager-register WalkerBookingsController : sinon la
+    // HomeQuickActionBar du SitterHomescreen (re-utilisé pour walker) ne
+    // détecte aucun booking pending tant que l'user n'a pas visité l'onglet
+    // Réservations au moins une fois.
+    if (!Get.isRegistered<WalkerBookingsController>()) {
+      Get.put(WalkerBookingsController(), permanent: true);
     }
   }
 

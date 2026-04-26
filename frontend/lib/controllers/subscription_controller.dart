@@ -1,13 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
-import 'package:hopetsit/views/payment/modern_card_payment_screen.dart';
 
 /// Single plan description as returned by GET /subscriptions/plans.
 class SubscriptionPlan {
@@ -195,7 +192,6 @@ class SubscriptionController extends GetxController {
 
       final clientSecret = piData['clientSecret'] as String?;
       final paymentIntentId = piData['paymentIntentId'] as String?;
-      final provider = (piData['provider']?.toString() ?? 'stripe').toLowerCase();
       if (clientSecret == null || clientSecret.isEmpty) {
         throw Exception('Failed to create subscription payment intent.');
       }
@@ -204,98 +200,31 @@ class SubscriptionController extends GetxController {
       final planRow = plans.firstWhereOrNull((p) => p.plan == plan);
       final displayAmount = planRow?.amount ?? 0;
 
-      // ─── Branche Airwallex (v20.1) ──────────────────────────────────────
-      if (provider == 'airwallex') {
-        AppLogger.logInfo('[subscription] using AIRWALLEX flow ($displayAmount $currency)');
-        final result = await AirwallexPaymentService.confirmPaymentIntent(
-          intentId: paymentIntentId ?? '',
-          clientSecret: clientSecret,
-          amount: displayAmount,
-          currency: currency.value,
+      // v21.1.1 — Stripe purgé. Pure Airwallex.
+      AppLogger.logInfo('[subscription] AIRWALLEX flow ($displayAmount $currency)');
+      final result = await AirwallexPaymentService.confirmPaymentIntent(
+        intentId: paymentIntentId ?? '',
+        clientSecret: clientSecret,
+        amount: displayAmount,
+        currency: currency.value,
+      );
+      if (result.isSuccess) {
+        await api.post(
+          '/subscriptions/confirm',
+          body: {
+            'plan': plan,
+            'paymentIntentId': paymentIntentId,
+            'currency': currency.value,
+          },
+          requiresAuth: true,
         );
-        if (result.isSuccess) {
-          await api.post(
-            '/subscriptions/confirm',
-            body: {
-              'plan': plan,
-              'paymentIntentId': paymentIntentId,
-              'currency': currency.value,
-            },
-            requiresAuth: true,
-          );
-          await loadStatus();
-          return true;
-        } else if (result.outcome == AirwallexPaymentOutcome.failed) {
-          AppLogger.logError('[subscription] Airwallex failed', error: result.errorMessage);
-          return false;
-        }
-        // outcome == cancelled → silent (user closed the sheet on purpose).
+        await loadStatus();
+        return true;
+      } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+        AppLogger.logError('[subscription] Airwallex failed', error: result.errorMessage);
         return false;
       }
-
-      // ─── Branche Stripe (défaut) ────────────────────────────────────────
-      AppLogger.logInfo('[subscription] using STRIPE flow ($displayAmount $currency)');
-
-      // 2. Ensure Stripe publishable key is set (defensive — main.dart
-      //    already inits at boot but we keep this as a fallback).
-      final pk = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
-      if (pk.isNotEmpty && Stripe.publishableKey.isEmpty) {
-        Stripe.publishableKey = pk;
-        await Stripe.instance.applySettings();
-      }
-
-      // v18.9.8 — charge les saved cards (endpoint role-aware : owner /
-      // sitter / walker) pour permettre paiement direct sans ressaisie.
-      List<Map<String, dynamic>> savedCards = const [];
-      try {
-        final resp =
-            await api.get('/owner/payments/methods', requiresAuth: true);
-        if (resp is Map) {
-          final list = resp['paymentMethods'];
-          if (list is List) {
-            savedCards = list
-                .whereType<Map>()
-                .map((e) => Map<String, dynamic>.from(e))
-                .toList();
-          }
-        }
-      } catch (_) {
-        // Non bloquant : fallback vers saisie carte.
-      }
-
-      // 4. Push the in-app card screen. Returns true only on confirmed
-      //    payment, false on cancel / error.
-      final ok = await Get.to<bool>(
-        () => ModernCardPaymentScreen(
-          clientSecret: clientSecret,
-          amount: displayAmount,
-          currency: currency.value,
-          productLabel:
-              plan == 'yearly' ? 'Premium Annuel' : 'Premium Mensuel',
-          productSubtitle: plan == 'yearly'
-              ? '1 an — 35% off vs mensuel'
-              : 'Renouvellement mensuel',
-          savedPaymentMethods: savedCards,
-        ),
-      );
-
-      if (ok != true) return false; // user cancelled or payment failed
-
-      // 5. Confirm subscription on backend.
-      await api.post(
-        '/subscriptions/confirm',
-        body: {
-          'plan': plan,
-          'paymentIntentId': paymentIntentId,
-          'currency': currency.value,
-        },
-        requiresAuth: true,
-      );
-
-      await loadStatus();
-      return true;
-    } on StripeException catch (e) {
-      if (e.error.code != FailureCode.Canceled) rethrow;
+      // outcome == cancelled → silent (user closed the sheet on purpose).
       return false;
     } finally {
       isPurchasing.value = false;

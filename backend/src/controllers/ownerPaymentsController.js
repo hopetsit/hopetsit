@@ -17,14 +17,7 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const Booking = require('../models/Booking');
-const {
-  getOrCreateStripeCustomerForOwner,
-  getOrCreateStripeCustomerForProvider,
-  createSetupIntentForOwner,
-  listOwnerPaymentMethods,
-  detachOwnerPaymentMethod,
-  attachOwnerPaymentMethod,
-} = require('../services/stripeService');
+// v21.1.1 — Stripe disabled (Airwallex only). Removed all stripeService imports.
 
 // v18.9 — helper role-agnostic. Retourne le model ET le doc chargé.
 const _roleModel = (role) =>
@@ -46,139 +39,48 @@ const assertOwner = (req) => {
 
 /**
  * GET /owner/payments/methods
- * Returns the list of cards attached to the owner's Stripe Customer.
+ * v21.1.1 — Stripe disabled (Airwallex only). Returns empty list for compatibility.
  */
 const getPaymentMethods = async (req, res) => {
   const guard = assertOwner(req);
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
-  try {
-    const Model = _roleModel(req.user.role);
-    const user = await Model.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-
-    if (!user.stripeCustomerId) {
-      return res.json({ paymentMethods: [], count: 0 });
-    }
-
-    const methods = await listOwnerPaymentMethods(user.stripeCustomerId);
-    return res.json({ paymentMethods: methods, count: methods.length });
-  } catch (err) {
-    logger.error('[ownerPayments] getPaymentMethods failed', err);
-    return res.status(500).json({ error: 'Unable to fetch payment methods.' });
-  }
+  return res.json({ paymentMethods: [], count: 0 });
 };
 
 /**
  * POST /owner/payments/setup-intent
- * Creates a SetupIntent so the Flutter client can open the Stripe
- * PaymentSheet in "add card" mode (no charge). On success, Stripe
- * automatically attaches the new PaymentMethod to the Customer.
+ * v21.1.1 — Stripe disabled (Airwallex only). Cards are auto-saved on first payment.
  */
 const createSetupIntent = async (req, res) => {
   const guard = assertOwner(req);
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
-  try {
-    const Model = _roleModel(req.user.role);
-    const user = await Model.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-
-    // v18.9 — helper role-agnostic.
-    const customerId = await getOrCreateStripeCustomerForProvider({
-      userId: user._id.toString(),
-      role: req.user.role,
-      email: user.email,
-      name: user.name,
-    });
-
-    const setupIntent = await createSetupIntentForOwner(customerId);
-
-    return res.json({
-      customerId,
-      setupIntentId: setupIntent.id,
-      clientSecret: setupIntent.client_secret,
-    });
-  } catch (err) {
-    logger.error('[ownerPayments] createSetupIntent failed', err);
-    return res.status(500).json({ error: 'Unable to start card setup.' });
-  }
+  return res.status(501).json({
+    error: 'Add card flow disabled — cards are auto-saved at first Airwallex payment.',
+  });
 };
 
 /**
- * POST /owner/payments/methods/attach   (v20.0.3)
- * After the user ticks "Enregistrer cette carte" on ModernCardPaymentScreen
- * (post-confirmPayment), we attach that PaymentMethod to the user's Stripe
- * Customer so it shows up in "Mes paiements" for the next purchase.
- *
- * Body: { paymentMethodId: 'pm_...' }
+ * POST /owner/payments/methods/attach
+ * v21.1.1 — Stripe disabled (Airwallex only).
  */
 const attachPaymentMethod = async (req, res) => {
   const guard = assertOwner(req);
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
-  const { paymentMethodId } = req.body || {};
-  if (!paymentMethodId || !String(paymentMethodId).startsWith('pm_')) {
-    return res.status(400).json({ error: 'Invalid payment method id.' });
-  }
-
-  try {
-    const Model = _roleModel(req.user.role);
-    const user = await Model.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-
-    const customerId = await getOrCreateStripeCustomerForProvider({
-      userId: user._id.toString(),
-      role: req.user.role,
-      email: user.email,
-      name: user.name,
-    });
-
-    await attachOwnerPaymentMethod(paymentMethodId, customerId);
-    return res.json({
-      message: 'Payment method saved.',
-      paymentMethodId,
-    });
-  } catch (err) {
-    logger.error('[ownerPayments] attachPaymentMethod failed', err);
-    return res.status(500).json({ error: 'Unable to save payment method.' });
-  }
+  return res.status(501).json({ error: 'Card management disabled in v21.1.1.' });
 };
 
 /**
  * DELETE /owner/payments/methods/:id
- * Detaches a PaymentMethod from the owner's Stripe Customer.
+ * v21.1.1 — Stripe disabled (Airwallex only).
  */
 const deletePaymentMethod = async (req, res) => {
   const guard = assertOwner(req);
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
-  const { id } = req.params;
-  if (!id || !String(id).startsWith('pm_')) {
-    return res.status(400).json({ error: 'Invalid payment method id.' });
-  }
-
-  try {
-    const Model = _roleModel(req.user.role);
-    const user = await Model.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-    if (!user.stripeCustomerId) {
-      return res.status(404).json({ error: 'No saved payment methods.' });
-    }
-
-    // Verify the card belongs to this customer before detaching.
-    const methods = await listOwnerPaymentMethods(user.stripeCustomerId);
-    const found = methods.find((m) => m.id === id);
-    if (!found) {
-      return res.status(404).json({ error: 'Payment method not found for this user.' });
-    }
-
-    await detachOwnerPaymentMethod(id);
-    return res.json({ message: 'Payment method removed.', paymentMethodId: id });
-  } catch (err) {
-    logger.error('[ownerPayments] deletePaymentMethod failed', err);
-    return res.status(500).json({ error: 'Unable to delete payment method.' });
-  }
+  return res.status(501).json({ error: 'Card management disabled in v21.1.1.' });
 };
 
 /**

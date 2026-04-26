@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/home/home_screen.dart';
@@ -34,6 +35,13 @@ class _BottomNavWrapperState extends State<BottomNavWrapper> {
 
     if (!Get.isRegistered<NotificationsController>()) {
       Get.put(NotificationsController(), permanent: true);
+    }
+
+    // v21.1.1 — eager-register BookingsController : sinon la
+    // HomeQuickActionBar du HomeScreen ne détecte aucun booking pending tant
+    // que l'owner n'a pas visité l'onglet Réservations.
+    if (!Get.isRegistered<BookingsController>()) {
+      Get.put(BookingsController(), permanent: true);
     }
 
     // Ensure sitters refresh on every owner login.

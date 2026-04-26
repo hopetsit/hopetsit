@@ -14,7 +14,6 @@ import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
-import 'package:hopetsit/views/pet_sitter/profile/identity_verification_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
@@ -405,13 +404,8 @@ class SitterProfileScreen extends StatelessWidget {
         // v20.0.17 — Vérif identité remontée juste après Edit profile
         // (comme sur walker profile) car c'est un gate critique pour
         // apparaître dans les recherches.
-        _buildSettingsTile(
-          'profile_verify_identity'.tr,
-          'sitter_verify_identity_subtitle'.tr,
-          Icons.verified_user_outlined,
-          AppColors.greenColor,
-          () => Get.to(() => const IdentityVerificationScreen()),
-        ),
+        // v21.1.1 — Tile "Vérifier identité" retirée : Stripe Identity purgé.
+        // Sera réintégré v22 avec un autre fournisseur KYC si nécessaire.
         // v20.0.7 — Mes paiements remonté en haut (comme owner) pour que
         // le sitter puisse ajouter sa CB dès le début sans la chercher.
         _buildSettingsTile(

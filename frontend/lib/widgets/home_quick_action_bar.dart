@@ -208,11 +208,19 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   @override
   Widget build(BuildContext context) {
     final rx = _bookingsRxForRole();
-    if (rx == null) return const SizedBox.shrink();
+    // v21.1.1 — même si le controller n'est pas registered, on affiche le
+    // neutral state (au lieu d'un SizedBox invisible). Daniel veut TOUJOURS
+    // voir la barre sur les 3 home screens.
+    if (rx == null) {
+      return _NeutralBar(role: widget.role, onTap: _onNeutralTap);
+    }
 
     return Obx(() {
       final action = _pickAction(rx.toList());
-      if (action == null) return const SizedBox.shrink();
+      // Neutral fallback : rien d'urgent → barre soft "tout est à jour".
+      if (action == null) {
+        return _NeutralBar(role: widget.role, onTap: _onNeutralTap);
+      }
       return _ActionBanner(
         action: action,
         pulse: _pulse,
@@ -221,6 +229,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         onRefuse: () => _onRefuse(action),
       );
     });
+  }
+
+  void _onNeutralTap() {
+    // En l'absence d'action urgente, on emmène vers l'historique des bookings
+    // (l'écran le plus utile pour comprendre l'état général).
+    Get.to(() => const BookingsHistoryScreen());
   }
 
   // ─── Tap handlers (graceful degradation if a route is missing) ─────────
@@ -418,6 +432,120 @@ class _BannerSmallButton extends StatelessWidget {
           fontSize: 16.sp,
           fontWeight: FontWeight.w800,
           color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Neutral fallback banner (no urgent action) ─────────────────────────────
+//
+// v21.1.1 — barre toujours visible même quand rien d'urgent. Couleur role-
+// based mais en alpha bas (subtile, n'écrase pas la home page). Cliquable
+// pour ouvrir l'historique des bookings.
+class _NeutralBar extends StatelessWidget {
+  final String role; // 'owner' | 'sitter' | 'walker'
+  final VoidCallback onTap;
+  const _NeutralBar({required this.role, required this.onTap});
+
+  Color _accent() {
+    switch (role) {
+      case 'walker':
+        return const Color(0xFF16A34A);
+      case 'sitter':
+        return const Color(0xFF2563EB);
+      case 'owner':
+      default:
+        return const Color(0xFFEF4324);
+    }
+  }
+
+  String _title() {
+    switch (role) {
+      case 'walker':
+        return 'Pas de demande en attente';
+      case 'sitter':
+        return 'Pas de demande en attente';
+      case 'owner':
+      default:
+        return 'Tout est à jour';
+    }
+  }
+
+  String _subtitle() {
+    switch (role) {
+      case 'walker':
+        return 'Reste connecté pour les nouvelles demandes de balade';
+      case 'sitter':
+        return 'Reste connecté pour les nouvelles demandes de garde';
+      case 'owner':
+      default:
+        return 'Aucune action en attente · découvre la PawMap';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _accent();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 4.h),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.20),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: accent,
+                  size: 20.sp,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(
+                      text: _title(),
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: _subtitle(),
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w500,
+                      color: accent.withValues(alpha: 0.85),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: accent.withValues(alpha: 0.6),
+                size: 20.sp,
+              ),
+            ],
+          ),
         ),
       ),
     );

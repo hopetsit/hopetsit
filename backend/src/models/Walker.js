@@ -136,8 +136,7 @@ const walkerSchema = new mongoose.Schema(
     ],
 
     // Identity verification — same structure as Sitter for parity.
-    // Session v3.3 — stripeSessionId + provider added so we can link an
-    // ongoing Stripe Identity VerificationSession to the user doc.
+    // v21.1.1 — Stripe Identity removed. Identity verification now uses manual upload.
     identityVerification: {
       status: {
         type: String,
@@ -148,8 +147,7 @@ const walkerSchema = new mongoose.Schema(
       submittedAt: { type: Date, default: null },
       reviewedAt: { type: Date, default: null },
       rejectionReason: { type: String, default: '' },
-      stripeSessionId: { type: String, default: '' },
-      provider: { type: String, default: '' }, // 'stripe_identity' | '' (legacy)
+      provider: { type: String, default: '' },
     },
 
     // Top-Walker program (analog to Sitter's Top-Sitter flag).
@@ -232,15 +230,7 @@ const walkerSchema = new mongoose.Schema(
     walletBalance: { type: Number, default: 0, min: 0 },
     walletCurrency: { type: String, default: 'EUR' },
 
-    // Stripe Connect account information
-    stripeConnectAccountId: { type: String, default: null },
-    stripeConnectAccountStatus: {
-      type: String,
-      enum: ['not_connected', 'pending', 'restricted', 'active'],
-      default: 'not_connected',
-    },
-    // v18.9 — Stripe Customer côté walker (pour carte enregistrée).
-    stripeCustomerId: { type: String, default: null },
+    // v21.1.1 — Stripe Connect fields removed.
 
     // Saved card (optional, same structure as Sitter)
     card: {

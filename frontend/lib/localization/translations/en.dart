@@ -513,9 +513,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'blocked_users_unblock_success': 'User unblocked successfully',
       'blocked_users_save_success': 'Blocked users saved successfully',
       'donate_coming_soon': 'Donate feature will be available soon',
-      'stripe_connect_title': 'Set up payouts',
       'payout_status_screen_title': 'Payout Status',
-      'payout_connect_stripe_account': 'Set up payout account',
       'payout_paypal_email_title': 'Payout Email',
       'payout_status_saved': 'Saved',
       'payout_status_not_set': 'Not Set',
@@ -526,17 +524,9 @@ const Map<String, String> enUSTranslations = <String, String>{
       'payout_update_paypal_email': 'Update Email',
       'payout_paypal_dialog_subtitle':
           'This email will be used for payout notifications. Make sure it is your active address.',
-      'payout_stripe_connect_title': 'Payout account',
-      'payout_status_connected': 'Connected',
-      'payout_status_not_connected': 'Not Connected',
-      'payout_stripe_connected_message':
-          'Your payout account is connected and ready to receive payments.',
-      'payout_stripe_not_connected_message':
-          'Set up your payout account to start receiving payments.',
       'payout_account_id_label': 'Account ID',
       'payout_verification_title': 'Verification Status',
       'payout_status_title': 'Payout Status',
-      'payout_verification_step_identity': 'Identity verification',
       'payout_verification_step_bank': 'Bank account verification',
       'payout_verification_step_business': 'Business information',
       'payout_next_payout_label': 'Next Payout',
@@ -565,61 +555,6 @@ const Map<String, String> enUSTranslations = <String, String>{
           'Your payouts are currently restricted. Please contact support for assistance.',
       'payout_message_not_connected':
           'Set up your payout account to start receiving payments.',
-      'stripe_get_paid_title': 'Set Up Payouts',
-      'stripe_connect_description':
-          'Set up your payout account to receive payments directly from pet owners. Your earnings will be transferred to your bank account.',
-      'stripe_account_status_title': 'Account Status',
-      'stripe_continue_onboarding': 'Continue Onboarding',
-      'stripe_connect_account_button': 'Set up payout account',
-      'stripe_benefit_secure': 'Secure payment processing',
-      'stripe_benefit_fast_payouts': 'Fast payouts to your bank account',
-      'stripe_benefit_no_fees': 'No setup fees',
-      'stripe_benefit_support': '24/7 customer support',
-      'stripe_benefit_required': 'Required to receive payments from pet owners',
-      'stripe_account_connected': 'Account Connected',
-      'stripe_account_created_pending': 'Account Created - Verification Pending',
-      'stripe_account_created': 'Account Created',
-      'stripe_account_connected_message':
-          'Your payout account is fully set up and ready to receive payments.',
-      'stripe_account_created_message':
-          'Your payout account has been created. Please complete the verification process to start receiving payments.',
-      'stripe_account_created_partial_message':
-          'Your payment account has been created. Some verification steps are remaining. You can complete them in your account settings.',
-      'stripe_account_id_label': 'Account ID',
-      'stripe_loading_onboarding': 'Loading payout setup...',
-      'stripe_account_connected_success':
-          'Payout account connected successfully!',
-      'stripe_onboarding_completed': 'Payout setup completed!',
-      'stripe_onboarding_cancelled': 'Payout setup was cancelled.',
-      'stripe_onboarding_load_error':
-          'Failed to load payout setup page: @error',
-      'stripe_cancel_onboarding_title': 'Cancel Setup?',
-      'stripe_cancel_onboarding_message':
-          'Are you sure you want to cancel the payout setup? You can complete it later from settings.',
-      'stripe_connect_payment_title': 'Set Up Your Payment Account',
-      'stripe_connect_payment_description':
-          'To start receiving payments as a Pet Sitter, you need to set up your payment account. This is a required step to complete your profile setup.',
-      'stripe_connect_payment_partial_description':
-          'Your payment account has been created. Some verification steps are remaining. You can complete them later in your account settings.',
-      'stripe_connect_payment_partial_info':
-          'Your account is connected, but some verification steps are remaining. You can complete them in your account settings.',
-      'stripe_payment_connected_success': 'Payment Connected Successfully!',
-      'stripe_connect_now': 'Set Up Now',
-      'stripe_already_connected': 'Already Connected',
-      'stripe_already_connected_message':
-          'Your payout account is already connected and active.',
-      'stripe_connect_platform_not_enabled':
-          'Payouts are not yet enabled on the platform. Please try again later or contact support.',
-      'stripe_connect_error':
-          'Failed to set up payout account. Please try again.',
-      'stripe_no_onboarding_url':
-          'No setup URL available. Please create a payout account first.',
-      'stripe_onboarding_expired_title': 'Expired',
-      'stripe_onboarding_expired_message':
-          'The setup link has expired. Please create a new one.',
-      'stripe_disconnect_success': 'Payout account disconnected successfully!',
-      'stripe_disconnect_error':
-          'Failed to disconnect payout account. Please try again.',
       'payment_title': 'Payment',
       'payment_info_message':
           'Click "Pay" below to securely enter your payment details on our secure payment form.',
@@ -1716,6 +1651,9 @@ const Map<String, String> enUSTranslations = <String, String>{
     'cancel_72h_success': 'Booking cancelled and refund initiated.',
     'cancel_72h_error': 'Unable to cancel this booking.',
     'boost_shop_title': 'Boost Shop',
+    'shop_tab_boost': 'Boost',
+    'shop_tab_pawpass': 'PawPass',
+    'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Boosted',
     'boost_choose_package': 'Choose a package',
     'boost_choose_subtitle': 'Boost your profile to the top of the feed to be seen first!',
@@ -1902,7 +1840,8 @@ const Map<String, String> enUSTranslations = <String, String>{
     'premium_feature_alerts': '18 types of real-time alerts — including 7 PawSpot-only reports (aggressive dog, vehicle hazard, fire, flood, wildlife…)',
     'premium_feature_notifications': 'Instant notifications — be the first to know when a report appears near you',
     'premium_feature_chat': 'Unlimited chat with users you meet on the map',
-    'premium_feature_friends_tracking': 'Real-time friend tracking (Waze-style)',
+    'premium_feature_friends_tracking': 'Real-time friend & family tracking (Waze-style)',
+    'premium_feature_family_plan': 'Family plan available (up to 5 users) — €9.99/month',
     'premium_feature_monthly_boost': '1 free PawSpot every month — tap to claim',
     'premium_feature_badge': 'PawPass badge on your profile',
     'premium_upsell_text': 'Go PawPass to unlock every feature',
