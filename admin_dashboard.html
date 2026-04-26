@@ -906,6 +906,23 @@ async function api(path, method = 'GET', body = null) {
 
 // Auto-restore session on page load (Sprint 6.5 step 4).
 window.addEventListener('DOMContentLoaded', async () => {
+  // v21.1.1 — quand la page est servie depuis le backend lui-même
+  // (route /admin sur Render), on pré-remplit le champ Backend URL avec
+  // window.location.origin → l'admin n'a plus qu'à taper email + password.
+  // Si tu ouvres en local (file://) ou via http://localhost:8080 (mini
+  // serveur python), le champ est laissé vide et reste éditable.
+  const apiUrlInput = document.getElementById('api-url');
+  if (apiUrlInput && !apiUrlInput.value) {
+    const proto = window.location.protocol;
+    if (proto === 'https:' || proto === 'http:') {
+      const origin = window.location.origin;
+      // Skip si on est sur localhost:8080 (mini serveur dev qui sert juste
+      // le HTML, pas l'API) — on laisse l'admin entrer l'URL Render à la main.
+      if (!origin.includes(':8080')) {
+        apiUrlInput.value = origin;
+      }
+    }
+  }
   const savedToken = localStorage.getItem(LS_TOKEN_KEY);
   const savedUrl = localStorage.getItem(LS_URL_KEY);
   if (!savedToken || !savedUrl) return;
