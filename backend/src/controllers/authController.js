@@ -1309,9 +1309,39 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
     const admin = await Admin.findOne({ email: String(email).toLowerCase().trim() });
-    if (!admin) return res.status(401).json({ error: 'Invalid admin credentials.' });
+    if (!admin) {
+      return res.status(401).json({
+        error: 'Invalid admin credentials.',
+        debug: {
+          reason: 'admin_not_found',
+          emailReceived: String(email),
+          emailReceivedLower: String(email).toLowerCase().trim(),
+        },
+      });
+    }
     const ok = await admin.verifyPassword(password);
-    if (!ok) return res.status(401).json({ error: 'Invalid admin credentials.' });
+    if (!ok) {
+      // v22.1 debug — compare la longueur du password reçu avec
+      // ADMIN_SEED_PASSWORD courant ; vérifie aussi que le hash en DB matche
+      // bien la var d'env (pour exclure une divergence silencieuse).
+      const envPassword = process.env.ADMIN_SEED_PASSWORD || '';
+      let envMatches = null;
+      try {
+        const bcrypt = require('bcryptjs');
+        envMatches = await bcrypt.compare(envPassword, admin.passwordHash);
+      } catch (_) {}
+      return res.status(401).json({
+        error: 'Invalid admin credentials.',
+        debug: {
+          reason: 'wrong_password',
+          passwordReceivedLength: String(password).length,
+          envSeedPasswordLength: envPassword.length,
+          envSeedPasswordMatchesDb: envMatches,
+          adminEmailInDb: admin.email,
+          adminUpdatedAt: admin.updatedAt,
+        },
+      });
+    }
     const token = signAuthToken({ id: admin._id.toString(), role: 'admin' });
     return res.json({
       role: 'admin',
