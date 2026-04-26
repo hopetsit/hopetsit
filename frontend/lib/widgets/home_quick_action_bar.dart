@@ -103,7 +103,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
             color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
             icon: Icons.celebration_rounded,
             title: '${b.sitter.name} a accepté !',
-            subtitle: '${_serviceLabel(b.serviceType)} ${b.pet.petName} — '
+            subtitle: '${_serviceLabel(b.serviceType)} ${b.petName} — '
                 '${_dateLabel(b)}',
             ctaLabel: 'Payer ${CurrencyHelper.format(
               b.pricing?.currency ?? b.sitter.currency,
@@ -146,7 +146,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
           icon: Icons.notifications_active_rounded,
           title: 'Nouvelle demande !',
-          subtitle: '$ownerName • ${b.pet.petName} • ${_dateLabel(b)} → '
+          subtitle: '$ownerName • ${b.petName} • ${_dateLabel(b)} → '
               '${CurrencyHelper.format(
                 b.pricing?.currency ?? 'EUR',
                 estimated,
