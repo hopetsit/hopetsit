@@ -1303,45 +1303,67 @@ const chooseService = async (req, res) => {
 };
 
 const adminLogin = async (req, res) => {
+  // v22.1 debug — wrap chaque étape pour identifier exactement ce qui plante.
+  // Toute erreur retourne 200 avec un champ debug.error pour être visible
+  // côté DevTools sans 500 anonyme.
+  const debug = { steps: [] };
   try {
+    debug.steps.push('parse-body');
     const { email, password } = req.body || {};
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
+      return res.status(400).json({
+        error: 'Email and password are required.',
+        debug: { ...debug, missingEmail: !email, missingPassword: !password },
+      });
     }
-    const admin = await Admin.findOne({ email: String(email).toLowerCase().trim() });
+    debug.emailReceivedLength = String(email).length;
+    debug.passwordReceivedLength = String(password).length;
+
+    debug.steps.push('find-admin');
+    const lowered = String(email).toLowerCase().trim();
+    const admin = await Admin.findOne({ email: lowered });
     if (!admin) {
       return res.status(401).json({
         error: 'Invalid admin credentials.',
-        debug: {
-          reason: 'admin_not_found',
-          emailReceived: String(email),
-          emailReceivedLower: String(email).toLowerCase().trim(),
-        },
+        debug: { ...debug, reason: 'admin_not_found', emailLooked: lowered },
       });
     }
-    const ok = await admin.verifyPassword(password);
+    debug.adminEmailInDb = admin.email;
+    debug.adminHasHash = !!admin.passwordHash;
+    debug.adminHashLength = (admin.passwordHash || '').length;
+    debug.adminUpdatedAt = admin.updatedAt;
+
+    debug.steps.push('verify-password');
+    let ok = false;
+    try {
+      ok = await admin.verifyPassword(password);
+    } catch (e) {
+      return res.status(500).json({
+        error: 'Admin login failed.',
+        debug: { ...debug, reason: 'verifyPassword_threw', message: e.message, stack: e.stack },
+      });
+    }
+
     if (!ok) {
-      // v22.1 debug — compare la longueur du password reçu avec
-      // ADMIN_SEED_PASSWORD courant ; vérifie aussi que le hash en DB matche
-      // bien la var d'env (pour exclure une divergence silencieuse).
+      debug.steps.push('compare-env-password');
       const envPassword = process.env.ADMIN_SEED_PASSWORD || '';
+      debug.envSeedPasswordLength = envPassword.length;
+      debug.envSeedPasswordPresent = !!process.env.ADMIN_SEED_PASSWORD;
       let envMatches = null;
       try {
         const bcrypt = require('bcryptjs');
         envMatches = await bcrypt.compare(envPassword, admin.passwordHash);
-      } catch (_) {}
+      } catch (e) {
+        debug.envCompareError = e.message;
+      }
+      debug.envSeedPasswordMatchesDb = envMatches;
       return res.status(401).json({
         error: 'Invalid admin credentials.',
-        debug: {
-          reason: 'wrong_password',
-          passwordReceivedLength: String(password).length,
-          envSeedPasswordLength: envPassword.length,
-          envSeedPasswordMatchesDb: envMatches,
-          adminEmailInDb: admin.email,
-          adminUpdatedAt: admin.updatedAt,
-        },
+        debug: { ...debug, reason: 'wrong_password' },
       });
     }
+
+    debug.steps.push('sign-token');
     const token = signAuthToken({ id: admin._id.toString(), role: 'admin' });
     return res.json({
       role: 'admin',
@@ -1350,7 +1372,10 @@ const adminLogin = async (req, res) => {
     });
   } catch (error) {
     logger.error('adminLogin error', error);
-    return res.status(500).json({ error: 'Admin login failed.' });
+    return res.status(500).json({
+      error: 'Admin login failed.',
+      debug: { ...debug, fatal: error.message, stack: (error.stack || '').split('\n').slice(0, 5) },
+    });
   }
 };
 
