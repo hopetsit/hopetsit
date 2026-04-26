@@ -221,8 +221,20 @@ app.use((err, req, res, next) => {
     userId: req.user?.id,
   });
   if (res.headersSent) return;
+  // v22.1 — pour les routes admin login/diagnostic, on remonte le détail de
+  // l'erreur dans la réponse pour debug. À retirer en v22.2 une fois stable.
+  const isAdminDebug = req.path && req.path.startsWith('/auth/admin');
   res.status(err.status || 500).json({
     error: err.expose ? err.message : 'Internal server error',
+    ...(isAdminDebug ? {
+      debugFatal: {
+        message: err.message,
+        name: err.name,
+        code: err.code,
+        stack: (err.stack || '').split('\n').slice(0, 8),
+        path: req.path,
+      },
+    } : {}),
   });
 });
 
