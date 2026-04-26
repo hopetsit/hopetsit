@@ -382,13 +382,29 @@ class OwnerRepository {
   }
 
   /// Cancels a booking.
+  /// v22.3 — Bug 17a : accepte sitterId OU walkerId (le backend exige
+  /// l'un des deux). Si le caller passe un walkerId via le param sitterId
+  /// (legacy), le backend rejetait. Maintenant on supporte les 2.
   Future<Map<String, dynamic>> cancelBooking({
     required String bookingId,
-    required String sitterId,
+    String? sitterId,
+    String? walkerId,
   }) async {
+    final query = <String, String>{};
+    if (sitterId != null && sitterId.isNotEmpty) {
+      query['sitterId'] = sitterId;
+    }
+    if (walkerId != null && walkerId.isNotEmpty) {
+      query['walkerId'] = walkerId;
+    }
+    if (query.isEmpty) {
+      throw ApiException(
+        'cancelBooking requires either sitterId or walkerId',
+      );
+    }
     final response = await _apiClient.delete(
       '${ApiEndpoints.bookings}/$bookingId/cancel',
-      queryParameters: {'sitterId': sitterId},
+      queryParameters: query,
       requiresAuth: true,
     );
 

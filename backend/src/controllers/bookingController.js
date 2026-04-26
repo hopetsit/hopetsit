@@ -1923,10 +1923,50 @@ const createBookingPaymentIntent = async (req, res) => {
     }
 
     // Session v17 — resolve sitter OR walker via the unified helper.
-    const providerRef = getBookingProvider(booking);
-    const sitter = providerRef.doc;
+    let providerRef = getBookingProvider(booking);
+    let sitter = providerRef.doc;
+
+    // v22.3 — Bug 17b : auto-réparation si booking sans provider attaché
+    // (legacy buggy bookings). On essaye de retrouver le provider via
+    // l'Application qui pointe vers ce booking, puis on patch le booking.
     if (!sitter) {
-      return res.status(404).json({ error: 'Provider not found on booking.' });
+      try {
+        const Application = require('../models/Application');
+        const app = await Application.findOne({ bookingId: booking._id })
+          .populate('sitterId')
+          .populate('walkerId');
+        if (app) {
+          if (app.sitterId && !booking.sitterId) {
+            booking.sitterId = app.sitterId._id || app.sitterId;
+            await booking.save();
+            await booking.populate('sitterId');
+            providerRef = getBookingProvider(booking);
+            sitter = providerRef.doc;
+            logger.info(`[createPaymentIntent] auto-repair booking ${booking._id} sitterId from application ${app._id}`);
+          } else if (app.walkerId && !booking.walkerId) {
+            booking.walkerId = app.walkerId._id || app.walkerId;
+            await booking.save();
+            await booking.populate('walkerId');
+            providerRef = getBookingProvider(booking);
+            sitter = providerRef.doc;
+            logger.info(`[createPaymentIntent] auto-repair booking ${booking._id} walkerId from application ${app._id}`);
+          }
+        }
+      } catch (e) {
+        logger.warn(`[createPaymentIntent] auto-repair failed: ${e.message}`);
+      }
+    }
+
+    if (!sitter) {
+      return res.status(404).json({
+        error: 'Provider not found on booking.',
+        debug: {
+          bookingId: booking._id.toString(),
+          hasSitterId: !!booking.sitterId,
+          hasWalkerId: !!booking.walkerId,
+          status: booking.status,
+        },
+      });
     }
     // v18.5 — #3 hold admin : on NE bloque PLUS le paiement si le provider
     // n'a pas encore configuré IBAN/PayPal. Le owner peut payer, la

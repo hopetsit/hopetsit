@@ -43,14 +43,28 @@ class BookingsController extends GetxController {
     }
   }
 
+  /// v22.3 — Bug 17a : accepte aussi walkerId. Le caller doit passer l'ID
+  /// du provider (sitter OU walker) via le param `providerId`. Pour compat
+  /// les call sites existants peuvent encore passer `sitterId` directement.
   Future<void> cancelBooking({
     required String bookingId,
-    required String sitterId,
+    String? sitterId,
+    String? walkerId,
+    String? providerId,
   }) async {
     try {
+      // v22.3 — si providerId fourni mais pas sitter/walker, on essaye les
+      // 2 (le backend ignorera celui qui ne match pas le booking).
+      String? effSitterId = sitterId;
+      String? effWalkerId = walkerId;
+      if (providerId != null && providerId.isNotEmpty) {
+        effSitterId ??= providerId;
+        effWalkerId ??= providerId;
+      }
       await _ownerRepository.cancelBooking(
         bookingId: bookingId,
-        sitterId: sitterId,
+        sitterId: effSitterId,
+        walkerId: effWalkerId,
       );
 
       CustomSnackbar.showSuccess(

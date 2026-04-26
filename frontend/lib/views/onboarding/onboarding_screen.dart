@@ -41,7 +41,10 @@ class OnboardingScreen extends StatelessWidget {
                     Colors.white,
                     Colors.white,
                   ],
-            stops: const [0.0, 0.35, 0.35, 1.0],
+            // v22.3 — Bug 17d : zone orange etendue a 48% (au lieu de 35%)
+            // pour que les chips ET leurs labels rentrent dedans, sinon
+            // les labels blancs tombaient sur le fond blanc = invisibles.
+            stops: const [0.0, 0.48, 0.48, 1.0],
           ),
         ),
         // v22.2 — Bug 16e : structure Column avec Expanded scrollable en
@@ -387,6 +390,17 @@ class _SocialButton extends StatelessWidget {
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
                       color: isOutlined
+                          ? AppColors.textPrimary(context)
+                          : AppColors.whiteColor,
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+ isOutlined
                           ? AppColors.textPrimary(context)
                           : AppColors.whiteColor,
                     ),

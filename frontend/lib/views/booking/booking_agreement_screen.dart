@@ -676,11 +676,12 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
           SizedBox(height: 12.h),
           _buildDetailRow(
             'booking_agreement_service_provider_label'.tr,
-            // v22.2 — Bug 16b : fallback si name vide (cas où l'API ne
-            // populate pas correctement le sitter/walker).
+            // v22.3 — Bug 17c : fallback "—" plutot que "provider_unknown.tr"
+            // qui se traduisait en "Prestataire" et faisait Prestataire :
+            // Prestataire (redondant et moche).
             widget.booking.sitter.name.trim().isNotEmpty
                 ? widget.booking.sitter.name
-                : 'provider_unknown'.tr,
+                : '—',
           ),
           // v18.9.3 — ville du provider affichée dans les détails.
           if (widget.booking.sitter.city != null &&

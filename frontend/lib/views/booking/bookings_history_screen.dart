@@ -10,6 +10,34 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
+import 'package:intl/intl.dart';
+
+// v22.3 — Bug 17e : helpers de formatage pour eviter "2026-04-28T00:00:00.000Z"
+// brut affiche dans l'historique. Renvoie "lun. 28 avr. 2026" et "13:39".
+String _formatBookingDate(String raw) {
+  if (raw.isEmpty) return '—';
+  if (raw.contains('T') || raw.contains('-')) {
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      final lang = Get.locale?.languageCode ?? 'fr';
+      return DateFormat('EEE d MMM y', lang).format(dt);
+    } catch (_) {}
+  }
+  return raw;
+}
+
+String _formatBookingTime(String raw) {
+  if (raw.isEmpty) return '—';
+  if (raw.contains('T')) {
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      final lang = Get.locale?.languageCode ?? 'fr';
+      final pattern = lang == 'en' ? 'h:mm a' : 'HH:mm';
+      return DateFormat(pattern, lang).format(dt);
+    } catch (_) {}
+  }
+  return raw;
+}
 
 class BookingsHistoryScreen extends StatefulWidget {
   const BookingsHistoryScreen({super.key});
@@ -302,13 +330,13 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
           _buildDetailRow(
             Icons.calendar_today,
             'bookings_detail_date_label'.tr,
-            booking.date,
+            _formatBookingDate(booking.date),
           ),
           SizedBox(height: 12.h),
           _buildDetailRow(
             Icons.access_time,
             'bookings_detail_time_label'.tr,
-            booking.timeSlot,
+            _formatBookingTime(booking.timeSlot),
           ),
           SizedBox(height: 12.h),
           Row(

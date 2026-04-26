@@ -212,8 +212,14 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
                   else
                     ..._methods.map(_buildCardTile),
                   SizedBox(height: 10.h),
-                  _addCardButton(),
-                  SizedBox(height: 24.h),
+                  // v22.3 — Bug 17f : bouton "Ajouter une carte" cache.
+                  // Avec Airwallex, les cartes sont enregistrees auto au
+                  // premier paiement. Bouton inutile/confus pour l'user.
+                  // Banner orange info au-dessus suffit a expliquer.
+                  // Sera reactive en v22.x avec PaymentConsent flow.
+                  // _addCardButton(),
+                  // SizedBox(height: 24.h),
+                  SizedBox(height: 14.h),
                   _sectionTitle('owner_payments_history_title'.tr ==
                           'owner_payments_history_title'
                       ? 'Historique'
