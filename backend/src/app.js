@@ -75,10 +75,27 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,ht
   .map((o) => o.trim())
   .filter(Boolean);
 
+// v22.1 — auto-allow le propre domaine du backend (Render expose RENDER_EXTERNAL_URL).
+// Sinon le dashboard admin servi depuis /admin sur le même domaine est bloqué
+// par CORS quand il fetch /auth/admin/login (browser envoie un Origin header
+// même pour same-origin POST).
+const renderOwnUrl = (process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
+if (renderOwnUrl && !allowedOrigins.includes(renderOwnUrl)) {
+  allowedOrigins.push(renderOwnUrl);
+}
+
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    // v22.1 — fallback : si l'origin matche notre RENDER_EXTERNAL_URL ou
+    // se termine par .onrender.com, on l'autorise (cas du dashboard admin
+    // servi depuis le même backend).
+    if (
+      renderOwnUrl && origin === renderOwnUrl
+    ) {
+      return callback(null, true);
+    }
     return callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
