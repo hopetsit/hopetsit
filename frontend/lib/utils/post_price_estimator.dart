@@ -120,6 +120,13 @@ PostPriceEstimate? estimatePostPrice({
                 ? weeklyRate / 7
                 : (monthlyRate > 0 ? monthlyRate / 30 : 0.0)));
     if (effectiveDailyForCare > 0) {
+      // v22.1 — Bug 13b : sanity floor. Si le tarif effectif est < 5€/jour
+      // c'est forcément une mauvaise config sitter (genre hourlyRate = 0.18€
+      // dérivé en daily 1.44€). On retourne null → affichage "À confirmer"
+      // côté UI, plutôt qu'un prix bidon comme €2.25 pour 3 jours de garderie.
+      if (effectiveDailyForCare < 5.0) {
+        return null;
+      }
       final double brut = effectiveDailyForCare * days;
       final double commission = brut * commissionRate;
       return PostPriceEstimate(

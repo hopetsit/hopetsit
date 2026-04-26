@@ -1001,10 +1001,19 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     SubscriptionController controller,
     SubscriptionPlan plan,
   ) {
+    // v22.1 — 3 plans visuellement distincts : Mensuel ⭐ / Annuel 🏆 (gold)
+    // / Famille 👨‍👩‍👧‍👦 (bleu — partage 5 membres).
     final isYearly = plan.plan == 'yearly';
+    final isFamily = plan.plan == 'family';
     final savings = isYearly ? ' (35% off)' : '';
     final currentPlan = controller.status.value?.plan;
     final isCurrent = currentPlan == plan.plan && controller.isPremium;
+
+    final accentColor = isFamily
+        ? const Color(0xFF2196F3) // bleu famille
+        : isYearly
+            ? const Color(0xFFFFD700) // gold annuel
+            : const Color(0xFFFFD700); // gold default
 
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
@@ -1019,15 +1028,15 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16.r),
-                border: isYearly
-                    ? Border.all(color: const Color(0xFFFFD700), width: 2)
+                border: (isYearly || isFamily)
+                    ? Border.all(color: accentColor, width: 2)
                     : null,
                 boxShadow: [
                   BoxShadow(
-                    color: isYearly
-                        ? const Color(0xFFFFD700).withValues(alpha: 0.15)
+                    color: (isYearly || isFamily)
+                        ? accentColor.withValues(alpha: 0.15)
                         : Colors.black.withValues(alpha: 0.04),
-                    blurRadius: isYearly ? 12 : 10,
+                    blurRadius: (isYearly || isFamily) ? 12 : 10,
                     offset: const Offset(0, 4),
                   ),
                 ],
@@ -1038,12 +1047,16 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                     width: 50.w,
                     height: 50.w,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                      color: accentColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Center(
                       child: Text(
-                        isYearly ? '🏆' : '⭐',
+                        isFamily
+                            ? '👨‍👩‍👧'
+                            : isYearly
+                                ? '🏆'
+                                : '⭐',
                         style: TextStyle(fontSize: 26.sp),
                       ),
                     ),
@@ -1061,9 +1074,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                         ),
                         SizedBox(height: 4.h),
                         InterText(
-                          text: isYearly
-                              ? 'Facturé 1x par an'
-                              : 'Facturé tous les mois',
+                          text: isFamily
+                              ? "Jusqu'à 5 membres • mensuel"
+                              : isYearly
+                                  ? 'Facturé 1x par an'
+                                  : 'Facturé tous les mois',
                           fontSize: 12.sp,
                           color: AppColors.greyText,
                         ),

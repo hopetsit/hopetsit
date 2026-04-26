@@ -39,13 +39,16 @@ function loadPricingService() {
 const PREMIUM_PLAN_INTERVALS = {
   monthly: { intervalDays: 30, label: 'PawPass Mensuel' },
   yearly: { intervalDays: 365, label: 'PawPass Annuel' },
+  // v22.1 — PawPass Famille : même PawPass premium mais partagé avec
+  // jusqu'à 5 membres de la famille. Mensuel uniquement pour l'instant.
+  family: { intervalDays: 30, label: 'PawPass Famille' },
 };
 
 const PREMIUM_PRICING = {
-  EUR: { monthly: 6.99, yearly: 49.99 },
-  GBP: { monthly: 5.89, yearly: 42.19 },
-  CHF: { monthly: 6.99, yearly: 49.99 },
-  USD: { monthly: 7.69, yearly: 54.99 },
+  EUR: { monthly: 6.99, yearly: 49.99, family: 9.90 },
+  GBP: { monthly: 5.89, yearly: 42.19, family: 8.39 },
+  CHF: { monthly: 6.99, yearly: 49.99, family: 9.90 },
+  USD: { monthly: 7.69, yearly: 54.99, family: 10.89 },
 };
 
 const PAWFOLLOW_PLAN_INTERVALS = {

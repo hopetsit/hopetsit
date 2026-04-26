@@ -137,6 +137,59 @@ const createPost = async (req, res) => {
 
     await newPost.populate('ownerId');
 
+    // v22.1 — Bug 13a : notifier les sitters/walkers locaux qu'une nouvelle
+    // demande est disponible (push + in-app + badge). Async fire-and-forget,
+    // ne bloque pas la réponse HTTP.
+    setImmediate(async () => {
+      try {
+        const Sitter = require('../models/Sitter');
+        const Walker = require('../models/Walker');
+        const { sendNotification } = require('../services/notificationSender');
+
+        const isWalkingPost = normalizedServices.includes('dog_walking');
+        const RecipientModel = isWalkingPost ? Walker : Sitter;
+        const recipientRole = isWalkingPost ? 'walker' : 'sitter';
+
+        const filter = {};
+        const cityKey = postPayload.location && postPayload.location.city;
+        if (cityKey) {
+          filter['$or'] = [
+            { 'location.city': cityKey },
+            { city: cityKey },
+          ];
+        }
+
+        const recipients = await RecipientModel.find(filter)
+          .select('_id')
+          .limit(50)
+          .lean();
+
+        for (const r of recipients) {
+          sendNotification({
+            userId: r._id.toString(),
+            role: recipientRole,
+            type: 'new_request_nearby',
+            data: {
+              postId: newPost._id.toString(),
+              ownerName: owner.name || '',
+              serviceType: normalizedServices[0] || '',
+              city: cityKey || '',
+            },
+            actor: { role: 'owner', id: ownerId },
+          });
+        }
+
+        logger.info(
+          `[createPost] notified ${recipients.length} ${recipientRole}(s) for new request in ${cityKey || 'any city'}`,
+        );
+      } catch (err) {
+        logger.warn(
+          '[postController.createPost] notify nearby failed',
+          err && err.message ? err.message : err,
+        );
+      }
+    });
+
     res.status(201).json({ post: sanitizePost(newPost) });
   } catch (error) {
     logger.error('Create post error', error);

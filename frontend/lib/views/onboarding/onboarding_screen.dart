@@ -50,21 +50,20 @@ class OnboardingScreen extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 28.w),
               child: Column(
                 children: [
-                  SizedBox(height: 30.h),
+                  SizedBox(height: 16.h),
 
-                  // v21.1.1 — logo officiel. Le SVG `apple-icon-original.svg`
-                  // a déjà son propre fond orange arrondi → on supprime le
-                  // wrapper blanc qui doublait le rounded et déformait l'icône
-                  // (width=96.w + height=96.h utilisaient deux scalings
-                  // différents → conteneur non-carré → SVG aplati par
-                  // BoxFit.contain). Maintenant : carré strict via 96.w sur
-                  // les 2 axes, ombre portée pour conserver le halo, le SVG
-                  // fournit lui-même les coins arrondis.
+                  // v22.1 — Bug récurrent "icône tordue" : le SVG officiel a
+                  // un transform("translate(512, 471)") qui décale le paw vers
+                  // le haut. On passe au PNG `apple-icon-original.png` (raster
+                  // proprement centré, orange bg + paw blanche/colorée déjà
+                  // intégrée) inséré dans un wrapper blanc rounded — l'orange
+                  // floats au centre du carré blanc, look "Apple home icon".
                   Container(
-                    width: 96.w,
-                    height: 96.w,
+                    width: 88.w,
+                    height: 88.w,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24.r),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22.r),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.22),
@@ -73,37 +72,38 @@ class OnboardingScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                    padding: EdgeInsets.all(8.w),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24.r),
-                      child: SvgPicture.asset(
-                        'assets/brand/apple/apple-icon-original.svg',
+                      borderRadius: BorderRadius.circular(16.r),
+                      child: Image.asset(
+                        'assets/brand/png/apple-icon-original.png',
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
 
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 12.h),
 
                   // ── App name ──
                   PoppinsText(
                     text: 'HoPetSit',
-                    fontSize: 32.sp,
+                    fontSize: 28.sp,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
 
-                  SizedBox(height: 6.h),
+                  SizedBox(height: 4.h),
 
                   // ── Tagline ──
                   InterText(
                     text: 'onboarding_tagline'.tr,
-                    fontSize: 15.sp,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
                     color: Colors.white.withValues(alpha: 0.85),
                     textAlign: TextAlign.center,
                   ),
 
-                  SizedBox(height: 40.h),
+                  SizedBox(height: 22.h),
 
                   // ── Feature highlights ──
                   // v21.1 — icônes refondues pour mieux refléter les 3 piliers de
@@ -128,28 +128,26 @@ class OnboardingScreen extends StatelessWidget {
                     ],
                   ),
 
-                  SizedBox(height: 40.h),
+                  SizedBox(height: 22.h),
 
-                  // ── CTA Section (white card area) ──
+                  // ── CTA Section ──
+                  // v22.1 — espacements compressés pour que tout rentre sans
+                  // scroll sur 95% des téléphones (avant : 16+12+24+20+20 =
+                  // ~92px gaspillés ; maintenant : 10+8+14+12 = ~44px).
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.symmetric(
                       horizontal: 4.w,
-                      vertical: 8.h,
+                      vertical: 4.h,
                     ),
                     child: Column(
                       children: [
-                        // Create account / sign up button.
-                        // v21.1 — clé dédiée `onboarding_signup` pour avoir un
-                        // verbe d'action court ("S'inscrire" / "Sign up") sur
-                        // l'écran de bienvenue, sans toucher au texte plus
-                        // long ("Créer un compte") du formulaire d'inscription.
                         CustomButton(
                           title: 'onboarding_signup'.tr,
                           onTap: () => Get.to(() => SignUpAsScreen()),
                         ),
 
-                        SizedBox(height: 16.h),
+                        SizedBox(height: 10.h),
 
                         // Google button
                         Obx(
@@ -169,7 +167,7 @@ class OnboardingScreen extends StatelessWidget {
 
                         // Apple button (iOS only)
                         if (Platform.isIOS) ...[
-                          SizedBox(height: 12.h),
+                          SizedBox(height: 8.h),
                           Obx(
                             () => _SocialButton(
                               onTap: authController.isSocialLoginLoading.value
@@ -185,7 +183,7 @@ class OnboardingScreen extends StatelessWidget {
                           ),
                         ],
 
-                        SizedBox(height: 24.h),
+                        SizedBox(height: 14.h),
 
                         // Divider
                         Row(
@@ -218,7 +216,7 @@ class OnboardingScreen extends StatelessWidget {
                           ],
                         ),
 
-                        SizedBox(height: 20.h),
+                        SizedBox(height: 12.h),
 
                         // Login link
                         Row(
@@ -235,7 +233,7 @@ class OnboardingScreen extends StatelessWidget {
                               child: Container(
                                 color: Colors.transparent,
                                 padding: EdgeInsets.fromLTRB(
-                                  6.w, 10.h, 10.w, 10.h,
+                                  6.w, 8.h, 10.w, 8.h,
                                 ),
                                 child: InterText(
                                   text: 'title_login'.tr,
@@ -248,7 +246,7 @@ class OnboardingScreen extends StatelessWidget {
                           ],
                         ),
 
-                        SizedBox(height: 20.h),
+                        SizedBox(height: 8.h),
                       ],
                     ),
                   ),

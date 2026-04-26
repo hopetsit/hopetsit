@@ -306,44 +306,75 @@ class PublishReservationRequestController extends GetxController {
   }
 
   bool get isFormComplete {
+    return _firstMissingField() == null;
+  }
+
+  /// v22.1 — Bug 13c : retourne le NOM du premier champ manquant pour
+  /// pouvoir afficher un message clair au user au lieu du générique
+  /// "Veuillez remplir les champs requis". Returns null si tout est OK.
+  String? _firstMissingField() {
     if (selectedPetId.value == null || selectedPetId.value!.isEmpty) {
-      return false;
+      return 'pet';
     }
-    if (startDate.value == null ||
-        endDate.value == null ||
-        startTime.value == null ||
-        endTime.value == null) {
-      return false;
-    }
+    if (startDate.value == null) return 'startDate';
+    if (endDate.value == null) return 'endDate';
+    if (startTime.value == null) return 'startTime';
+    if (endTime.value == null) return 'endTime';
     final st = selectedServiceType.value;
-    if (st == null || st.trim().isEmpty) return false;
+    if (st == null || st.trim().isEmpty) return 'serviceType';
     if (st == 'dog_walking') {
       final d = selectedDuration.value;
-      if (d == null || d.trim().isEmpty) return false;
+      if (d == null || d.trim().isEmpty) return 'duration';
     }
     if (st == 'house_sitting') {
       final venue = houseSittingVenue.value;
-      if (venue == null || venue.trim().isEmpty) return false;
+      if (venue == null || venue.trim().isEmpty) return 'venue';
     }
-    // City is validated by the form via CityLocationPicker.
-    return true;
+    final city = cityController.text.trim();
+    if (city.isEmpty) return 'city';
+    return null;
+  }
+
+  String _missingFieldLabel(String field) {
+    switch (field) {
+      case 'pet':
+        return 'publish_request_pet_required'.tr;
+      case 'startDate':
+        return 'publish_request_start_date_required'.tr;
+      case 'endDate':
+        return 'publish_request_end_date_required'.tr;
+      case 'startTime':
+        return 'publish_request_start_time_required'.tr;
+      case 'endTime':
+        return 'publish_request_end_time_required'.tr;
+      case 'serviceType':
+        return 'publish_request_service_required'.tr;
+      case 'duration':
+        return 'publish_request_duration_required'.tr;
+      case 'venue':
+        return 'publish_request_venue_required'.tr;
+      case 'city':
+        return 'publish_request_city_required'.tr;
+      default:
+        return 'publish_request_fill_required'.tr;
+    }
   }
 
   Future<void> submit() async {
+    if (isSubmitting.value) return;
     final isValid = formKey.currentState?.validate() ?? false;
+    final missing = _firstMissingField();
     // v21 — flag the pet selector specifically if it's the missing field,
     // so the user sees a red border instead of just a generic snackbar.
-    final missingPet = selectedPetId.value == null || selectedPetId.value!.isEmpty;
-    if (missingPet) petSelectionError.value = true;
-    if (!isValid || !isFormComplete || isSubmitting.value) {
-      if (!isValid || !isFormComplete) {
-        CustomSnackbar.showWarning(
-          title: 'send_request_validation_error_title'.tr,
-          message: missingPet
-              ? 'publish_request_pet_required'.tr
-              : 'publish_request_fill_required'.tr,
-        );
-      }
+    if (missing == 'pet') petSelectionError.value = true;
+    if (!isValid || missing != null) {
+      // v22.1 — Bug 13c : message clair indiquant LE champ manquant exact.
+      CustomSnackbar.showWarning(
+        title: 'send_request_validation_error_title'.tr,
+        message: missing != null
+            ? _missingFieldLabel(missing)
+            : 'publish_request_fill_required'.tr,
+      );
       return;
     }
 

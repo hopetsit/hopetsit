@@ -128,18 +128,23 @@ class LoginScreen extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          // Logo in a circle
+                          // v22.1 — Logo : passage SVG → PNG pour fix l'effet
+                          // "tordu" (le SVG a un transform Y=471 hors-centre).
+                          // Carré strict via 64.w sur les 2 axes.
                           Container(
                             width: 64.w,
-                            height: 64.h,
+                            height: 64.w,
                             decoration: BoxDecoration(
                               color: AppColors.primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16.r),
                             ),
-                            padding: EdgeInsets.all(8.w),
-                            child: SvgPicture.asset(
-                              'assets/brand/apple/apple-icon-original.svg',
-                              fit: BoxFit.contain,
+                            padding: EdgeInsets.all(6.w),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12.r),
+                              child: Image.asset(
+                                'assets/brand/png/apple-icon-original.png',
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                           SizedBox(height: 16.h),

@@ -23,10 +23,13 @@
 // Insert directly under the AppBar in each home screen's body, before the
 // existing scrollable content. NOTHING else needs to change.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
@@ -45,6 +48,9 @@ class HomeQuickActionBar extends StatefulWidget {
 class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
+  // v22.1 — Bug 14a : worker pour réagir aux nouvelles notifs.
+  Worker? _notifWorker;
+  Timer? _periodicRefresh;
 
   @override
   void initState() {
@@ -53,11 +59,54 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     )..repeat(reverse: true);
+
+    // v22.1 — Bug 14a : refresh proactif de la liste de bookings.
+    //   1. Force reload AU MOUNT (le user a peut-être manqué des updates
+    //      pendant qu'il était sur un autre tab).
+    //   2. Écoute le compteur de notifs : si une nouvelle notif arrive
+    //      (typiquement "Réservation acceptée"), on relance loadBookings()
+    //      → la barre passe de "Tout est à jour" à "Payer X€" en moins de 1s.
+    //   3. Backup periodic refresh toutes les 30s pour les sessions très
+    //      longues sans push.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshBookings();
+      if (Get.isRegistered<NotificationsController>()) {
+        final notifs = Get.find<NotificationsController>();
+        _notifWorker = ever<int>(notifs.unreadCount, (_) => _refreshBookings());
+      }
+      _periodicRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (mounted) _refreshBookings();
+      });
+    });
+  }
+
+  void _refreshBookings() {
+    try {
+      switch (widget.role) {
+        case 'walker':
+          if (Get.isRegistered<WalkerBookingsController>()) {
+            Get.find<WalkerBookingsController>().loadBookings();
+          }
+          break;
+        case 'sitter':
+          if (Get.isRegistered<SitterBookingsController>()) {
+            Get.find<SitterBookingsController>().loadBookings();
+          }
+          break;
+        case 'owner':
+        default:
+          if (Get.isRegistered<BookingsController>()) {
+            Get.find<BookingsController>().loadBookings();
+          }
+      }
+    } catch (_) { /* noop */ }
   }
 
   @override
   void dispose() {
     _pulse.dispose();
+    _notifWorker?.dispose();
+    _periodicRefresh?.cancel();
     super.dispose();
   }
 

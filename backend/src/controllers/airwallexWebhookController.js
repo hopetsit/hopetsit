@@ -49,6 +49,63 @@ const handleAirwallexWebhook = async (req, res) => {
         await booking.save();
         logger.info(`✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})`);
 
+        // v22.1 — Bug 14c : auto-message système dans le chat owner+provider
+        // pour confirmer le paiement aux 2 parties, fiable (déclenché par
+        // webhook, pas par UI conditionnel).
+        try {
+          const Conversation = require('../models/Conversation');
+          const Message = require('../models/Message');
+          const { emitToUser } = require('../sockets');
+
+          const ownerId = booking.ownerId;
+          const sitterId = booking.sitterId || null;
+          const walkerId = booking.walkerId || null;
+          const providerId = sitterId || walkerId;
+
+          if (ownerId && providerId) {
+            const providerField = sitterId ? 'sitterId' : 'walkerId';
+            const providerRole  = sitterId ? 'sitter'   : 'walker';
+
+            let conversation = await Conversation.findOne({
+              ownerId,
+              [providerField]: providerId,
+            });
+
+            if (!conversation) {
+              conversation = await Conversation.create({
+                ownerId,
+                [providerField]: providerId,
+                bookingId: booking._id,
+              });
+              logger.info(`[airwallex.webhook] conversation created ${conversation._id} for booking ${booking._id}`);
+            }
+
+            const systemMessage = await Message.create({
+              conversationId: conversation._id,
+              senderRole: 'system',
+              senderId: ownerId, // requis par schema, on met l'owner
+              body: '✅ Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
+              type: 'text',
+            });
+
+            // Push temps réel vers les 2 parties.
+            try {
+              emitToUser('owner', ownerId.toString(), 'message.new', {
+                conversationId: conversation._id.toString(),
+                message: systemMessage.toObject(),
+              });
+              emitToUser(providerRole, providerId.toString(), 'message.new', {
+                conversationId: conversation._id.toString(),
+                message: systemMessage.toObject(),
+              });
+            } catch (_) { /* socket non-critique */ }
+
+            logger.info(`✅ [airwallex.webhook] system message sent in conv ${conversation._id} (booking ${booking._id})`);
+          }
+        } catch (e) {
+          logger.error(`[airwallex.webhook] auto chat message failed : ${e.message}`);
+        }
+
         // Trigger the existing payout flow which now routes to Airwallex
         // Payout API when sitter has airwallexBeneficiaryId.
         try {

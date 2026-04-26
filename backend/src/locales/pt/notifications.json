@@ -71,6 +71,12 @@
     "emailSubject": "",
     "emailBody": ""
   },
+  "new_request_nearby": {
+    "title": "Novo anúncio perto de ti",
+    "body": "{{ownerName}} procura um prestador em {{city}}. Abre a app para te candidatares.",
+    "emailSubject": "Novo anúncio — HopeTSIT",
+    "emailBody": "<p>Foi publicado um novo anúncio na tua zona. Abre a app HoPetSit para te candidatares.</p>"
+  },
   "booking_new": {
     "title": "Novo pedido de reserva",
     "body": "Recebeste um novo pedido de reserva.",

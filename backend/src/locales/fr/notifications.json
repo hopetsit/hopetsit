@@ -11,6 +11,12 @@
     "emailSubject": "Nouvelle demande de réservation — HopeTSIT",
     "emailBody": "<p>Vous avez reçu une nouvelle demande de réservation sur HopeTSIT. Ouvrez l'application pour la consulter.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la demande</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'app HoPetSit manuellement.</p>"
   },
+  "new_request_nearby": {
+    "title": "Nouvelle annonce près de chez toi",
+    "body": "{{ownerName}} cherche un prestataire à {{city}}. Ouvre l'app pour postuler.",
+    "emailSubject": "Nouvelle annonce — HopeTSIT",
+    "emailBody": "<p>Une nouvelle annonce vient d'être publiée dans ta zone. Ouvre l'app HoPetSit pour postuler.</p>"
+  },
   "booking_accepted": {
     "title": "Réservation acceptée",
     "body": "Votre demande de réservation a été acceptée. Procédez au paiement.",

@@ -1008,6 +1008,14 @@ const Map<String, String> deDETranslations = <String, String>{
       'donation_thanks_message':
           'Deine Spende von @amount ist angekommen. Das hilft uns wirklich.',
       'publish_request_pet_required': 'Bitte wähle ein Haustier für diese Reservierungsanfrage.',
+      'publish_request_start_date_required': 'Wähle das Startdatum.',
+      'publish_request_end_date_required': 'Wähle das Enddatum.',
+      'publish_request_start_time_required': 'Wähle die Startzeit.',
+      'publish_request_end_time_required': 'Wähle die Endzeit.',
+      'publish_request_service_required': 'Wähle eine Serviceart (Gassi, Tagesbetreuung oder Pet-Sitting).',
+      'publish_request_duration_required': 'Wähle die Dauer des Spaziergangs.',
+      'publish_request_venue_required': 'Wähle den Ort der Betreuung (bei dir oder beim Sitter).',
+      'publish_request_city_required': 'Stadt für diese Anfrage angeben.',
       'booking_agreement_city_label': 'Stadt',
       'identity_verification_started_title': 'Verifizierung gestartet',
       'identity_verification_started_followup':
