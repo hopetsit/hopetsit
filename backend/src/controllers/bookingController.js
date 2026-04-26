@@ -2071,7 +2071,21 @@ const createBookingPaymentIntent = async (req, res) => {
     if (error.message && error.message.includes('must have')) {
       return res.status(400).json({ error: error.message });
     }
-    res.status(500).json({ error: 'Unable to create payment intent. Please try again later.' });
+    // v22.1 — Bug 12b : remonter le message Airwallex réel pour diagnostic.
+    // À retirer plus tard mais critique tant que les paiements échouent.
+    res.status(500).json({
+      error: 'Unable to create payment intent. Please try again later.',
+      debug: {
+        message: error.message,
+        name: error.name,
+        airwallexEnv: {
+          hasClientId: !!process.env.AIRWALLEX_CLIENT_ID,
+          hasApiKey: !!process.env.AIRWALLEX_API_KEY,
+          useDemo: process.env.AIRWALLEX_USE_DEMO === 'true',
+        },
+        stack: (error.stack || '').split('\n').slice(0, 5),
+      },
+    });
   }
 };
 

@@ -241,6 +241,42 @@ class CreatePetProfileScreen extends StatelessWidget {
 
                           SizedBox(height: 20.h),
 
+                          // v22.1 — Bug 11a : sélecteur Sexe Mâle/Femelle.
+                          // Deux pills toggle ; null = non spécifié.
+                          InterText(
+                            text: 'create_pet_gender_label'.tr,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.grey700Color,
+                          ),
+                          SizedBox(height: 8.h),
+                          Obx(() {
+                            final selected = controller.selectedGender.value;
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: _GenderPill(
+                                    label: 'create_pet_gender_male'.tr,
+                                    icon: Icons.male,
+                                    selected: selected == 'male',
+                                    onTap: () => controller.setGender('male'),
+                                  ),
+                                ),
+                                SizedBox(width: 12.w),
+                                Expanded(
+                                  child: _GenderPill(
+                                    label: 'create_pet_gender_female'.tr,
+                                    icon: Icons.female,
+                                    selected: selected == 'female',
+                                    onTap: () => controller.setGender('female'),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }),
+
+                          SizedBox(height: 20.h),
+
                           // Passport Number
                           CustomTextField(
                             labelText: 'create_pet_passport_label'.tr,
@@ -704,6 +740,61 @@ class CreatePetProfileScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// v22.1 — Bug 11a : pill toggle Mâle/Femelle pour le sexe de l'animal.
+/// Selected = fond rempli primary + texte/icône blanc. Unselected = fond gris
+/// clair, contour, texte/icône foncé. Tap pour sélectionner ou re-tap pour
+/// désélectionner (en passant null).
+class _GenderPill extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _GenderPill({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14.r),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryColor
+              : AppColors.grey300Color.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: selected ? AppColors.primaryColor : AppColors.grey300Color,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18.sp,
+              color: selected ? Colors.white : AppColors.textPrimary(context),
+            ),
+            SizedBox(width: 8.w),
+            InterText(
+              text: label,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : AppColors.textPrimary(context),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

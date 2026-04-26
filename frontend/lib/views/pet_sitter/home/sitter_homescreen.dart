@@ -1649,6 +1649,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       // Get owner information from pet model
       final ownerName = pet.owner?.name;
       final ownerAvatar = pet.owner?.avatar;
+      // v22.1 — Bug 11c : ville propriétaire pour la page détails animal.
+      final ownerCity = pet.owner?.city;
       final ownerCreatedAt = pet.owner?.createdAt;
       final ownerUpdatedAt = pet.owner?.updatedAt;
 
@@ -1683,6 +1685,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               sitterProfileImage: sitterProfileImage,
               ownerName: ownerName,
               ownerAvatar: ownerAvatar,
+              ownerCity: ownerCity,
               ownerCreatedAt: ownerCreatedAt,
               ownerUpdatedAt: ownerUpdatedAt,
               passportNumber: passportNumber,

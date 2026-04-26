@@ -63,6 +63,8 @@ class CreatePetProfileController extends GetxController {
   final Rx<String?> selectedCategory = Rx<String?>(null);
   final Rx<String?> selectedVaccination = Rx<String?>(null);
   final Rx<String?> selectedProfileView = Rx<String?>(null);
+  // v22.1 — Bug 11a : sexe de l'animal (male / female / null = pas spécifié)
+  final Rx<String?> selectedGender = Rx<String?>(null);
   final RxBool isLoading = false.obs;
 
   final ImagePicker _picker = ImagePicker();
@@ -135,6 +137,11 @@ class CreatePetProfileController extends GetxController {
         message: 'snackbar_text_failed_to_pick_pet_pictures_or_videos_please_try_again',
       );
     }
+  }
+
+  // v22.1 — Bug 11a : setter pour le sexe.
+  void setGender(String? value) {
+    selectedGender.value = value;
   }
 
   void setCategory(String? value) {
@@ -210,6 +217,8 @@ class CreatePetProfileController extends GetxController {
         'height': heightController.text.trim(),
         'passportNumber': passportNumberController.text.trim(),
         'chipNumber': chipNumberController.text.trim(),
+        // v22.1 — Bug 11a : sexe de l'animal envoyé au backend.
+        if (selectedGender.value != null) 'gender': selectedGender.value,
         'medicationAllergies': medicationAllergiesController.text.trim(),
         'category': selectedCategory.value,
         'vaccination': selectedVaccination.value,

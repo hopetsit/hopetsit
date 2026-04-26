@@ -22,6 +22,8 @@ class PetDetailScreen extends StatefulWidget {
   final String? sitterProfileImage;
   final String? ownerName;
   final String? ownerAvatar;
+  // v22.1 — Bug 11c : ville propriétaire affichée dans la section Owner.
+  final String? ownerCity;
   final String? ownerCreatedAt;
   final String? ownerUpdatedAt;
   final String? passportNumber;
@@ -45,6 +47,7 @@ class PetDetailScreen extends StatefulWidget {
     this.sitterProfileImage,
     this.ownerName,
     this.ownerAvatar,
+    this.ownerCity,
     this.ownerCreatedAt,
     this.ownerUpdatedAt,
     this.passportNumber,
@@ -72,6 +75,24 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// v22.1 — Bug 11b : filtre les valeurs default (Inconnu / N/D / vide)
+  /// avant de construire la sous-ligne race · âge sous le nom du pet.
+  /// Si tout est default, retourne chaîne vide → la ligne disparaît.
+  String _buildBreedAgeLine() {
+    bool isDefault(String s) {
+      final v = s.trim().toLowerCase();
+      return v.isEmpty ||
+          v == 'inconnu' ||
+          v == 'n/d' ||
+          v == 'unknown' ||
+          v == 'breed_unknown';
+    }
+    final parts = <String>[];
+    if (!isDefault(widget.breed)) parts.add(widget.breed);
+    if (!isDefault(widget.age)) parts.add(widget.age);
+    return parts.join(' · ');
   }
 
   @override
@@ -216,6 +237,13 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Left Column - Pet Name and Details
+                  // v22.1 — bugs 11b + 11d :
+                  //   * Sous-ligne breed.age : on n'affiche que les valeurs
+                  //     non-default. Avant on voyait "Inconnu . N/D" qui était
+                  //     moche. Maintenant : seulement les morceaux qui ont
+                  //     une vraie valeur, séparés par " · ".
+                  //   * Icône orange à droite (gender container) supprimée :
+                  //     redondante avec le champ sexe affiché ailleurs.
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,32 +254,16 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary(context),
                         ),
-                        SizedBox(height: 4.h),
-                        PoppinsText(
-                          text: '${widget.breed} . ${widget.age}',
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textSecondary(context),
-                        ),
+                        if (_buildBreedAgeLine().isNotEmpty) ...[
+                          SizedBox(height: 4.h),
+                          PoppinsText(
+                            text: _buildBreedAgeLine(),
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textSecondary(context),
+                          ),
+                        ],
                       ],
-                    ),
-                  ),
-
-                  // Right Column - Gender Container
-                  Container(
-                    width: 39.w,
-                    height: 39.h,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryColor,
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: Center(
-                      child: Image.asset(
-                        AppImages.genderIcon,
-                        width: 16.w,
-                        height: 16.h,
-                        color: AppColors.whiteColor,
-                      ),
                     ),
                   ),
                 ],
@@ -543,6 +555,12 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             children: [
               if (widget.ownerName != null && widget.ownerName!.isNotEmpty) ...[
                 _buildOwnerDetailRow(context, 'pet_detail_owner_name'.tr, widget.ownerName!),
+                SizedBox(height: 12.h),
+              ],
+              // v22.1 — Bug 11c : ville propriétaire affichée pour donner du
+              // contexte au sitter (savoir d'où vient l'animal).
+              if (widget.ownerCity != null && widget.ownerCity!.isNotEmpty) ...[
+                _buildOwnerDetailRow(context, 'pet_detail_owner_city'.tr, widget.ownerCity!),
                 SizedBox(height: 12.h),
               ],
               if (widget.ownerCreatedAt != null &&

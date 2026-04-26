@@ -206,6 +206,10 @@ class PetOwnerInfo {
   final String name;
   final String email;
   final String avatar;
+  // v22.1 — Bug 11c : ville du propriétaire pour la page détails animal
+  // côté sitter. Le backend doit la fournir dans `pet.owner.city` ou
+  // `pet.owner.location.city` (on essaie les deux dans fromJson).
+  final String city;
   final String createdAt;
   final String updatedAt;
 
@@ -213,15 +217,24 @@ class PetOwnerInfo {
     required this.name,
     required this.email,
     required this.avatar,
+    this.city = '',
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory PetOwnerInfo.fromJson(Map<String, dynamic> json) {
+    String resolvedCity = '';
+    if (json['city'] is String) {
+      resolvedCity = json['city'] as String;
+    } else if (json['location'] is Map<String, dynamic>) {
+      final loc = json['location'] as Map<String, dynamic>;
+      resolvedCity = (loc['city'] as String?) ?? '';
+    }
     return PetOwnerInfo(
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       avatar: json['avatar'] as String? ?? '',
+      city: resolvedCity,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
     );
@@ -232,6 +245,7 @@ class PetOwnerInfo {
       'name': name,
       'email': email,
       'avatar': avatar,
+      'city': city,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
