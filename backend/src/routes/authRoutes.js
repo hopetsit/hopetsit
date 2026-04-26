@@ -285,6 +285,31 @@ router.post('/signup', signup);
 router.post('/login', login);
 router.post('/admin/login', adminLogin);
 
+// v21.1.1 — Diagnostic endpoint TEMPORAIRE pour debug "Invalid admin credentials".
+// Retourne juste si un admin existe en DB et avec quel email (sans password).
+// À retirer en v22 une fois le flow auth admin stable.
+router.get('/admin/diagnostic', async (req, res) => {
+  try {
+    const Admin = require('../models/Admin');
+    const admins = await Admin.find({}).select('email name updatedAt').lean();
+    res.json({
+      adminCount: admins.length,
+      admins: admins.map((a) => ({
+        email: a.email,
+        name: a.name,
+        updatedAt: a.updatedAt,
+      })),
+      seedEnvVarsPresent: {
+        ADMIN_SEED_EMAIL: !!process.env.ADMIN_SEED_EMAIL,
+        ADMIN_SEED_PASSWORD: !!process.env.ADMIN_SEED_PASSWORD,
+        ADMIN_SEED_EMAIL_value: process.env.ADMIN_SEED_EMAIL || null,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 /**
  * @swagger
  * /auth/google:
