@@ -770,9 +770,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     } catch (e) {
       AppLogger.logError('notif accept failed', error: e);
+      // v22.2 — Bug 16d : afficher le VRAI message backend (ApiException
+      // contient le payload error) plutot que le generique. Permet de voir
+      // si c'est "missing pricing", "invalid action", "permission" etc.
+      final raw = e.toString();
+      final apiMatch = RegExp(r'\{.*"error"\s*:\s*"([^"]+)".*\}').firstMatch(raw);
+      final detailedMsg = apiMatch?.group(1) ??
+          (raw.contains('Exception:') ? raw.split('Exception:').last.trim() : null);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'application_action_failed'.tr,
+        message: detailedMsg != null && detailedMsg.isNotEmpty
+            ? detailedMsg
+            : 'application_action_failed'.tr,
       );
       return;
     }

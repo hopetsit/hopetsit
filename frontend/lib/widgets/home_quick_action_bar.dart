@@ -140,28 +140,49 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
     // Priority 1 — pending payment for OWNER.
     if (widget.role == 'owner') {
-      // First : a booking accepted by the provider but not yet paid.
-      for (final b in bookings) {
+      // v22.2 — Bug 16c : aggregate les bookings à payer pour afficher leur
+      // count quand y en a plus de 1.
+      final acceptedToPay = bookings.where((b) {
         final status = (b.status ?? '').toLowerCase();
         final pay    = (b.paymentStatus ?? '').toLowerCase();
-        if (pay == 'paid') continue;
-        if (status == 'accepted' || status == 'agreed' || status == 'mutually_accepted') {
-          final isWalker = (b.serviceType ?? '').toLowerCase().contains('walking');
-          return _QuickAction(
-            kind: _Kind.ownerPay,
-            color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
-            icon: Icons.celebration_rounded,
-            title: '${b.sitter.name} a accepté !',
-            subtitle: '${_serviceLabel(b.serviceType)} ${b.petName} — '
-                '${_dateLabel(b)}',
-            ctaLabel: 'Payer ${CurrencyHelper.format(
-              b.pricing?.currency ?? b.sitter.currency,
-              (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
-            )}',
-            booking: b,
-            pulse: false,
-          );
+        if (pay == 'paid') return false;
+        return status == 'accepted' || status == 'agreed' || status == 'mutually_accepted';
+      }).toList();
+
+      if (acceptedToPay.isNotEmpty) {
+        // v22.2 — Bug 16b : fallback "Le prestataire" si sitter.name vide
+        // (cas où l'API ne populate pas le champ sitter/walker correctement).
+        final b = acceptedToPay.first;
+        final providerName = b.sitter.name.trim().isNotEmpty
+            ? b.sitter.name
+            : 'Le prestataire';
+        final isWalker = (b.serviceType ?? '').toLowerCase().contains('walking');
+        final extraCount = acceptedToPay.length - 1;
+        final title = extraCount > 0
+            ? '$providerName a accepté ! (+$extraCount autre${extraCount > 1 ? 's' : ''})'
+            : '$providerName a accepté !';
+        // Total agrégé si plusieurs bookings.
+        double totalToPay = 0;
+        String? aggCurrency;
+        for (final bk in acceptedToPay) {
+          final amt = (bk.pricing?.totalPrice ?? bk.totalAmount ?? 0).toDouble();
+          totalToPay += amt;
+          aggCurrency ??= bk.pricing?.currency ?? bk.sitter.currency;
         }
+        final ctaLabel = extraCount > 0
+            ? 'Tout payer ${CurrencyHelper.format(aggCurrency ?? 'EUR', totalToPay)}'
+            : 'Payer ${CurrencyHelper.format(b.pricing?.currency ?? b.sitter.currency, (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble())}';
+        return _QuickAction(
+          kind: _Kind.ownerPay,
+          color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+          icon: Icons.celebration_rounded,
+          title: title,
+          subtitle: '${_serviceLabel(b.serviceType)} ${b.petName} — '
+              '${_dateLabel(b)}',
+          ctaLabel: ctaLabel,
+          booking: b,
+          pulse: false,
+        );
       }
       // Lower priority — payment pending warning (orange).
       // (We don't model a deadline here, so just look for status=pending_payment.)

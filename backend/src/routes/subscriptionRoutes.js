@@ -67,17 +67,23 @@ function serializeSubscription(sub) {
 // ── GET plans (public) — accepts ?currency=EUR|GBP|CHF|USD ─────────────────
 router.get('/plans', (req, res) => {
   const currency = normalizeCurrency(req.query.currency);
-  const plans = Object.keys(PREMIUM_PLAN_INTERVALS).map((key) => {
-    const p = getPlanPricing(key, currency);
-    return {
-      plan: key,
-      amount: p.amount,
-      currency: p.currency,
-      intervalDays: p.intervalDays,
-      label: p.label,
-      amountPerDay: +(p.amount / p.intervalDays).toFixed(3),
-    };
-  });
+  // v22.2 — Bug 16a : on filter() les nulls retournés par getPlanPricing
+  // pour qu'un plan sans prix valide (ex: family pas encore seed en DB)
+  // ne casse pas le rendu des autres côté frontend.
+  const plans = Object.keys(PREMIUM_PLAN_INTERVALS)
+    .map((key) => {
+      const p = getPlanPricing(key, currency);
+      if (!p) return null;
+      return {
+        plan: key,
+        amount: p.amount,
+        currency: p.currency,
+        intervalDays: p.intervalDays,
+        label: p.label,
+        amountPerDay: +(p.amount / p.intervalDays).toFixed(3),
+      };
+    })
+    .filter(Boolean);
   res.json({
     plans,
     currency,

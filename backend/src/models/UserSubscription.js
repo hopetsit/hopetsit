@@ -101,13 +101,24 @@ function getPlanPricing(plan, currency = 'EUR') {
   const upper = String(currency || 'EUR').toUpperCase();
   const svc = loadPricingService();
   const servicePricing = svc && svc.get ? svc.get('premium') || {} : {};
-  const currencyRow =
-    servicePricing[upper] ||
-    servicePricing.EUR ||
-    PREMIUM_PRICING[upper] ||
-    PREMIUM_PRICING.EUR;
+  // v22.2 — Bug 16a : si la DB pricingService n'a pas de row pour ce
+  // plan (ex: 'family' ajouté en code mais pas encore seed), on tombait
+  // sur amount=undefined → crash frontend → TOUS les plans disparaissent.
+  // Fix : on construit currencyRow en COMPOSANT DB + hardcoded fallback,
+  // pour que chaque plan ait toujours un amount valide.
+  const dbRow = servicePricing[upper] || servicePricing.EUR || {};
+  const fallbackRow = PREMIUM_PRICING[upper] || PREMIUM_PRICING.EUR;
+  const amount =
+    dbRow[plan] != null && Number.isFinite(Number(dbRow[plan]))
+      ? Number(dbRow[plan])
+      : Number(fallbackRow[plan]);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    // Pas de prix valide → on retourne null, le caller (route /plans)
+    // fait .filter pour skip ce plan plutôt que de tout casser.
+    return null;
+  }
   return {
-    amount: currencyRow[plan],
+    amount,
     currency:
       servicePricing[upper] || PREMIUM_PRICING[upper] ? upper : 'EUR',
     intervalDays: interval.intervalDays,

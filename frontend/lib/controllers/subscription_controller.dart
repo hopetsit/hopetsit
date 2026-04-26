@@ -22,13 +22,23 @@ class SubscriptionPlan {
     required this.label,
   });
 
-  factory SubscriptionPlan.fromJson(Map<String, dynamic> j) => SubscriptionPlan(
-        plan: j['plan'] as String,
-        amount: (j['amount'] as num).toDouble(),
-        currency: (j['currency'] as String?) ?? 'EUR',
-        intervalDays: (j['intervalDays'] as num).toInt(),
-        label: (j['label'] as String?) ?? j['plan'] as String,
-      );
+  // v22.2 — Bug 16a : parsing résilient. Avant si j['amount'] était null
+  // (cas backend mal config family), `(null as num).toDouble()` crashait
+  // toute la liste de plans → 0 plan affiché en boutique.
+  factory SubscriptionPlan.fromJson(Map<String, dynamic> j) {
+    final amountRaw = j['amount'];
+    final amount = amountRaw is num ? amountRaw.toDouble() : 0.0;
+    final intervalRaw = j['intervalDays'];
+    final intervalDays = intervalRaw is num ? intervalRaw.toInt() : 30;
+    final planKey = (j['plan'] as String?) ?? 'monthly';
+    return SubscriptionPlan(
+      plan: planKey,
+      amount: amount,
+      currency: (j['currency'] as String?) ?? 'EUR',
+      intervalDays: intervalDays,
+      label: (j['label'] as String?) ?? planKey,
+    );
+  }
 
   double get amountPerDay => intervalDays == 0 ? 0 : amount / intervalDays;
 }

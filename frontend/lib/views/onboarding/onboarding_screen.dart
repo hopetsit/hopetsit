@@ -44,13 +44,20 @@ class OnboardingScreen extends StatelessWidget {
             stops: const [0.0, 0.35, 0.35, 1.0],
           ),
         ),
+        // v22.2 — Bug 16e : structure Column avec Expanded scrollable en
+        // haut (logo+tagline+chips) et CTAs fixes en bas. Comme ca le
+        // bouton "S'inscrire" est TOUJOURS visible peu importe la taille
+        // d'ecran, plus jamais besoin de scroller pour le voir.
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 28.w),
-              child: Column(
-                children: [
-                  SizedBox(height: 16.h),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 28.w),
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        SizedBox(height: 16.h),
 
                   // v22.1 — Bug récurrent "icône tordue" : le SVG officiel a
                   // un transform("translate(512, 471)") qui décale le paw vers
@@ -128,18 +135,19 @@ class OnboardingScreen extends StatelessWidget {
                     ],
                   ),
 
-                  SizedBox(height: 22.h),
-
-                  // ── CTA Section ──
-                  // v22.1 — espacements compressés pour que tout rentre sans
-                  // scroll sur 95% des téléphones (avant : 16+12+24+20+20 =
-                  // ~92px gaspillés ; maintenant : 10+8+14+12 = ~44px).
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 4.w,
-                      vertical: 4.h,
+                  SizedBox(height: 12.h),
+                      ],
                     ),
+                  ),
+                ),
+
+                // ── CTA Section (FIXE EN BAS, jamais scrolle hors vue) ──
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 4.w,
+                    vertical: 4.h,
+                  ),
                     child: Column(
                       children: [
                         CustomButton(
@@ -255,7 +263,6 @@ class OnboardingScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -271,9 +278,13 @@ class _FeatureChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // v22.2 — Bug 16e : "icone blanche tordue" — c'etait le meme bug
+        // que le logo : 54.w + 54.h = deux scalings DIFFERENTS sur certains
+        // ecrans = container non-carre = border radius asymetrique = effet
+        // tordu. Fix : .w sur les 2 axes pour forcer un carre strict.
         Container(
           width: 54.w,
-          height: 54.h,
+          height: 54.w,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18.r),
@@ -285,7 +296,7 @@ class _FeatureChip extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(icon, size: 28.sp, color: AppColors.primaryColor),
+          child: Icon(icon, size: 26.sp, color: AppColors.primaryColor),
         ),
         SizedBox(height: 8.h),
         InterText(
