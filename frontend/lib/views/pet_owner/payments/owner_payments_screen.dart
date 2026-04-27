@@ -6,6 +6,7 @@ import 'package:hopetsit/services/donation_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:intl/intl.dart';
@@ -496,7 +497,7 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
                 if (service.isNotEmpty) ...[
                   SizedBox(height: 2.h),
                   InterText(
-                    text: service,
+                    text: translateServiceType(service),
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                     color: AppColors.grey700Color,
