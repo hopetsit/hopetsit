@@ -19,7 +19,7 @@ import 'package:hopetsit/controllers/loyalty_controller.dart';
 class BookingAgreementScreen extends StatefulWidget {
   final BookingModel booking;
   final double? totalPrice; // Optional: if not provided, will fetch from API
-  final String? viewerRole; // v22.5 — pass the role viewing this screen
+  final String? viewerRole;
 
   const BookingAgreementScreen({
     super.key,
@@ -957,4 +957,9 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
         'Nov',
         'Dec',
       ];
-      return '${date.da
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    } catch (_) {
+      return rawDate;
+    }
+  }
+}
