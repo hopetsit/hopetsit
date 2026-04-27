@@ -305,6 +305,28 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           ],
         ),
         SizedBox(height: 16.h),
+        // v22.5 — Bug R2 : afficher le sexe de l'animal avec icône male/female.
+        if (widget.gender.isNotEmpty)
+          Row(
+            children: [
+              Icon(
+                widget.gender.toLowerCase() == 'male' ? Icons.male : Icons.female,
+                size: 16.sp,
+                color: widget.gender.toLowerCase() == 'male'
+                    ? Colors.blue
+                    : Colors.pink,
+              ),
+              SizedBox(width: 6.w),
+              InterText(
+                text: widget.gender.toLowerCase() == 'male'
+                    ? 'Mâle'
+                    : (widget.gender.toLowerCase() == 'female' ? 'Femelle' : widget.gender),
+                fontSize: 13.sp,
+                color: AppColors.textSecondary(context),
+              ),
+            ],
+          ),
+        SizedBox(height: 16.h),
         PoppinsText(
           text: widget.description,
           fontSize: 12.sp,
@@ -725,35 +747,4 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               errorBuilder: (context, error, stackTrace) => Container(
                 color: AppColors.lightGrey,
                 child: Center(
-                  child: Image.asset(
-                    AppImages.placeholderImage,
-                    width: 60.w,
-                    height: 60.h,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildPageIndicators() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        widget.petImages.length,
-        (index) => Container(
-          margin: EdgeInsets.symmetric(horizontal: 4.w),
-          width: _currentPage == index ? 24.w : 8.w,
-          height: 8.h,
-          decoration: BoxDecoration(
-            color: _currentPage == index
-                ? AppColors.primaryColor
-                : AppColors.whiteColor.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(4.r),
-          ),
-        ),
-      ),
-    );
-  }
-}
+                  child: Image.asse

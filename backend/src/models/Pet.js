@@ -53,6 +53,13 @@ const petSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    // v22.5 — Bug R2 : sexe de l'animal. Schema enum + null pour
+    // 'pas spécifié'. Persiste désormais à la création ET à l'édition.
+    gender: {
+      type: String,
+      enum: ['male', 'female', null],
+      default: null,
+    },
     profileView: {
       type: String,
       default: '',
@@ -108,4 +115,3 @@ const petSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Pet', petSchema);
-
