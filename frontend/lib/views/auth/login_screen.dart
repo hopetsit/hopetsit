@@ -305,36 +305,40 @@ class LoginScreen extends StatelessWidget {
                         ],
                       ],
                     ),
-                    SizedBox(height: 32.h),
+                    SizedBox(height: 18.h),
 
                     // ── Sign up link (footer) ──
-                    Center(
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        children: [
-                          InterText(
-                            text: 'dont_have_account'.tr,
+                    // v22.4 — Row au lieu de Wrap pour forcer "Vous n'avez
+                    // pas de compte ? S'inscrire" sur UNE SEULE ligne (plus
+                    // de retour a la ligne disgracieux). GestureDetector au
+                    // lieu de TextButton pour eliminer le padding/decalage
+                    // vertical interne (le S'inscrire etait pousse vers le
+                    // bas par rapport a la phrase a cause du tapTarget).
+                    // Spacing reduit (18.h + 10.h au lieu de 32.h + 20.h)
+                    // pour que le footer reste visible sans scroll.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        InterText(
+                          text: 'dont_have_account'.tr,
+                          fontSize: 13.sp,
+                          color: AppColors.textSecondary(context),
+                        ),
+                        SizedBox(width: 6.w),
+                        GestureDetector(
+                          onTap: () => Get.to(() => const SignUpAsScreen()),
+                          behavior: HitTestBehavior.opaque,
+                          child: PoppinsText(
+                            text: 'sign_up'.tr,
                             fontSize: 13.sp,
-                            color: AppColors.textSecondary(context),
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryColor,
                           ),
-                          TextButton(
-                            onPressed: () =>
-                                Get.to(() => const SignUpAsScreen()),
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.symmetric(horizontal: 4.w),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: PoppinsText(
-                              text: 'sign_up'.tr,
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 10.h),
                   ],
                 ),
               ),

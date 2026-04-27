@@ -350,7 +350,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'onboarding_have_account': '¿Tienes una cuenta?',
       'onboarding_signup': 'Registrarse',
       'onboarding_tagline': 'Pet-sitting, PawMap y seguimiento de tu mascota',
-      'onboarding_feature_trusted': 'Pet-\nsitting',
+      'onboarding_feature_trusted': 'Pet-sitting',
       'onboarding_feature_chat': 'PawMap',
       'onboarding_feature_nearby': 'PawFollow',
       'onboarding_or': 'o',

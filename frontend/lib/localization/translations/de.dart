@@ -404,7 +404,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'onboarding_have_account': 'Hast du ein Konto?',
       'onboarding_signup': 'Registrieren',
       'onboarding_tagline': 'Pet-sitting, PawMap & Live-Tracking Ihres Tieres',
-      'onboarding_feature_trusted': 'Pet-\nsitting',
+      'onboarding_feature_trusted': 'Pet-sitting',
       'onboarding_feature_chat': 'PawMap',
       'onboarding_feature_nearby': 'PawFollow',
       'onboarding_or': 'oder',

@@ -360,7 +360,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'onboarding_have_account': 'Vous avez un compte ?',
       'onboarding_signup': "S'inscrire",
       'onboarding_tagline': 'Pet-sitting, PawMap & suivi de votre animal',
-      'onboarding_feature_trusted': 'Pet-\nsitting',
+      'onboarding_feature_trusted': 'Pet-sitting',
       'onboarding_feature_chat': 'PawMap',
       'onboarding_feature_nearby': 'PawFollow',
       'onboarding_or': 'ou',

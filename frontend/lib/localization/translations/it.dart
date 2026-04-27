@@ -398,7 +398,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'onboarding_have_account': 'Hai un account?',
       'onboarding_signup': 'Registrati',
       'onboarding_tagline': 'Pet-sitting, PawMap e tracciamento del tuo animale',
-      'onboarding_feature_trusted': 'Pet-\nsitting',
+      'onboarding_feature_trusted': 'Pet-sitting',
       'onboarding_feature_chat': 'PawMap',
       'onboarding_feature_nearby': 'PawFollow',
       'onboarding_or': 'o',
