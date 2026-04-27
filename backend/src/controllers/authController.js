@@ -62,6 +62,39 @@ const findAccountByEmail = async (email) => {
   return null;
 };
 
+
+/**
+ * v22.5 — Bug R1 : returns the list of roles this account exists as in the
+ * DB, looking across all 3 role collections by email (and oldId when
+ * available). Each item: { role, _id }. Used at login to surface a
+ * multi-role picker in the UI when length > 1.
+ *
+ * Defensive: never throws — on Mongo error returns [] so the login flow
+ * keeps working.
+ */
+const findAvailableRolesForAccount = async (email, oldId) => {
+  if (!email) return [];
+  try {
+    const lower = email.toLowerCase();
+    const filters = [{ email: lower }];
+    if (oldId) filters.push({ oldId });
+    const orFilter = { $or: filters };
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find(orFilter).select('_id email oldId').lean(),
+      Sitter.find(orFilter).select('_id email oldId').lean(),
+      Walker.find(orFilter).select('_id email oldId').lean(),
+    ]);
+    const results = [];
+    if (owners.length) results.push({ role: 'owner', _id: owners[0]._id });
+    if (sitters.length) results.push({ role: 'sitter', _id: sitters[0]._id });
+    if (walkers.length) results.push({ role: 'walker', _id: walkers[0]._id });
+    return results;
+  } catch (err) {
+    logger.error({ err }, '[findAvailableRolesForAccount] failed');
+    return [];
+  }
+};
+
 const generateRandomPassword = () => {
   return `firebase_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 };
