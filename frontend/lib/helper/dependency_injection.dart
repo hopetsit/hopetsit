@@ -3,6 +3,7 @@ import 'package:get_storage/get_storage.dart';
 
 import '../controllers/auth_controller.dart';
 import '../controllers/notifications_controller.dart';
+import '../controllers/unified_notification_controller.dart';
 import '../controllers/subscription_controller.dart';
 import '../controllers/user_controller.dart';
 import '../data/network/api_client.dart';
@@ -139,6 +140,18 @@ void setupDependencies() {
   if (!Get.isRegistered<NotificationsController>()) {
     Get.put<NotificationsController>(
       NotificationsController(),
+      permanent: true,
+    );
+  }
+
+  // v22.5 — PART 1 : facade non-breaking au-dessus des controllers existants.
+  // Expose unreadCount, pendingActions, allNotifications de manière unifiée
+  // pour que la cloche / bandeau / bottom-bar / page Notifications observent
+  // une seule source. Doit être init APRÈS NotificationsController car il
+  // bind dessus.
+  if (!Get.isRegistered<UnifiedNotificationController>()) {
+    Get.put<UnifiedNotificationController>(
+      UnifiedNotificationController(),
       permanent: true,
     );
   }
