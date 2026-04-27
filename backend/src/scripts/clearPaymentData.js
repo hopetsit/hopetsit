@@ -19,7 +19,7 @@ async function clearPaymentData() {
     // Find all bookings with payment data
     const bookings = await Booking.find({
       $or: [
-        { stripePaymentIntentId: { $ne: null } },
+        { airwallexPaymentIntentId: { $ne: null } },
         { stripeChargeId: { $ne: null } },
         { petsitterConnectedAccountId: { $ne: null } },
         { paidAt: { $ne: null } },
@@ -45,8 +45,8 @@ async function clearPaymentData() {
         let hasChanges = false;
 
         // Clear Stripe payment IDs
-        if (booking.stripePaymentIntentId) {
-          updates.stripePaymentIntentId = null;
+        if (booking.airwallexPaymentIntentId) {
+          updates.airwallexPaymentIntentId = null;
           hasChanges = true;
         }
 
@@ -96,7 +96,7 @@ async function clearPaymentData() {
           );
           
           logger.info(`  ✅ Booking ${booking._id}:`);
-          if (updates.stripePaymentIntentId === null) logger.info(`     - Cleared stripePaymentIntentId`);
+          if (updates.airwallexPaymentIntentId === null) logger.info(`     - Cleared airwallexPaymentIntentId`);
           if (updates.stripeChargeId === null) logger.info(`     - Cleared stripeChargeId`);
           if (updates.petsitterConnectedAccountId === null) logger.info(`     - Cleared petsitterConnectedAccountId`);
           if (updates.paidAt === null) logger.info(`     - Cleared paidAt`);

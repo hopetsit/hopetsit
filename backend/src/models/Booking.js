@@ -57,11 +57,18 @@ const bookingSchema = new mongoose.Schema(
     // Payment provider and gateway-specific identifiers
     paymentProvider: {
       type: String,
-      enum: ['stripe', 'paypal'],
+      enum: ['airwallex', 'paypal'],
       default: null,
     },
     // v21.1.1 — Stripe fields removed.
     petsitterConnectedAccountId: {
+      type: String,
+      default: null,
+    },
+    // v21.2 — Airwallex Payment Intent ID (replaces Stripe's stripePaymentIntentId).
+    // Persisted by bookingController when creating a PI, used by webhook to
+    // find the matching booking on payment success/failure.
+    airwallexPaymentIntentId: {
       type: String,
       default: null,
     },

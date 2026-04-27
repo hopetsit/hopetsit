@@ -924,7 +924,7 @@ router.get('/payments', requireAdmin, async (req, res) => {
         paidAt: b.paidAt,
         payoutAt: b.payoutAt,
         payoutError: b.payoutError,
-        stripePaymentIntentId: b.stripePaymentIntentId,
+        airwallexPaymentIntentId: b.airwallexPaymentIntentId,
         paypalOrderId: b.paypalOrderId,
       })),
       total,

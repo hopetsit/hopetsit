@@ -39,7 +39,7 @@ const handleAirwallexWebhook = async (req, res) => {
       case 'payment_intent.succeeded': {
         const piId = data?.id || data?.payment_intent_id;
         if (!piId) break;
-        const booking = await Booking.findOne({ stripePaymentIntentId: piId });
+        const booking = await Booking.findOne({ airwallexPaymentIntentId: piId });
         if (!booking) {
           logger.info(`[airwallex.webhook] no booking found for PI ${piId} (donation/boost/premium ?)`);
           break;
@@ -124,7 +124,7 @@ const handleAirwallexWebhook = async (req, res) => {
       case 'payment_intent.cancelled': {
         const piId = data?.id || data?.payment_intent_id;
         if (!piId) break;
-        const booking = await Booking.findOne({ stripePaymentIntentId: piId });
+        const booking = await Booking.findOne({ airwallexPaymentIntentId: piId });
         if (!booking) break;
         booking.paymentStatus = eventName.endsWith('.failed') ? 'failed' : 'cancelled';
         await booking.save();

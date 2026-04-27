@@ -1325,17 +1325,13 @@ const cancelBooking = async (req, res) => {
  * PayPal → refundPaypalCapture (by captureId)
  */
 const refundBookingPayment = async (booking) => {
-  if (booking.paymentProvider === 'stripe') {
-    const chargeId = booking.stripeChargeId || booking.stripePaymentIntentId;
-    if (!chargeId) throw new Error('No Stripe charge/PI ID to refund.');
-    return createRefund(chargeId);
-  }
   if (booking.paymentProvider === 'paypal') {
     const captureId = booking.paypalCaptureId;
     if (!captureId) throw new Error('No PayPal capture ID to refund.');
     return refundPaypalCapture(captureId);
   }
-  throw new Error(`Unknown payment provider: ${booking.paymentProvider}`);
+  // TODO: implement Airwallex refund when needed
+  throw new Error(`Refund not implemented for provider: ${booking.paymentProvider}`);
 };
 
 /**
@@ -1778,8 +1774,8 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   }
 
   // If a PaymentIntent already exists for this booking, return it (unless already paid).
-  if (booking.stripePaymentIntentId) {
-    const existing = await getPaymentIntent(booking.stripePaymentIntentId);
+  if (booking.airwallexPaymentIntentId) {
+    const existing = await getPaymentIntent(booking.airwallexPaymentIntentId);
     if (existing.status === 'succeeded') {
       throw new Error('Payment already completed for this booking.');
     }
@@ -1836,7 +1832,7 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
     `for booking ${booking._id}`
   );
 
-  booking.stripePaymentIntentId = paymentIntent.id;
+  booking.airwallexPaymentIntentId = paymentIntent.id;
   // Session v18.0 — only persist the connected account id when destination
   // charges are actually used. Otherwise leave it null so that
   // processProviderPayoutForBooking falls through to the IBAN / PayPal
@@ -1989,8 +1985,8 @@ const createBookingPaymentIntent = async (req, res) => {
     }
 
     // Check if payment already exists
-    if (booking.stripePaymentIntentId) {
-      const existingPaymentIntent = await getPaymentIntent(booking.stripePaymentIntentId);
+    if (booking.airwallexPaymentIntentId) {
+      const existingPaymentIntent = await getPaymentIntent(booking.airwallexPaymentIntentId);
       if (existingPaymentIntent.status === 'succeeded') {
         return res.status(400).json({ error: 'Payment already completed for this booking.' });
       }
@@ -2065,7 +2061,7 @@ const createBookingPaymentIntent = async (req, res) => {
     );
 
     // Save PaymentIntent ID and (conditionally) connected account ID.
-    booking.stripePaymentIntentId = paymentIntent.id;
+    booking.airwallexPaymentIntentId = paymentIntent.id;
     booking.petsitterConnectedAccountId = (usedProvider === 'stripe' && hasStripeConnect)
       ? sitter.stripeConnectAccountId
       : null;
@@ -2300,7 +2296,7 @@ const confirmBookingPayment = async (req, res) => {
     }
 
     // Verify payment intent belongs to this booking
-    if (booking.stripePaymentIntentId && booking.stripePaymentIntentId !== paymentIntentId) {
+    if (booking.airwallexPaymentIntentId && booking.airwallexPaymentIntentId !== paymentIntentId) {
       return res.status(400).json({ 
         error: 'Payment intent ID does not match the booking\'s payment intent.' 
       });
@@ -2651,9 +2647,9 @@ const requestCancellation = async (req, res) => {
       let refundProcessed = false;
       
       // If charge ID is missing, try to get it from payment intent
-      if (!chargeId && booking.stripePaymentIntentId) {
+      if (!chargeId && booking.airwallexPaymentIntentId) {
         try {
-          const paymentIntent = await getPaymentIntent(booking.stripePaymentIntentId);
+          const paymentIntent = await getPaymentIntent(booking.airwallexPaymentIntentId);
           paymentIntentStatus = paymentIntent.status;
           
           // Only proceed with refund if payment was actually successful
@@ -2667,10 +2663,10 @@ const requestCancellation = async (req, res) => {
         } catch (error) {
           logger.error('Error retrieving payment intent for charge ID:', error);
         }
-      } else if (booking.stripePaymentIntentId) {
+      } else if (booking.airwallexPaymentIntentId) {
         // Check payment intent status even if we have charge ID
         try {
-          const paymentIntent = await getPaymentIntent(booking.stripePaymentIntentId);
+          const paymentIntent = await getPaymentIntent(booking.airwallexPaymentIntentId);
           paymentIntentStatus = paymentIntent.status;
         } catch (error) {
           logger.error('Error retrieving payment intent status:', error);
@@ -2773,9 +2769,9 @@ const getPaymentStatus = async (req, res) => {
     let paymentIntentStatus = null;
     let paymentIntentDetails = null;
 
-    if (booking.stripePaymentIntentId) {
+    if (booking.airwallexPaymentIntentId) {
       try {
-        paymentIntentDetails = await getPaymentIntent(booking.stripePaymentIntentId);
+        paymentIntentDetails = await getPaymentIntent(booking.airwallexPaymentIntentId);
         paymentIntentStatus = paymentIntentDetails.status;
       } catch (error) {
         logger.error('Error fetching payment intent:', error);
@@ -2798,7 +2794,7 @@ const getPaymentStatus = async (req, res) => {
       bookingId: booking._id.toString(),
       status: booking.status,
       paymentStatus: booking.paymentStatus || 'pending', // Include payment status
-      paymentIntentId: booking.stripePaymentIntentId,
+      paymentIntentId: booking.airwallexPaymentIntentId,
       chargeId: booking.stripeChargeId,
       paymentIntentStatus: paymentIntentStatus, // 'succeeded', 'processing', 'requires_payment_method', etc.
       paymentProvider: booking.paymentProvider || null,
