@@ -398,7 +398,18 @@ const login = async (req, res) => {
 
     const token = signAuthToken({ id: result.account._id.toString(), role: result.role });
 
-    res.json({ role: result.role, token, user: sanitizeUser(result.account, { includeEmail: true }) });
+    // v22.5 — Bug R1 : multi-role detection
+    const availableRoles = await findAvailableRolesForAccount(
+      result.account.email,
+      result.account.oldId,
+    );
+
+    res.json({
+      role: result.role,
+      token,
+      user: sanitizeUser(result.account, { includeEmail: true }),
+      availableRoles,
+    });
   } catch (error) {
     logger.error('Login error', error);
     if (error.message && error.message.includes('JWT_SECRET')) {
@@ -528,12 +539,20 @@ const googleAuth = async (req, res) => {
       }
 
       const token = signAuthToken({ id: account._id.toString(), role: result.role });
+
+      // v22.5 — Bug R1 : multi-role detection
+      const availableRoles = await findAvailableRolesForAccount(
+        account.email,
+        account.oldId,
+      );
+
       return res.json({
         existingUser: true,
         role: result.role,
         provider: signInProvider,
         token,
         user: sanitizeUser(account, { includeEmail: true }),
+        availableRoles,
       });
     }
 

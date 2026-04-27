@@ -57,6 +57,10 @@ class AuthController extends GetxController {
   final RxnString errorMessage = RxnString();
   final RxBool requiresEmailVerification = false.obs;
   final RxnString userRole = RxnString();
+  // v22.5 — Bug R1 : list of roles the account exists as.
+  // Populated at login from backend response. UI uses this to show
+  // a \"switch role\" picker when length > 1.
+  final RxList<String> availableRoles = <String>[].obs;
   bool _isShowingPayPalPrompt = false;
 
   @override
@@ -124,6 +128,39 @@ class AuthController extends GetxController {
         debugPrint('[HOPETSIT] ✅ Role saved: $role');
       } else {
         debugPrint('[HOPETSIT] ⚠️ Role not found in response');
+      }
+
+      // v22.5 — Bug R1 : multi-role detection
+      final rawAvail = response['availableRoles'];
+      if (rawAvail is List) {
+        availableRoles.assignAll(
+          rawAvail
+              .map((e) {
+                if (e is String) return e;
+                if (e is Map && e['role'] is String) return e['role'] as String;
+                return '';
+              })
+              .where((s) => s.isNotEmpty)
+              .toSet()
+              .toList(),
+        );
+      } else {
+        availableRoles.clear();
+      }
+
+      // v22.5 — Bug R1 : if user has multiple roles available, hint at it.
+      if (availableRoles.length > 1) {
+        try {
+          // Show a one-time info snackbar so the user knows they can switch.
+          // Done with addPostFrameCallback so the LoginScreen finishes
+          // navigating before the snackbar appears on the new screen.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            CustomSnackbar.showInfo(
+              title: 'Tu as plusieurs rôles',
+              message: 'Tu es ouvert en ${role}. Tu peux switcher depuis Profil → Switch rôle.',
+            );
+          });
+        } catch (_) { /* non-critical */ }
       }
 
       // Extract and save user data
@@ -312,6 +349,24 @@ class AuthController extends GetxController {
         userRole.value = role;
         if (role != null) {
           await _storage.write(StorageKeys.userRole, role);
+        }
+
+        // v22.5 — Bug R1 : multi-role detection
+        final rawAvail = response['availableRoles'];
+        if (rawAvail is List) {
+          availableRoles.assignAll(
+            rawAvail
+                .map((e) {
+                  if (e is String) return e;
+                  if (e is Map && e['role'] is String) return e['role'] as String;
+                  return '';
+                })
+                .where((s) => s.isNotEmpty)
+                .toSet()
+                .toList(),
+          );
+        } else {
+          availableRoles.clear();
         }
 
         final userData = _extractUser(response);
@@ -1098,6 +1153,7 @@ class AuthController extends GetxController {
     userRole.value = null;
     errorMessage.value = null;
     requiresEmailVerification.value = false;
+    availableRoles.clear();
 
     // Clear form fields (but don't dispose - they'll be reused)
     emailController.clear();
