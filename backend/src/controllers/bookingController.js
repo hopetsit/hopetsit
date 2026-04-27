@@ -758,15 +758,15 @@ const processProviderPayoutForBooking = async (booking) => {
       return;
     }
 
-    // [DEPRECATED — Stripe destination-charge payments]
-    // Stripe auto-transferred at capture; this block is unreachable post-Airwallex (paymentProvider === 'airwallex').
-    // if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
-    //   booking.payoutStatus = 'completed';
-    //   booking.payoutAt = booking.payoutAt || new Date();
-    //   await booking.save();
-    //   logger.info('✅ Stripe destination-charge payout auto-completed for booking', booking._id.toString());
-    //   return;
-    // }
+    // Stripe destination-charge payments are auto-transferred to the
+    // provider's connected account at capture time — no manual payout needed.
+    if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
+      booking.payoutStatus = 'completed';
+      booking.payoutAt = booking.payoutAt || new Date();
+      await booking.save();
+      logger.info('✅ Stripe destination-charge payout auto-completed for booking', booking._id.toString());
+      return;
+    }
 
     const netPayout = booking.pricing?.netPayout;
     const currency = booking.pricing?.currency;
@@ -2302,8 +2302,103 @@ const confirmBookingPayment = async (req, res) => {
       });
     }
 
-    // v21.1.1 — Stripe disabled (Airwallex only)
-    return res.status(502).json({ error: 'Stripe payment confirmation disabled — Airwallex only' });
+    // v22.5 — HOTFIX : on remplace l'ancien stub 502 ("Stripe payment
+    // confirmation disabled") par la vraie confirmation Airwallex.
+    //
+    // Flow Airwallex (vs Stripe legacy) :
+    //   1. Frontend a déjà confirmé le PI via le SDK Airwallex côté client
+    //      (avec carte sauvegardée ou nouvelle carte). À l'arrivée ici, le
+    //      PI est soit déjà SUCCEEDED, soit en cours.
+    //   2. On retrieve le PI sur Airwallex pour avoir l'état canonique
+    //      (le webhook payment_intent.succeeded est la source de vérité,
+    //      mais cet endpoint sert à donner un retour synchrone à l'UI).
+    //   3. Si SUCCEEDED, on marque la booking paid + trigger payout
+    //      (idempotent : le webhook fera la même chose si on est plus
+    //      rapide ou plus lent que lui).
+    //   4. Sinon on remonte le statut Airwallex pour que l'UI gère
+    //      (REQUIRES_PAYMENT_METHOD, REQUIRES_CONFIRMATION, etc.).
+    let pi;
+    try {
+      pi = await airwallex.retrievePaymentIntent(paymentIntentId);
+    } catch (e) {
+      logger.error(`[confirmBookingPayment] retrievePaymentIntent failed for ${paymentIntentId}: ${e.message}`);
+      return res.status(502).json({
+        error: 'Unable to verify payment with Airwallex. Please try again.',
+        details: e.message,
+      });
+    }
+
+    const piStatus = (pi?.status || '').toUpperCase();
+    logger.info(`[confirmBookingPayment] booking=${booking._id} PI=${paymentIntentId} status=${piStatus}`);
+
+    // Idempotent : si la webhook a déjà marqué paid, on retourne success direct.
+    const alreadyPaid = booking.paymentStatus === 'paid' || piStatus === 'SUCCEEDED';
+
+    if (alreadyPaid) {
+      // Marquer la booking si pas encore fait (race avec le webhook).
+      if (booking.paymentStatus !== 'paid') {
+        booking.paymentStatus = 'paid';
+        booking.paidAt = new Date();
+        booking.paymentProvider = 'airwallex';
+        await booking.save();
+        logger.info(`✅ [confirmBookingPayment] booking ${booking._id} marked paid (sync path).`);
+
+        // Trigger payout (best-effort, le webhook fait le même boulot).
+        try {
+          if (typeof processProviderPayoutForBooking === 'function') {
+            await processProviderPayoutForBooking(booking);
+          }
+        } catch (e) {
+          logger.error(`[confirmBookingPayment] payout trigger failed: ${e.message}`);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        status: 'succeeded',
+        bookingId: booking._id.toString(),
+        paymentStatus: 'paid',
+        paymentIntentId,
+      });
+    }
+
+    // États intermédiaires : on retourne 200 mais sans success=true pour
+    // que l'UI puisse afficher un loader / re-tenter / attendre la webhook.
+    if (piStatus === 'REQUIRES_CAPTURE' || piStatus === 'PENDING' || piStatus === 'PROCESSING') {
+      return res.status(200).json({
+        success: false,
+        status: piStatus.toLowerCase(),
+        message: 'Payment is being processed. Please wait a moment.',
+        paymentIntentId,
+      });
+    }
+
+    // États qui demandent une action user.
+    if (piStatus === 'REQUIRES_PAYMENT_METHOD' || piStatus === 'REQUIRES_CONFIRMATION') {
+      return res.status(400).json({
+        error: 'Payment method required or not yet confirmed. Please try paying again.',
+        status: piStatus.toLowerCase(),
+      });
+    }
+
+    // Échecs explicites.
+    if (piStatus === 'CANCELLED' || piStatus === 'FAILED' || piStatus === 'EXPIRED') {
+      booking.paymentStatus = piStatus === 'CANCELLED' ? 'cancelled' : 'failed';
+      booking.paymentFailedAt = new Date();
+      await booking.save();
+      return res.status(400).json({
+        error: `Payment ${piStatus.toLowerCase()}. Please try again with a different payment method.`,
+        status: piStatus.toLowerCase(),
+      });
+    }
+
+    // Default : retourner l'état brut pour debug.
+    return res.status(200).json({
+      success: false,
+      status: piStatus.toLowerCase() || 'unknown',
+      paymentIntentId,
+      raw: { status: pi?.status },
+    });
   } catch (error) {
     logger.error('Confirm payment error', error);
     if (error.name === 'CastError') {
