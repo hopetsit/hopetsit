@@ -758,15 +758,15 @@ const processProviderPayoutForBooking = async (booking) => {
       return;
     }
 
-    // Stripe destination-charge payments are auto-transferred to the
-    // provider's connected account at capture time — no manual payout needed.
-    if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
-      booking.payoutStatus = 'completed';
-      booking.payoutAt = booking.payoutAt || new Date();
-      await booking.save();
-      logger.info('✅ Stripe destination-charge payout auto-completed for booking', booking._id.toString());
-      return;
-    }
+    // [DEPRECATED — Stripe destination-charge payments]
+    // Stripe auto-transferred at capture; this block is unreachable post-Airwallex (paymentProvider === 'airwallex').
+    // if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
+    //   booking.payoutStatus = 'completed';
+    //   booking.payoutAt = booking.payoutAt || new Date();
+    //   await booking.save();
+    //   logger.info('✅ Stripe destination-charge payout auto-completed for booking', booking._id.toString());
+    //   return;
+    // }
 
     const netPayout = booking.pricing?.netPayout;
     const currency = booking.pricing?.currency;

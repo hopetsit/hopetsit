@@ -13,7 +13,6 @@ class PetModel {
   final String vaccination;
   final String bio;
   final String colour;
-  final String? gender;
   final String profileView;
   final String age;
   final List<String> vaccinations;
@@ -46,7 +45,6 @@ class PetModel {
     required this.vaccination,
     required this.bio,
     required this.colour,
-    this.gender,
     required this.profileView,
     required this.age,
     required this.vaccinations,
@@ -118,7 +116,6 @@ class PetModel {
       vaccination: json['vaccination'] as String? ?? '',
       bio: bioStr,
       colour: json['colour'] as String? ?? json['color'] as String? ?? '',
-      gender: json['gender'] as String?,
       profileView: json['profileView'] as String? ?? '',
       age: ageStr,
       vaccinations:
@@ -164,7 +161,6 @@ class PetModel {
       'vaccination': vaccination,
       'bio': bio,
       'colour': colour,
-      if (gender != null) 'gender': gender,
       'profileView': profileView,
       'age': age,
       'vaccinations': vaccinations,
@@ -290,3 +286,10 @@ class PetPassportImage {
       url: json['url'] as String? ?? '',
       publicId: json['publicId'] as String? ?? '',
       uploadedAt: json['uploadedAt'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'url': url, 'publicId': publicId, 'uploadedAt': uploadedAt};
+  }
+}

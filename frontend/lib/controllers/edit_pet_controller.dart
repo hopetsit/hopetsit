@@ -68,8 +68,6 @@ class EditPetController extends GetxController {
   final Rx<File?> petProfileImage = Rx<File?>(null);
   final Rx<String?> selectedCategory = Rx<String?>('Dog');
   final Rx<String?> selectedVaccination = Rx<String?>('Up to Date');
-  // v22.5 — Bug R2 : sexe de l'animal au formulaire d'édition.
-  final Rx<String?> selectedGender = Rx<String?>(null);
   final RxBool isLoading = false.obs;
   final RxBool isFetching = false.obs;
   final RxBool isUploadingImage = false.obs;
@@ -118,7 +116,6 @@ class EditPetController extends GetxController {
         _mapCategoryToDropdown(pet.category) ?? pet.category;
     selectedVaccination.value =
         _mapVaccinationToDropdown(pet.vaccination) ?? pet.vaccination;
-    selectedGender.value = pet.gender;
 
     currentAvatarUrl.value = pet.avatar.url;
 
@@ -273,11 +270,6 @@ class EditPetController extends GetxController {
     selectedVaccination.value = value;
   }
 
-  // v22.5 — Bug R2 : setter pour le sexe de l'animal au formulaire d'édition.
-  void setGender(String? value) {
-    selectedGender.value = value;
-  }
-
   Future<bool> validateAndUpdateProfile() async {
     if (!formKey.currentState!.validate()) {
       CustomSnackbar.showError(
@@ -324,8 +316,6 @@ class EditPetController extends GetxController {
         'vaccination': selectedVaccination.value?.toLowerCase(),
         'bio': bioController.text.trim(),
         'colour': colourController.text.trim(),
-        // v22.5 — Bug R2 : envoie le sexe de l'animal au backend.
-        if (selectedGender.value != null) 'gender': selectedGender.value,
         // Sprint 5 UI step 2 — enriched fields.
         if (ageController.text.trim().isNotEmpty)
           'age': int.tryParse(ageController.text.trim()) ?? 0,
@@ -439,4 +429,21 @@ class EditPetController extends GetxController {
   Future<void> handleUpdateProfileWithNavigation() async {
     final success = await validateAndUpdateProfile();
 
-    if (success)
+    if (success) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      Get.back();
+
+      if (Get.isRegistered<MyPetsController>()) {
+        try {
+          final myPetsController = Get.find<MyPetsController>();
+          await myPetsController.refreshPets();
+        } catch (e) {
+          // Silently fail if controller not found
+        }
+      }
+
+      await Future.delayed(const Duration(milliseconds: 1500));
+      Get.back(result: true);
+    }
+  }
+}

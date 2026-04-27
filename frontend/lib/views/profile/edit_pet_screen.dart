@@ -331,41 +331,6 @@ class EditPetScreen extends StatelessWidget {
                       textInputAction: TextInputAction.next,
                     ),
 
-                    SizedBox(height: 20.h),
-
-                    // v22.5 — Bug R2 : sélecteur Sexe Mâle/Femelle dans l'écran édition.
-                    InterText(
-                      text: 'create_pet_gender_label'.tr,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.grey700Color,
-                    ),
-                    SizedBox(height: 8.h),
-                    Obx(() {
-                      final selected = controller.selectedGender.value;
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: _GenderPill(
-                              label: 'create_pet_gender_male'.tr,
-                              icon: Icons.male,
-                              selected: selected == 'male',
-                              onTap: () => controller.setGender('male'),
-                            ),
-                          ),
-                          SizedBox(width: 12.w),
-                          Expanded(
-                            child: _GenderPill(
-                              label: 'create_pet_gender_female'.tr,
-                              icon: Icons.female,
-                              selected: selected == 'female',
-                              onTap: () => controller.setGender('female'),
-                            ),
-                          ),
-                        ],
-                      );
-                    }),
-
                     SizedBox(height: 28.h),
                     _ModernSectionHeader(
                       icon: Icons.badge_rounded,
@@ -627,4 +592,58 @@ class EditPetScreen extends StatelessWidget {
             value: controller.emergencyAuthAccepted.value,
             onChanged: (v) =>
                 controller.emergencyAuthAccepted.value = v ?? false,
-            title: Text('edit_
+            title: Text('edit_pet_emergency_auth_checkbox'.tr),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// v20.0.7 — Section header with icon + title, used to group form fields
+/// visually (appearance / identity / health / etc.). Replaces plain
+/// ExpansionTiles that made the form feel like a boring checklist.
+class _ModernSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color color;
+  const _ModernSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

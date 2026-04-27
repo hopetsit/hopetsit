@@ -60,11 +60,8 @@ const bookingSchema = new mongoose.Schema(
       enum: ['airwallex', 'paypal'],
       default: null,
     },
-    // v21.1.1 — Stripe fields removed.
-    petsitterConnectedAccountId: {
-      type: String,
-      default: null,
-    },
+    // v22.5 — Stripe field removed.
+    // petsitterConnectedAccountId field deprecated — Stripe Connect no longer supported
     // v21.2 — Airwallex Payment Intent ID (replaces Stripe's stripePaymentIntentId).
     // Persisted by bookingController when creating a PI, used by webhook to
     // find the matching booking on payment success/failure.
@@ -215,4 +212,3 @@ bookingSchema.pre('validate', function (next) {
 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
-

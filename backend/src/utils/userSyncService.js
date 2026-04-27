@@ -63,7 +63,7 @@ const SHARED_FIELDS = [
   'skills',
   // Paiement / carte (peut évoluer côté compte)
   'card',
-  'stripeCustomerId',
+  // v22.5 — stripeCustomerId removed (Stripe account closed)
   // IBAN — partagé car c'est le compte bancaire du user, peu importe le
   // rôle qui est payé (walker OU sitter utilisent le même IBAN). On ne
   // sync PAS ces champs vers Owner (qui ne reçoit pas de paiements),
@@ -170,7 +170,4 @@ async function syncSharedFields({ email, update, excludeRole }) {
   return safe;
 }
 
-module.exports = {
-  syncSharedFields,
-  SHARED_FIELDS,
-};
+module.exports = syncSafeFields;
