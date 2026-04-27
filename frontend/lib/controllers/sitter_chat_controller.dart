@@ -23,6 +23,7 @@ class SitterChatMessage {
   final List<String> attachments;
   // v19.1.3 — soft-delete flag, mirrors ChatMessage.
   final bool isDeleted;
+  final String senderRole;
 
   SitterChatMessage({
     required this.id,
@@ -34,7 +35,10 @@ class SitterChatMessage {
     required this.isFromCurrentUser,
     this.attachments = const [],
     this.isDeleted = false,
+    this.senderRole = '',
   });
+
+  bool get isSystem => senderRole.toLowerCase() == 'system';
 }
 
 class SitterChatConversation {
@@ -161,6 +165,7 @@ class SitterChatController extends GetxController {
         isFromCurrentUser: original.isFromCurrentUser,
         attachments: const [],
         isDeleted: true,
+        senderRole: original.senderRole,
       );
       currentChatMessages.refresh();
     } catch (e) {
@@ -665,6 +670,8 @@ class SitterChatController extends GetxController {
     final isDeleted = data['isDeleted'] == true ||
         data['deletedAt'] != null;
 
+    final senderRoleStr = (data['senderRole'] ?? data['sender_role'] ?? '').toString();
+
     return SitterChatMessage(
       id: id,
       senderId: senderId,
@@ -675,6 +682,7 @@ class SitterChatController extends GetxController {
       isFromCurrentUser: isFromCurrentUser,
       attachments: attachments,
       isDeleted: isDeleted,
+      senderRole: senderRoleStr,
     );
   }
 

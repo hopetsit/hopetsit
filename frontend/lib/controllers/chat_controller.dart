@@ -23,6 +23,7 @@ class ChatMessage {
   final List<String> attachments;
   // v19.1.3 — soft-delete flag, backend hides body+attachments for deleted.
   final bool isDeleted;
+  final String senderRole;
 
   ChatMessage({
     required this.id,
@@ -34,7 +35,10 @@ class ChatMessage {
     required this.isFromCurrentUser,
     this.attachments = const [],
     this.isDeleted = false,
+    this.senderRole = '',
   });
+
+  bool get isSystem => senderRole.toLowerCase() == 'system';
 }
 
 class ChatConversation {
@@ -163,6 +167,7 @@ class ChatController extends GetxController {
         isFromCurrentUser: original.isFromCurrentUser,
         attachments: const [],
         isDeleted: true,
+        senderRole: original.senderRole,
       );
       currentChatMessages.refresh();
     } catch (e) {
@@ -675,6 +680,8 @@ class ChatController extends GetxController {
     final isDeleted = data['isDeleted'] == true ||
         data['deletedAt'] != null;
 
+    final senderRoleStr = (data['senderRole'] ?? data['sender_role'] ?? '').toString();
+
     return ChatMessage(
       id: id,
       senderId: senderId,
@@ -685,6 +692,7 @@ class ChatController extends GetxController {
       isFromCurrentUser: isFromCurrentUser,
       attachments: attachments,
       isDeleted: isDeleted,
+      senderRole: senderRoleStr,
     );
   }
 

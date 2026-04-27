@@ -236,6 +236,31 @@ class _SitterIndividualChatScreenState
     SitterChatMessage message,
     SitterChatController controller,
   ) {
+    if (message.isSystem) {
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 24.w),
+        child: Center(
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: AppColors.grey300Color.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(14.r),
+            ),
+            child: Text(
+              message.message,
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textSecondary(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+
     return GestureDetector(
       onLongPress: (message.isDeleted || !message.isFromCurrentUser)
           ? null
