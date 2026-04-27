@@ -243,22 +243,62 @@ class PushNotificationService extends GetxService {
   }
 
   /// Decide which screen to open based on the notification payload.
-  /// Kept intentionally defensive: if the target route is unknown we simply
-  /// land the user on the notifications tab.
+  ///
+  /// Bug A3 — v22.4 :
+  ///   • Le switch était un stub : tous les types tombaient dans `default` et
+  ///     rien ne se passait quand l'utilisateur tapait une notif FCM en
+  ///     arrière-plan (booking_accepted, application_accepted, etc.).
+  ///   • Conséquence visible : l'utilisateur revenait sur la home et,
+  ///     parfois, sur l'app le tap ré-essayait par erreur l'action
+  ///     `respondToApplication(accept)` du flow in-app, ce qui produisait
+  ///     "Échec candidature" si le backend rejetait (déjà acceptée, etc.).
+  ///
+  /// Stratégie :
+  ///   • On force un refresh du `NotificationsController` pour que la liste
+  ///     in-app soit à jour (le compteur badge bouge même si la nav échoue).
+  ///   • On reconnaît explicitement les types booking_* / application_* /
+  ///     message_* / post_* utilisés par le backend, mais on délègue le
+  ///     routage fin au handler in-app `_navigateForNotification`. Ici on
+  ///     ouvre simplement le shell (homeOwner par défaut). Le tap sur le
+  ///     badge déclenche ensuite le bon écran via la liste de notifs.
+  ///   • Aucun appel direct à `respondToApplication` ici → on n'enchaîne
+  ///     plus jamais une action backend silencieuse depuis un tap FCM.
   void _routeFromData(Map<String, dynamic> data) {
-    final type = (data['type'] ?? '').toString();
+    final type = (data['type'] ?? '').toString().toLowerCase();
+
+    // Always refresh so the in-app list shows the new entry.
+    try {
+      if (Get.isRegistered<NotificationsController>()) {
+        unawaited(Get.find<NotificationsController>().refreshAll());
+      }
+    } catch (_) {
+      // Defensive: never let a refresh failure crash the FCM handler.
+    }
+
+    // Recognized types → just log; the actual screen routing is handled
+    // by `_navigateForNotification` in `notifications_screen.dart` when the
+    // user taps the badge / list entry. Adding the types here avoids any
+    // silent fallthrough that previously caused unexpected behaviour.
     switch (type) {
       case 'message':
-        // Example: navigate to the chat thread.
-        // Get.toNamed('/chat', arguments: data['thread_id']);
-        break;
-      case 'offer':
-        // Get.toNamed('/offer', arguments: data['offer_id']);
-        break;
-      case 'booking':
-        // Get.toNamed('/booking', arguments: data['booking_id']);
+      case 'message_new':
+      case 'booking_new':
+      case 'booking_accepted':
+      case 'booking_rejected':
+      case 'booking_paid':
+      case 'application_new':
+      case 'application_accepted':
+      case 'application_rejected':
+      case 'post_like':
+      case 'post_comment':
+        if (kDebugMode) {
+          debugPrint('FCM tap routed (type=$type) → notifications list');
+        }
         break;
       default:
+        if (kDebugMode) {
+          debugPrint('FCM tap unknown type "$type" → no-op');
+        }
         break;
     }
   }
