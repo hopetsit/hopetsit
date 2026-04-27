@@ -1240,18 +1240,64 @@ class _PublishReservationRequestScreenState
             color: AppColors.textPrimary(context),
           ),
           SizedBox(height: 8.h),
+          // v22.5 — POLISH 1 : chaque vignette a un bouton X rouge en haut
+          // à droite (Stack + Positioned, hitbox 28×28, padding interne pour
+          // que la croix soit cliquable même très près du bord). Tap →
+          // controller.removeImageAt(index). La méthode existait déjà mais
+          // n'était pas câblée à l'UI.
           Wrap(
             spacing: 8.w,
             runSpacing: 8.h,
             children: [
-              for (final file in controller.imageFiles)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10.r),
-                  child: Image.file(
-                    file,
-                    width: 80.w,
-                    height: 80.w,
-                    fit: BoxFit.cover,
+              for (int i = 0; i < controller.imageFiles.length; i++)
+                SizedBox(
+                  width: 80.w,
+                  height: 80.w,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10.r),
+                        child: Image.file(
+                          controller.imageFiles[i],
+                          width: 80.w,
+                          height: 80.w,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => controller.removeImageAt(i),
+                          child: Container(
+                            width: 28.w,
+                            height: 28.w,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.red,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2.w,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 16.sp,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               GestureDetector(
