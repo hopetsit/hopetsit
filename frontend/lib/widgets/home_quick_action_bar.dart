@@ -33,11 +33,8 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
-import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
-import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class HomeQuickActionBar extends StatefulWidget {
@@ -54,6 +51,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // v22.1 — Bug 14a : worker pour réagir aux nouvelles notifs.
   Worker? _notifWorker;
   Timer? _periodicRefresh;
+
+  // v22.5 — PART 2 : booking IDs dismissed via the X button on the banner.
+  final RxSet<String> _dismissedBookingIds = <String>{}.obs;
 
   @override
   void initState() {
@@ -146,6 +146,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       // v22.2 — Bug 16c : aggregate les bookings à payer pour afficher leur
       // count quand y en a plus de 1.
       final acceptedToPay = bookings.where((b) {
+        if (_dismissedBookingIds.contains(b.id)) return false;
         final status = (b.status ?? '').toLowerCase();
         final pay    = (b.paymentStatus ?? '').toLowerCase();
         if (pay == 'paid') return false;
@@ -185,6 +186,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           ctaLabel: ctaLabel,
           booking: b,
           pulse: false,
+          extraBookings: acceptedToPay.length > 1 ? acceptedToPay.skip(1).toList() : const [],
         );
       }
       // Lower priority — payment pending warning (orange).
@@ -313,59 +315,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // ─── Tap handlers (graceful degradation if a route is missing) ─────────
 
   void _onActionTap(_QuickAction a) {
-    // v22.5 — PART 3 : owner pay banner court-circuite l'ancienne chaîne
-    //   Banner → BookingsHistory → BookingDetail → BookingAgreement → Payment
-    // pour aller DIRECT à StripePaymentScreen. Le récap (animal/date/service/
-    // montant/prestataire) est désormais affiché DANS la page paiement.
-    if (a.kind == _Kind.ownerPay) {
-      _navigateOwnerPay(a);
-      return;
-    }
-    // Default fallback for provider banner / unknown actions : open history.
+    // Open the bookings history screen — the user picks the right booking
+    // from there and proceeds (Pay / Accept / Refuse / View details). This
+    // keeps the quick-action bar decoupled from the existing payment flow.
     Get.to(() => const BookingsHistoryScreen());
-  }
-
-
-  /// v22.5 — PART 3 : pre-warm createPaymentIntent puis push StripePaymentScreen.
-  /// Réplique le flow notif booking_accepted (notifications_screen.dart) pour
-  /// donner un 1-tap "tap banner → page paiement" sans détour.
-  Future<void> _navigateOwnerPay(_QuickAction a) async {
-    final booking = a.booking;
-    try {
-      // Best-effort pre-warm so Airwallex sheet opens fast. Errors are
-      // swallowed — StripePaymentScreen will retry createPaymentIntent on
-      // its own if needed.
-      try {
-        if (Get.isRegistered<OwnerRepository>()) {
-          await Get.find<OwnerRepository>().createPaymentIntent(bookingId: booking.id);
-        }
-      } catch (e) {
-        AppLogger.logDebug('owner banner pre-warm failed: $e');
-      }
-      final pricing = booking.pricing;
-      final base = (pricing?.totalPrice
-              ?? pricing?.resolvedBaseAmount
-              ?? booking.totalAmount
-              ?? booking.basePrice) ??
-          0.0;
-      final serviceLower = (booking.serviceType ?? '').toLowerCase();
-      final providerType = (serviceLower.contains('walking') ||
-              serviceLower.contains('dog_walking'))
-          ? 'walker'
-          : 'sitter';
-      await Get.to(
-        () => StripePaymentScreen(
-          booking: booking,
-          totalAmount: base,
-          currency: pricing?.currency ?? booking.sitter.currency,
-          providerType: providerType,
-        ),
-      );
-    } catch (e) {
-      AppLogger.logError('owner banner navigation failed', error: e);
-      // Fallback : open history if direct navigation fails.
-      Get.to(() => const BookingsHistoryScreen());
-    }
   }
 
   void _onAccept(_QuickAction a) {
@@ -687,6 +640,7 @@ class _QuickAction {
   final String ctaLabel;
   final BookingModel booking;
   final bool pulse;
+  final List<BookingModel> extraBookings;
   const _QuickAction({
     required this.kind,
     required this.color,
@@ -696,6 +650,7 @@ class _QuickAction {
     required this.ctaLabel,
     required this.booking,
     required this.pulse,
+    this.extraBookings = const [],
   });
 }
 
