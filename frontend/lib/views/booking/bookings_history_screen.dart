@@ -582,8 +582,17 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
           ),
         ),
 
-        // Status-specific actions
-        if (statusLower == 'agreed' && paymentStatusLower == 'pending') ...[
+        // v22.4 — Bug B1 : bouton "Payer" affiché dès que la réservation
+        // est acceptée/confirmée et non encore payée. Avant, la condition
+        // exigeait status='agreed' ET paymentStatus='pending', ce qui
+        // excluait le cas le plus courant : sitter accepte → status =
+        // 'accepted' → paymentStatus null/vide → owner ne voyait pas le
+        // bouton sur la card. Aligné avec la logique de home_quick_action_bar.
+        if ((statusLower == 'accepted' ||
+                statusLower == 'agreed' ||
+                statusLower == 'mutually_accepted' ||
+                statusLower == 'confirmed') &&
+            paymentStatusLower != 'paid') ...[
           SizedBox(width: 12.w),
           Expanded(
             child: ElevatedButton(
@@ -669,7 +678,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
               child: InterText(
                 text: 'booking_leave_review'.tr,
                 fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
+                     fontWeight: FontWeight.w500,
                 color: AppColors.whiteColor,
               ),
             ),
