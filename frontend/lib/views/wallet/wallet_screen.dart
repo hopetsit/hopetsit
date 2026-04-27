@@ -6,6 +6,7 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
@@ -670,7 +671,7 @@ class _TransactionTile extends StatelessWidget {
         ? 'wallet_to_${tx['withdrawalMethod'] ?? 'iban'}'.tr
         : (type == 'debit_shop'
             ? (tx['productType'] as String? ?? '')
-            : (tx['serviceType'] as String? ?? ''));
+            : translateServiceType(tx['serviceType'] as String?));
 
     return Container(
       margin: EdgeInsets.only(bottom: 8.h),

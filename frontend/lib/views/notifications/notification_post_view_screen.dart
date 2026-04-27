@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/post_comment_sheet.dart';
@@ -50,8 +51,7 @@ class _NotificationPostViewScreenState
   }
 
   static String _serviceTypesDisplay(List<String> types) {
-    if (types.isEmpty) return '';
-    return types.map((t) => t.replaceAll('_', ' ')).join(', ');
+    return translateServiceTypes(types);
   }
 
   PostModel _livePost(PostsController c) {
