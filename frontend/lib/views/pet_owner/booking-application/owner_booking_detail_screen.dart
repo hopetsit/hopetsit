@@ -152,23 +152,6 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
             paymentStatusLower == 'pending' ||
             paymentStatusLower == 'failed');
 
-    // v16.3i — role-based accent on the booking detail screen:
-    //   walker booking  → green (#16A34A)
-    //   sitter booking  → blue  (#2563EB)
-    //   fallback        → app primary color
-    final serviceLower = (booking.serviceType ?? '').toLowerCase();
-    final bool isWalkerBooking = serviceLower.contains('dog_walking') ||
-        serviceLower.contains('walking');
-    final bool isSitterBooking = !isWalkerBooking &&
-        (serviceLower.contains('sitting') ||
-            serviceLower.contains('day_care') ||
-            serviceLower.contains('boarding'));
-    final Color roleAccent = isWalkerBooking
-        ? const Color(0xFF16A34A)
-        : isSitterBooking
-            ? const Color(0xFF2563EB)
-            : AppColors.primaryColor;
-
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -193,8 +176,9 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
             children: [
               SizedBox(height: 16.h),
 
-              // Status chip
-              _buildStatusChip(booking),
+              // v22.4 — Bug B2 : 2 badges côte-à-côte (status booking +
+              // status paiement) au lieu du chip unique qui mélangeait les 2.
+              _buildStatusBadgesRow(booking),
               SizedBox(height: 16.h),
 
               // Service Provider section – sitter card
@@ -509,12 +493,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                       height: 50.h,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [roleAccent, roleAccent.withValues(alpha: 0.85)],
+                          colors: [AppColors.primaryColor, AppColors.primaryColor.withValues(alpha: 0.85)],
                         ),
                         borderRadius: BorderRadius.circular(16.r),
                         boxShadow: [
                           BoxShadow(
-                            color: roleAccent.withValues(alpha: 0.3),
+                            color: AppColors.primaryColor.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -905,91 +889,112 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
     );
   }
 
-  Widget _buildStatusChip(BookingModel booking) {
+  // v22.4 — Bug B2 : remplace _buildStatusChip par 2 badges distincts.
+  Widget _buildStatusBadgesRow(BookingModel booking) {
     final statusLower = booking.status.toLowerCase();
-    final paymentStatusLower = booking.paymentStatus?.toLowerCase();
+    final paymentStatusLower = booking.paymentStatus?.toLowerCase() ?? '';
 
-    Color backgroundColor;
-    Color textColor;
-    IconData icon;
-    String displayText;
-
-    // Determine the primary status to display (booking + payment)
-    String primaryStatus;
-    if (paymentStatusLower == 'paid') {
-      primaryStatus = 'paid';
-    } else if (paymentStatusLower == 'pending' && statusLower == 'agreed') {
-      primaryStatus = 'payment_pending';
-    } else if (paymentStatusLower == 'failed') {
-      primaryStatus = 'payment_failed';
-    } else {
-      primaryStatus = statusLower;
+    final List<Widget> badges = [
+      _statusBadge(
+        label: _bookingStatusLabel(statusLower),
+        color: _bookingStatusColor(statusLower),
+        icon: _bookingStatusIcon(statusLower),
+      ),
+    ];
+    if (paymentStatusLower.isNotEmpty) {
+      badges.add(
+        _statusBadge(
+          label: _paymentStatusLabel(paymentStatusLower),
+          color: _paymentStatusColor(paymentStatusLower),
+          icon: _paymentStatusIcon(paymentStatusLower),
+        ),
+      );
     }
+    return Wrap(spacing: 8.w, runSpacing: 8.h, children: badges);
+  }
 
-    switch (primaryStatus) {
-      case 'pending':
-        backgroundColor = Colors.orange.withValues(alpha: 0.1);
-        textColor = Colors.orange;
-        icon = Icons.pending;
-        displayText = 'PENDING';
-        break;
-      case 'agreed':
-        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
-        textColor = AppColors.primaryColor;
-        icon = Icons.check_circle;
-        displayText = 'AGREED';
-        break;
-      case 'paid':
-        backgroundColor = Colors.green.withValues(alpha: 0.1);
-        textColor = Colors.green;
-        icon = Icons.check_circle_outline;
-        displayText = 'PAID';
-        break;
-      case 'payment_pending':
-        backgroundColor = Colors.orange.withValues(alpha: 0.1);
-        textColor = Colors.orange;
-        icon = Icons.hourglass_empty;
-        displayText = 'PAYMENT PENDING';
-        break;
-      case 'payment_failed':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.error_outline;
-        displayText = 'PAYMENT FAILED';
-        break;
-      case 'cancelled':
-        backgroundColor = AppColors.errorColor.withValues(alpha: 0.1);
-        textColor = AppColors.errorColor;
-        icon = Icons.cancel;
-        displayText = 'CANCELLED';
-        break;
-      default:
-        backgroundColor = AppColors.primaryColor.withValues(alpha: 0.1);
-        textColor = AppColors.primaryColor;
-        icon = Icons.info;
-        displayText = statusLower.toUpperCase();
-    }
-
+  Widget _statusBadge({required String label, required Color color, required IconData icon}) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: textColor, width: 1),
+        border: Border.all(color: color, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16.sp, color: textColor),
-          SizedBox(width: 8.w),
-          PoppinsText(
-            text: 'Status: $displayText',
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
+          Icon(icon, size: 14.sp, color: color),
+          SizedBox(width: 6.w),
+          PoppinsText(text: label, fontSize: 12.sp, fontWeight: FontWeight.w600, color: color),
         ],
       ),
     );
+  }
+
+  String _bookingStatusLabel(String s) {
+    switch (s) {
+      case 'pending': return 'En attente';
+      case 'accepted': return 'Acceptée';
+      case 'agreed': return 'Confirmée';
+      case 'rejected': return 'Refusée';
+      case 'cancelled': return 'Annulée';
+      case 'completed': return 'Terminée';
+      default: return s.isEmpty ? '—' : '${s[0].toUpperCase()}${s.substring(1)}';
+    }
+  }
+
+  Color _bookingStatusColor(String s) {
+    switch (s) {
+      case 'pending': return Colors.orange;
+      case 'accepted':
+      case 'agreed': return AppColors.primaryColor;
+      case 'rejected':
+      case 'cancelled': return AppColors.errorColor;
+      case 'completed': return Colors.green;
+      default: return AppColors.primaryColor;
+    }
+  }
+
+  IconData _bookingStatusIcon(String s) {
+    switch (s) {
+      case 'pending': return Icons.hourglass_empty;
+      case 'accepted': return Icons.check_circle;
+      case 'agreed': return Icons.verified;
+      case 'rejected': return Icons.block;
+      case 'cancelled': return Icons.cancel;
+      case 'completed': return Icons.task_alt;
+      default: return Icons.info_outline;
+    }
+  }
+
+  String _paymentStatusLabel(String s) {
+    switch (s) {
+      case 'paid': return 'Payé';
+      case 'pending': return 'Paiement en attente';
+      case 'failed': return 'Paiement échoué';
+      case 'refunded': return 'Remboursé';
+      default: return s.isEmpty ? '—' : '${s[0].toUpperCase()}${s.substring(1)}';
+    }
+  }
+
+  Color _paymentStatusColor(String s) {
+    switch (s) {
+      case 'paid': return Colors.green;
+      case 'pending': return Colors.orange;
+      case 'failed': return AppColors.errorColor;
+      case 'refunded': return Colors.blueGrey;
+      default: return Colors.grey;
+    }
+  }
+
+  IconData _paymentStatusIcon(String s) {
+    switch (s) {
+      case 'paid': return Icons.check_circle_outline;
+      case 'pending': return Icons.hourglass_empty;
+      case 'failed': return Icons.error_outline;
+      case 'refunded': return Icons.replay;
+      default: return Icons.payment;
+    }
   }
 }
