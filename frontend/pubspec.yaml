@@ -104,4 +104,18 @@ flutter_launcher_icons:
   # Monochrome variant for Android 13+ themed icons. Uses the foreground
   # layer since the notification SVG is already optimised for a single colour.
   adaptive_icon_monochrome: "assets/brand/png/ic_launcher_foreground.png"
-  # Disable the alpha stripper on iOS (Apple rejected 
+  # Disable the alpha stripper on iOS (Apple rejected  historically; our source PNGs don't have transparency anyway).
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/brand/
+    - assets/brand/android/
+    - assets/brand/apple/
+    - assets/brand/web/
+    - assets/brand/png/
+    - .env
