@@ -33,6 +33,8 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -310,9 +312,18 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // ─── Tap handlers (graceful degradation if a route is missing) ─────────
 
   void _onActionTap(_QuickAction a) {
-    // Open the bookings history screen — the user picks the right booking
-    // from there and proceeds (Pay / Accept / Refuse / View details). This
-    // keeps the quick-action bar decoupled from the existing payment flow.
+    // v22.5 — Bug walker/sitter : Nouvelle demande banner → dialog instead of nav.
+    // Owner pay action → keep navigation to history (existing behaviour).
+    if (a.kind == _Kind.ownerPay) {
+      Get.to(() => const BookingsHistoryScreen());
+      return;
+    }
+    // Provider new request / paid receipt → show accept/refuse dialog for new requests.
+    if (a.kind == _Kind.providerAccept) {
+      _showAcceptRefuseDialog(a);
+      return;
+    }
+    // Default fallback.
     Get.to(() => const BookingsHistoryScreen());
   }
 
@@ -325,6 +336,52 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
   void _onRefuse(_QuickAction a) {
     _onActionTap(a);
+  }
+
+  // v22.5 — Bug walker/sitter : show dialog for accepting/refusing new requests
+  // (tapping the banner itself) instead of navigating to history. Dialog calls the
+  // same backend methods as the small ✓/✗ buttons.
+  void _showAcceptRefuseDialog(_QuickAction a) {
+    showDialog(
+      context: Get.context!,
+      builder: (context) => AlertDialog(
+        title: Text('Nouvelle demande de réservation'.tr),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InterText(
+                text: a.subtitle,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('common_cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back();
+              _onAccept(a);
+            },
+            child: Text('service_card_accept'.tr),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back();
+              _onRefuse(a);
+            },
+            child: Text('service_card_refuse'.tr),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -586,64 +643,3 @@ class _NeutralBar extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 10.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PoppinsText(
-                      text: _title(),
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
-                    ),
-                    SizedBox(height: 2.h),
-                    InterText(
-                      text: _subtitle(),
-                      fontSize: 11.5.sp,
-                      fontWeight: FontWeight.w500,
-                      color: accent.withValues(alpha: 0.85),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: accent.withValues(alpha: 0.6),
-                size: 20.sp,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Internal action descriptor ─────────────────────────────────────────────
-
-enum _Kind { ownerPay, providerAccept, providerPaid }
-
-class _QuickAction {
-  final _Kind kind;
-  final Color color;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String ctaLabel;
-  final BookingModel booking;
-  final bool pulse;
-  const _QuickAction({
-    required this.kind,
-    required this.color,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.ctaLabel,
-    required this.booking,
-    required this.pulse,
-  });
-}
-

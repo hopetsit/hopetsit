@@ -2,7 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
+import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -47,7 +50,12 @@ class BookingsHistoryScreen extends StatefulWidget {
 }
 
 class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
-  late BookingsController _bookingsController;
+  final AuthController _authController = Get.find<AuthController>();
+  // v22.5 — role-aware controllers. The screen is reused by all 3 roles
+  // and previously hardcoded BookingsController (owner). For sitter/walker
+  // we now load their dedicated controller so cancel/accept hit the right
+  // backend route.
+  late final dynamic _bookingsController;
   String? _selectedStatus;
 
   // All available statuses
@@ -64,7 +72,15 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _bookingsController = Get.put(BookingsController());
+    // v22.5 — dispatch to role-aware controller.
+    final role = _authController.userRole.value;
+    if (role == 'walker' && Get.isRegistered<WalkerBookingsController>()) {
+      _bookingsController = Get.find<WalkerBookingsController>();
+    } else if (role == 'sitter' && Get.isRegistered<SitterBookingsController>()) {
+      _bookingsController = Get.find<SitterBookingsController>();
+    } else {
+      _bookingsController = Get.put(BookingsController());
+    }
     _selectedStatus = 'all';
   }
 
@@ -564,7 +580,12 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
         Expanded(
           child: OutlinedButton(
             onPressed: () {
-              Get.to(() => BookingAgreementScreen(booking: booking));
+              // v22.5 — pass viewerRole so the screen renders provider-side actions
+              // (Accept/Refuse) when sitter/walker views, not owner-only.
+              Get.to(() => BookingAgreementScreen(
+                booking: booking,
+                viewerRole: _authController.userRole.value,
+              ));
             },
             style: OutlinedButton.styleFrom(
               padding: EdgeInsets.symmetric(vertical: 10.h),
@@ -581,6 +602,33 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
             ),
           ),
         ),
+
+        // v22.5 — Bug walker/sitter : bouton Accepter pour les demandes pending
+        // visibles côté provider. Sans ça, le sitter/walker ne pouvait que
+        // tap la cloche pour accepter (pas l'historique).
+        if ((statusLower == 'pending' || statusLower == 'requested') &&
+            (_authController.userRole.value == 'sitter' ||
+                _authController.userRole.value == 'walker')) ...[
+          SizedBox(width: 12.w),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () => _onAcceptBooking(booking),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: roleAccent,
+                padding: EdgeInsets.symmetric(vertical: 10.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+              ),
+              child: InterText(
+                text: 'service_card_accept'.tr,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.whiteColor,
+              ),
+            ),
+          ),
+        ],
 
         // v22.4 — Bug B1 : bouton "Payer" affiché dès que la réservation
         // est acceptée/confirmée et non encore payée. Avant, la condition
@@ -638,68 +686,4 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
               ),
             ),
           ),
-        ],
-
-        // v18.5 — #22 : bouton "Laisser un avis" sur bookings completed.
-        // Remplace l'option review sur l'écran paiement réussi (#17) qui
-        // n'avait pas de sens car le service n'était pas encore fait.
-        if (statusLower == 'completed') ...[
-          SizedBox(width: 12.w),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                final serviceLower =
-                    (booking.serviceType ?? '').toLowerCase();
-                final resolvedRole = (serviceLower.contains('walking') ||
-                        serviceLower.contains('dog_walking'))
-                    ? 'walker'
-                    : 'sitter';
-                Get.to(
-                  () => ReviewsScreen(
-                    serviceProviderName: booking.sitter.name,
-                    phoneNumber: booking.sitter.mobile,
-                    email: booking.sitter.email,
-                    profileImagePath: booking.sitter.avatar.url.isNotEmpty
-                        ? booking.sitter.avatar.url
-                        : null,
-                    serviceProviderId: booking.sitter.id,
-                    bookingId: booking.id,
-                    revieweeRole: resolvedRole,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-              child: InterText(
-                text: 'booking_leave_review'.tr,
-                fontSize: 12.sp,
-                     fontWeight: FontWeight.w500,
-                color: AppColors.whiteColor,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  void _showCancelBookingDialog(BuildContext context, BookingModel booking) {
-    CustomConfirmationDialog.show(
-      context: context,
-      message: 'booking_cancel_dialog_message'.tr,
-      yesText: 'common_yes'.tr,
-      cancelText: 'common_no'.tr,
-      onYes: () {
-        _bookingsController.cancelBooking(
-          bookingId: booking.id,
-          sitterId: booking.sitter.id,
-        );
-      },
-    );
-  }
-}
+        
