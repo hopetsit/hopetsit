@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 22.2.0+46
+version: 22.5.1+48
 
 environment:
   sdk: ^3.9.2
@@ -67,6 +67,11 @@ dependencies:
   # Le backend crée la session via stripeIdentityService.js et renvoie
   # l'url, on la launch telle quelle.
   url_launcher: ^6.3.1
+  # v22.5 — POLISH 2 : toasts modernes en remplacement des Get.snackbar
+  # encombrants. Slim ~64px, slide-from-top, swipe-dismiss, icône+couleur,
+  # auto-dismiss 3s. Utilisé via lib/widgets/modern_toast.dart et le shim
+  # CustomSnackbar (qui appelle ModernToast en interne, backward compat).
+  awesome_snackbar_content: ^0.1.5
 
 dev_dependencies:
   flutter_test:
@@ -99,19 +104,4 @@ flutter_launcher_icons:
   # Monochrome variant for Android 13+ themed icons. Uses the foreground
   # layer since the notification SVG is already optimised for a single colour.
   adaptive_icon_monochrome: "assets/brand/png/ic_launcher_foreground.png"
-  # Disable the alpha stripper on iOS (Apple rejected transparent icons
-  # historically; our source PNGs don't have transparency anyway).
-  remove_alpha_ios: true
-
-flutter:
-  uses-material-design: true
-
-  assets:
-    - assets/images/
-    - assets/icons/
-    - assets/brand/
-    - assets/brand/android/
-    - assets/brand/apple/
-    - assets/brand/web/
-    - assets/brand/png/
-    - .env
+  # Disable the alpha stripper on iOS (Apple rejected 
