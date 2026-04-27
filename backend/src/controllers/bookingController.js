@@ -1,7 +1,9 @@
 /* eslint-disable handle-callback-err */
 const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
-const User = require('../models/User');
+const Walker = require('../models/Walker');
+const Sitter = require('../models/Sitter');
+const Owner = require('../models/Owner');
 const Post = require('../models/Post');
 const Pet = require('../models/Pet');
 const Message = require('../models/Message');
@@ -134,13 +136,13 @@ const createBooking = async (req, res) => {
     let provider;
     if (type === 'walking') {
       if (!walkerId) return res.status(400).json({ error: 'walkerId required' });
-      provider = await User.findById(walkerId);
+      provider = await Walker.findById(walkerId);
       if (!provider) {
         return res.status(404).json({ error: 'Walker not found' });
       }
     } else {
       if (!sitterId) return res.status(400).json({ error: 'sitterId required' });
-      provider = await User.findById(sitterId);
+      provider = await Sitter.findById(sitterId);
       if (!provider) {
         return res.status(404).json({ error: 'Sitter not found' });
       }
