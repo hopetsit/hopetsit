@@ -450,9 +450,11 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       debugPrint("Google Login Error: $e");
+      // v22.5 — DEBUG : afficher la VRAIE erreur dans le toast au lieu du
+      // generique 'Une erreur est survenue'. À simplifier après diagnostic.
       CustomSnackbar.showError(
-        title: 'auth_google_signin_title',
-        message: 'common_error_generic',
+        title: 'Google Login Error',
+        message: e.toString(),
       );
     } finally {
       isSocialLoginLoading.value = false;
@@ -1222,9 +1224,4 @@ class AuthController extends GetxController {
     } catch (e) {
       // Fallback: clear storage and navigate even if logout fails
       final storage = GetStorage();
-      await storage.remove(StorageKeys.authToken);
-      await storage.remove(StorageKeys.userProfile);
-      Get.offAll(() => const LoginScreen());
-    }
-  }
-}
+      await storage.r

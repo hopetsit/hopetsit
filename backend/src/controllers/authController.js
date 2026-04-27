@@ -700,14 +700,22 @@ const googleAuth = async (req, res) => {
       user: sanitizeUser(newUser, { includeEmail: true }),
     });
   } catch (error) {
-    logger.error('Google auth error', error);
+    // v22.5 — DEBUG : pino n'imprime pas un Error passé en 2e arg, donc le
+    // stack trace était perdu. On passe { err } + console.error fallback.
+    logger.error({ err: error, stack: error?.stack, message: error?.message }, '❌ Google auth error');
+    console.error('[googleAuth] EXPLICIT ERROR:', error);
     if (error.message && error.message.includes('currency must be either USD or EUR.')) {
       return res.status(400).json({ error: error.message });
     }
     if (error.message && error.message.includes('JWT_SECRET')) {
       return res.status(500).json({ error: 'Authentication service is not configured.' });
     }
-    res.status(500).json({ error: 'Unable to authenticate with Google. Please try again later.' });
+    // v22.5 — DEBUG : on remonte le détail au client pour voir la vraie
+    // cause sur le tél sans dépendre des logs Render. À simplifier après.
+    res.status(500).json({
+      error: 'Unable to authenticate with Google.',
+      details: error?.message || String(error),
+    });
   }
 };
 
