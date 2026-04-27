@@ -49,6 +49,21 @@ const handleAirwallexWebhook = async (req, res) => {
         await booking.save();
         logger.info(`✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})`);
 
+        // v22.4 — Bug A2 : push real-time event to owner so the
+        // "Action requise" banner refreshes immediately (instead of
+        // waiting up to 30s for the periodic refresh).
+        try {
+          const { emitToUser } = require('../sockets');
+          if (booking.ownerId) {
+            emitToUser('owner', booking.ownerId.toString(), 'booking:paid', {
+              bookingId: booking._id.toString(),
+              paymentStatus: 'paid',
+            });
+          }
+        } catch (e) {
+          logger.warn(`[airwallex.webhook] booking:paid emit failed : ${e.message}`);
+        }
+
         // v22.1 — Bug 14c : auto-message système dans le chat owner+provider
         // pour confirmer le paiement aux 2 parties, fiable (déclenché par
         // webhook, pas par UI conditionnel).
@@ -172,7 +187,6 @@ const handleAirwallexWebhook = async (req, res) => {
       // ─── Beneficiary side-effects (rare) ───────────────────────────────
       case 'beneficiary.created':
       case 'beneficiary.updated':
-      case 'beneficiary.deleted':
         // Already handled inline in iban routes ; no-op here.
         break;
 
