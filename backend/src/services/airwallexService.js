@@ -175,20 +175,42 @@ async function createPlatformPaymentIntent({ amount, currency, metadata = {} }) 
     if (v !== undefined && v !== null) awxMetadata[k] = String(v);
   }
 
-  return awxFetch('/api/v1/pa/payment_intents/create', {
-    method: 'POST',
-    body: {
-      request_id: genRequestId('pi'),
-      amount: centsToMajor(amount),
-      currency: currency.toUpperCase(), // Airwallex expects uppercase ISO
-      merchant_order_id: merchantOrderId,
-      metadata: awxMetadata,
-      // Tells the PaymentIntent we want to collect any supported method.
-      // The actual list is filtered by what's enabled in the Airwallex
-      // dashboard (Visa, Mastercard, Amex, Apple Pay, Google Pay, etc.).
-    },
+  const requestBody = {
+    request_id: genRequestId('pi'),
+    amount: centsToMajor(amount),
+    currency: currency.toUpperCase(), // Airwallex expects uppercase ISO
+    merchant_order_id: merchantOrderId,
+    metadata: awxMetadata,
+    // Tells the PaymentIntent we want to collect any supported method.
+    // The actual list is filtered by what's enabled in the Airwallex
+    // dashboard (Visa, Mastercard, Amex, Apple Pay, Google Pay, etc.).
+  };
+
+  console.log('[Airwallex] Creating PaymentIntent', {
+    amount_major: requestBody.amount,
+    currency: requestBody.currency,
+    merchant_order_id: requestBody.merchant_order_id,
   });
+
+  try {
+    const result = await awxFetch('/api/v1/pa/payment_intents/create', {
+      method: 'POST',
+      body: requestBody,
+    });
+
+    console.log('[Airwallex] PaymentIntent created:', result.id);
+    return result;
+  } catch (err) {
+    console.error('[Airwallex] PaymentIntent creation failed', {
+      status: err?.status,
+      code: err?.code,
+      message: err?.message,
+      details: err?.details,
+    });
+    throw err;
+  }
 }
+
 
 /**
  * Create a marketplace PaymentIntent for a booking (owner pays, sitter

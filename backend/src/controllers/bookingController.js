@@ -2107,13 +2107,45 @@ const createBookingPaymentIntent = async (req, res) => {
     if (error.message && error.message.includes('must have')) {
       return res.status(400).json({ error: error.message });
     }
-    // v22.1 — Bug 12b : remonter le message Airwallex réel pour diagnostic.
-    // À retirer plus tard mais critique tant que les paiements échouent.
+    // PART 4 — structured Airwallex error mapping + logging
+    // Detect Airwallex-specific failures and map to predictable error codes.
+    let errorCode = 'PAYMENT_INTENT_FAILED';
+    let airwallexDetails = null;
+
+    if (error.response?.data) {
+      // Airwallex API error response
+      const awData = error.response.data;
+      airwallexDetails = {
+        status: error.response.status,
+        code: awData.code,
+        message: awData.message,
+        details: awData.details,
+      };
+      
+      if (awData.code === 'UNAUTHORIZED' || awData.code === 'INVALID_CREDENTIALS') {
+        errorCode = 'AIRWALLEX_UNAUTHORIZED';
+      } else if (awData.code === 'INVALID_REQUEST_BODY' || awData.message?.includes('required field')) {
+        errorCode = 'AIRWALLEX_INVALID_REQUEST';
+      } else if (awData.message?.includes('below minimum') || awData.code === 'AMOUNT_BELOW_MINIMUM') {
+        errorCode = 'AMOUNT_BELOW_MINIMUM';
+      }
+    }
+
+    logger.error('createBookingPaymentIntent failed', {
+      errorCode,
+      message: error.message,
+      airwallex: airwallexDetails,
+      bookingId: booking?._id?.toString(),
+      sitterId: providerRef?.id,
+    });
+
     res.status(500).json({
-      error: 'Unable to create payment intent. Please try again later.',
+      error: error.response?.data?.message || 'Unable to create payment intent. Please try again later.',
+      errorCode,
       debug: {
         message: error.message,
         name: error.name,
+        airwallex: airwallexDetails,
         airwallexEnv: {
           hasClientId: !!process.env.AIRWALLEX_CLIENT_ID,
           hasApiKey: !!process.env.AIRWALLEX_API_KEY,
