@@ -201,4 +201,22 @@ class CustomSnackbar {
       );
     });
   }
+
+  /// v22.5 — info toast (blue ⓘ). Used for hints like multi-role detected.
+  static void showInfo({required String title, required String message}) {
+    if (_shouldSuppress(title, message)) return;
+    _showSafe(() {
+      Get.snackbar(
+        _t(title),
+        _t(message),
+        backgroundColor: Colors.blue,
+        colorText: AppColors.whiteColor,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 8,
+        icon: const Icon(Icons.info_outline, color: AppColors.whiteColor),
+      );
+    });
+  }
 }
