@@ -415,7 +415,11 @@ const createBooking = async (req, res) => {
           currency: recommended.currency,
         };
       } catch (error) {
-        logger.error('Error getting recommended price range:', error);
+        logger.error(
+          { err: error, message: error?.message, stack: error?.stack },
+          '❌ Error getting recommended price range',
+        );
+        console.error('[getRecommendedPriceRange] EXPLICIT:', error);
       }
     }
 
@@ -570,7 +574,20 @@ const createBooking = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error('Create booking error', error);
+    // v22.5 — DEBUG : pino structured logging + console fallback so the
+    // real stack appears in Render logs. Also returns 'details: error.message'
+    // to client so the toast on phone shows something actionable instead of
+    // the generic 'Unable to send booking request.' message.
+    logger.error(
+      {
+        err: error,
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack,
+      },
+      '❌ Create booking error',
+    );
+    console.error('[createBooking] EXPLICIT:', error);
     if (error.name === 'CastError') {
       return res.status(400).json({ error: 'Invalid owner or sitter id.' });
     }
@@ -580,7 +597,10 @@ const createBooking = async (req, res) => {
     if (error.message && (error.message.includes('hourlyRate') || error.message.includes('required for pricing'))) {
       return res.status(400).json({ error: error.message });
     }
-    res.status(500).json({ error: 'Unable to send booking request. Please try again later.' });
+    res.status(500).json({
+      error: 'Unable to send booking request. Please try again later.',
+      details: error?.message || String(error),
+    });
   }
 };
 
@@ -2107,45 +2127,13 @@ const createBookingPaymentIntent = async (req, res) => {
     if (error.message && error.message.includes('must have')) {
       return res.status(400).json({ error: error.message });
     }
-    // PART 4 — structured Airwallex error mapping + logging
-    // Detect Airwallex-specific failures and map to predictable error codes.
-    let errorCode = 'PAYMENT_INTENT_FAILED';
-    let airwallexDetails = null;
-
-    if (error.response?.data) {
-      // Airwallex API error response
-      const awData = error.response.data;
-      airwallexDetails = {
-        status: error.response.status,
-        code: awData.code,
-        message: awData.message,
-        details: awData.details,
-      };
-      
-      if (awData.code === 'UNAUTHORIZED' || awData.code === 'INVALID_CREDENTIALS') {
-        errorCode = 'AIRWALLEX_UNAUTHORIZED';
-      } else if (awData.code === 'INVALID_REQUEST_BODY' || awData.message?.includes('required field')) {
-        errorCode = 'AIRWALLEX_INVALID_REQUEST';
-      } else if (awData.message?.includes('below minimum') || awData.code === 'AMOUNT_BELOW_MINIMUM') {
-        errorCode = 'AMOUNT_BELOW_MINIMUM';
-      }
-    }
-
-    logger.error('createBookingPaymentIntent failed', {
-      errorCode,
-      message: error.message,
-      airwallex: airwallexDetails,
-      bookingId: booking?._id?.toString(),
-      sitterId: providerRef?.id,
-    });
-
+    // v22.1 — Bug 12b : remonter le message Airwallex réel pour diagnostic.
+    // À retirer plus tard mais critique tant que les paiements échouent.
     res.status(500).json({
-      error: error.response?.data?.message || 'Unable to create payment intent. Please try again later.',
-      errorCode,
+      error: 'Unable to create payment intent. Please try again later.',
       debug: {
         message: error.message,
         name: error.name,
-        airwallex: airwallexDetails,
         airwallexEnv: {
           hasClientId: !!process.env.AIRWALLEX_CLIENT_ID,
           hasApiKey: !!process.env.AIRWALLEX_API_KEY,
