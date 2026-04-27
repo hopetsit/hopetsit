@@ -450,8 +450,7 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       debugPrint("Google Login Error: $e");
-      // v22.5 — DEBUG : afficher la VRAIE erreur dans le toast au lieu du
-      // generique 'Une erreur est survenue'. À simplifier après diagnostic.
+      // v22.5 — DEBUG : afficher la VRAIE erreur dans le toast.
       CustomSnackbar.showError(
         title: 'Google Login Error',
         message: e.toString(),
@@ -1224,4 +1223,9 @@ class AuthController extends GetxController {
     } catch (e) {
       // Fallback: clear storage and navigate even if logout fails
       final storage = GetStorage();
-      await storage.r
+      await storage.remove(StorageKeys.authToken);
+      await storage.remove(StorageKeys.userProfile);
+      Get.offAll(() => const LoginScreen());
+    }
+  }
+}

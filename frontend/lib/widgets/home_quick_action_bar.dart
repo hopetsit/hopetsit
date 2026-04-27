@@ -33,16 +33,9 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
-import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/utils/logger.dart';
-import 'package:hopetsit/repositories/owner_repository.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
-import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
-import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 
 class HomeQuickActionBar extends StatefulWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
@@ -317,19 +310,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // ─── Tap handlers (graceful degradation if a route is missing) ─────────
 
   void _onActionTap(_QuickAction a) {
-    // v22.5 — owner pay banner → show 3-action dialog (Voir détails /
-    // Annuler / Payer) instead of navigating to history. Daniel was
-    // landing on the publications list which was confusing.
-    if (a.kind == _Kind.ownerPay) {
-      _showOwnerPayDialog(a);
-      return;
-    }
-    // v22.5 — Bug walker/sitter : Nouvelle demande banner → accept/refuse dialog.
-    if (a.kind == _Kind.providerAccept) {
-      _showAcceptRefuseDialog(a);
-      return;
-    }
-    // Default fallback.
+    // Open the bookings history screen — the user picks the right booking
+    // from there and proceeds (Pay / Accept / Refuse / View details). This
+    // keeps the quick-action bar decoupled from the existing payment flow.
     Get.to(() => const BookingsHistoryScreen());
   }
 
@@ -342,151 +325,6 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
   void _onRefuse(_QuickAction a) {
     _onActionTap(a);
-  }
-
-  // v22.5 — Bug walker/sitter : show dialog for accepting/refusing new requests
-  // (tapping the banner itself) instead of navigating to history. Dialog calls the
-  // same backend methods as the small ✓/✗ buttons.
-  void _showAcceptRefuseDialog(_QuickAction a) {
-    showDialog(
-      context: Get.context!,
-      builder: (context) => AlertDialog(
-        title: Text('Nouvelle demande de réservation'.tr),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InterText(
-                text: a.subtitle,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w400,
-                color: AppColors.textPrimary(context),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('common_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              _onAccept(a);
-            },
-            child: Text('service_card_accept'.tr),
-          ),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              _onRefuse(a);
-            },
-            child: Text('service_card_refuse'.tr),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // v22.5 — Owner banner pay dialog : 3 actions (Voir détails / Annuler / Payer).
-  // Replicates the StripePaymentScreen pre-warm + cancel flow used in
-  // notifications_screen.dart so the owner gets a single tap to pay
-  // without traversing 3 screens.
-  void _showOwnerPayDialog(_QuickAction a) {
-    final booking = a.booking;
-    showDialog(
-      context: Get.context!,
-      builder: (dialogContext) => AlertDialog(
-        title: InterText(
-          text: a.title,
-          fontSize: 16.sp,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary(dialogContext),
-        ),
-        content: InterText(
-          text: a.subtitle,
-          fontSize: 13.sp,
-          color: AppColors.textPrimary(dialogContext),
-        ),
-        actionsOverflowDirection: VerticalDirection.down,
-        actions: [
-          // Voir détails
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              Get.to(() => OwnerBookingDetailScreen(booking: booking));
-            },
-            child: Text('common_view_details'.tr),
-          ),
-          // Annuler la réservation
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              CustomConfirmationDialog.show(
-                context: Get.context!,
-                message: 'booking_cancel_dialog_message'.tr,
-                yesText: 'common_yes'.tr,
-                cancelText: 'common_cancel'.tr,
-                onYes: () async {
-                  if (Get.isRegistered<BookingsController>()) {
-                    final ctrl = Get.find<BookingsController>();
-                    await ctrl.cancelBooking(
-                      bookingId: booking.id,
-                      sitterId: booking.sitter.id,
-                    );
-                  }
-                  if (Get.isOverlaysOpen) Get.back();
-                },
-              );
-            },
-            child: Text('service_card_cancel'.tr),
-          ),
-          // Payer (highlighted)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: a.color,
-              foregroundColor: AppColors.whiteColor,
-            ),
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              try {
-                final ownerRepo = Get.find<OwnerRepository>();
-                // Best-effort pre-warm so Airwallex sheet opens fast.
-                try {
-                  await ownerRepo.createPaymentIntent(bookingId: booking.id);
-                } catch (e) {
-                  AppLogger.logDebug('owner banner pre-warm failed: $e');
-                }
-                final pricing = booking.pricing;
-                final base = (pricing?.totalPrice
-                        ?? pricing?.resolvedBaseAmount
-                        ?? booking.totalAmount
-                        ?? booking.basePrice) ??
-                    0.0;
-                final serviceLower = (booking.serviceType ?? '').toLowerCase();
-                final providerType = (serviceLower.contains('walking') ||
-                        serviceLower.contains('dog_walking'))
-                    ? 'walker'
-                    : 'sitter';
-                await Get.to(
-                  () => StripePaymentScreen(
-                    booking: booking,
-                    totalAmount: base,
-                    currency: pricing?.currency ?? booking.sitter.currency,
-                    providerType: providerType,
-                  ),
-                );
-              } catch (e) {
-                AppLogger.logError('owner banner pay failed', error: e);
-              }
-            },
-            child: Text(a.ctaLabel),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -589,4 +427,223 @@ class _ActionBanner extends StatelessWidget {
                         label: action.ctaLabel,
                         bg: Colors.white,
                         fg: action.color,
-                    
+                        onTap: onTap,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _BannerCtaButton extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  const _BannerCtaButton({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        child: PoppinsText(
+          text: label,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+class _BannerSmallButton extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  const _BannerSmallButton({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32.w,
+        height: 32.w,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10.r),
+        ),
+        alignment: Alignment.center,
+        child: PoppinsText(
+          text: label,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w800,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Neutral fallback banner (no urgent action) ─────────────────────────────
+//
+// v21.1.1 — barre toujours visible même quand rien d'urgent. Couleur role-
+// based mais en alpha bas (subtile, n'écrase pas la home page). Cliquable
+// pour ouvrir l'historique des bookings.
+class _NeutralBar extends StatelessWidget {
+  final String role; // 'owner' | 'sitter' | 'walker'
+  final VoidCallback onTap;
+  const _NeutralBar({required this.role, required this.onTap});
+
+  Color _accent() {
+    switch (role) {
+      case 'walker':
+        return const Color(0xFF16A34A);
+      case 'sitter':
+        return const Color(0xFF2563EB);
+      case 'owner':
+      default:
+        return const Color(0xFFEF4324);
+    }
+  }
+
+  String _title() {
+    switch (role) {
+      case 'walker':
+        return 'Pas de demande en attente';
+      case 'sitter':
+        return 'Pas de demande en attente';
+      case 'owner':
+      default:
+        return 'Tout est à jour';
+    }
+  }
+
+  String _subtitle() {
+    switch (role) {
+      case 'walker':
+        return 'Reste connecté pour les nouvelles demandes de balade';
+      case 'sitter':
+        return 'Reste connecté pour les nouvelles demandes de garde';
+      case 'owner':
+      default:
+        return 'Aucune action en attente · découvre la PawMap';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _accent();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 4.h),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.20),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: accent,
+                  size: 20.sp,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(
+                      text: _title(),
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: _subtitle(),
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w500,
+                      color: accent.withValues(alpha: 0.85),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: accent.withValues(alpha: 0.6),
+                size: 20.sp,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Internal action descriptor ─────────────────────────────────────────────
+
+enum _Kind { ownerPay, providerAccept, providerPaid }
+
+class _QuickAction {
+  final _Kind kind;
+  final Color color;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String ctaLabel;
+  final BookingModel booking;
+  final bool pulse;
+  const _QuickAction({
+    required this.kind,
+    required this.color,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.ctaLabel,
+    required this.booking,
+    required this.pulse,
+  });
+}
+
