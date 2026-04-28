@@ -308,4 +308,12 @@ class PetRepository {
       details: response,
     );
   }
+
+  /// v23.1 — DELETE /pets/:id (owner only). Throws ApiException on 404/403/409.
+  Future<void> deletePet({required String petId}) async {
+    await _apiClient.delete(
+      '${ApiEndpoints.pets}/$petId',
+      requiresAuth: true,
+    );
+  }
 }

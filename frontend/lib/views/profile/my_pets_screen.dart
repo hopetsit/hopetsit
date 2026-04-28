@@ -15,6 +15,9 @@ import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/create_pet_profile_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
+import 'package:hopetsit/repositories/pet_repository.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 class MyPetsScreen extends StatelessWidget {
   const MyPetsScreen({super.key});
@@ -310,6 +313,23 @@ class MyPetsScreen extends StatelessWidget {
                             Icons.edit,
                             size: 18.sp,
                             color: AppColors.primaryColor,
+                          ),
+                        ),
+                      ),
+                      // v23.1 — Delete (corbeille) button
+                      SizedBox(width: 8.w),
+                      GestureDetector(
+                        onTap: () => _confirmAndDeletePet(context, pet.id),
+                        child: Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            color: AppColors.whiteColor.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.delete_outline,
+                            size: 18.sp,
+                            color: const Color(0xFFE53935),
                           ),
                         ),
                       ),
@@ -668,3 +688,51 @@ class MyPetsScreen extends StatelessWidget {
     );
   }
 }
+
+
+// v23.1 — Delete pet confirmation + API call.
+Future<void> _confirmAndDeletePet(BuildContext context, String petId) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('pet_delete_dialog_title'.tr),
+      content: Text('pet_delete_dialog_message'.tr),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text('common_cancel'.tr),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text('common_delete'.tr,
+              style: const TextStyle(color: Color(0xFFE53935))),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    final repo = Get.isRegistered<PetRepository>()
+        ? Get.find<PetRepository>()
+        : PetRepository(Get.find<ApiClient>());
+    await repo.deletePet(petId: petId);
+    if (Get.isRegistered<MyPetsController>()) {
+      await Get.find<MyPetsController>().refreshPets();
+    }
+    CustomSnackbar.showSuccess(
+      title: 'common_success'.tr,
+      message: 'pet_delete_success'.tr,
+    );
+  } catch (e) {
+    String msg = e.toString();
+    if (e is ApiException && e.details is Map) {
+      final d = (e.details as Map)['details'];
+      if (d is String && d.isNotEmpty) msg = d;
+    }
+    CustomSnackbar.showError(
+      title: 'common_error'.tr,
+      message: msg,
+    );
+  }
+}
+
