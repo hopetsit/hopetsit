@@ -206,19 +206,41 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
                 ),
               ),
             ),
-            // Sticky pay button at the bottom.
+            // Sticky pay + cancel buttons at the bottom.
             Padding(
               padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 20.h),
-              child: Obx(() => CustomButton(
-                    title: _controller.isProcessing.value
-                        ? 'payment_processing'.tr
-                        : '${'button_pay'.tr} ${CurrencyHelper.format(
-                            currency,
-                            widget.totalAmount,
-                          )}',
-                    onTap: _controller.isProcessing.value ? () {} : _onPayTap,
-                    bgColor: accent,
-                  )),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Obx(() => CustomButton(
+                        title: _controller.isProcessing.value
+                            ? 'payment_processing'.tr
+                            : '${'button_pay'.tr} ${CurrencyHelper.format(
+                                currency,
+                                widget.totalAmount,
+                              )}',
+                        onTap: _controller.isProcessing.value ? () {} : _onPayTap,
+                        bgColor: accent,
+                      )),
+                  SizedBox(height: 10.h),
+                  // v23.1 — explicit Cancel button (Daniel's request).
+                  Obx(() => TextButton(
+                        onPressed: _controller.isProcessing.value
+                            ? null
+                            : () => Get.back(),
+                        child: Text(
+                          'common_cancel'.tr,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: _controller.isProcessing.value
+                                ? Colors.grey
+                                : accent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )),
+                ],
+              ),
             ),
           ],
         ),
