@@ -347,6 +347,20 @@ class OwnerRepository {
   }
 
   /// Fetches list of bookings for the current owner.
+
+  /// v23.1 — explicit cancel of an in-flight PaymentIntent. Called when the
+  /// owner taps "Annuler" on the Payment screen. The backend cancels the
+  /// Airwallex PI and marks paymentStatus='cancelled_by_user'. Idempotent.
+  Future<Map<String, dynamic>> cancelPaymentIntent({required String bookingId}) async {
+    final response = await _apiClient.post(
+      '${ApiEndpoints.bookings}/$bookingId/cancel-payment-intent',
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return <String, dynamic>{};
+  }
+
   Future<List<BookingModel>> getMyBookings({String? status}) async {
     final response = await _apiClient.get(
       ApiEndpoints.myBookings,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/stripe_payment_controller.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
@@ -161,6 +162,17 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
     return buf.toString();
   }
 
+  Future<void> _onCancelTap() async {
+    try {
+      final repo = Get.find<OwnerRepository>();
+      await repo.cancelPaymentIntent(bookingId: widget.booking.id);
+    } catch (_) {
+      // Soft-fail — even if the cancel call errors, we still pop the screen.
+      // The PI will expire on Airwallex side anyway.
+    }
+    if (mounted) Get.back();
+  }
+
   Future<void> _onPayTap() async {
     // v21.1.1 — Airwallex HPP collecte la carte directement dans son webview.
     // Plus besoin de billingDetails côté Flutter.
@@ -223,11 +235,13 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
                         bgColor: accent,
                       )),
                   SizedBox(height: 10.h),
-                  // v23.1 — explicit Cancel button (Daniel's request).
+                  // v23.1 — explicit Cancel button.
+                  // Calls cancel-payment-intent backend so Airwallex PI is
+                  // properly voided + booking marked cancelled_by_user.
                   Obx(() => TextButton(
                         onPressed: _controller.isProcessing.value
                             ? null
-                            : () => Get.back(),
+                            : () => _onCancelTap(),
                         child: Text(
                           'common_cancel'.tr,
                           style: TextStyle(
