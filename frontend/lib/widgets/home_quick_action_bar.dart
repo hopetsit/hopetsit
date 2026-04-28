@@ -34,11 +34,15 @@ import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart' as snack;
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 
 class HomeQuickActionBar extends StatefulWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
@@ -54,15 +58,27 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // v22.1 — Bug 14a : worker pour réagir aux nouvelles notifs.
   Worker? _notifWorker;
   Timer? _periodicRefresh;
-  // v23.1 — PART 2 : in-memory dismiss list. The X button on the banner
-  // adds the booking id here. The banner reappears at the next refresh
-  // (controller change → new bookings list) so the user never permanently
-  // hides a still-required action.
+  // v23.1 — bug fix : persisted dismiss list. The X button on the banner
+  // adds the booking id here AND to GetStorage so the banner stays hidden
+  // across app restarts. Cleared at logout to avoid leaking across accounts
+  // (see auth_controller._forceDelete).
   final Set<String> _dismissedIds = <String>{};
+  final GetStorage _bannerStorage = GetStorage();
 
   @override
   void initState() {
     super.initState();
+    // v23.1 — hydrate the dismiss set from disk so dismissed banners stay
+    // hidden after app restart.
+    try {
+      final raw = _bannerStorage.read(StorageKeys.dismissedBannerBookings);
+      if (raw is List) {
+        for (final id in raw) {
+          if (id is String && id.isNotEmpty) _dismissedIds.add(id);
+        }
+      }
+    } catch (_) {}
+
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
@@ -309,7 +325,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         onRefuse: () => _onRefuse(action),
         // v23.1 — PART 2 : X dismiss callback. Owner-pay banners only.
         onDismiss: action.kind == _Kind.ownerPay
-            ? () => setState(() => _dismissedIds.add(action.booking.id))
+            ? () => _dismissBanner(action.booking.id)
             : null,
       );
     });
@@ -370,15 +386,62 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     }
   }
 
-  void _onAccept(_QuickAction a) {
-    // Provider side accept — defer to the existing booking detail screen
-    // which already exposes Accept/Refuse logic. This keeps the widget
-    // free of API coupling.
-    _onActionTap(a);
+  Future<void> _onAccept(_QuickAction a) async {
+    // v23.1 — bug #3 fix : really call POST /bookings/:id/respond instead of
+    // navigating to the details screen. Same endpoint works for sitter AND
+    // walker (no role middleware on the route).
+    await _respondToBooking(a, 'accept');
   }
 
-  void _onRefuse(_QuickAction a) {
-    _onActionTap(a);
+  Future<void> _onRefuse(_QuickAction a) async {
+    // v23.1 — bug #2 fix : really call POST /bookings/:id/respond reject.
+    await _respondToBooking(a, 'reject');
+  }
+
+  Future<void> _respondToBooking(_QuickAction a, String action) async {
+    final isAccept = action == 'accept';
+    try {
+      final repo = Get.isRegistered<SitterRepository>()
+          ? Get.find<SitterRepository>()
+          : SitterRepository();
+      await repo.respondToBooking(bookingId: a.booking.id, action: action);
+
+      // Refresh the relevant bookings list so the banner updates immediately.
+      try {
+        if (widget.role == 'sitter' &&
+            Get.isRegistered<SitterBookingsController>()) {
+          await Get.find<SitterBookingsController>().loadBookings();
+        } else if (widget.role == 'walker' &&
+            Get.isRegistered<WalkerBookingsController>()) {
+          await Get.find<WalkerBookingsController>().loadBookings();
+        }
+      } catch (e) {
+        AppLogger.logError('respondBooking refresh failed', error: e);
+      }
+
+      snack.CustomSnackbar.showSuccess(
+        title: isAccept ? 'snackbar_text_request_accepted'.tr : 'snackbar_text_request_refused'.tr,
+        message: isAccept
+            ? 'snackbar_text_request_accepted_message'.tr
+            : 'snackbar_text_request_refused_message'.tr,
+      );
+    } catch (e) {
+      AppLogger.logError('respondToBooking failed', error: e);
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString(),
+      );
+    }
+  }
+
+  void _dismissBanner(String bookingId) {
+    setState(() => _dismissedIds.add(bookingId));
+    try {
+      _bannerStorage.write(
+        StorageKeys.dismissedBannerBookings,
+        _dismissedIds.toList(),
+      );
+    } catch (_) {}
   }
 }
 

@@ -15,6 +15,11 @@ import 'package:flutter/scheduler.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
+import 'package:hopetsit/controllers/walker_bookings_controller.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/controllers/unified_notification_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
 import 'package:hopetsit/controllers/choose_service_controller.dart';
@@ -962,6 +967,15 @@ class AuthController extends GetxController {
     _forceDelete<SitterProfileController>();
     _forceDelete<HomeController>();
     _forceDelete<PostsController>();
+    // v23.1 — bug #4 fix : booking + notification controllers also carry
+    // user-scoped cache (RxList<BookingModel>). Without these deletes,
+    // logging out account A and back in as account B kept A's bookings
+    // in memory and they leaked into B's history screen + home banner.
+    _forceDelete<BookingsController>();
+    _forceDelete<SitterBookingsController>();
+    _forceDelete<WalkerBookingsController>();
+    _forceDelete<NotificationsController>();
+    _forceDelete<UnifiedNotificationController>();
   }
 
   /// Walker-specific refresh after role switch. Walker has no dedicated
@@ -1157,6 +1171,9 @@ class AuthController extends GetxController {
     await _storage.remove(StorageKeys.authToken);
     await _storage.remove(StorageKeys.userProfile);
     await _storage.remove(StorageKeys.userRole);
+    // v23.1 — clear banner-dismiss state so account A's dismissed bookings
+    // do not stay hidden when account B logs in.
+    await _storage.remove(StorageKeys.dismissedBannerBookings);
 
     // Clear controller state
     userRole.value = null;

@@ -11,4 +11,8 @@ class StorageKeys {
   // photo via /users/me/profile-picture une fois l'auth token disponible.
   // Effacé immédiatement après upload (ou si l'upload échoue 3 fois).
   static const String pendingSignupPhotoPath = 'pending_signup_photo_path';
+  // v23.1 — bug : owner-pay banner dismiss must survive app restart so a
+  // dismissed booking does not reappear on next app open. Cleared at logout
+  // to avoid leaking dismiss state across accounts.
+  static const String dismissedBannerBookings = 'dismissed_banner_bookings';
 }
