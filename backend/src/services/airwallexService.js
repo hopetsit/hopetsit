@@ -590,6 +590,32 @@ function mapAirwallexError(err) {
   return { code: 'UNKNOWN', message: msg, status, awxCode, details };
 }
 
+
+/**
+ * Cancel a PaymentIntent that is still in REQUIRES_PAYMENT_METHOD or
+ * REQUIRES_CONFIRMATION state (i.e. before the user has confirmed the
+ * payment). v23.1 — used by the explicit "Annuler" button on the Payment
+ * screen so a real cancel is recorded on Airwallex side instead of just
+ * letting the PI expire silently.
+ *
+ * Airwallex returns 400 if the PI is in a state where cancel is not allowed
+ * (e.g. SUCCEEDED, CANCELLED) — the caller should treat that as a soft no-op.
+ *
+ * @param {string} id
+ * @param {Object} [opts]
+ * @param {string} [opts.reason] free-form reason, defaults to 'requested_by_customer'
+ */
+async function cancelPaymentIntent(id, opts = {}) {
+  if (!id) throw new Error('PaymentIntent id is required');
+  return awxFetch(`/api/v1/pa/payment_intents/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    body: {
+      request_id: genRequestId('pi-cancel'),
+      cancellation_reason: opts.reason || 'requested_by_customer',
+    },
+  });
+}
+
 module.exports = {
   // Auth (exposed for debugging)
   getAccessToken,
@@ -598,6 +624,7 @@ module.exports = {
   createPaymentIntent,
   retrievePaymentIntent,
   confirmPaymentIntent,
+  cancelPaymentIntent,
   // Refunds
   createRefund,
   // Customers / saved cards

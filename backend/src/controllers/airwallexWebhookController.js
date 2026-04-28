@@ -49,6 +49,36 @@ const handleAirwallexWebhook = async (req, res) => {
         await booking.save();
         logger.info(`✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})`);
 
+        // v23.1 — push FCM + email + bell to BOTH parties on payment success.
+        try {
+          const { sendNotification } = require('../services/notificationSender');
+          const providerRole2 = booking.walkerId ? 'walker' : 'sitter';
+          const providerId2 = booking.walkerId
+            ? booking.walkerId.toString()
+            : (booking.sitterId ? booking.sitterId.toString() : null);
+          const ownerId2 = booking.ownerId ? booking.ownerId.toString() : null;
+          if (providerId2) {
+            sendNotification({
+              userId: providerId2,
+              role: providerRole2,
+              type: 'booking_paid',
+              data: { bookingId: booking._id.toString(), providerRole: providerRole2 },
+              actor: { role: 'owner', id: ownerId2 },
+            }).catch(() => {});
+          }
+          if (ownerId2) {
+            sendNotification({
+              userId: ownerId2,
+              role: 'owner',
+              type: 'booking_paid_owner',
+              data: { bookingId: booking._id.toString(), providerRole: providerRole2 },
+              actor: { role: providerRole2, id: providerId2 },
+            }).catch(() => {});
+          }
+        } catch (e) {
+          logger.warn(`[airwallex.webhook] sendNotification failed : ${e.message}`);
+        }
+
         // v22.4 — Bug A2 : push real-time event to owner so the
         // "Action requise" banner refreshes immediately (instead of
         // waiting up to 30s for the periodic refresh).

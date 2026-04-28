@@ -12,6 +12,7 @@ const {
   respondBooking,
   agreeToBooking,
   createBookingPaymentIntent,
+  cancelBookingPaymentIntent,
   confirmBookingPayment,
    createBookingPaypalOrder,
    captureBookingPaypalPayment,
@@ -624,6 +625,7 @@ router.put('/:id/agree', requireAuth, attachUserFromToken, agreeToBooking);
  *         description: Booking not found
  */
 router.post('/:id/create-payment-intent', requireAuth, requireRole('owner'), createBookingPaymentIntent);
+router.post('/:id/cancel-payment-intent', requireAuth, requireRole('owner'), cancelBookingPaymentIntent);
 
 /**
  * @docs

@@ -1654,11 +1654,24 @@ const respondBooking = async (req, res) => {
 
     return res.json({ booking: sanitizeBooking(booking) });
   } catch (error) {
-    logger.error('Respond booking error', error);
+    // v23.1 — structured logging + surface details so the toast is actionable
+    // instead of generic 500 'Unable to update booking. Please try again later.'.
+    logger.error(
+      { err: error, name: error?.name, message: error?.message, stack: error?.stack },
+      '❌ Respond booking error',
+    );
+    console.error('[respondBooking] EXPLICIT:', error);
     if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid booking id.' });
+      return res.status(400).json({ error: 'Invalid booking id.', code: 'INVALID_ID' });
     }
-    res.status(500).json({ error: 'Unable to update booking. Please try again later.' });
+    if (error?.message && /already (accepted|rejected|cancelled|paid|completed|agreed)/i.test(error.message)) {
+      return res.status(409).json({ error: error.message, code: 'BOOKING_FINAL_STATE' });
+    }
+    res.status(500).json({
+      error: 'Unable to update booking. Please try again later.',
+      code: 'RESPOND_BOOKING_FAILED',
+      details: error?.message || String(error),
+    });
   }
 };
 
@@ -2442,6 +2455,44 @@ const confirmBookingPayment = async (req, res) => {
           }
         } catch (e) {
           logger.error(`[confirmBookingPayment] payout trigger failed: ${e.message}`);
+        }
+
+        // v23.1 — push notif (bell + FCM + email) to BOTH the provider and
+        // the owner so a paid booking surfaces immediately in the bell badge,
+        // the lock-screen push, and the email inbox. Idempotent because
+        // justMarkedPaid is true only once.
+        try {
+          const providerRole2 = booking.walkerId ? 'walker' : 'sitter';
+          const providerId2 = booking.walkerId
+            ? booking.walkerId.toString()
+            : (booking.sitterId ? booking.sitterId.toString() : null);
+          const ownerId2 = booking.ownerId ? booking.ownerId.toString() : null;
+          if (providerId2) {
+            sendNotification({
+              userId: providerId2,
+              role: providerRole2,
+              type: 'booking_paid',
+              data: {
+                bookingId: booking._id.toString(),
+                providerRole: providerRole2,
+              },
+              actor: { role: 'owner', id: ownerId2 },
+            }).catch(() => {});
+          }
+          if (ownerId2) {
+            sendNotification({
+              userId: ownerId2,
+              role: 'owner',
+              type: 'booking_paid_owner',
+              data: {
+                bookingId: booking._id.toString(),
+                providerRole: providerRole2,
+              },
+              actor: { role: providerRole2, id: providerId2 },
+            }).catch(() => {});
+          }
+        } catch (e) {
+          logger.error(`[confirmBookingPayment] sendNotification failed: ${e.message}`);
         }
       }
 
@@ -3295,6 +3346,55 @@ const completeBooking = async (req, res) => {
   }
 };
 
+
+/**
+ * v23.1 — explicit cancel of an in-flight Airwallex PaymentIntent.
+ * Owner taps "Annuler" on the Payment screen → frontend POSTs here →
+ * we call airwallex.cancelPaymentIntent and mark booking.paymentStatus =
+ * 'cancelled_by_user'. Idempotent : if PI already cancelled / paid, we
+ * just return success without throwing.
+ */
+const cancelBookingPaymentIntent = async (req, res) => {
+  try {
+    const ownerId = req.user?.id;
+    const { id } = req.params;
+    if (!ownerId) {
+      return res.status(403).json({ error: 'Owner context missing.' });
+    }
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found.' });
+    }
+    if (booking.ownerId.toString() !== ownerId) {
+      return res.status(403).json({ error: 'You do not have permission to cancel this booking.' });
+    }
+    const pid = booking.airwallexPaymentIntentId;
+    if (!pid) {
+      // No PI to cancel, soft no-op.
+      return res.status(200).json({ ok: true, code: 'NO_PAYMENT_INTENT' });
+    }
+    if (booking.paymentStatus === 'paid') {
+      return res.status(409).json({ error: 'Booking is already paid; cannot cancel.' });
+    }
+    try {
+      await airwallex.cancelPaymentIntent(pid, { reason: 'requested_by_customer' });
+    } catch (e) {
+      // Airwallex returns 400 if PI is already in a final state — treat as soft success.
+      logger.warn(`[cancelBookingPaymentIntent] Airwallex cancel returned ${e?.status}: ${e?.message}`);
+    }
+    booking.paymentStatus = 'cancelled_by_user';
+    booking.airwallexPaymentIntentId = null;
+    await booking.save();
+    return res.status(200).json({ ok: true, bookingId: booking._id.toString(), paymentStatus: booking.paymentStatus });
+  } catch (error) {
+    logger.error({ err: error }, '[cancelBookingPaymentIntent] failed');
+    return res.status(500).json({
+      error: 'Unable to cancel payment intent.',
+      details: error?.message || String(error),
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   listBookings,
@@ -3305,6 +3405,7 @@ module.exports = {
   respondBooking,
   agreeToBooking,
   createBookingPaymentIntent,
+  cancelBookingPaymentIntent,
   confirmBookingPayment,
   createBookingPaypalOrder,
   captureBookingPaypalPayment,
