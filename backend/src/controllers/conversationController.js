@@ -493,8 +493,32 @@ const startConversation = async (req, res) => {
 
     // v18.9 — ne crée un Message QUE si le body est non-vide. Sinon on
     // renvoie juste la conversation.
+    // v23.1 — idempotency : if the same owner already posted the exact
+    // same body in the last 60 seconds, do NOT create a duplicate message.
+    // This prevented the chat opener (`payment_chat_opener_message`) from
+    // being posted 3 times when the user navigated back to the post-payment
+    // screen multiple times.
     let newMessage = null;
     if (trimmedMsgCheck) {
+      const sixtySecondsAgo = new Date(Date.now() - 60 * 1000);
+      const recentDuplicate = await Message.findOne({
+        conversationId: conversation._id,
+        senderRole: 'owner',
+        senderId: ownerId,
+        body: trimmedMsgCheck,
+        createdAt: { $gte: sixtySecondsAgo },
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+      if (recentDuplicate) {
+        // Skip create — return the conversation as if the message was sent.
+        await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
+        return res.status(201).json({
+          message: 'Conversation started successfully.',
+          conversation: sanitizeConversation(conversation),
+          duplicateSkipped: true,
+        });
+      }
       newMessage = await Message.create({
         conversationId: conversation._id,
         senderRole: 'owner',
