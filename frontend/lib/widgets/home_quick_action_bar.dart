@@ -362,7 +362,172 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       _navigateOwnerPay(a);
       return;
     }
+    // v23.1 — B1+B3 : when sitter/walker taps the "Nouvelle demande" banner,
+    // open a rich bottom sheet with owner profile + animal + lieu + date +
+    // heure + service type, plus inline accept/refuse buttons. Avoids the
+    // detour through BookingsHistoryScreen which lacked these details.
+    if (a.kind == _Kind.providerAccept) {
+      _showProviderRequestSheet(a);
+      return;
+    }
     Get.to(() => const BookingsHistoryScreen());
+  }
+
+  void _showProviderRequestSheet(_QuickAction a) {
+    final b = a.booking;
+    final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
+    final ownerAvatar = b.owner.avatar.url;
+    final petLabel = b.petName;
+    final dateLbl = _dateLabel(b);
+    final timeLbl = b.timeSlot.isNotEmpty ? b.timeSlot : '';
+    final svcLbl = _serviceLabel(b.serviceType);
+    // BookingModel has no locationType getter; we just use owner.address.
+    final addressLbl = b.owner.address.isNotEmpty ? b.owner.address : '';
+    final accent = a.color;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26.r,
+                    backgroundColor: accent.withValues(alpha: 0.15),
+                    backgroundImage:
+                        ownerAvatar.isNotEmpty ? NetworkImage(ownerAvatar) : null,
+                    child: ownerAvatar.isEmpty
+                        ? Icon(Icons.person, color: accent, size: 26.sp)
+                        : null,
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PoppinsText(
+                          text: ownerName,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        SizedBox(height: 2.h),
+                        InterText(
+                          text: 'role_pet_owner'.tr,
+                          fontSize: 12.sp,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              _sheetRow(Icons.pets, petLabel),
+              if (svcLbl.isNotEmpty) _sheetRow(Icons.work_outline, svcLbl),
+              if (dateLbl.isNotEmpty) _sheetRow(Icons.event_outlined, dateLbl),
+              if (timeLbl.isNotEmpty)
+                _sheetRow(Icons.access_time, timeLbl),
+              if (addressLbl.isNotEmpty)
+                _sheetRow(Icons.location_on_outlined, addressLbl),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _onAccept(a);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      child: Text(
+                        'snackbar_text_request_accepted'.tr,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _onRefuse(a);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: const Color(0xFFE53935)),
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      child: Text(
+                        'snackbar_text_request_refused'.tr,
+                        style: TextStyle(
+                          color: const Color(0xFFE53935),
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetRow(IconData icon, String text) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 6.h),
+      child: Row(
+        children: [
+          Icon(icon, size: 18.sp, color: Colors.grey),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: InterText(
+              text: text,
+              fontSize: 13.sp,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// v22.5 — PART 3 : pre-warm createPaymentIntent puis push StripePaymentScreen.
