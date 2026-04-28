@@ -267,6 +267,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     for (final b in bookings) {
       final pay = (b.paymentStatus ?? '').toLowerCase();
       final st  = (b.status ?? '').toLowerCase();
+      // v23.1 — same dismiss list as ownerPay so a sitter/walker can hide
+      // the 'Paiement reçu' banner permanently.
+      if (_dismissedIds.contains(b.id)) continue;
       if (pay == 'paid' && st != 'completed') {
         final isWalker = widget.role == 'walker';
         final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
@@ -329,10 +332,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         onTap: () => _onActionTap(action),
         onAccept: () => _onAccept(action),
         onRefuse: () => _onRefuse(action),
-        // v23.1 — PART 2 : X dismiss callback. Owner-pay banners only.
-        // Dismiss ALL aggregated bookings (the '+N autres'), not just the
-        // first one, so the banner stays hidden after a single X tap.
-        onDismiss: action.kind == _Kind.ownerPay
+        // v23.1 — PART 2 : X dismiss callback. Owner-pay AND provider-paid
+        // banners (sitter/walker side after payment received).
+        onDismiss: (action.kind == _Kind.ownerPay ||
+                action.kind == _Kind.providerPaid)
             ? () => _dismissBannerMulti(
                   action.allBookingIds.isNotEmpty
                       ? action.allBookingIds

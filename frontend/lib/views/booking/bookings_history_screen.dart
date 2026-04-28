@@ -10,6 +10,8 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/reviews/reviews_screen.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:intl/intl.dart';
 
 // v22.3 — Bug 17e : helpers de formatage pour eviter "2026-04-28T00:00:00.000Z"
@@ -588,7 +590,12 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
         // excluait le cas le plus courant : sitter accepte → status =
         // 'accepted' → paymentStatus null/vide → owner ne voyait pas le
         // bouton sur la card. Aligné avec la logique de home_quick_action_bar.
-        if ((statusLower == 'accepted' ||
+        // v23.1 — bug fix : the button must ONLY appear for the owner role.
+        // Before, sitter & walker also saw "Payer maintenant" on their
+        // received booking cards, which navigated them to the agreement
+        // screen with a Pay action (= 403 forbidden role on tap).
+        if (((GetStorage().read<String>(StorageKeys.userRole) ?? '').toLowerCase() == 'owner') &&
+            (statusLower == 'accepted' ||
                 statusLower == 'agreed' ||
                 statusLower == 'mutually_accepted' ||
                 statusLower == 'confirmed') &&
