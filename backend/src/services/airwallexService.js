@@ -213,27 +213,25 @@ async function createPlatformPaymentIntent({ amount, currency, metadata = {} }) 
 
 
 /**
- * Create a marketplace PaymentIntent for a booking (owner pays, sitter
- * receives most of the funds, platform keeps 20%).
+ * Create a marketplace PaymentIntent for a booking.
  *
- * v20.1 STATUS — temporarily falls back to a platform-only PI so the rest of
- * the pipeline keeps working while the Airwallex Beneficiaries / Connected
- * Accounts integration is built in the next session. Funds will accumulate
- * on the HoPetSit master wallet and be transferred manually until then.
+ * v23.1 STATUS — marketplace flow IS implemented end-to-end:
+ *   1. Owner pays → PaymentIntent on the platform Airwallex wallet (this fn).
+ *   2. Webhook `payment_intent.succeeded` (airwallexWebhookController) marks
+ *      the booking paid and calls `processProviderPayoutForBooking`.
+ *   3. That helper invokes `createPayout(beneficiaryId)` to release 80% to
+ *      the provider's IBAN (lazy `createBeneficiary` on first IBAN save).
+ *   4. Webhook `payment.dispatched` / `payment.failed` updates
+ *      booking.payoutStatus accordingly.
+ *
+ * If the provider has NOT yet configured an IBAN (= no airwallexBeneficiaryId
+ * on Sitter/Walker), the PI still succeeds — the payout is held until the
+ * provider completes their IBAN onboarding, then released by the periodic
+ * payoutScheduler. This is fine and intentional.
  *
  * @param {Object} params  same shape as stripeService.createPaymentIntent
  */
 async function createPaymentIntent(params) {
-  // TODO(airwallex-marketplace): swap this for a real Connect-style flow.
-  //   Plan:
-  //   1. createBeneficiary(sitter) on first booking — store id on Sitter.
-  //   2. Use Payouts API after PI capture to send (amount × 0.8) to the
-  //      sitter's IBAN beneficiary, keep 20% on the platform wallet.
-  //   3. Mirror stripeWebhookController to listen to payment_intent.succeeded
-  //      and trigger the payout.
-  logger.warn('[airwallex] createPaymentIntent: marketplace flow not yet ' +
-    'implemented — falling back to platform-only PI. Funds will need a ' +
-    'manual payout from the HoPetSit Airwallex wallet to the sitter IBAN.');
   return createPlatformPaymentIntent({
     amount: params.amount,
     currency: params.currency,
@@ -529,6 +527,69 @@ async function retrievePayout(id) {
   return awxFetch(`/api/v1/payouts/${encodeURIComponent(id)}`);
 }
 
+
+// ─── Structured error mapping ──────────────────────────────────────────────
+//
+// v23.1 — translates an Airwallex API error (or any thrown Error inside this
+// service) into a stable, frontend-friendly { code, message } pair. Callers
+// should pass `err` from a try/catch and forward the resulting `code` to the
+// client toast so the user sees an actionable, translated message.
+//
+// Codes are intentionally finite and stable across versions:
+//   PAYMENT_INTENT_FAILED     — generic Airwallex 4xx/5xx on PI create
+//   PAYMENT_AUTH_FAILED       — 401 / 403 / token issue (env vars wrong)
+//   PAYMENT_DECLINED          — card declined / risk rejected
+//   PROVIDER_NOT_CONFIGURED   — sitter/walker has no airwallexBeneficiaryId
+//   AMOUNT_INVALID            — negative / zero / NaN amount
+//   CURRENCY_INVALID          — missing / unsupported currency
+//   ENV_NOT_CONFIGURED        — AIRWALLEX_CLIENT_ID / API_KEY missing
+//   UNKNOWN                   — fallback, includes raw message in details
+
+function mapAirwallexError(err) {
+  if (!err) return { code: 'UNKNOWN', message: 'Unknown error', details: null };
+
+  const msg = String(err?.message || err || '').trim();
+  const status = Number(err?.status) || 0;
+  const awxCode = String(err?.code || '').trim();
+  const details = err?.details || null;
+
+  // Env / auth issues (backend mis-configured)
+  if (msg.includes('AIRWALLEX_CLIENT_ID') || msg.includes('AIRWALLEX_API_KEY')) {
+    return { code: 'ENV_NOT_CONFIGURED', message: msg, status, awxCode, details };
+  }
+  if (status === 401 || status === 403 || msg.includes('login failed')) {
+    return { code: 'PAYMENT_AUTH_FAILED', message: msg, status, awxCode, details };
+  }
+
+  // Local validation throws
+  if (msg.includes('Currency is required') || msg.includes('Unsupported currency')) {
+    return { code: 'CURRENCY_INVALID', message: msg, status, awxCode, details };
+  }
+  if (msg.includes('Amount must be') || msg.includes('positive integer in cents')) {
+    return { code: 'AMOUNT_INVALID', message: msg, status, awxCode, details };
+  }
+  if (msg.includes('beneficiary') || msg.includes('Beneficiary') || awxCode === 'beneficiary_not_found') {
+    return { code: 'PROVIDER_NOT_CONFIGURED', message: msg, status, awxCode, details };
+  }
+
+  // Card decline-style codes from Airwallex
+  if (
+    awxCode === 'card_declined' ||
+    awxCode === 'do_not_honor' ||
+    awxCode === 'insufficient_funds' ||
+    msg.toLowerCase().includes('declined')
+  ) {
+    return { code: 'PAYMENT_DECLINED', message: msg, status, awxCode, details };
+  }
+
+  // Anything else from Airwallex → generic PI failure
+  if (status >= 400 || awxCode) {
+    return { code: 'PAYMENT_INTENT_FAILED', message: msg, status, awxCode, details };
+  }
+
+  return { code: 'UNKNOWN', message: msg, status, awxCode, details };
+}
+
 module.exports = {
   // Auth (exposed for debugging)
   getAccessToken,
@@ -554,4 +615,6 @@ module.exports = {
   retrievePayout,
   // Constants
   PLATFORM_COMMISSION_RATE,
+  // Error mapping (v23.1)
+  mapAirwallexError,
 };
