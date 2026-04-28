@@ -656,6 +656,27 @@ const Map<String, String> frFRTranslations = <String, String>{
           'Le montant minimum accepté est de 0,50 €. Ajuste le tarif ou la durée de la prestation.',
       'payment_initiate_error':
           'Échec de l\'initiation du paiement. Veuillez réessayer.',
+      // v23.1 — PART 4 structured Airwallex error mapping.
+      'payment_error_intent_failed':
+          'Le paiement n\'a pas pu être initié. Réessaie dans un instant.',
+      'payment_error_auth_failed':
+          'Configuration de paiement incorrecte. Contacte le support.',
+      'payment_error_declined':
+          'Carte refusée. Vérifie ton plafond ou utilise une autre carte.',
+      'payment_error_provider_not_configured':
+          'Le prestataire n\'a pas encore configuré son IBAN. Le paiement sera mis en attente.',
+      'payment_error_amount_invalid':
+          'Montant invalide. Vérifie le tarif et la durée de la prestation.',
+      'payment_error_currency_invalid':
+          'Devise non prise en charge. Contacte le support.',
+      'payment_error_env_not_configured':
+          'Le service de paiement est en maintenance. Réessaie plus tard.',
+      'payment_error_invalid_id':
+          'Réservation introuvable. Recharge la page et réessaie.',
+      'payment_error_provider_incomplete':
+          'Le prestataire doit compléter ses informations avant de recevoir un paiement.',
+      'payment_error_unknown':
+          'Une erreur inattendue est survenue. Réessaie ou contacte le support.',
       'payment_confirmation_failed':
           'Échec de la confirmation du paiement. Veuillez contacter le support.',
       'payment_chat_with_sitter': 'Discuter avec ton sitter',

@@ -604,6 +604,27 @@ const Map<String, String> enUSTranslations = <String, String>{
       'payment_min_amount_message':
           'The minimum accepted amount is €0.50. Please adjust the rate or duration.',
       'payment_initiate_error': 'Failed to initiate payment. Please try again.',
+      // v23.1 — PART 4 structured Airwallex error mapping.
+      'payment_error_intent_failed':
+          'Payment could not be initiated. Please try again shortly.',
+      'payment_error_auth_failed':
+          'Payment configuration error. Please contact support.',
+      'payment_error_declined':
+          'Card declined. Check your card limit or try another card.',
+      'payment_error_provider_not_configured':
+          'The provider has not configured their IBAN yet. The payout will be held until they do.',
+      'payment_error_amount_invalid':
+          'Invalid amount. Check the price and duration of the service.',
+      'payment_error_currency_invalid':
+          'Unsupported currency. Please contact support.',
+      'payment_error_env_not_configured':
+          'Payment service is under maintenance. Please try again later.',
+      'payment_error_invalid_id':
+          'Booking not found. Reload the page and try again.',
+      'payment_error_provider_incomplete':
+          'The provider must complete their info before receiving a payment.',
+      'payment_error_unknown':
+          'An unexpected error occurred. Please try again or contact support.',
       'payment_confirmation_failed':
           'Payment confirmation failed. Please contact support.',
       'payment_chat_with_sitter': 'Chat with your sitter',
