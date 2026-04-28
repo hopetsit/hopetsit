@@ -43,6 +43,7 @@ import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 
 class HomeQuickActionBar extends StatefulWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
@@ -401,9 +402,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   Future<void> _respondToBooking(_QuickAction a, String action) async {
     final isAccept = action == 'accept';
     try {
+      // v23.1 — SitterRepository requires an ApiClient. The DI registers it
+      // at startup, so the fallback path is just defensive in case the repo
+      // wasn't put yet (e.g. a hot-reload race).
       final repo = Get.isRegistered<SitterRepository>()
           ? Get.find<SitterRepository>()
-          : SitterRepository();
+          : SitterRepository(Get.find<ApiClient>());
       await repo.respondToBooking(bookingId: a.booking.id, action: action);
 
       // Refresh the relevant bookings list so the banner updates immediately.
