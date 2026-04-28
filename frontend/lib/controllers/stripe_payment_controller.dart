@@ -139,10 +139,26 @@ class StripePaymentController extends GetxController {
       String errorTitle = 'payment_error_title'.tr;
 
       final code = AirwallexErrorTranslator.extractCode(error);
-      if (code != null) {
+      // v23.1 — when backend returns a recognised non-UNKNOWN code, use the
+      // localized message. Otherwise (UNKNOWN or missing code) prefer the
+      // backend's `details` field — much more diagnostic than the generic
+      // "Une erreur inattendue est survenue".
+      if (code != null && code != 'UNKNOWN') {
         errorMessage = AirwallexErrorTranslator.translate(code);
         if (AirwallexErrorTranslator.isUserActionable(code)) {
           errorTitle = 'payment_invalid_amount_title'.tr;
+        }
+      } else if (code == 'UNKNOWN') {
+        // Surface the raw backend message so the cause is visible.
+        final details = error.details;
+        if (details is Map) {
+          final d = details['details'];
+          if (d is String && d.isNotEmpty) {
+            errorMessage = d;
+          } else {
+            final m = details['message'];
+            if (m is String && m.isNotEmpty) errorMessage = m;
+          }
         }
       } else {
         final lowered = error.message.toLowerCase();
