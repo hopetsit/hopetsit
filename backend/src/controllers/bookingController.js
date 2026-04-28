@@ -2407,7 +2407,8 @@ const confirmBookingPayment = async (req, res) => {
 
     if (alreadyPaid) {
       // Marquer la booking si pas encore fait (race avec le webhook).
-      if (booking.paymentStatus !== 'paid') {
+      const justMarkedPaid = booking.paymentStatus !== 'paid';
+      if (justMarkedPaid) {
         booking.paymentStatus = 'paid';
         booking.paidAt = new Date();
         booking.paymentProvider = 'airwallex';
@@ -2422,6 +2423,71 @@ const confirmBookingPayment = async (req, res) => {
         } catch (e) {
           logger.error(`[confirmBookingPayment] payout trigger failed: ${e.message}`);
         }
+      }
+
+      // v23.1 — fallback path : when the Airwallex webhook does not reach us
+      // (demo env, mis-configured webhook URL), the system message and chat
+      // unlock that the webhook handler creates would never fire and the
+      // user sees "Le chat s'ouvre après confirmation du paiement" forever.
+      // Mirror that webhook logic here, idempotently (skip if a system msg
+      // already exists for this booking's conversation).
+      try {
+        const Conversation = require('../models/Conversation');
+        const Message = require('../models/Message');
+        const ownerId2 = booking.ownerId;
+        const sitterId2 = booking.sitterId || null;
+        const walkerId2 = booking.walkerId || null;
+        const providerId2 = sitterId2 || walkerId2;
+        if (ownerId2 && providerId2) {
+          const providerField = sitterId2 ? 'sitterId' : 'walkerId';
+          const providerRole = sitterId2 ? 'sitter' : 'walker';
+          let conversation = await Conversation.findOne({
+            ownerId: ownerId2,
+            [providerField]: providerId2,
+          });
+          if (!conversation) {
+            conversation = await Conversation.create({
+              ownerId: ownerId2,
+              [providerField]: providerId2,
+              bookingId: booking._id,
+            });
+            logger.info(`[confirmBookingPayment] conversation created ${conversation._id} for booking ${booking._id}`);
+          }
+          // Idempotent : create the system message only if none exists yet
+          // for this conversation+booking pair.
+          const existingSysMsg = await Message.findOne({
+            conversationId: conversation._id,
+            senderRole: 'system',
+            body: { $regex: /Paiement confirm/i },
+          }).lean();
+          if (!existingSysMsg) {
+            const systemMessage = await Message.create({
+              conversationId: conversation._id,
+              senderRole: 'system',
+              senderId: ownerId2,
+              body: '✅ Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
+              type: 'text',
+            });
+            try {
+              const { emitToUser } = require('../sockets');
+              emitToUser('owner', ownerId2.toString(), 'message.new', {
+                conversationId: conversation._id.toString(),
+                message: systemMessage.toObject(),
+              });
+              emitToUser(providerRole, providerId2.toString(), 'message.new', {
+                conversationId: conversation._id.toString(),
+                message: systemMessage.toObject(),
+              });
+              emitToUser('owner', ownerId2.toString(), 'booking:paid', {
+                bookingId: booking._id.toString(),
+                paymentStatus: 'paid',
+              });
+            } catch (_) { /* socket non-critique */ }
+            logger.info(`✅ [confirmBookingPayment] system message + chat unlocked for booking ${booking._id} (sync fallback)`);
+          }
+        }
+      } catch (e) {
+        logger.error(`[confirmBookingPayment] chat unlock fallback failed: ${e.message}`);
       }
 
       return res.status(200).json({
