@@ -138,6 +138,15 @@ const attachCurrencyToAddOns = (addOns, currency) => {
  * @returns {Object} Recommended price range with currency attached
  */
 const getRecommendedPriceRange = (serviceType, locationType, duration = null, currency = DEFAULT_CURRENCY) => {
+  // v23.1 — defensive guards. Previously serviceType=null crashed at
+  // `.toLowerCase()` and surfaced as a generic 500 in createBooking.
+  if (!serviceType || typeof serviceType !== 'string') {
+    throw new Error(`Invalid service type: ${serviceType}`);
+  }
+  if (!locationType || typeof locationType !== 'string') {
+    throw new Error(`Invalid location type: ${locationType}`);
+  }
+
   const normalizedServiceType = serviceType.toLowerCase();
   if (!SERVICE_TYPE_VALUES[normalizedServiceType]) {
     throw new Error(`Invalid service type: ${serviceType}`);
