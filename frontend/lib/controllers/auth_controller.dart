@@ -862,15 +862,23 @@ class AuthController extends GetxController {
       _scheduleRefreshAfterRoleSwitch();
     } on ApiException catch (e) {
       debugPrint('[HOPETSIT] ❌ Switch role API error: ${e.message}');
+      // v23.1 — surface the real backend message so we can diagnose. Tries
+      // `details` (preferred actionable cause) → falls back to message.
+      String msg = e.message;
+      final det = e.details;
+      if (det is Map) {
+        final d = det['details'];
+        if (d is String && d.isNotEmpty) msg = d;
+      }
       CustomSnackbar.showError(
-        title: 'auth_role_switch_failed',
-        message: 'auth_role_switch_failed',
+        title: 'snackbar_text_switch_role_failed'.tr,
+        message: msg,
       );
     } catch (e) {
       debugPrint('[HOPETSIT] ❌ Error switching role: $e');
       CustomSnackbar.showError(
-        title: 'snackbar_text_switch_role_failed',
-        message: 'snackbar_text_failed_to_switch_role_please_try_again',
+        title: 'snackbar_text_switch_role_failed'.tr,
+        message: e.toString(),
       );
     } finally {
       isSwitchingRole.value = false;
