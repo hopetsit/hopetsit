@@ -15,7 +15,7 @@ const {
   SERVICE_TYPES,
   LOCATION_TYPES,
 } = require('../utils/pricing');
-// Stripe disabled (v21.1.1 purge) — removed createPaymentIntent, getPaymentIntent, confirmPaymentIntent, createRefund, sendPayoutToIBAN
+// Stripe disabled (v21.1.1 purge) — calls now use airwallex.* (createPlatformPaymentIntent, retrievePaymentIntent, confirmPaymentIntent, createRefund, createPayout)
 // v21 — Airwallex platform-only PI fallback when PAYMENT_PROVIDER=airwallex.
 // Marketplace split (Beneficiaries + Payouts API) lands in v21.1 ;
 // in the meantime funds accumulate on the HoPetSit Airwallex wallet and
@@ -1809,8 +1809,8 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
 
   // If a PaymentIntent already exists for this booking, return it (unless already paid).
   if (booking.airwallexPaymentIntentId) {
-    const existing = await getPaymentIntent(booking.airwallexPaymentIntentId);
-    if (existing.status === 'succeeded') {
+    const existing = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
+    if ((existing.status || '').toUpperCase() === 'SUCCEEDED') {
       throw new Error('Payment already completed for this booking.');
     }
     return {
@@ -2020,8 +2020,8 @@ const createBookingPaymentIntent = async (req, res) => {
 
     // Check if payment already exists
     if (booking.airwallexPaymentIntentId) {
-      const existingPaymentIntent = await getPaymentIntent(booking.airwallexPaymentIntentId);
-      if (existingPaymentIntent.status === 'succeeded') {
+      const existingPaymentIntent = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
+      if ((existingPaymentIntent.status || '').toUpperCase() === 'SUCCEEDED') {
         return res.status(400).json({ error: 'Payment already completed for this booking.' });
       }
       // Return existing PaymentIntent client secret
@@ -2815,11 +2815,11 @@ const requestCancellation = async (req, res) => {
       // If charge ID is missing, try to get it from payment intent
       if (!chargeId && booking.airwallexPaymentIntentId) {
         try {
-          const paymentIntent = await getPaymentIntent(booking.airwallexPaymentIntentId);
+          const paymentIntent = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
           paymentIntentStatus = paymentIntent.status;
           
           // Only proceed with refund if payment was actually successful
-          if (paymentIntent.status === 'succeeded' && paymentIntent.latest_charge) {
+          if ((paymentIntent.status || '').toUpperCase() === 'SUCCEEDED' && paymentIntent.latest_charge) {
             chargeId = typeof paymentIntent.latest_charge === 'string' 
               ? paymentIntent.latest_charge 
               : paymentIntent.latest_charge.id;
@@ -2832,7 +2832,7 @@ const requestCancellation = async (req, res) => {
       } else if (booking.airwallexPaymentIntentId) {
         // Check payment intent status even if we have charge ID
         try {
-          const paymentIntent = await getPaymentIntent(booking.airwallexPaymentIntentId);
+          const paymentIntent = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
           paymentIntentStatus = paymentIntent.status;
         } catch (error) {
           logger.error('Error retrieving payment intent status:', error);
@@ -2937,7 +2937,7 @@ const getPaymentStatus = async (req, res) => {
 
     if (booking.airwallexPaymentIntentId) {
       try {
-        paymentIntentDetails = await getPaymentIntent(booking.airwallexPaymentIntentId);
+        paymentIntentDetails = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
         paymentIntentStatus = paymentIntentDetails.status;
       } catch (error) {
         logger.error('Error fetching payment intent:', error);
