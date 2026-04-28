@@ -1531,6 +1531,11 @@ const Map<String, String> enUSTranslations = <String, String>{
       'snackbar_text_successfully_switched_to_userrole_value':
           'Successfully switched role successfully.',
       'snackbar_text_switch_role_failed': 'Switch Role Failed',
+      // v23.1 — bug #2/#3 banner accept/reject snackbars.
+      'snackbar_text_request_accepted': 'Request accepted',
+      'snackbar_text_request_accepted_message': 'The request has been accepted. The client can now pay.',
+      'snackbar_text_request_refused': 'Request refused',
+      'snackbar_text_request_refused_message': 'The request has been refused.',
       'snackbar_text_unknown_user_role_please_try_again':
           'Unknown user role. Please try again.',
       'snackbar_text_verification_code_has_been_resent_to_your_email':
