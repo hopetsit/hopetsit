@@ -213,6 +213,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           ctaLabel: ctaLabel,
           booking: b,
           pulse: false,
+          allBookingIds: acceptedToPay.map((bk) => bk.id).toList(),
         );
       }
       // Lower priority — payment pending warning (orange).
@@ -329,8 +330,14 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         onAccept: () => _onAccept(action),
         onRefuse: () => _onRefuse(action),
         // v23.1 — PART 2 : X dismiss callback. Owner-pay banners only.
+        // Dismiss ALL aggregated bookings (the '+N autres'), not just the
+        // first one, so the banner stays hidden after a single X tap.
         onDismiss: action.kind == _Kind.ownerPay
-            ? () => _dismissBanner(action.booking.id)
+            ? () => _dismissBannerMulti(
+                  action.allBookingIds.isNotEmpty
+                      ? action.allBookingIds
+                      : <String>[action.booking.id],
+                )
             : null,
       );
     });
@@ -445,7 +452,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   }
 
   void _dismissBanner(String bookingId) {
-    setState(() => _dismissedIds.add(bookingId));
+    _dismissBannerMulti(<String>[bookingId]);
+  }
+
+  void _dismissBannerMulti(List<String> bookingIds) {
+    if (bookingIds.isEmpty) return;
+    setState(() => _dismissedIds.addAll(bookingIds));
     try {
       _bannerStorage.write(
         StorageKeys.dismissedBannerBookings,
@@ -781,6 +793,11 @@ class _QuickAction {
   final String ctaLabel;
   final BookingModel booking;
   final bool pulse;
+  // v23.1 — when an owner-pay banner aggregates multiple bookings ('+2 autres'),
+  // we keep the full list here so a single X tap dismisses *all* of them at
+  // once — otherwise the banner reappeared on next refresh with the next
+  // unpaid booking and Daniel could never get rid of it.
+  final List<String> allBookingIds;
   const _QuickAction({
     required this.kind,
     required this.color,
@@ -790,6 +807,7 @@ class _QuickAction {
     required this.ctaLabel,
     required this.booking,
     required this.pulse,
+    this.allBookingIds = const <String>[],
   });
 }
 
