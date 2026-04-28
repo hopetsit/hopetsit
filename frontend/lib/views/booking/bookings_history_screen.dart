@@ -74,9 +74,33 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
     if (_selectedStatus == 'all') {
       return _bookingsController.bookings;
     }
-    return _bookingsController.bookings
-        .where((booking) => booking.status.toLowerCase() == _selectedStatus)
-        .toList();
+    return _bookingsController.bookings.where((booking) {
+      final s = (booking.status ?? '').toLowerCase();
+      final p = (booking.paymentStatus ?? '').toLowerCase();
+      switch (_selectedStatus) {
+        case 'pending':
+          return s == 'pending' || s == 'requested';
+        case 'agreed':
+          // 'Acceptée' label covers accepted / agreed / mutually_accepted
+          // / confirmed (any provider-accepted state) but NOT yet paid.
+          return (s == 'accepted' ||
+                  s == 'agreed' ||
+                  s == 'mutually_accepted' ||
+                  s == 'confirmed') &&
+              p != 'paid';
+        case 'paid':
+          // 'Payée' tab keys off paymentStatus, not booking status.
+          return p == 'paid';
+        case 'failed':
+          return p == 'failed' || p == 'payment_failed' || s == 'payment_failed';
+        case 'cancelled':
+          return s == 'cancelled' || p == 'cancelled' || s == 'rejected';
+        case 'refunded':
+          return p == 'refunded';
+        default:
+          return s == _selectedStatus;
+      }
+    }).toList();
   }
 
   @override
