@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
-const { createOrUpdatePet, listPets, getPetById, uploadPetMedia, getMyPets, getAllPets, updatePetProfile, updatePetMedia } = require('../controllers/petController');
+const { createOrUpdatePet, listPets, getPetById, uploadPetMedia, getMyPets, getAllPets, updatePetProfile, updatePetMedia, deletePet } = require('../controllers/petController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -491,6 +491,7 @@ router.get('/', listPets);
  *         description: Pet not found
  */
 router.get('/:id', getPetById);
+router.delete('/:id', requireAuth, requireRole('owner'), deletePet);
 
 module.exports = router;
 

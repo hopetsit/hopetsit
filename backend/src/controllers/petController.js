@@ -754,6 +754,53 @@ const updatePetMedia = async (req, res) => {
   }
 };
 
+
+/**
+ * v23.1 — DELETE /pets/:id (owner only). Removes a pet profile.
+ * Refuses to delete if the pet is referenced by an active booking
+ * (status pending / accepted / agreed / paid) — owner must cancel
+ * those bookings first.
+ */
+const deletePet = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const { id } = req.params;
+    if (!userId || userRole !== 'owner') {
+      return res.status(403).json({ error: 'Owner context required.' });
+    }
+    const pet = await Pet.findOne({ _id: id, ownerId: userId });
+    if (!pet) {
+      return res.status(404).json({ error: 'Pet not found or does not belong to you.' });
+    }
+    // Check for active bookings referencing this pet.
+    const Booking = require('../models/Booking');
+    const activeBooking = await Booking.findOne({
+      petIds: pet._id,
+      status: { $in: ['pending', 'accepted', 'agreed', 'mutually_accepted', 'paid'] },
+    }).select('_id status').lean();
+    if (activeBooking) {
+      return res.status(409).json({
+        error: 'Cannot delete a pet with active bookings.',
+        code: 'PET_HAS_ACTIVE_BOOKINGS',
+        details: `Cet animal est lié à une réservation ${activeBooking.status}. Annule la réservation avant de supprimer le profil.`,
+      });
+    }
+    await pet.deleteOne();
+    logger.info(`[deletePet] pet=${pet._id} deleted by owner=${userId}`);
+    return res.status(200).json({ ok: true, deletedId: pet._id.toString() });
+  } catch (error) {
+    logger.error({ err: error }, '[deletePet] failed');
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid pet id.' });
+    }
+    return res.status(500).json({
+      error: 'Unable to delete pet.',
+      details: error?.message || String(error),
+    });
+  }
+};
+
 module.exports = {
   createOrUpdatePet,
   listPets,
@@ -763,5 +810,6 @@ module.exports = {
   getAllPets,
   updatePetProfile,
   updatePetMedia,
+  deletePet,
 };
 
