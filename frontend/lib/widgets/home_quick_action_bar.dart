@@ -54,6 +54,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // v22.1 — Bug 14a : worker pour réagir aux nouvelles notifs.
   Worker? _notifWorker;
   Timer? _periodicRefresh;
+  // v23.1 — PART 2 : in-memory dismiss list. The X button on the banner
+  // adds the booking id here. The banner reappears at the next refresh
+  // (controller change → new bookings list) so the user never permanently
+  // hides a still-required action.
+  final Set<String> _dismissedIds = <String>{};
 
   @override
   void initState() {
@@ -149,6 +154,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         final status = (b.status ?? '').toLowerCase();
         final pay    = (b.paymentStatus ?? '').toLowerCase();
         if (pay == 'paid') return false;
+        // v23.1 — PART 2 : skip bookings the user dismissed via the X button.
+        if (_dismissedIds.contains(b.id)) return false;
         return status == 'accepted' || status == 'agreed' || status == 'mutually_accepted';
       }).toList();
 
@@ -300,6 +307,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         onTap: () => _onActionTap(action),
         onAccept: () => _onAccept(action),
         onRefuse: () => _onRefuse(action),
+        // v23.1 — PART 2 : X dismiss callback. Owner-pay banners only.
+        onDismiss: action.kind == _Kind.ownerPay
+            ? () => setState(() => _dismissedIds.add(action.booking.id))
+            : null,
       );
     });
   }
@@ -379,6 +390,8 @@ class _ActionBanner extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onAccept;
   final VoidCallback onRefuse;
+  // v23.1 — PART 2 : optional X dismiss button (owner-pay only).
+  final VoidCallback? onDismiss;
 
   const _ActionBanner({
     required this.action,
@@ -386,6 +399,7 @@ class _ActionBanner extends StatelessWidget {
     required this.onTap,
     required this.onAccept,
     required this.onRefuse,
+    this.onDismiss,
   });
 
   @override
@@ -472,6 +486,22 @@ class _ActionBanner extends StatelessWidget {
                         fg: action.color,
                         onTap: onTap,
                       ),
+                    // v23.1 — PART 2 : X dismiss button (owner-pay only).
+                    if (onDismiss != null) ...[
+                      SizedBox(width: 6.w),
+                      GestureDetector(
+                        onTap: onDismiss,
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: EdgeInsets.all(4.w),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: Colors.white.withValues(alpha: 0.85),
+                            size: 18.sp,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
