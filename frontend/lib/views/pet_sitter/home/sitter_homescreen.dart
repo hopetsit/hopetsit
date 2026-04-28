@@ -28,6 +28,7 @@ import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // Comments removed from publications
 import 'package:hopetsit/widgets/rounded_text_button.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -954,10 +955,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               if (_filterState.serviceType != null &&
                                   _filterState.serviceType!.isNotEmpty)
                                 _activeFilterChip(
-                                  _filterState.serviceType!.replaceAll(
-                                    '_',
-                                    ' ',
-                                  ),
+                                  // v23.1 — bug #34 : translate via translateServiceType
+                                  // so 'day_care' shows as 'Garderie' (FR) not raw.
+                                  translateServiceType(_filterState.serviceType),
                                   Icons.pets_outlined,
                                 ),
                               if (_filterState.dateRange != null)

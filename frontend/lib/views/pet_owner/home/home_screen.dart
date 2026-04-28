@@ -22,6 +22,7 @@ import 'package:hopetsit/views/pet_owner/home/widgets/sitter_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
 import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -88,7 +89,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static String _serviceTypesDisplay(List<String> types) {
     if (types.isEmpty) return '';
-    return types.map((t) => t.replaceAll('_', ' ')).join(', ');
+    // v23.1 — bug #34 fix : use translateServiceType so 'day_care' becomes
+    // 'Garderie' (FR) / 'Day Care' (EN) / etc. instead of the raw 'day care'.
+    return types
+        .map(translateServiceType)
+        .where((s) => s.isNotEmpty)
+        .join(', ');
   }
 
   static String? _postDateRangeLabel(PostModel post) {
