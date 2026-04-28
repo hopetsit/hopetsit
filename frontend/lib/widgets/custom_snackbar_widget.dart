@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/localization/app_translations.dart';
-import '../utils/app_colors.dart';
+import 'package:hopetsit/widgets/modern_toast.dart';
 
 class CustomSnackbar {
   static Map<String, String>? _reverseValueToKey;
@@ -145,60 +145,31 @@ class CustomSnackbar {
     return false;
   }
 
+  // v22.5 — POLISH 2 : les 4 méthodes ci-dessous délèguent à ModernToast
+  // (slim, slide-from-top, swipe-dismiss, auto 3s). Avant elles utilisaient
+  // Get.snackbar direct (gros bandeau). La machinerie historique
+  // (_t pour traduire, _shouldSuppress pour debounce, _showSafe pour
+  // post-frame) est préservée donc les ~200 call sites existants restent
+  // inchangés. Voir lib/widgets/modern_toast.dart pour le wrapper.
+
   static void showError({required String title, required String message}) {
     if (_shouldSuppress(title, message)) return;
     _showSafe(() {
-      Get.snackbar(
-        _t(title),
-        _t(message),
-        backgroundColor: AppColors.primaryColor,
-        colorText: AppColors.whiteColor,
-        snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-        icon: const Icon(Icons.error_outline, color: AppColors.whiteColor),
-      );
+      ModernToast.error(_t(message), title: _t(title));
     });
   }
 
   static void showSuccess({required String title, required String message}) {
     if (_shouldSuppress(title, message)) return;
     _showSafe(() {
-      Get.snackbar(
-        _t(title),
-        _t(message),
-        backgroundColor: Colors.green,
-        colorText: AppColors.whiteColor,
-        snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-        icon: const Icon(
-          Icons.check_circle_outline,
-          color: AppColors.whiteColor,
-        ),
-      );
+      ModernToast.success(_t(message), title: _t(title));
     });
   }
 
   static void showWarning({required String title, required String message}) {
     if (_shouldSuppress(title, message)) return;
     _showSafe(() {
-      Get.snackbar(
-        _t(title),
-        _t(message),
-        backgroundColor: Colors.orange,
-        colorText: AppColors.whiteColor,
-        snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-        icon: const Icon(
-          Icons.warning_amber_outlined,
-          color: AppColors.whiteColor,
-        ),
-      );
+      ModernToast.warning(_t(message), title: _t(title));
     });
   }
 
@@ -206,17 +177,7 @@ class CustomSnackbar {
   static void showInfo({required String title, required String message}) {
     if (_shouldSuppress(title, message)) return;
     _showSafe(() {
-      Get.snackbar(
-        _t(title),
-        _t(message),
-        backgroundColor: Colors.blue,
-        colorText: AppColors.whiteColor,
-        snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-        icon: const Icon(Icons.info_outline, color: AppColors.whiteColor),
-      );
+      ModernToast.info(_t(message), title: _t(title));
     });
   }
 }
