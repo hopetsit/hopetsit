@@ -597,6 +597,20 @@ const createBooking = async (req, res) => {
     if (error.message && (error.message.includes('hourlyRate') || error.message.includes('required for pricing'))) {
       return res.status(400).json({ error: error.message });
     }
+    // v23.1 — pricing.js throws structured "Invalid service type" /
+    // "Invalid location type" / "No recommended range" / "Base price must
+    // be a positive number" / "Unsupported currency". Map these to 400 so
+    // the client toast shows the actionable cause instead of a generic 500.
+    if (
+      error.message &&
+      (error.message.includes('Invalid service type') ||
+       error.message.includes('Invalid location type') ||
+       error.message.includes('No recommended range') ||
+       error.message.includes('Base price must be') ||
+       error.message.includes('Unsupported currency'))
+    ) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({
       error: 'Unable to send booking request. Please try again later.',
       details: error?.message || String(error),
@@ -2117,23 +2131,60 @@ const createBookingPaymentIntent = async (req, res) => {
       message: 'PaymentIntent created successfully. Use clientSecret with Stripe Payment Sheet.',
     });
   } catch (error) {
-    logger.error('Create payment intent error', error);
+    // v23.1 — structured error mapping (PART 4). Backend now returns a stable
+    // `code` (PAYMENT_INTENT_FAILED, PROVIDER_NOT_CONFIGURED, …) so the
+    // frontend can show a translated, actionable toast instead of the raw
+    // English Airwallex error.
+    const mapped = airwallex.mapAirwallexError(error);
+    logger.error(
+      {
+        err: error,
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack,
+        airwallexStatus: error?.status,
+        airwallexCode: error?.code,
+        airwallexDetails: error?.details,
+        mappedCode: mapped.code,
+      },
+      '❌ Create payment intent error',
+    );
+    console.error('[createBookingPaymentIntent] EXPLICIT:', error);
+
     if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid booking id.' });
+      return res.status(400).json({ error: 'Invalid booking id.', code: 'INVALID_ID' });
     }
-    if (error.message && (error.message.includes('Unsupported currency') || error.message.includes('Currency is required'))) {
-      return res.status(400).json({ error: error.message });
+    if (mapped.code === 'CURRENCY_INVALID' || mapped.code === 'AMOUNT_INVALID') {
+      return res.status(400).json({ error: mapped.message, code: mapped.code });
+    }
+    if (mapped.code === 'ENV_NOT_CONFIGURED') {
+      return res.status(500).json({
+        error: mapped.message,
+        code: mapped.code,
+        debug: {
+          airwallexEnv: {
+            hasClientId: !!process.env.AIRWALLEX_CLIENT_ID,
+            hasApiKey: !!process.env.AIRWALLEX_API_KEY,
+            useDemo: process.env.AIRWALLEX_USE_DEMO === 'true',
+          },
+        },
+      });
     }
     if (error.message && error.message.includes('must have')) {
-      return res.status(400).json({ error: error.message });
+      return res.status(400).json({ error: error.message, code: 'PROVIDER_INCOMPLETE' });
     }
-    // v22.1 — Bug 12b : remonter le message Airwallex réel pour diagnostic.
-    // À retirer plus tard mais critique tant que les paiements échouent.
+    // Fallback — keep the raw airwallex details under `debug` for diagnostic
+    // until paiements stabilisés. Frontend reads `code` first.
     res.status(500).json({
       error: 'Unable to create payment intent. Please try again later.',
+      code: mapped.code,
+      details: mapped.message,
       debug: {
         message: error.message,
         name: error.name,
+        awxStatus: mapped.status,
+        awxCode: mapped.awxCode,
+        awxDetails: mapped.details,
         airwallexEnv: {
           hasClientId: !!process.env.AIRWALLEX_CLIENT_ID,
           hasApiKey: !!process.env.AIRWALLEX_API_KEY,
