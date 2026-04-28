@@ -73,11 +73,23 @@ const calculateTierBasePrice = ({ hourlyRate, dailyRate, weeklyRate, monthlyRate
     // booking 1 jour (24h) facturait 24 × hourly_derived = 24 × (d/8) = 3×d,
     // ce qui explosait la facture (ou l'écrasait si hourly dérivé bas).
     // Désormais : dayCount × dailyRate + fraction hourly pour le reste.
+    //
+    // v23.1 — bug fix : when 8h ≤ hoursRaw < 24h, fullDays = 0 and the old
+    // formula `0*d + hoursRaw*hEffective` was just hourly billing in
+    // disguise (e.g. 10h × 5/8 = 6.25€ instead of 1 day = 5€). Now we bill
+    // a flat 1 dailyRate as soon as the booking spans at least 8h within a
+    // single day. Multi-day bookings keep the fullDays + fractional hourly
+    // remainder logic.
     pricingTier = 'daily';
     appliedRate = d;
     const fullDays = Math.floor(hoursRaw / 24);
     const remHours = hoursRaw - fullDays * 24;
-    basePrice = fullDays * d + (remHours > 0 ? remHours * hEffective : 0);
+    if (fullDays === 0) {
+      // 8h ≤ hoursRaw < 24h → 1 single-day booking → flat dailyRate.
+      basePrice = d;
+    } else {
+      basePrice = fullDays * d + (remHours > 0 ? remHours * hEffective : 0);
+    }
   }
 
   return {
