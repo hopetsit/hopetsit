@@ -7,6 +7,7 @@ import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/utils/airwallex_error_translator.dart';
 import 'package:hopetsit/views/payment/payment_result_screen.dart';
 import 'package:hopetsit/controllers/loyalty_controller.dart';
 
@@ -130,19 +131,31 @@ class StripePaymentController extends GetxController {
     } on ApiException catch (error) {
       AppLogger.logError('Payment initiation failed', error: error.message);
 
+      // v23.1 — read the structured backend code first (PAYMENT_INTENT_FAILED,
+      // PROVIDER_NOT_CONFIGURED, PAYMENT_DECLINED, …) and translate via
+      // AirwallexErrorTranslator. Falls back to the legacy heuristic on
+      // unstructured (older backend) responses.
       String errorMessage = error.message;
       String errorTitle = 'payment_error_title'.tr;
 
-      final lowered = error.message.toLowerCase();
-      if (lowered.contains('amount must be at least') ||
-          lowered.contains('min_amount') ||
-          lowered.contains('trop petit') ||
-          (lowered.contains('amount') && lowered.contains('50'))) {
-        errorTitle = 'payment_invalid_amount_title'.tr;
-        errorMessage = 'payment_min_amount_message'.tr;
-      } else if (lowered.contains('amount') || lowered.contains('price')) {
-        errorTitle = 'payment_invalid_amount_title'.tr;
-        errorMessage = 'payment_invalid_amount_message'.tr;
+      final code = AirwallexErrorTranslator.extractCode(error);
+      if (code != null) {
+        errorMessage = AirwallexErrorTranslator.translate(code);
+        if (AirwallexErrorTranslator.isUserActionable(code)) {
+          errorTitle = 'payment_invalid_amount_title'.tr;
+        }
+      } else {
+        final lowered = error.message.toLowerCase();
+        if (lowered.contains('amount must be at least') ||
+            lowered.contains('min_amount') ||
+            lowered.contains('trop petit') ||
+            (lowered.contains('amount') && lowered.contains('50'))) {
+          errorTitle = 'payment_invalid_amount_title'.tr;
+          errorMessage = 'payment_min_amount_message'.tr;
+        } else if (lowered.contains('amount') || lowered.contains('price')) {
+          errorTitle = 'payment_invalid_amount_title'.tr;
+          errorMessage = 'payment_invalid_amount_message'.tr;
+        }
       }
 
       CustomSnackbar.showError(title: errorTitle, message: errorMessage);
