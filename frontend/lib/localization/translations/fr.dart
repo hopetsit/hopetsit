@@ -3,6 +3,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'common_yes': 'Oui',
       'common_no': 'Non',
       'common_cancel': 'Annuler',
+      // v23.1 — pet delete keys
+      'pet_delete_dialog_title': 'Supprimer le profil',
+      'pet_delete_dialog_message': 'Confirme la suppression du profil de cet animal. Cette action est irréversible.',
+      'pet_delete_success': 'Profil animal supprimé.',
+      'common_delete': 'Supprimer',
       // Session v17 — role labels used by StripePaymentScreen header chip.
       'role_walker': 'Promeneur',
       'role_sitter': 'Petsitter',

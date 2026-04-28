@@ -4,6 +4,11 @@ const Map<String, String> enUSTranslations = <String, String>{
       'common_yes': 'Yes',
       'common_no': 'No',
       'common_cancel': 'Cancel',
+      // v23.1 — pet delete keys
+      'pet_delete_dialog_title': 'Delete profile',
+      'pet_delete_dialog_message': 'Confirm deletion of this pet profile. This action is irreversible.',
+      'pet_delete_success': 'Pet profile deleted.',
+      'common_delete': 'Delete',
       // Session v17 — role labels used by StripePaymentScreen header chip.
       'role_walker': 'Walker',
       'role_sitter': 'Petsitter',
