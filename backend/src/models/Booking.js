@@ -157,7 +157,7 @@ const bookingSchema = new mongoose.Schema(
     // Pricing information
     pricing: {
       basePrice: { type: Number, required: true },
-      pricingTier: { type: String, enum: ['hourly', 'weekly', 'monthly'], default: 'hourly' },
+      pricingTier: { type: String, enum: ['hourly', 'daily', 'weekly', 'monthly'], default: 'hourly' },
       appliedRate: { type: Number, default: 0 },
       totalHours: { type: Number, default: 0 },
       totalDays: { type: Number, default: 0 },
