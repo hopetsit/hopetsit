@@ -441,6 +441,26 @@ const createBooking = async (req, res) => {
       }
     }
 
+    // v23.1 — minimum 5 hours for day-bound services (day_care, pet_sitting,
+    // house_sitting). Without this, owners could create a 30-minute "garderie"
+    // booking that tier-priced as hourly fraction (~4€) below the sitter's
+    // dailyRate (5€), confusing both parties. Reject early with a clear message.
+    const dayBoundTypes = ['day_care', 'garderie', 'pet_sitting', 'house_sitting'];
+    if (dayBoundTypes.includes(rawServiceType) && normalizedStartDate && effectiveEndDateForPricing) {
+      const startTs = new Date(normalizedStartDate).getTime();
+      const endTs = new Date(effectiveEndDateForPricing).getTime();
+      if (Number.isFinite(startTs) && Number.isFinite(endTs)) {
+        const hours = (endTs - startTs) / (1000 * 60 * 60);
+        if (hours > 0 && hours < 5) {
+          return res.status(400).json({
+            error: 'Minimum 5 hours required for day_care / pet_sitting / house_sitting bookings.',
+            code: 'MIN_DURATION_DAY_CARE',
+            details: `La garderie ou pet-sitting demande au moins 5 heures. Tu as demandé ${hours.toFixed(1)}h. Allonge la plage horaire ou choisis un autre type de service.`,
+          });
+        }
+      }
+    }
+
     const tierPricing = calculateTierBasePrice({
       hourlyRate: sitter.hourlyRate,
       // v18.9.5 — pass dailyRate pour le tier "daily" (pet_sitting /
