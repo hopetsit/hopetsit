@@ -65,6 +65,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   // (see auth_controller._forceDelete).
   final Set<String> _dismissedIds = <String>{};
   final GetStorage _bannerStorage = GetStorage();
+  // v23.1 — debounce double-tap on ✓/✗. Without this, two quick taps
+  // both fire respondToBooking → second call hits 'Booking already X'
+  // / a 500 (race on save), and the user sees a confusing red toast.
+  bool _isResponding = false;
 
   @override
   void initState() {
@@ -400,6 +404,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   }
 
   Future<void> _respondToBooking(_QuickAction a, String action) async {
+    if (_isResponding) return; // v23.1 — debounce double-tap
+    _isResponding = true;
     final isAccept = action == 'accept';
     try {
       // v23.1 — SitterRepository requires an ApiClient. The DI registers it
