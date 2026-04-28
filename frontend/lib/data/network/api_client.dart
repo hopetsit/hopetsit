@@ -505,6 +505,9 @@ class ApiClient {
       );
 
       for (final key in const [
+        // v23.1 — backend now standardly returns { error: <generic>, details: <actionable cause> }
+        // for 500s. Prefer `details` so the toast shows the useful message.
+        'details',
         'message',
         'error',
         'error_message',
