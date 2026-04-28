@@ -66,7 +66,31 @@ const requireRole =
       return res.status(500).json({ error: 'Authentication context missing.' });
     }
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'You do not have permission to perform this action.' });
+      // v23.1 — explicit logging so we can identify WHICH endpoint a 403
+      // came from when bug reports come in. Daniel reports walker hitting
+      // 'You do not have permission' — this tells us exactly which route.
+      logger.warn(
+        {
+          path: req.originalUrl,
+          method: req.method,
+          userRole: req.user.role,
+          allowedRoles,
+        },
+        '[requireRole] 403 forbidden',
+      );
+      return res.status(403).json({
+        error: 'You do not have permission to perform this action.',
+        code: 'FORBIDDEN_ROLE',
+        // v23.1 — surface path + role in `details` so the toast (which now
+        // prefers `details`) shows the actionable info directly.
+        details: `${req.method} ${req.originalUrl} requires role(s): ${allowedRoles.join('|')} (you are: ${req.user.role})`,
+        debug: {
+          path: req.originalUrl,
+          method: req.method,
+          yourRole: req.user.role,
+          allowedRoles,
+        },
+      });
     }
     return next();
   };
