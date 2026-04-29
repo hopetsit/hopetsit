@@ -734,6 +734,62 @@ const respondToApplication = async (req, res) => {
         actor: { role: 'owner', id: ownerId },
       }).catch(() => {});
 
+      // v23.1 — B5 : auto-reject all other pending applications targeting the
+      // same postId, and notify each affected sitter/walker that the mission
+      // was assigned to someone else. Best-effort — failures are logged but
+      // do not roll back the accept.
+      try {
+        if (application.postId) {
+          const otherApps = await Application.find({
+            postId: application.postId,
+            _id: { $ne: application._id },
+            status: 'pending',
+          });
+          if (otherApps.length > 0) {
+            await Application.updateMany(
+              {
+                postId: application.postId,
+                _id: { $ne: application._id },
+                status: 'pending',
+              },
+              {
+                $set: {
+                  status: 'rejected',
+                  autoRejectedBecauseAnotherAccepted: true,
+                  rejectedAt: new Date(),
+                },
+              },
+            );
+            for (const otherApp of otherApps) {
+              const otherRole = otherApp.walkerId ? 'walker' : 'sitter';
+              const otherId = otherApp.walkerId
+                ? otherApp.walkerId.toString()
+                : (otherApp.sitterId ? otherApp.sitterId.toString() : null);
+              if (otherId) {
+                sendNotification({
+                  userId: otherId,
+                  role: otherRole,
+                  type: 'application_rejected_other_accepted',
+                  data: {
+                    applicationId: otherApp._id.toString(),
+                    postId: application.postId.toString(),
+                    providerRole: otherRole,
+                  },
+                  actor: { role: 'owner', id: ownerId },
+                }).catch(() => {});
+              }
+            }
+            logger.info(
+              `[respondToApplication] auto-rejected ${otherApps.length} other application(s) for post ${application.postId}`,
+            );
+          }
+        }
+      } catch (autoRejectErr) {
+        logger.warn(
+          `[respondToApplication] auto-reject of siblings failed: ${autoRejectErr?.message || autoRejectErr}`,
+        );
+      }
+
       // Session v17.1 — Conversation model is sitter-only (sitterId required
       // + unique index). Create the conversation only for sitter applications
       // so we don't crash on walker accept. Walker conversations will land in

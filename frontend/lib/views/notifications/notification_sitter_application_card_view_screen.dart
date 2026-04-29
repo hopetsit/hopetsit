@@ -14,6 +14,7 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dar
 import 'package:hopetsit/views/pet_sitter/widgets/pet_sitter_application_card.dart';
 import 'package:intl/intl.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
+import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 
 class NotificationSitterApplicationCardViewScreen extends StatefulWidget {
   const NotificationSitterApplicationCardViewScreen({
@@ -265,7 +266,9 @@ class _NotificationSitterApplicationCardViewScreenState
                       SizedBox(height: 12.h),
                       GestureDetector(
                         onTap: () {
-                          Get.until((route) => route.isFirst);
+                          // v23.1 — B2 : navigate directly to the bookings
+                          // history instead of just popping to home.
+                          Get.to(() => const BookingsHistoryScreen());
                         },
                         child: Container(
                           padding: EdgeInsets.symmetric(

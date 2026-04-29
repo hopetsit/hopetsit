@@ -1171,9 +1171,10 @@ class AuthController extends GetxController {
     await _storage.remove(StorageKeys.authToken);
     await _storage.remove(StorageKeys.userProfile);
     await _storage.remove(StorageKeys.userRole);
-    // v23.1 — clear banner-dismiss state so account A's dismissed bookings
-    // do not stay hidden when account B logs in.
-    await _storage.remove(StorageKeys.dismissedBannerBookings);
+    // v23.1 — keep StorageKeys.dismissedBannerBookings across logout: the
+    // stored values are MongoDB ObjectIds unique to a booking, so they
+    // cannot leak between accounts. Clearing them caused the dismissed
+    // banner to reappear after every logout/login cycle (Daniel's bug).
 
     // Clear controller state
     userRole.value = null;
