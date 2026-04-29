@@ -36,47 +36,51 @@ export default function PawMapPage() {
 
   const pawfollowPlans: Plan[] = [
     {
-      name: "PawFollow Mensuel",
+      name: t("pawfollow_monthly_name"),
       price: "6,99 €",
-      period: "/ mois",
-      tagline: "Sans engagement",
+      period: t("pawfollow_monthly_period"),
+      tagline: t("pawfollow_monthly_tagline"),
       features: [
-        "Reports communautaires sur la PawMap",
-        "Carte des amis et alertes proximité",
-        "Chat illimité",
-        "1 PawSpot offert / mois",
+        t("pawfollow_monthly_f1"),
+        t("pawfollow_monthly_f2"),
+        t("pawfollow_monthly_f3"),
+        t("pawfollow_monthly_f4"),
       ],
       highlighted: false,
     },
     {
-      name: "PawFollow Annuel",
+      name: t("pawfollow_yearly_name"),
       price: "49,99 €",
-      period: "/ an",
-      tagline: "≈ 4,17 € / mois — économise 40%",
-      features: ["Tout PawFollow Mensuel", "2 mois offerts vs mensuel", "Engagement 12 mois"],
+      period: t("pawfollow_yearly_period"),
+      tagline: t("pawfollow_yearly_tagline"),
+      features: [
+        t("pawfollow_yearly_f1"),
+        t("pawfollow_yearly_f2"),
+        t("pawfollow_yearly_f3"),
+      ],
       highlighted: true,
-      badge: "ÉCONOMIQUE",
+      badge: t("pawfollow_yearly_badge"),
     },
     {
-      name: "PawFollow Famille",
+      name: t("pawfollow_family_name"),
       price: "9,99 €",
-      period: "/ mois",
-      tagline: "Jusqu'à 5 utilisateurs",
+      period: t("pawfollow_monthly_period"),
+      tagline: t("pawfollow_family_tagline"),
       features: [
-        "Tout PawFollow Mensuel",
-        "Partage avec 5 membres famille",
-        "Suivi temps-réel partagé",
-        "Chat groupe famille + sitter / walker",
+        t("pawfollow_family_f1"),
+        t("pawfollow_family_f2"),
+        t("pawfollow_family_f3"),
+        t("pawfollow_family_f4"),
       ],
       highlighted: false,
-      badge: "POPULAIRE",
+      badge: t("pawfollow_family_badge"),
     },
   ];
 
   const pawspotOffers: Offer[] = [
-    { name: "PawSpot 24h", price: "1,99 €", details: "Mise en avant 24 heures sur la carte" },
-    { name: "PawSpot 7 jours", price: "8,99 €", details: "Mise en avant 1 semaine + halo lumineux" },
-    { name: "PawSpot 30 jours", price: "24,99 €", details: "Mise en avant 1 mois + push notifications proximité" },
+    { name: t("pawspot_24h_name"), price: "1,99 €", details: t("pawspot_24h_details") },
+    { name: t("pawspot_7d_name"), price: "8,99 €", details: t("pawspot_7d_details") },
+    { name: t("pawspot_30d_name"), price: "24,99 €", details: t("pawspot_30d_details") },
   ];
 
   return (
@@ -97,9 +101,11 @@ export default function PawMapPage() {
       </div>
 
       <div className="mt-20">
-        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">PawFollow</h2>
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+          {t("pawfollow_title")}
+        </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-base text-ink-muted">
-          Débloque toutes les fonctionnalités de la PawMap, le suivi temps-réel et le chat illimité avec ton sitter / walker.
+          {t("pawfollow_desc")}
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -136,9 +142,11 @@ export default function PawMapPage() {
       </div>
 
       <div className="mt-20">
-        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">PawSpot</h2>
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+          {t("pawspot_title")}
+        </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-base text-ink-muted">
-          Mets en avant un lieu (cabinet véto, pet shop, salon de toilettage, café pet-friendly…) sur la PawMap pour être vu en priorité par les utilisateurs autour de toi.
+          {t("pawspot_desc")}
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -151,7 +159,7 @@ export default function PawMapPage() {
           ))}
         </div>
         <p className="mx-auto mt-6 max-w-xl text-center text-xs text-ink-muted">
-          Chaque abonnement PawFollow inclut 1 PawSpot 24h offert par mois.
+          {t("pawspot_footer_note")}
         </p>
       </div>
 
