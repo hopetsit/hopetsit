@@ -3,8 +3,25 @@
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
+type Plan = {
+  name: string;
+  price: string;
+  period: string;
+  tagline: string;
+  features: string[];
+  highlighted: boolean;
+  badge?: string;
+};
+
+type Offer = {
+  name: string;
+  price: string;
+  details: string;
+};
+
 export default function PawMapPage() {
   const { t } = useT();
+
   const cats = [
     { emoji: "🩺", label: "Vets" },
     { emoji: "🛒", label: "Pet shops" },
@@ -17,8 +34,7 @@ export default function PawMapPage() {
     { emoji: "🍽️", label: "Pet-friendly restaurants" },
   ];
 
-  // v23.1 — PawFollow plans (formerly PawPass).
-  const pawfollowPlans = [
+  const pawfollowPlans: Plan[] = [
     {
       name: "PawFollow Mensuel",
       price: "6,99 €",
@@ -31,20 +47,15 @@ export default function PawMapPage() {
         "1 PawSpot offert / mois",
       ],
       highlighted: false,
-      badge: undefined as string | undefined,
     },
     {
       name: "PawFollow Annuel",
       price: "49,99 €",
       period: "/ an",
       tagline: "≈ 4,17 € / mois — économise 40%",
-      features: [
-        "Tout PawFollow Mensuel",
-        "2 mois offerts vs mensuel",
-        "Engagement 12 mois",
-      ],
+      features: ["Tout PawFollow Mensuel", "2 mois offerts vs mensuel", "Engagement 12 mois"],
       highlighted: true,
-      badge: "ÉCONOMIQUE" as string | undefined,
+      badge: "ÉCONOMIQUE",
     },
     {
       name: "PawFollow Famille",
@@ -58,12 +69,11 @@ export default function PawMapPage() {
         "Chat groupe famille + sitter / walker",
       ],
       highlighted: false,
-      badge: "POPULAIRE" as string | undefined,
+      badge: "POPULAIRE",
     },
   ];
 
-  // PawSpot — boost ponctuel d'un lieu sur la PawMap.
-  const pawspotOffers = [
+  const pawspotOffers: Offer[] = [
     { name: "PawSpot 24h", price: "1,99 €", details: "Mise en avant 24 heures sur la carte" },
     { name: "PawSpot 7 jours", price: "8,99 €", details: "Mise en avant 1 semaine + halo lumineux" },
     { name: "PawSpot 30 jours", price: "24,99 €", details: "Mise en avant 1 mois + push notifications proximité" },
@@ -75,49 +85,37 @@ export default function PawMapPage() {
         {t("pawmap_title")}
       </h1>
       <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-ink-muted">{t("pawmap_sub")}</p>
-      <p className="mt-3 text-center text-sm font-semibold text-walker-dark">
-        {t("pawmap_categories")}
-      </p>
+      <p className="mt-3 text-center text-sm font-semibold text-walker-dark">{t("pawmap_categories")}</p>
 
       <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3">
         {cats.map((c) => (
-          <div
-            key={c.label}
-            className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card"
-          >
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-walker-light text-xl">
-              {c.emoji}
-            </span>
+          <div key={c.label} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-walker-light text-xl">{c.emoji}</span>
             <span className="text-sm font-semibold text-ink">{c.label}</span>
           </div>
         ))}
       </div>
 
-      {/* PawFollow plans */}
       <div className="mt-20">
-        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-          PawFollow
-        </h2>
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">PawFollow</h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-base text-ink-muted">
-          Débloque toutes les fonctionnalités de la PawMap, le suivi temps-réel
-          et le chat illimité avec ton sitter / walker.
+          Débloque toutes les fonctionnalités de la PawMap, le suivi temps-réel et le chat illimité avec ton sitter / walker.
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
           {pawfollowPlans.map((p) => (
             <div
               key={p.name}
-              className={`relative rounded-2xl border bg-white p-6 shadow-card transition ${
-                p.highlighted
-                  ? "border-walker ring-2 ring-walker scale-[1.02]"
-                  : "border-ink/5"
-              }`}
+              className={
+                "relative rounded-2xl border bg-white p-6 shadow-card transition " +
+                (p.highlighted ? "border-walker ring-2 ring-walker scale-[1.02]" : "border-ink/5")
+              }
             >
-              {p.badge && (
+              {p.badge ? (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white">
                   {p.badge}
                 </span>
-              )}
+              ) : null}
               <h3 className="text-lg font-bold text-ink">{p.name}</h3>
               <p className="mt-3 text-3xl font-extrabold text-walker-dark">
                 {p.price}
@@ -137,23 +135,15 @@ export default function PawMapPage() {
         </div>
       </div>
 
-      {/* PawSpot offers */}
       <div className="mt-20">
-        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-          PawSpot
-        </h2>
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">PawSpot</h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-base text-ink-muted">
-          Mets en avant un lieu (cabinet véto, pet shop, salon de toilettage, café
-          pet-friendly…) sur la PawMap pour être vu en priorité par les utilisateurs
-          autour de toi.
+          Mets en avant un lieu (cabinet véto, pet shop, salon de toilettage, café pet-friendly…) sur la PawMap pour être vu en priorité par les utilisateurs autour de toi.
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
           {pawspotOffers.map((o) => (
-            <div
-              key={o.name}
-              className="rounded-2xl border border-ink/5 bg-white p-6 shadow-card"
-            >
+            <div key={o.name} className="rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
               <h3 className="text-lg font-bold text-ink">{o.name}</h3>
               <p className="mt-3 text-3xl font-extrabold text-walker-dark">{o.price}</p>
               <p className="mt-2 text-sm text-ink-muted">{o.details}</p>
