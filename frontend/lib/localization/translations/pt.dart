@@ -54,6 +54,46 @@ const Map<String, String> ptPTTranslations = <String, String>{
       // Auto-filled from en.dart
       'common_no': 'No',
       'common_cancel': 'Cancelar',
+      'common_delete': 'Excluir',
+      // v23.1 — pet delete keys
+      'pet_delete_dialog_title': 'Excluir perfil',
+      'pet_delete_dialog_message': 'Confirma a exclusão do perfil deste animal. Esta ação é irreversível.',
+      'pet_delete_success': 'Perfil de animal excluído.',
+      // v23.1 — banner accept/refuse snackbar keys
+      'snackbar_text_request_accepted': 'Pedido aceito',
+      'snackbar_text_request_accepted_message': 'O pedido foi aceito. O cliente já pode pagar.',
+      'snackbar_text_request_refused': 'Pedido recusado',
+      'snackbar_text_request_refused_message': 'O pedido foi recusado.',
+      // v23.1 — PART 4 structured Airwallex error mapping.
+      'payment_error_intent_failed':
+          'Não foi possível iniciar o pagamento. Tente novamente em alguns instantes.',
+      'payment_error_auth_failed':
+          'Erro de configuração de pagamento. Contate o suporte.',
+      'payment_error_declined':
+          'Cartão recusado. Verifique seu limite ou use outro cartão.',
+      'payment_error_provider_not_configured':
+          'O prestador ainda não configurou seu IBAN. O pagamento ficará pendente.',
+      'payment_error_amount_invalid':
+          'Valor inválido. Verifique o preço e a duração do serviço.',
+      'payment_error_currency_invalid':
+          'Moeda não suportada. Contate o suporte.',
+      'payment_error_env_not_configured':
+          'O serviço de pagamento está em manutenção. Tente novamente mais tarde.',
+      'payment_error_invalid_id':
+          'Reserva não encontrada. Recarregue a página e tente novamente.',
+      'payment_error_provider_incomplete':
+          'O prestador deve completar suas informações antes de receber um pagamento.',
+      'payment_error_unknown':
+          'Ocorreu um erro inesperado. Tente novamente ou contate o suporte.',
+
+      // v23.1 sync — sync missing keys with fr.dart
+      'auth_google_signin_title': 'Entrar com Google',
+      'create_pet_appbar_title': 'Usuário',
+      'payment_info_message': 'Clique em "Pagar" para continuar.',
+      'profile_connect_with_apple': 'Entrar com Apple',
+      'publish_request_home_cta': 'Publicar um pedido de reserva',
+      'service_selection_required': 'Seleção obrigatória',
+      'time_days_ago': 'há @count dias',
       // Session v17 — role labels used by StripePaymentScreen header chip.
       'role_walker': 'Passeador',
       'role_sitter': 'Petsitter',

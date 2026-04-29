@@ -3,6 +3,53 @@ const Map<String, String> itITTranslations = <String, String>{
       'common_yes': 'Sì',
       'common_no': 'No',
       'common_cancel': 'Annulla',
+      'common_delete': 'Elimina',
+      // v23.1 — pet delete keys
+      'pet_delete_dialog_title': 'Elimina profilo',
+      'pet_delete_dialog_message': 'Conferma l\'eliminazione del profilo di questo animale. Questa azione è irreversibile.',
+      'pet_delete_success': 'Profilo animale eliminato.',
+      // v23.1 — banner accept/refuse snackbar keys
+      'snackbar_text_request_accepted': 'Richiesta accettata',
+      'snackbar_text_request_accepted_message': 'La richiesta è stata accettata. Il cliente può ora pagare.',
+      'snackbar_text_request_refused': 'Richiesta rifiutata',
+      'snackbar_text_request_refused_message': 'La richiesta è stata rifiutata.',
+      // v23.1 — PART 4 structured Airwallex error mapping.
+      'payment_error_intent_failed':
+          'Impossibile avviare il pagamento. Riprova tra poco.',
+      'payment_error_auth_failed':
+          'Errore di configurazione pagamento. Contatta il supporto.',
+      'payment_error_declined':
+          'Carta rifiutata. Verifica il limite o usa un\'altra carta.',
+      'payment_error_provider_not_configured':
+          'Il fornitore non ha ancora configurato il proprio IBAN. Il pagamento verrà sospeso.',
+      'payment_error_amount_invalid':
+          'Importo non valido. Controlla il prezzo e la durata del servizio.',
+      'payment_error_currency_invalid':
+          'Valuta non supportata. Contatta il supporto.',
+      'payment_error_env_not_configured':
+          'Il servizio di pagamento è in manutenzione. Riprova più tardi.',
+      'payment_error_invalid_id':
+          'Prenotazione non trovata. Ricarica la pagina e riprova.',
+      'payment_error_provider_incomplete':
+          'Il fornitore deve completare le sue informazioni prima di ricevere un pagamento.',
+      'payment_error_unknown':
+          'Si è verificato un errore imprevisto. Riprova o contatta il supporto.',
+
+      // v23.1 sync — sync missing keys with fr.dart
+      'bookings_detail_location_label': 'Luogo',
+      'bookings_detail_phone_label': 'Telefono',
+      'bookings_detail_rating_label': 'Valutazione',
+      'bookings_history_empty_filtered': 'Nessuna prenotazione @status trovata',
+      'map_search_not_found': 'Luogo non trovato: @query',
+      'publish_request_add_images': 'Aggiungi immagini',
+      'publish_request_add_more_images': 'Aggiungi altre immagini',
+      'publish_request_address_hint': 'Via, edificio, ecc.',
+      'publish_request_address_label': 'Indirizzo (facoltativo)',
+      'publish_request_home_cta': 'Pubblica una richiesta di prenotazione',
+      'publish_request_select_pets': 'Seleziona uno o più animali',
+      'publish_request_select_pets_title': 'Seleziona animali',
+      'publish_request_selected_pets': '@count selezionato/i',
+      'publish_request_ui_only_success': 'UI creata (non ancora pubblicata).',
       // Session v17 — role labels used by StripePaymentScreen header chip.
       'role_walker': 'Dog sitter',
       'role_sitter': 'Petsitter',

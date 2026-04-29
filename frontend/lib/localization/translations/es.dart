@@ -3,6 +3,38 @@ const Map<String, String> esESTranslations = <String, String>{
       'common_yes': 'Sí',
       'common_no': 'No',
       'common_cancel': 'Cancelar',
+      'common_delete': 'Eliminar',
+      // v23.1 — pet delete keys
+      'pet_delete_dialog_title': 'Eliminar perfil',
+      'pet_delete_dialog_message': 'Confirma la eliminación del perfil de esta mascota. Esta acción es irreversible.',
+      'pet_delete_success': 'Perfil de mascota eliminado.',
+      // v23.1 — banner accept/refuse snackbar keys
+      'snackbar_text_request_accepted': 'Solicitud aceptada',
+      'snackbar_text_request_accepted_message': 'La solicitud ha sido aceptada. El cliente ya puede pagar.',
+      'snackbar_text_request_refused': 'Solicitud rechazada',
+      'snackbar_text_request_refused_message': 'La solicitud ha sido rechazada.',
+      // v23.1 — PART 4 structured Airwallex error mapping.
+      'payment_error_intent_failed':
+          'No se pudo iniciar el pago. Inténtalo de nuevo en unos segundos.',
+      'payment_error_auth_failed':
+          'Error de configuración de pago. Contacta con soporte.',
+      'payment_error_declined':
+          'Tarjeta rechazada. Comprueba tu límite o usa otra tarjeta.',
+      'payment_error_provider_not_configured':
+          'El proveedor aún no ha configurado su IBAN. El pago se mantendrá en espera.',
+      'payment_error_amount_invalid':
+          'Importe inválido. Comprueba el precio y la duración del servicio.',
+      'payment_error_currency_invalid':
+          'Moneda no compatible. Contacta con soporte.',
+      'payment_error_env_not_configured':
+          'El servicio de pago está en mantenimiento. Inténtalo más tarde.',
+      'payment_error_invalid_id':
+          'Reserva no encontrada. Recarga la página e inténtalo de nuevo.',
+      'payment_error_provider_incomplete':
+          'El proveedor debe completar su información antes de recibir un pago.',
+      'payment_error_unknown':
+          'Ha ocurrido un error inesperado. Inténtalo de nuevo o contacta con soporte.',
+
       // Session v17 — role labels used by StripePaymentScreen header chip.
       'role_walker': 'Paseador',
       'role_sitter': 'Petsitter',

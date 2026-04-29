@@ -3,6 +3,38 @@ const Map<String, String> deDETranslations = <String, String>{
       'common_yes': 'Ja',
       'common_no': 'Nein',
       'common_cancel': 'Abbrechen',
+      'common_delete': 'Löschen',
+      // v23.1 — pet delete keys
+      'pet_delete_dialog_title': 'Profil löschen',
+      'pet_delete_dialog_message': 'Bestätige das Löschen des Profils dieses Tieres. Diese Aktion ist unumkehrbar.',
+      'pet_delete_success': 'Tierprofil gelöscht.',
+      // v23.1 — banner accept/refuse snackbar keys
+      'snackbar_text_request_accepted': 'Anfrage akzeptiert',
+      'snackbar_text_request_accepted_message': 'Die Anfrage wurde akzeptiert. Der Kunde kann jetzt bezahlen.',
+      'snackbar_text_request_refused': 'Anfrage abgelehnt',
+      'snackbar_text_request_refused_message': 'Die Anfrage wurde abgelehnt.',
+      // v23.1 — PART 4 structured Airwallex error mapping.
+      'payment_error_intent_failed':
+          'Zahlung konnte nicht gestartet werden. Bitte versuche es gleich erneut.',
+      'payment_error_auth_failed':
+          'Zahlungskonfigurationsfehler. Bitte kontaktiere den Support.',
+      'payment_error_declined':
+          'Karte abgelehnt. Prüfe dein Limit oder nutze eine andere Karte.',
+      'payment_error_provider_not_configured':
+          'Der Anbieter hat seine IBAN noch nicht konfiguriert. Die Auszahlung wird zurückgehalten.',
+      'payment_error_amount_invalid':
+          'Ungültiger Betrag. Prüfe Preis und Dauer der Dienstleistung.',
+      'payment_error_currency_invalid':
+          'Nicht unterstützte Währung. Bitte kontaktiere den Support.',
+      'payment_error_env_not_configured':
+          'Der Zahlungsdienst befindet sich in Wartung. Bitte versuche es später erneut.',
+      'payment_error_invalid_id':
+          'Buchung nicht gefunden. Lade die Seite neu und versuche es erneut.',
+      'payment_error_provider_incomplete':
+          'Der Anbieter muss seine Informationen vervollständigen, bevor er eine Zahlung erhalten kann.',
+      'payment_error_unknown':
+          'Ein unerwarteter Fehler ist aufgetreten. Bitte erneut versuchen oder den Support kontaktieren.',
+
       // Session v17 — role labels used by StripePaymentScreen header chip.
       'role_walker': 'Gassigeher',
       'role_sitter': 'Tiersitter',
