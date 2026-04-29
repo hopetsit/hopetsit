@@ -28,10 +28,13 @@ const DEFAULTS = Object.freeze({
     USD: { bronze: 7.69,  silver: 14.29, gold: 21.99, platinum: 38.49 },
   },
   mapBoost: {
-    EUR: { bronze: 4.99,  silver: 8.99,  gold: 14.99, platinum: 24.99 },
-    GBP: { bronze: 4.39,  silver: 7.99,  gold: 13.29, platinum: 21.99 },
-    CHF: { bronze: 4.99,  silver: 8.99,  gold: 14.99, platinum: 24.99 },
-    USD: { bronze: 5.49,  silver: 9.89,  gold: 16.49, platinum: 27.49 },
+    // v23.1 — aligned with website PawMap pricing:
+    // bronze = "PawSpot 24h" (1.99 €), silver = "PawSpot 7 jours" (8.99 €),
+    // gold = intermediate (kept for legacy), platinum = "PawSpot 30 jours" (24.99 €).
+    EUR: { bronze: 1.99,  silver: 8.99,  gold: 14.99, platinum: 24.99 },
+    GBP: { bronze: 1.69,  silver: 7.99,  gold: 13.29, platinum: 21.99 },
+    CHF: { bronze: 1.99,  silver: 8.99,  gold: 14.99, platinum: 24.99 },
+    USD: { bronze: 2.19,  silver: 9.89,  gold: 16.49, platinum: 27.49 },
   },
   premium: {
     EUR: { monthly: 6.99, yearly: 49.99 },
