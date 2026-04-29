@@ -5,7 +5,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 
-/// Reusable dialog showing "This feature requires PawPass".
+/// Reusable dialog showing "This feature requires PawFollow".
 /// Usage: PawPassRequiredDialog.show(context)
 class PawPassRequiredDialog {
   static Future<void> show(BuildContext context) {

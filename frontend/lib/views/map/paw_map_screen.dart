@@ -930,7 +930,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                         _buildMapCornerButton(
                           color: const Color(0xFFF5A623),
                           icon: Icons.star_rounded,
-                          tooltip: 'PawPass',
+                          tooltip: 'PawFollow',
                           onTap: () =>
                               Get.to(() => const CoinShopScreen(initialTab: 1)),
                         ),
