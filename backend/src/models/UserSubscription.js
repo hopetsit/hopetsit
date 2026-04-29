@@ -37,11 +37,11 @@ function loadPricingService() {
  * frontend can gate UI without hitting the pricing config on every screen.
  */
 const PREMIUM_PLAN_INTERVALS = {
-  monthly: { intervalDays: 30, label: 'PawPass Mensuel' },
-  yearly: { intervalDays: 365, label: 'PawPass Annuel' },
-  // v22.1 — PawPass Famille : même PawPass premium mais partagé avec
-  // jusqu'à 5 membres de la famille. Mensuel uniquement pour l'instant.
-  family: { intervalDays: 30, label: 'PawPass Famille' },
+  monthly: { intervalDays: 30, label: 'PawFollow Mensuel' },
+  yearly: { intervalDays: 365, label: 'PawFollow Annuel' },
+  // v22.1 — PawFollow Famille (anciennement PawPass Famille) :
+  // partagé avec jusqu'à 5 membres de la famille. Mensuel uniquement.
+  family: { intervalDays: 30, label: 'PawFollow Famille' },
 };
 
 const PREMIUM_PRICING = {
