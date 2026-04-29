@@ -31,6 +31,7 @@ export default function PawMapPage() {
         "1 PawSpot offert / mois",
       ],
       highlighted: false,
+      badge: undefined as string | undefined,
     },
     {
       name: "PawFollow Annuel",
@@ -43,7 +44,7 @@ export default function PawMapPage() {
         "Engagement 12 mois",
       ],
       highlighted: true,
-      badge: "ÉCONOMIQUE",
+      badge: "ÉCONOMIQUE" as string | undefined,
     },
     {
       name: "PawFollow Famille",
@@ -57,7 +58,7 @@ export default function PawMapPage() {
         "Chat groupe famille + sitter / walker",
       ],
       highlighted: false,
-      badge: "POPULAIRE",
+      badge: "POPULAIRE" as string | undefined,
     },
   ];
 
@@ -92,7 +93,7 @@ export default function PawMapPage() {
         ))}
       </div>
 
-      {/* ───────── PawFollow plans ───────── */}
+      {/* PawFollow plans */}
       <div className="mt-20">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           PawFollow
@@ -136,7 +137,7 @@ export default function PawMapPage() {
         </div>
       </div>
 
-      {/* ───────── PawSpot offers ───────── */}
+      {/* PawSpot offers */}
       <div className="mt-20">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           PawSpot
