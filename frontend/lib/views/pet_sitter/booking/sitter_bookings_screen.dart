@@ -27,11 +27,12 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   // désormais chacun leur couleur de rôle.
   static const Color _sitterAccent = Color(0xFF2563EB);
 
-  // v23.1 — Tout / Remboursée / Payée pour les 3 profils (Daniel).
+  // v23.1 — Tout / Remboursée / Payée + chip Factures (3 profils).
   final List<String> _statuses = [
     'all',
     'refunded',
     'paid',
+    'factures',
   ];
 
   @override
@@ -67,14 +68,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
-        // v23.1 — bouton Factures auto-générées (visible 3 profils).
-        actions: [
-          IconButton(
-            tooltip: 'invoices_title'.tr,
-            icon: Icon(Icons.receipt_long_rounded, color: _sitterAccent),
-            onPressed: () => Get.to(() => const InvoicesScreen()),
-          ),
-        ],
+        // v23.1 — Factures déplacé en chip dans la barre de filtres.
       ),
       body: Column(
         children: [
@@ -156,6 +150,11 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
 
           return GestureDetector(
             onTap: () {
+              // v23.1 — chip "Factures" navigue vers InvoicesScreen.
+              if (status == 'factures') {
+                Get.to(() => const InvoicesScreen());
+                return;
+              }
               setState(() {
                 _selectedStatus = status;
               });
@@ -211,6 +210,8 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
         return 'status_cancelled_label'.tr;
       case 'refunded':
         return 'status_refunded_label'.tr;
+      case 'factures':
+        return 'invoices_title'.tr;
       default:
         return status.tr;
     }

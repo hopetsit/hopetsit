@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
@@ -35,13 +36,25 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    // v23.1 — bug d'affichage : les écrans (home / Mes réservations) étaient
+    // dessinés SOUS la barre de navigation à cause du Stack. On ajoute un
+    // padding-bottom égal à la hauteur de la nav bar pour que le contenu
+    // s'arrête au-dessus, tout en laissant le bouton rouge central déborder
+    // grâce au Stack (le Positioned nav bar est dessiné au-dessus).
+    final double navBarHeight = 78.h;
     return Scaffold(
       backgroundColor: AppColors.lightGrey,
       body: SafeArea(
         child: Stack(
           children: [
-            // Main content
-            IndexedStack(index: _currentIndex, children: widget.screens),
+            // Main content — laisse de la place pour la nav bar.
+            Padding(
+              padding: EdgeInsets.only(bottom: navBarHeight),
+              child: IndexedStack(
+                index: _currentIndex,
+                children: widget.screens,
+              ),
+            ),
 
             // Navigation bar positioned at bottom
             Positioned(
