@@ -32,27 +32,25 @@ class CustomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // v23.1 — Refactor radical pour fixer définitivement le bug d'affichage :
-    //   - SafeArea bottom pour respecter la gesture bar Android
-    //   - Container plein écran avec couleur de fond (pas de margin qui rétrécit)
-    //   - Pill blanche centrée à l'intérieur
-    //   - Pas de transform : le bouton central est juste plus grand
+    // v23.1 — Refactor radical : pas de SafeArea ici, c'est l'inner Scaffold
+    // ou le wrapper qui gère le bottom inset. Pas de transform sur le bouton
+    // central. Container plein écran qui PEINT TOUTE la zone (gesture bar
+    // incluse) en blanc — fix le grey leak autour d'Accueil.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
       color: isDark ? const Color(0xFF121212) : Colors.white,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64.h,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Expanded(child: _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark, badgeIndex: 0)),
-              Expanded(child: _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1)),
-              Expanded(child: _buildCenterMapButton(context, isDark)),
-              Expanded(child: _buildNavItem(context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark, badgeIndex: 2)),
-              Expanded(child: _buildNavItem(context, 4, AppImages.personIcon, 'nav_profile'.tr, isDark)),
-            ],
-          ),
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SizedBox(
+        height: 64.h,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Expanded(child: _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark, badgeIndex: 0)),
+            Expanded(child: _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1)),
+            Expanded(child: _buildCenterMapButton(context, isDark)),
+            Expanded(child: _buildNavItem(context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark, badgeIndex: 2)),
+            Expanded(child: _buildNavItem(context, 4, AppImages.personIcon, 'nav_profile'.tr, isDark)),
+          ],
         ),
       ),
     );

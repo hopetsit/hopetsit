@@ -897,36 +897,43 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+        // v23.1 — FAB compact bottom-right : icône + uniquement, gradient,
+        // taille discrète pour ne pas masquer le contenu.
         floatingActionButton: Container(
+          width: 52.w,
+          height: 52.w,
           decoration: BoxDecoration(
             gradient: AppColors.linearGradient,
-            borderRadius: BorderRadius.circular(16.r),
+            shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryColor.withValues(alpha: 0.3),
+                color: AppColors.primaryColor.withValues(alpha: 0.35),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: FloatingActionButton.extended(
-            backgroundColor: Colors.transparent,
-            foregroundColor: AppColors.whiteColor,
-            elevation: 0,
-            icon: Icon(Icons.add_rounded, size: 22.sp),
-            label: InterText(
-              text: 'new_publication_button'.tr,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.whiteColor,
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () {
+                Get.to(() => const PublishReservationRequestScreen())?.then((_) {
+                  _postsController.refreshPosts();
+                });
+              },
+              child: Center(
+                child: Icon(
+                  Icons.add_rounded,
+                  size: 26.sp,
+                  color: AppColors.whiteColor,
+                ),
+              ),
             ),
-            onPressed: () {
-              Get.to(() => const PublishReservationRequestScreen())?.then((_) {
-                _postsController.refreshPosts();
-              });
-            },
           ),
         ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
     );
   }
