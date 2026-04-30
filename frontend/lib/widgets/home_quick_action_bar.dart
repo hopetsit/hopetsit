@@ -28,10 +28,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
+import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
@@ -40,6 +42,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -98,6 +101,16 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     //   3. Backup periodic refresh toutes les 30s pour les sessions très
     //      longues sans push.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // v23.1 part 20 — owner banner needs ApplicationsController. Register it
+      // here if the owner just landed on the home screen and no other screen
+      // had a chance to put() it yet — otherwise the banner can't show new
+      // candidatures before the owner navigates somewhere else.
+      if (widget.role == 'owner' &&
+          !Get.isRegistered<ApplicationsController>()) {
+        try {
+          Get.put(ApplicationsController());
+        } catch (_) { /* noop */ }
+      }
       _refreshBookings();
       if (Get.isRegistered<NotificationsController>()) {
         final notifs = Get.find<NotificationsController>();
@@ -126,6 +139,14 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         default:
           if (Get.isRegistered<BookingsController>()) {
             Get.find<BookingsController>().loadBookings();
+          }
+          // v23.1 part 20 — owner banner reads candidates too. When a walker
+          // (or sitter) submits an application, only the ApplicationsController
+          // is updated by the backend ; the BookingsController stays empty
+          // until the owner accepts. Without refreshing here the banner
+          // stayed on "Tout est à jour" forever — bug Daniel reported.
+          if (Get.isRegistered<ApplicationsController>()) {
+            Get.find<ApplicationsController>().loadApplications();
           }
       }
     } catch (_) { /* noop */ }
@@ -321,7 +342,15 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     }
 
     return Obx(() {
-      final action = _pickAction(rx.toList());
+      // v23.1 part 20 — owner banner now also reacts to ApplicationsController.
+      // The walker/sitter sends an Application (NOT a Booking) when they tap
+      // "Demander" on a publication. The Booking only exists *after* the owner
+      // accepts. So if we only watch BookingsController for owner, the banner
+      // stays on "Tout est à jour" — bug Daniel reported.
+      _QuickAction? action = _pickAction(rx.toList());
+      if (action == null && widget.role == 'owner') {
+        action = _pickOwnerApplicationAction();
+      }
       // Neutral fallback : rien d'urgent → barre soft "tout est à jour".
       if (action == null) {
         return _NeutralBar(role: widget.role, onTap: _onNeutralTap);
@@ -329,20 +358,87 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       return _ActionBanner(
         action: action,
         pulse: _pulse,
-        onTap: () => _onActionTap(action),
-        onAccept: () => _onAccept(action),
-        onRefuse: () => _onRefuse(action),
+        onTap: () => _onActionTap(action!),
+        onAccept: () => _onAccept(action!),
+        onRefuse: () => _onRefuse(action!),
         // v23.1 — PART 2 : X dismiss callback. Owner-pay AND provider-paid
         // banners (sitter/walker side after payment received).
         onDismiss: (action.kind == _Kind.ownerPay ||
                 action.kind == _Kind.providerPaid)
             ? () => _dismissBannerMulti(
-                  action.allBookingIds.isNotEmpty
+                  action!.allBookingIds.isNotEmpty
                       ? action.allBookingIds
                       : <String>[action.booking.id],
                 )
             : null,
       );
+    });
+  }
+
+  /// v23.1 part 20 — owner-only : read pending applications and surface a
+  /// banner when at least one candidate is waiting for a response. Aggregates
+  /// across multiple posts ("+N autres"). Returns null when none.
+  _QuickAction? _pickOwnerApplicationAction() {
+    if (!Get.isRegistered<ApplicationsController>()) return null;
+    final list = Get.find<ApplicationsController>().applications.toList();
+    if (list.isEmpty) return null;
+    final pending = list
+        .where((a) =>
+            (a.status).toLowerCase() == 'pending' &&
+            !_dismissedIds.contains(a.id))
+        .toList();
+    if (pending.isEmpty) return null;
+    final first = pending.first;
+    final extra = pending.length - 1;
+    final providerName = first.sitter.name.trim().isNotEmpty
+        ? first.sitter.name
+        : (first.providerRole == 'walker'
+            ? 'role_walker'.tr
+            : 'role_sitter'.tr);
+    final isWalker = first.providerRole == 'walker';
+    final color = isWalker
+        ? const Color(0xFF16A34A)
+        : const Color(0xFF2563EB);
+    final title = extra > 0
+        ? '${'notif_title_new_application'.tr} (+$extra)'
+        : '${'notif_title_new_application'.tr} — $providerName';
+    final petLbl = first.petName.isNotEmpty ? first.petName : '';
+    final dateLbl = (first.serviceDate ?? '').split('T').first;
+    final subtitle = [petLbl, dateLbl, providerName]
+        .where((s) => s.isNotEmpty)
+        .join(' • ');
+    return _QuickAction(
+      kind: _Kind.ownerCandidate,
+      color: color,
+      icon: Icons.notifications_active_rounded,
+      title: title,
+      subtitle: subtitle,
+      ctaLabel: 'bookings_action_view_details'.tr,
+      // We reuse the booking field with a synthetic placeholder ; the tap
+      // handler routes to MyPostsScreen and never reads booking-only fields.
+      booking: _ownerCandidateStubBooking(first),
+      pulse: true,
+      candidateApplicationId: first.id,
+      allCandidateApplicationIds:
+          pending.map((a) => a.id).toList(growable: false),
+    );
+  }
+
+  /// Build a minimal placeholder BookingModel from an Application so we can
+  /// keep _QuickAction's required `booking` field non-null without breaking
+  /// the existing render paths (which never run for ownerCandidate kind).
+  BookingModel _ownerCandidateStubBooking(ApplicationModel a) {
+    return BookingModel.fromJson(<String, dynamic>{
+      'id': a.id,
+      'status': a.status,
+      'paymentStatus': '',
+      'serviceType': '',
+      'petName': a.petName,
+      'date': a.serviceDate ?? '',
+      'timeSlot': a.timeSlot,
+      'totalAmount': 0,
+      'owner': <String, dynamic>{},
+      'sitter': <String, dynamic>{},
     });
   }
 
@@ -368,6 +464,13 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     // detour through BookingsHistoryScreen which lacked these details.
     if (a.kind == _Kind.providerAccept) {
       _showProviderRequestSheet(a);
+      return;
+    }
+    // v23.1 part 20 — owner sees a "Nouvelle candidature" banner when at least
+    // one walker/sitter applied. Tap → MyPostsScreen where the multi-candidates
+    // UI lives.
+    if (a.kind == _Kind.ownerCandidate) {
+      Get.to(() => const MyPostsScreen());
       return;
     }
     Get.to(() => const BookingsHistoryScreen());
@@ -958,7 +1061,7 @@ class _NeutralBar extends StatelessWidget {
 
 // ─── Internal action descriptor ─────────────────────────────────────────────
 
-enum _Kind { ownerPay, providerAccept, providerPaid }
+enum _Kind { ownerPay, providerAccept, providerPaid, ownerCandidate }
 
 class _QuickAction {
   final _Kind kind;
@@ -974,6 +1077,11 @@ class _QuickAction {
   // once — otherwise the banner reappeared on next refresh with the next
   // unpaid booking and Daniel could never get rid of it.
   final List<String> allBookingIds;
+  // v23.1 part 20 — owner-candidate variant : carry the application ids so
+  // the X dismiss button can hide them and the tap handler routes to the
+  // multi-candidates UI in MyPostsScreen.
+  final String? candidateApplicationId;
+  final List<String> allCandidateApplicationIds;
   const _QuickAction({
     required this.kind,
     required this.color,
@@ -984,5 +1092,7 @@ class _QuickAction {
     required this.booking,
     required this.pulse,
     this.allBookingIds = const <String>[],
+    this.candidateApplicationId,
+    this.allCandidateApplicationIds = const <String>[],
   });
 }

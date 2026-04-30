@@ -105,6 +105,12 @@ class MyApp extends StatelessWidget {
             ],
             theme: ThemeData(
               brightness: Brightness.light,
+              // v23.1 part 20 — kill global splash factory pour éviter tout
+              // ripple Material gris résiduel autour des items de la bottom
+              // nav bar (cas Accueil tab).
+              splashFactory: NoSplash.splashFactory,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
               colorScheme: ColorScheme.fromSeed(
                 seedColor: AppColors.primaryColor,
                 brightness: Brightness.light,
