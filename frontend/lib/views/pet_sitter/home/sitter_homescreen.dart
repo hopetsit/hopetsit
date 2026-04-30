@@ -645,7 +645,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
 
     return Obx(
       () => Scaffold(
-        backgroundColor: AppColors.scaffold(context),
+        // v23.1 — bg blanc (au lieu de scaffold lightGrey) pour éliminer
+        // tout grey leak derrière la nav bar (cas Accueil tab).
+        backgroundColor: AppColors.appBar(context),
         // v23.1 — HomeHeader Container-based : fix le grey rectangle persistant.
         appBar: HomeHeader(
           userName: profileController.userName.value.isNotEmpty
