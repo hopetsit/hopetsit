@@ -214,14 +214,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       }
     }
 
+    // v23.1 — flexibleSpace force-fill background pour garantir que toute la
+    // largeur de l'AppBar est uniformément blanche (fix du grey rectangle
+    // qui apparaissait sur les home screens 3 profils, lié à Material 3
+    // surfaceTintColor mal géré quand le title ne remplit pas son slot).
     return AppBar(
       elevation: 0,
-      scrolledUnderElevation: 0.5,
+      scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
       toolbarHeight: 70.h,
+      titleSpacing: 16.0,
       automaticallyImplyLeading: automaticallyImplyLeading,
       leading: leading,
       backgroundColor: AppColors.appBar(context),
+      foregroundColor: AppColors.textPrimary(context),
+      flexibleSpace: Container(color: AppColors.appBar(context)),
       title: title != null
           ? InterText(
               text: title!,
