@@ -25,15 +25,11 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   // désormais chacun leur couleur de rôle.
   static const Color _sitterAccent = Color(0xFF2563EB);
 
-  // All available statuses
+  // v23.1 — Tout / Remboursée / Payée pour les 3 profils (Daniel).
   final List<String> _statuses = [
     'all',
-    'pending',
-    'agreed',
-    'paid',
-    'failed',
-    'cancelled',
     'refunded',
+    'paid',
   ];
 
   @override

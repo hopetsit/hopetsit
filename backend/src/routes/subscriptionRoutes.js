@@ -1,16 +1,18 @@
 /**
- * Subscription Routes — Premium plan (Phase 1).
+ * Subscription Routes — PawFollow plans.
  *
- * Plans:
- *   monthly → €3.90 / 30 days
- *   yearly  → €30.00 / 365 days
+ * Plans (v23.1, aligned with hopetsit.com pricing):
+ *   monthly → €6.99 / 30 days
+ *   yearly  → €49.99 / 365 days
+ *   family  → €9.99 / 30 days (up to 5 members)
  *
- * Phase 1 uses one-time PaymentIntents that extend `currentPeriodEnd`
- * on the UserSubscription doc. The existing Stripe flow from boostRoutes.js
- * is reused so frontend can present a single PaymentSheet.
+ * Live prices read from pricingService (DB-backed, editable from admin).
+ * If pricingService is not initialised or missing a row, falls back to
+ * PREMIUM_PRICING in UserSubscription.js.
  *
- * Phase 2 will migrate to proper Stripe Subscriptions with webhooks
- * (`customer.subscription.updated` / `.deleted`) for auto-renewal.
+ * Each plan creates a one-time Airwallex PaymentIntent that extends
+ * `currentPeriodEnd` on the UserSubscription doc. The webhook in
+ * airwallexWebhookController activates the subscription server-side.
  */
 
 const express = require('express');

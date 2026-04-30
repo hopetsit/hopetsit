@@ -29,22 +29,26 @@ const router = express.Router();
 // v21.1.1 — Stripe purgé. Default 'airwallex'.
 const PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
 
+// v23.1 — aligned with website hopetsit.com/pawmap :
+//   bronze   = "PawSpot 24h"    → 1 day
+//   silver   = "PawSpot 7 jours" → 7 days
+//   gold     = legacy intermediate tier (15 days, kept for back-compat)
+//   platinum = "PawSpot 30 jours" → 30 days
 const MAP_BOOST_PACKAGES = {
-  bronze: { days: 3, label: '3 days' },
+  bronze: { days: 1, label: '24h' },
   silver: { days: 7, label: '1 week' },
   gold: { days: 15, label: '2 weeks' },
   platinum: { days: 30, label: '1 month' },
 };
 
-// Phase-1 price cut (session avril 2026) — original prices (15/30/60/120 EUR)
-// were priced like profile boost, but map-pin highlight has a narrower value
-// prop. Lowered aggressively to a .99 psychological range so early adopters
-// actually try it. Phase 2 will move these into DB-backed PricingConfig.
+// v23.1 — fallback aligned with website pricing AND with pricingService DEFAULTS.
+// Source of truth = pricingService.get('mapBoost'). This list is only used if
+// pricingService is not initialized yet (rare).
 const MAP_BOOST_PRICING = {
-  EUR: { bronze: 2.99, silver: 5.99,  gold: 9.99,  platinum: 14.99 },
-  GBP: { bronze: 2.59, silver: 5.29,  gold: 8.79,  platinum: 12.99 },
-  CHF: { bronze: 2.99, silver: 5.99,  gold: 9.99,  platinum: 14.99 },
-  USD: { bronze: 3.29, silver: 6.59,  gold: 10.99, platinum: 16.49 },
+  EUR: { bronze: 1.99, silver: 8.99,  gold: 14.99, platinum: 24.99 },
+  GBP: { bronze: 1.69, silver: 7.99,  gold: 13.29, platinum: 21.99 },
+  CHF: { bronze: 1.99, silver: 8.99,  gold: 14.99, platinum: 24.99 },
+  USD: { bronze: 2.19, silver: 9.89,  gold: 16.49, platinum: 27.49 },
 };
 
 function getMapBoostPricing(tier, currency = 'EUR') {

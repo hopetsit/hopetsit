@@ -28,14 +28,12 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   late BookingsController _bookingsController;
   String _selectedStatus = 'all';
 
+  // v23.1 — simplifié par Daniel : Tout / Remboursée / Payée pour les 3 profils.
+  // Les statuts pending/agreed/failed/cancelled ne sont plus exposés en chip.
   final List<String> _statuses = const [
     'all',
-    'pending',
-    'agreed',
-    'paid',
-    'failed',
-    'cancelled',
     'refunded',
+    'paid',
   ];
 
   @override

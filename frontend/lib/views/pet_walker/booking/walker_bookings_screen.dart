@@ -30,15 +30,11 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
   late WalkerBookingsController _bookingsController;
   String _selectedStatus = 'all';
 
-  // Same status filter chips as sitter for parity.
+  // v23.1 — Tout / Remboursée / Payée pour les 3 profils (Daniel).
   final List<String> _statuses = const [
     'all',
-    'pending',
-    'agreed',
-    'paid',
-    'failed',
-    'cancelled',
     'refunded',
+    'paid',
   ];
 
   @override

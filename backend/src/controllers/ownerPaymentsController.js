@@ -48,17 +48,23 @@ const getPaymentMethods = async (req, res) => {
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
   try {
-    const Owner = require('../models/Owner');
     const airwallex = require('../services/airwallexService');
-    const owner = await Owner.findById(req.user.id).lean();
-    if (!owner) {
-      return res.status(404).json({ error: 'Owner not found.' });
+    // v23.1 — role-aware lookup. Sitters and walkers can also have saved
+    // cards (e.g. for paying premium subscriptions). Forcing Owner.findById
+    // returned 404 "Owner not found" for them. Use the right model.
+    const Model = _roleModel(req.user.role);
+    const user = await Model.findById(req.user.id).lean();
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found.',
+        details: `No ${req.user.role} document with id ${req.user.id}`,
+      });
     }
     const customer = await airwallex.findOrCreateCustomer({
-      userId: owner._id.toString(),
-      email: owner.email,
-      firstName: (owner.name || '').split(' ')[0] || owner.name,
-      lastName: (owner.name || '').split(' ').slice(1).join(' ') || '',
+      userId: user._id.toString(),
+      email: user.email,
+      firstName: (user.name || '').split(' ')[0] || user.name,
+      lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
     });
     const customerId = customer?.id;
     if (!customerId) {
