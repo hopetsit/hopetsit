@@ -50,7 +50,11 @@ class PublishReservationRequestController extends GetxController {
 
   final RxList<PetModel> myPets = <PetModel>[].obs;
   final RxBool isPetsLoading = false.obs;
-  final RxnString selectedPetId = RxnString();
+  // v23.1 — multi-pet selection. selectedPetId kept for backwards compat
+  // (returns the first selected) but the UI now toggles selectedPetIds.
+  final RxList<String> selectedPetIds = <String>[].obs;
+  RxnString get selectedPetId =>
+      RxnString(selectedPetIds.isNotEmpty ? selectedPetIds.first : null);
   // v21 — Visual highlight flag : when the user taps "Publish" without
   // having picked a pet, we set this true so the pet selector frames in
   // red. Reset to false the moment they pick one.
@@ -188,9 +192,14 @@ class PublishReservationRequestController extends GetxController {
   }
 
   void selectPet(String petId) {
-    selectedPetId.value = petId;
-    // v21 — clear the highlight as soon as the user complies.
-    petSelectionError.value = false;
+    // v23.1 — toggle pet in/out of selectedPetIds. Tap a selected pet again
+    // to deselect it (consistent with the existing send-request-direct flow).
+    if (selectedPetIds.contains(petId)) {
+      selectedPetIds.remove(petId);
+    } else {
+      selectedPetIds.add(petId);
+    }
+    if (selectedPetIds.isNotEmpty) petSelectionError.value = false;
   }
 
   void selectServiceType(String? value) {
@@ -313,7 +322,7 @@ class PublishReservationRequestController extends GetxController {
   /// pouvoir afficher un message clair au user au lieu du générique
   /// "Veuillez remplir les champs requis". Returns null si tout est OK.
   String? _firstMissingField() {
-    if (selectedPetId.value == null || selectedPetId.value!.isEmpty) {
+    if (selectedPetIds.isEmpty) {
       return 'pet';
     }
     if (startDate.value == null) return 'startDate';
@@ -382,7 +391,7 @@ class PublishReservationRequestController extends GetxController {
     // Localized default body — was 'Reservation request' in English only.
     final body = notes.isEmpty ? 'post_card_reservation_request'.tr : notes;
     final city = cityController.text.trim();
-    final petId = selectedPetId.value!;
+    final petIdsList = selectedPetIds.toList();
 
     // Combine selected date + time into full DateTime values
     DateTime combine(DateTime date, TimeOfDay time) {
@@ -409,7 +418,7 @@ class PublishReservationRequestController extends GetxController {
           startDate: start,
           endDate: end,
           serviceTypes: services,
-          petId: petId,
+          petIds: petIdsList,
           city: city,
           notes: notes,
           houseSittingVenue: venue,
@@ -420,7 +429,7 @@ class PublishReservationRequestController extends GetxController {
           startDate: start,
           endDate: end,
           serviceTypes: services,
-          petId: petId,
+          petIds: petIdsList,
           city: city,
           notes: notes,
           houseSittingVenue: venue,

@@ -39,8 +39,12 @@ class StripePaymentController extends GetxController {
   ///
   /// Le paramètre billingDetails est conservé pour compat API mais ignoré
   /// (Airwallex collecte les infos billing dans son propre HPP).
+  /// v23.1 — `saveCard` flag attaches a payment_consent so the card is
+  /// auto-saved on the user's profile after successful payment, ready to be
+  /// reused via SavedCardsScreen.
   Future<void> initiateAndConfirmPayment({
     dynamic billingDetails, // ignoré, kept for API compat
+    bool saveCard = false,
   }) async {
     if (isProcessing.value) return;
 
@@ -69,6 +73,7 @@ class StripePaymentController extends GetxController {
       final paymentIntentResponse = await _ownerRepository.createPaymentIntent(
         bookingId: booking.id,
         useLoyaltyCredit: useLoyaltyCredit,
+        saveCard: saveCard,
       );
       if (Get.isRegistered<LoyaltyController>()) {
         Get.find<LoyaltyController>().useLoyaltyCreditForNextPayment.value = false;

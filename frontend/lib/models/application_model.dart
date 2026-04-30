@@ -19,6 +19,13 @@ class ApplicationModel {
   /// owner reopens a "Demande du sitter / walker" notification that has
   /// already been accepted.
   final String? bookingId;
+  /// v23.1 — B3+B5 : id of the owner's Post this application targets.
+  /// Used to group candidatures per-post and detect "multiple candidates".
+  final String? postId;
+  /// v23.1 — provider role: 'sitter' | 'walker'. Computed from the
+  /// `walker` field presence (sanitizeApplication exposes either
+  /// `sitter` or `walker`).
+  final String providerRole;
 
   ApplicationModel({
     required this.id,
@@ -34,6 +41,8 @@ class ApplicationModel {
     required this.sitter,
     this.pricing,
     this.bookingId,
+    this.postId,
+    this.providerRole = 'sitter',
   });
 
   factory ApplicationModel.fromJson(Map<String, dynamic> json) {
@@ -47,6 +56,13 @@ class ApplicationModel {
       final inner = rawBookingId['id']?.toString() ?? rawBookingId['_id']?.toString();
       if (inner != null && inner.isNotEmpty) parsedBookingId = inner;
     }
+    // v23.1 — accept either `sitter` or `walker` populated objects so the
+    // owner can distinguish candidate roles in the multi-candidates UI.
+    final providerJson = (json['walker'] is Map<String, dynamic>
+            ? json['walker']
+            : json['sitter']) as Map<String, dynamic>? ??
+        {};
+    final providerRole = json['walker'] is Map<String, dynamic> ? 'walker' : 'sitter';
     return ApplicationModel(
       id: json['id'] as String? ?? '',
       postBody: json['postBody'] as String? ?? '',
@@ -60,13 +76,13 @@ class ApplicationModel {
       owner: ApplicationUser.fromJson(
         json['owner'] as Map<String, dynamic>? ?? {},
       ),
-      sitter: ApplicationSitter.fromJson(
-        json['sitter'] as Map<String, dynamic>? ?? {},
-      ),
+      sitter: ApplicationSitter.fromJson(providerJson),
       pricing: pricingJson is Map<String, dynamic>
           ? BookingPricing.fromJson(pricingJson)
           : null,
       bookingId: parsedBookingId,
+      postId: json['postId']?.toString(),
+      providerRole: providerRole,
     );
   }
 }

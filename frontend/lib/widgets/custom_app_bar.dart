@@ -159,6 +159,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// v19.1.3 — role-colored bell: owner=orange, sitter=blue, walker=green.
   final String role;
 
+  /// v23.1 — when false, the bell icon stays visible but the red unread
+  /// badge is suppressed. Used on home screens of the 3 profiles to keep
+  /// the home visually calm while push notifications and emails still fire.
+  final bool showNotificationBadge;
+
   const CustomAppBar({
     super.key,
     required this.userName,
@@ -173,6 +178,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.automaticallyImplyLeading = false,
     this.leading,
     this.role = 'owner',
+    this.showNotificationBadge = true,
   });
 
   @override
@@ -190,7 +196,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         mergedActions.add(
           Obx(
             () => NotificationBellAction(
-              count: notificationUnreadRx!.value,
+              // v23.1 — badge optionally suppressed on home screens.
+              count: showNotificationBadge ? notificationUnreadRx!.value : 0,
               onTap: onTap,
               role: role,
             ),
@@ -199,7 +206,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       } else {
         mergedActions.add(
           NotificationBellAction(
-            count: notificationBadgeCount ?? 0,
+            count: showNotificationBadge ? (notificationBadgeCount ?? 0) : 0,
             onTap: onTap,
             role: role,
           ),

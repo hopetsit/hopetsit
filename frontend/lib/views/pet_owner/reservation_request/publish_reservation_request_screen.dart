@@ -285,40 +285,39 @@ class _PublishReservationRequestScreenState
         );
       }
 
-      // Build dropdown items from pets
-      final items = controller.myPets
-          .map(
-            (p) => DropdownMenuItem<String>(
-              value: p.id,
-              child: Text('${p.petName} • ${p.breed}'),
-            ),
-          )
-          .toList();
-
-      final displayText =
-          controller.selectedPetId.value == null ||
-              controller.selectedPetId.value!.isEmpty
+      // v23.1 — multi-pet selection via FilterChips (tap toggles in/out).
+      final selectedCount = controller.selectedPetIds.length;
+      final countLabel = selectedCount == 0
           ? 'common_select'.tr
-          : '';
+          : 'publish_request_selected_pets'.trParams({'count': '$selectedCount'});
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InterText(
-            text: 'label_pets'.tr,
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.grey700Color,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              InterText(
+                text: 'label_pets'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+                color: AppColors.grey700Color,
+              ),
+              InterText(
+                text: countLabel,
+                fontSize: 12.sp,
+                color: selectedCount > 0
+                    ? AppColors.primaryColor
+                    : AppColors.greyColor,
+              ),
+            ],
           ),
           SizedBox(height: 8.h),
-          // v21 — frame in red when the user tapped "Publish" without
-          // selecting a pet. Reactive on petSelectionError so it clears as
-          // soon as they pick one.
           Container(
-            height: 50.h,
+            padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
               color: AppColors.inputFill(context),
-              borderRadius: BorderRadius.circular(30.r),
+              borderRadius: BorderRadius.circular(16.r),
               border: Border.all(
                 color: controller.petSelectionError.value
                     ? AppColors.errorColor
@@ -326,36 +325,24 @@ class _PublishReservationRequestScreenState
                 width: controller.petSelectionError.value ? 1.5 : 1,
               ),
             ),
-            child: Row(
+            child: Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
               children: [
-                Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: controller.selectedPetId.value,
-                      items: items,
-                      onChanged: (v) {
-                        if (v != null) controller.selectPet(v);
-                      },
-                      isExpanded: true,
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
-                      hint: InterText(
-                        text: displayText,
-                        fontSize: 14.sp,
-                        color: AppColors.greyColor,
-                      ),
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Get.to(() => const MyPetsScreen()),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w),
-                    child: Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14.sp,
-                      color: AppColors.blackColor,
-                    ),
-                  ),
+                ...controller.myPets.map((p) {
+                  final isSel = controller.selectedPetIds.contains(p.id);
+                  return FilterChip(
+                    label: Text('${p.petName} • ${p.breed}'),
+                    selected: isSel,
+                    onSelected: (_) => controller.selectPet(p.id),
+                    selectedColor: AppColors.primaryColor.withValues(alpha: 0.18),
+                    checkmarkColor: AppColors.primaryColor,
+                  );
+                }),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: Text('publish_request_add_pet'.tr),
+                  onPressed: () => Get.to(() => const MyPetsScreen()),
                 ),
               ],
             ),

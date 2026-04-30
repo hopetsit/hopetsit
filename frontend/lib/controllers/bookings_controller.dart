@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -19,6 +20,28 @@ class BookingsController extends GetxController {
   void onInit() {
     super.onInit();
     loadBookings();
+    // v23.1 — listen for backend socket events so the owner banner refreshes
+    // immediately after a payment is confirmed (instead of waiting up to 30s
+    // for the periodic refresh). Bug 17 / B13.
+    _attachSocketListeners();
+  }
+
+  void _attachSocketListeners() {
+    try {
+      if (!Get.isRegistered<SocketService>()) return;
+      final s = Get.find<SocketService>();
+      s.socket?.off('booking:paid');
+      s.socket?.on('booking:paid', (_) {
+        // Reload silently; the bandeau Obx will react when bookings update.
+        loadBookings();
+      });
+      s.socket?.off('booking:cancelled');
+      s.socket?.on('booking:cancelled', (_) {
+        loadBookings();
+      });
+    } catch (e) {
+      AppLogger.logError('BookingsController socket bind failed', error: e);
+    }
   }
 
   Future<void> loadBookings({String? status}) async {

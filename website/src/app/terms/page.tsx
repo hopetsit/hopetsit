@@ -38,21 +38,24 @@ export default function TermsPage() {
 
       <h2>4. Bookings &amp; payments</h2>
       <p>
-        Owners pay the service price plus a 20% platform commission (15% for
-        Top Sitter / Top Walker badges). Payments are processed by a regulated
-        payment provider. Funds are held until the service is delivered, then
-        released to the provider&apos;s registered IBAN.
-      </p>
-      <p>
-        Providers receive 100% of the rate they advertise. The platform fee is
-        added on top, paid by the owner at checkout.
+        Owners pay the gross booking amount via our regulated payment
+        processor (Airwallex). HoPetSit retains a <strong>20% platform
+        commission</strong>; the remaining <strong>80%</strong> is paid out to
+        the provider&apos;s registered IBAN <strong>24 hours after the service
+        ends</strong>, allowing a dispute window for the owner. Funds are held
+        in escrow during this entire period and HoPetSit does not access them.
       </p>
 
       <h2>5. Cancellations &amp; refunds</h2>
       <p>
-        Owners may cancel a booking before the service is delivered for a full
-        refund. Once the service has started, refunds are subject to the
-        Refund Policy and dispute review by our team.
+        Owners can self-cancel for free up to <strong>72 hours before the
+        service starts</strong> &mdash; the booking is cancelled immediately
+        and a 100% automatic refund is issued. Within the 72-hour window,
+        cancellations require a mutual agreement with the provider or a formal
+        dispute. Provider-initiated cancellations always result in a full
+        owner refund. See the full{" "}
+        <a href="/refund">Refund Policy</a> for the complete process,
+        deadlines and dispute procedure.
       </p>
 
       <h2>6. Conduct</h2>

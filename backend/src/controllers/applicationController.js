@@ -502,6 +502,20 @@ const createApplication = async (req, res) => {
       },
     }).catch(() => {});
 
+    // v23.1 — push real-time event so the owner's "applications" list and
+    // the multi-candidates banner refresh immediately (instead of waiting for
+    // the periodic poll). Bug 17 / B12.
+    try {
+      const { emitToUser } = require('../sockets');
+      emitToUser('owner', ownerId.toString(), 'application:new', {
+        applicationId: application._id.toString(),
+        postId: application.postId ? application.postId.toString() : null,
+        providerRole: providerRole === 'walker' ? 'walker' : 'sitter',
+      });
+    } catch (e) {
+      logger.warn(`[createApplication] socket emit failed: ${e.message}`);
+    }
+
     res.status(201).json({ application: sanitizeApplication(application) });
   } catch (error) {
     logger.error('Create application error', error);

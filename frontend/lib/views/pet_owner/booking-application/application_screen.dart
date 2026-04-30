@@ -97,6 +97,17 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               return b.paymentStatus?.toLowerCase() == 'paid';
             }
             return false;
+          // v23.1 — "À payer" : bookings acceptées dont le paiement est en
+          // attente (status accepted/agreed/confirmed AND paymentStatus != paid).
+          case 'to_pay':
+            if (item.type != 'booking') return false;
+            final b = item.data as BookingModel;
+            final isAcceptedLike = item.status == 'accepted' ||
+                item.status == 'agreed' ||
+                item.status == 'confirmed';
+            final isUnpaid =
+                (b.paymentStatus?.toLowerCase() ?? 'pending') != 'paid';
+            return isAcceptedLike && isUnpaid;
           case 'cancelled':
             return item.status == 'cancelled' || item.status == 'rejected';
           default:
@@ -124,6 +135,16 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
         case 'paid':
           if (item.type == 'booking') return (item.data as BookingModel).paymentStatus?.toLowerCase() == 'paid';
           return false;
+        // v23.1 — counter for the "À payer" chip.
+        case 'to_pay':
+          if (item.type != 'booking') return false;
+          final b = item.data as BookingModel;
+          final isAcceptedLike = item.status == 'accepted' ||
+              item.status == 'agreed' ||
+              item.status == 'confirmed';
+          final isUnpaid =
+              (b.paymentStatus?.toLowerCase() ?? 'pending') != 'paid';
+          return isAcceptedLike && isUnpaid;
         case 'cancelled': return item.status == 'cancelled' || item.status == 'rejected';
         default: return true;
       }
@@ -176,6 +197,9 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
               SizedBox(height: 12.h),
 
               // ── Status filter chips ──
+              // v23.1 — simplifié à 2 onglets demandés par Daniel : "Tout"
+              // + "À payer" (Payer). Les autres filtres (pending/accepted/
+              // cancelled) ont été retirés pour clarifier le parcours owner.
               SizedBox(
                 height: 38.h,
                 child: ListView(
@@ -184,13 +208,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
                   children: [
                     _filterChip(context, 'all', 'unified_filter_all'.tr),
                     SizedBox(width: 8.w),
-                    _filterChip(context, 'pending', 'unified_filter_pending'.tr),
-                    SizedBox(width: 8.w),
-                    _filterChip(context, 'accepted', 'unified_filter_accepted'.tr),
-                    SizedBox(width: 8.w),
-                    _filterChip(context, 'paid', 'unified_filter_paid'.tr),
-                    SizedBox(width: 8.w),
-                    _filterChip(context, 'cancelled', 'unified_filter_cancelled'.tr),
+                    _filterChip(context, 'to_pay', 'unified_filter_to_pay'.tr),
                   ],
                 ),
               ),

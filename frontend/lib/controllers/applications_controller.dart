@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -18,6 +19,27 @@ class ApplicationsController extends GetxController {
   void onInit() {
     super.onInit();
     loadApplications();
+    // v23.1 — listen for real-time application:new events so the owner's
+    // multi-candidates banner appears immediately when a new sitter/walker
+    // applies (instead of waiting for the next periodic refresh). Bug B12.
+    _attachSocketListeners();
+  }
+
+  void _attachSocketListeners() {
+    try {
+      if (!Get.isRegistered<SocketService>()) return;
+      final s = Get.find<SocketService>();
+      s.socket?.off('application:new');
+      s.socket?.on('application:new', (_) {
+        loadApplications();
+      });
+      s.socket?.off('application:updated');
+      s.socket?.on('application:updated', (_) {
+        loadApplications();
+      });
+    } catch (e) {
+      AppLogger.logError('ApplicationsController socket bind failed', error: e);
+    }
   }
 
   Future<void> loadApplications() async {

@@ -389,12 +389,21 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      // v23.1 — useSafeArea so the sheet respects system insets (gesture
+      // nav bar / home indicator). Without this the bottom action buttons
+      // were cropped by the OS handle on Android Q+ / iOS.
+      useSafeArea: true,
       builder: (ctx) => Container(
         decoration: BoxDecoration(
           color: Theme.of(ctx).cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
+        padding: EdgeInsets.fromLTRB(
+          20.w,
+          12.h,
+          20.w,
+          24.h + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -978,4 +987,3 @@ class _QuickAction {
     this.allBookingIds = const <String>[],
   });
 }
-

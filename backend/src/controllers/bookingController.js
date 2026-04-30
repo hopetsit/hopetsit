@@ -742,27 +742,80 @@ const resolveBookingStartDate = (booking) => {
 };
 
 /**
- * Returns true when the booking start datetime is now or already in the past.
- * Used to decide whether the provider payout should be released immediately
- * (same-day/late booking, admin retry) or scheduled for the exact start time.
- *
- * Session v17 — hour-exact comparison (was day-exact before).
+ * Session v23.1 — resolve the booking END datetime.
+ * Falls back, in order, to: explicit endDate → startDate + duration →
+ * startDate + serviceType default duration → startDate + 1h.
+ */
+const resolveBookingEndDate = (booking) => {
+  const rawEnd = booking?.endDate || null;
+  if (rawEnd) {
+    const parsed = new Date(rawEnd);
+    if (!Number.isNaN(parsed.getTime())) {
+      const hasTimePart = typeof rawEnd === 'string' && /T\d{2}:/.test(rawEnd);
+      if (hasTimePart) return parsed;
+      // No time component → assume end of that day (23:59).
+      parsed.setHours(23, 59, 0, 0);
+      return parsed;
+    }
+  }
+  // Fallback : startDate + duration (minutes) for short services like dog walking.
+  const start = resolveBookingStartDate(booking);
+  const durationMinutes = Number.isFinite(booking?.duration)
+    ? Number(booking.duration)
+    : null;
+  if (durationMinutes && durationMinutes > 0) {
+    return new Date(start.getTime() + durationMinutes * 60 * 1000);
+  }
+  // Final fallback : start + 1h, just in case neither endDate nor duration is set.
+  return new Date(start.getTime() + 60 * 60 * 1000);
+};
+
+/**
+ * Session v23.1 — Release window after service completion (in milliseconds).
+ * Aligned with the policy submitted to Airwallex: funds are released to the
+ * provider 24 hours after the service ends, allowing a dispute window for
+ * the owner. Tweakable via env var PAYOUT_RELEASE_WINDOW_HOURS.
+ */
+const PAYOUT_RELEASE_WINDOW_MS =
+  (Number(process.env.PAYOUT_RELEASE_WINDOW_HOURS) || 24) * 60 * 60 * 1000;
+
+/**
+ * Compute the scheduled payout datetime for a paid booking:
+ *   = booking.endDate + 24h (or PAYOUT_RELEASE_WINDOW_HOURS hours).
+ * For dog walks, that's typically the same day, late evening.
+ * For overnight stays, that's the morning after the last night + 24h.
+ */
+const resolvePayoutReleaseAt = (booking) => {
+  const end = resolveBookingEndDate(booking);
+  return new Date(end.getTime() + PAYOUT_RELEASE_WINDOW_MS);
+};
+
+/**
+ * Session v23.1 — returns true when the scheduled payout datetime
+ * (endDate + 24h) is now or already in the past. Used to decide whether
+ * the provider payout should be released immediately (legacy/same-day
+ * booking, admin retry) or scheduled for later.
  */
 const isBookingPayoutDue = (booking) => {
-  const start = resolveBookingStartDate(booking);
-  return start.getTime() <= Date.now();
+  const releaseAt = resolvePayoutReleaseAt(booking);
+  return releaseAt.getTime() <= Date.now();
 };
 
 /**
  * Schedules or triggers the sitter payout for a booking that has just been paid.
  *
- * Business rule (HopeTSIT):
- *   The money stays in escrow until the first day of the pet sitting service.
- *   On that first day, `processScheduledSitterPayouts` (run by the scheduler)
- *   will call `processProviderPayoutForBooking` to actually release the funds.
+ * Business rule (HopeTSIT v23.1, aligned with Airwallex risk pack policy):
+ *   The money stays in escrow until **24 hours after the service ENDS**.
+ *   This gives the owner a dispute window after the booking is completed,
+ *   while still releasing funds to the provider quickly (typically within
+ *   1 day for dog walks, the morning after the last night for overnight stays).
  *
- * If the booking start date is today or already past (same-day booking,
- * admin retry, legacy data), the payout is released immediately.
+ *   `processScheduledSitterPayouts` (run by the scheduler every 5 minutes)
+ *   calls `processProviderPayoutForBooking` to release the funds once the
+ *   release datetime is reached.
+ *
+ * If the release datetime is already in the past (legacy data, admin retry),
+ * the payout is released immediately.
  */
 const schedulePayoutForBooking = async (booking) => {
   if (!booking) return;
@@ -770,10 +823,10 @@ const schedulePayoutForBooking = async (booking) => {
     return;
   }
 
-  booking.scheduledPayoutAt = resolveBookingStartDate(booking);
+  booking.scheduledPayoutAt = resolvePayoutReleaseAt(booking);
 
   if (isBookingPayoutDue(booking)) {
-    // First day of the pet sitting already reached → release now.
+    // Release window already elapsed → release now.
     await booking.save();
     await processProviderPayoutForBooking(booking);
     return;
@@ -782,7 +835,7 @@ const schedulePayoutForBooking = async (booking) => {
   booking.payoutStatus = 'scheduled';
   await booking.save();
   logger.info(
-    `🗓️  Payout scheduled for booking ${booking._id.toString()} on ${booking.scheduledPayoutAt.toISOString()}`
+    `🗓️  Payout scheduled for booking ${booking._id.toString()} on ${booking.scheduledPayoutAt.toISOString()} (endDate + 24h policy).`
   );
 };
 
@@ -942,6 +995,30 @@ const processProviderPayoutForBooking = async (booking) => {
           booking.airwallexPayoutId = payout?.id || '';
           booking.payoutError = null;
           await booking.save();
+
+          // v23.1 — credit the provider's wallet so the lifetime earnings
+          // history is visible in the in-app wallet screen, even though the
+          // money is being auto-paid out to their bank in parallel.
+          try {
+            const { creditWallet } = require('../services/walletService');
+            await creditWallet({
+              userId: sitter._id.toString(),
+              userRole: provider.type,
+              amount: netPayout,
+              currency: (currency || 'EUR').toUpperCase(),
+              type: 'credit_booking',
+              bookingId: booking._id.toString(),
+              referenceId: payout?.id || '',
+              meta: { source: 'airwallex_payout', autoPayout: true },
+            });
+          } catch (walletErr) {
+            // Non-fatal — payout itself already succeeded, wallet credit
+            // is a bookkeeping sugar. Logged so admin can reconcile later.
+            logger.warn(
+              `⚠️ wallet credit skipped after payout (booking ${booking._id}): ${walletErr?.message || walletErr}`,
+            );
+          }
+
           logger.info(
             `🚀 Airwallex payout created for booking=${booking._id.toString()} ` +
             `provider=${provider.type}:${sitter._id} amount=${netPayout} ${currency} ` +
@@ -1011,6 +1088,26 @@ const processProviderPayoutForBooking = async (booking) => {
       booking.payoutAt = new Date();
       booking.payoutError = null;
       await booking.save();
+
+      // v23.1 — credit provider wallet (lifetime earnings history).
+      try {
+        const { creditWallet } = require('../services/walletService');
+        await creditWallet({
+          userId: sitter._id.toString(),
+          userRole: provider.type,
+          amount: netPayout,
+          currency: (currency || 'EUR').toUpperCase(),
+          type: 'credit_booking',
+          bookingId: booking._id.toString(),
+          referenceId: payoutResult.payoutItemId || '',
+          meta: { source: 'paypal_payout', autoPayout: true },
+        });
+      } catch (walletErr) {
+        logger.warn(
+          `⚠️ wallet credit skipped after PayPal payout (booking ${booking._id}): ${walletErr?.message || walletErr}`,
+        );
+      }
+
       logger.info('✅ PayPal payout completed for booking', booking._id.toString());
       return;
     }
@@ -2092,11 +2189,32 @@ const createBookingPaymentIntent = async (req, res) => {
       }
     }
     const amountInCents = Math.round(effectiveTotal * 100);
-    
+
     if (isNaN(amountInCents) || amountInCents <= 0) {
-      return res.status(400).json({ 
-        error: 'Invalid payment amount. Please check the booking pricing.' 
+      return res.status(400).json({
+        error: 'Invalid payment amount. Please check the booking pricing.'
       });
+    }
+
+    // v23.1 — saveCard flag : if true, attach the booking PI to a customer
+    // so a payment_consent is automatically created and the card surfaces
+    // in SavedCardsScreen after the payment succeeds.
+    const wantsSaveCard = req.body?.saveCard === true;
+    let airwallexCustomerId = null;
+    if (wantsSaveCard) {
+      try {
+        const ownerDoc = booking.ownerId;
+        const customer = await airwallex.findOrCreateCustomer({
+          userId: ownerDoc._id.toString(),
+          email: ownerDoc.email,
+          firstName: (ownerDoc.name || '').split(' ')[0] || ownerDoc.name,
+          lastName: (ownerDoc.name || '').split(' ').slice(1).join(' ') || '',
+        });
+        airwallexCustomerId = customer?.id || null;
+      } catch (custErr) {
+        logger.warn(`[createPaymentIntent] saveCard customer ensure failed: ${custErr?.message || custErr}`);
+        // Non-fatal — payment continues without the consent attached.
+      }
     }
 
     // Session v18.0 — use Stripe Connect destination charge ONLY when the
@@ -2113,6 +2231,14 @@ const createBookingPaymentIntent = async (req, res) => {
     paymentIntent = await airwallex.createPlatformPaymentIntent({
       amount: amountInCents,
       currency: bookingCurrency.toUpperCase(),
+      // v23.1 — payment_consent attach when saveCard requested.
+      ...(airwallexCustomerId ? {
+        customer_id: airwallexCustomerId,
+        payment_consent: {
+          type: 'one_off',
+          next_triggered_by: 'customer',
+        },
+      } : {}),
       metadata: {
         type: 'booking',
         bookingId: booking._id.toString(),

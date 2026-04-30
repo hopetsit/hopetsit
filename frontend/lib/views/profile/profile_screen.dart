@@ -17,6 +17,8 @@ import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 // v18.2 — Mes paiements entry point.
 import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
+// v23.1 — Mes cartes (Airwallex saved payment_consents).
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/profile/bug_report_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -318,6 +320,14 @@ class ProfileScreen extends StatelessWidget {
           Icons.credit_card_rounded,
           AppColors.primaryColor,
           () => Get.to(() => const OwnerPaymentsScreen()),
+        ),
+        // v23.1 — Mes cartes (Airwallex saved payment_consents).
+        _buildSettingsTile(
+          'saved_cards_title'.tr,
+          'saved_cards_empty_message'.tr,
+          Icons.credit_card_outlined,
+          AppColors.primaryColor,
+          () => Get.to(() => const SavedCardsScreen()),
         ),
         _buildSettingsTile(
           'profile_choose_service'.tr,

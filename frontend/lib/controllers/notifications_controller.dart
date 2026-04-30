@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -6,7 +7,7 @@ import 'package:hopetsit/repositories/notifications_repository.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 
-class NotificationsController extends GetxController {
+class NotificationsController extends GetxController with WidgetsBindingObserver {
   NotificationsController({NotificationsRepository? repository})
     : _repository = repository ?? Get.find<NotificationsRepository>();
 
@@ -37,6 +38,10 @@ class NotificationsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // v23.1 — refresh notifs when app comes back to foreground so the
+    // bell badge reflects the latest state (e.g. owner reopens the app
+    // after a walker accepted while the app was backgrounded).
+    WidgetsBinding.instance.addObserver(this);
     unreadBookings.value = _storage.read<int>(_kUnreadBookings) ?? 0;
     unreadChat.value = _storage.read<int>(_kUnreadChat) ?? 0;
     unreadHome.value = _storage.read<int>(_kUnreadHome) ?? 0;
@@ -59,6 +64,24 @@ class NotificationsController extends GetxController {
       svc.addOnConnectedHook(_attachSocketListener);
     } catch (_) { /* SocketService pas encore enregistré */ }
     refreshUnreadCount();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // App returned to foreground — pull latest notifs so the bell badge
+      // is up to date (covers both push-arrived-while-bg and missed pushes).
+      refreshAll();
+    }
+  }
+
+  @override
+  void onClose() {
+    try {
+      WidgetsBinding.instance.removeObserver(this);
+    } catch (_) {}
+    super.onClose();
   }
 
   Future<void> _ensureSocketConnectedAndListen() async {

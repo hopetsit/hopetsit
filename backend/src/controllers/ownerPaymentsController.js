@@ -39,13 +39,49 @@ const assertOwner = (req) => {
 
 /**
  * GET /owner/payments/methods
- * v21.1.1 — Stripe disabled (Airwallex only). Returns empty list for compatibility.
+ * v23.1 — list owner's saved Airwallex cards (payment_consents). Lazy-creates
+ * the Airwallex customer on first call so the same record is reused across
+ * subsequent payments.
  */
 const getPaymentMethods = async (req, res) => {
   const guard = assertOwner(req);
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
-  return res.json({ paymentMethods: [], count: 0 });
+  try {
+    const Owner = require('../models/Owner');
+    const airwallex = require('../services/airwallexService');
+    const owner = await Owner.findById(req.user.id).lean();
+    if (!owner) {
+      return res.status(404).json({ error: 'Owner not found.' });
+    }
+    const customer = await airwallex.findOrCreateCustomer({
+      userId: owner._id.toString(),
+      email: owner.email,
+      firstName: (owner.name || '').split(' ')[0] || owner.name,
+      lastName: (owner.name || '').split(' ').slice(1).join(' ') || '',
+    });
+    const customerId = customer?.id;
+    if (!customerId) {
+      return res.json({ paymentMethods: [], count: 0, customerId: null });
+    }
+    const consents = await airwallex.listPaymentMethods(customerId);
+    const items = (consents?.items || []).map((c) => ({
+      id: c.id,
+      brand: c.payment_method?.card?.brand || '',
+      last4: c.payment_method?.card?.last4 || '',
+      expiryMonth: c.payment_method?.card?.expiry_month || null,
+      expiryYear: c.payment_method?.card?.expiry_year || null,
+      cardholder: c.payment_method?.card?.name || '',
+      createdAt: c.created_at || null,
+    }));
+    return res.json({ paymentMethods: items, count: items.length, customerId });
+  } catch (err) {
+    logger.error('[ownerPayments] getPaymentMethods Airwallex failed', err);
+    return res.status(500).json({
+      error: 'Unable to fetch saved cards.',
+      details: err?.message || String(err),
+    });
+  }
 };
 
 /**
@@ -74,13 +110,27 @@ const attachPaymentMethod = async (req, res) => {
 
 /**
  * DELETE /owner/payments/methods/:id
- * v21.1.1 — Stripe disabled (Airwallex only).
+ * v23.1 — detach an Airwallex saved card (payment_consent).
  */
 const deletePaymentMethod = async (req, res) => {
   const guard = assertOwner(req);
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
-  return res.status(501).json({ error: 'Card management disabled in v21.1.1.' });
+  try {
+    const airwallex = require('../services/airwallexService');
+    const consentId = req.params.id;
+    if (!consentId) {
+      return res.status(400).json({ error: 'Payment method id is required.' });
+    }
+    await airwallex.detachPaymentMethod(consentId);
+    return res.json({ ok: true, deletedId: consentId });
+  } catch (err) {
+    logger.error('[ownerPayments] deletePaymentMethod Airwallex failed', err);
+    return res.status(500).json({
+      error: 'Unable to delete saved card.',
+      details: err?.message || String(err),
+    });
+  }
 };
 
 /**

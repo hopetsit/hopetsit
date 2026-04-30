@@ -29,12 +29,15 @@ class OwnerRepository {
 
   /// Creates a structured reservation request post (without media).
   /// Uses the existing /posts endpoint with an extended JSON body.
+  /// v23.1 — accepts a list `petIds` for multi-pet bookings; falls back to
+  /// the single `petId` arg if `petIds` is empty.
   Future<Map<String, dynamic>> createReservationRequest({
     required String body,
     required DateTime startDate,
     required DateTime endDate,
     required List<String> serviceTypes,
-    required String petId,
+    String? petId,
+    List<String> petIds = const <String>[],
     required String city,
     double? lat,
     double? lng,
@@ -42,12 +45,17 @@ class OwnerRepository {
     String? houseSittingVenue,
     String? serviceLocation,
   }) async {
+    final effectiveIds = petIds.isNotEmpty
+        ? petIds
+        : (petId != null && petId.isNotEmpty ? <String>[petId] : <String>[]);
     final requestBody = <String, dynamic>{
       'body': body,
       'startDate': startDate.toUtc().toIso8601String(),
       'endDate': endDate.toUtc().toIso8601String(),
       'serviceTypes': serviceTypes,
-      'petId': petId,
+      'petIds': effectiveIds,
+      // Legacy field kept for backend backward-compat.
+      if (effectiveIds.isNotEmpty) 'petId': effectiveIds.first,
       'location': {
         'city': city,
         if (lat != null) 'lat': lat,
@@ -81,13 +89,14 @@ class OwnerRepository {
   }
 
   /// Creates a structured reservation request post with media (images).
-  /// Uses the existing /posts/with-media endpoint and encodes complex fields.
+  /// v23.1 — accepts a list `petIds` for multi-pet bookings.
   Future<Map<String, dynamic>> createReservationRequestWithMedia({
     required String body,
     required DateTime startDate,
     required DateTime endDate,
     required List<String> serviceTypes,
-    required String petId,
+    String? petId,
+    List<String> petIds = const <String>[],
     required String city,
     double? lat,
     double? lng,
@@ -96,6 +105,9 @@ class OwnerRepository {
     String? serviceLocation,
     required List<File> imageFiles,
   }) async {
+    final effectiveIds = petIds.isNotEmpty
+        ? petIds
+        : (petId != null && petId.isNotEmpty ? <String>[petId] : <String>[]);
     final location = <String, dynamic>{
       'city': city,
       if (lat != null) 'lat': lat,
@@ -106,11 +118,10 @@ class OwnerRepository {
       'body': body,
       'startDate': startDate.toUtc().toIso8601String(),
       'endDate': endDate.toUtc().toIso8601String(),
-      // Backend expects a simple value it wraps into an array,
-      // so we send the first service type as plain string.
       if (serviceTypes.isNotEmpty) 'serviceTypes': serviceTypes.first,
-      'petId': petId,
-      // Match Postman format: location as JSON string.
+      // Multipart : petIds passed as a JSON-stringified array.
+      'petIds': jsonEncode(effectiveIds),
+      if (effectiveIds.isNotEmpty) 'petId': effectiveIds.first,
       'location': jsonEncode(location),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (houseSittingVenue != null && houseSittingVenue.isNotEmpty)
@@ -456,16 +467,20 @@ class OwnerRepository {
   Future<Map<String, dynamic>> createPaymentIntent({
     required String bookingId,
     bool useLoyaltyCredit = false,
+    bool saveCard = false,
   }) async {
     AppLogger.logInfo(
       'Creating payment intent for booking',
-      data: {'bookingId': bookingId},
+      data: {'bookingId': bookingId, 'saveCard': saveCard},
     );
 
     try {
       final response = await _apiClient.post(
         '${ApiEndpoints.bookings}/$bookingId${ApiEndpoints.createPaymentIntent}',
-        body: {'useLoyaltyCredit': useLoyaltyCredit},
+        // v23.1 — saveCard tells the backend to attach a payment_consent
+        // (one_off, customer-triggered) so the card auto-appears in
+        // SavedCardsScreen after this payment succeeds.
+        body: {'useLoyaltyCredit': useLoyaltyCredit, 'saveCard': saveCard},
         requiresAuth: true,
       );
 
@@ -901,19 +916,36 @@ class OwnerRepository {
   // DEPRECATED: Stripe payment methods endpoints have been removed.
   // All owner payments are now handled through Airwallex integration.
 
-  /// Returns empty list — owner payments are now Airwallex-based.
+  /// v23.1 — saved cards via Airwallex payment_consents.
+  /// Returns the list of saved cards for the current owner.
   Future<List<Map<String, dynamic>>> getOwnerPaymentMethods() async {
+    final response = await _apiClient.get(
+      ApiEndpoints.ownerPaymentMethods,
+      requiresAuth: true,
+    );
+    if (response is Map) {
+      final list = response['paymentMethods'];
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    }
     return const [];
   }
 
-  /// Deprecated stub — setup intent flow moved to Airwallex.
+  /// Deprecated stub — setup intent flow moved to Airwallex (auto-save at first PI).
   Future<Map<String, dynamic>> createOwnerSetupIntent() async {
     return const {};
   }
 
-  /// Deprecated stub — payment method deletion moved to Airwallex.
+  /// v23.1 — detach an Airwallex saved card (payment_consent).
   Future<void> deleteOwnerPaymentMethod(String paymentMethodId) async {
-    // No-op
+    await _apiClient.delete(
+      '${ApiEndpoints.ownerPaymentMethods}/$paymentMethodId',
+      requiresAuth: true,
+    );
   }
 
   /// Returns empty list — payment history now Airwallex-based.

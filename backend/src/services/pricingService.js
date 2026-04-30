@@ -37,10 +37,11 @@ const DEFAULTS = Object.freeze({
     USD: { bronze: 2.19,  silver: 9.89,  gold: 16.49, platinum: 27.49 },
   },
   premium: {
-    EUR: { monthly: 6.99, yearly: 49.99 },
-    GBP: { monthly: 5.89, yearly: 42.19 },
-    CHF: { monthly: 6.99, yearly: 49.99 },
-    USD: { monthly: 7.69, yearly: 54.99 },
+    // v23.1 — family added to admin/api so it can be edited from the dashboard.
+    EUR: { monthly: 6.99, yearly: 49.99, family: 9.99 },
+    GBP: { monthly: 5.89, yearly: 42.19, family: 8.49 },
+    CHF: { monthly: 6.99, yearly: 49.99, family: 9.99 },
+    USD: { monthly: 7.69, yearly: 54.99, family: 10.99 },
   },
   chat: {
     EUR: { monthly: 2.99 },

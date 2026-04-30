@@ -796,6 +796,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ? _profileController.profileImageUrl.value
               : '',
           showNotificationIcon: true,
+          // v23.1 — badge masqué sur l'accueil (push + email continuent).
+          showNotificationBadge: false,
           notificationUnreadRx: _notificationsController.unreadCount,
           onNotificationTap: () {
             Get.to(() => const NotificationsScreen())?.then((_) {

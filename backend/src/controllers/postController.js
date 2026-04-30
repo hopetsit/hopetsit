@@ -28,7 +28,7 @@ const includesHouseSittingService = (serviceTypes = []) => {
 
 const createPost = async (req, res) => {
   try {
-    const { body, startDate, endDate, serviceTypes, petId, location, notes, houseSittingVenue, serviceLocation } = req.body || {};
+    const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation } = req.body || {};
     const ownerId = req.user?.id;
 
     if (!ownerId) {
@@ -92,8 +92,13 @@ const createPost = async (req, res) => {
       postPayload.houseSittingVenue = normalizedVenue;
     }
 
-    if (petId) {
+    if (Array.isArray(petIds) && petIds.length > 0) {
+      postPayload.petIds = petIds;
+      // Keep legacy petId set to first selected for retrocompat with old clients.
+      postPayload.petId = petIds[0];
+    } else if (petId) {
       postPayload.petId = petId;
+      postPayload.petIds = [petId];
     }
 
     // Location can come as object (JSON body) or JSON string (multipart-style clients)
@@ -820,7 +825,7 @@ const createPostWithMedia = async (req, res) => {
   try {
     const ownerId = req.user?.id;
     const userRole = req.user?.role;
-    const { body, folder, startDate, endDate, serviceTypes, petId, location, notes, houseSittingVenue } = req.body || {};
+    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue } = req.body || {};
 
     if (!ownerId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
@@ -962,8 +967,12 @@ const createPostWithMedia = async (req, res) => {
       postPayload.houseSittingVenue = normalizedVenue;
     }
 
-    if (petId) {
+    if (Array.isArray(petIds) && petIds.length > 0) {
+      postPayload.petIds = petIds;
+      postPayload.petId = petIds[0];
+    } else if (petId) {
       postPayload.petId = petId;
+      postPayload.petIds = [petId];
     }
 
     // Location can come as object (when backend receives JSON) or JSON string (multipart/form-data)

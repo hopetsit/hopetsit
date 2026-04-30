@@ -14,6 +14,9 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
+// v23.1 — B3+B5 : multi-candidatures banner above each owner's post card.
+import 'package:hopetsit/controllers/applications_controller.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_banner.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -219,7 +222,11 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
 
       return Padding(
         padding: EdgeInsets.only(bottom: 16.h),
-        child: PetPostCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PostCandidatesBanner(postId: post.id),
+            PetPostCard(
           userName: post.owner.name,
           userEmail: post.owner.email,
           userAvatar: post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
@@ -269,12 +276,18 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
             }();
           },
         ),
+          ],
+        ),
       );
     }
 
     return Padding(
       padding: EdgeInsets.only(bottom: 16.h),
-      child: PetPostCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PostCandidatesBanner(postId: post.id),
+          PetPostCard(
         userName: post.owner.name,
         userEmail: post.owner.email,
         userAvatar: post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
@@ -360,12 +373,17 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           }();
         },
       ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final postsController = Get.put(PostsController());
+    // v23.1 — B3+B5 : load applications so the multi-candidatures banner
+    // can show "X candidats" above the right post.
+    Get.put(ApplicationsController());
     final storage = Get.find<GetStorage>();
     final userProfile =
         storage.read(StorageKeys.userProfile) as Map<String, dynamic>?;

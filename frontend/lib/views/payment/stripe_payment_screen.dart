@@ -42,6 +42,8 @@ class StripePaymentScreen extends StatefulWidget {
 
 class _StripePaymentScreenState extends State<StripePaymentScreen> {
   late final StripePaymentController _controller;
+  // v23.1 — "Save my card" checkbox state.
+  final RxBool _saveCard = false.obs;
 
   @override
   void initState() {
@@ -176,7 +178,8 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   Future<void> _onPayTap() async {
     // v21.1.1 — Airwallex HPP collecte la carte directement dans son webview.
     // Plus besoin de billingDetails côté Flutter.
-    await _controller.initiateAndConfirmPayment();
+    // v23.1 — pass saveCard checkbox state for payment_consent attach.
+    await _controller.initiateAndConfirmPayment(saveCard: _saveCard.value);
   }
 
   @override
@@ -224,6 +227,60 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // v23.1 — "Save my card" checkbox above the pay button.
+                  Obx(() => InkWell(
+                        onTap: _controller.isProcessing.value
+                            ? null
+                            : () => _saveCard.value = !_saveCard.value,
+                        borderRadius: BorderRadius.circular(8.r),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 4.w, vertical: 6.h),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 22.w,
+                                height: 22.w,
+                                child: Checkbox(
+                                  value: _saveCard.value,
+                                  onChanged: _controller.isProcessing.value
+                                      ? null
+                                      : (v) =>
+                                          _saveCard.value = v ?? false,
+                                  activeColor: accent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(4.r),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    InterText(
+                                      text: 'payment_save_card_label'.tr,
+                                      fontSize: 13.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary(context),
+                                    ),
+                                    SizedBox(height: 2.h),
+                                    InterText(
+                                      text:
+                                          'payment_save_card_subtitle'.tr,
+                                      fontSize: 11.sp,
+                                      color: AppColors.textSecondary(context),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )),
+                  SizedBox(height: 8.h),
                   Obx(() => CustomButton(
                         title: _controller.isProcessing.value
                             ? 'payment_processing'.tr

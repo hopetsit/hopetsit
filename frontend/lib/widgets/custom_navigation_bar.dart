@@ -116,8 +116,10 @@ class CustomNavigationBar extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       final nc = Get.find<NotificationsController>();
+                      // v23.1 — home tab badge suppressed (only chat &
+                      // bookings keep theirs). Push & email continue normally.
                       final count = badgeIndex == 0
-                          ? nc.unreadHome.value
+                          ? 0
                           : badgeIndex == 1
                               ? nc.unreadChat.value
                               : nc.unreadBookings.value;

@@ -1613,7 +1613,7 @@ let _pricingState = null;          // current server snapshot + local edits
 const PRICING_CATS = [
   { key: 'boost',    label: '🚀 Boost',     tiers: ['bronze','silver','gold','platinum'] },
   { key: 'mapBoost', label: '🗺️ PawSpot', tiers: ['bronze','silver','gold','platinum'] },
-  { key: 'premium',  label: '⭐ PawFollow',    tiers: ['monthly','yearly'] },
+  { key: 'premium',  label: '⭐ PawFollow',    tiers: ['monthly','yearly','family'] },
   // Session v3.2 — cheap chat add-on to unlock chat between friends.
   { key: 'chat',     label: '💬 Chat add-on', tiers: ['monthly'] },
 ];
@@ -1630,12 +1630,13 @@ function tierLabel(catKey, tier) {
     'boost.silver':      '🥈 Silver',
     'boost.gold':        '🥇 Gold',
     'boost.platinum':    '💎 Platinum',
-    'mapBoost.bronze':   '📍 Découverte',
-    'mapBoost.silver':   '🔆 Visible',
-    'mapBoost.gold':     '✨ Pin Doré',
-    'mapBoost.platinum': '🗺️ PawSpot Premium',
+    'mapBoost.bronze':   '⏱️ PawSpot 24h',
+    'mapBoost.silver':   '📆 PawSpot 7 jours',
+    'mapBoost.gold':     '✨ PawSpot intermédiaire',
+    'mapBoost.platinum': '🗺️ PawSpot 30 jours',
     'premium.monthly':   '📆 Mensuel PawFollow',
     'premium.yearly':    '📅 Annuel PawFollow',
+    'premium.family':    '👨‍👩‍👧‍👦 Famille PawFollow',
     'chat.monthly':      '💬 Mensuel',
   };
   const key = `${catKey}.${tier}`;

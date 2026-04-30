@@ -34,11 +34,21 @@ const postSchema = new mongoose.Schema(
       enum: ['owners_home', 'sitters_home'],
       default: null,
     },
-    // Associated pet for this post (optional)
+    // Associated pet for this post (optional, legacy single-pet field kept
+    // for backwards compatibility — new requests prefer the petIds array
+    // below for multi-pet support).
     petId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Pet',
       default: null,
+    },
+    // v23.1 — multi-pet array for owner reservation requests covering more
+    // than one animal in a single booking (e.g. cat + dog). When set, takes
+    // precedence over petId. Backend createBooking pulls from petIds first,
+    // then falls back to [petId] if the array is empty.
+    petIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Pet' }],
+      default: [],
     },
     // Optional location object as provided by frontend (no geo index needed here)
     location: {

@@ -39,9 +39,38 @@ const handleAirwallexWebhook = async (req, res) => {
       case 'payment_intent.succeeded': {
         const piId = data?.id || data?.payment_intent_id;
         if (!piId) break;
+
+        // v23.1 — route by metadata.type so non-booking purchases
+        // (map_boost / subscription / premium / coins) are activated server-side
+        // even if the client-side /confirm call never fires.
+        const piMetadata = data?.metadata || {};
+        const purchaseType = (piMetadata.type || '').toLowerCase();
+
+        if (purchaseType === 'map_boost_purchase') {
+          try {
+            const { activateMapBoostFromWebhook } = require('./purchaseActivationController');
+            await activateMapBoostFromWebhook({ piId, metadata: piMetadata });
+            logger.info(`✅ [airwallex.webhook] map_boost activated from PI ${piId} for user ${piMetadata.userId}`);
+          } catch (e) {
+            logger.error(`[airwallex.webhook] map_boost activation failed for PI ${piId} : ${e.message}`);
+          }
+          break;
+        }
+
+        if (purchaseType === 'subscription_purchase' || purchaseType === 'premium_purchase') {
+          try {
+            const { activateSubscriptionFromWebhook } = require('./purchaseActivationController');
+            await activateSubscriptionFromWebhook({ piId, metadata: piMetadata });
+            logger.info(`✅ [airwallex.webhook] subscription activated from PI ${piId} for user ${piMetadata.userId}`);
+          } catch (e) {
+            logger.error(`[airwallex.webhook] subscription activation failed for PI ${piId} : ${e.message}`);
+          }
+          break;
+        }
+
         const booking = await Booking.findOne({ airwallexPaymentIntentId: piId });
         if (!booking) {
-          logger.info(`[airwallex.webhook] no booking found for PI ${piId} (donation/boost/premium ?)`);
+          logger.info(`[airwallex.webhook] no booking found for PI ${piId} (purchaseType=${purchaseType || 'unknown'})`);
           break;
         }
         booking.paymentStatus = 'paid';
@@ -97,10 +126,13 @@ const handleAirwallexWebhook = async (req, res) => {
         // v22.1 — Bug 14c : auto-message système dans le chat owner+provider
         // pour confirmer le paiement aux 2 parties, fiable (déclenché par
         // webhook, pas par UI conditionnel).
+        // v23.1 — body localisé selon la langue de l'owner (was: hardcoded FR
+        // → emoji prefix could render as empty in some Flutter setups).
         try {
           const Conversation = require('../models/Conversation');
           const Message = require('../models/Message');
           const { emitToUser } = require('../sockets');
+          const Owner = require('../models/Owner');
 
           const ownerId = booking.ownerId;
           const sitterId = booking.sitterId || null;
@@ -125,11 +157,25 @@ const handleAirwallexWebhook = async (req, res) => {
               logger.info(`[airwallex.webhook] conversation created ${conversation._id} for booking ${booking._id}`);
             }
 
+            // v23.1 — localise le body selon la langue de l'owner.
+            const ownerDoc = await Owner.findById(ownerId).select('language').lean();
+            const ownerLang = (ownerDoc?.language || 'fr').slice(0, 2).toLowerCase();
+            const PAYMENT_CONFIRMED_BODY = {
+              fr: 'Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
+              en: 'Payment confirmed. Your booking is active — you can now chat here.',
+              es: 'Pago confirmado. La reserva está activa — ya pueden hablar aquí.',
+              de: 'Zahlung bestätigt. Die Buchung ist aktiv — ihr könnt jetzt hier chatten.',
+              it: 'Pagamento confermato. La prenotazione è attiva — potete ora chattare qui.',
+              pt: 'Pagamento confirmado. A reserva está ativa — já podem conversar aqui.',
+            };
+            const localizedBody =
+              PAYMENT_CONFIRMED_BODY[ownerLang] || PAYMENT_CONFIRMED_BODY.en;
+
             const systemMessage = await Message.create({
               conversationId: conversation._id,
               senderRole: 'system',
               senderId: ownerId, // requis par schema, on met l'owner
-              body: '✅ Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
+              body: localizedBody,
               type: 'text',
             });
 
@@ -145,22 +191,66 @@ const handleAirwallexWebhook = async (req, res) => {
               });
             } catch (_) { /* socket non-critique */ }
 
+            // v23.1 — fire NEW_MESSAGE notification (in-app badge + FCM
+            // push + email) to BOTH parties so the chat tab badge bumps
+            // and the user gets a phone push + email even if the app is
+            // closed. Previously only emitToUser was called → silent if
+            // app in background.
+            try {
+              const { sendNotification } = require('../services/notificationSender');
+              const senderName = 'HoPetSit';
+              const previewText = (localizedBody || '').slice(0, 120);
+              await Promise.allSettled([
+                sendNotification({
+                  userId: ownerId.toString(),
+                  role: 'owner',
+                  type: 'NEW_MESSAGE',
+                  data: {
+                    conversationId: conversation._id.toString(),
+                    messageId: systemMessage._id.toString(),
+                    senderName,
+                    preview: previewText,
+                  },
+                  actor: { role: 'system', id: null },
+                }),
+                sendNotification({
+                  userId: providerId.toString(),
+                  role: providerRole,
+                  type: 'NEW_MESSAGE',
+                  data: {
+                    conversationId: conversation._id.toString(),
+                    messageId: systemMessage._id.toString(),
+                    senderName,
+                    preview: previewText,
+                  },
+                  actor: { role: 'system', id: null },
+                }),
+              ]);
+            } catch (e) {
+              logger.warn(`[airwallex.webhook] system message notification failed: ${e.message}`);
+            }
+
             logger.info(`✅ [airwallex.webhook] system message sent in conv ${conversation._id} (booking ${booking._id})`);
           }
         } catch (e) {
           logger.error(`[airwallex.webhook] auto chat message failed : ${e.message}`);
         }
 
-        // Trigger the existing payout flow which now routes to Airwallex
-        // Payout API when sitter has airwallexBeneficiaryId.
+        // v23.1 — schedule payout for endDate + 24h (policy submitted to
+        // Airwallex risk team). Previously this directly triggered the
+        // payout, which violated the dispute window policy. The scheduler
+        // will now release the funds once the 24h window has elapsed.
+        // For legacy bookings whose endDate + 24h is already in the past,
+        // schedulePayoutForBooking() releases immediately.
         try {
-          const { processProviderPayoutForBooking } =
-            require('./bookingController');
-          if (typeof processProviderPayoutForBooking === 'function') {
-            await processProviderPayoutForBooking(booking);
+          const {
+            schedulePayoutForBooking,
+          } = require('./bookingController');
+          if (typeof schedulePayoutForBooking === 'function') {
+            await schedulePayoutForBooking(booking);
           }
         } catch (e) {
-          logger.error(`[airwallex.webhook] payout trigger failed : ${e.message}`);
+          logger.error(`[airwallex.webhook] payout scheduling failed : ${e.message}`);
         }
         break;
       }

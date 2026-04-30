@@ -2,10 +2,13 @@ const logger = require('../utils/logger');
 /**
  * Payout scheduler.
  *
- * HopeTSIT business rule:
+ * HopeTSIT business rule (Session v23.1 — aligned with Airwallex risk pack):
  *   The pet owner pays at booking time, the money is held in escrow, and
- *   the funds are only released to the sitter OR walker at the EXACT start
- *   datetime of the service (hour-exact since Session v17).
+ *   the funds are released to the provider (sitter or walker) **24 hours
+ *   after the service ENDS**. This gives the owner a dispute window
+ *   immediately after completion while still paying providers quickly.
+ *
+ * Tweakable via env var PAYOUT_RELEASE_WINDOW_HOURS (default 24).
  *
  * This module starts a lightweight background job that, every 5 minutes,
  * calls `processScheduledSitterPayouts` to release the funds for any
@@ -15,9 +18,9 @@ const logger = require('../utils/logger');
  * new dependency. If the process crashes between two ticks, the next tick
  * will pick up the missed bookings (the query uses `$lte: now`).
  *
- * Session v17 — the polling interval was reduced from 1h to 5min and the
- * query was tightened from "endOfToday" to "now" so the release happens
- * within ~5 minutes of the booking start time instead of within 24h.
+ * History:
+ *   v17  — interval reduced from 1h to 5min, hour-exact release at start.
+ *   v23.1 — release moved from "service start" to "service end + 24h".
  */
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -74,7 +77,7 @@ function startPayoutScheduler({
   }
 
   logger.info(
-    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes, hour-exact release since v17, hold-admin release since v18.5).`
+    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes, end+24h release since v23.1, hold-admin release since v18.5).`
   );
 }
 

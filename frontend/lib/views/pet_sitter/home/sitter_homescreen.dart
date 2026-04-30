@@ -652,6 +652,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               ? profileController.profileImageUrl.value
               : '',
           showNotificationIcon: true,
+          // v23.1 — badge masqué sur l'accueil (push + email continuent).
+          showNotificationBadge: false,
           notificationUnreadRx: notificationsController.unreadCount,
           // v19.1.3 — role-colored bell for sitter/walker (shared home).
           role: Get.isRegistered<AuthController>()
