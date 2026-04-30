@@ -6,6 +6,12 @@ import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/custom_navigation_bar.dart';
 
+/// v23.1 — refactor radical pour fixer le bug d'affichage persistant des
+/// rectangles gris (top AppBar + bottom nav). Layout ultra-simple :
+/// - Scaffold fond blanc (pas de grey qui peut percer)
+/// - Column avec Expanded(screens) + CustomNavigationBar fixe en bas
+/// - Pas de Stack, pas d'extendBody, pas de SafeArea sur le wrapper
+/// - Chaque inner screen gère son propre SafeArea/AppBar
 class StackedNavigationWrapper extends StatefulWidget {
   final List<Widget> screens;
 
@@ -22,7 +28,6 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   @override
   void initState() {
     super.initState();
-    // Badge should reflect server count as soon as the shell is shown (home tab).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshNotificationBadge();
     });
@@ -35,41 +40,36 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    // v23.1 — refactor majeur : on retire le SafeArea du wrapper (chaque
-    // écran a son propre Scaffold qui gère son SafeArea automatiquement),
-    // et on utilise bottomNavigationBar du Scaffold OUTER pour que la nav
-    // soit gérée nativement par Flutter. Ça résout le bug de "grey rectangle"
-    // qui venait du SafeArea wrappant le Stack et créant des contraintes
-    // bizarres sur l'AppBar des écrans inner.
     return Scaffold(
-      backgroundColor: AppColors.lightGrey,
-      extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: widget.screens,
-      ),
-      bottomNavigationBar: CustomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-
-          // Home tab: refresh unread badge whenever user lands here.
-          if (index == 0) {
-            _refreshNotificationBadge();
-          }
-
-          // When switching to the Chat tab (index 1), reload conversations.
-          if (index == 1) {
-            if (Get.isRegistered<ChatController>()) {
-              Get.find<ChatController>().reloadConversations();
-            }
-            if (Get.isRegistered<SitterChatController>()) {
-              Get.find<SitterChatController>().reloadConversations();
-            }
-          }
-        },
+      backgroundColor: AppColors.appBar(context), // blanc en light, surface en dark
+      body: Column(
+        children: [
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: widget.screens,
+            ),
+          ),
+          CustomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+              if (index == 0) {
+                _refreshNotificationBadge();
+              }
+              if (index == 1) {
+                if (Get.isRegistered<ChatController>()) {
+                  Get.find<ChatController>().reloadConversations();
+                }
+                if (Get.isRegistered<SitterChatController>()) {
+                  Get.find<SitterChatController>().reloadConversations();
+                }
+              }
+            },
+          ),
+        ],
       ),
     );
   }

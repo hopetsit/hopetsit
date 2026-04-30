@@ -32,36 +32,27 @@ class CustomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // v23.1 — pill avec padding interne 8w pour que le 1er et le dernier
-    // item (Accueil et Profil) ne soient pas clipped par le borderRadius
-    // sur écrans étroits. Le bouton central Map continue de déborder
-    // au-dessus grâce au transform negative dans _buildCenterMapButton.
+    // v23.1 — Refactor radical pour fixer définitivement le bug d'affichage :
+    //   - SafeArea bottom pour respecter la gesture bar Android
+    //   - Container plein écran avec couleur de fond (pas de margin qui rétrécit)
+    //   - Pill blanche centrée à l'intérieur
+    //   - Pas de transform : le bouton central est juste plus grand
     return Container(
-      height: 78.h,
-      margin: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(24.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+      color: isDark ? const Color(0xFF121212) : Colors.white,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64.h,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Expanded(child: _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark, badgeIndex: 0)),
+              Expanded(child: _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1)),
+              Expanded(child: _buildCenterMapButton(context, isDark)),
+              Expanded(child: _buildNavItem(context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark, badgeIndex: 2)),
+              Expanded(child: _buildNavItem(context, 4, AppImages.personIcon, 'nav_profile'.tr, isDark)),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 8.w),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark, badgeIndex: 0),
-            _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1),
-            _buildCenterMapButton(context, isDark),
-            _buildNavItem(context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark, badgeIndex: 2),
-            _buildNavItem(context, 4, AppImages.personIcon, 'nav_profile'.tr, isDark),
-          ],
         ),
       ),
     );
@@ -171,35 +162,35 @@ class CustomNavigationBar extends StatelessWidget {
         HapticFeedback.mediumImpact();
         onTap(2);
       },
-      child: Container(
-        width: 54.w,
-        height: 54.w,
-        transform: Matrix4.translationValues(0, -14.h, 0),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isSelected
-                ? [roleAccent, roleAccentLight]
-                : [roleAccent.withValues(alpha: 0.85), roleAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: roleAccent.withValues(alpha: 0.35),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+      // v23.1 — bouton central plus simple : juste centré dans son slot
+      // Expanded, plus de transform qui cassait le layout. Le bouton fait
+      // ~46x46 pour bien se distinguer des autres items 24x24.
+      child: Center(
+        child: Container(
+          width: 46.w,
+          height: 46.w,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isSelected
+                  ? [roleAccent, roleAccentLight]
+                  : [roleAccent.withValues(alpha: 0.85), roleAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-          border: Border.all(
-            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-            width: 3,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: roleAccent.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ),
-        child: Icon(
-          Icons.map_rounded,
-          size: 24.sp,
-          color: Colors.white,
+          child: Icon(
+            Icons.map_rounded,
+            size: 24.sp,
+            color: Colors.white,
+          ),
         ),
       ),
     );
