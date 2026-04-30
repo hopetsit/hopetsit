@@ -27,6 +27,8 @@ import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
+// v23.1 — HomeHeader Container-based, remplace AppBar pour fix grey rectangle.
+import 'package:hopetsit/widgets/home_header.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_segmented_control.dart';
 import 'package:hopetsit/widgets/expandable_post_input.dart';
@@ -788,16 +790,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Obx(
       () => Scaffold(
         backgroundColor: AppColors.scaffold(context),
-        appBar: CustomAppBar(
+        // v23.1 — HomeHeader : Container custom 100% blanc, fix le grey
+        // rectangle persistant qui apparaissait sur l'AppBar Material 3.
+        appBar: HomeHeader(
           userName: _profileController.userName.value.isNotEmpty
               ? _profileController.userName.value
               : 'home_default_user_name'.tr,
           userImage: _profileController.profileImageUrl.value.isNotEmpty
               ? _profileController.profileImageUrl.value
               : '',
-          showNotificationIcon: true,
-          // v23.1 — badge masqué sur l'accueil (push + email continuent).
-          showNotificationBadge: false,
           notificationUnreadRx: _notificationsController.unreadCount,
           onNotificationTap: () {
             Get.to(() => const NotificationsScreen())?.then((_) {
@@ -805,11 +806,14 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
           onProfileTap: () {},
+          role: 'owner',
           actions: [
             // v18.6 — mini bouton Boost à gauche de la carte et de la cloche.
             const BoostQuickAction(role: 'owner'),
-            IconButton(
-              icon: Container(
+            SizedBox(width: 4.w),
+            GestureDetector(
+              onTap: () => Get.to(() => const PawMapScreen()),
+              child: Container(
                 width: 38.w,
                 height: 38.h,
                 decoration: BoxDecoration(
@@ -822,8 +826,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   size: 20.sp,
                 ),
               ),
-              onPressed: () => Get.to(() => const PawMapScreen()),
             ),
+            SizedBox(width: 4.w),
           ],
         ),
         body: SafeArea(

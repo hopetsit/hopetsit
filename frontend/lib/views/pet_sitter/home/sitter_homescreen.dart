@@ -24,6 +24,8 @@ import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dia
 import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
+// v23.1 — HomeHeader Container-based, remplace AppBar pour fix grey rectangle.
+import 'package:hopetsit/widgets/home_header.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // Comments removed from publications
@@ -644,18 +646,15 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return Obx(
       () => Scaffold(
         backgroundColor: AppColors.scaffold(context),
-        appBar: CustomAppBar(
+        // v23.1 — HomeHeader Container-based : fix le grey rectangle persistant.
+        appBar: HomeHeader(
           userName: profileController.userName.value.isNotEmpty
               ? profileController.userName.value
               : 'common_user'.tr,
           userImage: profileController.profileImageUrl.value.isNotEmpty
               ? profileController.profileImageUrl.value
               : '',
-          showNotificationIcon: true,
-          // v23.1 — badge masqué sur l'accueil (push + email continuent).
-          showNotificationBadge: false,
           notificationUnreadRx: notificationsController.unreadCount,
-          // v19.1.3 — role-colored bell for sitter/walker (shared home).
           role: Get.isRegistered<AuthController>()
               ? (Get.find<AuthController>().userRole.value ?? 'sitter')
               : 'sitter',
@@ -665,13 +664,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             });
           },
           onProfileTap: () {
-            // Handle profile tap
             AppLogger.logDebug('SitterHomescreen: profile tapped');
           },
-          // v18.7 — mini bouton Boost. Puisque SitterHomescreen est aussi
-          // utilisé comme home tab par WalkerNavWrapper, on résout le rôle
-          // dynamiquement via AuthController pour que le walker voie la
-          // fusée VERTE (et pas bleue).
           actions: [
             Obx(() {
               final role = Get.isRegistered<AuthController>()
@@ -679,6 +673,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                   : 'sitter';
               return BoostQuickAction(role: role);
             }),
+            SizedBox(width: 4.w),
           ],
         ),
         body: SafeArea(
