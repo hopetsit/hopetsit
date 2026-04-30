@@ -12,6 +12,8 @@ import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
+// v23.1 — Mes cartes (Airwallex saved payment_consents) — sitter peut payer un PawSpot/PawFollow.
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
@@ -414,6 +416,15 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.credit_card_rounded,
           _sitterAccent,
           () => Get.to(() => const PaymentManagementScreen()),
+        ),
+        // v23.1 — Mes cartes : sitter peut enregistrer une CB pour ses
+        // achats (PawSpot, PawFollow). L'écran est role-aware côté backend.
+        _buildSettingsTile(
+          'saved_cards_title'.tr,
+          'saved_cards_empty_message'.tr,
+          Icons.credit_card_outlined,
+          _sitterAccent,
+          () => Get.to(() => const SavedCardsScreen()),
         ),
         // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak daily/weekly/
         // monthly rates without reopening the full edit profile form.

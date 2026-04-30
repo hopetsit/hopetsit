@@ -257,7 +257,9 @@ class WalkerCard extends StatelessWidget {
                       size: 14.sp, color: AppColors.textSecondary(context)),
                   SizedBox(width: 4.w),
                   Text(
-                    'Estimation 1 balade 1h : ~${(hourRate ?? (halfHourRate! * 2)).toStringAsFixed(0)} €',
+                    'walker_card_estimate_1h'.trParams({
+                      'amount': (hourRate ?? (halfHourRate! * 2)).toStringAsFixed(0),
+                    }),
                     style: TextStyle(
                       fontSize: 11.sp,
                       color: AppColors.textSecondary(context),
@@ -281,7 +283,7 @@ class WalkerCard extends StatelessWidget {
                         size: 14.sp, color: AppColors.greenColor),
                     SizedBox(width: 4.w),
                     Text(
-                      'Tarif à confirmer',
+                      'walker_card_rate_to_confirm'.tr,
                       style: TextStyle(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w700,
@@ -308,7 +310,7 @@ class WalkerCard extends StatelessWidget {
                 icon:
                     Icon(Icons.send_rounded, size: 16.sp, color: Colors.white),
                 label: Text(
-                  'Demander',
+                  'walker_card_request_button'.tr,
                   style: TextStyle(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,

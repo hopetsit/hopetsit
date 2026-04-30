@@ -868,24 +868,23 @@ class _NeutralBar extends StatelessWidget {
   String _title() {
     switch (role) {
       case 'walker':
-        return 'Pas de demande en attente';
       case 'sitter':
-        return 'Pas de demande en attente';
+        return 'quick_action_title_provider'.tr;
       case 'owner':
       default:
-        return 'Tout est à jour';
+        return 'quick_action_title_owner'.tr;
     }
   }
 
   String _subtitle() {
     switch (role) {
       case 'walker':
-        return 'Reste connecté pour les nouvelles demandes de balade';
+        return 'quick_action_subtitle_walker'.tr;
       case 'sitter':
-        return 'Reste connecté pour les nouvelles demandes de garde';
+        return 'quick_action_subtitle_sitter'.tr;
       case 'owner':
       default:
-        return 'Aucune action en attente · découvre la PawMap';
+        return 'quick_action_subtitle_owner'.tr;
     }
   }
 

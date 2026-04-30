@@ -47,6 +47,20 @@ const Map<String, String> esESTranslations = <String, String>{
       // v23.1 — auto-facturación
       'invoices_title': 'Mis facturas',
       'invoices_chip': 'Facturas',
+      // v23.1 — banner inicio acción rápida (3 perfiles)
+      'quick_action_title_owner': 'Todo al día',
+      'quick_action_title_provider': 'Sin solicitudes pendientes',
+      'quick_action_subtitle_owner': 'Sin acciones pendientes · descubre el PawMap',
+      'quick_action_subtitle_walker': 'Mantente conectado para nuevas solicitudes de paseo',
+      'quick_action_subtitle_sitter': 'Mantente conectado para nuevas solicitudes de cuidado',
+      // v23.1 — slider distancia + tarjetas walker/sitter
+      'distance_slider_all': 'Cerca de mí: todas las distancias',
+      'distance_slider_km': 'Cerca de mí: hasta @km km',
+      'walker_card_estimate_1h': 'Estimación 1 paseo 1h: ~@amount €',
+      'walker_card_rate_to_confirm': 'Tarifa a confirmar',
+      'walker_card_request_button': 'Solicitar',
+      'sitter_card_estimate_days': 'Estimación @days días: ~@amount @currency',
+      'friends_no_pending_request': 'Sin solicitudes pendientes.',
       'invoices_empty_title': 'Aún no hay facturas',
       'invoices_empty_message': 'Tus facturas aparecerán aquí automáticamente en cuanto se pague una reserva.',
       'invoices_open_failed': 'No se ha podido abrir la factura. Inténtalo de nuevo más tarde.',

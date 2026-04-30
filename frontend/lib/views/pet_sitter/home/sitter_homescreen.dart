@@ -1777,8 +1777,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   Widget _buildInlineDistanceSlider(BuildContext context) {
     final current = _filterState.maxDistanceKm ?? 0;
     final label = current <= 0
-        ? 'Près de chez moi : toutes les distances'
-        : 'Près de chez moi : ${current.toInt()} km';
+        ? 'distance_slider_all'.tr
+        : 'distance_slider_km'.trParams({'km': current.toInt().toString()});
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
       decoration: BoxDecoration(

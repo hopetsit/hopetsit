@@ -98,6 +98,20 @@ const Map<String, String> ptPTTranslations = <String, String>{
       // v23.1 — faturação automática
       'invoices_title': 'As minhas faturas',
       'invoices_chip': 'Faturas',
+      // v23.1 — banner início ação rápida (3 perfis)
+      'quick_action_title_owner': 'Tudo em dia',
+      'quick_action_title_provider': 'Sem pedidos pendentes',
+      'quick_action_subtitle_owner': 'Nenhuma ação pendente · descubra o PawMap',
+      'quick_action_subtitle_walker': 'Mantenha-se ligado para novos pedidos de passeio',
+      'quick_action_subtitle_sitter': 'Mantenha-se ligado para novos pedidos de cuidado',
+      // v23.1 — slider distância + cartões walker/sitter
+      'distance_slider_all': 'Perto de mim: todas as distâncias',
+      'distance_slider_km': 'Perto de mim: até @km km',
+      'walker_card_estimate_1h': 'Estimativa 1 passeio 1h: ~@amount €',
+      'walker_card_rate_to_confirm': 'Tarifa a confirmar',
+      'walker_card_request_button': 'Pedir',
+      'sitter_card_estimate_days': 'Estimativa @days dias: ~@amount @currency',
+      'friends_no_pending_request': 'Sem pedidos pendentes.',
       'invoices_empty_title': 'Sem faturas por enquanto',
       'invoices_empty_message': 'As suas faturas aparecerão aqui automaticamente assim que uma reserva for paga.',
       'invoices_open_failed': 'Não foi possível abrir a fatura. Tente novamente mais tarde.',

@@ -309,8 +309,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _distanceSliderBody(BuildContext context, double current) {
     final label = current <= 0
-        ? 'Près de chez moi : toutes les distances'
-        : 'Près de chez moi : ${current.toInt()} km';
+        ? 'distance_slider_all'.tr
+        : 'distance_slider_km'.trParams({'km': current.toInt().toString()});
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
       decoration: BoxDecoration(

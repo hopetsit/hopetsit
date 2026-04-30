@@ -369,7 +369,11 @@ class SitterCard extends StatelessWidget {
                     SizedBox(width: 4.w),
                     Flexible(
                       child: Text(
-                        'Estimation $estimatedDays jour${estimatedDays! > 1 ? 's' : ''} : ~${estimatedCost!.toStringAsFixed(0)} $currency',
+                        'sitter_card_estimate_days'.trParams({
+                          'days': estimatedDays.toString(),
+                          'amount': estimatedCost!.toStringAsFixed(0),
+                          'currency': currency,
+                        }),
                         style: TextStyle(
                           fontSize: 11.sp,
                           color: AppColors.textSecondary(context),
@@ -397,7 +401,7 @@ class SitterCard extends StatelessWidget {
                         size: 14.sp, color: _sitterBlue),
                     SizedBox(width: 4.w),
                     Text(
-                      'Tarif à confirmer',
+                      'walker_card_rate_to_confirm'.tr,
                       style: TextStyle(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w700,

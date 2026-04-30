@@ -47,6 +47,20 @@ const Map<String, String> deDETranslations = <String, String>{
       // v23.1 — Auto-Rechnungen
       'invoices_title': 'Meine Rechnungen',
       'invoices_chip': 'Rechnungen',
+      // v23.1 — Home Quick-Action Banner (3 Profile)
+      'quick_action_title_owner': 'Alles auf dem neuesten Stand',
+      'quick_action_title_provider': 'Keine offenen Anfragen',
+      'quick_action_subtitle_owner': 'Keine Aktion erforderlich · entdecke die PawMap',
+      'quick_action_subtitle_walker': 'Bleib verbunden für neue Spaziergang-Anfragen',
+      'quick_action_subtitle_sitter': 'Bleib verbunden für neue Betreuungs-Anfragen',
+      // v23.1 — Distanz-Slider + Walker/Sitter-Karten
+      'distance_slider_all': 'In der Nähe: alle Entfernungen',
+      'distance_slider_km': 'In der Nähe: bis zu @km km',
+      'walker_card_estimate_1h': 'Schätzung 1 Spaziergang 1h: ~@amount €',
+      'walker_card_rate_to_confirm': 'Tarif zu bestätigen',
+      'walker_card_request_button': 'Anfragen',
+      'sitter_card_estimate_days': 'Schätzung @days Tage: ~@amount @currency',
+      'friends_no_pending_request': 'Keine offenen Anfragen.',
       'invoices_empty_title': 'Noch keine Rechnungen',
       'invoices_empty_message': 'Deine Rechnungen erscheinen hier automatisch, sobald eine Buchung bezahlt wurde.',
       'invoices_open_failed': 'Die Rechnung konnte nicht geöffnet werden. Bitte später erneut versuchen.',

@@ -52,6 +52,20 @@ const Map<String, String> enUSTranslations = <String, String>{
       // v23.1 — auto-invoicing
       'invoices_title': 'My invoices',
       'invoices_chip': 'Invoices',
+      // v23.1 — home quick action banner (3 profiles)
+      'quick_action_title_owner': 'All up to date',
+      'quick_action_title_provider': 'No pending requests',
+      'quick_action_subtitle_owner': 'No action required · discover the PawMap',
+      'quick_action_subtitle_walker': 'Stay connected for new walk requests',
+      'quick_action_subtitle_sitter': 'Stay connected for new sitting requests',
+      // v23.1 — distance slider + walker/sitter card labels
+      'distance_slider_all': 'Nearby: all distances',
+      'distance_slider_km': 'Nearby: within @km km',
+      'walker_card_estimate_1h': 'Estimate for 1 hour walk: ~@amount €',
+      'walker_card_rate_to_confirm': 'Rate to confirm',
+      'walker_card_request_button': 'Request',
+      'sitter_card_estimate_days': 'Estimate @days days: ~@amount @currency',
+      'friends_no_pending_request': 'No pending requests.',
       'invoices_empty_title': 'No invoices yet',
       'invoices_empty_message': 'Your invoices will appear here automatically as soon as a booking is paid.',
       'invoices_open_failed': 'Unable to open the invoice. Please try again later.',

@@ -11,6 +11,8 @@ import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
+// v23.1 — Mes cartes (Airwallex saved payment_consents) — walker peut payer un PawSpot/PawFollow.
+import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
@@ -595,6 +597,13 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_payment_management'.tr,
           Icons.credit_card_rounded,
           () => Get.to(() => const PaymentManagementScreen()),
+        ),
+        // v23.1 — Mes cartes : walker peut enregistrer une CB pour ses
+        // achats (PawSpot, PawFollow). L'écran est role-aware côté backend.
+        _settingsTile(
+          'saved_cards_title'.tr,
+          Icons.credit_card_outlined,
+          () => Get.to(() => const SavedCardsScreen()),
         ),
         // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak 30/60 min
         // rates without scrolling through the full edit profile form.

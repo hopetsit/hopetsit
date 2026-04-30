@@ -298,7 +298,7 @@ class _RequestsTab extends StatelessWidget {
               SizedBox(height: 60.h),
               Center(
                 child: InterText(
-                  text: 'Pas de demande en attente.',
+                  text: 'friends_no_pending_request'.tr,
                   fontSize: 13.sp,
                   color: AppColors.greyText,
                 ),
