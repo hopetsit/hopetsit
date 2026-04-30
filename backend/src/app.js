@@ -29,6 +29,9 @@ const ibanRoutes = require('./routes/ibanRoutes');
 // Session v18.2 — owner "Mes paiements" endpoints (list/add/delete cards,
 // payment history).
 const ownerPaymentsRoutes = require('./routes/ownerPaymentsRoutes');
+// v23.1 — auto-facturation : Mes Réservations → onglet Factures.
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const adminInvoiceRouter = require('./routes/invoiceRoutes').adminRouter;
 // v18.9.3 — donations vers le compte HoPetSit (3 profils).
 const donationRoutes = require('./routes/donationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -182,6 +185,9 @@ const versionedRoutes = [
   { path: '/walker', mw: [], router: ibanRoutes },
   // v18.2 — owner "Mes paiements" (cartes sauvegardées + historique).
   { path: '/owner/payments', mw: [sensitiveLimiter], router: ownerPaymentsRoutes },
+  // v23.1 — auto-facturation pour owner / sitter / walker.
+  { path: '/invoices', mw: [], router: invoiceRoutes },
+  { path: '/admin/invoices', mw: [], router: adminInvoiceRouter },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },
   { path: '/notifications', mw: [], router: notificationRoutes },
   { path: '/walks', mw: [], router: walkRoutes },

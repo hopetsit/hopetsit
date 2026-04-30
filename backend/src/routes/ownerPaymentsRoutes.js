@@ -10,6 +10,7 @@ const {
   deletePaymentMethod,
   getPaymentHistory,
   attachPaymentMethod,
+  verifyCard,
 } = require('../controllers/ownerPaymentsController');
 
 const router = express.Router();
@@ -22,6 +23,7 @@ router.use(requireAuth, requireRole('owner', 'sitter', 'walker'));
 
 router.get('/methods', getPaymentMethods);
 router.post('/methods/attach', attachPaymentMethod); // v20.0.3
+router.post('/methods/verify-card', verifyCard); // v23.1 — Add card flow without booking
 router.post('/setup-intent', createSetupIntent);
 router.delete('/methods/:id', deletePaymentMethod);
 router.get('/history', getPaymentHistory);

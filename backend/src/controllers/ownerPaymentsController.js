@@ -104,6 +104,89 @@ const createSetupIntent = async (req, res) => {
 };
 
 /**
+ * POST /owner/payments/methods/verify-card
+ * v23.1 — Real "Add card without payment" flow:
+ *   1. Lazy-create the user's Airwallex customer.
+ *   2. Create a tiny verification PaymentIntent (€0.50) attached to that
+ *      customer, with `payment_consent` so the card is saved on success.
+ *   3. metadata.verifyCardAutoRefund = true → the webhook
+ *      (`payment_intent.succeeded`) detects this flag and immediately fires
+ *      a full refund, so the user is not actually charged.
+ *
+ * The frontend opens the existing Airwallex WebView with the returned
+ * intent + client secret. From the user's perspective: "Verify card with
+ * €0.50 (refunded immediately)" → enters card details → 3DS if needed →
+ * card appears in SavedCardsScreen.
+ */
+const verifyCard = async (req, res) => {
+  const guard = assertOwner(req);
+  if (guard) return res.status(guard.status).json({ error: guard.error });
+
+  try {
+    const airwallex = require('../services/airwallexService');
+    const Model = _roleModel(req.user.role);
+    const user = await Model.findById(req.user.id).lean();
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found.',
+        details: `No ${req.user.role} document with id ${req.user.id}`,
+      });
+    }
+
+    // 1. Get or create the Airwallex customer for this user.
+    const customer = await airwallex.findOrCreateCustomer({
+      userId: user._id.toString(),
+      email: user.email,
+      firstName: (user.name || '').split(' ')[0] || user.name || 'Customer',
+      lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
+    });
+    if (!customer?.id) {
+      return res.status(502).json({
+        error: 'Unable to create Airwallex customer for verification.',
+      });
+    }
+
+    // 2. Create a €0.50 verification PaymentIntent.
+    const VERIFY_AMOUNT_CENTS = 50;
+    const VERIFY_CURRENCY = 'EUR';
+    const intent = await airwallex.createPlatformPaymentIntent({
+      amount: VERIFY_AMOUNT_CENTS,
+      currency: VERIFY_CURRENCY,
+      customer_id: customer.id,
+      payment_consent: {
+        type: 'one_off',
+        next_triggered_by: 'customer',
+      },
+      metadata: {
+        type: 'card_verification',
+        verifyCardAutoRefund: 'true',
+        userId: String(req.user.id),
+        role: req.user.role,
+      },
+    });
+
+    logger.info(
+      `[ownerPayments.verifyCard] PI ${intent.id} created (€0.50 verify) ` +
+      `for ${req.user.role} ${req.user.id}, customer ${customer.id}`,
+    );
+
+    return res.json({
+      paymentIntentId: intent.id,
+      clientSecret: intent.client_secret,
+      amount: VERIFY_AMOUNT_CENTS / 100,
+      currency: VERIFY_CURRENCY,
+      customerId: customer.id,
+    });
+  } catch (err) {
+    logger.error('[ownerPayments.verifyCard] failed', err);
+    return res.status(500).json({
+      error: 'Unable to start card verification.',
+      details: err?.message || String(err),
+    });
+  }
+};
+
+/**
  * POST /owner/payments/methods/attach
  * v21.1.1 — Stripe disabled (Airwallex only).
  */
@@ -201,4 +284,5 @@ module.exports = {
   deletePaymentMethod,
   getPaymentHistory,
   attachPaymentMethod,
+  verifyCard,
 };

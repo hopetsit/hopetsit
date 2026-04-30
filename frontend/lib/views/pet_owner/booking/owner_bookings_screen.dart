@@ -9,6 +9,8 @@ import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
 import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+// v23.1 — onglet Factures auto-générées.
+import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// v18.9 — "Mes réservations" côté Owner, clone du design walker/sitter
@@ -69,6 +71,16 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
+        // v23.1 — onglet Factures auto-générées au paiement de chaque booking.
+        actions: [
+          IconButton(
+            tooltip: 'invoices_title'.tr,
+            icon: const Icon(Icons.receipt_long_rounded, color: _ownerAccent),
+            onPressed: () {
+              Get.to(() => const InvoicesScreen());
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

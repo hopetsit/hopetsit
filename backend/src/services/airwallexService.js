@@ -155,7 +155,16 @@ function genRequestId(prefix = 'req') {
  *   id, client_secret, status, amount, currency, ...
  * }
  */
-async function createPlatformPaymentIntent({ amount, currency, metadata = {} }) {
+async function createPlatformPaymentIntent({
+  amount,
+  currency,
+  metadata = {},
+  // v23.1 — saved cards : optional customer_id + payment_consent so the
+  // card used for this PI is auto-saved as a reusable consent on the
+  // customer's profile. Without these args, behaviour is unchanged.
+  customer_id = null,
+  payment_consent = null,
+}) {
   if (!currency || typeof currency !== 'string' || !currency.trim()) {
     throw new Error('Currency is required for PaymentIntent');
   }
@@ -185,6 +194,14 @@ async function createPlatformPaymentIntent({ amount, currency, metadata = {} }) 
     // The actual list is filtered by what's enabled in the Airwallex
     // dashboard (Visa, Mastercard, Amex, Apple Pay, Google Pay, etc.).
   };
+
+  // v23.1 — attach to customer + create payment_consent so the card is saved.
+  if (customer_id) {
+    requestBody.customer_id = customer_id;
+  }
+  if (payment_consent && typeof payment_consent === 'object') {
+    requestBody.payment_consent = payment_consent;
+  }
 
   console.log('[Airwallex] Creating PaymentIntent', {
     amount_major: requestBody.amount,

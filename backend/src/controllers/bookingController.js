@@ -1573,6 +1573,15 @@ const selfCancelWithRefund = async (req, res) => {
 
     await booking.save();
 
+    // v23.1 — flag the invoice as refunded so it shows the right status
+    // on the Factures tab for both owner and provider.
+    try {
+      const { markInvoiceRefunded } = require('./invoiceController');
+      await markInvoiceRefunded(booking._id);
+    } catch (e) {
+      logger.warn(`[selfCancelWithRefund] markInvoiceRefunded failed: ${e?.message || e}`);
+    }
+
     // Best‑effort refund; refund provider helpers may or may not exist depending on build.
     try {
       if (typeof refundBookingPayment === 'function') {

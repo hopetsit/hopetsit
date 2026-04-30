@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -92,24 +93,100 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
     }
   }
 
-  void _showAddCardInfo() {
-    showDialog(
+  // v23.1 — busy flag pour éviter double-tap pendant la vérification.
+  final RxBool _verifying = false.obs;
+
+  Future<void> _onAddCardTap() async {
+    if (_verifying.value) return;
+
+    // 1. Confirm dialog : explique la charge €0.50 + refund auto.
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('saved_cards_add_title'.tr),
-        content: Text('saved_cards_add_message'.tr),
+        title: Text('saved_cards_verify_title'.tr),
+        content: Text('saved_cards_verify_message'.tr),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('common_ok'.tr),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('common_cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'saved_cards_verify_confirm'.tr,
+              style: TextStyle(
+                color: AppColors.primaryColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
     );
+    if (ok != true) return;
+
+    _verifying.value = true;
+    try {
+      // 2. Backend creates the verification PI.
+      final intent = await _repo.verifyCard();
+      final piId = intent['paymentIntentId'] as String? ?? '';
+      final secret = intent['clientSecret'] as String? ?? '';
+      final amount = (intent['amount'] as num?)?.toDouble() ?? 0.50;
+      final currency = (intent['currency'] as String?) ?? 'EUR';
+
+      if (piId.isEmpty || secret.isEmpty) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'saved_cards_verify_failed'.tr,
+        );
+        return;
+      }
+
+      // 3. Open the Airwallex WebView for the user to enter card details.
+      final result = await AirwallexPaymentService.confirmPaymentIntent(
+        intentId: piId,
+        clientSecret: secret,
+        amount: amount,
+        currency: currency,
+      );
+
+      if (!result.isSuccess) {
+        if (result.outcome != AirwallexPaymentOutcome.cancelled) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: result.errorMessage ?? 'saved_cards_verify_failed'.tr,
+          );
+        }
+        return;
+      }
+
+      // 4. Success — refund is triggered by the webhook server-side.
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'saved_cards_verify_success'.tr,
+      );
+      // Small delay so Airwallex has time to register the consent before reload.
+      await Future.delayed(const Duration(seconds: 2));
+      await _load();
+    } on ApiException catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.message,
+      );
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString(),
+      );
+    } finally {
+      _verifying.value = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // v23.1 — affichage : SafeArea sur le body + FAB endFloat pour ne pas
+    // chevaucher la gesture bar Android (Daniel screenshot bug).
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -125,20 +202,37 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
           onPressed: () => Get.back(),
         ),
       ),
-      // v23.1 — FAB "Ajouter une carte" : pour le moment redirige vers le
-      // flow paiement (cocher "Enregistrer ma carte"). Une vraie route setup
-      // standalone (Airwallex SDK setup mode) sera ajoutée en suivant.
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primaryColor,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_card_rounded),
-        label: Text(
-          'saved_cards_add_button'.tr,
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.sp),
-        ),
-        onPressed: _showAddCardInfo,
-      ),
-      body: RefreshIndicator(
+      // v23.1 — FAB en bas-droite, position fixe avec marge sécurisée pour
+      // ne pas être derrière la barre de gestes Android.
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      // v23.1 — FAB "Ajouter une carte" : flux de vérification réel.
+      // Charge €0.50 (auto-remboursé par webhook) pour enregistrer la carte
+      // sans qu'il y ait besoin d'une vraie réservation.
+      floatingActionButton: Obx(() => FloatingActionButton.extended(
+            backgroundColor: _verifying.value
+                ? AppColors.primaryColor.withValues(alpha: 0.5)
+                : AppColors.primaryColor,
+            foregroundColor: Colors.white,
+            icon: _verifying.value
+                ? SizedBox(
+                    width: 16.w,
+                    height: 16.w,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.add_card_rounded),
+            label: Text(
+              _verifying.value
+                  ? 'saved_cards_verifying'.tr
+                  : 'saved_cards_add_button'.tr,
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.sp),
+            ),
+            onPressed: _verifying.value ? null : _onAddCardTap,
+          )),
+      body: SafeArea(
+        child: RefreshIndicator(
         onRefresh: _load,
         child: Obx(() {
           if (isLoading.value) {
@@ -254,6 +348,7 @@ class _SavedCardsScreenState extends State<SavedCardsScreen> {
             },
           );
         }),
+      ),
       ),
     );
   }

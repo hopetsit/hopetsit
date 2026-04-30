@@ -45,6 +45,17 @@ const ChatPlansSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// v23.1 — PawFollow plans (solo + famille) so admin can edit and the DB
+// can persist them. Without this, mongoose strict mode silently drops
+// the pawfollow field on save and the pricing reverts to defaults forever.
+const PawFollowPlansSchema = new mongoose.Schema(
+  {
+    solo: Number,
+    famille: Number,
+  },
+  { _id: false },
+);
+
 const CurrencyBucketSchema = new mongoose.Schema(
   {
     EUR: TierAmountsSchema,
@@ -75,6 +86,16 @@ const ChatCurrencyBucketSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const PawFollowCurrencyBucketSchema = new mongoose.Schema(
+  {
+    EUR: PawFollowPlansSchema,
+    GBP: PawFollowPlansSchema,
+    CHF: PawFollowPlansSchema,
+    USD: PawFollowPlansSchema,
+  },
+  { _id: false },
+);
+
 const PricingConfigSchema = new mongoose.Schema(
   {
     key: {
@@ -87,6 +108,12 @@ const PricingConfigSchema = new mongoose.Schema(
     mapBoost: CurrencyBucketSchema,
     premium: PremiumCurrencyBucketSchema,
     chat: ChatCurrencyBucketSchema, // session v3.2 add-on
+    pawfollow: PawFollowCurrencyBucketSchema, // v23.1
+    // v23.1 — version field for one-shot migrations on price grid bumps.
+    // pricingService.init() compares this with PRICING_VERSION and forces
+    // a refresh from DEFAULTS when they differ, so price changes shipped
+    // in code propagate after deploy without a manual DB intervention.
+    version: { type: String, default: '' },
   },
   { timestamps: true },
 );

@@ -22,6 +22,10 @@ import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/unified_notification_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
+// v23.1 — controllers à clear au logout pour éviter les fuites de cache
+// entre comptes (Daniel se reconnectait et voyait les anciennes données).
+import 'package:hopetsit/controllers/applications_controller.dart';
+import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/choose_service_controller.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
@@ -1197,6 +1201,16 @@ class AuthController extends GetxController {
     _forceDelete<SitterProfileController>();
     _forceDelete<HomeController>();
     _forceDelete<PostsController>();
+    // v23.1 — clear bookings/applications/notifications/chat too. Without
+    // these, after logout owner A → login owner B, Daniel saw owner A's
+    // old reservations and payments cached in memory.
+    _forceDelete<BookingsController>();
+    _forceDelete<SitterBookingsController>();
+    _forceDelete<WalkerBookingsController>();
+    _forceDelete<ApplicationsController>();
+    _forceDelete<NotificationsController>();
+    _forceDelete<UnifiedNotificationController>();
+    _forceDelete<ChatController>();
 
     // Navigate to login screen
     Get.offAll(() => const LoginScreen());

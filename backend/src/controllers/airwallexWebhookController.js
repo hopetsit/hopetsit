@@ -68,6 +68,34 @@ const handleAirwallexWebhook = async (req, res) => {
           break;
         }
 
+        // v23.1 — card verification flow ("Add card without payment").
+        // We charged €0.50 just to attach a payment_consent ; the user
+        // never agreed to be charged. Refund immediately so the bank entry
+        // disappears and only the saved card remains.
+        if (purchaseType === 'card_verification' || piMetadata.verifyCardAutoRefund === 'true') {
+          try {
+            const refund = await airwallex.createRefund({
+              paymentIntentId: piId,
+              amount: data?.amount || 50, // refund full amount
+              reason: 'requested_by_customer',
+              metadata: {
+                type: 'card_verification_refund',
+                originalPiId: piId,
+                userId: piMetadata.userId || '',
+              },
+            });
+            logger.info(
+              `✅ [airwallex.webhook] auto-refund issued for card verification ` +
+              `PI ${piId} → refund ${refund?.id || '?'} (user ${piMetadata.userId})`,
+            );
+          } catch (e) {
+            logger.error(
+              `[airwallex.webhook] auto-refund failed for verification PI ${piId} : ${e.message}`,
+            );
+          }
+          break;
+        }
+
         const booking = await Booking.findOne({ airwallexPaymentIntentId: piId });
         if (!booking) {
           logger.info(`[airwallex.webhook] no booking found for PI ${piId} (purchaseType=${purchaseType || 'unknown'})`);
@@ -251,6 +279,23 @@ const handleAirwallexWebhook = async (req, res) => {
           }
         } catch (e) {
           logger.error(`[airwallex.webhook] payout scheduling failed : ${e.message}`);
+        }
+
+        // v23.1 — auto-create the Invoice so it appears under
+        // "Mes Réservations → Factures" for owner + provider in real time.
+        try {
+          const {
+            createInvoiceForBooking,
+          } = require('./invoiceController');
+          // Reload with populated parties so invoice can snapshot names/emails.
+          const populated = await Booking.findById(booking._id)
+            .populate('ownerId')
+            .populate('sitterId')
+            .populate('walkerId')
+            .populate('petIds');
+          await createInvoiceForBooking(populated);
+        } catch (e) {
+          logger.error(`[airwallex.webhook] invoice auto-creation failed : ${e.message}`);
         }
         break;
       }

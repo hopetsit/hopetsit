@@ -7,7 +7,7 @@
 /// a substitute for professional legal advice.
 library;
 
-const String termsVersion = '1.0';
+const String termsVersion = '2.0'; // v23.1 — Airwallex, 72h rule, escrow 24h post-completion
 
 const String _aiDisclaimerEn =
     '⚠️ AI-DRAFTED: This text was prepared by an AI assistant as a first pass '
@@ -54,7 +54,7 @@ Version 1.0 — Effective date: upon first publication to app stores.
 
 These Terms of Service ("Terms") govern access to and use of the HopeTSIT mobile application and platform (the "Service"). The Service is a technical intermediary connecting pet owners ("Petowners") and pet sitters ("Petsitters"), collectively "Users".
 
-"Platform" means the HopeTSIT app, its backend, the admin dashboard and all related services. "Booking" means a service agreed between a Petowner and a Petsitter. "Payment" means the sum paid by the Petowner for a Booking via the Stripe payment processor.
+"Platform" means the HoPetSit app, its backend, the admin dashboard and all related services. "Booking" means a service agreed between a Petowner and a Petsitter. "Payment" means the sum paid by the Petowner for a Booking, processed by **Airwallex** (PCI-DSS Level 1 certified).
 
 ## 2. Acceptance of the Terms
 
@@ -104,16 +104,17 @@ A Booking becomes firm and binding only after (i) acceptance by both parties and
 
 ## 10. Payment
 
-Payments are processed by **Stripe** (Stripe, Inc. or Stripe Payments Europe Ltd.). The platform commission is **twenty percent (20%)** of the Booking amount, reduced to **fifteen percent (15%)** for certified "Top Petsitter" accounts. The commission is automatically deducted via Stripe Connect. Users accept that Stripe's own terms apply to payment operations.
+Payments are processed by **Airwallex** (Airwallex (UK) Limited / Airwallex (Hong Kong) Limited), a PCI-DSS Level 1 certified payment provider. HoPetSit never accesses, transmits or stores cardholder data. The platform commission is **twenty percent (20%)** of the Booking gross amount. Funds are held in escrow by Airwallex until **24 hours after the service ends**, at which point **80%** is released to the Petsitter's registered IBAN and **20%** is retained by HoPetSit as platform fee. Users accept that Airwallex's own terms apply to payment operations.
 
 ## 11. Cancellation and refund
 
-- Cancellation by the Petowner more than **72 hours** before the service: full refund minus Stripe fees.
-- Cancellation between **24 and 72 hours**: 50% refund.
-- Cancellation less than **24 hours** before the service: no refund.
-- Cancellation by the Petsitter (regardless of delay): full refund of the Petowner.
+- Cancellation by the Petowner more than **72 hours** before the service: **100% automatic refund** (self-cancel from the app).
+- Cancellation **72 hours or less** before the service: self-cancellation is no longer available; the Petowner must agree on a **mutual cancellation** with the Petsitter, or open a formal dispute via hopetsit@gmail.com — refunds within this window are reviewed case-by-case.
+- Cancellation by the Petsitter (regardless of delay): **100% refund** of the Petowner.
+- No-show by the Petsitter: **100% refund** + provider penalty.
+- After service has started: no refund, except via successful dispute resolution.
 
-Refunds are processed through Stripe within 5 to 10 business days.
+Refunds are processed through Airwallex back to the original payment card within 5 to 10 business days. See https://hopetsit.com/refund for the full Refund Policy.
 
 ## 12. Chat and private data
 
@@ -129,7 +130,7 @@ All content published by HopeTSIT (brand, logo, texts, graphics, code) is the ex
 
 ## 15. Personal data (GDPR)
 
-HopeTSIT acts as a data controller for the personal data of its Users. Data is processed on the legal basis of contract execution and, where applicable, consent. Storage duration: account lifetime + 3 years for billing records. Sub-processors: Stripe (payments), Firebase (auth, push, crashlytics), Cloudinary (media), MongoDB Atlas (database), Google Maps (geolocation). Users have the rights of access, rectification, erasure, portability, and objection, exercisable at **hopetsit@gmail.com**. A detailed Privacy Policy is available inside the app.
+HoPetSit acts as a data controller for the personal data of its Users. Data is processed on the legal basis of contract execution and, where applicable, consent. Storage duration: account lifetime + 3 years for billing records. Sub-processors: Airwallex (payments — PCI-DSS Level 1 certified), Firebase (auth, push, crashlytics), Cloudinary (media), MongoDB Atlas (database), Google Maps (geolocation). Users have the rights of access, rectification, erasure, portability, and objection, exercisable at **hopetsit@gmail.com**. A detailed Privacy Policy is available inside the app.
 
 ## 16. Cookies and tracking
 
@@ -169,7 +170,7 @@ Version 1.0 — Date d'effet : dès la première publication sur les stores.
 
 Les présentes Conditions Générales d'Utilisation (« CGU ») régissent l'accès et l'utilisation de l'application mobile et de la plateforme HopeTSIT (le « Service »). Le Service est un intermédiaire technique mettant en relation des propriétaires d'animaux (« Petowners ») et des gardiens d'animaux (« Petsitters »), ensemble les « Utilisateurs ».
 
-« Plateforme » désigne l'application HopeTSIT, son backend, le tableau de bord admin et tous les services associés. « Réservation » désigne une prestation convenue entre un Petowner et un Petsitter. « Paiement » désigne la somme payée par le Petowner pour une Réservation via le prestataire Stripe.
+« Plateforme » désigne l'application HoPetSit, son backend, le tableau de bord admin et tous les services associés. « Réservation » désigne une prestation convenue entre un Petowner et un Petsitter. « Paiement » désigne la somme payée par le Petowner pour une Réservation, traitée par **Airwallex** (certifié PCI-DSS Niveau 1).
 
 ## 2. Acceptation des CGU
 
@@ -219,16 +220,17 @@ Une Réservation devient ferme et définitive uniquement après (i) acceptation 
 
 ## 10. Paiement
 
-Les paiements sont traités par **Stripe** (Stripe, Inc. ou Stripe Payments Europe Ltd.). La commission plateforme est de **vingt pour cent (20 %)** du montant de la Réservation, réduite à **quinze pour cent (15 %)** pour les comptes certifiés « Top Petsitter ». La commission est automatiquement prélevée via Stripe Connect. Les Utilisateurs acceptent que les conditions de Stripe s'appliquent aux opérations de paiement.
+Les paiements sont traités par **Airwallex** (Airwallex (UK) Limited / Airwallex (Hong Kong) Limited), prestataire de paiement certifié PCI-DSS Niveau 1. HoPetSit n'accède jamais aux données de carte bancaire. La commission plateforme est de **vingt pour cent (20 %)** du montant brut de la Réservation. Les fonds sont retenus en séquestre par Airwallex jusqu'à **24 heures après la fin du service**, puis **80 %** sont libérés vers l'IBAN enregistré du Petsitter et **20 %** sont conservés par HoPetSit en frais plateforme. Les Utilisateurs acceptent que les conditions d'Airwallex s'appliquent aux opérations de paiement.
 
 ## 11. Annulation et remboursement
 
-- Annulation par le Petowner plus de **72 heures** avant la prestation : remboursement intégral hors frais Stripe.
-- Annulation entre **24 et 72 heures** : remboursement à 50 %.
-- Annulation moins de **24 heures** avant la prestation : aucun remboursement.
-- Annulation par le Petsitter (quel que soit le délai) : remboursement intégral du Petowner.
+- Annulation par le Petowner plus de **72 heures** avant la prestation : **remboursement automatique à 100 %** (auto-annulation depuis l'application).
+- Annulation **72 heures ou moins** avant la prestation : l'auto-annulation n'est plus disponible ; le Petowner doit convenir d'une **annulation mutuelle** avec le Petsitter, ou ouvrir un litige formel via hopetsit@gmail.com — les remboursements dans cette fenêtre sont étudiés au cas par cas.
+- Annulation par le Petsitter (quel que soit le délai) : **remboursement intégral à 100 %** du Petowner.
+- No-show du Petsitter : **remboursement intégral** + pénalité prestataire.
+- Après le début de la prestation : pas de remboursement, sauf via résolution de litige favorable.
 
-Les remboursements sont effectués via Stripe sous 5 à 10 jours ouvrés.
+Les remboursements sont effectués via Airwallex vers la carte de paiement d'origine sous 5 à 10 jours ouvrés. Voir https://hopetsit.com/remboursement pour la Politique de Remboursement complète.
 
 ## 12. Chat et données privées
 
@@ -244,7 +246,7 @@ L'ensemble des contenus publiés par HopeTSIT (marque, logo, textes, graphismes,
 
 ## 15. Données personnelles (RGPD)
 
-HopeTSIT agit en qualité de responsable de traitement. Le traitement est fondé sur l'exécution du contrat et, le cas échéant, sur le consentement. Durée de conservation : durée de vie du compte + 3 ans pour les pièces de facturation. Sous-traitants : Stripe (paiements), Firebase (auth, push, crash), Cloudinary (médias), MongoDB Atlas (base de données), Google Maps (géolocalisation). Les Utilisateurs disposent des droits d'accès, de rectification, d'effacement, de portabilité et d'opposition, à exercer à **hopetsit@gmail.com**. Une Politique de confidentialité détaillée est disponible dans l'application.
+HoPetSit agit en qualité de responsable de traitement. Le traitement est fondé sur l'exécution du contrat et, le cas échéant, sur le consentement. Durée de conservation : durée de vie du compte + 3 ans pour les pièces de facturation. Sous-traitants : Airwallex (paiements — certifié PCI-DSS Niveau 1), Firebase (auth, push, crash), Cloudinary (médias), MongoDB Atlas (base de données), Google Maps (géolocalisation). Les Utilisateurs disposent des droits d'accès, de rectification, d'effacement, de portabilité et d'opposition, à exercer à **hopetsit@gmail.com**. Une Politique de confidentialité détaillée est disponible dans l'application.
 
 ## 16. Cookies et traceurs
 
@@ -332,16 +334,17 @@ Una reserva es firme solo tras (i) la aceptación de ambas partes y (ii) la conf
 
 ## 10. Pago
 
-Los pagos son procesados por **Stripe**. La comisión de la plataforma es del **veinte por ciento (20 %)**, reducida al **quince por ciento (15 %)** para los "Top Petsitters". La comisión se deduce automáticamente mediante Stripe Connect.
+Los pagos son procesados por **Airwallex**, un proveedor de pagos certificado PCI-DSS Nivel 1. HoPetSit nunca accede a los datos de la tarjeta. La comisión de la plataforma es del **veinte por ciento (20 %)** del importe bruto. Los fondos se mantienen en custodia hasta **24 horas después del fin del servicio**, momento en que el **80 %** se libera al IBAN del Petsitter y el **20 %** se retiene como comisión de plataforma.
 
 ## 11. Cancelación y reembolso
 
-- Más de **72 horas** antes del servicio: reembolso íntegro menos comisiones Stripe.
-- Entre **24 y 72 horas**: reembolso del 50 %.
-- Menos de **24 horas**: sin reembolso.
-- Cancelación por parte del Petsitter: reembolso íntegro del Petowner.
+- Más de **72 horas** antes del servicio: **reembolso automático del 100 %** (auto-cancelación desde la app).
+- **72 horas o menos** antes del servicio: la auto-cancelación ya no está disponible; se requiere **cancelación mutua** o un litigio formal vía hopetsit@gmail.com — los reembolsos se evalúan caso por caso.
+- Cancelación por parte del Petsitter: **reembolso íntegro del 100 %** del Petowner.
+- No-show del Petsitter: **reembolso íntegro** + sanción al prestador.
+- Tras el inicio del servicio: sin reembolso, salvo resolución favorable de un litigio.
 
-Los reembolsos se procesan en 5-10 días hábiles a través de Stripe.
+Los reembolsos se procesan vía Airwallex hacia la tarjeta original en 5-10 días hábiles. Ver https://hopetsit.com/refund para la Política de Reembolso completa.
 
 ## 12. Chat
 
@@ -357,7 +360,7 @@ Todos los contenidos publicados por HopeTSIT son propiedad exclusiva de CARDELLI
 
 ## 15. Datos personales (RGPD)
 
-HopeTSIT actúa como responsable del tratamiento. Base legal: ejecución del contrato y, en su caso, consentimiento. Plazo de conservación: vida útil de la cuenta + 3 años para facturación. Encargados: Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps. Derechos de acceso, rectificación, supresión, portabilidad y oposición ejercibles en **hopetsit@gmail.com**.
+HoPetSit actúa como responsable del tratamiento. Base legal: ejecución del contrato y, en su caso, consentimiento. Plazo de conservación: vida útil de la cuenta + 3 años para facturación. Encargados: Airwallex (pagos — PCI-DSS Nivel 1), Firebase, Cloudinary, MongoDB Atlas, Google Maps. Derechos de acceso, rectificación, supresión, portabilidad y oposición ejercibles en **hopetsit@gmail.com**.
 
 ## 16. Cookies
 
@@ -431,16 +434,17 @@ Eine Buchung wird erst nach (i) Annahme durch beide Parteien und (ii) Zahlungsbe
 
 ## 10. Zahlung
 
-Zahlungen werden von **Stripe** abgewickelt. Die Plattform-Provision beträgt **zwanzig Prozent (20 %)**, reduziert auf **fünfzehn Prozent (15 %)** für "Top-Sitter"-Konten. Die Provision wird automatisch über Stripe Connect einbehalten.
+Zahlungen werden von **Airwallex** (PCI-DSS Level 1 zertifiziert) abgewickelt. HoPetSit greift niemals auf Kartendaten zu. Die Plattform-Provision beträgt **zwanzig Prozent (20 %)** des Bruttobuchungsbetrags. Die Gelder werden bis **24 Stunden nach Ende der Leistung** bei Airwallex treuhänderisch verwahrt; danach werden **80 %** an die hinterlegte IBAN des Petsitters ausgezahlt und **20 %** als Plattformgebühr einbehalten.
 
 ## 11. Stornierung und Erstattung
 
-- Stornierung durch den Petowner mehr als **72 Stunden** vor der Leistung: volle Rückerstattung abzüglich Stripe-Gebühren.
-- **24 bis 72 Stunden**: 50 % Rückerstattung.
-- Weniger als **24 Stunden**: keine Rückerstattung.
-- Stornierung durch den Petsitter: volle Rückerstattung.
+- Stornierung durch den Petowner mehr als **72 Stunden** vor der Leistung: **100 % automatische Rückerstattung** (Selbst-Stornierung in der App).
+- **72 Stunden oder weniger** vor der Leistung: Selbst-Stornierung nicht mehr verfügbar; eine **gegenseitige Stornierung** mit dem Petsitter oder ein formelles Streitverfahren über hopetsit@gmail.com ist erforderlich — Rückerstattungen werden im Einzelfall geprüft.
+- Stornierung durch den Petsitter: **100 % volle Rückerstattung** des Petowners.
+- No-Show des Petsitters: **volle Rückerstattung** + Sanktion gegen den Anbieter.
+- Nach Beginn der Leistung: keine Rückerstattung, außer durch erfolgreiche Streitbeilegung.
 
-Rückerstattungen erfolgen über Stripe in 5–10 Werktagen.
+Rückerstattungen erfolgen über Airwallex auf die ursprüngliche Zahlungskarte in 5–10 Werktagen. Vollständige Rückerstattungsrichtlinie unter https://hopetsit.com/refund.
 
 ## 12. Chat
 
@@ -456,7 +460,7 @@ Alle von HopeTSIT veröffentlichten Inhalte sind ausschließliches Eigentum von 
 
 ## 15. Personenbezogene Daten (DSGVO)
 
-HopeTSIT ist Verantwortlicher. Rechtsgrundlage: Vertragserfüllung und ggf. Einwilligung. Aufbewahrung: Kontolaufzeit + 3 Jahre für Abrechnungsunterlagen. Auftragsverarbeiter: Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps. Rechte auf Auskunft, Berichtigung, Löschung, Übertragbarkeit und Widerspruch: **hopetsit@gmail.com**.
+HoPetSit ist Verantwortlicher. Rechtsgrundlage: Vertragserfüllung und ggf. Einwilligung. Aufbewahrung: Kontolaufzeit + 3 Jahre für Abrechnungsunterlagen. Auftragsverarbeiter: Airwallex (Zahlungen — PCI-DSS Level 1), Firebase, Cloudinary, MongoDB Atlas, Google Maps. Rechte auf Auskunft, Berichtigung, Löschung, Übertragbarkeit und Widerspruch: **hopetsit@gmail.com**.
 
 ## 16. Cookies
 
@@ -530,16 +534,17 @@ Una prenotazione diventa definitiva solo dopo (i) l'accettazione di entrambe le 
 
 ## 10. Pagamento
 
-I pagamenti sono gestiti da **Stripe**. La commissione della piattaforma è del **venti per cento (20 %)**, ridotta al **quindici per cento (15 %)** per i "Top Sitter". La commissione viene trattenuta automaticamente tramite Stripe Connect.
+I pagamenti sono gestiti da **Airwallex** (certificato PCI-DSS Livello 1). HoPetSit non accede mai ai dati delle carte. La commissione della piattaforma è del **venti per cento (20 %)** dell'importo lordo della Prenotazione. I fondi sono custoditi da Airwallex fino a **24 ore dopo la fine del servizio**, poi l'**80 %** viene rilasciato sull'IBAN del Petsitter e il **20 %** trattenuto come commissione di piattaforma.
 
 ## 11. Cancellazione e rimborso
 
-- Più di **72 ore** prima: rimborso integrale meno commissioni Stripe.
-- Tra **24 e 72 ore**: rimborso 50 %.
-- Meno di **24 ore**: nessun rimborso.
-- Cancellazione del Petsitter: rimborso integrale.
+- Più di **72 ore** prima del servizio: **rimborso automatico al 100 %** (auto-cancellazione dall'app).
+- **72 ore o meno** prima del servizio: l'auto-cancellazione non è più disponibile; è richiesta una **cancellazione mutuale** o un litigio formale via hopetsit@gmail.com — rimborsi valutati caso per caso.
+- Cancellazione da parte del Petsitter: **rimborso integrale al 100 %** del Petowner.
+- No-show del Petsitter: **rimborso integrale** + sanzione al fornitore.
+- Dopo l'inizio del servizio: nessun rimborso, salvo risoluzione favorevole di un litigio.
 
-Rimborsi via Stripe in 5-10 giorni lavorativi.
+Rimborsi via Airwallex sulla carta originale in 5-10 giorni lavorativi. Politica di rimborso completa su https://hopetsit.com/refund.
 
 ## 12. Chat
 
@@ -555,7 +560,7 @@ Tutti i contenuti pubblicati da HopeTSIT sono proprietà esclusiva di CARDELLI H
 
 ## 15. Dati personali (GDPR)
 
-HopeTSIT è titolare del trattamento. Base giuridica: esecuzione del contratto e, se del caso, consenso. Conservazione: durata dell'account + 3 anni per fatturazione. Responsabili: Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps. Diritti di accesso, rettifica, cancellazione, portabilità e opposizione: **hopetsit@gmail.com**.
+HoPetSit è titolare del trattamento. Base giuridica: esecuzione del contratto e, se del caso, consenso. Conservazione: durata dell'account + 3 anni per fatturazione. Responsabili: Airwallex (pagamenti — PCI-DSS Livello 1), Firebase, Cloudinary, MongoDB Atlas, Google Maps. Diritti di accesso, rettifica, cancellazione, portabilità e opposizione: **hopetsit@gmail.com**.
 
 ## 16. Cookie
 
@@ -629,16 +634,17 @@ Uma reserva torna-se firme apenas após (i) aceitação por ambas as partes e (i
 
 ## 10. Pagamento
 
-Os pagamentos são processados pela **Stripe**. A comissão da plataforma é de **vinte por cento (20 %)**, reduzida para **quinze por cento (15 %)** para "Top Cuidadores". A comissão é retida automaticamente via Stripe Connect.
+Os pagamentos são processados pela **Airwallex** (certificado PCI-DSS Nível 1). A HoPetSit nunca acede aos dados de cartão. A comissão da plataforma é de **vinte por cento (20 %)** do montante bruto da Reserva. Os fundos ficam retidos pela Airwallex até **24 horas após o fim do serviço**, sendo então **80 %** libertados para o IBAN do Petsitter e **20 %** retidos como comissão de plataforma.
 
 ## 11. Cancelamento e reembolso
 
-- Mais de **72 horas** antes: reembolso integral menos comissões Stripe.
-- Entre **24 e 72 horas**: reembolso de 50 %.
-- Menos de **24 horas**: sem reembolso.
-- Cancelamento pelo Petsitter: reembolso integral.
+- Mais de **72 horas** antes do serviço: **reembolso automático de 100 %** (auto-cancelamento na app).
+- **72 horas ou menos** antes do serviço: o auto-cancelamento já não está disponível; é necessário um **cancelamento mútuo** com o Petsitter ou abrir um litígio formal via hopetsit@gmail.com — reembolsos avaliados caso a caso.
+- Cancelamento pelo Petsitter: **reembolso integral de 100 %** ao Petowner.
+- No-show do Petsitter: **reembolso integral** + sanção ao prestador.
+- Após o início do serviço: sem reembolso, salvo resolução favorável de litígio.
 
-Reembolsos via Stripe em 5-10 dias úteis.
+Reembolsos via Airwallex para o cartão original em 5-10 dias úteis. Política de Reembolso completa em https://hopetsit.com/refund.
 
 ## 12. Chat
 
@@ -654,7 +660,7 @@ Todos os conteúdos publicados pela HopeTSIT são propriedade exclusiva da CARDE
 
 ## 15. Dados pessoais (RGPD)
 
-A HopeTSIT é responsável pelo tratamento. Base legal: execução do contrato e, quando aplicável, consentimento. Conservação: duração da conta + 3 anos para faturação. Subcontratantes: Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps. Direitos de acesso, retificação, apagamento, portabilidade e oposição: **hopetsit@gmail.com**.
+A HoPetSit é responsável pelo tratamento. Base legal: execução do contrato e, quando aplicável, consentimento. Conservação: duração da conta + 3 anos para faturação. Subcontratantes: Airwallex (pagamentos — PCI-DSS Nível 1), Firebase, Cloudinary, MongoDB Atlas, Google Maps. Direitos de acesso, retificação, apagamento, portabilidade e oposição: **hopetsit@gmail.com**.
 
 ## 16. Cookies
 

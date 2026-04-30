@@ -76,21 +76,61 @@ function mergeInto(target, patch) {
   return target;
 }
 
+// v23.1 — la version courante des tarifs. Bumper cette valeur force une
+// remise à jour de la DB depuis DEFAULTS au prochain boot (admin perd ses
+// éventuelles édits manuelles, c'est intentionnel sur un version bump).
+const PRICING_VERSION = 'v23.1';
+
 async function init() {
   try {
     const doc = await PricingConfig.findOne({ key: 'singleton' }).lean();
-    if (doc) {
-      // Override cache with DB values, falling back to defaults per-category
-      // in case an older doc is missing a category.
-      for (const cat of CATEGORIES) {
-        if (doc[cat]) cache[cat] = doc[cat];
-      }
-      logger.info?.('[pricingService] loaded pricing from DB');
-    } else {
+    if (!doc) {
       // First boot — seed the DB with defaults.
-      await PricingConfig.create({ key: 'singleton', ...DEFAULTS });
-      logger.info?.('[pricingService] seeded DB with default pricing');
+      await PricingConfig.create({
+        key: 'singleton',
+        ...DEFAULTS,
+        version: PRICING_VERSION,
+      });
+      logger.info?.(
+        `[pricingService] seeded DB with default pricing (${PRICING_VERSION})`,
+      );
+      return;
     }
+
+    // v23.1 — version-based migration. If the DB doc is older than the
+    // current PRICING_VERSION, force-overwrite all pricing categories
+    // with DEFAULTS so price updates committed in code (e.g. align with
+    // hopetsit.com) actually propagate after a deploy. Without this,
+    // the DB cache always wins and stale prices persist forever.
+    if (doc.version !== PRICING_VERSION) {
+      await PricingConfig.findOneAndUpdate(
+        { key: 'singleton' },
+        {
+          $set: {
+            boost: DEFAULTS.boost,
+            mapBoost: DEFAULTS.mapBoost,
+            premium: DEFAULTS.premium,
+            chat: DEFAULTS.chat,
+            pawfollow: DEFAULTS.pawfollow,
+            version: PRICING_VERSION,
+          },
+        },
+      );
+      // Also refresh in-memory cache to the new DEFAULTS.
+      for (const cat of CATEGORIES) {
+        cache[cat] = JSON.parse(JSON.stringify(DEFAULTS[cat]));
+      }
+      logger.info?.(
+        `[pricingService] migrated DB pricing from "${doc.version || 'pre-v23.1'}" → "${PRICING_VERSION}"`,
+      );
+      return;
+    }
+
+    // Same version → load DB values into cache (admin edits respected).
+    for (const cat of CATEGORIES) {
+      if (doc[cat]) cache[cat] = doc[cat];
+    }
+    logger.info?.(`[pricingService] loaded pricing from DB (${PRICING_VERSION})`);
   } catch (e) {
     // Don't crash the server if pricing can't load — fallback defaults are
     // already in cache, so the shop keeps working.

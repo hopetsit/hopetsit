@@ -948,6 +948,22 @@ class OwnerRepository {
     );
   }
 
+  /// v23.1 — start a card-verification flow ("Add card without booking").
+  /// Returns { paymentIntentId, clientSecret, amount, currency, customerId }.
+  /// The frontend opens AirwallexPaymentService.confirmPaymentIntent with
+  /// these values ; on success the card is saved as a payment_consent and
+  /// the €0.50 charge is auto-refunded by the webhook.
+  Future<Map<String, dynamic>> verifyCard() async {
+    final response = await _apiClient.post(
+      '${ApiEndpoints.ownerPaymentMethods}/verify-card',
+      body: const {},
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return const {};
+  }
+
   /// Returns empty list — payment history now Airwallex-based.
   Future<List<Map<String, dynamic>>> getOwnerPaymentHistory() async {
     final response = await _apiClient.get(

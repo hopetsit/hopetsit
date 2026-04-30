@@ -7,6 +7,8 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+// v23.1 — onglet Factures.
+import 'package:hopetsit/views/invoices/invoices_screen.dart';
 
 /// Walker bookings history screen.
 ///
@@ -69,6 +71,14 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
+        // v23.1 — bouton Factures auto-générées.
+        actions: [
+          IconButton(
+            tooltip: 'invoices_title'.tr,
+            icon: const Icon(Icons.receipt_long_rounded, color: _walkerAccent),
+            onPressed: () => Get.to(() => const InvoicesScreen()),
+          ),
+        ],
       ),
       body: Column(
         children: [

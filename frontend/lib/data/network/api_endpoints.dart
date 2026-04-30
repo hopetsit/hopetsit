@@ -47,6 +47,9 @@ class ApiEndpoints {
   static const String ownerPaymentMethods = '/owner/payments/methods';
   static const String ownerPaymentsSetupIntent = '/owner/payments/setup-intent';
   static const String ownerPaymentsHistory = '/owner/payments/history';
+  // v23.1 — auto-facturation (owner / sitter / walker).
+  static const String invoicesMy = '/invoices/my';
+  static const String invoiceById = '/invoices'; // append /:id and /:id/html
   static const String applications = '/applications';
   static const String tasks = '/tasks';
   static const String blocks = '/blocks';

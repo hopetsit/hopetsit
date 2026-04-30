@@ -9,6 +9,8 @@ import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/pricing_display_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
+// v23.1 — onglet Factures.
+import 'package:hopetsit/views/invoices/invoices_screen.dart';
 
 class SitterBookingsScreen extends StatefulWidget {
   const SitterBookingsScreen({super.key});
@@ -65,6 +67,14 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
         ),
+        // v23.1 — bouton Factures auto-générées (visible 3 profils).
+        actions: [
+          IconButton(
+            tooltip: 'invoices_title'.tr,
+            icon: Icon(Icons.receipt_long_rounded, color: _sitterAccent),
+            onPressed: () => Get.to(() => const InvoicesScreen()),
+          ),
+        ],
       ),
       body: Column(
         children: [

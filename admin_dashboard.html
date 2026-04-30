@@ -220,6 +220,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> <span data-i18n="nav_owners">Owners</span></div>
       <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> Walkers</div>
       <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💰</span> <span data-i18n="nav_payments">Payments</span></div>
+      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Invoices</span></div>
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">IBAN Payouts</span></div>
       <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Identity verifications</span></div>
       <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> <span data-i18n="nav_reviews">Review moderation</span></div>
@@ -419,6 +420,35 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
         <!-- Pagination -->
         <div style="display:flex;justify-content:center;gap:8px;margin-top:12px" id="payments-pagination"></div>
+      </div>
+
+      <!-- INVOICES (v23.1) -->
+      <div id="page-invoices" class="page">
+        <div class="section-title">🧾 Auto-Invoices</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">
+          Auto-generated invoices for every paid booking. Visible in-app under
+          "Mes Réservations → Factures" for the owner and the provider.
+        </p>
+
+        <!-- Sub-tabs : Owner / Sitter / Walker -->
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="filter-select active" id="inv-tab-owner"
+                  onclick="loadInvoices('owner')">👤 Owner</button>
+          <button class="filter-select" id="inv-tab-sitter"
+                  onclick="loadInvoices('sitter')">🐕 Sitter</button>
+          <button class="filter-select" id="inv-tab-walker"
+                  onclick="loadInvoices('walker')">🚶 Walker</button>
+          <input type="date" class="filter-select" id="inv-filter-from"
+                 onchange="loadInvoices()" title="From date" />
+          <input type="date" class="filter-select" id="inv-filter-to"
+                 onchange="loadInvoices()" title="To date" />
+        </div>
+
+        <div class="table-wrap">
+          <div id="invoices-table-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
       </div>
 
       <!-- IBAN PAYOUTS -->
@@ -1105,6 +1135,7 @@ function showPage(name) {
   document.getElementById(`page-${name}`).classList.add('active');
   event.currentTarget.classList.add('active');
   if (name === 'payments') loadPayments();
+  if (name === 'invoices') loadInvoices('owner'); // v23.1 — auto-invoices
   if (name === 'iban') { loadIbanPending(); loadIbanSitters(); }
   if (name === 'identity') loadIdentityVerifications();
   if (name === 'reviews') loadReviewsModeration('all');
@@ -2314,6 +2345,79 @@ async function deleteWalker(id, name) {
 // ── PAYMENTS ─────────────────────────────────────────────────────────────────
 let paymentsPage = 1;
 const paymentsLimit = 30;
+
+// ─── INVOICES (v23.1) ─────────────────────────────────────────────────────
+let invoicesCurrentRole = 'owner';
+async function loadInvoices(role) {
+  if (role) {
+    invoicesCurrentRole = role;
+    ['owner', 'sitter', 'walker'].forEach((r) => {
+      const btn = document.getElementById(`inv-tab-${r}`);
+      if (btn) btn.classList.toggle('active', r === role);
+    });
+  }
+  const tbody = document.getElementById('invoices-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<div class="loading"><div class="spinner"></div> Loading invoices...</div>';
+
+  const from = document.getElementById('inv-filter-from')?.value || '';
+  const to   = document.getElementById('inv-filter-to')?.value || '';
+  let qs = `?role=${invoicesCurrentRole}`;
+  if (from) qs += `&from=${from}`;
+  if (to)   qs += `&to=${to}`;
+
+  try {
+    const d = await api(`/admin/invoices${qs}`);
+    const list = d.invoices || [];
+    if (list.length === 0) {
+      tbody.innerHTML = '<div class="empty-state">No invoices for this filter.</div>';
+      return;
+    }
+    const fmtMoney = (n, c) => `${Number(n || 0).toFixed(2)} ${(c || 'EUR').toUpperCase()}`;
+    const fmtDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '—');
+    const baseUrl = (window.API_BASE_URL || '');
+    const rows = list.map((inv) => `
+      <tr>
+        <td><strong>${inv.invoiceNumber}</strong><br><small style="color:var(--text-muted)">${fmtDate(inv.issuedAt)}</small></td>
+        <td>${inv.ownerName || '—'}<br><small>${inv.ownerEmail || ''}</small></td>
+        <td>
+          <span class="pill" style="background:${inv.providerRole === 'walker' ? '#1976D2' : '#5942CC'};color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;text-transform:uppercase;">${inv.providerRole}</span>
+          ${inv.providerName || '—'}<br><small>${inv.providerEmail || ''}</small>
+        </td>
+        <td>${(inv.serviceType || '').replace(/_/g, ' ') || '—'}<br><small>${fmtDate(inv.serviceDate || inv.startDate)}</small></td>
+        <td><strong>${fmtMoney(inv.grossAmount, inv.currency)}</strong><br><small style="color:var(--text-muted)">net €${(inv.netPayout || 0).toFixed(2)}</small></td>
+        <td>
+          <span class="pill" style="background:${inv.status === 'refunded' ? '#FFEBEE' : '#E8F5E9'};color:${inv.status === 'refunded' ? '#C62828' : '#2E7D32'};padding:2px 8px;border-radius:4px;font-size:10px;text-transform:uppercase;">${inv.status}</span>
+        </td>
+        <td>
+          <a href="${baseUrl}/invoices/${inv._id}/html" target="_blank" rel="noopener"
+             class="btn-small" style="background:#5942CC;color:#fff;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:12px;">📄 View</a>
+        </td>
+      </tr>
+    `).join('');
+    tbody.innerHTML = `
+      <table class="data-table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th>Invoice #</th>
+            <th>Owner</th>
+            <th>Provider</th>
+            <th>Service</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="margin-top:8px;color:var(--text-muted);font-size:12px;">
+        ${list.length} invoice${list.length > 1 ? 's' : ''} · role filter: <strong>${invoicesCurrentRole}</strong>
+      </div>
+    `;
+  } catch (e) {
+    tbody.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+  }
+}
 
 async function loadPayments(page) {
   if (page) paymentsPage = page;
