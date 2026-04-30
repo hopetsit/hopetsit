@@ -200,7 +200,7 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
       case 'refunded':
         return 'status_refunded_label'.tr;
       case 'factures':
-        return 'invoices_title'.tr;
+        return 'invoices_chip'.tr;
       default:
         return status.tr;
     }

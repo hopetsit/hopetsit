@@ -46,6 +46,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'common_ok': 'OK',
       // v23.1 — Auto-Rechnungen
       'invoices_title': 'Meine Rechnungen',
+      'invoices_chip': 'Rechnungen',
       'invoices_empty_title': 'Noch keine Rechnungen',
       'invoices_empty_message': 'Deine Rechnungen erscheinen hier automatisch, sobald eine Buchung bezahlt wurde.',
       'invoices_open_failed': 'Die Rechnung konnte nicht geöffnet werden. Bitte später erneut versuchen.',

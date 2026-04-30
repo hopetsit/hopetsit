@@ -46,6 +46,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'common_ok': 'OK',
       // v23.1 — fatturazione automatica
       'invoices_title': 'Le mie fatture',
+      'invoices_chip': 'Fatture',
       'invoices_empty_title': 'Nessuna fattura per ora',
       'invoices_empty_message': 'Le tue fatture appariranno qui automaticamente non appena una prenotazione verrà pagata.',
       'invoices_open_failed': 'Impossibile aprire la fattura. Riprova più tardi.',

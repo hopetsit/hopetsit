@@ -97,6 +97,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'common_ok': 'OK',
       // v23.1 — faturação automática
       'invoices_title': 'As minhas faturas',
+      'invoices_chip': 'Faturas',
       'invoices_empty_title': 'Sem faturas por enquanto',
       'invoices_empty_message': 'As suas faturas aparecerão aqui automaticamente assim que uma reserva for paga.',
       'invoices_open_failed': 'Não foi possível abrir a fatura. Tente novamente mais tarde.',

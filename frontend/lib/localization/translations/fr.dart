@@ -50,6 +50,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'common_ok': 'OK',
       // v23.1 — auto-facturation
       'invoices_title': 'Mes factures',
+      'invoices_chip': 'Factures',
       'invoices_empty_title': 'Aucune facture pour le moment',
       'invoices_empty_message': 'Vos factures apparaîtront automatiquement ici dès qu\'une réservation sera payée.',
       'invoices_open_failed': 'Impossible d\'ouvrir la facture. Réessayez plus tard.',

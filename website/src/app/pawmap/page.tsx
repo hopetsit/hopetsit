@@ -80,6 +80,7 @@ export default function PawMapPage() {
   const pawspotOffers: Offer[] = [
     { name: t("pawspot_24h_name"), price: "1,99 €", details: t("pawspot_24h_details") },
     { name: t("pawspot_7d_name"), price: "8,99 €", details: t("pawspot_7d_details") },
+    { name: t("pawspot_15d_name"), price: "14,99 €", details: t("pawspot_15d_details") },
     { name: t("pawspot_30d_name"), price: "24,99 €", details: t("pawspot_30d_details") },
   ];
 

@@ -39,9 +39,8 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     // v23.1 — bug d'affichage : les écrans (home / Mes réservations) étaient
     // dessinés SOUS la barre de navigation à cause du Stack. On ajoute un
     // padding-bottom égal à la hauteur de la nav bar pour que le contenu
-    // s'arrête au-dessus, tout en laissant le bouton rouge central déborder
-    // grâce au Stack (le Positioned nav bar est dessiné au-dessus).
-    final double navBarHeight = 78.h;
+    // s'arrête au-dessus. Pill = 78h + 10h margin top + 10h margin bottom = 98h total.
+    final double navBarHeight = 98.h;
     return Scaffold(
       backgroundColor: AppColors.lightGrey,
       body: SafeArea(

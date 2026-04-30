@@ -33,6 +33,10 @@ class CustomNavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // v23.1 — pill avec padding interne 8w pour que le 1er et le dernier
+    // item (Accueil et Profil) ne soient pas clipped par le borderRadius
+    // sur écrans étroits. Le bouton central Map continue de déborder
+    // au-dessus grâce au transform negative dans _buildCenterMapButton.
     return Container(
       height: 78.h,
       margin: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
@@ -47,21 +51,18 @@ class CustomNavigationBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // Home — v18.9 : badge "1" quand direct request arrive (provider)
-          // ou application/acceptation arrive (owner).
-          _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark, badgeIndex: 0),
-          // Chat
-          _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1),
-          // Center MAP button (elevated)
-          _buildCenterMapButton(context, isDark),
-          // Calendar / Bookings
-          _buildNavItem(context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark, badgeIndex: 2),
-          // Profile
-          _buildNavItem(context, 4, AppImages.personIcon, 'nav_profile'.tr, isDark),
-        ],
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8.w),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildNavItem(context, 0, AppImages.pawIcon, 'nav_home'.tr, isDark, badgeIndex: 0),
+            _buildNavItem(context, 1, AppImages.chatIcon, 'nav_chat'.tr, isDark, badgeIndex: 1),
+            _buildCenterMapButton(context, isDark),
+            _buildNavItem(context, 3, AppImages.calendarIcon, 'nav_bookings'.tr, isDark, badgeIndex: 2),
+            _buildNavItem(context, 4, AppImages.personIcon, 'nav_profile'.tr, isDark),
+          ],
+        ),
       ),
     );
   }
