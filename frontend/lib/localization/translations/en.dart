@@ -66,6 +66,9 @@ const Map<String, String> enUSTranslations = <String, String>{
       'walker_card_request_button': 'Request',
       'sitter_card_estimate_days': 'Estimate @days days: ~@amount @currency',
       'friends_no_pending_request': 'No pending requests.',
+      // v23.1 — likes count pill
+      'post_likes_singular': 'like',
+      'post_likes_plural': 'likes',
       'invoices_empty_title': 'No invoices yet',
       'invoices_empty_message': 'Your invoices will appear here automatically as soon as a booking is paid.',
       'invoices_open_failed': 'Unable to open the invoice. Please try again later.',

@@ -112,6 +112,9 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'walker_card_request_button': 'Pedir',
       'sitter_card_estimate_days': 'Estimativa @days dias: ~@amount @currency',
       'friends_no_pending_request': 'Sem pedidos pendentes.',
+      // v23.1 — pill contagem de gostos
+      'post_likes_singular': 'gosto',
+      'post_likes_plural': 'gostos',
       'invoices_empty_title': 'Sem faturas por enquanto',
       'invoices_empty_message': 'As suas faturas aparecerão aqui automaticamente assim que uma reserva for paga.',
       'invoices_open_failed': 'Não foi possível abrir a fatura. Tente novamente mais tarde.',

@@ -61,6 +61,9 @@ const Map<String, String> deDETranslations = <String, String>{
       'walker_card_request_button': 'Anfragen',
       'sitter_card_estimate_days': 'Schätzung @days Tage: ~@amount @currency',
       'friends_no_pending_request': 'Keine offenen Anfragen.',
+      // v23.1 — Likes-Count Pille
+      'post_likes_singular': 'Like',
+      'post_likes_plural': 'Likes',
       'invoices_empty_title': 'Noch keine Rechnungen',
       'invoices_empty_message': 'Deine Rechnungen erscheinen hier automatisch, sobald eine Buchung bezahlt wurde.',
       'invoices_open_failed': 'Die Rechnung konnte nicht geöffnet werden. Bitte später erneut versuchen.',

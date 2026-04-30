@@ -381,19 +381,45 @@ class PetPostCard extends StatelessWidget {
               ),
             ),
 
-          // Like count (comment counts hidden — same as comment action below)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-            child: Row(
-              children: [
-                Image.asset(AppImages.totalLikeIcon, width: 16.w, height: 16.h),
-                SizedBox(width: 4.w),
-                InterText(
-                  text: likeCount.toString(),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary(context),
-                ),
+          // v23.1 — like count redesign : compteur intégré dans une pill
+          // douce avec icône cœur rouge, taille discrète, n'apparaît que
+          // si > 0 (au lieu d'un "0" laid).
+          if (likeCount > 0)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 10.w, vertical: 4.h),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10.r),
+                      border: Border.all(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.favorite_rounded,
+                          size: 13.sp,
+                          color: const Color(0xFFEF4444),
+                        ),
+                        SizedBox(width: 5.w),
+                        InterText(
+                          text: likeCount == 1
+                              ? '$likeCount ${'post_likes_singular'.tr}'
+                              : '$likeCount ${'post_likes_plural'.tr}',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFEF4444),
+                        ),
+                      ],
+                    ),
+                  ),
                 // GestureDetector(
                 //   onTap: onComment,
                 //   child: InterText(
@@ -417,13 +443,11 @@ class PetPostCard extends StatelessWidget {
             child: Divider(color: AppColors.divider(context).withValues(alpha: 0.2)),
           ),
 
-          // v18.7 — Like + Share redessinés : vraies pastilles colorées,
-          // icône Material (coeur rouge rempli si liké), compteur de likes
-          // visible, feedback tactile.
+          // v23.1 — Like + Share redesign moderne : gradient subtil, ombre
+          // douce, animation de scale au tap, icônes plus claires.
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 Expanded(
                   child: _buildActionPill(
@@ -432,17 +456,10 @@ class PetPostCard extends StatelessWidget {
                         ? Icons.favorite_rounded
                         : Icons.favorite_border_rounded,
                     label: likeCount > 0
-                        ? '${'post_action_like'.tr}  ·  $likeCount'
+                        ? '${'post_action_like'.tr} · $likeCount'
                         : 'post_action_like'.tr,
-                    bg: isLiked
-                        ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-                        : AppColors.inputFill(context),
-                    fg: isLiked
-                        ? const Color(0xFFEF4444)
-                        : AppColors.textSecondary(context),
-                    border: isLiked
-                        ? const Color(0xFFEF4444).withValues(alpha: 0.35)
-                        : Colors.transparent,
+                    isActive: isLiked,
+                    accent: const Color(0xFFEF4444),
                     onTap: onLike,
                   ),
                 ),
@@ -452,9 +469,8 @@ class PetPostCard extends StatelessWidget {
                     context: context,
                     icon: Icons.ios_share_rounded,
                     label: 'post_action_share'.tr,
-                    bg: const Color(0xFF2563EB).withValues(alpha: 0.10),
-                    fg: const Color(0xFF2563EB),
-                    border: const Color(0xFF2563EB).withValues(alpha: 0.28),
+                    isActive: false,
+                    accent: const Color(0xFF2563EB),
                     onTap: onShare,
                   ),
                 ),
@@ -496,47 +512,68 @@ class PetPostCard extends StatelessWidget {
     );
   }
 
-  /// v18.7 — "pill" button pour Like/Share : fond coloré, icône + label
-  /// cote à cote, taille ergonomique. Bien plus visible que l'ancien
-  /// bouton icon+label vertical gris.
+  /// v23.1 — bouton action moderne : gradient subtil, ombre douce, état
+  /// "actif" (liké/partagé) avec rempli plein couleur, "inactif" avec
+  /// fond très clair et bordure légère. Animation tactile via InkWell.
   Widget _buildActionPill({
     required BuildContext context,
     required IconData icon,
     required String label,
-    required Color bg,
-    required Color fg,
-    required Color border,
+    required bool isActive,
+    required Color accent,
     VoidCallback? onTap,
   }) {
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(22.r),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22.r),
-        splashColor: fg.withValues(alpha: 0.12),
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 14.w),
-          decoration: BoxDecoration(
-            border: Border.all(color: border, width: 1),
-            borderRadius: BorderRadius.circular(22.r),
+    final bg = isActive ? accent : accent.withValues(alpha: 0.06);
+    final fg = isActive ? Colors.white : accent;
+    final shadowColor = accent.withValues(alpha: isActive ? 0.32 : 0.0);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14.r),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18.sp, color: fg),
-              SizedBox(width: 8.w),
-              Flexible(
-                child: InterText(
-                  text: label,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: fg,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+        ],
+      ),
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(14.r),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14.r),
+          splashColor: accent.withValues(alpha: 0.15),
+          highlightColor: accent.withValues(alpha: 0.05),
+          child: Container(
+            padding: EdgeInsets.symmetric(vertical: 11.h, horizontal: 14.w),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(
+                color: isActive
+                    ? Colors.transparent
+                    : accent.withValues(alpha: 0.18),
+                width: 1.2,
               ),
-            ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18.sp, color: fg),
+                SizedBox(width: 8.w),
+                Flexible(
+                  child: InterText(
+                    text: label,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: fg,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

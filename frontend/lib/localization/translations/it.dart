@@ -61,6 +61,9 @@ const Map<String, String> itITTranslations = <String, String>{
       'walker_card_request_button': 'Richiedi',
       'sitter_card_estimate_days': 'Stima @days giorni: ~@amount @currency',
       'friends_no_pending_request': 'Nessuna richiesta in attesa.',
+      // v23.1 — pillola conteggio mi piace
+      'post_likes_singular': 'mi piace',
+      'post_likes_plural': 'mi piace',
       'invoices_empty_title': 'Nessuna fattura per ora',
       'invoices_empty_message': 'Le tue fatture appariranno qui automaticamente non appena una prenotazione verrà pagata.',
       'invoices_open_failed': 'Impossibile aprire la fattura. Riprova più tardi.',

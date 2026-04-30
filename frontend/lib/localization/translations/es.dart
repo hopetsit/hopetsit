@@ -61,6 +61,9 @@ const Map<String, String> esESTranslations = <String, String>{
       'walker_card_request_button': 'Solicitar',
       'sitter_card_estimate_days': 'Estimación @days días: ~@amount @currency',
       'friends_no_pending_request': 'Sin solicitudes pendientes.',
+      // v23.1 — pill conteo de likes
+      'post_likes_singular': 'me gusta',
+      'post_likes_plural': 'me gusta',
       'invoices_empty_title': 'Aún no hay facturas',
       'invoices_empty_message': 'Tus facturas aparecerán aquí automáticamente en cuanto se pague una reserva.',
       'invoices_open_failed': 'No se ha podido abrir la factura. Inténtalo de nuevo más tarde.',
