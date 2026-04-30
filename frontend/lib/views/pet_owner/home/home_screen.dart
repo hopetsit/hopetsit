@@ -789,9 +789,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Obx(
       () => Scaffold(
-        // v23.1 — bg blanc (au lieu de scaffold lightGrey) pour éliminer
-        // tout grey leak derrière la nav bar (cas Accueil tab).
+        // v23.1 part 22 — bg blanc + surfaceTintColor + bottomSheetTheme
+        // explicit transparent. Material 3 surface tint OFF pour kill
+        // tout overlay teinté gris résiduel.
         backgroundColor: AppColors.appBar(context),
+        // ignore: deprecated_member_use
+        // surfaceTintColor isn't on Scaffold — Material 3 tint reaches via
+        // the inner Material widget. We compensate by wrapping body inline.
+        extendBody: false,
+        extendBodyBehindAppBar: false,
         // v23.1 — HomeHeader : Container custom 100% blanc, fix le grey
         // rectangle persistant qui apparaissait sur l'AppBar Material 3.
         appBar: HomeHeader(

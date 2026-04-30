@@ -48,10 +48,12 @@ class CustomNavigationBar extends StatelessWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final bg = isDark ? const Color(0xFF121212) : Colors.white;
 
-    // v23.1 part 20 — Material avec couleur explicite + clipBehavior antiAlias
-    // pour cap définitivement tout débordement visuel sur la zone gesture.
+    // v23.1 part 22 — Material avec surfaceTintColor + shadowColor explicit
+    // transparent pour kill tout overlay/tint Material 3 résiduel.
     return Material(
       color: bg,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
       elevation: 0,
       child: Padding(
         padding: EdgeInsets.only(bottom: bottomInset),

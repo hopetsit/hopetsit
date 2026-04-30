@@ -691,10 +691,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final timeLbl = app.timeSlot;
     final addrLbl = app.sitter.city ?? app.sitter.address;
     final rating = app.sitter.rating;
-    final priceLbl = app.pricing != null
+    final priceLbl = (app.pricing != null && app.pricing!.totalPrice != null)
         ? CurrencyHelper.format(
-            app.pricing!.currency,
-            app.pricing!.totalPrice.toDouble(),
+            app.pricing!.currency ?? 'EUR',
+            (app.pricing!.totalPrice ?? 0).toDouble(),
           )
         : '';
 
@@ -878,10 +878,19 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                 child: TextButton.icon(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    Get.to(() => ServiceProviderDetailScreen(
-                          sitterId: localApp.sitter.id,
-                          status: 'pending',
-                        ));
+                    // v23.1 part 22 — fix : ServiceProviderDetailScreen
+                    // appelle /sitters/:id côté backend. Pour un walker on
+                    // affiche un dialog enrichi avec les data déjà chargées
+                    // dans ApplicationModel (en attendant un WalkerDetailScreen
+                    // dédié).
+                    if (isWalker) {
+                      _showWalkerInfoDialog(localApp);
+                    } else {
+                      Get.to(() => ServiceProviderDetailScreen(
+                            sitterId: localApp.sitter.id,
+                            status: 'pending',
+                          ));
+                    }
                   },
                   icon: Icon(Icons.person_outline,
                       color: accent, size: 18.sp),
@@ -900,6 +909,99 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// v23.1 part 22 — popup riche pour le profil walker (en attendant un
+  /// WalkerDetailScreen public dédié qui appelle /walkers/:id).
+  void _showWalkerInfoDialog(ApplicationModel app) {
+    final accent = const Color(0xFF16A34A);
+    final w = app.sitter; // ApplicationSitter contient les data walker quand providerRole='walker'
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(ctx).cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        contentPadding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 12.h),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28.r,
+                    backgroundColor: accent.withValues(alpha: 0.15),
+                    backgroundImage: w.avatar.url.isNotEmpty
+                        ? NetworkImage(w.avatar.url)
+                        : null,
+                    child: w.avatar.url.isEmpty
+                        ? Icon(Icons.person, color: accent, size: 28.sp)
+                        : null,
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PoppinsText(
+                          text: w.name.isNotEmpty ? w.name : 'role_walker'.tr,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        SizedBox(height: 4.h),
+                        Row(
+                          children: [
+                            Icon(Icons.star_rounded,
+                                color: const Color(0xFFFFB400), size: 16.sp),
+                            SizedBox(width: 4.w),
+                            InterText(
+                              text: w.rating > 0
+                                  ? '${w.rating.toStringAsFixed(1)} (${w.reviewsCount})'
+                                  : '—',
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              if ((w.bio ?? '').isNotEmpty) ...[
+                _sheetRow(Icons.info_outline, w.bio!),
+              ],
+              if (w.skills.isNotEmpty) _sheetRow(Icons.workspace_premium, w.skills),
+              if ((w.city ?? '').isNotEmpty) _sheetRow(Icons.location_on_outlined, w.city!),
+              if (w.address.isNotEmpty && w.address != w.city) _sheetRow(Icons.home_outlined, w.address),
+              if (w.language.isNotEmpty) _sheetRow(Icons.language, w.language),
+              if (w.hourlyRate > 0)
+                _sheetRow(
+                  Icons.payments_outlined,
+                  '${CurrencyHelper.format(w.currency, w.hourlyRate)} / h',
+                ),
+              if (w.verified)
+                _sheetRow(Icons.verified_outlined, 'verified'.tr.isNotEmpty
+                    ? 'verified'.tr
+                    : 'Vérifié'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              'common_close'.tr.isNotEmpty ? 'common_close'.tr : 'Fermer',
+              style: TextStyle(color: accent, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
   }
