@@ -116,7 +116,10 @@ class MyApp extends StatelessWidget {
                 onSurfaceVariant: AppColors.grey700Color,
               ),
               primaryColor: AppColors.primaryColor,
-              scaffoldBackgroundColor: AppColors.scaffoldLight,
+              // v23.1 — bg white global pour éviter tout grey leak derrière
+              // les nav bars / safe areas. Les écrans qui veulent un bg
+              // grey peuvent override leur Scaffold.backgroundColor.
+              scaffoldBackgroundColor: AppColors.whiteColor,
               appBarTheme: const AppBarTheme(
                 backgroundColor: AppColors.whiteColor,
                 elevation: 0,

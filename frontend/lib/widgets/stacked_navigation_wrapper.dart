@@ -40,36 +40,49 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.appBar(context), // blanc en light, surface en dark
-      body: Column(
-        children: [
-          Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: widget.screens,
+    final whiteBg = AppColors.appBar(context);
+    return Container(
+      // v23.1 — Container blanc TOUT EN BAS du tree pour garantir qu'aucun
+      // grey ne peut transparaître nulle part, même via les SafeArea ou
+      // les bottom insets de l'OS.
+      color: whiteBg,
+      child: Scaffold(
+        backgroundColor: whiteBg,
+        body: Column(
+          children: [
+            Expanded(
+              child: ColoredBox(
+                color: whiteBg,
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: widget.screens,
+                ),
+              ),
             ),
-          ),
-          CustomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-              if (index == 0) {
-                _refreshNotificationBadge();
-              }
-              if (index == 1) {
-                if (Get.isRegistered<ChatController>()) {
-                  Get.find<ChatController>().reloadConversations();
-                }
-                if (Get.isRegistered<SitterChatController>()) {
-                  Get.find<SitterChatController>().reloadConversations();
-                }
-              }
-            },
-          ),
-        ],
+            ColoredBox(
+              color: whiteBg,
+              child: CustomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                  if (index == 0) {
+                    _refreshNotificationBadge();
+                  }
+                  if (index == 1) {
+                    if (Get.isRegistered<ChatController>()) {
+                      Get.find<ChatController>().reloadConversations();
+                    }
+                    if (Get.isRegistered<SitterChatController>()) {
+                      Get.find<SitterChatController>().reloadConversations();
+                    }
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
