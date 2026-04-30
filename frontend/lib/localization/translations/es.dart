@@ -1913,6 +1913,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'nav_chat': 'Chat',
     'nav_bookings': 'Reservas',
     'nav_profile': 'Perfil',
+    'view_walker_profile': 'Ver perfil del paseador',
+    'view_sitter_profile': 'Ver perfil del cuidador',
     'role_pet_walker': 'Paseador',
     'role_pet_walker_desc': 'Paseo perros de sus dueños.',
     'auth_role_pet_walker': 'Paseador',

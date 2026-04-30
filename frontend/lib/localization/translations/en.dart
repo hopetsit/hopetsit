@@ -1998,6 +1998,8 @@ const Map<String, String> enUSTranslations = <String, String>{
     'nav_chat': 'Chat',
     'nav_bookings': 'Bookings',
     'nav_profile': 'Profile',
+    'view_walker_profile': 'View walker profile',
+    'view_sitter_profile': 'View sitter profile',
     'role_pet_walker': 'Dog walker',
     'role_pet_walker_desc': 'I walk dogs for their owners.',
     'auth_role_pet_walker': 'Dog walker',

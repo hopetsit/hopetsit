@@ -1918,6 +1918,8 @@ const Map<String, String> itITTranslations = <String, String>{
     'nav_chat': 'Chat',
     'nav_bookings': 'Prenotazioni',
     'nav_profile': 'Profilo',
+    'view_walker_profile': 'Vedi profilo dog walker',
+    'view_sitter_profile': 'Vedi profilo pet sitter',
     'role_pet_walker': 'Dog walker',
     'role_pet_walker_desc': 'Porto a spasso i cani dei proprietari.',
     'auth_role_pet_walker': 'Dog walker',

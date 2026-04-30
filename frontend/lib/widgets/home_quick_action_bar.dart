@@ -43,6 +43,8 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
+import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
+import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -466,11 +468,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       _showProviderRequestSheet(a);
       return;
     }
-    // v23.1 part 20 — owner sees a "Nouvelle candidature" banner when at least
-    // one walker/sitter applied. Tap → MyPostsScreen where the multi-candidates
-    // UI lives.
+    // v23.1 part 21 — owner candidature : sheet riche avec 3 actions
+    // (Accept / Reject / Voir profil). Si plusieurs candidats sur le même
+    // post, on bascule vers PostCandidatesSheet (vue multi-candidats).
     if (a.kind == _Kind.ownerCandidate) {
-      Get.to(() => const MyPostsScreen());
+      _showOwnerCandidateSheet(a);
       return;
     }
     Get.to(() => const BookingsHistoryScreen());
@@ -640,6 +642,278 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         ],
       ),
     );
+  }
+
+  /// v23.1 part 21 — bottom sheet riche pour la candidature owner.
+  /// Affiche : avatar + nom + role badge + rating + service/pet/date,
+  /// puis 3 boutons : Accept / Refuse / Voir profil.
+  /// Pour le multi-candidats (>1 candidat même post), bascule sur PostCandidatesSheet.
+  void _showOwnerCandidateSheet(_QuickAction a) {
+    if (!Get.isRegistered<ApplicationsController>()) {
+      Get.to(() => const MyPostsScreen());
+      return;
+    }
+    final ctrl = Get.find<ApplicationsController>();
+    ApplicationModel? app;
+    try {
+      app = ctrl.applications.firstWhere(
+        (x) => x.id == a.candidateApplicationId,
+      );
+    } catch (_) {
+      app = null;
+    }
+    if (app == null) {
+      Get.to(() => const MyPostsScreen());
+      return;
+    }
+
+    // Si plusieurs candidats sur le même post → ouvre la sheet multi-candidats
+    // qui présente la liste et permet le choix optimal.
+    final samePostCount = ctrl.applications.where((x) {
+      return x.postId == app!.postId &&
+          x.status.toLowerCase() == 'pending';
+    }).length;
+    if (samePostCount > 1 && (app.postId ?? '').isNotEmpty) {
+      PostCandidatesSheet.show(context: context, postId: app.postId!);
+      return;
+    }
+
+    final isWalker = app.providerRole == 'walker';
+    final accent = isWalker
+        ? const Color(0xFF16A34A)
+        : const Color(0xFF2563EB);
+    final providerName = app.sitter.name.trim().isNotEmpty
+        ? app.sitter.name
+        : (isWalker ? 'role_walker'.tr : 'role_sitter'.tr);
+    final providerAvatar = app.sitter.avatar.url;
+    final petLabel = app.petName;
+    final dateLbl = (app.serviceDate ?? '').split('T').first;
+    final timeLbl = app.timeSlot;
+    final addrLbl = app.sitter.city ?? app.sitter.address;
+    final rating = app.sitter.rating;
+    final priceLbl = app.pricing != null
+        ? CurrencyHelper.format(
+            app.pricing!.currency,
+            app.pricing!.totalPrice.toDouble(),
+          )
+        : '';
+
+    final localApp = app;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          20.w,
+          12.h,
+          20.w,
+          24.h + MediaQuery.of(ctx).padding.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28.r,
+                    backgroundColor: accent.withValues(alpha: 0.15),
+                    backgroundImage: providerAvatar.isNotEmpty
+                        ? NetworkImage(providerAvatar)
+                        : null,
+                    child: providerAvatar.isEmpty
+                        ? Icon(Icons.person, color: accent, size: 28.sp)
+                        : null,
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: PoppinsText(
+                                text: providerName,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(width: 6.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 6.w, vertical: 2.h),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: InterText(
+                                text: isWalker
+                                    ? 'role_walker'.tr
+                                    : 'role_sitter'.tr,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 4.h),
+                        Row(
+                          children: [
+                            Icon(Icons.star_rounded,
+                                color: const Color(0xFFFFB400), size: 16.sp),
+                            SizedBox(width: 4.w),
+                            InterText(
+                              text: rating > 0
+                                  ? rating.toStringAsFixed(1)
+                                  : '—',
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            if (priceLbl.isNotEmpty) ...[
+                              SizedBox(width: 10.w),
+                              Icon(Icons.payments_outlined,
+                                  size: 14.sp, color: accent),
+                              SizedBox(width: 3.w),
+                              InterText(
+                                text: priceLbl,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w600,
+                                color: accent,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              if (petLabel.isNotEmpty) _sheetRow(Icons.pets, petLabel),
+              if (dateLbl.isNotEmpty)
+                _sheetRow(Icons.event_outlined, dateLbl),
+              if (timeLbl.isNotEmpty) _sheetRow(Icons.access_time, timeLbl),
+              if (addrLbl.isNotEmpty)
+                _sheetRow(Icons.location_on_outlined, addrLbl),
+              SizedBox(height: 20.h),
+              // 3 actions : Accept / Refuse / Voir profil
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _ownerAcceptCandidate(localApp);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      icon: Icon(Icons.check_rounded,
+                          color: Colors.white, size: 18.sp),
+                      label: Text(
+                        'snackbar_text_request_accepted'.tr,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _ownerRejectCandidate(localApp);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE53935)),
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      icon: Icon(Icons.close_rounded,
+                          color: const Color(0xFFE53935), size: 18.sp),
+                      label: Text(
+                        'snackbar_text_request_refused'.tr,
+                        style: TextStyle(
+                          color: const Color(0xFFE53935),
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Get.to(() => ServiceProviderDetailScreen(
+                          sitterId: localApp.sitter.id,
+                          status: 'pending',
+                        ));
+                  },
+                  icon: Icon(Icons.person_outline,
+                      color: accent, size: 18.sp),
+                  label: Text(
+                    isWalker
+                        ? 'view_walker_profile'.tr
+                        : 'view_sitter_profile'.tr,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _ownerAcceptCandidate(ApplicationModel app) async {
+    if (!Get.isRegistered<ApplicationsController>()) return;
+    final ctrl = Get.find<ApplicationsController>();
+    await ctrl.respondToApplication(applicationId: app.id, action: 'accept');
+  }
+
+  Future<void> _ownerRejectCandidate(ApplicationModel app) async {
+    if (!Get.isRegistered<ApplicationsController>()) return;
+    final ctrl = Get.find<ApplicationsController>();
+    await ctrl.respondToApplication(applicationId: app.id, action: 'reject');
   }
 
   /// v22.5 — PART 3 : pre-warm createPaymentIntent puis push StripePaymentScreen.

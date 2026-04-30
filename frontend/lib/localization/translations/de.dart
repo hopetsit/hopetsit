@@ -1941,6 +1941,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'nav_chat': 'Chat',
     'nav_bookings': 'Buchungen',
     'nav_profile': 'Profil',
+    'view_walker_profile': 'Gassigeher-Profil ansehen',
+    'view_sitter_profile': 'Tiersitter-Profil ansehen',
     'role_pet_walker': 'Gassigeher',
     'role_pet_walker_desc': 'Ich führe Hunde für ihre Besitzer aus.',
     'auth_role_pet_walker': 'Gassigeher',

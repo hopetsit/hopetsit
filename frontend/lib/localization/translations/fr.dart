@@ -1938,6 +1938,9 @@ const Map<String, String> frFRTranslations = <String, String>{
     'nav_chat': 'Chat',
     'nav_bookings': 'Réservations',
     'nav_profile': 'Profil',
+    // v23.1 part 21 — owner candidature sheet 3-actions.
+    'view_walker_profile': 'Voir profil promeneur',
+    'view_sitter_profile': 'Voir profil pet-sitter',
     'role_pet_walker': 'Promeneur',
     'role_pet_walker_desc': 'Je promène les chiens des propriétaires.',
     'auth_role_pet_walker': 'Promeneur',

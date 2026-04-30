@@ -1895,6 +1895,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'nav_chat': 'Chat',
     'nav_bookings': 'Reservas',
     'nav_profile': 'Perfil',
+    'view_walker_profile': 'Ver perfil do passeador',
+    'view_sitter_profile': 'Ver perfil do pet sitter',
     'role_pet_walker': 'Passeador',
     'role_pet_walker_desc': 'Passeio cães pelos seus donos.',
     'auth_role_pet_walker': 'Passeador',
