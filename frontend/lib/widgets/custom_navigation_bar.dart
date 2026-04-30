@@ -82,8 +82,10 @@ class CustomNavigationBar extends StatelessWidget {
         onTap(index);
       },
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 56.w,
+      // v23.1 — pas de SizedBox(width: 56.w) qui créait un gap dans
+      // l'Expanded parent → grey leak visuel autour d'Accueil. Le Column
+      // remplit naturellement la largeur de l'Expanded.
+      child: SizedBox.expand(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
