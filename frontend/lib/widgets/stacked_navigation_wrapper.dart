@@ -42,46 +42,34 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     return Scaffold(
       backgroundColor: whiteBg,
       extendBody: false,
-      body: Stack(
-        children: [
-          // Body normal
-          IndexedStack(
-            index: _currentIndex,
-            children: widget.screens,
-          ),
-          // DIAGNOSTIC v23.1 part 30 — overlay ROUGE 100% opaque dans le coin
-          // bas-gauche pour identifier QUI peint là. Si Daniel voit ROUGE,
-          // c'est notre layer Stack qui couvre la zone. Si il voit GRIS sous
-          // le rouge, c'est un widget AU-DESSUS qui peint en transparent.
-          Positioned(
-            left: 0,
-            bottom: 0,
-            width: 200,
-            height: 200,
-            child: IgnorePointer(
-              child: ColoredBox(color: Color(0x44FF0000)),
-            ),
-          ),
-        ],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: widget.screens,
       ),
-      bottomNavigationBar: CustomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          if (index == 0) {
-            _refreshNotificationBadge();
-          }
-          if (index == 1) {
-            if (Get.isRegistered<ChatController>()) {
-              Get.find<ChatController>().reloadConversations();
+      // DIAGNOSTIC v23.1 part 30b — wrap la nav bar dans un ColoredBox(red)
+      // 100% opaque pour confirmer si le gris vient PAR-DESSUS notre nav.
+      // Si Daniel voit gris sur ROUGE → 100% Samsung OS overlay.
+      bottomNavigationBar: ColoredBox(
+        color: const Color(0xFFFF0000),
+        child: CustomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+            if (index == 0) {
+              _refreshNotificationBadge();
             }
-            if (Get.isRegistered<SitterChatController>()) {
-              Get.find<SitterChatController>().reloadConversations();
+            if (index == 1) {
+              if (Get.isRegistered<ChatController>()) {
+                Get.find<ChatController>().reloadConversations();
+              }
+              if (Get.isRegistered<SitterChatController>()) {
+                Get.find<SitterChatController>().reloadConversations();
+              }
             }
-          }
-        },
+          },
+        ),
       ),
     );
   }
