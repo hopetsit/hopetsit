@@ -27,16 +27,16 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // v23.1 part 23 — force system nav bar BLANC (au lieu du défaut translucide
-  // qui peut révéler un overlay gris Samsung en bottom-left). En forçant
-  // systemNavigationBarColor: white + dark icons, le système peint sa zone
-  // en blanc opaque, en raccord avec notre nav bar.
+  // v23.1 part 26 — Option B (Daniel) : zone système NOIRE classique style
+  // Android. III □ ← en icônes claires sur fond noir, transition nette avec
+  // la nav bar Flutter blanche. Le rectangle blanc qui dépassait dans le coin
+  // bas-gauche est tué en peignant la zone bottom-inset en NOIR (matching OS).
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
-    systemNavigationBarColor: Colors.white,
-    systemNavigationBarIconBrightness: Brightness.dark,
-    systemNavigationBarDividerColor: Colors.white,
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarDividerColor: Colors.black,
     systemNavigationBarContrastEnforced: false,
   ));
 

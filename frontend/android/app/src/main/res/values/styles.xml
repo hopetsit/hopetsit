@@ -28,6 +28,9 @@
         <item name="android:colorBackground">@android:color/white</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/white</item>
+        <!-- v23.1 part 26 — Option B (Daniel) : navigationBar NOIRE classique
+             Android. Évite le rectangle blanc qui dépassait dans le coin
+             bas-gauche du système. -->
+        <item name="android:navigationBarColor">@android:color/black</item>
     </style>
 </resources>
