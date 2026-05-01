@@ -2696,6 +2696,36 @@ const confirmBookingPayment = async (req, res) => {
         logger.error(`[confirmBookingPayment] chat unlock fallback failed: ${e.message}`);
       }
 
+      // v23.1 part 24 — fallback : auto-create invoice when webhook hasn't
+      // fired yet (demo env, mis-configured webhook URL). Idempotent : the
+      // controller checks an existing invoice for this booking and returns
+      // the existing one instead of duplicating.
+      try {
+        const { createInvoiceForBooking } = require('./invoiceController');
+        if (typeof createInvoiceForBooking === 'function') {
+          const populated = await Booking.findById(booking._id)
+            .populate('ownerId')
+            .populate('sitterId')
+            .populate('walkerId')
+            .populate('petIds');
+          await createInvoiceForBooking(populated);
+          logger.info(`✅ [confirmBookingPayment] invoice auto-created (sync fallback) for booking ${booking._id}`);
+        }
+      } catch (e) {
+        logger.error(`[confirmBookingPayment] invoice fallback failed: ${e.message}`);
+      }
+
+      // v23.1 part 24 — fallback : schedule payout (the webhook normally does
+      // this, but in demo mode without webhooks the provider would never get
+      // paid).
+      try {
+        if (typeof schedulePayoutForBooking === 'function') {
+          await schedulePayoutForBooking(booking);
+        }
+      } catch (e) {
+        logger.error(`[confirmBookingPayment] payout schedule fallback failed: ${e.message}`);
+      }
+
       return res.status(200).json({
         success: true,
         status: 'succeeded',

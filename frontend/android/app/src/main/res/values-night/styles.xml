@@ -16,6 +16,9 @@
          stock après la purge flutter_stripe (qui apportait la dep transitive
          com.google.android.material:material). -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- v23.1 part 25 — same fix as values/styles.xml mais en dark mode :
+             #121212 explicit pour éviter colorBackground système qui peut
+             leaker un gris sur certains skins OEM. -->
+        <item name="android:windowBackground">@color/dark_window_bg</item>
     </style>
 </resources>

@@ -10,6 +10,9 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/airwallex_error_translator.dart';
 import 'package:hopetsit/views/payment/payment_result_screen.dart';
 import 'package:hopetsit/controllers/loyalty_controller.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/applications_controller.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 
 /// v21.1.1 — Stripe purgé. Pure Airwallex.
 /// Le nom de classe est conservé pour ne pas casser les imports existants.
@@ -216,6 +219,25 @@ class StripePaymentController extends GetxController {
         'Payment Confirmed',
         data: {'bookingId': booking.id, 'paymentIntentId': paymentIntentId},
       );
+
+      // v23.1 part 24 — fix Daniel : après confirmPayment, recharger
+      // immédiatement BookingsController + ApplicationsController + Notifs
+      // pour que le bandeau home owner reflète le nouveau status (le booking
+      // passe de "à payer" à "payé"). Sinon le bandeau "X a accepté ! Payer"
+      // restait visible jusqu'au prochain refresh périodique 30s.
+      try {
+        if (Get.isRegistered<BookingsController>()) {
+          await Get.find<BookingsController>().loadBookings();
+        }
+        if (Get.isRegistered<ApplicationsController>()) {
+          await Get.find<ApplicationsController>().loadApplications();
+        }
+        if (Get.isRegistered<NotificationsController>()) {
+          Get.find<NotificationsController>().refreshUnreadCount();
+        }
+      } catch (e) {
+        AppLogger.logDebug('Post-payment refresh skipped: $e');
+      }
 
       Get.off(
         () => PaymentResultScreen(

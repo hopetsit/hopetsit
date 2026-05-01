@@ -838,7 +838,12 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(width: 4.w),
           ],
         ),
+        // v23.1 part 23 — bottom: false → c'est le wrapper StackedNavigationWrapper
+        // qui gère déjà le bottom inset via la nav bar. Ajouter un bottom SafeArea
+        // ici créait un GAP (la "bande blanche" + zone grise) entre la fin du body
+        // et le début de la nav bar.
         body: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               // v21 — Quick action bar (only renders when an urgent action
@@ -901,7 +906,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? _buildSittersTab()
                         : _buildWalkersTab(),
               ),
-              SizedBox(height: 20.h),
+              // v23.1 part 23 — SizedBox(20.h) supprimé : créait une bande
+              // blanche superflue entre le contenu et la nav bar (highlight
+              // Daniel screenshot). Le ListView a déjà un padding bottom 100.h.
             ],
           ),
         ),

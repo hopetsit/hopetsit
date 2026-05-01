@@ -678,7 +678,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             SizedBox(width: 4.w),
           ],
         ),
+        // v23.1 part 23 — bottom: false → wrapper gère le bottom inset.
         body: SafeArea(
+          bottom: false,
           child: RefreshIndicator(
             onRefresh: () async {
               // v20.0.19 — also reload rates so the "Estimation" block on

@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -25,6 +26,19 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // v23.1 part 23 — force system nav bar BLANC (au lieu du défaut translucide
+  // qui peut révéler un overlay gris Samsung en bottom-left). En forçant
+  // systemNavigationBarColor: white + dark icons, le système peint sa zone
+  // en blanc opaque, en raccord avec notre nav bar.
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.white,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarDividerColor: Colors.white,
+    systemNavigationBarContrastEnforced: false,
+  ));
 
   await GetStorage.init();
   await dotenv.load(fileName: ".env");

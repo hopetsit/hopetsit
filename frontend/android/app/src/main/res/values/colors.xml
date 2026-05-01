@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#EF4324</color>
+    <!-- v23.1 part 25 — couleur du windowBackground en dark mode (Material You / dark style). -->
+    <color name="dark_window_bg">#FF121212</color>
 </resources>

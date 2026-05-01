@@ -17,6 +17,17 @@
          com.google.android.material:material). Flutter rend lui-même ses
          widgets Material, on n'a besoin que d'un Window propre. -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- v23.1 part 25 — CRITICAL FIX du carré gris persistant à Accueil.
+             ?android:colorBackground est un attribut système qui sur Samsung
+             One UI light mode défaut à #FAFAFA (gris). Ce gris transparaît
+             par tout pixel transparent de Flutter (safe areas, gesture zone,
+             écran de transition). On force WHITE explicitement, et on
+             override ALSO android:colorBackground au cas où d'autres widgets
+             du système y font référence. -->
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:colorBackground">@android:color/white</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
     </style>
 </resources>
