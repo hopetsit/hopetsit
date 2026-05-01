@@ -271,9 +271,22 @@ const renderInvoiceHtml = async (req, res) => {
 </head>
 <body>
   <div class="head">
-    <div class="brand">
-      HoPetSit
-      <small>Operated by CARDELLI HERMANOS LIMITED · Hong Kong<br/>Company No. n-2671528 · contact@hopetsit.com</small>
+    <div class="brand" style="display: flex; align-items: center; gap: 12px;">
+      <!-- v23.1 part 34 — logo HoPetSit SVG inline (paw + "H" stylisé en orange) -->
+      <svg width="48" height="48" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="32" fill="#EF4324"/>
+        <g fill="#FFFFFF">
+          <ellipse cx="32" cy="42" rx="14" ry="11"/>
+          <ellipse cx="20" cy="26" rx="5" ry="6.5"/>
+          <ellipse cx="44" cy="26" rx="5" ry="6.5"/>
+          <ellipse cx="13" cy="35" rx="4" ry="5"/>
+          <ellipse cx="51" cy="35" rx="4" ry="5"/>
+        </g>
+      </svg>
+      <div>
+        HoPetSit
+        <small>Operated by CARDELLI HERMANOS LIMITED · Hong Kong<br/>Company No. n-2671528 · contact@hopetsit.com</small>
+      </div>
     </div>
     <div class="meta">
       <div class="num">Invoice ${inv.invoiceNumber}</div>

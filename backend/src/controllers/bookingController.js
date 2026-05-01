@@ -2674,22 +2674,68 @@ const confirmBookingPayment = async (req, res) => {
               body: '✅ Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
               type: 'text',
             });
+            // v23.1 part 37 — 2e system message "discutons du lieu de rencontre"
+            const rendezvousMessage = await Message.create({
+              conversationId: conversation._id,
+              senderRole: 'system',
+              senderId: ownerId2,
+              body: '👋 Bonjour ! Discutons ici pour convenir du lieu et de l\'heure de rencontre.',
+              type: 'text',
+            });
             try {
               const { emitToUser } = require('../sockets');
-              emitToUser('owner', ownerId2.toString(), 'message.new', {
-                conversationId: conversation._id.toString(),
-                message: systemMessage.toObject(),
-              });
-              emitToUser(providerRole, providerId2.toString(), 'message.new', {
-                conversationId: conversation._id.toString(),
-                message: systemMessage.toObject(),
-              });
+              for (const msg of [systemMessage, rendezvousMessage]) {
+                emitToUser('owner', ownerId2.toString(), 'message:new', {
+                  conversationId: conversation._id.toString(),
+                  message: msg.toObject(),
+                });
+                emitToUser(providerRole, providerId2.toString(), 'message:new', {
+                  conversationId: conversation._id.toString(),
+                  message: msg.toObject(),
+                });
+              }
               emitToUser('owner', ownerId2.toString(), 'booking:paid', {
                 bookingId: booking._id.toString(),
                 paymentStatus: 'paid',
               });
             } catch (_) { /* socket non-critique */ }
-            logger.info(`✅ [confirmBookingPayment] system message + chat unlocked for booking ${booking._id} (sync fallback)`);
+            // v23.1 part 34 — fix Daniel : envoie aussi NEW_MESSAGE notif (badge
+            // in-app + FCM push + email) aux 2 parties dans le fallback sync.
+            // Avant, seulement le webhook Airwallex le faisait, mais en mode
+            // demo (webhook pas reçu) Daniel ne recevait NI badge NI email.
+            try {
+              const { sendNotification } = require('../services/notificationSender');
+              const previewText = (systemMessage.body || '').slice(0, 120);
+              await Promise.allSettled([
+                sendNotification({
+                  userId: ownerId2.toString(),
+                  role: 'owner',
+                  type: 'NEW_MESSAGE',
+                  data: {
+                    conversationId: conversation._id.toString(),
+                    messageId: systemMessage._id.toString(),
+                    senderName: 'HoPetSit',
+                    preview: previewText,
+                  },
+                  actor: { role: 'system', id: null },
+                }),
+                sendNotification({
+                  userId: providerId2.toString(),
+                  role: providerRole,
+                  type: 'NEW_MESSAGE',
+                  data: {
+                    conversationId: conversation._id.toString(),
+                    messageId: systemMessage._id.toString(),
+                    senderName: 'HoPetSit',
+                    preview: previewText,
+                  },
+                  actor: { role: 'system', id: null },
+                }),
+              ]);
+            } catch (e) {
+              logger.warn(`[confirmBookingPayment] NEW_MESSAGE notif fallback failed: ${e.message}`);
+            }
+            logger.info(`✅ [confirmBookingPayment] system message + chat unlocked + notif sent for booking ${booking._id} (sync fallback)`);
           }
         }
       } catch (e) {

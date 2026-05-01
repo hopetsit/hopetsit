@@ -69,6 +69,20 @@ const walkerSchema = new mongoose.Schema(
     service: { type: [String], default: ['dog_walking'] },
 
     verified: { type: Boolean, default: false },
+    // v23.1 part 36 — KYC Onfido (paid 3 EUR before verification).
+    kycStatus: {
+      type: String,
+      enum: ['none', 'pending_payment', 'pending_verification', 'verified', 'rejected'],
+      default: 'none',
+      index: true,
+    },
+    kycPaymentIntentId: { type: String, default: null },
+    kycPaidAt: { type: Date, default: null },
+    kycApplicantId: { type: String, default: null },
+    kycCheckId: { type: String, default: null },
+    kycWorkflowRunId: { type: String, default: null },
+    kycVerifiedAt: { type: Date, default: null },
+    kycRejectionReason: { type: String, default: null },
     isStaff: { type: Boolean, default: false, index: true },
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },

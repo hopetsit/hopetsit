@@ -356,9 +356,21 @@ async function findOrCreateCustomer({ userId, email, firstName, lastName }) {
  */
 async function listPaymentMethods(customerId) {
   if (!customerId) throw new Error('customerId is required');
-  return awxFetch('/api/v1/pa/payment_consents', {
-    query: { customer_id: customerId, status: 'VERIFIED', page_size: 20 },
+  // v23.1 part 35 — fix Daniel "save card pas sauvegardée" : Airwallex
+  // ne marque pas auto les consents one_off comme VERIFIED après HPP confirm.
+  // On query SANS filter status pour récupérer TOUS les consents (VERIFIED +
+  // PENDING_VERIFICATION) puis on filtre côté JS pour exclure DISABLED/EXPIRED.
+  const result = await awxFetch('/api/v1/pa/payment_consents', {
+    query: { customer_id: customerId, page_size: 50 },
   });
+  if (result && Array.isArray(result.items)) {
+    const validStatuses = new Set(['VERIFIED', 'PENDING_VERIFICATION']);
+    result.items = result.items.filter((c) => {
+      const s = (c?.status || '').toUpperCase();
+      return validStatuses.has(s) && c?.payment_method?.card?.last4;
+    });
+  }
+  return result;
 }
 
 /**

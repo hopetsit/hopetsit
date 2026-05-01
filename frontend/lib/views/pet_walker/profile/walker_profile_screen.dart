@@ -13,6 +13,7 @@ import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — walker peut payer un PawSpot/PawFollow.
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
+import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
@@ -604,6 +605,12 @@ class WalkerProfileScreen extends StatelessWidget {
           'saved_cards_title'.tr,
           Icons.credit_card_outlined,
           () => Get.to(() => const SavedCardsScreen()),
+        ),
+        // v23.1 part 36 — KYC verification (3€) → badge "Vérifié" sur profil.
+        _settingsTile(
+          'kyc_tile_title'.tr,
+          Icons.verified_rounded,
+          () => Get.to(() => const KycVerificationScreen()),
         ),
         // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak 30/60 min
         // rates without scrolling through the full edit profile form.

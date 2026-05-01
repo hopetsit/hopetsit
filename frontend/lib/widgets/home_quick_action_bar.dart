@@ -41,10 +41,12 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart' as snack;
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
+import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
+import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -475,7 +477,150 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       _showOwnerCandidateSheet(a);
       return;
     }
+    // v23.1 part 34 — fix Daniel : "Voir détails Payer" sur banner walker/sitter
+    // après que owner a payé → renvoyait vers ANCIENNE page BookingsHistoryScreen.
+    // Maintenant : sheet riche avec détails du paiement + nav vers Factures.
+    if (a.kind == _Kind.providerPaid) {
+      _showProviderPaidSheet(a);
+      return;
+    }
     Get.to(() => const BookingsHistoryScreen());
+  }
+
+  /// v23.1 part 34 — bottom sheet pour le banner "Paiement reçu" côté provider.
+  /// Affiche : owner avatar+nom, montant, service, date, + 2 actions :
+  /// Voir factures / Voir le chat avec l'owner.
+  void _showProviderPaidSheet(_QuickAction a) {
+    final b = a.booking;
+    final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
+    final ownerAvatar = b.owner.avatar.url;
+    final petLbl = b.petName;
+    final dateLbl = _dateLabel(b);
+    final amount = (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble();
+    final currency = b.pricing?.currency ?? b.sitter.currency;
+    final accent = a.color;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          20.w, 12.h, 20.w, 24.h + MediaQuery.of(ctx).padding.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w, height: 4.h, margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              Center(
+                child: Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.check_circle_rounded,
+                      color: accent, size: 36.sp),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              Center(
+                child: PoppinsText(
+                  text: 'Paiement reçu !',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+              ),
+              SizedBox(height: 4.h),
+              Center(
+                child: InterText(
+                  text: CurrencyHelper.format(currency, amount),
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22.r,
+                    backgroundColor: accent.withValues(alpha: 0.15),
+                    backgroundImage: ownerAvatar.isNotEmpty
+                        ? NetworkImage(ownerAvatar) : null,
+                    child: ownerAvatar.isEmpty
+                        ? Icon(Icons.person, color: accent, size: 22.sp)
+                        : null,
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PoppinsText(
+                          text: ownerName,
+                          fontSize: 14.sp, fontWeight: FontWeight.w700,
+                        ),
+                        SizedBox(height: 2.h),
+                        InterText(
+                          text: 'role_pet_owner'.tr,
+                          fontSize: 11.sp,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12.h),
+              if (petLbl.isNotEmpty) _sheetRow(Icons.pets, petLbl),
+              if (dateLbl.isNotEmpty) _sheetRow(Icons.event_outlined, dateLbl),
+              SizedBox(height: 16.h),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Get.to(() => const InvoicesScreen());
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                  ),
+                  icon: Icon(Icons.receipt_long_rounded,
+                      color: Colors.white, size: 20.sp),
+                  label: Text(
+                    'Voir mes factures',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp, fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showProviderRequestSheet(_QuickAction a) {
@@ -878,13 +1023,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                 child: TextButton.icon(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    // v23.1 part 22 — fix : ServiceProviderDetailScreen
-                    // appelle /sitters/:id côté backend. Pour un walker on
-                    // affiche un dialog enrichi avec les data déjà chargées
-                    // dans ApplicationModel (en attendant un WalkerDetailScreen
-                    // dédié).
+                    // v23.1 part 37 — fix Daniel : navigue vers la screen
+                    // complète (sitter ou walker) au lieu d'un dialog minimal.
                     if (isWalker) {
-                      _showWalkerInfoDialog(localApp);
+                      Get.to(() => WalkerDetailScreen(
+                            walkerId: localApp.sitter.id,
+                          ));
                     } else {
                       Get.to(() => ServiceProviderDetailScreen(
                             sitterId: localApp.sitter.id,

@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ChatMessage {
@@ -200,6 +201,25 @@ class ChatController extends GetxController {
           // Update last message in conversations
           _updateLastMessage(newMessage.message);
         }
+      } else {
+        // v23.1 part 35 — fix Daniel "badge Chat marche pas" : quand un
+        // message arrive pour une AUTRE conversation que celle ouverte
+        // (ou si l'app est sur un autre tab), on incrémente le badge unreadChat
+        // de NotificationsController. Avant, le _handleNewMessage ignorait
+        // simplement ces messages → badge restait à 0 → user ne voyait jamais
+        // qu'il avait reçu un message tant qu'il n'ouvrait pas Chat.
+        try {
+          final senderId =
+              messageData['senderId']?.toString() ??
+              messageData['message']?['senderId']?.toString() ??
+              '';
+          // N'incrémente PAS si c'est nous-mêmes qui avons envoyé.
+          if (senderId.isNotEmpty && senderId != userId) {
+            if (Get.isRegistered<NotificationsController>()) {
+              Get.find<NotificationsController>().unreadChat.value++;
+            }
+          }
+        } catch (_) { /* noop */ }
       }
     } catch (e) {
       AppLogger.logError('Error handling new message from socket', error: e);

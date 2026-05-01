@@ -10,6 +10,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:image_picker/image_picker.dart';
 
 class SitterChatMessage {
@@ -202,6 +203,20 @@ class SitterChatController extends GetxController {
           // Update last message in conversations
           _updateLastMessage(newMessage.message);
         }
+      } else {
+        // v23.1 part 35 — fix Daniel : increment unreadChat badge quand le
+        // message arrive pour une autre conversation que celle ouverte.
+        try {
+          final senderId =
+              messageData['senderId']?.toString() ??
+              messageData['message']?['senderId']?.toString() ??
+              '';
+          if (senderId.isNotEmpty && senderId != userId) {
+            if (Get.isRegistered<NotificationsController>()) {
+              Get.find<NotificationsController>().unreadChat.value++;
+            }
+          }
+        } catch (_) { /* noop */ }
       }
     } catch (e) {
       AppLogger.logError('Error handling new message from socket', error: e);

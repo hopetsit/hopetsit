@@ -31,6 +31,20 @@ const sitterSchema = new mongoose.Schema(
     termsVersion: { type: String, default: '' },
     service: { type: [String], default: [] },
     verified: { type: Boolean, default: false },
+    // v23.1 part 36 — KYC Onfido (paid 3 EUR before verification).
+    kycStatus: {
+      type: String,
+      enum: ['none', 'pending_payment', 'pending_verification', 'verified', 'rejected'],
+      default: 'none',
+      index: true,
+    },
+    kycPaymentIntentId: { type: String, default: null },
+    kycPaidAt: { type: Date, default: null },
+    kycApplicantId: { type: String, default: null }, // Onfido applicant id
+    kycCheckId: { type: String, default: null }, // Onfido check id
+    kycWorkflowRunId: { type: String, default: null }, // Onfido workflow run id
+    kycVerifiedAt: { type: Date, default: null },
+    kycRejectionReason: { type: String, default: null },
     isStaff: { type: Boolean, default: false, index: true },
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },

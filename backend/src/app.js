@@ -105,13 +105,27 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
 
-// v21 — Airwallex webhook. Raw body required so the HMAC signature can be verified 
+// v21 — Airwallex webhook. Raw body required so the HMAC signature can be verified
 // against the exact bytes Airwallex signed.
 const { handleAirwallexWebhook } = require('./controllers/airwallexWebhookController');
 app.post(
   '/webhooks/airwallex',
   express.raw({ type: 'application/json' }),
   handleAirwallexWebhook,
+);
+
+// v23.1 part 36 — Persona KYC webhook. Same pattern : raw body for HMAC verify.
+const { personaWebhook } = require('./controllers/kycController');
+app.post(
+  '/webhooks/persona',
+  express.raw({ type: 'application/json' }),
+  (req, res, next) => {
+    // Make the raw body available as both Buffer (for HMAC) and parsed JSON.
+    req.rawBody = req.body instanceof Buffer ? req.body.toString('utf8') : '';
+    try { req.body = req.rawBody ? JSON.parse(req.rawBody) : {}; } catch (_) { req.body = {}; }
+    next();
+  },
+  personaWebhook,
 );
 
 app.use(express.json({ limit: '25mb' }));
@@ -188,6 +202,8 @@ const versionedRoutes = [
   // v23.1 — auto-facturation pour owner / sitter / walker.
   { path: '/invoices', mw: [], router: invoiceRoutes },
   { path: '/admin/invoices', mw: [], router: adminInvoiceRouter },
+  // v23.1 part 36 — KYC verification (Persona) payante 3 EUR pour sitter/walker.
+  { path: '/kyc', mw: [], router: require('./routes/kycRoutes') },
   { path: '/donations', mw: [sensitiveLimiter], router: donationRoutes },
   { path: '/notifications', mw: [], router: notificationRoutes },
   { path: '/walks', mw: [], router: walkRoutes },

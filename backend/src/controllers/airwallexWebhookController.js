@@ -68,6 +68,18 @@ const handleAirwallexWebhook = async (req, res) => {
           break;
         }
 
+        // v23.1 part 36 — KYC payment (3 EUR sitter/walker identity verification).
+        if (purchaseType === 'kyc' || piMetadata.type === 'kyc') {
+          try {
+            const { onKycPaymentSucceeded } = require('./kycController');
+            await onKycPaymentSucceeded({ id: piId, metadata: piMetadata });
+            logger.info(`✅ [airwallex.webhook] KYC payment activated from PI ${piId} for ${piMetadata.role} ${piMetadata.userId}`);
+          } catch (e) {
+            logger.error(`[airwallex.webhook] KYC activation failed for PI ${piId} : ${e.message}`);
+          }
+          break;
+        }
+
         // v23.1 — card verification flow ("Add card without payment").
         // We charged €0.50 just to attach a payment_consent ; the user
         // never agreed to be charged. Refund immediately so the bank entry
@@ -207,16 +219,38 @@ const handleAirwallexWebhook = async (req, res) => {
               type: 'text',
             });
 
-            // Push temps réel vers les 2 parties.
+            // v23.1 part 37 — 2e system message "Bonjour, discutons du lieu
+            // de rencontre" pour inviter les 2 parties à briser la glace.
+            const RENDEZVOUS_BODY = {
+              fr: '👋 Bonjour ! Discutons ici pour convenir du lieu et de l\'heure de rencontre.',
+              en: '👋 Hello! Let\'s chat here to agree on the meeting place and time.',
+              es: '👋 ¡Hola! Hablemos aquí para acordar el lugar y la hora del encuentro.',
+              de: '👋 Hallo! Lass uns hier den Treffpunkt und die Uhrzeit besprechen.',
+              it: '👋 Ciao! Parliamo qui per concordare il luogo e l\'ora dell\'incontro.',
+              pt: '👋 Olá! Vamos conversar aqui para combinar o local e a hora do encontro.',
+            };
+            const rendezvousBody =
+              RENDEZVOUS_BODY[ownerLang] || RENDEZVOUS_BODY.en;
+            const rendezvousMessage = await Message.create({
+              conversationId: conversation._id,
+              senderRole: 'system',
+              senderId: ownerId,
+              body: rendezvousBody,
+              type: 'text',
+            });
+
+            // Push temps réel vers les 2 parties (les 2 messages).
             try {
-              emitToUser('owner', ownerId.toString(), 'message.new', {
-                conversationId: conversation._id.toString(),
-                message: systemMessage.toObject(),
-              });
-              emitToUser(providerRole, providerId.toString(), 'message.new', {
-                conversationId: conversation._id.toString(),
-                message: systemMessage.toObject(),
-              });
+              for (const msg of [systemMessage, rendezvousMessage]) {
+                emitToUser('owner', ownerId.toString(), 'message:new', {
+                  conversationId: conversation._id.toString(),
+                  message: msg.toObject(),
+                });
+                emitToUser(providerRole, providerId.toString(), 'message:new', {
+                  conversationId: conversation._id.toString(),
+                  message: msg.toObject(),
+                });
+              }
             } catch (_) { /* socket non-critique */ }
 
             // v23.1 — fire NEW_MESSAGE notification (in-app badge + FCM
