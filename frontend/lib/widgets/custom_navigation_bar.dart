@@ -95,11 +95,12 @@ class CustomNavigationBar extends StatelessWidget {
               ],
             ),
           ),
-          // 2) Bottom inset : NOIR pour matcher la zone système OS Option B.
-          //    Tue le rectangle blanc qui dépassait dans le coin bas-gauche.
+          // 2) Bottom inset : BLANC (Daniel "laisse blanc"). Avec
+          //    systemNavigationBarColor=white aussi, AUCUN contraste visible
+          //    entre nav bar Flutter et zone système → plus de rectangle.
           Container(
             height: bottomInset,
-            color: Colors.black,
+            color: bg,
           ),
         ],
       ),
