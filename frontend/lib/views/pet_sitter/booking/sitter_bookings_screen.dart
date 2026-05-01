@@ -46,9 +46,14 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
     if (_selectedStatus == 'all') {
       return _bookingsController.bookings;
     }
-    return _bookingsController.bookings
-        .where((booking) => booking.status.toLowerCase() == _selectedStatus)
-        .toList();
+    // v23.1 part 28 — fix : 'paid' / 'refunded' sur paymentStatus.
+    return _bookingsController.bookings.where((b) {
+      final s = (b.status).toLowerCase();
+      final p = (b.paymentStatus ?? '').toLowerCase();
+      if (_selectedStatus == 'paid') return p == 'paid';
+      if (_selectedStatus == 'refunded') return p == 'refunded' || s == 'refunded';
+      return s == _selectedStatus;
+    }).toList();
   }
 
   @override
