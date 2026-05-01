@@ -59,7 +59,10 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
+      // v23.1 part 27 — was AppColors.scaffold (#F7F7F8 grey) → blanc.
+      // Le grey transparaissait derrière la pill nav bar floating et créait
+      // l'illusion d'un "rectangle gris" en bas.
+      backgroundColor: AppColors.appBar(context),
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
         elevation: 0,

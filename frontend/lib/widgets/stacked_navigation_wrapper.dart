@@ -6,11 +6,10 @@ import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/custom_navigation_bar.dart';
 
-/// v23.1 part 27 — REVERT au wrapper qui marchait. Scaffold avec
-/// bottomNavigationBar slot (Flutter gère l'inset/safe area nativement),
-/// extendBody: true pour que la pill flottante puisse déborder au-dessus
-/// du contenu. Pas de Stack/Material custom qui pouvait peindre des zones
-/// hors de la pill et créer des artefacts gris.
+/// v23.1 part 28 — wrapper accompagnant la nav bar HomeHeader-style.
+/// extendBody: false → la zone derrière la nav est PAINTÉE par le wrapper
+/// Scaffold (blanc), pas par les inner Scaffolds. Plus aucun risque de
+/// scaffoldLight (#F7F7F8) qui transparait derrière.
 class StackedNavigationWrapper extends StatefulWidget {
   final List<Widget> screens;
 
@@ -39,9 +38,13 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final whiteBg = AppColors.appBar(context);
     return Scaffold(
-      backgroundColor: AppColors.appBar(context),
-      extendBody: true,
+      backgroundColor: whiteBg,
+      // extendBody: false → la nav bar a son propre layer blanc opaque,
+      // le body inner Scaffold s'arrête au-dessus de la nav. Plus aucune
+      // chance qu'un grey leak depuis derrière.
+      extendBody: false,
       body: IndexedStack(
         index: _currentIndex,
         children: widget.screens,
