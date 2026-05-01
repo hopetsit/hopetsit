@@ -24,12 +24,10 @@
              écran de transition). On force WHITE explicitement, et on
              override ALSO android:colorBackground au cas où d'autres widgets
              du système y font référence. -->
+        <!-- v23.1 part 27 — windowBackground white pour éviter colorBackground
+             système Samsung (#FAFAFA gris) qui transparaissait. Le reste
+             revert au défaut Android (Samsung gère navigationBar nativement). -->
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:colorBackground">@android:color/white</item>
-        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <!-- v23.1 part 26b — Daniel "laisse blanc" : navigationBar BLANCHE
-             matching notre nav bar Flutter. III □ ← icônes sombres. -->
-        <item name="android:navigationBarColor">@android:color/white</item>
     </style>
 </resources>

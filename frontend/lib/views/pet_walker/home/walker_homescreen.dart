@@ -32,9 +32,7 @@ class WalkerHomescreen extends StatelessWidget {
           SizedBox(width: 12),
         ],
       ),
-      // v23.1 part 23 — bottom: false → wrapper gère le bottom inset.
       body: SafeArea(
-        bottom: false,
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
           child: Column(

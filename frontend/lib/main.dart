@@ -27,16 +27,11 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // v23.1 part 26b — Daniel "laisse blanc" : zone système BLANCHE matching
-  // notre nav bar Flutter. Plus aucune transition visible → plus de rectangle.
-  // III □ ← rendu en icônes SOMBRES pour visibilité sur fond blanc.
+  // v23.1 part 27 — REVERT au comportement qui marchait. systemNavigationBar
+  // transparent : Samsung gère sa zone système nativement, on n'interfère pas.
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
-    systemNavigationBarColor: Colors.white,
-    systemNavigationBarIconBrightness: Brightness.dark,
-    systemNavigationBarDividerColor: Colors.white,
-    systemNavigationBarContrastEnforced: false,
   ));
 
   await GetStorage.init();

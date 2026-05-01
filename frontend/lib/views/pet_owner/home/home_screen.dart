@@ -838,12 +838,10 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(width: 4.w),
           ],
         ),
-        // v23.1 part 23 — bottom: false → c'est le wrapper StackedNavigationWrapper
-        // qui gère déjà le bottom inset via la nav bar. Ajouter un bottom SafeArea
-        // ici créait un GAP (la "bande blanche" + zone grise) entre la fin du body
-        // et le début de la nav bar.
+        // v23.1 part 27 — REVERT default SafeArea (bottom: true). Avec la pill
+        // flottante + extendBody: true, le body étend derrière la pill. SafeArea
+        // bottom protège le contenu pour qu'il ne soit pas caché.
         body: SafeArea(
-          bottom: false,
           child: Column(
             children: [
               // v21 — Quick action bar (only renders when an urgent action
