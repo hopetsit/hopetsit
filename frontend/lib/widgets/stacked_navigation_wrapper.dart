@@ -41,13 +41,28 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     final whiteBg = AppColors.appBar(context);
     return Scaffold(
       backgroundColor: whiteBg,
-      // extendBody: false → la nav bar a son propre layer blanc opaque,
-      // le body inner Scaffold s'arrête au-dessus de la nav. Plus aucune
-      // chance qu'un grey leak depuis derrière.
       extendBody: false,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: widget.screens,
+      body: Stack(
+        children: [
+          // Body normal
+          IndexedStack(
+            index: _currentIndex,
+            children: widget.screens,
+          ),
+          // DIAGNOSTIC v23.1 part 30 — overlay ROUGE 100% opaque dans le coin
+          // bas-gauche pour identifier QUI peint là. Si Daniel voit ROUGE,
+          // c'est notre layer Stack qui couvre la zone. Si il voit GRIS sous
+          // le rouge, c'est un widget AU-DESSUS qui peint en transparent.
+          Positioned(
+            left: 0,
+            bottom: 0,
+            width: 200,
+            height: 200,
+            child: IgnorePointer(
+              child: ColoredBox(color: Color(0x44FF0000)),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: _currentIndex,
