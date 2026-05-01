@@ -27,17 +27,18 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // v23.1 part 27 — REVERT au comportement qui marchait. systemNavigationBar
-  // transparent : Samsung gère sa zone système nativement, on n'interfère pas.
-  // v23.1 part 29 — fix carré gris en bas à gauche : Samsung One UI peint la
-  // zone système en gris clair par défaut quand l'app ne force pas la couleur.
-  // On force blanc + icônes sombres pour matcher la nav bar de l'app.
+  // v23.1 part 29 — RADICAL : edge-to-edge mode forcé. Notre app peint
+  // jusqu'au pixel TOUT en bas. Système Samsung devient transparent et
+  // overlay au-dessus → notre Container blanc explicite se voit dans toute
+  // la zone, plus de "carré gris" possible.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
-    systemNavigationBarColor: Colors.white,
+    systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.dark,
-    systemNavigationBarDividerColor: Colors.white,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
   ));
 
   await GetStorage.init();
