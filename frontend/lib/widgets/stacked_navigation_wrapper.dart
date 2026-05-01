@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/custom_navigation_bar.dart';
 
 /// v23.1 part 31 — wrapper minimaliste : Scaffold blanc + IndexedStack +
@@ -37,7 +38,11 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // v23.1 part 32 — REVERT à AppColors.lightGrey qui était la couleur
+      // du wrapper dans la version qui marchait (commit 0d21cb7). Le white
+      // explicite avait peut-être créé un contraste avec un autre widget
+      // grey qui apparaissait alors comme un rectangle.
+      backgroundColor: AppColors.lightGrey,
       body: IndexedStack(
         index: _currentIndex,
         children: widget.screens,
