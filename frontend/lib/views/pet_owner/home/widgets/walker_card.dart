@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/verified_badge.dart';
 
 /// Lightweight card used by the "Promeneurs" tab on the owner home screen.
 ///
@@ -116,12 +117,12 @@ class WalkerCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (walker.identityVerified) ...[
-                            SizedBox(width: 4.w),
-                            Tooltip(
-                              message: 'identity_badge_verified'.tr,
-                              child: Icon(Icons.verified,
-                                  size: 14.sp, color: AppColors.walkerAccent),
+                          // v23.1 part 38 — VerifiedBadge unifié.
+                          if (walker.identityVerified || walker.verified) ...[
+                            SizedBox(width: 6.w),
+                            VerifiedBadge(
+                              isVerified: true,
+                              tooltipText: 'identity_badge_verified'.tr,
                             ),
                           ],
                         ],

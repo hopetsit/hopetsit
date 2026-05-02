@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/verified_badge.dart';
 
 /// Session v15-3 — compact pet-sitter card for the Owner's "Pet-sitters" tab.
 ///
@@ -165,12 +166,14 @@ class SitterCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (sitter.identityVerified) ...[
-                            SizedBox(width: 4.w),
-                            Tooltip(
-                              message: 'profile_identity_verified'.tr,
-                              child: Icon(Icons.verified,
-                                  size: 14.sp, color: _sitterBlue),
+                          // v23.1 part 38 — VerifiedBadge unifié : check
+                          // verified OU identityVerified pour couvrir l'ancien
+                          // système ET le nouveau KYC Persona.
+                          if (sitter.identityVerified || sitter.verified) ...[
+                            SizedBox(width: 6.w),
+                            VerifiedBadge(
+                              isVerified: true,
+                              tooltipText: 'profile_identity_verified'.tr,
                             ),
                           ],
                           if (sitter.isTopSitter) ...[

@@ -359,10 +359,19 @@ class PaymentResultScreen extends StatelessWidget {
       Get.until((route) => route.isFirst || route.settings.name == '/home');
       return;
     }
+    // v23.1 part 38 — fix Daniel : détecte si le booking est un walker ou
+    // sitter pour appeler la bonne query param. Avant, on hardcodait
+    // ?sitterId= même pour les walkers → backend renvoyait 404 "Sitter not found"
+    // → bouton Discussion ne marchait pas après paiement walker.
+    final serviceType = (booking?.serviceType ?? '').toLowerCase();
+    final isWalkerBooking = serviceType.contains('walking');
+    final queryParam = isWalkerBooking
+        ? 'walkerId=$providerId'
+        : 'sitterId=$providerId';
     try {
       final api = Get.find<ApiClient>();
       final res = await api.post(
-        '/conversations/start?sitterId=$providerId',
+        '/conversations/start?$queryParam',
         body: {
           // The webhook already posted a system welcome — this opener
           // is the owner's first message, kept neutral & short.

@@ -48,6 +48,7 @@ import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dar
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/verified_badge.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/data/network/api_client.dart';
@@ -902,6 +903,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
+                            // v23.1 part 38 — VerifiedBadge dans le sheet candidature
+                            if (localApp.sitter.verified) ...[
+                              SizedBox(width: 6.w),
+                              VerifiedBadge(isVerified: true),
+                            ],
                             SizedBox(width: 6.w),
                             Container(
                               padding: EdgeInsets.symmetric(
