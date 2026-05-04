@@ -416,22 +416,69 @@ async function detachPaymentMethod(consentId) {
  * @returns {Object} parsed event JSON
  */
 function constructWebhookEvent(rawBody, headers) {
-  const secret    = process.env.AIRWALLEX_WEBHOOK_SECRET;
+  const secretRaw = process.env.AIRWALLEX_WEBHOOK_SECRET;
   const signature = headers['x-signature'] || headers['X-Signature'];
   const timestamp = headers['x-timestamp'] || headers['X-Timestamp'];
 
-  if (!secret) throw new Error('AIRWALLEX_WEBHOOK_SECRET is not configured');
+  if (!secretRaw) throw new Error('AIRWALLEX_WEBHOOK_SECRET is not configured');
   if (!signature || !timestamp) throw new Error('Missing webhook signature headers');
 
   const bodyStr  = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(`${timestamp}${bodyStr}`)
-    .digest('hex');
 
-  if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'))) {
-    throw new Error('Webhook signature mismatch');
+  // v23.1 part 42 — fix Daniel : webhook secret matchait EXACTEMENT entre
+  // Render et Airwallex Dashboard mais signature toujours en échec. La cause
+  // probable : Airwallex utilise le secret SANS le préfixe "whsec_" comme clé
+  // HMAC, ou le format de la signature est différent (base64 vs hex).
+  // On essaie tous les formats connus et on log lequel a marché (ou tous les
+  // hashes calculés vs le hash reçu pour diagnostic).
+  const stripPrefix = (s) => (s.startsWith('whsec_') ? s.slice(6) : s);
+  const candidates = [
+    { label: 'raw_secret_hex',           key: secretRaw,                                enc: 'hex'    },
+    { label: 'stripped_secret_hex',      key: stripPrefix(secretRaw),                   enc: 'hex'    },
+    { label: 'raw_secret_base64',        key: secretRaw,                                enc: 'base64' },
+    { label: 'stripped_secret_base64',   key: stripPrefix(secretRaw),                   enc: 'base64' },
+    // Some webhook providers use the secret as base64-decoded bytes for HMAC.
+    { label: 'stripped_b64decoded_hex',  key: Buffer.from(stripPrefix(secretRaw), 'base64'), enc: 'hex' },
+    { label: 'stripped_b64decoded_b64',  key: Buffer.from(stripPrefix(secretRaw), 'base64'), enc: 'base64' },
+  ];
+
+  const computed = candidates.map((c) => ({
+    label: c.label,
+    digest: crypto
+      .createHmac('sha256', c.key)
+      .update(`${timestamp}${bodyStr}`)
+      .digest(c.enc),
+  }));
+
+  // Try matching against the received signature — supports both raw and
+  // "v1=..." style headers (some webhook providers wrap signatures).
+  const sigClean = String(signature).replace(/^v1=/, '').trim();
+  const matched = computed.find((c) => {
+    try {
+      // Use length-safe compare to avoid throwing on mismatched buffers.
+      const a = Buffer.from(c.digest, c.digest.length === 64 ? 'hex' : 'base64');
+      const b = Buffer.from(sigClean,  sigClean.length  === 64 ? 'hex' : 'base64');
+      if (a.length !== b.length) return false;
+      return crypto.timingSafeEqual(a, b);
+    } catch (_) { return false; }
+  });
+
+  if (!matched) {
+    // Diagnostic: log the first 16 chars of each candidate digest so we can
+    // see WHICH format Airwallex is using. This is safe — we never log the
+    // full secret. Use `head` not full digest to avoid bloated logs.
+    const diag = computed.map((c) => `${c.label}=${c.digest.slice(0, 16)}...`).join(' | ');
+    const sigHead = sigClean.slice(0, 16);
+    throw new Error(
+      `Webhook signature mismatch | received_sig_head=${sigHead}... | ` +
+      `received_sig_len=${sigClean.length} | candidates: ${diag}`
+    );
   }
+
+  // Log which format actually matched so we can simplify next deploy.
+  try {
+    require('../utils/logger').info(`[airwallex.webhook] signature ok via ${matched.label}`);
+  } catch (_) { /* logger optional */ }
 
   let event;
   try { event = JSON.parse(bodyStr); }
@@ -610,84 +657,4 @@ function mapAirwallexError(err) {
   // Local validation throws
   if (msg.includes('Currency is required') || msg.includes('Unsupported currency')) {
     return { code: 'CURRENCY_INVALID', message: msg, status, awxCode, details };
-  }
-  if (msg.includes('Amount must be') || msg.includes('positive integer in cents')) {
-    return { code: 'AMOUNT_INVALID', message: msg, status, awxCode, details };
-  }
-  if (msg.includes('beneficiary') || msg.includes('Beneficiary') || awxCode === 'beneficiary_not_found') {
-    return { code: 'PROVIDER_NOT_CONFIGURED', message: msg, status, awxCode, details };
-  }
-
-  // Card decline-style codes from Airwallex
-  if (
-    awxCode === 'card_declined' ||
-    awxCode === 'do_not_honor' ||
-    awxCode === 'insufficient_funds' ||
-    msg.toLowerCase().includes('declined')
-  ) {
-    return { code: 'PAYMENT_DECLINED', message: msg, status, awxCode, details };
-  }
-
-  // Anything else from Airwallex → generic PI failure
-  if (status >= 400 || awxCode) {
-    return { code: 'PAYMENT_INTENT_FAILED', message: msg, status, awxCode, details };
-  }
-
-  return { code: 'UNKNOWN', message: msg, status, awxCode, details };
-}
-
-
-/**
- * Cancel a PaymentIntent that is still in REQUIRES_PAYMENT_METHOD or
- * REQUIRES_CONFIRMATION state (i.e. before the user has confirmed the
- * payment). v23.1 — used by the explicit "Annuler" button on the Payment
- * screen so a real cancel is recorded on Airwallex side instead of just
- * letting the PI expire silently.
- *
- * Airwallex returns 400 if the PI is in a state where cancel is not allowed
- * (e.g. SUCCEEDED, CANCELLED) — the caller should treat that as a soft no-op.
- *
- * @param {string} id
- * @param {Object} [opts]
- * @param {string} [opts.reason] free-form reason, defaults to 'requested_by_customer'
- */
-async function cancelPaymentIntent(id, opts = {}) {
-  if (!id) throw new Error('PaymentIntent id is required');
-  return awxFetch(`/api/v1/pa/payment_intents/${encodeURIComponent(id)}/cancel`, {
-    method: 'POST',
-    body: {
-      request_id: genRequestId('pi-cancel'),
-      cancellation_reason: opts.reason || 'requested_by_customer',
-    },
-  });
-}
-
-module.exports = {
-  // Auth (exposed for debugging)
-  getAccessToken,
-  // PaymentIntents
-  createPlatformPaymentIntent,
-  createPaymentIntent,
-  retrievePaymentIntent,
-  confirmPaymentIntent,
-  cancelPaymentIntent,
-  // Refunds
-  createRefund,
-  // Customers / saved cards
-  findOrCreateCustomer,
-  listPaymentMethods,
-  detachPaymentMethod,
-  // Webhooks
-  constructWebhookEvent,
-  // Beneficiaries (provider IBAN destinations) — v21
-  createBeneficiary,
-  getBeneficiary,
-  deleteBeneficiary,
-  // Payouts (sitter/walker payouts) — v21
-  createPayout,
-  retrievePayout,
-  // Constants
-  PLATFORM_COMMISSION_RATE,
-  // Error mapping (v23.1)
-  mapAirwallexError,
-};
+ 

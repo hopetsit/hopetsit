@@ -68,41 +68,53 @@ router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
 
     // v21 — When PAYMENT_PROVIDER=airwallex, lazy-create (or refresh) the
     // Airwallex Beneficiary tied to this IBAN so we can later trigger
-    // automatic payouts. Best-effort : if Airwallex API is down we still
-    // return success — the next IBAN-save attempt or a daily reconciliation
-    // cron will retry.
+    // automatic payouts.
     // v21.1.1 — Stripe purgé. Default 'airwallex'.
+    // v23.1 part 42 — fix Daniel "wallet pas connecter" : on AWAIT la création
+    // du beneficiary AVANT de répondre 200. Avant, le pattern fire-and-forget
+    // (IIFE async) faisait que airwallexBeneficiaryId n'était parfois jamais
+    // sauvegardé (race condition : si l'API call Airwallex échouait au moment
+    // où le user payait, le payout fallback ne trouvait pas de beneficiary
+    // → fonds bloqués en escrow indéfiniment). Maintenant : si Airwallex
+    // refuse, on logge mais on retourne quand même 200 avec un flag
+    // beneficiarySynced=false pour que le frontend puisse signaler "votre
+    // IBAN est sauvegardé mais la connexion Airwallex est en attente".
     const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'airwallex').toLowerCase();
+    let beneficiarySynced = false;
+    let beneficiaryError = null;
     if (PAYMENT_PROVIDER === 'airwallex') {
-      (async () => {
-        try {
-          // If a previous Beneficiary exists, delete it first (IBAN may have
-          // changed) so the dashboard stays clean and the provider only has
-          // ONE active beneficiary at any time.
-          if (provider.airwallexBeneficiaryId) {
-            try { await airwallex.deleteBeneficiary(provider.airwallexBeneficiaryId); }
-            catch (_) { /* tolerate 404 (already gone) */ }
-          }
-          const ben = await airwallex.createBeneficiary({
-            providerId: provider._id.toString(),
-            holderName: ibanUpdate.ibanHolder,
-            iban:       normalizedIban,
-            bic:        ibanUpdate.ibanBic,
-            currency:   'EUR',
-          });
-          if (ben && ben.id) {
-            await Model.findByIdAndUpdate(provider._id, {
-              airwallexBeneficiaryId: ben.id,
-            });
-            logger.info(
-              `[iban] airwallex beneficiary ${ben.id} created/updated for ` +
-              `${req.user.role} ${provider._id}`,
-            );
-          }
-        } catch (awxErr) {
-          logger.error('[iban] failed to sync Airwallex beneficiary', awxErr?.message || awxErr);
+      try {
+        // If a previous Beneficiary exists, delete it first (IBAN may have
+        // changed) so the dashboard stays clean and the provider only has
+        // ONE active beneficiary at any time.
+        if (provider.airwallexBeneficiaryId) {
+          try { await airwallex.deleteBeneficiary(provider.airwallexBeneficiaryId); }
+          catch (_) { /* tolerate 404 (already gone) */ }
         }
-      })();
+        const ben = await airwallex.createBeneficiary({
+          providerId: provider._id.toString(),
+          holderName: ibanUpdate.ibanHolder,
+          iban:       normalizedIban,
+          bic:        ibanUpdate.ibanBic,
+          currency:   'EUR',
+        });
+        if (ben && ben.id) {
+          await Model.findByIdAndUpdate(provider._id, {
+            airwallexBeneficiaryId: ben.id,
+          });
+          beneficiarySynced = true;
+          logger.info(
+            `[iban] airwallex beneficiary ${ben.id} created/updated for ` +
+            `${req.user.role} ${provider._id}`,
+          );
+        } else {
+          beneficiaryError = 'Airwallex beneficiary creation returned no id';
+          logger.warn(`[iban] ${beneficiaryError}`);
+        }
+      } catch (awxErr) {
+        beneficiaryError = awxErr?.message || String(awxErr);
+        logger.error('[iban] failed to sync Airwallex beneficiary', beneficiaryError);
+      }
     }
 
     // v18.9.8 — l'IBAN enregistré côté sitter est aussi disponible côté
@@ -128,6 +140,11 @@ router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
       // Return masked IBAN only (derived from plaintext before encryption)
       ibanNumberMasked: normalizedIban.slice(0, 4) + '****' + normalizedIban.slice(-4),
       ibanVerified: provider.ibanVerified,
+      // v23.1 part 42 — surface the Airwallex sync state so the frontend can
+      // tell the user whether the wallet/payout connection is fully active
+      // or pending an Airwallex retry.
+      beneficiarySynced,
+      beneficiaryError,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -164,31 +181,4 @@ router.patch('/payout-method', requireAuth, requireProviderRole, async (req, res
   try {
     const { payoutMethod } = req.body;
     if (!['stripe', 'paypal', 'iban'].includes(payoutMethod)) {
-      return res.status(400).json({ error: 'payoutMethod must be stripe, paypal, or iban.' });
-    }
-    const Model = getProviderModel(req.user.role);
-    const provider = await Model.findById(req.user.id)
-      .select('ibanNumber ibanVerified paypalEmail');
-    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
-
-    // Guard: can't switch to iban if not set. ibanVerified is now auto-set on
-    // save (see PUT /iban) so we only need the presence check.
-    if (payoutMethod === 'iban' && !provider.ibanNumber) {
-      return res.status(400).json({
-        error: 'Please save your IBAN first.',
-      });
-    }
-    if (payoutMethod === 'paypal' && !provider.paypalEmail) {
-      return res.status(400).json({
-        error: 'Please save your PayPal email first.',
-      });
-    }
-
-    await Model.findByIdAndUpdate(req.user.id, { payoutMethod });
-    res.json({ message: 'Payout method updated.', payoutMethod });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-module.exports = router;
+      return res.status(400).json({ er
