@@ -44,6 +44,10 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   late final StripePaymentController _controller;
   // v23.1 — "Save my card" checkbox state.
   final RxBool _saveCard = false.obs;
+  // v23.1 part 39 — saved cards loaded from /owner/payments/methods
+  final RxList<Map<String, dynamic>> _savedCards = <Map<String, dynamic>>[].obs;
+  final RxnString _selectedCardId = RxnString();
+  final RxBool _loadingCards = false.obs;
 
   @override
   void initState() {
@@ -62,6 +66,21 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
       ),
       tag: tag,
     );
+    // v23.1 part 39 — charge les saved cards au mount.
+    _loadSavedCards();
+  }
+
+  Future<void> _loadSavedCards() async {
+    _loadingCards.value = true;
+    try {
+      final repo = Get.find<OwnerRepository>();
+      final cards = await repo.getOwnerPaymentMethods();
+      _savedCards.assignAll(cards);
+    } catch (_) {
+      _savedCards.clear();
+    } finally {
+      _loadingCards.value = false;
+    }
   }
 
   bool get _isWalker {
@@ -216,6 +235,8 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
                   children: [
                     _buildSummaryCard(context, accent, currency),
                     SizedBox(height: 20.h),
+                    // v23.1 part 39 — Section "Mes cartes enregistrées" si > 0.
+                    _buildSavedCardsSection(context, accent),
                     _buildInfoBanner(context, accent),
                   ],
                 ),
@@ -441,6 +462,153 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
         ),
       ],
     );
+  }
+
+  /// v23.1 part 39 — Liste les cartes sauvegardées du user. Si vide, retourne
+  /// SizedBox. Si présente, permet de tap sur une carte pour la pré-sélectionner
+  /// (elle sera utilisée par défaut sur l'HPP Airwallex).
+  Widget _buildSavedCardsSection(BuildContext context, Color accent) {
+    return Obx(() {
+      if (_loadingCards.value) {
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 8.h),
+          child: const Center(child: CircularProgressIndicator()),
+        );
+      }
+      if (_savedCards.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Container(
+        margin: EdgeInsets.only(bottom: 20.h),
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          color: AppColors.appBar(context),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: accent.withValues(alpha: 0.20), width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.credit_card_rounded, color: accent, size: 20.sp),
+                SizedBox(width: 8.w),
+                PoppinsText(
+                  text: 'Mes cartes enregistrées (${_savedCards.length})',
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ],
+            ),
+            SizedBox(height: 10.h),
+            ..._savedCards.map((card) => _buildSavedCardTile(card, accent)),
+            SizedBox(height: 8.h),
+            InkWell(
+              onTap: () => _selectedCardId.value = null,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 4.w),
+                child: Row(
+                  children: [
+                    Obx(() => Icon(
+                          _selectedCardId.value == null
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: accent, size: 20.sp,
+                        )),
+                    SizedBox(width: 10.w),
+                    InterText(
+                      text: 'Payer avec une nouvelle carte',
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary(context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildSavedCardTile(Map<String, dynamic> card, Color accent) {
+    final brand = (card['brand'] ?? '').toString().toUpperCase();
+    final last4 = (card['last4'] ?? '').toString();
+    final expM = card['expiryMonth'];
+    final expY = card['expiryYear'];
+    final id = (card['id'] ?? '').toString();
+    return Obx(() {
+      final isSelected = _selectedCardId.value == id;
+      return InkWell(
+        onTap: () => _selectedCardId.value = id,
+        child: Container(
+          margin: EdgeInsets.only(bottom: 6.h),
+          padding: EdgeInsets.all(10.w),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? accent.withValues(alpha: 0.10)
+                : AppColors.scaffold(context),
+            borderRadius: BorderRadius.circular(8.r),
+            border: Border.all(
+              color: isSelected
+                  ? accent
+                  : AppColors.divider(context),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: accent,
+                size: 20.sp,
+              ),
+              SizedBox(width: 10.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: AppColors.scaffold(context),
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+                child: Text(
+                  brand.isNotEmpty ? brand : 'CARD',
+                  style: TextStyle(
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: '•••• •••• •••• $last4',
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    if (expM != null && expY != null)
+                      InterText(
+                        text: 'Exp $expM/$expY',
+                        fontSize: 10.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildInfoBanner(BuildContext context, Color accent) {

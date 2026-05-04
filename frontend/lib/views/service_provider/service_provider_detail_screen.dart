@@ -13,6 +13,7 @@ import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/verified_badge.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 
@@ -287,11 +288,22 @@ class _ServiceProviderDetailContent extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  PoppinsText(
-                    text: sitter.name,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: PoppinsText(
+                          text: sitter.name,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(context),
+                        ),
+                      ),
+                      // v23.1 part 38 — VerifiedBadge dans hero card sitter detail.
+                      if (sitter.verified || sitter.identityVerified) ...[
+                        SizedBox(width: 8.w),
+                        VerifiedBadge(isVerified: true, large: true),
+                      ],
+                    ],
                   ),
                   SizedBox(height: 8.h),
                   Row(
