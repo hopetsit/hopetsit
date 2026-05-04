@@ -95,12 +95,6 @@
     "emailSubject": "You earned {{amount}} {{currency}} — HopeTSIT",
     "emailBody": "<p>Great news! Your referral just completed their first booking on HopeTSIT.</p><p>You have earned <strong>{{amount}} {{currency}}</strong> in credits, usable on your next reservation.</p>"
   },
-  "BOOKING_COMPLETED": {
-    "title": "Booking completed",
-    "body": "Your booking has been marked as completed. Leave a review!",
-    "emailSubject": "Booking completed — HopeTSIT",
-    "emailBody": "<p>Your booking is now marked as <strong>completed</strong>. Please leave a review to help the community.</p>"
-  },
   "BOOKING_PAID_CHAT_UNLOCKED": {
     "title": "Payment received — chat unlocked",
     "body": "The chat is now open. Agree on the exact location and details with your contact.",
@@ -112,5 +106,23 @@
     "body": "Hello 👋 Let's chat here to agree on the exact location and details of the service.",
     "emailSubject": "",
     "emailBody": ""
+  },
+  "BOOKING_COMPLETED": {
+    "title": "Booking completed",
+    "body": "Your booking has been marked as completed. Leave a review!",
+    "emailSubject": "Booking completed — HopeTSIT",
+    "emailBody": "<p>Your booking is now marked as <strong>completed</strong>. Please leave a review to help the community.</p>"
+  },
+  "booking_paid": {
+    "title": "Payment received!",
+    "body": "The owner has paid for your booking. You can now chat to agree on the details.",
+    "emailSubject": "Payment received — HoPetSit",
+    "emailBody": "<p>Great news! The payment for the booking has just been confirmed. You can now chat with the owner to agree on the place and time of the service.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
+  },
+  "booking_paid_owner": {
+    "title": "Payment confirmed",
+    "body": "Your payment has been registered. The booking is active — chat with your provider to agree on the details.",
+    "emailSubject": "Your payment is confirmed — HoPetSit",
+    "emailBody": "<p>Your payment has just been confirmed. Your booking is now <strong>active</strong>. Open the HoPetSit app to chat with your provider and agree on the final details.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
   }
 }
