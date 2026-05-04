@@ -39,6 +39,14 @@ class BookingsController extends GetxController {
       s.socket?.on('booking:cancelled', (_) {
         loadBookings();
       });
+      // v23.1 part 41 — fix Daniel "owner ne recoi pas notif walker accepté".
+      // When the walker/sitter accepts a direct booking, refresh immediately
+      // so the owner home banner switches from "Tout est à jour" to
+      // "X a accepté ! Payer maintenant" without waiting for the 30s tick.
+      s.socket?.off('booking:accepted');
+      s.socket?.on('booking:accepted', (_) {
+        loadBookings();
+      });
     } catch (e) {
       AppLogger.logError('BookingsController socket bind failed', error: e);
     }

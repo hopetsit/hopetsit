@@ -181,4 +181,31 @@ router.patch('/payout-method', requireAuth, requireProviderRole, async (req, res
   try {
     const { payoutMethod } = req.body;
     if (!['stripe', 'paypal', 'iban'].includes(payoutMethod)) {
-      return res.status(400).json({ er
+      return res.status(400).json({ error: 'payoutMethod must be stripe, paypal, or iban.' });
+    }
+    const Model = getProviderModel(req.user.role);
+    const provider = await Model.findById(req.user.id)
+      .select('ibanNumber ibanVerified paypalEmail');
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+
+    // Guard: can't switch to iban if not set. ibanVerified is now auto-set on
+    // save (see PUT /iban) so we only need the presence check.
+    if (payoutMethod === 'iban' && !provider.ibanNumber) {
+      return res.status(400).json({
+        error: 'Please save your IBAN first.',
+      });
+    }
+    if (payoutMethod === 'paypal' && !provider.paypalEmail) {
+      return res.status(400).json({
+        error: 'Please save your PayPal email first.',
+      });
+    }
+
+    await Model.findByIdAndUpdate(req.user.id, { payoutMethod });
+    res.json({ message: 'Payout method updated.', payoutMethod });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+module.exports = router;

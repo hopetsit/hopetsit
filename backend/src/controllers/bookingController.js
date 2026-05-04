@@ -1703,6 +1703,24 @@ const respondBooking = async (req, res) => {
         actor: { role: actorRoleForOwnerNotif, id: actorIdForOwnerNotif },
       }).catch(() => {});
 
+      // v23.1 part 41 — fix Daniel "owner ne recoi pas notif walker accepté".
+      // Emit socket event so owner home banner refreshes immediately
+      // (without waiting for the 30s periodic refresh). The frontend
+      // BookingsController._attachSocketListeners now listens for
+      // booking:accepted and calls loadBookings().
+      try {
+        const { emitToUser } = require('../sockets');
+        const ownerIdStr = booking.ownerId?._id
+          ? booking.ownerId._id.toString()
+          : booking.ownerId.toString();
+        emitToUser('owner', ownerIdStr, 'booking:accepted', {
+          bookingId: booking._id.toString(),
+          providerRole: actorRoleForOwnerNotif,
+        });
+      } catch (e) {
+        logger.warn(`[respondBooking] booking:accepted emit failed : ${e?.message || e}`);
+      }
+
       // Session v17 — Conversation model is sitter-only (sitterId required +
       // unique index on {ownerId, sitterId}). For walker bookings we skip
       // conversation creation entirely until Conversation gains walkerId
@@ -2693,6 +2711,19 @@ const confirmBookingPayment = async (req, res) => {
               body: '👋 Bonjour ! Discutons ici pour convenir du lieu et de l\'heure de rencontre.',
               type: 'text',
             });
+            // v23.1 part 41 — fix Daniel "badge message marche pas" :
+            // increment ownerUnreadCount + sitterUnreadCount (schema uses
+            // sitterUnreadCount as generic provider field, even for walkers)
+            // + update lastMessage so conversation list shows the right preview.
+            try {
+              conversation.lastMessage = rendezvousMessage.body;
+              conversation.lastMessageAt = new Date();
+              conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 2;
+              conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 2;
+              await conversation.save();
+            } catch (e) {
+              logger.warn(`[confirmBookingPayment] conversation badge update failed : ${e.message}`);
+            }
             try {
               const { emitToUser } = require('../sockets');
               for (const msg of [systemMessage, rendezvousMessage]) {

@@ -253,6 +253,22 @@ const handleAirwallexWebhook = async (req, res) => {
               type: 'text',
             });
 
+            // v23.1 part 41 — fix Daniel "badge message marche pas" :
+            // increment BOTH ownerUnreadCount and sitterUnreadCount (the
+            // schema uses sitterUnreadCount as a generic provider field, even
+            // when the actual provider is a walker — see Conversation.js).
+            // 2 system messages = +2 each, plus update lastMessage/lastMessageAt
+            // so the conversation list shows the right preview.
+            try {
+              conversation.lastMessage = rendezvousBody;
+              conversation.lastMessageAt = new Date();
+              conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 2;
+              conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 2;
+              await conversation.save();
+            } catch (e) {
+              logger.warn(`[airwallex.webhook] conversation badge update failed : ${e.message}`);
+            }
+
             // Push temps réel vers les 2 parties (les 2 messages).
             try {
               for (const msg of [systemMessage, rendezvousMessage]) {

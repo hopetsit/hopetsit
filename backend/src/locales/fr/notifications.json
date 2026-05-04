@@ -112,5 +112,17 @@
     "body": "Votre réservation est marquée comme terminée. Laissez un avis !",
     "emailSubject": "Réservation terminée — HopeTSIT",
     "emailBody": "<p>Votre réservation est désormais <strong>terminée</strong>. Laissez un avis pour aider la communauté.</p>"
+  },
+  "booking_paid": {
+    "title": "Paiement reçu !",
+    "body": "Le propriétaire a payé votre réservation. Vous pouvez désormais discuter dans le chat pour convenir des détails.",
+    "emailSubject": "Paiement reçu — HoPetSit",
+    "emailBody": "<p>Bonne nouvelle ! Le paiement de la réservation vient d'être confirmé. Vous pouvez désormais échanger avec le propriétaire dans le chat pour convenir du lieu et de l'heure de la prestation.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'app HoPetSit manuellement.</p>"
+  },
+  "booking_paid_owner": {
+    "title": "Paiement confirmé",
+    "body": "Votre paiement est enregistré. La réservation est active — discutez avec votre prestataire pour convenir des détails.",
+    "emailSubject": "Votre paiement est confirmé — HoPetSit",
+    "emailBody": "<p>Votre paiement vient d'être confirmé. Votre réservation est désormais <strong>active</strong>. Ouvrez l'app HoPetSit pour discuter avec votre prestataire et convenir des derniers détails.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, ouvrez l'app HoPetSit manuellement.</p>"
   }
 }
