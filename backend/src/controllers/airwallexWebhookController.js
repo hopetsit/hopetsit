@@ -26,7 +26,21 @@ const handleAirwallexWebhook = async (req, res) => {
   try {
     event = airwallex.constructWebhookEvent(req.body, req.headers);
   } catch (err) {
-    logger.warn(`[airwallex.webhook] signature failed : ${err.message}`);
+    // v23.1 part 41 — verbose diagnostic to help Daniel pinpoint why the
+    // signature mismatch persists (most likely : wrong secret in Render env).
+    const secretEnv = process.env.AIRWALLEX_WEBHOOK_SECRET || '';
+    const sigHeader = req.headers['x-signature'] || req.headers['X-Signature'] || '';
+    const tsHeader  = req.headers['x-timestamp'] || req.headers['X-Timestamp'] || '';
+    const bodyLen   = Buffer.isBuffer(req.body) ? req.body.length : (req.body || '').length;
+    logger.warn(
+      `[airwallex.webhook] signature failed : ${err.message} | ` +
+      `secret_set=${secretEnv ? 'yes' : 'NO'} | ` +
+      `secret_starts=${secretEnv ? secretEnv.slice(0, 6) + '...' : 'EMPTY'} | ` +
+      `secret_len=${secretEnv.length} | ` +
+      `x-timestamp=${tsHeader || 'MISSING'} | ` +
+      `x-signature_len=${(sigHeader || '').length} | ` +
+      `body_bytes=${bodyLen}`
+    );
     return res.status(400).json({ error: 'Invalid webhook signature' });
   }
 

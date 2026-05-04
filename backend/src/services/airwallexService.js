@@ -164,6 +164,12 @@ async function createPlatformPaymentIntent({
   // customer's profile. Without these args, behaviour is unchanged.
   customer_id = null,
   payment_consent = null,
+  // v23.1 part 41 — fix Daniel "page Airwallex naffiche pas la carte" :
+  // accept payment_consent_id explicitly. Previously the bookingController
+  // passed payment_consent_id but this fn silently dropped it (only
+  // customer_id and payment_consent were destructured). Result: HPP never
+  // received the consent ref → user had to re-enter card.
+  payment_consent_id = null,
 }) {
   if (!currency || typeof currency !== 'string' || !currency.trim()) {
     throw new Error('Currency is required for PaymentIntent');
@@ -202,11 +208,22 @@ async function createPlatformPaymentIntent({
   if (payment_consent && typeof payment_consent === 'object') {
     requestBody.payment_consent = payment_consent;
   }
+  // v23.1 part 41 — when reusing an existing consent, pass it explicitly.
+  // Airwallex HPP will then pre-fill the saved card (no re-entry needed).
+  // Note: requires the consent to be in VERIFIED status — until the webhook
+  // signature is correctly configured (AIRWALLEX_WEBHOOK_SECRET), consents
+  // remain PENDING_VERIFICATION and HPP won't auto-fill them.
+  if (payment_consent_id && typeof payment_consent_id === 'string') {
+    requestBody.payment_consent_id = payment_consent_id;
+  }
 
   console.log('[Airwallex] Creating PaymentIntent', {
     amount_major: requestBody.amount,
     currency: requestBody.currency,
     merchant_order_id: requestBody.merchant_order_id,
+    has_customer_id: !!requestBody.customer_id,
+    has_payment_consent: !!requestBody.payment_consent,
+    has_payment_consent_id: !!requestBody.payment_consent_id,
   });
 
   try {
