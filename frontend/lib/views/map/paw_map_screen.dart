@@ -914,18 +914,16 @@ class _PawMapScreenState extends State<PawMapScreen> {
                 // the bottom blocked freemium browsing). Premium = green
                 // circular icon, Map Boost = blue circular icon. Tapping opens
                 // the full CoinShop screen.
+                // v23.1 part 40 — Daniel : déplace PawFollow/PawSpot du
+                // BOTTOM-LEFT vers le HAUT-LEFT (sous la barre de recherche)
+                // pour libérer la zone du bas.
                 Positioned(
                   left: 12.w,
-                  bottom: 100.h,
+                  top: 80.h,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // v21.1.1 — rebrand des FABs PawMap.
-                      // PawPass : gold star (#F5A623) — était "Premium" vert.
-                      // PawSpot : blue location (#2196F3) — était "Map Boost"
-                      //   bleu rocket. Couleurs alignées avec les boost_profile_card
-                      //   chips affichés sur les écrans Profil.
                       if (!_isUserPremium())
                         _buildMapCornerButton(
                           color: const Color(0xFFF5A623),
@@ -978,12 +976,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   ),
                 ),
 
-                // "Signaler" — disponible pour tous les rôles. Positionné
-                // en Stack (pas en FAB) pour rester visible au-dessus de la
-                // barre de navigation du StackedNavigationWrapper.
+                // v23.1 part 40 — Daniel : déplace Signaler du BOTTOM-RIGHT
+                // vers le HAUT-RIGHT (sous le bouton géoloc, à côté de
+                // PawFollow/PawSpot). Libère la zone du bas pour la map.
                 Positioned(
                   right: 12.w,
-                  bottom: 100.h,
+                  top: 80.h,
                   child: _buildReportFab(),
                 ),
               ],

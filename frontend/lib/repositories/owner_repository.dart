@@ -468,19 +468,27 @@ class OwnerRepository {
     required String bookingId,
     bool useLoyaltyCredit = false,
     bool saveCard = false,
+    String? selectedConsentId,
   }) async {
     AppLogger.logInfo(
       'Creating payment intent for booking',
-      data: {'bookingId': bookingId, 'saveCard': saveCard},
+      data: {'bookingId': bookingId, 'saveCard': saveCard, 'selectedConsentId': selectedConsentId},
     );
 
     try {
+      final body = <String, dynamic>{
+        'useLoyaltyCredit': useLoyaltyCredit,
+        'saveCard': saveCard,
+      };
+      // v23.1 part 40 — fix Daniel : si user a sélectionné une carte saved,
+      // on passe son consent_id au backend → backend attache au PI →
+      // Airwallex HPP utilise la carte direct sans re-saisie manuelle.
+      if (selectedConsentId != null && selectedConsentId.isNotEmpty) {
+        body['paymentConsentId'] = selectedConsentId;
+      }
       final response = await _apiClient.post(
         '${ApiEndpoints.bookings}/$bookingId${ApiEndpoints.createPaymentIntent}',
-        // v23.1 — saveCard tells the backend to attach a payment_consent
-        // (one_off, customer-triggered) so the card auto-appears in
-        // SavedCardsScreen after this payment succeeds.
-        body: {'useLoyaltyCredit': useLoyaltyCredit, 'saveCard': saveCard},
+        body: body,
         requiresAuth: true,
       );
 

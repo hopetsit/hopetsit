@@ -198,7 +198,12 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
     // v21.1.1 — Airwallex HPP collecte la carte directement dans son webview.
     // Plus besoin de billingDetails côté Flutter.
     // v23.1 — pass saveCard checkbox state for payment_consent attach.
-    await _controller.initiateAndConfirmPayment(saveCard: _saveCard.value);
+    // v23.1 part 40 — fix Daniel : pass selectedConsentId si user a choisi
+    // une carte saved → backend pre-fill la carte sur HPP.
+    await _controller.initiateAndConfirmPayment(
+      saveCard: _saveCard.value,
+      selectedConsentId: _selectedCardId.value,
+    );
   }
 
   @override

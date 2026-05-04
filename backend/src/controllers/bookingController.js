@@ -2208,9 +2208,13 @@ const createBookingPaymentIntent = async (req, res) => {
     // v23.1 — saveCard flag : if true, attach the booking PI to a customer
     // so a payment_consent is automatically created and the card surfaces
     // in SavedCardsScreen after the payment succeeds.
+    // v23.1 part 40 — fix Daniel : OR if user picked an existing saved card
+    // (paymentConsentId), attach customer + that specific consent to the PI
+    // so Airwallex HPP pre-fills with the card (no manual re-entry).
     const wantsSaveCard = req.body?.saveCard === true;
+    const selectedConsentId = (req.body?.paymentConsentId || '').toString().trim();
     let airwallexCustomerId = null;
-    if (wantsSaveCard) {
+    if (wantsSaveCard || selectedConsentId) {
       try {
         const ownerDoc = booking.ownerId;
         const customer = await airwallex.findOrCreateCustomer({
@@ -2222,7 +2226,6 @@ const createBookingPaymentIntent = async (req, res) => {
         airwallexCustomerId = customer?.id || null;
       } catch (custErr) {
         logger.warn(`[createPaymentIntent] saveCard customer ensure failed: ${custErr?.message || custErr}`);
-        // Non-fatal — payment continues without the consent attached.
       }
     }
 
@@ -2240,13 +2243,21 @@ const createBookingPaymentIntent = async (req, res) => {
     paymentIntent = await airwallex.createPlatformPaymentIntent({
       amount: amountInCents,
       currency: bookingCurrency.toUpperCase(),
-      // v23.1 — payment_consent attach when saveCard requested.
+      // v23.1 — payment_consent attach when saveCard requested OR when
+      // user picked an existing saved card (selectedConsentId).
       ...(airwallexCustomerId ? {
         customer_id: airwallexCustomerId,
-        payment_consent: {
-          type: 'one_off',
-          next_triggered_by: 'customer',
-        },
+        // v23.1 part 40 — quand selectedConsentId fourni, on lie ce
+        // payment_consent existant au PI → Airwallex HPP utilise la carte
+        // saved sans demander à l'user de re-saisir.
+        ...(selectedConsentId ? {
+          payment_consent_id: selectedConsentId,
+        } : {
+          payment_consent: {
+            type: 'one_off',
+            next_triggered_by: 'customer',
+          },
+        }),
       } : {}),
       metadata: {
         type: 'booking',
@@ -2659,13 +2670,13 @@ const confirmBookingPayment = async (req, res) => {
             });
             logger.info(`[confirmBookingPayment] conversation created ${conversation._id} for booking ${booking._id}`);
           }
-          // Idempotent : create the system message only if none exists yet
-          // for this conversation+booking pair.
-          const existingSysMsg = await Message.findOne({
-            conversationId: conversation._id,
-            senderRole: 'system',
-            body: { $regex: /Paiement confirm/i },
-          }).lean();
+          // v23.1 part 40 — fix Daniel : on enlève le check existingSysMsg
+          // qui bloquait les notifs au 2e paiement entre les MÊMES parties.
+          // confirmBookingPayment n'est appelé qu'UNE fois par paiement
+          // (synchronously par le frontend après HPP success), donc pas de
+          // risque de double-fire. Chaque paiement déclenche son propre
+          // system message + sendNotification.
+          const existingSysMsg = false;
           if (!existingSysMsg) {
             const systemMessage = await Message.create({
               conversationId: conversation._id,

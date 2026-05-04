@@ -48,6 +48,10 @@ class StripePaymentController extends GetxController {
   Future<void> initiateAndConfirmPayment({
     dynamic billingDetails, // ignoré, kept for API compat
     bool saveCard = false,
+    // v23.1 part 40 — when user selected a saved card from the list, pass
+    // the payment_consent ID so the backend attaches it to the PI directly
+    // and Airwallex HPP pre-fills the card (no manual re-entry).
+    String? selectedConsentId,
   }) async {
     if (isProcessing.value) return;
 
@@ -77,6 +81,7 @@ class StripePaymentController extends GetxController {
         bookingId: booking.id,
         useLoyaltyCredit: useLoyaltyCredit,
         saveCard: saveCard,
+        selectedConsentId: selectedConsentId,
       );
       if (Get.isRegistered<LoyaltyController>()) {
         Get.find<LoyaltyController>().useLoyaltyCreditForNextPayment.value = false;
