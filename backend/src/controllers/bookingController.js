@@ -2371,19 +2371,21 @@ const createBookingPaymentIntent = async (req, res) => {
               `[booking.createPaymentIntent] REQUIRES_CUSTOMER_ACTION but no nextActionUrl ` +
               `in response — full response: ${JSON.stringify(confirmed).slice(0, 500)}`,
             );
+            // v23.1 part 54 — REQUIRES_CUSTOMER_ACTION without a URL is
+            // unworkable. Surface as savedCardError so the frontend
+            // doesn't silently fall back to HPP (which Daniel saw
+            // happen with his old one_off consent).
+            savedCardError = `Carte sauvegardée non utilisable (3DS sans URL). Réessaie avec une nouvelle carte.`;
           }
         } else {
-          // Statuses like REQUIRES_PAYMENT_METHOD (consent disabled), CANCELLED, …
           savedCardError = `Carte sauvegardée non utilisable (status=${confirmedStatus}). Réessaie avec une nouvelle carte.`;
           logger.warn(
             `[booking.createPaymentIntent] saved card consent ${selectedConsentId} unusable ` +
-            `(status=${confirmedStatus}) — surfacing error to client.`,
+            `(status=${confirmedStatus}) — surfacing error to client. ` +
+            `Full response: ${JSON.stringify(confirmed).slice(0, 500)}`,
           );
         }
       } catch (confirmErr) {
-        // Confirm can fail (e.g. consent disabled, card expired, declined).
-        // Surface the error so the client can show a clear message instead
-        // of silently falling back to "re-enter card".
         savedCardError =
           confirmErr?.details?.message ||
           confirmErr?.message ||
@@ -2393,6 +2395,28 @@ const createBookingPaymentIntent = async (req, res) => {
           `${confirmErr?.message || confirmErr} | code=${confirmErr?.code} | ` +
           `details=${JSON.stringify(confirmErr?.details || {}).slice(0, 300)}`,
         );
+      }
+
+      // v23.1 part 54 — fix Daniel "carte 8571 dans la liste mais HPP
+      // s'ouvre quand même". Auto-detach (disable) consents that we
+      // failed to confirm — they are almost certainly broken (old
+      // one_off consents from before the type=recurring fix, expired
+      // cards, disabled consents, etc.). Detaching them removes the
+      // card from listPaymentMethods so the user gets a clean state at
+      // the next payment instead of repeatedly tapping a phantom card.
+      if (savedCardError && !serverConfirmed && !nextActionUrl) {
+        try {
+          await airwallex.detachPaymentMethod(selectedConsentId);
+          logger.info(
+            `[booking.createPaymentIntent] auto-detached unusable consent ${selectedConsentId} after server-side confirm failure`,
+          );
+          savedCardError +=
+            ' (Carte retirée automatiquement — sera re-sauvegardée au prochain paiement réussi.)';
+        } catch (detachErr) {
+          logger.warn(
+            `[booking.createPaymentIntent] auto-detach failed for ${selectedConsentId} : ${detachErr?.message || detachErr}`,
+          );
+        }
       }
     }
 
