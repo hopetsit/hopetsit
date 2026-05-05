@@ -33,14 +33,17 @@ const createNotificationSafe = async (payload) => {
   try {
     return await createNotification(payload);
   } catch (error) {
-    logger.warn('⚠️ Unable to create notification', {
-      type: payload?.type,
-      recipientRole: payload?.recipientRole,
-      recipientId: payload?.recipientId ? String(payload.recipientId) : null,
-      actorRole: payload?.actorRole,
-      actorId: payload?.actorId ? String(payload.actorId) : null,
-      error: error?.message || String(error),
-    });
+    // v23.1 part 50 — pino's API is logger.warn(msg, ...args). The
+    // previous call passed a context object as the 2nd arg which pino
+    // ignored, so the Render logs only ever showed "⚠️ Unable to
+    // create notification" without ever telling us WHY. Now we
+    // serialise the cause + offending payload into the message itself.
+    logger.warn(
+      `⚠️ Unable to create notification : ${error?.message || String(error)} | ` +
+      `type=${payload?.type} role=${payload?.recipientRole} ` +
+      `recipientId=${payload?.recipientId} ` +
+      `titleLen=${(payload?.title || '').length} bodyLen=${(payload?.body || '').length}`,
+    );
     return null;
   }
 };

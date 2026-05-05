@@ -93,14 +93,9 @@ const resolveUser = async (role, userId) => {
   return null;
 };
 
-const sendPush = async (tokens, title, body, data) => {
+const sendPush = async (tokens, title, body, data, { userId, role } = {}) => {
   const list = (tokens || []).filter(Boolean);
   if (!list.length) {
-    // v23.1 part 44 — surface "no FCM token registered" as a distinct
-    // log line. Previously sendPush silently returned skipped:true and
-    // we had no way to tell from the logs whether the user had an
-    // empty fcmTokens array (most likely cause of "no phone push") or
-    // whether Firebase rejected every token.
     logger.warn('[notif.push] skipped : user has no fcmTokens registered');
     return { skipped: true, reason: 'no_tokens' };
   }
@@ -112,21 +107,60 @@ const sendPush = async (tokens, title, body, data) => {
     ),
   };
   const result = await firebaseAdmin.messaging().sendEachForMulticast(message);
-  // Log per-token outcomes so a stale/invalid token gets visible.
   if (result && (result.failureCount || 0) > 0) {
     logger.warn(
       `[notif.push] partial failure : success=${result.successCount} ` +
       `fail=${result.failureCount} (tokens checked=${list.length})`,
     );
+    // v23.1 part 50 — auto-purge of dead FCM tokens. Daniel's walker doc
+    // had accumulated 10 tokens (one per install/login over months) and
+    // 9 of them were `messaging/registration-token-not-registered` —
+    // these are tokens whose app instance has been uninstalled or whose
+    // FCM SDK rotated the token. Each push attempt fanout-charges all
+    // 10 tokens, even though only the most recent install can actually
+    // receive ; over time this hurts delivery latency and Firebase
+    // accidentally rate-limits us. We collect the dead tokens here and
+    // pull them from the user's doc in a single $pullAll, leaving only
+    // the valid ones. Idempotent — running this twice is a no-op.
+    const deadTokens = [];
     (result.responses || []).forEach((r, i) => {
       if (r && !r.success && r.error) {
         const code = r.error.code || r.error.errorInfo?.code || 'unknown';
         logger.warn(`[notif.push] token #${i} rejected : ${code}`);
+        // These error codes mean the token will NEVER work again ; safe to drop.
+        if (
+          code === 'messaging/registration-token-not-registered' ||
+          code === 'messaging/invalid-registration-token' ||
+          code === 'messaging/invalid-argument'
+        ) {
+          if (list[i]) deadTokens.push(list[i]);
+        }
       }
     });
+    if (deadTokens.length > 0 && userId && role) {
+      try {
+        const Model = _roleModelForPurge(role);
+        if (Model) {
+          await Model.findByIdAndUpdate(userId, {
+            $pullAll: { fcmTokens: deadTokens },
+          });
+          logger.info(
+            `[notif.push] purged ${deadTokens.length} dead token(s) from ${role}:${userId}`,
+          );
+        }
+      } catch (e) {
+        logger.warn(`[notif.push] dead-token purge failed : ${e?.message || e}`);
+      }
+    }
   }
   return result;
 };
+
+const _roleModelForPurge = (role) =>
+  role === 'sitter' ? Sitter :
+  role === 'owner' ? Owner :
+  role === 'walker' ? Walker :
+  null;
 
 /**
  * Send a notification to a user across three channels: in-app, push (FCM), email.
@@ -196,7 +230,7 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
       body,
       data,
     }),
-    sendPush(user.fcmTokens, title, body, { type, ...data }),
+    sendPush(user.fcmTokens, title, body, { type, ...data }, { userId, role }),
     email ? sendEmail(email, emailSubject, body, emailBody) : Promise.resolve({ skipped: true }),
   ]);
 
