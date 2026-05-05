@@ -2342,33 +2342,56 @@ const createBookingPaymentIntent = async (req, res) => {
     // surface that to the client so the WebView fallback still works.
     let serverConfirmed = false;
     let nextActionUrl = null;
+    let savedCardError = null;
     if (selectedConsentId) {
       try {
         const confirmed = await airwallex.confirmPaymentIntent(paymentIntent.id, {
           payment_consent_reference: { id: selectedConsentId },
         });
         const confirmedStatus = (confirmed?.status || '').toUpperCase();
+        // v23.1 part 49 — verbose log so we can trace exactly what Airwallex
+        // returns. The saved-card flow being silent was the #1 source of
+        // "card visible but HPP redemande la saisie" confusion.
         logger.info(
           `[booking.createPaymentIntent] server-side confirm with consent ${selectedConsentId} ` +
-          `→ status=${confirmedStatus}`,
+          `→ status=${confirmedStatus} | next_action=${confirmed?.next_action ? JSON.stringify(confirmed.next_action).slice(0, 200) : 'none'}`,
         );
         if (confirmedStatus === 'SUCCEEDED') {
           serverConfirmed = true;
         } else if (confirmedStatus === 'REQUIRES_CUSTOMER_ACTION') {
-          // 3DS step needed — return the redirect URL so the client can
-          // open the WebView at that URL instead of the regular HPP.
+          // 3DS step needed — return the redirect URL so the client opens
+          // the WebView directly at that URL (skipping the regular HPP
+          // bridge which doesn't pre-fill saved cards anyway).
           nextActionUrl =
             confirmed?.next_action?.url ||
             confirmed?.next_action?.redirect_to_url?.url ||
             null;
+          if (!nextActionUrl) {
+            logger.warn(
+              `[booking.createPaymentIntent] REQUIRES_CUSTOMER_ACTION but no nextActionUrl ` +
+              `in response — full response: ${JSON.stringify(confirmed).slice(0, 500)}`,
+            );
+          }
+        } else {
+          // Statuses like REQUIRES_PAYMENT_METHOD (consent disabled), CANCELLED, …
+          savedCardError = `Carte sauvegardée non utilisable (status=${confirmedStatus}). Réessaie avec une nouvelle carte.`;
+          logger.warn(
+            `[booking.createPaymentIntent] saved card consent ${selectedConsentId} unusable ` +
+            `(status=${confirmedStatus}) — surfacing error to client.`,
+          );
         }
       } catch (confirmErr) {
         // Confirm can fail (e.g. consent disabled, card expired, declined).
-        // Don't crash : fall back to the regular HPP flow so the user can
-        // re-enter their card details.
+        // Surface the error so the client can show a clear message instead
+        // of silently falling back to "re-enter card".
+        savedCardError =
+          confirmErr?.details?.message ||
+          confirmErr?.message ||
+          'Carte sauvegardée non utilisable. Réessaie avec une nouvelle carte.';
         logger.warn(
-          `[booking.createPaymentIntent] server-side confirm failed for consent ${selectedConsentId} : ` +
-          `${confirmErr?.message || confirmErr}. Falling back to HPP.`,
+          `[booking.createPaymentIntent] server-side confirm threw for consent ${selectedConsentId} : ` +
+          `${confirmErr?.message || confirmErr} | code=${confirmErr?.code} | ` +
+          `details=${JSON.stringify(confirmErr?.details || {}).slice(0, 300)}`,
         );
       }
     }
@@ -2398,16 +2421,23 @@ const createBookingPaymentIntent = async (req, res) => {
           }
         : null,
       booking: sanitizeBooking(booking),
-      // v23.1 part 47 — saved-card fast path signals.
-      // serverConfirmed=true → frontend can skip the HPP entirely and
-      //   call /confirm-payment directly to mark the booking paid.
-      // nextActionUrl !== null → 3DS challenge required, frontend opens
-      //   that URL in the WebView instead of the regular bridge URL.
+      // v23.1 part 47/49 — saved-card fast path signals.
+      //   serverConfirmed=true → frontend skips HPP, calls /confirm-payment.
+      //   nextActionUrl → 3DS challenge URL, frontend opens that in
+      //     WebView (still no card re-entry needed).
+      //   savedCardError → consent rejected outright by Airwallex (disabled,
+      //     expired, declined). Frontend should surface to the user instead
+      //     of silently falling back to HPP.
       serverConfirmed,
       nextActionUrl,
+      savedCardError,
       message: serverConfirmed
         ? 'PaymentIntent confirmed via saved card. Skip HPP.'
-        : 'PaymentIntent created successfully. Open HPP for user payment.',
+        : (nextActionUrl
+            ? 'Saved card requires 3DS verification. Open nextActionUrl.'
+            : (savedCardError
+                ? 'Saved card unusable.'
+                : 'PaymentIntent created successfully. Open HPP for user payment.')),
     });
   } catch (error) {
     // v23.1 — structured error mapping (PART 4). Backend now returns a stable

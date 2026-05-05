@@ -68,6 +68,12 @@ class AirwallexPaymentService {
     String countryCode = 'FR',
     String? customerId,
     bool live = true,
+    // v23.1 part 49 — optional 3DS challenge URL. When provided we open
+    // it directly in the WebView instead of the bridge URL ; the user
+    // doesn't need to re-enter the saved card, just confirm the 3DS
+    // challenge from their bank. After 3DS Airwallex redirects to a
+    // success URL the WebView detects (same /pay/done convention).
+    String? directUrl,
   }) async {
     if (intentId.isEmpty || clientSecret.isEmpty) {
       return const AirwallexPaymentResult(
@@ -76,19 +82,24 @@ class AirwallexPaymentService {
       );
     }
 
-    final env = live ? 'prod' : 'demo';
-    final uri = Uri.parse(_bridgeBase).replace(
-      path: '/pay',
-      queryParameters: {
-        'intent':   intentId,
-        'secret':   clientSecret,
-        'currency': currency.toUpperCase(),
-        'country':  countryCode.toUpperCase(),
-        'env':      env,
-      },
-    );
-
-    AppLogger.logInfo('[airwallex] opening HPP webview → ${uri.toString()}');
+    final Uri uri;
+    if (directUrl != null && directUrl.isNotEmpty) {
+      uri = Uri.parse(directUrl);
+      AppLogger.logInfo('[airwallex] opening 3DS webview → ${uri.toString()}');
+    } else {
+      final env = live ? 'prod' : 'demo';
+      uri = Uri.parse(_bridgeBase).replace(
+        path: '/pay',
+        queryParameters: {
+          'intent':   intentId,
+          'secret':   clientSecret,
+          'currency': currency.toUpperCase(),
+          'country':  countryCode.toUpperCase(),
+          'env':      env,
+        },
+      );
+      AppLogger.logInfo('[airwallex] opening HPP webview → ${uri.toString()}');
+    }
 
     final result = await Get.to<AirwallexPaymentResult>(
       () => _AirwallexCheckoutScreen(

@@ -104,19 +104,69 @@ class StripePaymentController extends GetxController {
       );
       log('[booking] AIRWALLEX flow (€$totalAmount) — pi=$_paymentIntentId');
 
-      // v23.1 part 47 — saved-card fast path. When the user picked an
-      // existing card, the backend confirmed the PaymentIntent server-side
-      // using payment_consent_reference. The HPP is then redundant and
-      // pre-filling it doesn't even work (Airwallex HPP always shows the
-      // full card form). We skip directly to confirm-payment.
+      // v23.1 part 47/49 — saved-card branching :
+      //   serverConfirmed=true   → skip HPP entirely, mark paid directly
+      //   nextActionUrl present  → 3DS challenge, open that URL in WebView
+      //   savedCardError present → consent unusable, surface to user
+      //   else                   → regular HPP (new card flow)
       final bool serverConfirmed =
           paymentIntentResponse['serverConfirmed'] == true;
+      final String? nextActionUrl =
+          paymentIntentResponse['nextActionUrl'] as String?;
+      final String? savedCardError =
+          paymentIntentResponse['savedCardError'] as String?;
+
       if (serverConfirmed && _paymentIntentId != null && _paymentIntentId!.isNotEmpty) {
         AppLogger.logUserAction(
           'Airwallex Payment Confirmed (saved card, no HPP)',
           data: {'bookingId': booking.id, 'paymentIntentId': _paymentIntentId},
         );
         await confirmPayment(paymentIntentId: _paymentIntentId!);
+        return;
+      }
+
+      // Saved card was rejected by Airwallex (disabled / expired / declined).
+      // Tell the user clearly + abort instead of silently asking them to
+      // re-enter the same broken card.
+      if (savedCardError != null && savedCardError.isNotEmpty) {
+        AppLogger.logError('Saved card unusable', error: savedCardError);
+        CustomSnackbar.showError(
+          title: 'payment_failed_title'.tr,
+          message: savedCardError,
+        );
+        isProcessing.value = false;
+        return;
+      }
+
+      // 3DS challenge for the saved card — open the action URL directly so
+      // the user just confirms the bank challenge (no card re-entry).
+      if (nextActionUrl != null && nextActionUrl.isNotEmpty) {
+        AppLogger.logUserAction(
+          'Saved card 3DS challenge',
+          data: {'bookingId': booking.id, 'nextActionUrl': nextActionUrl},
+        );
+        // We pass the 3DS URL via clientSecret slot — the WebView screen
+        // handles a direct URL when clientSecret looks like a full https
+        // URL (rather than the bridge query). See airwallex_payment_service
+        // for the dispatch.
+        final result3ds = await AirwallexPaymentService.confirmPaymentIntent(
+          intentId: _paymentIntentId ?? '',
+          clientSecret: _clientSecret!,
+          amount: totalAmount,
+          currency: currency,
+          directUrl: nextActionUrl,
+        );
+        if (result3ds.isSuccess && _paymentIntentId != null) {
+          await confirmPayment(paymentIntentId: _paymentIntentId!);
+        } else if (result3ds.outcome == AirwallexPaymentOutcome.failed) {
+          CustomSnackbar.showError(
+            title: 'payment_failed_title'.tr,
+            message: result3ds.errorMessage ?? 'common_error_message'.tr,
+          );
+          isProcessing.value = false;
+        } else {
+          isProcessing.value = false;
+        }
         return;
       }
 

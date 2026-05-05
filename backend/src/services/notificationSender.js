@@ -58,7 +58,39 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  return Model.findById(userId).select('email language fcmTokens name').lean();
+  const primary = await Model.findById(userId).select('email language fcmTokens name').lean();
+  if (primary) return primary;
+
+  // v23.1 part 49 — cross-collection fallback. The destructive switchRole
+  // flow deletes the old role's doc and creates a new one in the target
+  // collection. Bookings created BEFORE the switch still reference the
+  // OLD userId, which now lives in a different collection (e.g. an Owner
+  // who switched to Walker — Owner.findById returns null but the same
+  // _id exists in Walker). Without this fallback, payment notifs to the
+  // owner of an old booking go silently dropped : the booking points
+  // to "owner X1", X1 has been migrated to Walker collection, owner
+  // collection lookup returns null → notif skipped.
+  //
+  // We search the other 2 collections by _id ; if found we return it
+  // even though the role mismatch is logged at the call site so we know.
+  // The recipient still gets the notification on their device (FCM
+  // tokens move with the doc on switchRole for owner — see the
+  // userController.switchRole owner branch).
+  const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
+  for (const Fb of fallbackModels) {
+    try {
+      const found = await Fb.findById(userId).select('email language fcmTokens name').lean();
+      if (found) {
+        logger.warn(
+          `[notif.fallback] user ${userId} expected in ${role} collection but ` +
+          `found in ${Fb.modelName} (likely a switchRole migration). ` +
+          `Notification will still be delivered.`,
+        );
+        return found;
+      }
+    } catch (_) { /* try next */ }
+  }
+  return null;
 };
 
 const sendPush = async (tokens, title, body, data) => {
