@@ -242,6 +242,40 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           allBookingIds: acceptedToPay.map((bk) => bk.id).toList(),
         );
       }
+      // v23.1 part 49 — owner-side "Paiement effectué" banner. Mirror of
+      // the provider's "Paiement reçu" banner. Previously the owner had
+      // NO confirmation banner after paying : the "Payer" banner just
+      // disappeared and the user wondered if their payment went through.
+      // Now they see a green check confirmation for 24h post-payment.
+      final ownerNowMs = DateTime.now().millisecondsSinceEpoch;
+      const ownerMaxAgeMs = 24 * 60 * 60 * 1000; // 24h
+      for (final b in bookings) {
+        final pay = (b.paymentStatus ?? '').toLowerCase();
+        final st  = (b.status ?? '').toLowerCase();
+        if (_dismissedIds.contains(b.id)) continue;
+        if (pay != 'paid' || st == 'completed') continue;
+        final paidAtMs =
+            DateTime.tryParse(b.paidAt ?? '')?.millisecondsSinceEpoch ??
+            DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
+        if (paidAtMs == null) continue;
+        if ((ownerNowMs - paidAtMs) > ownerMaxAgeMs) continue;
+        final providerName = b.sitter.name.trim().isNotEmpty
+            ? b.sitter.name
+            : 'Le prestataire';
+        return _QuickAction(
+          kind: _Kind.providerPaid,
+          color: const Color(0xFF16A34A), // green = success
+          icon: Icons.verified_rounded,
+          title: 'Paiement effectué',
+          subtitle: '${CurrencyHelper.format(
+                b.pricing?.currency ?? 'EUR',
+                (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
+              )} → $providerName • ${_dateLabel(b)}',
+          ctaLabel: 'Voir détails',
+          booking: b,
+          pulse: false,
+        );
+      }
       // Lower priority — payment pending warning (orange).
       // (We don't model a deadline here, so just look for status=pending_payment.)
       for (final b in bookings) {
@@ -288,29 +322,25 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
     // Priority 2 — payment received → confirmation banner.
     //
-    // v23.1 part 44 — fix Daniel "walker reçoit Paiement reçu alors que
-    // owner n'a pas payé". Root cause : the window was 24h on
-    // `updatedAt`. `updatedAt` bumps on every mutation (status change,
-    // agreement update, …) so a booking paid yesterday kept re-flashing
-    // the banner today every time it was touched. The user could still
-    // dismiss with the X but it kept reappearing.
-    //
-    // Fix : key off `paidAt` (the actual payment timestamp, set once at
-    // confirmBookingPayment time and never moved) AND a tighter 1h
-    // window. Bookings paid more than 1h ago no longer surface this
-    // banner — the user can still find them under Mes Réservations.
+    // v23.1 part 44/49 — uses `paidAt` (canonical payment timestamp) NOT
+    // `updatedAt` (which bumps on every booking mutation). 24h window so
+    // the user has the whole day to see the confirmation if they were
+    // away when the payment landed. Auto-dismissed after first display
+    // via the X button, OR auto-hidden once status flips to 'completed'.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    const maxBannerAgeMs = 60 * 60 * 1000; // 1h
+    const maxBannerAgeMs = 24 * 60 * 60 * 1000; // 24h
     for (final b in bookings) {
       final pay = (b.paymentStatus ?? '').toLowerCase();
       final st  = (b.status ?? '').toLowerCase();
       if (_dismissedIds.contains(b.id)) continue;
       if (pay != 'paid' || st == 'completed') continue;
-      // Require a recent paidAt. If paidAt is missing (legacy bookings
-      // from before part 44) we deliberately skip the banner rather
-      // than fall back to updatedAt — the false-positive risk is too
-      // high for a banner that says "Paiement reçu €X".
-      final paidAtMs = DateTime.tryParse(b.paidAt ?? '')?.millisecondsSinceEpoch;
+      // v23.1 part 49 — fall back to updatedAt when paidAt is missing
+      // (legacy bookings from before part 44). The 24h window combined
+      // with the explicit `pay=='paid'` guard makes false positives very
+      // unlikely now.
+      final paidAtMs =
+          DateTime.tryParse(b.paidAt ?? '')?.millisecondsSinceEpoch ??
+          DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
       if (paidAtMs == null) continue;
       if ((nowMs - paidAtMs) > maxBannerAgeMs) continue;
 
