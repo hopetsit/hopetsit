@@ -127,6 +127,16 @@ const handleAirwallexWebhook = async (req, res) => {
           logger.info(`[airwallex.webhook] no booking found for PI ${piId} (purchaseType=${purchaseType || 'unknown'})`);
           break;
         }
+        // v23.1 part 45 — fix Daniel "wallet, notif paiement, page Payée
+        // tout cassé". Root cause : the webhook flipped paymentStatus to
+        // 'paid' but left booking.status at 'accepted' / 'agreed'. The
+        // downstream gate processProviderPayoutForBooking checks
+        // `booking.status === 'paid' && booking.paymentStatus === 'paid'`
+        // (PayPal flow sets BOTH, see line ~2944), so the payout was
+        // silently skipped — no Airwallex Payout, no creditWallet, no
+        // sitterPayoutCompleted notif. Setting status='paid' here mirrors
+        // what PayPal already does and unblocks the rest of the chain.
+        booking.status = 'paid';
         booking.paymentStatus = 'paid';
         booking.paidAt = new Date();
         await booking.save();

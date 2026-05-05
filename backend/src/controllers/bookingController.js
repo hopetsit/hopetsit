@@ -2617,6 +2617,15 @@ const confirmBookingPayment = async (req, res) => {
       // Marquer la booking si pas encore fait (race avec le webhook).
       const justMarkedPaid = booking.paymentStatus !== 'paid';
       if (justMarkedPaid) {
+        // v23.1 part 45 — fix Daniel "wallet, notif, payée tab tout cassé".
+        // Root cause : we only set paymentStatus = 'paid' but the downstream
+        // gate processProviderPayoutForBooking requires BOTH
+        // `booking.status === 'paid' && booking.paymentStatus === 'paid'`
+        // (PayPal flow at line ~2944 sets both — Airwallex was the odd
+        // one out). Without status='paid' the payout never triggered, the
+        // wallet was never credited and "booking_paid" notifs were
+        // suppressed by the same gate downstream.
+        booking.status = 'paid';
         booking.paymentStatus = 'paid';
         booking.paidAt = new Date();
         booking.paymentProvider = 'airwallex';
