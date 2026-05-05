@@ -326,6 +326,26 @@ class PushNotificationService extends GetxService {
     }
   }
 
+  /// v23.1 part 43 — public re-register hook called after login.
+  /// If a token is cached, register it under the new auth context.
+  /// Otherwise, fetch a fresh token from FCM and register.
+  Future<void> reRegisterAfterLogin() async {
+    try {
+      String? token = fcmToken.value;
+      if (token == null || token.isEmpty) {
+        token = await _messaging.getToken();
+        fcmToken.value = token;
+      }
+      if (token != null && token.isNotEmpty) {
+        await _registerTokenOnBackend(token);
+      } else {
+        debugPrint('FCM token still null after login re-register attempt.');
+      }
+    } catch (e) {
+      debugPrint('FCM re-register after login failed: $e');
+    }
+  }
+
   /// Call on logout to remove the current device token from the backend.
   Future<void> unregisterCurrentToken() async {
     final token = fcmToken.value;

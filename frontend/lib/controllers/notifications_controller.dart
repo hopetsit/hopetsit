@@ -119,6 +119,18 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
   void _attachSocketListener() {
     try {
       final s = Get.find<SocketService>();
+      // v23.1 part 43 — fix Daniel "message arrive mais pas de badge" :
+      // Le backend emit 'message:new' (chat) ET 'notification.new' (notif
+      // catalog). Avant on n'écoutait que notification.new, donc quand le
+      // sync fallback /confirm-payment créait un message système sans
+      // déclencher sendNotification (template manquant à l'époque), le badge
+      // chat ne bumpait jamais. Maintenant on écoute aussi message:new pour
+      // bump unreadChat directement, indépendamment du flux notification.
+      s.socket?.off('message:new');
+      s.socket?.on('message:new', (_) {
+        unreadChat.value = unreadChat.value + 1;
+        _storage.write(_kUnreadChat, unreadChat.value);
+      });
       s.socket?.off('notification.new');
       s.socket?.on('notification.new', (data) {
         try {

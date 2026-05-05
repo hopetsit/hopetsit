@@ -290,12 +290,26 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     // Heuristic : show whenever paymentStatus = paid AND status is still
     // 'agreed' or 'paid' (we have no per-user "seen" flag, so the bar
     // disappears as soon as the booking moves to 'completed').
+    // v23.1 part 43 — fix Daniel "walker recoi payer alors que owner a pas
+    // payer" : la banner restait des jours pour des bookings payés par
+    // l'owner sur un test précédent, ce qui faisait croire à Daniel que
+    // walker recevait un faux signal au moment de l'accept. On filtre
+    // maintenant à 24h max après updatedAt — au-delà, banner se cache
+    // automatiquement (l'utilisateur peut toujours retrouver le booking
+    // dans Réservations).
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    const maxBannerAgeMs = 24 * 60 * 60 * 1000; // 24h
     for (final b in bookings) {
       final pay = (b.paymentStatus ?? '').toLowerCase();
       final st  = (b.status ?? '').toLowerCase();
       // v23.1 — same dismiss list as ownerPay so a sitter/walker can hide
       // the 'Paiement reçu' banner permanently.
       if (_dismissedIds.contains(b.id)) continue;
+      // v23.1 part 43 — skip bookings paid >24h ago.
+      try {
+        final updatedAt = DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
+        if (updatedAt != null && (nowMs - updatedAt) > maxBannerAgeMs) continue;
+      } catch (_) { /* ignore parse errors, keep banner */ }
       if (pay == 'paid' && st != 'completed') {
         final isWalker = widget.role == 'walker';
         final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';

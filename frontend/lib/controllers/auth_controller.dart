@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
@@ -9,6 +11,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_constants.dart';
 import 'package:flutter/scheduler.dart';
@@ -88,6 +91,9 @@ class AuthController extends GetxController {
         '[HOPETSIT] ⚠️ No role found in storage during AuthController initialization',
       );
     }
+    // v23.1 part 43 — sync userRole with JWT.role on every app start so a
+    // role drift between localStorage and the backend's JWT can't survive.
+    _syncRoleFromJwt();
   }
 
   @override
@@ -138,6 +144,12 @@ class AuthController extends GetxController {
       } else {
         debugPrint('[HOPETSIT] ⚠️ Role not found in response');
       }
+      // v23.1 part 43 — defensive : if the response role and JWT role
+      // disagree (shouldn't happen but defends against race), JWT wins.
+      _syncRoleFromJwt();
+      // v23.1 part 43 — re-register FCM token under new auth so phone push
+      // notifications fire (sitter/walker/owner all need this each login).
+      unawaited(_registerFcmTokenWithBackend());
 
       // v22.5 — Bug R1 : multi-role detection
       final rawAvail = response['availableRoles'];
@@ -704,6 +716,80 @@ class AuthController extends GetxController {
       return role.toLowerCase(); // Normalize to lowercase
     }
     return null;
+  }
+
+  /// v23.1 part 43 — fix Daniel "logged in as owner but app opens as walker
+  /// + impossible to switch back". Root cause : the frontend's userRole
+  /// reads from localStorage at app start, but if the previous session was
+  /// walker and the new login response role gets overwritten by some race
+  /// condition, the displayed UI doesn't match what the backend's JWT says.
+  /// Then trying to switch back fails with "targetRole must be different
+  /// from the current role" because the backend reads its role from the
+  /// JWT and rejects the switch.
+  ///
+  /// Fix : decode the JWT directly and use ITS role as the canonical source
+  /// of truth. The JWT is signed by the backend so its role claim cannot
+  /// drift out of sync.
+  String? _decodeRoleFromJwt(String? token) {
+    if (token == null || token.isEmpty) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      // Base64URL decode the payload (middle segment).
+      var payload = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      // Add padding if needed.
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final bytes = base64.decode(payload);
+      final json = jsonDecode(utf8.decode(bytes));
+      final role = (json is Map && json['role'] is String)
+          ? (json['role'] as String).toLowerCase()
+          : null;
+      return (role != null && role.isNotEmpty) ? role : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// v23.1 part 43 — sync userRole + storage with the JWT's authoritative
+  /// role claim. Call after login and on app startup.
+  void _syncRoleFromJwt() {
+    final token = _storage.read<String>(StorageKeys.authToken);
+    final jwtRole = _decodeRoleFromJwt(token);
+    if (jwtRole == null) return;
+    if (userRole.value != jwtRole) {
+      debugPrint(
+        '[HOPETSIT] 🔄 Role drift detected (storage=${userRole.value}, jwt=$jwtRole). Forcing JWT role.',
+      );
+      userRole.value = jwtRole;
+      _storage.write(StorageKeys.userRole, jwtRole);
+    }
+  }
+
+  /// v23.1 part 43 — fix Daniel "0 notif phone/email" : after a successful
+  /// login the FCM token must be re-registered against the new auth context.
+  /// Without this, the backend never knows the user's FCM token, sendPush
+  /// receives an empty array, and no phone push ever fires (in-app message
+  /// arrives but no system push). Email goes via the same notif system —
+  /// it's not gated on FCM, but the token registration is the most common
+  /// missing step after a fresh login on a re-installed APK.
+  Future<void> _registerFcmTokenWithBackend() async {
+    try {
+      final pushService = Get.isRegistered<PushNotificationService>()
+          ? Get.find<PushNotificationService>()
+          : null;
+      if (pushService == null) {
+        debugPrint('[HOPETSIT] ℹ️ PushNotificationService not registered yet.');
+        return;
+      }
+      // Force the public re-register path on the push service. This will
+      // call /users/fcm-token with the fresh JWT context.
+      await pushService.reRegisterAfterLogin();
+      debugPrint('[HOPETSIT] ✅ FCM token re-registered after login');
+    } catch (e) {
+      debugPrint('[HOPETSIT] ⚠️ FCM token re-register failed: $e');
+    }
   }
 
   String? validateEmail(String? value) {
