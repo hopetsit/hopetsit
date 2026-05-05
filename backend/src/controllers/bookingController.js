@@ -2279,26 +2279,46 @@ const createBookingPaymentIntent = async (req, res) => {
     paymentIntent = await airwallex.createPlatformPaymentIntent({
       amount: amountInCents,
       currency: bookingCurrency.toUpperCase(),
-      // v23.1 — payment_consent attach when saveCard requested OR when
-      // user picked an existing saved card (selectedConsentId).
+      // v23.1 part 56 — CORRECT Airwallex CIT flow per official docs
+      // (https://www.airwallex.com/docs/payments/online-payments/save-and-reuse-payment-details).
+      //
+      // For a Customer-Initiated Transaction (the user tapping "Pay" in
+      // our app), Airwallex says :
+      //   "Call redirectToCheckout() with the customer_id on the
+      //    PaymentIntent — Airwallex will list all the payment methods
+      //    saved on the Customer, allowing your shopper to select any
+      //    of the saved payment methods. For a saved card, the shopper
+      //    will be prompted to enter their CVC."
+      //
+      // Translation : we ONLY need to attach `customer_id` to the PI.
+      // Airwallex's HPP automatically discovers and lists every saved
+      // card belonging to that customer. The frontend just opens HPP,
+      // user picks the saved card from the list, types CVC, done — no
+      // re-entering the full card.
+      //
+      // What we used to do wrong (parts 40/47) :
+      //   - We passed `payment_consent_id` directly on the PI, then
+      //     tried `confirmPaymentIntent(payment_consent_reference)`
+      //     server-side. That flow is for **Merchant-Initiated**
+      //     Transactions (subscriptions, off-session charges) — NOT
+      //     for in-app one-tap reuse. Airwallex would either reject
+      //     or fall back, and the frontend opened HPP without the
+      //     saved-card list visible.
+      //
+      // For the FIRST payment (no saved card yet), we attach a
+      // payment_consent block of type=recurring so the card gets
+      // saved on the customer profile after the charge succeeds.
+      //
+      // For SUBSEQUENT payments (selectedConsentId set), we just
+      // attach customer_id — Airwallex finds the saved card by
+      // customer_id automatically. The consentId only acts as a
+      // hint to the frontend showing "you already saved 8571" ;
+      // the actual reuse is handled by Airwallex via customer_id.
       ...(airwallexCustomerId ? {
         customer_id: airwallexCustomerId,
-        // v23.1 part 40 — quand selectedConsentId fourni, on lie ce
-        // payment_consent existant au PI → Airwallex HPP utilise la carte
-        // saved sans demander à l'user de re-saisir.
-        ...(selectedConsentId ? {
-          payment_consent_id: selectedConsentId,
-        } : {
-          // v23.1 part 44 — fix Daniel "la carte CB ne s'enregistre pas".
-          // Root cause : `type: 'one_off'` creates a consent that is
-          // single-use only. After it is consumed by the first PI it
-          // cannot be reused for a second booking — Airwallex HPP
-          // rejects it. Switching to `type: 'recurring'` (with
-          // next_triggered_by: 'customer' = customer-initiated future
-          // transactions) creates a reusable consent that auto-flips
-          // to VERIFIED on first successful charge, so the saved card
-          // pre-fills on the next payment without the merchant having
-          // to call any extra API.
+        // Only ask Airwallex to save the card on the FIRST payment.
+        // On subsequent payments the card already exists.
+        ...(selectedConsentId ? {} : {
           payment_consent: {
             type: 'recurring',
             next_triggered_by: 'customer',
@@ -2329,21 +2349,17 @@ const createBookingPaymentIntent = async (req, res) => {
     booking.paymentStatus = 'pending';
     await booking.save();
 
-    // v23.1 part 47 — fix Daniel "carte enregistrée affichée mais HPP me
-    // redemande la saisie". Root cause : the Airwallex Hosted Payment Page
-    // never auto-fills saved consents on its own — passing payment_consent_id
-    // to the PaymentIntent only tells Airwallex *which* consent to use IF
-    // confirmed, but the HPP UI still shows the full card form. The fix is
-    // to confirm the PaymentIntent SERVER-SIDE with `payment_consent_reference`
-    // — Airwallex then charges the saved card directly using the stored
-    // payment_method, no UI needed. If the consent requires 3DS (rare for
-    // unscheduled MIT-flagged consents but possible per issuer/region), the
-    // confirm response carries `next_action` with a redirect URL ; we
-    // surface that to the client so the WebView fallback still works.
+    // v23.1 part 56 — server-side confirm REMOVED. Per Airwallex docs,
+    // CIT subsequent payments don't need server-side confirm — the HPP
+    // shows saved cards via customer_id alone. The old code tried
+    // `payment_consent_reference` confirm which is for MIT only and
+    // caused either silent rejections or a fallback to "enter card
+    // manually" UI. We keep these vars at false/null for backward
+    // compat with the frontend that still reads them.
     let serverConfirmed = false;
     let nextActionUrl = null;
     let savedCardError = null;
-    if (selectedConsentId) {
+    if (false && selectedConsentId) {
       try {
         const confirmed = await airwallex.confirmPaymentIntent(paymentIntent.id, {
           payment_consent_reference: { id: selectedConsentId },
