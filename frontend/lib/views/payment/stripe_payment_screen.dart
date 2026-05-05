@@ -76,6 +76,21 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
       final repo = Get.find<OwnerRepository>();
       final cards = await repo.getOwnerPaymentMethods();
       _savedCards.assignAll(cards);
+      // v23.1 part 55 — fix Daniel "saved card list visible mais HPP
+      // s'ouvre quand même". Root cause : the UI defaulted to "Payer
+      // avec une nouvelle carte" being checked (`_selectedCardId.value
+      // == null`), which meant tapping "Payer" without explicitly
+      // selecting a saved card sent no consent_id to the backend → no
+      // server-side confirm → HPP opened. Now we auto-select the first
+      // saved card as soon as the list loads, so the user just taps
+      // "Payer" and gets the fast path. They can still switch to "new
+      // card" by tapping that radio.
+      if (cards.isNotEmpty) {
+        final firstId = (cards.first['id'] ?? '').toString();
+        if (firstId.isNotEmpty) {
+          _selectedCardId.value = firstId;
+        }
+      }
     } catch (_) {
       _savedCards.clear();
     } finally {
