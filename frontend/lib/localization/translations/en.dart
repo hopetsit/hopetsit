@@ -1127,7 +1127,6 @@ const Map<String, String> enUSTranslations = <String, String>{
       'iban_delete_confirm_message': 'You will no longer receive payouts until you register a new IBAN.',
       'iban_delete_success': 'IBAN deleted.',
       'iban_delete_failed': 'Could not delete. Please try again.',
-      'common_close': 'Close',
       'send_request_pets_picker_title': 'Select your pets',
       'send_request_pets_picker_subtitle': 'You can pick multiple pets for the same booking.',
       'send_request_pets_clear': 'Deselect all',

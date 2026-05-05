@@ -1204,7 +1204,6 @@ const Map<String, String> frFRTranslations = <String, String>{
       'iban_delete_confirm_message': 'Tu ne pourras plus recevoir de virements jusqu\'à ce que tu enregistres un nouvel IBAN.',
       'iban_delete_success': 'IBAN supprimé.',
       'iban_delete_failed': 'Suppression impossible. Réessaie.',
-      'common_close': 'Fermer',
       'send_request_pets_picker_title': 'Sélectionne tes animaux',
       'send_request_pets_picker_subtitle': 'Tu peux choisir plusieurs animaux pour la même demande.',
       'send_request_pets_clear': 'Tout désélectionner',
