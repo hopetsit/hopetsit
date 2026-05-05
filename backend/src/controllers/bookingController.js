@@ -2650,6 +2650,46 @@ const confirmBookingPayment = async (req, res) => {
         await booking.save();
         logger.info(`✅ [confirmBookingPayment] booking ${booking._id} marked paid (sync path).`);
 
+        // v23.1 part 47 — fix Daniel "earnings history montre les paiements
+        // mais wallet reste à 0€". Root cause : creditWallet was only
+        // called from inside the payout success path (Airwallex SEPA
+        // payout returned OK). When payout threw or fell back to the
+        // manual_transfer queue, creditWallet was never called and the
+        // wallet stayed at 0 even though the booking was clearly paid.
+        // Credit the wallet immediately when payment is confirmed,
+        // independent of the payout outcome — the wallet now represents
+        // "money earned, regardless of when it lands in the bank". The
+        // creditWallet() function is idempotent on (bookingId, type), so
+        // the call inside processProviderPayoutForBooking won't double-
+        // credit when the payout eventually succeeds.
+        try {
+          const { creditWallet } = require('../services/walletService');
+          const provider = getBookingProvider(booking);
+          const netPayout = booking.pricing?.netPayout;
+          const currency = booking.pricing?.currency || 'EUR';
+          if (
+            provider?.id &&
+            provider?.type &&
+            typeof netPayout === 'number' &&
+            Number.isFinite(netPayout) &&
+            netPayout > 0
+          ) {
+            await creditWallet({
+              userId: provider.id,
+              userRole: provider.type,
+              amount: netPayout,
+              currency: currency.toUpperCase(),
+              type: 'credit_booking',
+              bookingId: booking._id.toString(),
+              meta: { source: 'confirm_payment_sync', autoPayout: false },
+            });
+          }
+        } catch (walletErr) {
+          logger.warn(
+            `[confirmBookingPayment] wallet credit failed for booking ${booking._id}: ${walletErr?.message || walletErr}`,
+          );
+        }
+
         // Trigger payout (best-effort, le webhook fait le même boulot).
         try {
           if (typeof processProviderPayoutForBooking === 'function') {

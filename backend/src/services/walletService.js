@@ -54,6 +54,33 @@ async function creditWallet({
     throw new Error(`walletService: unknown userRole "${userRole}"`);
   }
 
+  // v23.1 part 47 — idempotency on (bookingId, type) so we can call this
+  // function from multiple places (webhook payment_intent.succeeded,
+  // confirmBookingPayment sync fallback, processProviderPayoutForBooking
+  // success path) without double-crediting. Without this, a single paid
+  // booking could end up crediting the provider's wallet twice : once
+  // when payment was confirmed, once again when the SEPA payout settled.
+  if (bookingId && type === 'credit_booking') {
+    const existing = await WalletTransaction.findOne({
+      userId,
+      bookingId,
+      type,
+      status: { $in: ['completed', 'pending'] },
+    }).lean();
+    if (existing) {
+      logger.info(
+        `💰 Wallet credit skipped (already credited) booking=${bookingId} ${userRole}:${userId} tx=${existing._id}`,
+      );
+      return {
+        success: true,
+        balance: undefined,
+        currency,
+        transactionId: existing._id.toString(),
+        deduplicated: true,
+      };
+    }
+  }
+
   const rounded = Math.round(amount * 100) / 100;
 
   // Atomique : $inc + returnDocument=after pour lire le nouveau solde.

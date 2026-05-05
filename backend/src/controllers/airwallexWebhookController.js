@@ -142,6 +142,40 @@ const handleAirwallexWebhook = async (req, res) => {
         await booking.save();
         logger.info(`✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})`);
 
+        // v23.1 part 47 — credit wallet immediately on payment success,
+        // independent of payout outcome (mirror of the confirmBookingPayment
+        // sync-path fix). Idempotent via creditWallet's (bookingId, type)
+        // dedup so the webhook + sync-path can both fire safely.
+        try {
+          const { creditWallet } = require('../services/walletService');
+          const providerRole = booking.walkerId ? 'walker' : 'sitter';
+          const providerId = booking.walkerId
+            ? booking.walkerId.toString()
+            : (booking.sitterId ? booking.sitterId.toString() : null);
+          const netPayout = booking.pricing?.netPayout;
+          const currency = booking.pricing?.currency || 'EUR';
+          if (
+            providerId &&
+            typeof netPayout === 'number' &&
+            Number.isFinite(netPayout) &&
+            netPayout > 0
+          ) {
+            await creditWallet({
+              userId: providerId,
+              userRole: providerRole,
+              amount: netPayout,
+              currency: currency.toUpperCase(),
+              type: 'credit_booking',
+              bookingId: booking._id.toString(),
+              meta: { source: 'airwallex_webhook', autoPayout: false },
+            });
+          }
+        } catch (walletErr) {
+          logger.warn(
+            `[airwallex.webhook] wallet credit failed for booking ${booking._id}: ${walletErr?.message || walletErr}`,
+          );
+        }
+
         // v23.1 — push FCM + email + bell to BOTH parties on payment success.
         try {
           const { sendNotification } = require('../services/notificationSender');
