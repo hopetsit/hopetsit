@@ -264,6 +264,44 @@ class SendRequestController extends GetxController {
     }
   }
 
+  /// v23.1 part 44 — fix Daniel "je peux pas ajouter plusieurs animaux".
+  /// The single-select dropdown only ever held one pet id at a time. The
+  /// underlying selectedPetIds list + backend `petIds[]` field already
+  /// supported multi-pet bookings, so the only change was exposing a
+  /// real toggle in the UI : tap a pet → toggled on/off, can pick any
+  /// subset of the owner's pets in one request.
+  void togglePetSelection(String petId) {
+    if (selectedPetIds.contains(petId)) {
+      selectedPetIds.remove(petId);
+    } else {
+      selectedPetIds.add(petId);
+    }
+    // Keep petNameController synced for legacy callers that read it (e.g.
+    // the "fallback to typed name when no pet selected" code path) — when
+    // multiple pets are selected we join their names so it remains useful
+    // for backend logging.
+    final names = selectedPetIds
+        .map((id) => myPets.firstWhereOrNull((p) => p.id == id)?.petName ?? '')
+        .where((n) => n.isNotEmpty)
+        .join(', ');
+    petNameController.text = names;
+  }
+
+  void clearPetSelection() {
+    selectedPetIds.clear();
+    petNameController.clear();
+  }
+
+  /// Comma-joined list of selected pet names — used by the UI to summarise
+  /// the multi-pet selection in the closed pet picker tile.
+  String get selectedPetsLabel {
+    if (selectedPetIds.isEmpty) return '';
+    return selectedPetIds
+        .map((id) => myPets.firstWhereOrNull((p) => p.id == id)?.petName ?? '')
+        .where((n) => n.isNotEmpty)
+        .join(', ');
+  }
+
   // UI helpers: week dates and day selection/focus
   List<DateTime> weekDates() {
     final center = focusedDate.value;
@@ -348,33 +386,36 @@ class SendRequestController extends GetxController {
     return _formatDate(selectedDate.value!);
   }
 
-  static const List<String> _weekdays = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
-  static const List<String> _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
+  /// v23.1 part 44 — fix Daniel "calendrier mal traduit" : the date string
+  /// was hardcoded with English weekday/month abbreviations ("Tue, May 19,
+  /// 2026"), so even a French user saw English on the request screen. Now
+  /// the abbreviations come from per-language tables keyed off Get.locale —
+  /// no dependency on intl locale-data init (which would crash on locales
+  /// the app didn't pre-load).
   String _formatDate(DateTime d) {
-    final weekday = _weekdays[d.weekday - 1];
-    return '$weekday, ${_months[d.month - 1]} ${d.day}, ${d.year}';
+    final lang =
+        ((Get.locale ?? Get.fallbackLocale)?.languageCode ?? 'fr').toLowerCase();
+    const weekdays = <String, List<String>>{
+      'fr': ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+      'en': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      'es': ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+      'de': ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+      'it': ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'],
+      'pt': ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+    };
+    const months = <String, List<String>>{
+      'fr': ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+      'en': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      'es': ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sept.', 'oct.', 'nov.', 'dic.'],
+      'de': ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+      'it': ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+      'pt': ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'],
+    };
+    final wd = weekdays[lang] ?? weekdays['fr']!;
+    final mo = months[lang] ?? months['fr']!;
+    // Format mirrors the previous "Tue, May 19, 2026" shape so callers
+    // and tests don't need to change.
+    return '${wd[d.weekday - 1]}, ${mo[d.month - 1]} ${d.day}, ${d.year}';
   }
 
   String get formattedStartDate =>

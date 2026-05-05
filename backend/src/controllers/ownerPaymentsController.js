@@ -153,9 +153,16 @@ const verifyCard = async (req, res) => {
       amount: VERIFY_AMOUNT_CENTS,
       currency: VERIFY_CURRENCY,
       customer_id: customer.id,
+      // v23.1 part 44 — same fix as bookingController.createPaymentIntent.
+      // `type: 'one_off'` produced a single-use consent that disappeared
+      // after the verification charge, so the "Add card" flow ended with
+      // an unusable saved card. `recurring` + `next_triggered_by: customer`
+      // creates a reusable card-on-file consent that auto-flips to
+      // VERIFIED once the verification PI succeeds.
       payment_consent: {
-        type: 'one_off',
+        type: 'recurring',
         next_triggered_by: 'customer',
+        merchant_trigger_reason: 'unscheduled',
       },
       metadata: {
         type: 'card_verification',

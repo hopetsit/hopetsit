@@ -141,6 +141,78 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
     }
   }
 
+  /// v23.1 part 44 — show a Material confirm dialog before issuing
+  /// DELETE /iban. We never delete silently because losing the IBAN
+  /// pauses payouts until a new one is registered.
+  Future<void> _confirmDelete() async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: AppColors.whiteColor,
+        title: InterText(
+          text: 'iban_delete_confirm_title'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.blackColor,
+        ),
+        content: InterText(
+          text: 'iban_delete_confirm_message'.tr,
+          fontSize: 13.sp,
+          color: AppColors.blackColor,
+          maxLines: 4,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text(
+              'common_cancel'.tr,
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE53935),
+            ),
+            onPressed: () => Get.back(result: true),
+            child: Text(
+              'iban_delete_button'.tr,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final client = Get.find<ApiClient>();
+      await client.delete(
+        ApiEndpoints.sitterMeIban,
+        requiresAuth: true,
+      );
+      setState(() {
+        _holderCtrl.clear();
+        _bicCtrl.clear();
+        _ibanCtrl.clear();
+        _maskedIban = '';
+        _ibanVerified = false;
+        _isSaved = false;
+      });
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'iban_delete_success'.tr,
+      );
+    } catch (_) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'iban_delete_failed'.tr,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   String? _validateIban(String? value) {
     if (value == null || value.trim().isEmpty) return 'iban_required'.tr;
     final clean = value.replaceAll(' ', '').toUpperCase();
@@ -297,7 +369,9 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
               ),
               SizedBox(height: 32.h),
 
-              // Save button
+              // Save button — labelled "Modifier" once an IBAN is already
+              // saved so users understand they're overwriting it (v23.1
+               // part 44 fix Daniel "rajouter possibilité de modifier").
               SizedBox(
                 width: double.infinity,
                 height: 52.h,
@@ -319,13 +393,46 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
                           ),
                         )
                       : InterText(
-                          text: 'iban_save_button'.tr,
+                          text: _isSaved
+                              ? 'iban_edit_button'.tr
+                              : 'iban_save_button'.tr,
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w700,
                           color: AppColors.whiteColor,
                         ),
                 ),
               ),
+
+              // v23.1 part 44 — IBAN delete button. Only shown when an
+              // IBAN is already saved. Confirms before calling DELETE
+              // /iban (which also detaches the Airwallex Beneficiary).
+              if (_isSaved) ...[
+                SizedBox(height: 12.h),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48.h,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _confirmDelete,
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: 18.sp,
+                      color: const Color(0xFFE53935),
+                    ),
+                    label: InterText(
+                      text: 'iban_delete_button'.tr,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFE53935),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFE53935)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
 
               SizedBox(height: 20.h),
               // Security note

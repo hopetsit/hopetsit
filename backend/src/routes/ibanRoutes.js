@@ -151,6 +151,57 @@ router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
   }
 });
 
+// ─── Delete own IBAN (sitter + walker) ───────────────────────────────────────
+//
+// v23.1 part 44 — fix Daniel "rajouter la possibilité d'effacer ou modifier
+// son iban". Editing is already handled by PUT /iban (it overwrites). For
+// deletion we clear the encrypted IBAN + holder + BIC, flip ibanVerified
+// off, drop payoutMethod=iban so the scheduler doesn't try to use a
+// non-existent account, and detach the Airwallex Beneficiary so the
+// dashboard stays clean. We DO NOT delete the historical fcmTokens / oldId
+// — those are unrelated to payouts.
+router.delete('/iban', requireAuth, requireProviderRole, async (req, res) => {
+  try {
+    const Model = getProviderModel(req.user.role);
+    const provider = await Model.findById(req.user.id)
+      .select('airwallexBeneficiaryId payoutMethod');
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+
+    // Best-effort detach the Airwallex Beneficiary so the dashboard stops
+    // listing it. We swallow the error : if the beneficiary doesn't exist
+    // remotely (e.g. dev wipe), the IBAN should still be cleared locally.
+    if (provider.airwallexBeneficiaryId) {
+      try {
+        await airwallex.deleteBeneficiary(provider.airwallexBeneficiaryId);
+      } catch (e) {
+        logger.warn(
+          `[iban.delete] Airwallex beneficiary detach failed (${provider.airwallexBeneficiaryId}): ${e.message}`,
+        );
+      }
+    }
+
+    const update = {
+      $set: {
+        ibanHolder: '',
+        ibanNumber: '',
+        ibanBic: '',
+        ibanVerified: false,
+        airwallexBeneficiaryId: '',
+      },
+    };
+    // Don't leave payoutMethod=iban dangling — fall back to paypal so the
+    // scheduler doesn't try to release funds to a deleted account.
+    if (provider.payoutMethod === 'iban') {
+      update.$set.payoutMethod = 'paypal';
+    }
+    await Model.updateOne({ _id: req.user.id }, update);
+    res.json({ message: 'IBAN deleted.' });
+  } catch (e) {
+    logger.error('[iban.delete]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── Get own IBAN info (masked) (sitter + walker) ────────────────────────────
 router.get('/iban', requireAuth, requireProviderRole, async (req, res) => {
   try {

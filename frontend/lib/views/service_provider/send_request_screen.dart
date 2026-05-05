@@ -416,55 +416,62 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           ),
         );
       }
-      final items = controller.myPets
-          .map(
-            (p) => DropdownMenuItem<String>(
-              value: p.id,
-              child: Text('${p.petName} • ${p.breed}'),
-            ),
-          )
-          .toList();
+      // v23.1 part 44 — multi-pet picker. Tapping the tile opens a
+      // bottom sheet with one checkbox per pet ; the user can select any
+      // subset and the closed tile then summarises "Médor, Mistigri".
       final count = controller.selectedPetsCount;
-      final displayText = count > 0 ? '$count' : 'common_select'.tr;
-      return Container(
-        height: 50.h,
-        decoration: BoxDecoration(
-          color: AppColors.inputFill(context),
-          borderRadius: BorderRadius.circular(30.r),
-          border: Border.all(color: AppColors.divider(context), width: 1),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: controller.selectedPetIds.isNotEmpty
-                      ? controller.selectedPetIds.first
-                      : null,
-                  items: items,
-                  onChanged: (v) => controller.selectPet(v),
-                  isExpanded: true,
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  hint: InterText(
-                    text: displayText,
-                    fontSize: 14.sp,
-                    color: AppColors.greyColor,
+      final summary = count == 0
+          ? 'common_select'.tr
+          : (controller.selectedPetsLabel.isNotEmpty
+              ? controller.selectedPetsLabel
+              : '$count');
+      return GestureDetector(
+        onTap: () => _openMultiPetPicker(context, controller),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 50.h,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          decoration: BoxDecoration(
+            color: AppColors.inputFill(context),
+            borderRadius: BorderRadius.circular(30.r),
+            border: Border.all(color: AppColors.divider(context), width: 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: InterText(
+                  text: summary,
+                  fontSize: 14.sp,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  color: count > 0
+                      ? AppColors.textPrimary(context)
+                      : AppColors.greyColor,
+                ),
+              ),
+              if (count > 1) ...[
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                  decoration: BoxDecoration(
+                    color: _roleColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: PoppinsText(
+                    text: '$count',
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w700,
+                    color: _roleColor,
                   ),
                 ),
+                SizedBox(width: 8.w),
+              ],
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20.sp,
+                color: AppColors.textPrimary(context),
               ),
-            ),
-            GestureDetector(
-              onTap: () => Get.to(() => const MyPetsScreen()),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12.w),
-                child: Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14.sp,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     });
@@ -1391,6 +1398,169 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           color: emphasisColor ?? AppColors.textPrimary(context),
         ),
       ],
+    );
+  }
+
+  /// v23.1 part 44 — multi-pet picker bottom sheet. One checkbox per pet,
+  /// "Tout désélectionner" + "Aller à mes animaux" + "Confirmer N animal(aux)"
+  /// actions.
+  void _openMultiPetPicker(
+    BuildContext context,
+    SendRequestController controller,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          16.w,
+          12.h,
+          16.w,
+          16.h + MediaQuery.of(ctx).padding.bottom,
+        ),
+        child: Obx(() {
+          final pets = controller.myPets;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              PoppinsText(
+                text: 'send_request_pets_picker_title'.tr,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w700,
+              ),
+              SizedBox(height: 4.h),
+              InterText(
+                text: 'send_request_pets_picker_subtitle'.tr,
+                fontSize: 12.sp,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 12.h),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: pets.length,
+                  separatorBuilder: (_, __) => SizedBox(height: 6.h),
+                  itemBuilder: (_, i) {
+                    final p = pets[i];
+                    final selected = controller.selectedPetIds.contains(p.id);
+                    return Material(
+                      color: selected
+                          ? _roleColor.withValues(alpha: 0.1)
+                          : AppColors.inputFill(context),
+                      borderRadius: BorderRadius.circular(14.r),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14.r),
+                        onTap: () => controller.togglePetSelection(p.id),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 10.h,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selected
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                color: selected
+                                    ? _roleColor
+                                    : Colors.grey,
+                                size: 22.sp,
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    PoppinsText(
+                                      text: p.petName,
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    if ((p.breed).isNotEmpty)
+                                      InterText(
+                                        text: p.breed,
+                                        fontSize: 11.sp,
+                                        color: Colors.grey,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 12.h),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: controller.selectedPetIds.isEmpty
+                        ? null
+                        : controller.clearPetSelection,
+                    child: Text(
+                      'send_request_pets_clear'.tr,
+                      style: TextStyle(
+                        color: controller.selectedPetIds.isEmpty
+                            ? Colors.grey
+                            : const Color(0xFFE53935),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _roleColor,
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                      ),
+                      child: Text(
+                        controller.selectedPetIds.isEmpty
+                            ? 'common_close'.tr
+                            : 'send_request_pets_confirm'.trParams({
+                                'count': controller.selectedPetIds.length
+                                    .toString(),
+                              }),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }),
+      ),
     );
   }
 }
