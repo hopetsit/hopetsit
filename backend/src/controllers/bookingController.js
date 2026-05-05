@@ -1134,7 +1134,16 @@ const processProviderPayoutForBooking = async (booking) => {
     booking.payoutError = `Unknown payout method: ${payoutMethod}`;
     await booking.save();
   } catch (error) {
-    logger.error('❌ Error while processing sitter payout for booking', booking._id.toString(), error);
+    // v23.1 part 46 — fix Daniel "logs Render disent juste Error while
+    // processing sitter payout sans détail". Pino ignores 2nd/3rd args
+    // unless you pass an object, so `logger.error('msg', id, err)` only
+    // surfaced the message in the Render log stream and we never knew
+    // what actually threw. Now we serialise message + stack into a
+    // single string so the cause is visible in the live log.
+    logger.error(
+      `❌ Error while processing payout for booking ${booking._id.toString()} : ` +
+      `${error?.message || String(error)} | stack=${(error?.stack || '').split('\n').slice(0, 3).join(' | ')}`,
+    );
     booking.payoutStatus = 'failed';
     booking.payoutError = error.message || String(error);
     try {
@@ -2670,7 +2679,14 @@ const confirmBookingPayment = async (req, res) => {
                 providerRole: providerRole2,
               },
               actor: { role: 'owner', id: ownerId2 },
-            }).catch(() => {});
+            }).catch((e) => {
+              // v23.1 part 46 — surface the cause instead of silently
+              // dropping. Daniel's main "no payment notif" bug came from
+              // silent .catch swallowing every failure.
+              logger.warn(
+                `[confirmBookingPayment] booking_paid notif failed for ${providerRole2}=${providerId2} : ${e?.message || e}`,
+              );
+            });
           }
           if (ownerId2) {
             sendNotification({
@@ -2682,7 +2698,11 @@ const confirmBookingPayment = async (req, res) => {
                 providerRole: providerRole2,
               },
               actor: { role: providerRole2, id: providerId2 },
-            }).catch(() => {});
+            }).catch((e) => {
+              logger.warn(
+                `[confirmBookingPayment] booking_paid_owner notif failed for owner=${ownerId2} : ${e?.message || e}`,
+              );
+            });
           }
         } catch (e) {
           logger.error(`[confirmBookingPayment] sendNotification failed: ${e.message}`);

@@ -157,7 +157,11 @@ const handleAirwallexWebhook = async (req, res) => {
               type: 'booking_paid',
               data: { bookingId: booking._id.toString(), providerRole: providerRole2 },
               actor: { role: 'owner', id: ownerId2 },
-            }).catch(() => {});
+            }).catch((e) => {
+              logger.warn(
+                `[airwallex.webhook] booking_paid notif failed for ${providerRole2}=${providerId2} : ${e?.message || e}`,
+              );
+            });
           }
           if (ownerId2) {
             sendNotification({
@@ -166,7 +170,11 @@ const handleAirwallexWebhook = async (req, res) => {
               type: 'booking_paid_owner',
               data: { bookingId: booking._id.toString(), providerRole: providerRole2 },
               actor: { role: providerRole2, id: providerId2 },
-            }).catch(() => {});
+            }).catch((e) => {
+              logger.warn(
+                `[airwallex.webhook] booking_paid_owner notif failed for owner=${ownerId2} : ${e?.message || e}`,
+              );
+            });
           }
         } catch (e) {
           logger.warn(`[airwallex.webhook] sendNotification failed : ${e.message}`);

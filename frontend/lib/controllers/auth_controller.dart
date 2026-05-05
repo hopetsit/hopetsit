@@ -350,6 +350,20 @@ class AuthController extends GetxController {
         await _storage.write(StorageKeys.authToken, backendToken);
         debugPrint('[HOPETSIT] ✅ Token saved from Google sign-in');
 
+        // v23.1 part 46 — fix Daniel "je reçois email mais pas push notif".
+        // Root cause : `_registerFcmTokenWithBackend()` was called in the
+        // email/password `login()` path but never in `loginWithGoogle()`
+        // / `loginWithApple()`. So users who signed in via Google (most
+        // of Daniel's test sessions, see /auth/google in Render logs)
+        // ended up with a JWT but the backend never knew about their
+        // FCM token. sendNotification logged `[notif.push] no fcmTokens`
+        // for every push attempt, while the email channel still worked
+        // because email was decrypted from the Owner doc directly.
+        unawaited(_registerFcmTokenWithBackend());
+        // Same JWT-based role drift recovery as the password login path,
+        // so role is consistent right after Google sign-in too.
+        _syncRoleFromJwt();
+
         // Prefer the role we sent to the backend — some backends create the
         // user as 'sitter' by default and return 'sitter' even when we asked
         // for 'walker'. The role we sent is the truth for new signups.
@@ -539,6 +553,11 @@ class AuthController extends GetxController {
 
       if (isSuccess && backendToken != null) {
         await _storage.write(StorageKeys.authToken, backendToken);
+
+        // v23.1 part 46 — same FCM register fix as the Google path. Without
+        // this Apple sign-in users never got phone push notifs.
+        unawaited(_registerFcmTokenWithBackend());
+        _syncRoleFromJwt();
 
         // Same defensive check as Google sign-in: if the caller explicitly
         // asked for 'walker', trust that over whatever the backend returns.
@@ -905,6 +924,13 @@ class AuthController extends GetxController {
       if (newToken != null && newToken.isNotEmpty) {
         await _storage.write(StorageKeys.authToken, newToken);
         debugPrint('[HOPETSIT] ✅ New token saved after role switch');
+        // v23.1 part 46 — re-register FCM token under the NEW role's doc.
+        // Backend switchRole creates a fresh doc in the target collection
+        // (Walker → Owner creates new Owner doc, deletes Walker doc) with
+        // empty fcmTokens. Without this re-register the user's device is
+        // unknown to the new role's notification routing — push notifs
+        // for that role would silently skip with "no fcmTokens".
+        unawaited(_registerFcmTokenWithBackend());
       }
 
       final userData = _extractUser(response);
