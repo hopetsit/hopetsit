@@ -38,7 +38,16 @@ const bookingSchema = new mongoose.Schema(
       // L'argent dort sur le compte plateforme. Le scheduler check
       // périodiquement si le provider a depuis configuré, et si oui
       // déclenche le transfert en marquant 'scheduled' → 'completed'.
-      enum: ['pending', 'scheduled', 'processing', 'completed', 'failed', 'held'],
+      // v23.1 part 52 — added 'pending_manual_transfer' which is the
+      // legitimate state when an Airwallex payout falls back to a manual
+      // SEPA transfer queue (provider has no airwallexBeneficiaryId).
+      // Without this enum entry, processProviderPayoutForBooking crashed
+      // with "ValidationError: pending_manual_transfer is not a valid
+      // enum value", which is the silent error Daniel saw : wallet was
+      // credited (creditWallet runs BEFORE payout) but the booking_paid
+      // notif step that followed crashed with the now-corrupt payoutStatus
+      // pseudo-state.
+      enum: ['pending', 'scheduled', 'processing', 'completed', 'failed', 'held', 'pending_manual_transfer'],
       default: 'pending',
     },
     // v18.5 — #3 hold admin : montants dormants en attente que le provider

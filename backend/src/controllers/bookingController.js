@@ -2788,10 +2788,22 @@ const confirmBookingPayment = async (req, res) => {
         // justMarkedPaid is true only once.
         try {
           const providerRole2 = booking.walkerId ? 'walker' : 'sitter';
+          // v23.1 part 52 — fix Daniel : critical bug where the populated
+          // booking refs were stringified verbatim. `booking.walkerId` is
+          // a populated Mongoose document (we call .populate('walkerId')
+          // earlier in the function), so `booking.walkerId.toString()`
+          // returns the WHOLE document inspect output (~5KB JSON-ish
+          // string) — not the ObjectId. sendNotification then called
+          // `Walker.findById(<5KB-string>)` which threw "Cast to ObjectId
+          // failed". This is why owner+walker booking_paid notifs went
+          // silently to /dev/null while wallet credit (which used the
+          // raw _id) worked fine. Now we extract _id explicitly.
           const providerId2 = booking.walkerId
-            ? booking.walkerId.toString()
-            : (booking.sitterId ? booking.sitterId.toString() : null);
-          const ownerId2 = booking.ownerId ? booking.ownerId.toString() : null;
+            ? (booking.walkerId._id ? booking.walkerId._id.toString() : String(booking.walkerId))
+            : (booking.sitterId ? (booking.sitterId._id ? booking.sitterId._id.toString() : String(booking.sitterId)) : null);
+          const ownerId2 = booking.ownerId
+            ? (booking.ownerId._id ? booking.ownerId._id.toString() : String(booking.ownerId))
+            : null;
           if (providerId2) {
             sendNotification({
               userId: providerId2,
