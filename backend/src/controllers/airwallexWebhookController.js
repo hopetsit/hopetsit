@@ -214,13 +214,29 @@ const handleAirwallexWebhook = async (req, res) => {
           logger.warn(`[airwallex.webhook] sendNotification failed : ${e.message}`);
         }
 
-        // v22.4 — Bug A2 : push real-time event to owner so the
-        // "Action requise" banner refreshes immediately (instead of
-        // waiting up to 30s for the periodic refresh).
+        // v22.4 — Bug A2 : push real-time event so the "Action requise" /
+        // "Paiement reçu" banners refresh immediately (instead of waiting
+        // up to 30s for the periodic refresh).
+        // v23.1 part 53 — fix Daniel "walker n'a ni le badge ni le banner
+        // Paiement reçu". Previously we only emitted to owner ; the
+        // provider (walker/sitter) had to wait for the 30s polling tick
+        // to see the green "Paiement reçu" banner. Now we emit to both
+        // sides so the banner appears within ~1s for the provider too.
         try {
           const { emitToUser } = require('../sockets');
           if (booking.ownerId) {
             emitToUser('owner', booking.ownerId.toString(), 'booking:paid', {
+              bookingId: booking._id.toString(),
+              paymentStatus: 'paid',
+            });
+          }
+          if (booking.walkerId) {
+            emitToUser('walker', booking.walkerId.toString(), 'booking:paid', {
+              bookingId: booking._id.toString(),
+              paymentStatus: 'paid',
+            });
+          } else if (booking.sitterId) {
+            emitToUser('sitter', booking.sitterId.toString(), 'booking:paid', {
               bookingId: booking._id.toString(),
               paymentStatus: 'paid',
             });

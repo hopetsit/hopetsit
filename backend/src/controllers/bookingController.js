@@ -2941,6 +2941,13 @@ const confirmBookingPayment = async (req, res) => {
                 bookingId: booking._id.toString(),
                 paymentStatus: 'paid',
               });
+              // v23.1 part 53 — also emit to the provider so their home
+              // banner refreshes to "Paiement reçu" without waiting for
+              // the 30s polling tick.
+              emitToUser(providerRole, providerIdStr, 'booking:paid', {
+                bookingId: booking._id.toString(),
+                paymentStatus: 'paid',
+              });
             } catch (_) { /* socket non-critique */ }
             // v23.1 part 34 — envoie NEW_MESSAGE notif (badge in-app + FCM
             // push + email) aux 2 parties dans le fallback sync.

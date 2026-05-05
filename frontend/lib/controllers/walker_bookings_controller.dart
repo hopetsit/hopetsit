@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -25,6 +26,31 @@ class WalkerBookingsController extends GetxController {
   void onInit() {
     super.onInit();
     loadBookings();
+    // v23.1 part 53 — fix Daniel "walker pas de banner Paiement reçu".
+    // The backend now emits `booking:paid` to walker too (in addition to
+    // owner). We listen here so the WalkerBookingsController bookings
+    // list refreshes in real-time on payment, which makes the home banner
+    // flip to "Paiement reçu !" within ~1 second instead of waiting for
+    // the 30s polling cycle.
+    _attachSocketListeners();
+    try {
+      final svc = Get.find<SocketService>();
+      svc.addOnConnectedHook(_attachSocketListeners);
+    } catch (_) { /* SocketService not registered yet — re-attach on next init */ }
+  }
+
+  void _attachSocketListeners() {
+    try {
+      final s = Get.find<SocketService>();
+      s.socket?.off('booking:paid');
+      s.socket?.on('booking:paid', (_) => loadBookings());
+      s.socket?.off('booking:accepted');
+      s.socket?.on('booking:accepted', (_) => loadBookings());
+      s.socket?.off('booking:new');
+      s.socket?.on('booking:new', (_) => loadBookings());
+    } catch (e) {
+      AppLogger.logError('WalkerBookingsController socket bind failed', error: e);
+    }
   }
 
   Future<void> loadBookings({String? status}) async {
