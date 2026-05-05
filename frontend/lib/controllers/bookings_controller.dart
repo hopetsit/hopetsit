@@ -64,11 +64,22 @@ class BookingsController extends GetxController {
       );
       bookings.assignAll(bookingsList);
     } on ApiException catch (error) {
-      AppLogger.logError('Failed to load bookings', error: error.message);
-      bookings.clear();
+      // v23.1 part 48 — fix Daniel "page Payée disparait des fois". Root
+      // cause : on EVERY API error (network blip, 502 cold-start, rate
+      // limit) we used to `bookings.clear()` and the screen jumped to
+      // "Aucune réservation". Keep the previous list on transient
+      // failures so the user retains visibility ; only clear when we
+      // get a confirmed-empty 200 response (handled in the success
+      // branch via assignAll([])).
+      AppLogger.logError(
+        'Failed to load bookings (keeping previous list)',
+        error: error.message,
+      );
     } catch (error) {
-      AppLogger.logError('Failed to load bookings', error: error);
-      bookings.clear();
+      AppLogger.logError(
+        'Failed to load bookings (keeping previous list)',
+        error: error,
+      );
     } finally {
       isLoading.value = false;
     }

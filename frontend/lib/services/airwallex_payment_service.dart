@@ -203,27 +203,125 @@ class _AirwallexCheckoutScreenState extends State<_AirwallexCheckoutScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: const Color(0xFFEF4324),
+          foregroundColor: Colors.white,
           elevation: 0,
-          title: Text(
-            '${widget.amount.toStringAsFixed(2)} ${widget.currency.toUpperCase()}',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+          centerTitle: true,
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Paiement sécurisé',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                '${widget.amount.toStringAsFixed(2)} ${widget.currency.toUpperCase()}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.85),
+                ),
+              ),
+            ],
           ),
           leading: IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, color: Colors.white),
             onPressed: _userCancel,
           ),
         ),
+        // v23.1 part 48 — improved loading UX. The previous spinner appeared
+        // briefly on a white background and looked like the page was frozen.
+        // The new branded full-screen loader shows a paw logo + amount +
+        // "Connexion sécurisée à Airwallex…" so the user understands what's
+        // happening during the 1-3s bridge load.
         body: Stack(
           children: [
             WebViewWidget(controller: _controller),
-            if (_loading)
-              const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFFEF4324),
+            if (_loading) _BrandedLoader(amount: widget.amount, currency: widget.currency),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// v23.1 part 48 — branded full-screen loader for the Airwallex HPP webview.
+/// Shows while the bridge page (hopetsit.com/pay) is fetching airwallex.js
+/// and redirecting to the actual checkout. Prevents the "blank white screen
+/// for 2 seconds" effect and gives the user confidence the payment is
+/// actually loading securely.
+class _BrandedLoader extends StatelessWidget {
+  final double amount;
+  final String currency;
+
+  const _BrandedLoader({required this.amount, required this.currency});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4324).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.lock_rounded,
+                size: 36,
+                color: Color(0xFFEF4324),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                color: Color(0xFFEF4324),
+                strokeWidth: 3,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Connexion sécurisée…',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Color(0xFF1F1F1F),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${amount.toStringAsFixed(2)} ${currency.toUpperCase()}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 22,
+                color: Color(0xFFEF4324),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                'Le paiement est traité par Airwallex (PCI-DSS Level 1). Vos données carte ne transitent jamais par HoPetSit.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF777777),
+                  height: 1.4,
                 ),
               ),
+            ),
           ],
         ),
       ),

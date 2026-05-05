@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -9,8 +8,8 @@ import 'package:hopetsit/models/invoice_model.dart';
 import 'package:hopetsit/repositories/invoice_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/views/invoices/invoice_viewer_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// v23.1 — Mes factures (auto-générées au paiement de chaque réservation).
 /// Accessible depuis l'onglet "Factures" de Mes Réservations sur les 3
@@ -52,19 +51,20 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     }
   }
 
+  /// v23.1 part 48 — fix Daniel "qd je clique sur facture, on voit
+  /// backend.onrender.com peut on cacher ?". Previously we used
+  /// `launchUrl(externalApplication)` which opens Chrome with the full
+  /// Render URL visible in the address bar — looks unprofessional. Now
+  /// we open the same HTML in an in-app WebView with a clean HoPetSit
+  /// header. The user never sees the backend URL.
   Future<void> _openInvoice(InvoiceModel inv) async {
     final url = _repo.htmlUrlFor(inv.id);
-    final uri = Uri.parse(url);
-    final ok = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
+    Get.to(
+      () => InvoiceViewerScreen(
+        url: url,
+        invoiceNumber: inv.invoiceNumber,
+      ),
     );
-    if (!ok) {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: 'invoices_open_failed'.tr,
-      );
-    }
   }
 
   @override

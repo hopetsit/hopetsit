@@ -32,11 +32,18 @@ class SitterBookingsController extends GetxController {
       );
       bookings.assignAll(bookingsList);
     } on ApiException catch (error) {
-      AppLogger.logError('Failed to load bookings', error: error.message);
-      bookings.clear();
+      // v23.1 part 48 — same defensive fix as BookingsController : keep
+      // the previous list on transient API errors so the screen doesn't
+      // jump to "Aucune réservation" on a network blip.
+      AppLogger.logError(
+        'Failed to load bookings (keeping previous list)',
+        error: error.message,
+      );
     } catch (error) {
-      AppLogger.logError('Failed to load bookings', error: error);
-      bookings.clear();
+      AppLogger.logError(
+        'Failed to load bookings (keeping previous list)',
+        error: error,
+      );
     } finally {
       isLoading.value = false;
     }
