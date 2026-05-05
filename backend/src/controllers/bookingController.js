@@ -2853,9 +2853,24 @@ const confirmBookingPayment = async (req, res) => {
       try {
         const Conversation = require('../models/Conversation');
         const Message = require('../models/Message');
-        const ownerId2 = booking.ownerId;
-        const sitterId2 = booking.sitterId || null;
-        const walkerId2 = booking.walkerId || null;
+        // v23.1 part 53 — fix Daniel "tjr pareil bug 2" : same populated-doc
+        // bug as the booking_paid flow above, but for the chat unlock +
+        // NEW_MESSAGE notif. ownerId2/providerId2 were populated Mongoose
+        // docs ; calling .toString() on them later in the sendNotification
+        // calls (lines ~2937, 2949) stringified the full doc inspect output.
+        // Result : `[notif.entry] userId={ servicePreferences: ... }` →
+        // resolveUser cast failed → no in-app DB record → NO bell badge
+        // increment for chat. Extract _id explicitly here, then everything
+        // else (Message.create, emitToUser, sendNotification) reuses the
+        // raw ObjectIds (Mongoose's populated docs accept passthrough for
+        // refs).
+        const _id = (ref) =>
+          ref && ref._id ? ref._id : ref;
+        const _idStr = (ref) =>
+          ref && ref._id ? ref._id.toString() : (ref ? String(ref) : null);
+        const ownerId2 = _id(booking.ownerId);
+        const sitterId2 = booking.sitterId ? _id(booking.sitterId) : null;
+        const walkerId2 = booking.walkerId ? _id(booking.walkerId) : null;
         const providerId2 = sitterId2 || walkerId2;
         if (ownerId2 && providerId2) {
           const providerField = sitterId2 ? 'sitterId' : 'walkerId';
@@ -2910,31 +2925,33 @@ const confirmBookingPayment = async (req, res) => {
             }
             try {
               const { emitToUser } = require('../sockets');
+              const ownerIdStr = _idStr(ownerId2);
+              const providerIdStr = _idStr(providerId2);
               for (const msg of [systemMessage, rendezvousMessage]) {
-                emitToUser('owner', ownerId2.toString(), 'message:new', {
+                emitToUser('owner', ownerIdStr, 'message:new', {
                   conversationId: conversation._id.toString(),
                   message: msg.toObject(),
                 });
-                emitToUser(providerRole, providerId2.toString(), 'message:new', {
+                emitToUser(providerRole, providerIdStr, 'message:new', {
                   conversationId: conversation._id.toString(),
                   message: msg.toObject(),
                 });
               }
-              emitToUser('owner', ownerId2.toString(), 'booking:paid', {
+              emitToUser('owner', ownerIdStr, 'booking:paid', {
                 bookingId: booking._id.toString(),
                 paymentStatus: 'paid',
               });
             } catch (_) { /* socket non-critique */ }
-            // v23.1 part 34 — fix Daniel : envoie aussi NEW_MESSAGE notif (badge
-            // in-app + FCM push + email) aux 2 parties dans le fallback sync.
-            // Avant, seulement le webhook Airwallex le faisait, mais en mode
-            // demo (webhook pas reçu) Daniel ne recevait NI badge NI email.
+            // v23.1 part 34 — envoie NEW_MESSAGE notif (badge in-app + FCM
+            // push + email) aux 2 parties dans le fallback sync.
+            // v23.1 part 53 — userId via _idStr() pour éviter la stringif
+            // du doc populated (fix Daniel "bug 2 message badge").
             try {
               const { sendNotification } = require('../services/notificationSender');
               const previewText = (systemMessage.body || '').slice(0, 120);
               await Promise.allSettled([
                 sendNotification({
-                  userId: ownerId2.toString(),
+                  userId: _idStr(ownerId2),
                   role: 'owner',
                   type: 'NEW_MESSAGE',
                   data: {
@@ -2946,7 +2963,7 @@ const confirmBookingPayment = async (req, res) => {
                   actor: { role: 'system', id: null },
                 }),
                 sendNotification({
-                  userId: providerId2.toString(),
+                  userId: _idStr(providerId2),
                   role: providerRole,
                   type: 'NEW_MESSAGE',
                   data: {
