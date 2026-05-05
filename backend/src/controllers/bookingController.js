@@ -1692,6 +1692,11 @@ const respondBooking = async (req, res) => {
       await booking.save();
 
       // v18.4 — single path via sendNotification (bell + FCM + email).
+      // v23.1 part 45 — fix Daniel "je ne reçois pas l'acceptation sitter".
+      // The previous .catch(() => {}) swallowed every error silently — if
+      // the owner had no fcmTokens or the email decrypt threw, no one
+      // would ever know. Log explicitly so Render logs surface the
+      // root cause on failure.
       sendNotification({
         userId: booking.ownerId?._id ? booking.ownerId._id.toString() : booking.ownerId.toString(),
         role: 'owner',
@@ -1701,7 +1706,11 @@ const respondBooking = async (req, res) => {
           providerRole: actorRoleForOwnerNotif,
         },
         actor: { role: actorRoleForOwnerNotif, id: actorIdForOwnerNotif },
-      }).catch(() => {});
+      }).catch((e) => {
+        logger.warn(
+          `[respondBooking] booking_accepted notif failed for owner=${booking.ownerId?._id || booking.ownerId} : ${e?.message || e}`,
+        );
+      });
 
       // v23.1 part 41 — fix Daniel "owner ne recoi pas notif walker accepté".
       // Emit socket event so owner home banner refreshes immediately

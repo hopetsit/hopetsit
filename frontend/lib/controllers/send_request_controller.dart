@@ -423,12 +423,23 @@ class SendRequestController extends GetxController {
   String get formattedEndDate =>
       endDate.value == null ? '' : _formatDate(endDate.value!);
 
+  /// v23.1 part 45 — fix Daniel "page demander à un sitter l'heure est en
+  /// anglais au lieu de fr". The original formatter forced AM/PM English
+  /// even for French/German/Spanish/etc. users. Now we use 24h format for
+  /// every locale that doesn't natively use AM/PM (i.e. everything except
+  /// English-speaking markets).
   String _formatTime(TimeOfDay t) {
-    final h24 = t.hour;
-    final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
+    final lang =
+        ((Get.locale ?? Get.fallbackLocale)?.languageCode ?? 'fr').toLowerCase();
+    final h = t.hour.toString().padLeft(2, '0');
     final m = t.minute.toString().padLeft(2, '0');
-    final am = h24 < 12 ? 'AM' : 'PM';
-    return '$h12:$m $am';
+    if (lang == 'en') {
+      final h24 = t.hour;
+      final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
+      final am = h24 < 12 ? 'AM' : 'PM';
+      return '$h12:$m $am';
+    }
+    return '$h:$m';
   }
 
   String get formattedStartTime =>

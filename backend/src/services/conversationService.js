@@ -22,8 +22,19 @@ const normalizeId = (value) => {
 };
 
 const getConversationOrThrow = async (conversationId, { populate = false } = {}) => {
+  // v23.1 part 45 — fix Daniel "je ne reçois pas les notifs message".
+  // Root cause for walker conversations : populate() listed only ownerId
+  // and sitterId, leaving walkerId as a raw ObjectId. Then sendMessage
+  // read `conversation.walkerId?.name` which was undefined → senderName
+  // landed as an empty string in the NEW_MESSAGE payload. Android's FCM
+  // dispatcher silently drops notifications whose `notification.title`
+  // resolves to "Nouveau message de " (empty trailing). Adding walkerId
+  // to the populate list fixes the title for walker conversations.
   const query = populate
-    ? Conversation.findById(conversationId).populate('ownerId').populate('sitterId')
+    ? Conversation.findById(conversationId)
+        .populate('ownerId')
+        .populate('sitterId')
+        .populate('walkerId')
     : Conversation.findById(conversationId);
 
   const conversation = await query;
@@ -270,7 +281,29 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
     : ownerIdForNotif;
 
   if (recipientId && recipientId !== senderId) {
-    // Sprint 4 step 3 — multilingual NEW_MESSAGE (in-app + push + email).
+    // v23.1 part 45 — guarantee non-empty senderName + preview so the FCM
+    // notification title and body are never empty (Android drops empty
+    // notifications). senderName falls back to a localized role label,
+    // preview to "📎 Pièce jointe" / "Nouveau message".
+    let senderName =
+      senderRole === 'owner'
+        ? conversation.ownerId?.name
+        : senderRole === 'walker'
+          ? conversation.walkerId?.name
+          : conversation.sitterId?.name;
+    senderName = (senderName && senderName.trim()) || 'HoPetSit';
+    let preview = (effectiveBody || conversation.lastMessage || '').trim();
+    if (!preview) {
+      preview = normalizedAttachments.length > 0
+        ? '📎 Pièce jointe'
+        : 'Nouveau message';
+    }
+    preview = preview.slice(0, 120);
+
+    // v23.1 part 45 — drop the silent .catch swallowing : if sendNotification
+    // throws (template missing / email decrypt error / FCM credentials), we
+    // log it explicitly so the cause is visible in Render logs. Never throw
+    // back to the caller — message persistence already succeeded.
     sendNotification({
       userId: recipientId,
       role: recipientRole,
@@ -278,16 +311,17 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
       data: {
         conversationId: conversation._id.toString(),
         messageId: message._id.toString(),
-        senderName:
-          senderRole === 'owner'
-            ? conversation.ownerId?.name || ''
-            : senderRole === 'walker'
-              ? conversation.walkerId?.name || ''
-              : conversation.sitterId?.name || '',
-        preview: (effectiveBody || conversation.lastMessage || '').slice(0, 120),
+        senderName,
+        preview,
       },
       actor: { role: senderRole, id: senderId },
-    }).catch(() => {});
+    }).catch((e) => {
+      try {
+        require('../utils/logger').warn(
+          `[conversation.sendMessage] NEW_MESSAGE notif failed for recipient=${recipientRole}:${recipientId} : ${e?.message || e}`,
+        );
+      } catch (_) {}
+    });
   }
 
   return {
