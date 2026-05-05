@@ -108,19 +108,31 @@ const sendPush = async (tokens, title, body, data) => {
  * @param {Object} [params.actor]  - { role, id } who triggered the event
  */
 const sendNotification = async ({ userId, role, type, data = {}, actor = null }) => {
+  // v23.1 part 48 — entry log fires UNCONDITIONALLY before any early return.
+  // Lets us prove from Render logs that sendNotification was actually
+  // invoked (vs being skipped upstream). Previous logs only fired once
+  // user/template resolved, so a "user not found" path was indistinguishable
+  // from a "function never called" one.
+  logger.info(`[notif.entry] type=${type} role=${role} userId=${userId}`);
   if (!userId || !role || !type) {
-    logger.warn('sendNotification: missing required fields', { userId, role, type });
+    logger.warn(
+      `[notif.skip] missing required fields userId=${userId} role=${role} type=${type}`,
+    );
     return;
   }
   const user = await resolveUser(role, userId);
   if (!user) {
-    logger.warn('sendNotification: user not found', { role, userId });
+    logger.warn(
+      `[notif.skip] user not found in ${role} collection for userId=${userId} ` +
+      `(this happens when the booking references a deleted/migrated user — ` +
+      `check whether a switchRole purged the recipient's old doc)`,
+    );
     return;
   }
   const locale = resolveLocale(user.language);
   const tmpl = pickTemplate(locale, type);
   if (!tmpl) {
-    logger.warn('sendNotification: template missing', { type, locale });
+    logger.warn(`[notif.skip] template missing type=${type} locale=${locale}`);
     return;
   }
   const title = render(tmpl.title, data);
@@ -128,15 +140,12 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   const emailSubject = render(tmpl.emailSubject, data);
   const emailBody = render(tmpl.emailBody, data);
   const email = decrypt(user.email || '');
-  // v23.1 part 44 — diagnostic line so Daniel can see at a glance which
-  // channels are even *attempted*. Previously the logs only said "channel
-  // failed" after the fact ; if a channel was skipped (no email after
-  // decrypt, no fcmTokens), the silence looked the same as a success.
   const tokenCount = Array.isArray(user.fcmTokens) ? user.fcmTokens.length : 0;
   logger.info(
     `[notif.send] type=${type} role=${role} userId=${userId} ` +
     `locale=${locale} fcmTokens=${tokenCount} ` +
-    `emailReady=${email && email.length > 3 ? 'yes' : 'NO'}`,
+    `emailReady=${email && email.length > 3 ? 'yes' : 'NO'} ` +
+    `title="${(title || '').slice(0, 60)}"`,
   );
 
   // Real-time socket push for in-app badges — best-effort, no await.
@@ -159,10 +168,21 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
     email ? sendEmail(email, emailSubject, body, emailBody) : Promise.resolve({ skipped: true }),
   ]);
 
+  // v23.1 part 48 — log success/failure per channel so the Render log
+  // explicitly tells us each channel's outcome instead of just complaining
+  // when something failed. Helps diagnose "email arrived but push didn't"
+  // or vice-versa.
+  const channels = ['in-app', 'push', 'email'];
   results.forEach((r, idx) => {
+    const channel = channels[idx];
     if (r.status === 'rejected') {
-      const channel = ['in-app', 'push', 'email'][idx];
-      logger.warn(`notification ${channel} channel failed for ${type}`, r.reason?.message || r.reason);
+      logger.warn(
+        `[notif.channel] ${channel} FAILED for ${type} → ${r.reason?.message || r.reason}`,
+      );
+    } else {
+      const v = r.value || {};
+      const skipped = v.skipped ? ` (skipped: ${v.reason || 'no_email'})` : '';
+      logger.info(`[notif.channel] ${channel} ok for ${type}${skipped}`);
     }
   });
 };
