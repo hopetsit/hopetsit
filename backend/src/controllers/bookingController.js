@@ -2329,6 +2329,50 @@ const createBookingPaymentIntent = async (req, res) => {
     booking.paymentStatus = 'pending';
     await booking.save();
 
+    // v23.1 part 47 — fix Daniel "carte enregistrée affichée mais HPP me
+    // redemande la saisie". Root cause : the Airwallex Hosted Payment Page
+    // never auto-fills saved consents on its own — passing payment_consent_id
+    // to the PaymentIntent only tells Airwallex *which* consent to use IF
+    // confirmed, but the HPP UI still shows the full card form. The fix is
+    // to confirm the PaymentIntent SERVER-SIDE with `payment_consent_reference`
+    // — Airwallex then charges the saved card directly using the stored
+    // payment_method, no UI needed. If the consent requires 3DS (rare for
+    // unscheduled MIT-flagged consents but possible per issuer/region), the
+    // confirm response carries `next_action` with a redirect URL ; we
+    // surface that to the client so the WebView fallback still works.
+    let serverConfirmed = false;
+    let nextActionUrl = null;
+    if (selectedConsentId) {
+      try {
+        const confirmed = await airwallex.confirmPaymentIntent(paymentIntent.id, {
+          payment_consent_reference: { id: selectedConsentId },
+        });
+        const confirmedStatus = (confirmed?.status || '').toUpperCase();
+        logger.info(
+          `[booking.createPaymentIntent] server-side confirm with consent ${selectedConsentId} ` +
+          `→ status=${confirmedStatus}`,
+        );
+        if (confirmedStatus === 'SUCCEEDED') {
+          serverConfirmed = true;
+        } else if (confirmedStatus === 'REQUIRES_CUSTOMER_ACTION') {
+          // 3DS step needed — return the redirect URL so the client can
+          // open the WebView at that URL instead of the regular HPP.
+          nextActionUrl =
+            confirmed?.next_action?.url ||
+            confirmed?.next_action?.redirect_to_url?.url ||
+            null;
+        }
+      } catch (confirmErr) {
+        // Confirm can fail (e.g. consent disabled, card expired, declined).
+        // Don't crash : fall back to the regular HPP flow so the user can
+        // re-enter their card details.
+        logger.warn(
+          `[booking.createPaymentIntent] server-side confirm failed for consent ${selectedConsentId} : ` +
+          `${confirmErr?.message || confirmErr}. Falling back to HPP.`,
+        );
+      }
+    }
+
     // v18.9.8 — see _prepareOwnerPaymentForAgreedBooking. The commission is
     // paid ON TOP by the owner and stored in booking.pricing.commission.
     // Loyalty discount is absorbed by the platform (provider keeps full
@@ -2354,7 +2398,16 @@ const createBookingPaymentIntent = async (req, res) => {
           }
         : null,
       booking: sanitizeBooking(booking),
-      message: 'PaymentIntent created successfully. Use clientSecret with Stripe Payment Sheet.',
+      // v23.1 part 47 — saved-card fast path signals.
+      // serverConfirmed=true → frontend can skip the HPP entirely and
+      //   call /confirm-payment directly to mark the booking paid.
+      // nextActionUrl !== null → 3DS challenge required, frontend opens
+      //   that URL in the WebView instead of the regular bridge URL.
+      serverConfirmed,
+      nextActionUrl,
+      message: serverConfirmed
+        ? 'PaymentIntent confirmed via saved card. Skip HPP.'
+        : 'PaymentIntent created successfully. Open HPP for user payment.',
     });
   } catch (error) {
     // v23.1 — structured error mapping (PART 4). Backend now returns a stable

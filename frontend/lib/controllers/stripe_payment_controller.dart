@@ -104,6 +104,22 @@ class StripePaymentController extends GetxController {
       );
       log('[booking] AIRWALLEX flow (€$totalAmount) — pi=$_paymentIntentId');
 
+      // v23.1 part 47 — saved-card fast path. When the user picked an
+      // existing card, the backend confirmed the PaymentIntent server-side
+      // using payment_consent_reference. The HPP is then redundant and
+      // pre-filling it doesn't even work (Airwallex HPP always shows the
+      // full card form). We skip directly to confirm-payment.
+      final bool serverConfirmed =
+          paymentIntentResponse['serverConfirmed'] == true;
+      if (serverConfirmed && _paymentIntentId != null && _paymentIntentId!.isNotEmpty) {
+        AppLogger.logUserAction(
+          'Airwallex Payment Confirmed (saved card, no HPP)',
+          data: {'bookingId': booking.id, 'paymentIntentId': _paymentIntentId},
+        );
+        await confirmPayment(paymentIntentId: _paymentIntentId!);
+        return;
+      }
+
       final result = await AirwallexPaymentService.confirmPaymentIntent(
         intentId: _paymentIntentId ?? '',
         clientSecret: _clientSecret!,
