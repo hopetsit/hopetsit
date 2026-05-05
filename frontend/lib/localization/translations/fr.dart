@@ -1196,6 +1196,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'iban_security_note': 'Tes données sont chiffrées et jamais partagées',
       'iban_saved_success': 'IBAN enregistré avec succès',
       'iban_save_failed': 'Impossible d\'enregistrer l\'IBAN. Réessaie.',
+      'iban_partial_save_title': 'IBAN enregistré, wallet en attente',
+      'iban_partial_save_message': 'Ton IBAN est sauvegardé mais la connexion à notre prestataire de paiement a échoué. Réessaie dans quelques minutes pour activer les virements.',
       'iban_required': 'L\'IBAN est requis',
       'iban_invalid_format': 'Format IBAN invalide',
       'map_distance_filter_label': 'Distance : @km km',

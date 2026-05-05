@@ -35,12 +35,18 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
   /// the IBAN screen feels native to walker (green) AND sitter (blue) AND
   /// owner (orange — even though IBAN isn't normally for owners, we keep
   /// it defensive). Falls back to primaryColor (orange) if role is unknown.
+  ///
+  /// v23.1 part 44 — fix infinite recursion : the previous `return _accent`
+  /// on the unknown-role branch caused a stack overflow as soon as the
+  /// IBAN screen rendered for any role other than walker/sitter (and we
+  /// have plans to expose IBAN to walkers using a non-tagged owner JWT
+  /// during multi-role tests).
   Color get _accent {
     final role =
         (GetStorage().read(StorageKeys.userRole) ?? '').toString().toLowerCase();
     if (role == 'walker') return AppColors.walkerAccent;
     if (role == 'sitter') return AppColors.sitterAccent;
-    return _accent;
+    return AppColors.primaryColor;
   }
 
   @override
@@ -99,10 +105,31 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
           _isSaved = true;
           _ibanCtrl.clear();
         });
-        CustomSnackbar.showSuccess(
-          title: 'common_success'.tr,
-          message: 'iban_saved_success'.tr,
-        );
+        // v23.1 part 44 — fix Daniel "wallet pas connecté, walker/sitter
+        // ne reçoivent pas les paiements". The backend's PUT /iban endpoint
+        // now returns `beneficiarySynced: true|false` and `beneficiaryError`
+        // — when the Airwallex Beneficiary creation race-conditions or
+        // fails, the IBAN is saved encrypted in our DB but the provider
+        // has no airwallexBeneficiaryId, so payouts get HELD on the
+        // platform wallet forever. The user used to see a "saved" toast
+        // and never knew anything was wrong. Now we surface the failure
+        // explicitly with the underlying error so they can retry.
+        final beneficiarySynced = response['beneficiarySynced'] == true;
+        final beneficiaryError =
+            (response['beneficiaryError'] ?? '').toString();
+        if (beneficiarySynced) {
+          CustomSnackbar.showSuccess(
+            title: 'common_success'.tr,
+            message: 'iban_saved_success'.tr,
+          );
+        } else {
+          CustomSnackbar.showWarning(
+            title: 'iban_partial_save_title'.tr,
+            message: beneficiaryError.isNotEmpty
+                ? '${'iban_partial_save_message'.tr}\n$beneficiaryError'
+                : 'iban_partial_save_message'.tr,
+          );
+        }
       }
     } catch (e) {
       CustomSnackbar.showError(

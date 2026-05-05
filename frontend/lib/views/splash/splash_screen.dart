@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -8,6 +10,7 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/onboarding/onboarding_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -58,33 +61,106 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  /// v23.1 part 44 — fix Bug H "login as owner opens walker".
+  ///
+  /// Root cause : splash read `StorageKeys.userRole` directly. When storage
+  /// was contaminated by a previous session (e.g. walker test → kill app
+  /// without clean logout → storage still says walker), splash navigated
+  /// based on that stale value even though the JWT could say something else.
+  /// The walker case fell into the `else` branch (Onboarding) because only
+  /// owner/sitter were handled.
+  ///
+  /// Fix : decode the JWT directly and use ITS role claim as the source of
+  /// truth (the backend signs the JWT, so its role cannot drift). Storage
+  /// is only consulted as a fallback if the JWT is missing/expired/malformed.
+  /// The 3 roles (owner/sitter/walker) all have a proper navigation branch.
+  String? _decodeRoleFromJwt(String? token) {
+    if (token == null || token.isEmpty) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      var payload = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final bytes = base64.decode(payload);
+      final json = jsonDecode(utf8.decode(bytes));
+      final role = (json is Map && json['role'] is String)
+          ? (json['role'] as String).toLowerCase()
+          : null;
+      // Reject tokens that are already expired so we never auto-login a
+      // user whose backend session is dead.
+      if (json is Map && json['exp'] is num) {
+        final expSec = (json['exp'] as num).toInt();
+        final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        if (expSec <= nowSec) return null;
+      }
+      return (role != null && role.isNotEmpty) ? role : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _checkAuthentication() async {
     await Future.delayed(const Duration(milliseconds: 2000));
 
     final storage = GetStorage();
     final token = storage.read<String>(StorageKeys.authToken);
-    final role = storage.read<String>(StorageKeys.userRole);
+    final storedRole = storage.read<String>(StorageKeys.userRole);
+    final jwtRole = _decodeRoleFromJwt(token);
 
     debugPrint(
       '[HOPETSIT] ========== SPLASH SCREEN - CHECKING AUTH ==========',
     );
     debugPrint('[HOPETSIT] Token exists: ${token != null && token.isNotEmpty}');
-    debugPrint('[HOPETSIT] Role: $role');
+    debugPrint('[HOPETSIT] JWT role: $jwtRole');
+    debugPrint('[HOPETSIT] Storage role: $storedRole');
 
-    if (token != null && token.isNotEmpty) {
-      if (role == 'owner') {
-        debugPrint('[HOPETSIT] Navigating to Owner Home');
-        Get.offAll(() => const BottomNavWrapper());
-      } else if (role == 'sitter') {
-        debugPrint('[HOPETSIT] Navigating to Sitter Home');
-        Get.offAll(() => const SitterNavWrapper());
-      } else {
-        debugPrint('[HOPETSIT] Role not found, navigating to Onboarding');
-        Get.offAll(() => const OnboardingScreen());
-      }
-    } else {
+    if (token == null || token.isEmpty) {
       debugPrint('[HOPETSIT] No token found, navigating to Onboarding');
       Get.offAll(() => const OnboardingScreen());
+      return;
+    }
+
+    // JWT is the source of truth. If it cannot be decoded (malformed) OR
+    // the token is expired, treat as logged out.
+    if (jwtRole == null) {
+      debugPrint(
+        '[HOPETSIT] JWT invalid/expired, clearing auth + Onboarding',
+      );
+      storage.remove(StorageKeys.authToken);
+      storage.remove(StorageKeys.userRole);
+      Get.offAll(() => const OnboardingScreen());
+      return;
+    }
+
+    // Storage drift recovery : if storage disagrees with JWT, re-write
+    // storage so AuthController.onInit reads the correct value next time.
+    if (storedRole != jwtRole) {
+      debugPrint(
+        '[HOPETSIT] ⚠️ Role drift (storage=$storedRole, jwt=$jwtRole). Forcing JWT role.',
+      );
+      storage.write(StorageKeys.userRole, jwtRole);
+    }
+
+    switch (jwtRole) {
+      case 'owner':
+        debugPrint('[HOPETSIT] Navigating to Owner Home');
+        Get.offAll(() => const BottomNavWrapper());
+        break;
+      case 'sitter':
+        debugPrint('[HOPETSIT] Navigating to Sitter Home');
+        Get.offAll(() => const SitterNavWrapper());
+        break;
+      case 'walker':
+        debugPrint('[HOPETSIT] Navigating to Walker Home');
+        Get.offAll(() => const WalkerNavWrapper());
+        break;
+      default:
+        debugPrint(
+          '[HOPETSIT] Unknown JWT role "$jwtRole" → Onboarding',
+        );
+        Get.offAll(() => const OnboardingScreen());
     }
   }
 

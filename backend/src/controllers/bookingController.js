@@ -2271,9 +2271,20 @@ const createBookingPaymentIntent = async (req, res) => {
         ...(selectedConsentId ? {
           payment_consent_id: selectedConsentId,
         } : {
+          // v23.1 part 44 — fix Daniel "la carte CB ne s'enregistre pas".
+          // Root cause : `type: 'one_off'` creates a consent that is
+          // single-use only. After it is consumed by the first PI it
+          // cannot be reused for a second booking — Airwallex HPP
+          // rejects it. Switching to `type: 'recurring'` (with
+          // next_triggered_by: 'customer' = customer-initiated future
+          // transactions) creates a reusable consent that auto-flips
+          // to VERIFIED on first successful charge, so the saved card
+          // pre-fills on the next payment without the merchant having
+          // to call any extra API.
           payment_consent: {
-            type: 'one_off',
+            type: 'recurring',
             next_triggered_by: 'customer',
+            merchant_trigger_reason: 'unscheduled',
           },
         }),
       } : {}),

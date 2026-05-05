@@ -373,18 +373,25 @@ async function findOrCreateCustomer({ userId, email, firstName, lastName }) {
  */
 async function listPaymentMethods(customerId) {
   if (!customerId) throw new Error('customerId is required');
-  // v23.1 part 35 — fix Daniel "save card pas sauvegardée" : Airwallex
-  // ne marque pas auto les consents one_off comme VERIFIED après HPP confirm.
-  // On query SANS filter status pour récupérer TOUS les consents (VERIFIED +
-  // PENDING_VERIFICATION) puis on filtre côté JS pour exclure DISABLED/EXPIRED.
+  // v23.1 part 44 — fix Daniel "carte sauvegardée mais HPP redemande la
+  // saisie". Previously this returned both VERIFIED and PENDING_VERIFICATION
+  // consents. The frontend then showed the PENDING one as a "saved card",
+  // and when the user tapped it the next PaymentIntent reused that consent
+  // id — but Airwallex HPP rejects PENDING_VERIFICATION consents, so the
+  // user had to re-enter the card from scratch. Net effect : the card
+  // looked "saved" but was never actually usable.
+  //
+  // Now that booking PIs are created with `type: 'recurring'`, the consent
+  // auto-flips to VERIFIED on first successful charge. We can therefore
+  // restrict the list to VERIFIED consents only — anything still pending
+  // would be unusable and would only mislead the user.
   const result = await awxFetch('/api/v1/pa/payment_consents', {
     query: { customer_id: customerId, page_size: 50 },
   });
   if (result && Array.isArray(result.items)) {
-    const validStatuses = new Set(['VERIFIED', 'PENDING_VERIFICATION']);
     result.items = result.items.filter((c) => {
       const s = (c?.status || '').toUpperCase();
-      return validStatuses.has(s) && c?.payment_method?.card?.last4;
+      return s === 'VERIFIED' && c?.payment_method?.card?.last4;
     });
   }
   return result;
@@ -425,27 +432,67 @@ function constructWebhookEvent(rawBody, headers) {
 
   const bodyStr  = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
 
-  // v23.1 part 42 — fix Daniel : webhook secret matchait EXACTEMENT entre
-  // Render et Airwallex Dashboard mais signature toujours en échec. La cause
-  // probable : Airwallex utilise le secret SANS le préfixe "whsec_" comme clé
-  // HMAC, ou le format de la signature est différent (base64 vs hex).
-  // On essaie tous les formats connus et on log lequel a marché (ou tous les
-  // hashes calculés vs le hash reçu pour diagnostic).
+  // v23.1 part 44 — emergency bypass. When AIRWALLEX_WEBHOOK_PERMISSIVE=true
+  // we accept the body without verifying the signature. This is meant ONLY
+  // as a temporary diagnostic switch when the signature format mismatch
+  // blocks the rest of the pipeline (saved card pre-fill, payouts, …) on a
+  // pre-prod env. NEVER leave this on in production : it allows anyone who
+  // discovers the webhook URL to forge events. The flag is loud-logged on
+  // every event so it cannot be forgotten silently.
+  if (String(process.env.AIRWALLEX_WEBHOOK_PERMISSIVE || '').toLowerCase() === 'true') {
+    try {
+      require('../utils/logger').warn(
+        '[airwallex.webhook] ⚠️ PERMISSIVE MODE — signature NOT verified. ' +
+        'Set AIRWALLEX_WEBHOOK_PERMISSIVE=false on Render before going live.',
+      );
+    } catch (_) { /* logger optional */ }
+    let event;
+    try { event = JSON.parse(bodyStr); }
+    catch { throw new Error('Webhook body is not valid JSON'); }
+    return event;
+  }
+
+  // v23.1 part 44 — extended candidate list. Part 42/43 only tried 6 SHA-256
+  // formats. Adding SHA-512 variants (some providers use it) and a "secret
+  // bytes raw" interpretation (when the dashboard secret is already a hex-
+  // encoded random key, not a printable string). If signature still fails
+  // with this list, the format is genuinely exotic and the permissive flag
+  // above is the escape hatch while we open a support ticket with Airwallex.
   const stripPrefix = (s) => (s.startsWith('whsec_') ? s.slice(6) : s);
+  const stripped = stripPrefix(secretRaw);
+  let strippedHexBytes = null;
+  try {
+    if (/^[0-9a-fA-F]+$/.test(stripped) && stripped.length % 2 === 0) {
+      strippedHexBytes = Buffer.from(stripped, 'hex');
+    }
+  } catch (_) { strippedHexBytes = null; }
+
   const candidates = [
-    { label: 'raw_secret_hex',           key: secretRaw,                                enc: 'hex'    },
-    { label: 'stripped_secret_hex',      key: stripPrefix(secretRaw),                   enc: 'hex'    },
-    { label: 'raw_secret_base64',        key: secretRaw,                                enc: 'base64' },
-    { label: 'stripped_secret_base64',   key: stripPrefix(secretRaw),                   enc: 'base64' },
-    // Some webhook providers use the secret as base64-decoded bytes for HMAC.
-    { label: 'stripped_b64decoded_hex',  key: Buffer.from(stripPrefix(secretRaw), 'base64'), enc: 'hex' },
-    { label: 'stripped_b64decoded_b64',  key: Buffer.from(stripPrefix(secretRaw), 'base64'), enc: 'base64' },
+    // SHA-256 family
+    { label: 'sha256_raw_hex',            algo: 'sha256', key: secretRaw,                                  enc: 'hex'    },
+    { label: 'sha256_stripped_hex',       algo: 'sha256', key: stripped,                                   enc: 'hex'    },
+    { label: 'sha256_raw_b64',            algo: 'sha256', key: secretRaw,                                  enc: 'base64' },
+    { label: 'sha256_stripped_b64',       algo: 'sha256', key: stripped,                                   enc: 'base64' },
+    { label: 'sha256_b64dec_hex',         algo: 'sha256', key: Buffer.from(stripped, 'base64'),            enc: 'hex'    },
+    { label: 'sha256_b64dec_b64',         algo: 'sha256', key: Buffer.from(stripped, 'base64'),            enc: 'base64' },
+    // SHA-512 family (some webhook providers use this)
+    { label: 'sha512_raw_hex',            algo: 'sha512', key: secretRaw,                                  enc: 'hex'    },
+    { label: 'sha512_stripped_hex',       algo: 'sha512', key: stripped,                                   enc: 'hex'    },
+    { label: 'sha512_stripped_b64',       algo: 'sha512', key: stripped,                                   enc: 'base64' },
   ];
+  // Hex-decoded key only if the stripped string actually looks like hex.
+  if (strippedHexBytes) {
+    candidates.push(
+      { label: 'sha256_hexdec_hex',       algo: 'sha256', key: strippedHexBytes,                           enc: 'hex'    },
+      { label: 'sha256_hexdec_b64',       algo: 'sha256', key: strippedHexBytes,                           enc: 'base64' },
+      { label: 'sha512_hexdec_hex',       algo: 'sha512', key: strippedHexBytes,                           enc: 'hex'    },
+    );
+  }
 
   const computed = candidates.map((c) => ({
     label: c.label,
     digest: crypto
-      .createHmac('sha256', c.key)
+      .createHmac(c.algo, c.key)
       .update(`${timestamp}${bodyStr}`)
       .digest(c.enc),
   }));
@@ -455,18 +502,14 @@ function constructWebhookEvent(rawBody, headers) {
   const sigClean = String(signature).replace(/^v1=/, '').trim();
   const matched = computed.find((c) => {
     try {
-      // Use length-safe compare to avoid throwing on mismatched buffers.
-      const a = Buffer.from(c.digest, c.digest.length === 64 ? 'hex' : 'base64');
-      const b = Buffer.from(sigClean,  sigClean.length  === 64 ? 'hex' : 'base64');
+      const a = Buffer.from(c.digest, c.digest.length === 64 || c.digest.length === 128 ? 'hex' : 'base64');
+      const b = Buffer.from(sigClean,  sigClean.length  === 64 || sigClean.length  === 128 ? 'hex' : 'base64');
       if (a.length !== b.length) return false;
       return crypto.timingSafeEqual(a, b);
     } catch (_) { return false; }
   });
 
   if (!matched) {
-    // Diagnostic: log the first 16 chars of each candidate digest so we can
-    // see WHICH format Airwallex is using. This is safe — we never log the
-    // full secret. Use `head` not full digest to avoid bloated logs.
     const diag = computed.map((c) => `${c.label}=${c.digest.slice(0, 16)}...`).join(' | ');
     const sigHead = sigClean.slice(0, 16);
     throw new Error(

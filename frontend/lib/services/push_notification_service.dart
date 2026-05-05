@@ -190,8 +190,29 @@ class PushNotificationService extends GetxService {
             'provider_sent_request_sitter',
             'direct_request',
           };
+          // v23.1 part 44 — fix Daniel "badge chat n'apparaît pas".
+          // Foreground FCM handler only bumped unreadHome; chat-type
+          // notifs (NEW_MESSAGE) had to wait for the socket to bump
+          // the chat badge. When the socket was slow / not yet
+          // connected, the notif arrived as a phone push but the
+          // bottom-nav Chat badge stayed at 0.
+          final chatTypes = {
+            'new_message',
+            'message',
+            'message_new',
+          };
+          final bookingTypes = {
+            'booking_paid',
+            'booking_paid_owner',
+            'payment_success',
+            'application_accepted',
+          };
           if (homeTypes.contains(rawType)) {
             nc.bumpUnreadHomeImmediate();
+          } else if (chatTypes.contains(rawType)) {
+            nc.bumpUnreadChatImmediate();
+          } else if (bookingTypes.contains(rawType)) {
+            nc.bumpUnreadBookingsImmediate();
           }
           nc.bumpUnreadCountImmediate();
         }

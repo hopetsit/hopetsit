@@ -287,47 +287,49 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     }
 
     // Priority 2 — payment received → confirmation banner.
-    // Heuristic : show whenever paymentStatus = paid AND status is still
-    // 'agreed' or 'paid' (we have no per-user "seen" flag, so the bar
-    // disappears as soon as the booking moves to 'completed').
-    // v23.1 part 43 — fix Daniel "walker recoi payer alors que owner a pas
-    // payer" : la banner restait des jours pour des bookings payés par
-    // l'owner sur un test précédent, ce qui faisait croire à Daniel que
-    // walker recevait un faux signal au moment de l'accept. On filtre
-    // maintenant à 24h max après updatedAt — au-delà, banner se cache
-    // automatiquement (l'utilisateur peut toujours retrouver le booking
-    // dans Réservations).
+    //
+    // v23.1 part 44 — fix Daniel "walker reçoit Paiement reçu alors que
+    // owner n'a pas payé". Root cause : the window was 24h on
+    // `updatedAt`. `updatedAt` bumps on every mutation (status change,
+    // agreement update, …) so a booking paid yesterday kept re-flashing
+    // the banner today every time it was touched. The user could still
+    // dismiss with the X but it kept reappearing.
+    //
+    // Fix : key off `paidAt` (the actual payment timestamp, set once at
+    // confirmBookingPayment time and never moved) AND a tighter 1h
+    // window. Bookings paid more than 1h ago no longer surface this
+    // banner — the user can still find them under Mes Réservations.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    const maxBannerAgeMs = 24 * 60 * 60 * 1000; // 24h
+    const maxBannerAgeMs = 60 * 60 * 1000; // 1h
     for (final b in bookings) {
       final pay = (b.paymentStatus ?? '').toLowerCase();
       final st  = (b.status ?? '').toLowerCase();
-      // v23.1 — same dismiss list as ownerPay so a sitter/walker can hide
-      // the 'Paiement reçu' banner permanently.
       if (_dismissedIds.contains(b.id)) continue;
-      // v23.1 part 43 — skip bookings paid >24h ago.
-      try {
-        final updatedAt = DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
-        if (updatedAt != null && (nowMs - updatedAt) > maxBannerAgeMs) continue;
-      } catch (_) { /* ignore parse errors, keep banner */ }
-      if (pay == 'paid' && st != 'completed') {
-        final isWalker = widget.role == 'walker';
-        final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
-        return _QuickAction(
-          kind: _Kind.providerPaid,
-          color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
-          icon: Icons.check_circle_rounded,
-          title: 'Paiement reçu !',
-          subtitle: '$ownerName a payé '
-              '${CurrencyHelper.format(
-                b.pricing?.currency ?? 'EUR',
-                (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
-              )} • ${_dateLabel(b)}',
-          ctaLabel: 'Voir détails',
-          booking: b,
-          pulse: false,
-        );
-      }
+      if (pay != 'paid' || st == 'completed') continue;
+      // Require a recent paidAt. If paidAt is missing (legacy bookings
+      // from before part 44) we deliberately skip the banner rather
+      // than fall back to updatedAt — the false-positive risk is too
+      // high for a banner that says "Paiement reçu €X".
+      final paidAtMs = DateTime.tryParse(b.paidAt ?? '')?.millisecondsSinceEpoch;
+      if (paidAtMs == null) continue;
+      if ((nowMs - paidAtMs) > maxBannerAgeMs) continue;
+
+      final isWalker = widget.role == 'walker';
+      final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
+      return _QuickAction(
+        kind: _Kind.providerPaid,
+        color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+        icon: Icons.check_circle_rounded,
+        title: 'Paiement reçu !',
+        subtitle: '$ownerName a payé '
+            '${CurrencyHelper.format(
+              b.pricing?.currency ?? 'EUR',
+              (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
+            )} • ${_dateLabel(b)}',
+        ctaLabel: 'Voir détails',
+        booking: b,
+        pulse: false,
+      );
     }
     return null;
   }

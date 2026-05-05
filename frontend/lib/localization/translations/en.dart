@@ -1119,6 +1119,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'iban_save_button': 'Save Bank Account',
       'iban_saved_success': 'Bank account saved! Our team will verify it shortly.',
       'iban_save_failed': 'Failed to save. Please try again.',
+      'iban_partial_save_title': 'IBAN saved, wallet pending',
+      'iban_partial_save_message': 'Your IBAN is saved but the payment provider sync failed. Try again in a few minutes to activate payouts.',
       'iban_status_verified': 'Verified — payouts active',
       'iban_status_pending': 'Pending admin verification',
       'iban_security_note': 'Your data is encrypted and securely stored.',

@@ -63,7 +63,15 @@ const resolveUser = async (role, userId) => {
 
 const sendPush = async (tokens, title, body, data) => {
   const list = (tokens || []).filter(Boolean);
-  if (!list.length) return { skipped: true };
+  if (!list.length) {
+    // v23.1 part 44 — surface "no FCM token registered" as a distinct
+    // log line. Previously sendPush silently returned skipped:true and
+    // we had no way to tell from the logs whether the user had an
+    // empty fcmTokens array (most likely cause of "no phone push") or
+    // whether Firebase rejected every token.
+    logger.warn('[notif.push] skipped : user has no fcmTokens registered');
+    return { skipped: true, reason: 'no_tokens' };
+  }
   const message = {
     tokens: list,
     notification: { title, body },
@@ -71,7 +79,21 @@ const sendPush = async (tokens, title, body, data) => {
       Object.entries(data || {}).map(([k, v]) => [k, String(v ?? '')])
     ),
   };
-  return firebaseAdmin.messaging().sendEachForMulticast(message);
+  const result = await firebaseAdmin.messaging().sendEachForMulticast(message);
+  // Log per-token outcomes so a stale/invalid token gets visible.
+  if (result && (result.failureCount || 0) > 0) {
+    logger.warn(
+      `[notif.push] partial failure : success=${result.successCount} ` +
+      `fail=${result.failureCount} (tokens checked=${list.length})`,
+    );
+    (result.responses || []).forEach((r, i) => {
+      if (r && !r.success && r.error) {
+        const code = r.error.code || r.error.errorInfo?.code || 'unknown';
+        logger.warn(`[notif.push] token #${i} rejected : ${code}`);
+      }
+    });
+  }
+  return result;
 };
 
 /**
@@ -106,6 +128,16 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   const emailSubject = render(tmpl.emailSubject, data);
   const emailBody = render(tmpl.emailBody, data);
   const email = decrypt(user.email || '');
+  // v23.1 part 44 — diagnostic line so Daniel can see at a glance which
+  // channels are even *attempted*. Previously the logs only said "channel
+  // failed" after the fact ; if a channel was skipped (no email after
+  // decrypt, no fcmTokens), the silence looked the same as a success.
+  const tokenCount = Array.isArray(user.fcmTokens) ? user.fcmTokens.length : 0;
+  logger.info(
+    `[notif.send] type=${type} role=${role} userId=${userId} ` +
+    `locale=${locale} fcmTokens=${tokenCount} ` +
+    `emailReady=${email && email.length > 3 ? 'yes' : 'NO'}`,
+  );
 
   // Real-time socket push for in-app badges — best-effort, no await.
   try {

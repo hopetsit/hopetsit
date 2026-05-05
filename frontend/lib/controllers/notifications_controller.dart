@@ -222,6 +222,21 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     unreadCount.value = unreadCount.value + 1;
   }
 
+  // v23.1 part 44 — chat + bookings counterparts so the foreground FCM
+  // handler can update those badges immediately too. Without these the
+  // bottom-nav Chat / Réservations badges only updated when the parallel
+  // socket event arrived, which lagged behind the phone push by 1-2s in
+  // the field (and never arrived at all when the socket was offline).
+  void bumpUnreadChatImmediate() {
+    unreadChat.value = unreadChat.value + 1;
+    _storage.write(_kUnreadChat, unreadChat.value);
+  }
+
+  void bumpUnreadBookingsImmediate() {
+    unreadBookings.value = unreadBookings.value + 1;
+    _storage.write(_kUnreadBookings, unreadBookings.value);
+  }
+
   // v20.0.13 — public wrapper around the dedup helper so the FCM handler
   // can check + register a notification id before bumping the badge.
   bool markSeenOrDupePublic(Map<String, dynamic> data) {

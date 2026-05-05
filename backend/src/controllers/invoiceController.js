@@ -266,7 +266,34 @@ const renderInvoiceHtml = async (req, res) => {
   .totals tr.grand td { font-size: 15px; color: #5942CC; border-top: 2px solid #5942CC; padding-top: 12px; }
   .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #E0DAFF; font-size: 11px; color: #888; line-height: 1.6; }
   .pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #5942CC; color: #fff; margin-left: 6px; }
-  @media print { body { padding: 20px; } }
+  /* v23.1 part 44 — fix Daniel "factures sur Render mais on peut pas les
+     télécharger". On mobile/Samsung browser the print menu is hidden behind
+     a 3-dot menu and most users never find it. The download bar pins a
+     visible "Télécharger PDF" button to the bottom of the screen — tapping
+     it triggers window.print() which on mobile browsers presents the
+     native Save-as-PDF / Share sheet. The bar hides itself in print mode
+     so the saved PDF only contains the invoice itself. */
+  .download-bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 12px 16px; background: #fff;
+    border-top: 1px solid #E0DAFF;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+    text-align: center;
+    z-index: 9999;
+  }
+  .download-bar button {
+    background: #EF4324; color: #fff; border: 0;
+    padding: 12px 32px; border-radius: 999px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(239, 67, 36, 0.35);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .download-bar button:active { transform: scale(0.97); }
+  body { padding-bottom: 92px; } /* leave room for the fixed bar */
+  @media print {
+    body { padding: 20px; padding-bottom: 20px; }
+    .download-bar { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -355,6 +382,12 @@ const renderInvoiceHtml = async (req, res) => {
     available up to 72h before the service starts. See
     <a href="https://hopetsit.com/refund">https://hopetsit.com/refund</a> for
     full terms.
+  </div>
+
+  <div class="download-bar">
+    <button type="button" onclick="window.print()" aria-label="Télécharger PDF">
+      ⬇ Télécharger PDF
+    </button>
   </div>
 </body>
 </html>`);

@@ -61,6 +61,12 @@ class BookingModel {
   String status;
   final String createdAt;
   final String updatedAt;
+  // v23.1 part 44 — paidAt is the canonical "moment payment was confirmed".
+  // Banner uses it (not updatedAt) to decide whether the "Paiement reçu"
+  // banner is still relevant : updatedAt drifts on every booking edit
+  // (status change, agreement update…) which made the banner reappear
+  // every time the booking was touched, even hours after the payment.
+  final String? paidAt;
   final BookingUser owner;
   final BookingSitter sitter;
   final List<BookingPet> pets; // From API "pets" array
@@ -88,6 +94,7 @@ class BookingModel {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.paidAt,
     required this.owner,
     required this.sitter,
     List<BookingPet>? pets,
@@ -155,6 +162,7 @@ class BookingModel {
       status: json['status'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
+      paidAt: json['paidAt'] as String? ?? json['paid_at'] as String?,
       owner: BookingUser.fromJson(finalOwnerData),
       sitter: BookingSitter.fromJson(finalSitterData),
       pets: parsedPets,
