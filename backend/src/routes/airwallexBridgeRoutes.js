@@ -75,14 +75,21 @@ router.get('/checkout', (req, res) => {
   // The components-sdk auto-discovers the customer and saved cards from the
   // PaymentIntent's `customer_id` server-side. We just call redirectToCheckout
   // with the standard params — Airwallex does the rest.
-  // v23.1 part 58 — Bridge rewrite. The `components/v1/index.js` ESM module
-  // path was either wrong or stuck (Daniel reported the page hanging on
-  // "Connexion sécurisée…" indefinitely). We switch to the well-documented
-  // `airwallex-payment-elements` global script, which exposes a stable
-  // `Airwallex.redirectToCheckout(...)` and is what Airwallex itself uses
-  // in the official HPP examples. We also :
+  // v23.1 part 59 — Bridge fixed with the OFFICIAL Airwallex CDN URL :
+  //   https://static.airwallex.com/components/sdk/v1/index.js
+  // Verified against airwallex-payment-demo/integrations/cdn/hpp.html on
+  // GitHub. Previous attempts (parts 57/58) used either a wrong path
+  // (`/components/v1/index.js` missing /sdk/) or pure guesses
+  // (checkout.airwallex.com/assets/elements.bundle.min.js — doesn't exist).
+  //
+  // Global exposed by the script : `window.AirwallexComponentsSDK`.
+  // Init returns `{ payments }`, then call `payments.redirectToCheckout({...})`
+  // with the args from the official HPP demo : env, mode:'payment',
+  // currency, intent_id, client_secret, successUrl, failUrl.
+  //
+  // We also keep our visible-error UX from part 58 :
   //   - Show JS errors visibly on the page (otherwise stuck = invisible)
-  //   - Add a 6-second watchdog that surfaces a "still loading…" message
+  //   - Watchdogs that surface a "still loading…" message
   //   - Catch every onerror / unhandledrejection and report to the page
   //   - Provide a manual "Continuer" button as a last-resort escape hatch
   const html = `<!doctype html>
@@ -179,31 +186,34 @@ router.get('/checkout', (req, res) => {
       document.head.appendChild(s);
     }
 
-    function doRedirect() {
+    async function doRedirect() {
       try {
-        var Aw = window.Airwallex || window.AirwallexPayments;
-        if (!Aw) {
-          showError('SDK Airwallex introuvable. Vérifie ta connexion.');
+        var SDK = window.AirwallexComponentsSDK;
+        if (!SDK || typeof SDK.init !== 'function') {
+          showError('SDK Airwallex introuvable (window.AirwallexComponentsSDK manquant).');
           return;
         }
-        setStatus('Redirection vers Airwallex…');
-        if (typeof Aw.init === 'function') {
-          Aw.init({ env: ENV, origin: window.location.origin });
-        }
-        var redirect = (Aw.redirectToCheckout || (Aw.payments && Aw.payments.redirectToCheckout));
-        if (typeof redirect !== 'function') {
-          showError('redirectToCheckout indisponible dans le SDK.');
-          return;
-        }
-        redirect.call(Aw, {
+        setStatus('Init du SDK…');
+        var ctx = await SDK.init({
           env: ENV,
+          enabledElements: ['payments'],
+        });
+        var payments = ctx && ctx.payments;
+        if (!payments || typeof payments.redirectToCheckout !== 'function') {
+          showError('payments.redirectToCheckout indisponible.');
+          return;
+        }
+        setStatus('Redirection vers la page sécurisée Airwallex…');
+        await payments.redirectToCheckout({
+          env: ENV,
+          mode: 'payment',
+          currency: CURRENCY,
           intent_id: INTENT,
           client_secret: SECRET,
-          currency: CURRENCY,
-          country_code: COUNTRY,
           successUrl: SUCCESS,
-          cancelUrl:  CANCEL,
           failUrl:    FAILU,
+          // Airwallex HPP doesn't accept cancelUrl in the recent SDK ; the
+          // user "Annuler" button on this bridge page handles that locally.
           // We don't pass customer_id here — Airwallex auto-discovers it
           // from the customer_id attached on the PaymentIntent server-side.
         });
@@ -221,23 +231,13 @@ router.get('/checkout', (req, res) => {
 
     setStatus('Chargement du SDK Airwallex…');
     loadScript(
-      'https://checkout.airwallex.com/assets/elements.bundle.min.js',
+      'https://static.airwallex.com/components/sdk/v1/index.js',
       function() {
         setStatus('SDK chargé, init…');
         doRedirect();
       },
       function() {
-        // Fallback to a second known CDN path
-        loadScript(
-          'https://static.airwallex.com/payments/v1/airwallex-payment.min.js',
-          function() {
-            setStatus('SDK chargé (fallback), init…');
-            doRedirect();
-          },
-          function() {
-            showError('Impossible de charger le SDK Airwallex (aucun CDN accessible). Vérifie ta connexion.');
-          }
-        );
+        showError('Impossible de charger le SDK Airwallex. Vérifie ta connexion internet.');
       }
     );
 
