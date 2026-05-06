@@ -488,8 +488,7 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildSummaryCard(BuildContext context, Color accent, String currency) {
