@@ -208,12 +208,11 @@ router.get('/checkout', (req, res) => {
           env: ENV,
           mode: 'payment',
           currency: CURRENCY,
+          country_code: COUNTRY,
           intent_id: INTENT,
           client_secret: SECRET,
           successUrl: SUCCESS,
           failUrl:    FAILU,
-          // Airwallex HPP doesn't accept cancelUrl in the recent SDK ; the
-          // user "Annuler" button on this bridge page handles that locally.
           // We don't pass customer_id here — Airwallex auto-discovers it
           // from the customer_id attached on the PaymentIntent server-side.
         });

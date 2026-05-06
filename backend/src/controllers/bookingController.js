@@ -2328,17 +2328,34 @@ const createBookingPaymentIntent = async (req, res) => {
       // customer_id automatically. The consentId only acts as a
       // hint to the frontend showing "you already saved 8571" ;
       // the actual reuse is handled by Airwallex via customer_id.
+      // v23.1 part 60 — IMPORTANT: only attach `payment_consent` block
+      // when the user EXPLICITLY ticked "save my card". Daniel reported
+      // the HPP rendered an empty payment area (header + amount + footer
+      // visible, but no card form / no saved-card list in between). Root
+      // cause was that v23.1.58 attached customer_id ALWAYS but kept
+      // adding the `payment_consent: { type: 'recurring', next_triggered_by:
+      // 'customer' }` block on every PI (gated only on selectedConsentId).
+      // Airwallex's HPP doesn't know how to render a one-shot payment
+      // when the PI carries a fresh recurring consent block — it ends
+      // up showing nothing.
+      //
+      // Correct flow per Airwallex docs :
+      //   - customer_id alone   → HPP auto-lists saved cards & lets the
+      //                           user pick one or enter a new card.
+      //   - customer_id + payment_consent block → only when the merchant
+      //                           wants to PERSIST the new card. Tied to
+      //                           the "Save my card" checkbox.
+      //   - selectedConsentId   → don't add payment_consent (card already
+      //                           saved).
       ...(airwallexCustomerId ? {
         customer_id: airwallexCustomerId,
-        // Only ask Airwallex to save the card on the FIRST payment.
-        // On subsequent payments the card already exists.
-        ...(selectedConsentId ? {} : {
+        ...(wantsSaveCard && !selectedConsentId ? {
           payment_consent: {
             type: 'recurring',
             next_triggered_by: 'customer',
             merchant_trigger_reason: 'unscheduled',
           },
-        }),
+        } : {}),
       } : {}),
       metadata: {
         type: 'booking',
