@@ -44,6 +44,19 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
           if (mounted) setState(() => _loading = false);
         },
       ))
+      // v23.1 part 65 — Bug 7 : the orange "⬇ Télécharger PDF" buttons
+      // baked into the invoice HTML used to call window.print() which
+      // is a silent no-op on Android WebView. Now they call
+      // Hopetsit.postMessage('download') and we pop out to the system
+      // browser via launchUrl (same path as the AppBar download icon).
+      ..addJavaScriptChannel(
+        'Hopetsit',
+        onMessageReceived: (msg) {
+          if (msg.message == 'download') {
+            _triggerPrint();
+          }
+        },
+      )
       ..loadRequest(Uri.parse(widget.url));
   }
 

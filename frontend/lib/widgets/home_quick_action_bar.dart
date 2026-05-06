@@ -197,12 +197,28 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     if (widget.role == 'owner') {
       // v22.2 — Bug 16c : aggregate les bookings à payer pour afficher leur
       // count quand y en a plus de 1.
+      // v23.1 part 65 — Bug 1 : exclude bookings whose service date is
+      // already past (>3 days). Without this guard, owner reconnecting
+      // weeks later sees stale "X a accepté" banners for bookings the
+      // service date already lapsed — Daniel reported "anciens paiements
+      // ressortent à reconnexion". We give a small 3-day grace window so
+      // a same-day booking that just lapsed still shows briefly.
+      final nowDateMs = DateTime.now().millisecondsSinceEpoch;
+      const grace3DaysMs = 3 * 24 * 60 * 60 * 1000;
       final acceptedToPay = bookings.where((b) {
         final status = (b.status ?? '').toLowerCase();
         final pay    = (b.paymentStatus ?? '').toLowerCase();
         if (pay == 'paid') return false;
-        // v23.1 — PART 2 : skip bookings the user dismissed via the X button.
         if (_dismissedIds.contains(b.id)) return false;
+        // Exclude cancelled / refunded / completed bookings.
+        if (status == 'cancelled' || status == 'refunded' ||
+            status == 'completed' || status == 'rejected' ||
+            status == 'expired') return false;
+        // Exclude stale bookings — service date already > 3 days past.
+        final serviceMs = DateTime.tryParse(b.date)?.millisecondsSinceEpoch;
+        if (serviceMs != null && (nowDateMs - serviceMs) > grace3DaysMs) {
+          return false;
+        }
         return status == 'accepted' || status == 'agreed' || status == 'mutually_accepted';
       }).toList();
 
@@ -242,31 +258,40 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           allBookingIds: acceptedToPay.map((bk) => bk.id).toList(),
         );
       }
-      // v23.1 part 49 — owner-side "Paiement effectué" banner. Mirror of
-      // the provider's "Paiement reçu" banner. Previously the owner had
-      // NO confirmation banner after paying : the "Payer" banner just
-      // disappeared and the user wondered if their payment went through.
-      // Now they see a green check confirmation for 24h post-payment.
+      // v23.1 part 49 — owner-side "Paiement effectué" banner.
+      // v23.1 part 65 — Bug 2 : aggregate ALL recently-paid bookings into
+      // allBookingIds so a single tap on X dismisses every paid banner at
+      // once instead of needing 1 tap per booking (Daniel : "je dois
+      // appuyer 4 fois sur fermer avant que le bandeau ce ferme"). Also
+      // applies to the provider-side "Paiement reçu" branch below.
       final ownerNowMs = DateTime.now().millisecondsSinceEpoch;
       const ownerMaxAgeMs = 24 * 60 * 60 * 1000; // 24h
-      for (final b in bookings) {
+      final ownerPaidRecent = bookings.where((b) {
         final pay = (b.paymentStatus ?? '').toLowerCase();
         final st  = (b.status ?? '').toLowerCase();
-        if (_dismissedIds.contains(b.id)) continue;
-        if (pay != 'paid' || st == 'completed') continue;
+        if (_dismissedIds.contains(b.id)) return false;
+        if (pay != 'paid' || st == 'completed') return false;
         final paidAtMs =
             DateTime.tryParse(b.paidAt ?? '')?.millisecondsSinceEpoch ??
             DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
-        if (paidAtMs == null) continue;
-        if ((ownerNowMs - paidAtMs) > ownerMaxAgeMs) continue;
+        if (paidAtMs == null) return false;
+        return (ownerNowMs - paidAtMs) <= ownerMaxAgeMs;
+      }).toList();
+
+      if (ownerPaidRecent.isNotEmpty) {
+        final b = ownerPaidRecent.first;
         final providerName = b.sitter.name.trim().isNotEmpty
             ? b.sitter.name
             : 'Le prestataire';
+        final extra = ownerPaidRecent.length - 1;
+        final title = extra > 0
+            ? 'Paiement effectué (+$extra autre${extra > 1 ? 's' : ''})'
+            : 'Paiement effectué';
         return _QuickAction(
           kind: _Kind.providerPaid,
           color: const Color(0xFF16A34A), // green = success
           icon: Icons.verified_rounded,
-          title: 'Paiement effectué',
+          title: title,
           subtitle: '${CurrencyHelper.format(
                 b.pricing?.currency ?? 'EUR',
                 (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
@@ -274,6 +299,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           ctaLabel: 'Voir détails',
           booking: b,
           pulse: false,
+          allBookingIds: ownerPaidRecent.map((bk) => bk.id).toList(),
         );
       }
       // Lower priority — payment pending warning (orange).
@@ -327,30 +353,36 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     // the user has the whole day to see the confirmation if they were
     // away when the payment landed. Auto-dismissed after first display
     // via the X button, OR auto-hidden once status flips to 'completed'.
+    // v23.1 part 65 — Bug 2/5 : aggregate all recently-paid bookings into
+    // allBookingIds so a single X tap dismisses every paid banner at
+    // once. Same pattern as the owner side.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     const maxBannerAgeMs = 24 * 60 * 60 * 1000; // 24h
-    for (final b in bookings) {
+    final providerPaidRecent = bookings.where((b) {
       final pay = (b.paymentStatus ?? '').toLowerCase();
       final st  = (b.status ?? '').toLowerCase();
-      if (_dismissedIds.contains(b.id)) continue;
-      if (pay != 'paid' || st == 'completed') continue;
-      // v23.1 part 49 — fall back to updatedAt when paidAt is missing
-      // (legacy bookings from before part 44). The 24h window combined
-      // with the explicit `pay=='paid'` guard makes false positives very
-      // unlikely now.
+      if (_dismissedIds.contains(b.id)) return false;
+      if (pay != 'paid' || st == 'completed') return false;
       final paidAtMs =
           DateTime.tryParse(b.paidAt ?? '')?.millisecondsSinceEpoch ??
           DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
-      if (paidAtMs == null) continue;
-      if ((nowMs - paidAtMs) > maxBannerAgeMs) continue;
+      if (paidAtMs == null) return false;
+      return (nowMs - paidAtMs) <= maxBannerAgeMs;
+    }).toList();
 
+    if (providerPaidRecent.isNotEmpty) {
+      final b = providerPaidRecent.first;
       final isWalker = widget.role == 'walker';
       final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
+      final extra = providerPaidRecent.length - 1;
+      final title = extra > 0
+          ? 'Paiement reçu ! (+$extra autre${extra > 1 ? 's' : ''})'
+          : 'Paiement reçu !';
       return _QuickAction(
         kind: _Kind.providerPaid,
         color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
         icon: Icons.check_circle_rounded,
-        title: 'Paiement reçu !',
+        title: title,
         subtitle: '$ownerName a payé '
             '${CurrencyHelper.format(
               b.pricing?.currency ?? 'EUR',
@@ -359,6 +391,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         ctaLabel: 'Voir détails',
         booking: b,
         pulse: false,
+        allBookingIds: providerPaidRecent.map((bk) => bk.id).toList(),
       );
     }
     return null;

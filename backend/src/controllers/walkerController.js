@@ -121,7 +121,32 @@ const findNearbyWalkers = async (req, res) => {
       },
     ]);
 
-    res.json({ walkers: walkers.map((w) => sanitizeUser(w)) });
+    // v23.1 part 65 — Bug 9 : annotate boost flags so the PawMap UI can
+    // bubble PawSpot-paid walkers to the top of the list and apply
+    // a special pin treatment. Without this, paying for PawSpot had
+    // zero visible effect on the map for the walker.
+    const now = new Date();
+    const enriched = walkers.map((w) => {
+      const safe = sanitizeUser(w);
+      const isBoosted = w.boostExpiry && new Date(w.boostExpiry) > now;
+      const isMapBoosted = w.mapBoostExpiry && new Date(w.mapBoostExpiry) > now;
+      return {
+        ...safe,
+        isBoosted: Boolean(isBoosted),
+        boostTier: isBoosted ? (w.boostTier || null) : null,
+        isMapBoosted: Boolean(isMapBoosted),
+        mapBoostTier: isMapBoosted ? (w.mapBoostTier || null) : null,
+      };
+    });
+
+    enriched.sort((a, b) => {
+      const aRank = (a.isMapBoosted ? 2 : 0) + (a.isBoosted ? 1 : 0);
+      const bRank = (b.isMapBoosted ? 2 : 0) + (b.isBoosted ? 1 : 0);
+      if (aRank !== bRank) return bRank - aRank;
+      return 0;
+    });
+
+    res.json({ walkers: enriched });
   } catch (error) {
     logger.error('findNearbyWalkers error', error);
     res.status(500).json({ error: 'Unable to fetch nearby walkers.' });

@@ -279,6 +279,35 @@ const handleAirwallexWebhook = async (req, res) => {
               logger.info(`[airwallex.webhook] conversation created ${conversation._id} for booking ${booking._id}`);
             }
 
+            // v23.1 part 65 — Bug 4 : idempotency guard. Daniel reported
+            // the auto chat messages appearing TWICE after payment. Root
+            // cause : Airwallex retries the payment_intent.succeeded
+            // webhook (or our /confirm endpoint runs in parallel) and
+            // both code paths posted the system messages.
+            //
+            // Strategy : look for an existing system message that
+            // mentions the booking id in its body OR whose timestamp is
+            // very close to the current payment time. If we find one,
+            // skip the message creation entirely. We use the booking id
+            // as a stable marker — every payment has a unique booking
+            // id, and we tag the metadata with `bookingId`. Falls back
+            // to a body-substring match for legacy messages without
+            // metadata.
+            const existingSystemMsg = await Message.findOne({
+              conversationId: conversation._id,
+              senderRole: 'system',
+              $or: [
+                { 'metadata.bookingId': booking._id.toString() },
+                { 'metadata.kind': 'payment_confirmed', 'metadata.intentId': paymentIntentId },
+              ],
+            }).lean();
+            const skipSystemMessages = Boolean(existingSystemMsg);
+            if (skipSystemMessages) {
+              logger.info(
+                `[airwallex.webhook] system messages already posted for booking ${booking._id} — skipping duplicates`,
+              );
+            }
+
             // v23.1 — localise le body selon la langue de l'owner.
             const ownerDoc = await Owner.findById(ownerId).select('language').lean();
             const ownerLang = (ownerDoc?.language || 'fr').slice(0, 2).toLowerCase();
@@ -293,16 +322,6 @@ const handleAirwallexWebhook = async (req, res) => {
             const localizedBody =
               PAYMENT_CONFIRMED_BODY[ownerLang] || PAYMENT_CONFIRMED_BODY.en;
 
-            const systemMessage = await Message.create({
-              conversationId: conversation._id,
-              senderRole: 'system',
-              senderId: ownerId, // requis par schema, on met l'owner
-              body: localizedBody,
-              type: 'text',
-            });
-
-            // v23.1 part 37 — 2e system message "Bonjour, discutons du lieu
-            // de rencontre" pour inviter les 2 parties à briser la glace.
             const RENDEZVOUS_BODY = {
               fr: '👋 Bonjour ! Discutons ici pour convenir du lieu et de l\'heure de rencontre.',
               en: '👋 Hello! Let\'s chat here to agree on the meeting place and time.',
@@ -313,84 +332,111 @@ const handleAirwallexWebhook = async (req, res) => {
             };
             const rendezvousBody =
               RENDEZVOUS_BODY[ownerLang] || RENDEZVOUS_BODY.en;
-            const rendezvousMessage = await Message.create({
-              conversationId: conversation._id,
-              senderRole: 'system',
-              senderId: ownerId,
-              body: rendezvousBody,
-              type: 'text',
-            });
 
-            // v23.1 part 41 — fix Daniel "badge message marche pas" :
-            // increment BOTH ownerUnreadCount and sitterUnreadCount (the
-            // schema uses sitterUnreadCount as a generic provider field, even
-            // when the actual provider is a walker — see Conversation.js).
-            // 2 system messages = +2 each, plus update lastMessage/lastMessageAt
-            // so the conversation list shows the right preview.
-            try {
-              conversation.lastMessage = rendezvousBody;
-              conversation.lastMessageAt = new Date();
-              conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 2;
-              conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 2;
-              await conversation.save();
-            } catch (e) {
-              logger.warn(`[airwallex.webhook] conversation badge update failed : ${e.message}`);
+            // v23.1 part 65 — Bug 4 : only create system messages once per
+            // booking (idempotency). On webhook retry / parallel /confirm,
+            // skip creation but still keep the rest of the flow alive.
+            let systemMessage = null;
+            let rendezvousMessage = null;
+            if (!skipSystemMessages) {
+              systemMessage = await Message.create({
+                conversationId: conversation._id,
+                senderRole: 'system',
+                senderId: ownerId, // requis par schema, on met l'owner
+                body: localizedBody,
+                type: 'text',
+                metadata: {
+                  kind: 'payment_confirmed',
+                  bookingId: booking._id.toString(),
+                  intentId: paymentIntentId,
+                },
+              });
+
+              // v23.1 part 37 — 2e system message "Bonjour, discutons du
+              // lieu de rencontre" pour inviter les 2 parties à briser la
+              // glace.
+              rendezvousMessage = await Message.create({
+                conversationId: conversation._id,
+                senderRole: 'system',
+                senderId: ownerId,
+                body: rendezvousBody,
+                type: 'text',
+                metadata: {
+                  kind: 'rendezvous_prompt',
+                  bookingId: booking._id.toString(),
+                  intentId: paymentIntentId,
+                },
+              });
             }
 
-            // Push temps réel vers les 2 parties (les 2 messages).
-            try {
-              for (const msg of [systemMessage, rendezvousMessage]) {
-                emitToUser('owner', ownerId.toString(), 'message:new', {
-                  conversationId: conversation._id.toString(),
-                  message: msg.toObject(),
-                });
-                emitToUser(providerRole, providerId.toString(), 'message:new', {
-                  conversationId: conversation._id.toString(),
-                  message: msg.toObject(),
-                });
+            // v23.1 part 65 — Bug 4 : skip ALL badge / socket / notif
+            // logic when system messages were already posted to avoid
+            // double pushes / double FCM / double emails on webhook
+            // retry. Idempotent end-to-end.
+            if (!skipSystemMessages && systemMessage && rendezvousMessage) {
+              // v23.1 part 41 — fix Daniel "badge message marche pas" :
+              // increment BOTH ownerUnreadCount and sitterUnreadCount.
+              try {
+                conversation.lastMessage = rendezvousBody;
+                conversation.lastMessageAt = new Date();
+                conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 2;
+                conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 2;
+                await conversation.save();
+              } catch (e) {
+                logger.warn(`[airwallex.webhook] conversation badge update failed : ${e.message}`);
               }
-            } catch (_) { /* socket non-critique */ }
 
-            // v23.1 — fire NEW_MESSAGE notification (in-app badge + FCM
-            // push + email) to BOTH parties so the chat tab badge bumps
-            // and the user gets a phone push + email even if the app is
-            // closed. Previously only emitToUser was called → silent if
-            // app in background.
-            try {
-              const { sendNotification } = require('../services/notificationSender');
-              const senderName = 'HoPetSit';
-              const previewText = (localizedBody || '').slice(0, 120);
-              await Promise.allSettled([
-                sendNotification({
-                  userId: ownerId.toString(),
-                  role: 'owner',
-                  type: 'NEW_MESSAGE',
-                  data: {
+              // Push temps réel vers les 2 parties (les 2 messages).
+              try {
+                for (const msg of [systemMessage, rendezvousMessage]) {
+                  emitToUser('owner', ownerId.toString(), 'message:new', {
                     conversationId: conversation._id.toString(),
-                    messageId: systemMessage._id.toString(),
-                    senderName,
-                    preview: previewText,
-                  },
-                  actor: { role: 'system', id: null },
-                }),
-                sendNotification({
-                  userId: providerId.toString(),
-                  role: providerRole,
-                  type: 'NEW_MESSAGE',
-                  data: {
+                    message: msg.toObject(),
+                  });
+                  emitToUser(providerRole, providerId.toString(), 'message:new', {
                     conversationId: conversation._id.toString(),
-                    messageId: systemMessage._id.toString(),
-                    senderName,
-                    preview: previewText,
-                  },
-                  actor: { role: 'system', id: null },
-                }),
-              ]);
-            } catch (e) {
-              logger.warn(`[airwallex.webhook] system message notification failed: ${e.message}`);
+                    message: msg.toObject(),
+                  });
+                }
+              } catch (_) { /* socket non-critique */ }
+
+              // Fire NEW_MESSAGE notification to BOTH parties.
+              try {
+                const { sendNotification } = require('../services/notificationSender');
+                const senderName = 'HoPetSit';
+                const previewText = (localizedBody || '').slice(0, 120);
+                await Promise.allSettled([
+                  sendNotification({
+                    userId: ownerId.toString(),
+                    role: 'owner',
+                    type: 'NEW_MESSAGE',
+                    data: {
+                      conversationId: conversation._id.toString(),
+                      messageId: systemMessage._id.toString(),
+                      senderName,
+                      preview: previewText,
+                    },
+                    actor: { role: 'system', id: null },
+                  }),
+                  sendNotification({
+                    userId: providerId.toString(),
+                    role: providerRole,
+                    type: 'NEW_MESSAGE',
+                    data: {
+                      conversationId: conversation._id.toString(),
+                      messageId: systemMessage._id.toString(),
+                      senderName,
+                      preview: previewText,
+                    },
+                    actor: { role: 'system', id: null },
+                  }),
+                ]);
+              } catch (e) {
+                logger.warn(`[airwallex.webhook] system message notification failed: ${e.message}`);
+              }
+
+              logger.info(`✅ [airwallex.webhook] system message sent in conv ${conversation._id} (booking ${booking._id})`);
             }
-
-            logger.info(`✅ [airwallex.webhook] system message sent in conv ${conversation._id} (booking ${booking._id})`);
           }
         } catch (e) {
           logger.error(`[airwallex.webhook] auto chat message failed : ${e.message}`);

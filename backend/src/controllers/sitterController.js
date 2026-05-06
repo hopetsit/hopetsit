@@ -154,10 +154,18 @@ const findNearbySitters = async (req, res) => {
     const sitters = await Sitter.aggregate(aggregationPipeline);
 
     // Format response with sitter details
+    // v23.1 part 65 — Bug 9 : also surface MAP BOOST (PawSpot) data, not
+    // only Profile Boost. Daniel paid PawSpot and saw nothing happen on
+    // the map because the endpoint only read sitter.boostExpiry/Tier and
+    // ignored sitter.mapBoostExpiry/Tier — the field that the
+    // /map-boost/confirm endpoint sets. Now both are exposed and the map
+    // sort places mapBoosted (PawSpot) above non-boosted profiles.
     const now = new Date();
     const nearbySitters = sitters.map((sitter) => {
       const skills = parseSkills(sitter.skills);
       const isBoosted = sitter.boostExpiry && new Date(sitter.boostExpiry) > now;
+      const isMapBoosted =
+        sitter.mapBoostExpiry && new Date(sitter.mapBoostExpiry) > now;
 
       return {
         id: sitter._id.toString(),
@@ -184,14 +192,18 @@ const findNearbySitters = async (req, res) => {
         verified: sitter.verified || false,
         isBoosted: isBoosted || false,
         boostTier: isBoosted ? (sitter.boostTier || null) : null,
+        isMapBoosted: isMapBoosted || false,
+        mapBoostTier: isMapBoosted ? (sitter.mapBoostTier || null) : null,
       };
     });
 
-    // Sort: boosted profiles first, then by distance
+    // Sort: mapBoosted (PawSpot — paid for map visibility) > Profile
+    // Boosted > distance. PawSpot is the more recent / higher-tier buy.
     nearbySitters.sort((a, b) => {
-      if (a.isBoosted && !b.isBoosted) return -1;
-      if (!a.isBoosted && b.isBoosted) return 1;
-      return 0; // keep original distance order within each group
+      const aRank = (a.isMapBoosted ? 2 : 0) + (a.isBoosted ? 1 : 0);
+      const bRank = (b.isMapBoosted ? 2 : 0) + (b.isBoosted ? 1 : 0);
+      if (aRank !== bRank) return bRank - aRank;
+      return 0; // keep original distance order within each rank group
     });
 
     res.json({

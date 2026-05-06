@@ -816,25 +816,13 @@ class _HomeScreenState extends State<HomeScreen> {
           onProfileTap: () {},
           role: 'owner',
           actions: [
-            // v18.6 — mini bouton Boost à gauche de la carte et de la cloche.
+            // v23.1 part 65 — Bug 8 : the map shortcut icon (white on the
+            // orange gradient) was removed from the AppBar. Daniel found
+            // it visually noisy and redundant since the PawMap is always
+            // one tap away via the central round button on the bottom
+            // nav bar. Keeping only the Boost mini-button + the system
+            // notification bell rendered by CustomAppBar.
             const BoostQuickAction(role: 'owner'),
-            SizedBox(width: 4.w),
-            GestureDetector(
-              onTap: () => Get.to(() => const PawMapScreen()),
-              child: Container(
-                width: 38.w,
-                height: 38.h,
-                decoration: BoxDecoration(
-                  gradient: AppColors.linearGradient,
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Icon(
-                  Icons.map_outlined,
-                  color: AppColors.whiteColor,
-                  size: 20.sp,
-                ),
-              ),
-            ),
             SizedBox(width: 4.w),
           ],
         ),
