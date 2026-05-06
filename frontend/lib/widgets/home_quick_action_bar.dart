@@ -626,7 +626,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                         padding: EdgeInsets.all(6.w),
                         child: Icon(
                           Icons.close_rounded,
-                          color: AppColors.greyText,
+                          color: const Color(0xFF707070),
                           size: 22.sp,
                         ),
                       ),
