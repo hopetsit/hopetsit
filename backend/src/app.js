@@ -220,6 +220,10 @@ const versionedRoutes = [
   { path: '/bug-reports', mw: [sensitiveLimiter], router: bugReportRoutes },
   // v19.0 — Wallet Vinted-style (sitter+walker balance + withdrawals).
   { path: '/wallet', mw: [], router: require('./routes/walletRoutes') },
+  // v23.1 part 57 — self-hosted Airwallex bridge (replaces hopetsit.com/pay)
+  // + customer debug endpoint. The /checkout HTML page is public, but the
+  // /customer-debug endpoint is auth-guarded inside the router.
+  { path: '/airwallex', mw: [], router: require('./routes/airwallexBridgeRoutes') },
 ];
 
 // Log deprecation warning for unversioned callers.

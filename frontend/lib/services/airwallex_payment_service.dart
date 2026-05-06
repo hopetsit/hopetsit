@@ -23,6 +23,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/data/network/api_config.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -40,10 +41,12 @@ class AirwallexPaymentResult {
 class AirwallexPaymentService {
   AirwallexPaymentService._();
 
-  /// Domaine du site web HoPetSit qui héberge la page bridge `/pay`. La
-  /// production pointe sur le custom domain ; on garde une fallback vers
-  /// l'URL Vercel au cas où le DNS bouge.
-  static const String _bridgeBase = 'https://hopetsit.com';
+  /// v23.1 part 57 — switched from external `hopetsit.com/pay` (opaque,
+  /// can't be debugged from our side) to our own Render-hosted bridge at
+  /// `/api/v1/airwallex/checkout`. Same Airwallex.js call internally,
+  /// but we control the page so we can guarantee saved cards display
+  /// correctly via the customer_id attached to the PaymentIntent.
+  static String get _bridgeBase => ApiConfig.baseUrl;
 
   /// Init du service. No-op : pas de SDK natif à initialiser, juste un log
   /// pour confirmer au boot que la couche Airwallex est branchée.
@@ -88,8 +91,16 @@ class AirwallexPaymentService {
       AppLogger.logInfo('[airwallex] opening 3DS webview → ${uri.toString()}');
     } else {
       final env = live ? 'prod' : 'demo';
-      uri = Uri.parse(_bridgeBase).replace(
-        path: '/pay',
+      // v23.1 part 57 — call our self-hosted bridge at
+      // /api/v1/airwallex/checkout (Render). We append query params; the
+      // backend renders an HTML page that loads Airwallex.js and calls
+      // payments.redirectToCheckout(intent_id, client_secret, …) — at
+      // which point Airwallex auto-discovers the customer's saved cards
+      // via the customer_id attached on the PaymentIntent and shows
+      // them on the HPP.
+      final base = Uri.parse(_bridgeBase);
+      uri = base.replace(
+        path: '${base.path}/airwallex/checkout',
         queryParameters: {
           'intent':   intentId,
           'secret':   clientSecret,
@@ -172,7 +183,9 @@ class _AirwallexCheckoutScreenState extends State<_AirwallexCheckoutScreen> {
   }
 
   bool _looksLikeDoneUrl(String url) =>
-      url.contains('/pay/done');
+      // v23.1 part 57 — accept both old `/pay/done` (legacy hopetsit.com
+      // bridge) and new `/checkout/done` (our self-hosted Render bridge).
+      url.contains('/pay/done') || url.contains('/checkout/done');
 
   void _maybeResolveFromUrl(String url) {
     if (_looksLikeDoneUrl(url)) _resolveFromUrl(url);
