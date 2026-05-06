@@ -261,6 +261,30 @@ router.get('/checkout', (req, res) => {
 
   res.set('Content-Type', 'text/html; charset=utf-8');
   res.set('Cache-Control', 'no-store');
+  // v23.1 part 60 — Override Helmet's default CSP for this specific route
+  // so the browser can load the Airwallex SDK + connect to airwallex API
+  // + render the HPP iframe. The default `script-src 'self'` was the
+  // root cause of "Impossible de charger le SDK Airwallex" — the
+  // <script src="https://static.airwallex.com/...">  load was blocked
+  // before any onerror could fire, so loadScript fell through to the
+  // showError handler. We allow the specific airwallex.com origins
+  // (not a blanket *) to keep things tight.
+  res.set(
+    'Content-Security-Policy',
+    [
+      "default-src 'self' https://*.airwallex.com",
+      "script-src 'self' 'unsafe-inline' https://*.airwallex.com https://static.airwallex.com",
+      "style-src 'self' 'unsafe-inline' https://*.airwallex.com",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https://*.airwallex.com wss://*.airwallex.com",
+      "frame-src 'self' https://*.airwallex.com",
+      "frame-ancestors 'self' https://*.airwallex.com",
+      "font-src 'self' data: https:",
+      "form-action 'self' https://*.airwallex.com",
+      "base-uri 'self'",
+      "object-src 'none'",
+    ].join('; '),
+  );
   res.send(html);
 });
 
