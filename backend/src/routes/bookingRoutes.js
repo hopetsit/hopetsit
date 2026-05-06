@@ -964,5 +964,17 @@ router.get('/:id/visit-report', requireAuth, getVisitReport);
 // Sprint 7 step 1 — complete a booking (owner action) triggers loyalty.
 router.post('/:id/complete', requireAuth, requireRole('owner'), completeBooking);
 
+// v23.1 part 66 — PawFollow live-tracking endpoint.
+//   Owner avec abonnement PawFollow actif peut récupérer la position
+//   actuelle (lat/lng) du sitter ou walker pour un booking payé/actif.
+//   Couplé avec un bouton "Suivre" dans le chat qui ouvre la PawMap
+//   centrée sur cette position.
+router.get(
+  '/:id/provider-location',
+  requireAuth,
+  requireRole('owner'),
+  require('../controllers/bookingController').getProviderLocation,
+);
+
 module.exports = router;
 

@@ -772,22 +772,38 @@ const resolveBookingEndDate = (booking) => {
 
 /**
  * Session v23.1 — Release window after service completion (in milliseconds).
- * Aligned with the policy submitted to Airwallex: funds are released to the
- * provider 24 hours after the service ends, allowing a dispute window for
- * the owner. Tweakable via env var PAYOUT_RELEASE_WINDOW_HOURS.
+ * v23.1 part 66 — POLICY CHANGE.
+ *
+ * NEW RULE (Daniel) : the provider gets the money on the DAY THE
+ * SERVICE STARTS, not 24h after it ends. This aligns with the offline
+ * pet-sitting market where providers expect to be paid on the day they
+ * pick up the animal.
+ *
+ * - Pour les promenades chien (dog walking), le release a lieu au
+ *   début du créneau réservé (ex : 14h00 ce jour).
+ * - Pour les gardes longues (boarding / sitting / day-care), le
+ *   release a lieu à l'heure exacte de début (ex : 8h00 du J1 où
+ *   l'owner dépose le chien).
+ *
+ * Le owner garde un dispute-window via :
+ *   • notre flow de cancel < 72h auto-refund (preserved)
+ *   • le bouton "Signaler un problème" du booking (manual refund admin)
+ *
+ * Si on doit réintroduire un buffer (env risk team Airwallex), on peut
+ * définir PAYOUT_RELEASE_OFFSET_HOURS (positif = retard, négatif =
+ * avance). Default 0 = release at start exactly.
  */
-const PAYOUT_RELEASE_WINDOW_MS =
-  (Number(process.env.PAYOUT_RELEASE_WINDOW_HOURS) || 24) * 60 * 60 * 1000;
+const PAYOUT_RELEASE_OFFSET_MS =
+  (Number(process.env.PAYOUT_RELEASE_OFFSET_HOURS) || 0) * 60 * 60 * 1000;
 
 /**
  * Compute the scheduled payout datetime for a paid booking:
- *   = booking.endDate + 24h (or PAYOUT_RELEASE_WINDOW_HOURS hours).
- * For dog walks, that's typically the same day, late evening.
- * For overnight stays, that's the morning after the last night + 24h.
+ *   = booking.startDate (i.e. the day/hour the provider starts the service)
+ *     + optional PAYOUT_RELEASE_OFFSET_HOURS.
  */
 const resolvePayoutReleaseAt = (booking) => {
-  const end = resolveBookingEndDate(booking);
-  return new Date(end.getTime() + PAYOUT_RELEASE_WINDOW_MS);
+  const start = resolveBookingStartDate(booking);
+  return new Date(start.getTime() + PAYOUT_RELEASE_OFFSET_MS);
 };
 
 /**
@@ -835,7 +851,7 @@ const schedulePayoutForBooking = async (booking) => {
   booking.payoutStatus = 'scheduled';
   await booking.save();
   logger.info(
-    `🗓️  Payout scheduled for booking ${booking._id.toString()} on ${booking.scheduledPayoutAt.toISOString()} (endDate + 24h policy).`
+    `🗓️  Payout scheduled for booking ${booking._id.toString()} on ${booking.scheduledPayoutAt.toISOString()} (service-start policy v23.1.66).`
   );
 };
 
@@ -3927,6 +3943,90 @@ const cancelBookingPaymentIntent = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/v1/bookings/:id/provider-location
+ *
+ * v23.1 part 66 — PawFollow live-tracking.
+ * Returns the latest GeoJSON `location.coordinates` of the booking's
+ * provider (sitter or walker) for an authenticated OWNER, only if :
+ *   1. The owner is the booking's owner (auth scope)
+ *   2. The booking is paid + active (date is today or within window)
+ *   3. The owner has an ACTIVE PawFollow subscription
+ *
+ * The provider's location is updated whenever they call /location/update
+ * (existing endpoint used by the nearby map). Future iteration : push
+ * realtime via socket emit('provider:location-update', { lat, lng }).
+ */
+const getProviderLocation = async (req, res) => {
+  try {
+    const ownerId = req.user.id;
+    const { id: bookingId } = req.params;
+    const booking = await Booking.findById(bookingId).lean();
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (String(booking.ownerId) !== String(ownerId)) {
+      return res.status(403).json({ error: 'Not your booking.' });
+    }
+    const pay = (booking.paymentStatus || '').toLowerCase();
+    if (pay !== 'paid') {
+      return res.status(409).json({ error: 'Tracking only available for paid bookings.' });
+    }
+
+    // PawFollow subscription check.
+    let hasPawFollow = false;
+    try {
+      const UserSubscription = require('../models/UserSubscription');
+      const sub = await UserSubscription.findOne({
+        userId: ownerId,
+        userModel: 'Owner',
+        status: 'active',
+      }).lean();
+      if (sub && sub.expiresAt && new Date(sub.expiresAt) > new Date()) {
+        hasPawFollow = true;
+      }
+    } catch (_) { /* fall through */ }
+
+    if (!hasPawFollow) {
+      return res.status(402).json({
+        error: 'PawFollow subscription required to track your provider live.',
+        code: 'PAWFOLLOW_REQUIRED',
+      });
+    }
+
+    // Resolve provider model + id.
+    let provider = null;
+    let providerRole = null;
+    if (booking.walkerId) {
+      provider = await Walker.findById(booking.walkerId).select('location name avatar').lean();
+      providerRole = 'walker';
+    } else if (booking.sitterId) {
+      provider = await Sitter.findById(booking.sitterId).select('location name avatar').lean();
+      providerRole = 'sitter';
+    }
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider not found.' });
+    }
+
+    const coords = provider?.location?.coordinates;
+    if (!Array.isArray(coords) || coords.length !== 2) {
+      return res.status(204).json({
+        error: 'Provider location not yet shared.',
+        code: 'NO_LOCATION_YET',
+      });
+    }
+
+    return res.json({
+      providerRole,
+      providerName: provider.name || '',
+      providerAvatar: provider.avatar?.url || '',
+      coordinates: { lng: coords[0], lat: coords[1] },
+      updatedAt: provider.updatedAt || null,
+    });
+  } catch (e) {
+    logger.error('[booking.getProviderLocation]', e);
+    return res.status(500).json({ error: 'Unable to fetch provider location.' });
+  }
+};
+
 module.exports = {
   createBooking,
   listBookings,
@@ -3958,4 +4058,6 @@ module.exports = {
   // Shared helper — used by applicationController to offer the owner an
   // immediate Stripe PaymentSheet right after accepting an application.
   _prepareOwnerPaymentForAgreedBooking,
+  // v23.1 part 66 — PawFollow live tracking
+  getProviderLocation,
 };

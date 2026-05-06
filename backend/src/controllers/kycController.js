@@ -53,6 +53,20 @@ const initiatePayment = async (req, res) => {
     if (!Model) {
       return res.status(403).json({ error: 'Only sitter or walker can verify identity.' });
     }
+    // v23.1 part 66 — Daniel : "verification identite ne marche pas".
+    // Surface a clear error if the Persona env vars are missing so the
+    // frontend doesn't fall through to a generic 500. Operators just need
+    // to set PERSONA_API_KEY (live or sandbox) + PERSONA_TEMPLATE_ID on
+    // Render for live mode.
+    if (!process.env.PERSONA_API_KEY || !process.env.PERSONA_TEMPLATE_ID) {
+      logger.error(
+        '[kyc.initiatePayment] PERSONA env vars missing — KYC disabled until configured.',
+      );
+      return res.status(503).json({
+        error: 'Identity verification is temporarily unavailable. Please try again later.',
+        code: 'KYC_NOT_CONFIGURED',
+      });
+    }
     const user = await Model.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
@@ -158,6 +172,15 @@ const startVerification = async (req, res) => {
     });
   } catch (err) {
     logger.error('[kyc.start]', err);
+    // v23.1 part 66 — surface "missing env" as a clean 503 with a code so
+    // the frontend can show a friendly "indisponible" message instead of
+    // the raw stack-trace.
+    if (err.message && err.message.includes('env var is not configured')) {
+      return res.status(503).json({
+        error: 'Identity verification is temporarily unavailable. Please try again later.',
+        code: 'KYC_NOT_CONFIGURED',
+      });
+    }
     return res.status(500).json({ error: 'Unable to start KYC verification.', details: err.message });
   }
 };

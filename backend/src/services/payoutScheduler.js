@@ -2,13 +2,17 @@ const logger = require('../utils/logger');
 /**
  * Payout scheduler.
  *
- * HopeTSIT business rule (Session v23.1 — aligned with Airwallex risk pack):
- *   The pet owner pays at booking time, the money is held in escrow, and
- *   the funds are released to the provider (sitter or walker) **24 hours
- *   after the service ENDS**. This gives the owner a dispute window
- *   immediately after completion while still paying providers quickly.
+ * HopeTSIT business rule (v23.1 part 66 — Daniel) :
+ *   The owner pays at booking time. The money is held in escrow until
+ *   the DAY THE SERVICE STARTS, at which point we release it to the
+ *   provider. Default offset is 0 hours (release at exact start time).
+ *   Overridable via env var PAYOUT_RELEASE_OFFSET_HOURS.
  *
- * Tweakable via env var PAYOUT_RELEASE_WINDOW_HOURS (default 24).
+ * Rationale : in the pet-sitting market, providers expect to be paid
+ * on the day they take charge of the animal. Refund-window protection
+ * for the owner stays in place via :
+ *   - the cancel < 72h auto-refund flow,
+ *   - the "Signaler un problème" admin manual refund.
  *
  * This module starts a lightweight background job that, every 5 minutes,
  * calls `processScheduledSitterPayouts` to release the funds for any
@@ -19,8 +23,9 @@ const logger = require('../utils/logger');
  * will pick up the missed bookings (the query uses `$lte: now`).
  *
  * History:
- *   v17  — interval reduced from 1h to 5min, hour-exact release at start.
- *   v23.1 — release moved from "service start" to "service end + 24h".
+ *   v17    — interval reduced from 1h to 5min, hour-exact release at start.
+ *   v23.1  — release moved temporarily to "service end + 24h".
+ *   v23.1.66 — back to "service start" (Daniel's pet-market policy).
  */
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -77,7 +82,7 @@ function startPayoutScheduler({
   }
 
   logger.info(
-    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes, end+24h release since v23.1, hold-admin release since v18.5).`
+    `🗓️  Payout scheduler started (every ${Math.round(intervalMs / 60000)} minutes, service-start release since v23.1.66, hold-admin release since v18.5).`
   );
 }
 

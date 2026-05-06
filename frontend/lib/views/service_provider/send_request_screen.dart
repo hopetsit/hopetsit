@@ -416,63 +416,65 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           ),
         );
       }
-      // v23.1 part 44 — multi-pet picker. Tapping the tile opens a
-      // bottom sheet with one checkbox per pet ; the user can select any
-      // subset and the closed tile then summarises "Médor, Mistigri".
+      // v23.1 part 66 — Daniel : "lajout danimeau nas pas changer comme
+      // sur publication". The send_request_screen used to open a bottom
+      // sheet picker (different UX from the publication post screen).
+      // We now replicate the EXACT same inline FilterChip pattern used
+      // by publish_reservation_request_screen so the user has a
+      // consistent multi-pet experience across both flows.
       final count = controller.selectedPetsCount;
-      final summary = count == 0
+      final countLabel = count == 0
           ? 'common_select'.tr
-          : (controller.selectedPetsLabel.isNotEmpty
-              ? controller.selectedPetsLabel
-              : '$count');
-      return GestureDetector(
-        onTap: () => _openMultiPetPicker(context, controller),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          height: 50.h,
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          decoration: BoxDecoration(
-            color: AppColors.inputFill(context),
-            borderRadius: BorderRadius.circular(30.r),
-            border: Border.all(color: AppColors.divider(context), width: 1),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: InterText(
-                  text: summary,
-                  fontSize: 14.sp,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  color: count > 0
-                      ? AppColors.textPrimary(context)
-                      : AppColors.greyColor,
-                ),
+          : 'publish_request_selected_pets'.trParams({'count': '$count'});
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(bottom: 6.h),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: InterText(
+                text: countLabel,
+                fontSize: 12.sp,
+                color: count > 0 ? _roleColor : AppColors.greyColor,
               ),
-              if (count > 1) ...[
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-                  decoration: BoxDecoration(
-                    color: _roleColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: PoppinsText(
-                    text: '$count',
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w700,
-                    color: _roleColor,
-                  ),
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(
+              color: AppColors.inputFill(context),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: AppColors.divider(context), width: 1),
+            ),
+            child: Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: [
+                ...controller.myPets.map((p) {
+                  final isSel = controller.selectedPetIds.contains(p.id);
+                  return FilterChip(
+                    label: Text(
+                      p.breed.isNotEmpty
+                          ? '${p.petName} • ${p.breed}'
+                          : p.petName,
+                    ),
+                    selected: isSel,
+                    onSelected: (_) => controller.togglePetSelection(p.id),
+                    selectedColor: _roleColor.withValues(alpha: 0.18),
+                    checkmarkColor: _roleColor,
+                  );
+                }),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: Text('publish_request_add_pet'.tr),
+                  onPressed: () => Get.to(() => const MyPetsScreen()),
                 ),
-                SizedBox(width: 8.w),
               ],
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 20.sp,
-                color: AppColors.textPrimary(context),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       );
     });
   }

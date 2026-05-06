@@ -598,14 +598,41 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36.w, height: 4.h, margin: EdgeInsets.only(bottom: 12.h),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2.r),
+              // v23.1 part 66 — Bug 3 : Daniel wanted a small close X
+              // next to the "Voir mes factures" button so he can dismiss
+              // the sheet without swiping. We expose it at the top-right
+              // (visually next to the drag handle), which is the
+              // conventional location and lets us add the same to the
+              // other action sheets without bloating the action row.
+              Stack(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36.w, height: 4.h,
+                      margin: EdgeInsets.only(bottom: 12.h),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(2.r),
+                      ),
+                    ),
                   ),
-                ),
+                  Positioned(
+                    right: 0,
+                    top: -4,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: EdgeInsets.all(6.w),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: AppColors.greyText,
+                          size: 22.sp,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               Center(
                 child: Container(
