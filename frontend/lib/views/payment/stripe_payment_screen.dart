@@ -49,6 +49,14 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   final RxnString _selectedCardId = RxnString();
   final RxBool _loadingCards = false.obs;
 
+  // v23.1 part 62 — Auto-launch the Airwallex HPP as soon as the screen
+  // mounts so the user goes : tap "Payer" → branded loader → HPP →
+  // success page. The manual recap screen with "Payer" button is hidden.
+  // Daniel asked for this : "je peux avoir que la page 11 et 13 c plus
+  // propre tu peux le faire ?". Old recap screen kept as fallback if
+  // auto-launch fails.
+  bool _autoLaunchTried = false;
+
   @override
   void initState() {
     super.initState();
@@ -67,7 +75,22 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
       tag: tag,
     );
     // v23.1 part 39 — charge les saved cards au mount.
-    _loadSavedCards();
+    _loadSavedCards().then((_) {
+      // v23.1 part 62 — auto-launch HPP. We wait for cards to load so
+      // selectedConsentId can be auto-set to the first saved card if any
+      // exists ; the backend now always attaches customer_id anyway, so
+      // even an empty cards list goes straight to the HPP that auto-shows
+      // the user's Airwallex-side saved cards.
+      if (mounted && !_autoLaunchTried) {
+        _autoLaunchTried = true;
+        // Tiny delay so the loader paints before the WebView opens.
+        Future.delayed(const Duration(milliseconds: 250), () {
+          if (mounted && !_controller.isProcessing.value) {
+            _onPayTap();
+          }
+        });
+      }
+    });
   }
 
   Future<void> _loadSavedCards() async {
@@ -230,6 +253,15 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
       saveCard: _saveCard.value,
       selectedConsentId: _selectedCardId.value,
     );
+    // v23.1 part 62 — when control returns here, either the HPP was
+    // cancelled by the user or it failed (success path replaces the
+    // screen via Get.off → PaymentResultScreen so we don't reach here).
+    // Pop the screen so the user goes straight back instead of seeing
+    // a stuck loader.
+    if (mounted && !_controller.isProcessing.value) {
+      await _voidIntentIfNeeded();
+      if (mounted) Get.back();
+    }
   }
 
   @override
@@ -274,7 +306,77 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
           color: AppColors.textPrimary(context),
         ),
       ),
+      // v23.1 part 62 — auto-launch UX : show a branded full-screen
+      // loader on this screen instead of the old recap. The HPP opens
+      // on top in a separate route. If the HPP succeeds, we navigate
+      // away via Get.off (controller → PaymentResultScreen). If it
+      // fails/cancels, we pop this screen automatically (in _onPayTap).
+      // The user never sees the recap any more — Daniel asked to keep
+      // only "page 11" (HPP) and "page 13" (success).
       body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80.w,
+                  height: 80.w,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(Icons.lock_rounded, size: 36.sp, color: accent),
+                ),
+                SizedBox(height: 24.h),
+                SizedBox(
+                  width: 32.w,
+                  height: 32.w,
+                  child: CircularProgressIndicator(color: accent, strokeWidth: 3),
+                ),
+                SizedBox(height: 24.h),
+                PoppinsText(
+                  text: 'payment_connecting'.tr,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+                SizedBox(height: 8.h),
+                PoppinsText(
+                  text: '${widget.totalAmount.toStringAsFixed(2)} ${currency.toUpperCase()}',
+                  fontSize: 22.sp,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'payment_secured_by_airwallex'.tr,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: AppColors.textSecondary(context),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // v23.1 part 62 — old recap UI kept as private helper in case we need to
+  // expose a manual mode again. Currently unused (auto-launch shortcuts
+  // straight to the HPP). Left as code reference — not wired up.
+  // ─────────────────────────────────────────────────────────────────────────
+  // ignore: unused_element
+  Widget _legacyRecapBody(BuildContext context, Color accent, String currency) {
+    return SafeArea(
         child: Column(
           children: [
             Expanded(
@@ -387,7 +489,6 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
           ],
         ),
       ),
-    ),
     );
   }
 

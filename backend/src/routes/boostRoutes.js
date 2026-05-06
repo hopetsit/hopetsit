@@ -172,9 +172,38 @@ router.post('/purchase', requireAuth, async (req, res) => {
     // ─── Airwallex flow ────────────────────────────────────────────────────
     if (PROVIDER === 'airwallex') {
       try {
+        // v23.1 part 62 — attach customer_id so the HPP auto-displays
+        // the user's saved cards (same fix we did for booking PIs in
+        // part 58). Without this the user has to re-enter the card on
+        // every boost / coin / shop purchase.
+        let airwallexCustomerId = null;
+        try {
+          // staffUser was loaded above (line ~138). It can be null if
+          // the user lookup failed — in that case skip the customer
+          // ensure and let the PI be created without it. The user
+          // would just have to enter the card manually.
+          if (staffUser && staffUser.email) {
+            const customer = await airwallex.findOrCreateCustomer({
+              userId: staffUser._id.toString(),
+              email: staffUser.email,
+              firstName: (staffUser.name || '').split(' ')[0] || staffUser.name || '',
+              lastName: (staffUser.name || '').split(' ').slice(1).join(' ') || '',
+            });
+            airwallexCustomerId = customer?.id || null;
+            logger.info(
+              `[boost] customer ensured ${airwallexCustomerId} for ${role} ${userId}`,
+            );
+          }
+        } catch (custErr) {
+          logger.warn(
+            `[boost] customer ensure failed (continuing without): ${custErr?.message || custErr}`,
+          );
+        }
+
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
+          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
           metadata: {
             type: 'boost_purchase',
             userId,

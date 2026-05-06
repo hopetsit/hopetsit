@@ -174,9 +174,28 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     // ─── Airwallex flow ────────────────────────────────────────────────────
     if (PROVIDER === 'airwallex') {
       try {
+        // v23.1 part 62 — attach customer_id so the HPP auto-displays the
+        // user's saved cards on Premium / subscription purchases.
+        let airwallexCustomerId = null;
+        try {
+          const userDoc = await StaffModel.findById(userId).select('email name').lean();
+          if (userDoc && userDoc.email) {
+            const customer = await airwallex.findOrCreateCustomer({
+              userId: String(userId),
+              email: userDoc.email,
+              firstName: (userDoc.name || '').split(' ')[0] || userDoc.name || '',
+              lastName: (userDoc.name || '').split(' ').slice(1).join(' ') || '',
+            });
+            airwallexCustomerId = customer?.id || null;
+          }
+        } catch (custErr) {
+          logger.warn(`[subscription] customer ensure failed: ${custErr?.message || custErr}`);
+        }
+
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
+          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
           metadata: {
             type: 'subscription_purchase',
             userId: String(userId),

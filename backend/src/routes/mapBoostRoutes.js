@@ -198,9 +198,28 @@ router.post('/purchase', requireAuth, async (req, res) => {
     // ─── Airwallex flow ────────────────────────────────────────────────────
     if (PROVIDER === 'airwallex') {
       try {
+        // v23.1 part 62 — attach customer_id so the HPP auto-displays the
+        // user's saved cards on PawMap boost purchases (no manual CB
+        // re-entry). userDoc was loaded above for the staff path.
+        let airwallexCustomerId = null;
+        try {
+          if (userDoc && userDoc.email) {
+            const customer = await airwallex.findOrCreateCustomer({
+              userId: String(req.user.id),
+              email: userDoc.email,
+              firstName: (userDoc.name || '').split(' ')[0] || userDoc.name || '',
+              lastName: (userDoc.name || '').split(' ').slice(1).join(' ') || '',
+            });
+            airwallexCustomerId = customer?.id || null;
+          }
+        } catch (custErr) {
+          logger.warn(`[mapBoost] customer ensure failed: ${custErr?.message || custErr}`);
+        }
+
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
+          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
           metadata: {
             type: 'map_boost_purchase',
             userId: String(req.user.id),

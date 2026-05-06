@@ -16,6 +16,9 @@ const {
   CHAT_ADDON_INTERVAL_DAYS,
   getChatAddonPricing,
 } = require('../models/UserChatAddon');
+const Owner = require('../models/Owner');
+const Sitter = require('../models/Sitter');
+const Walker = require('../models/Walker');
 const airwallex = require('../services/airwallexService');
 const { normalizeCurrency } = require('../utils/currency');
 const logger = require('../utils/logger');
@@ -96,9 +99,29 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     // ─── Airwallex flow ────────────────────────────────────────────────────
     if (PROVIDER === 'airwallex') {
       try {
+        // v23.1 part 62 — attach customer_id so the HPP auto-displays
+        // the user's saved cards (no manual CB re-entry).
+        let airwallexCustomerId = null;
+        try {
+          const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
+          const userDoc = await Model.findById(userId).select('email name').lean();
+          if (userDoc && userDoc.email) {
+            const customer = await airwallex.findOrCreateCustomer({
+              userId: String(userId),
+              email: userDoc.email,
+              firstName: (userDoc.name || '').split(' ')[0] || userDoc.name || '',
+              lastName: (userDoc.name || '').split(' ').slice(1).join(' ') || '',
+            });
+            airwallexCustomerId = customer?.id || null;
+          }
+        } catch (custErr) {
+          logger.warn(`[chatAddon] customer ensure failed: ${custErr?.message || custErr}`);
+        }
+
         const intent = await airwallex.createPlatformPaymentIntent({
           amount: amountCents,
           currency: pricing.currency,
+          ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
           metadata: {
             type: 'chat_addon_purchase',
             userId: String(userId),
