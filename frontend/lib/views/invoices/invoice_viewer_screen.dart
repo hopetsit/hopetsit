@@ -11,6 +11,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class InvoiceViewerScreen extends StatefulWidget {
@@ -45,16 +47,35 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
       ..loadRequest(Uri.parse(widget.url));
   }
 
+  // v23.1 part 63 — Bug F : open the invoice in the system browser /
+  // Chrome so the OS's native "Save as PDF / Print / Share" handles it
+  // properly. window.print() inside an embedded Android WebView is
+  // unreliable (no Print Service bound, silent no-op on many devices)
+  // — Daniel reported "le bouton telecharger nest pas connecter".
+  // External launch is the cross-OS path that always works.
   Future<void> _triggerPrint() async {
+    final uri = Uri.parse(widget.url);
     try {
-      // The HTML page exposes a "Télécharger PDF" button that calls
-      // window.print() — invoking it programmatically gives the user a
-      // shortcut to save-as-PDF without scrolling to find the in-page
-      // button. Both paths produce identical output.
-      await _controller.runJavaScript('window.print();');
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        // Fallback : try in-page window.print() if external launch fails
+        // (rare — only if no browser is installed).
+        await _controller.runJavaScript('window.print();');
+      }
     } catch (_) {
-      // window.print() can fail on some embedded webviews ; the in-page
-      // button is the fallback.
+      try {
+        await _controller.runJavaScript('window.print();');
+      } catch (_) {
+        if (mounted) {
+          CustomSnackbar.showError(
+            title: 'common_error'.tr,
+            message: 'invoice_download_failed'.tr,
+          );
+        }
+      }
     }
   }
 

@@ -784,6 +784,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'profile_unknown_owner': 'Propriétaire',
       'payment_connecting': 'Connexion sécurisée…',
       'payment_secured_by_airwallex': 'Le paiement est traité par Airwallex (PCI-DSS Level 1). Vos données carte ne transitent jamais par HoPetSit.',
+      'invoice_download_failed': 'Impossible d\'ouvrir le téléchargement. Vérifie qu\'un navigateur est installé.',
       'sitter_status_label': 'Statut : @status',
       'sitter_payment_status_label': 'Paiement : @status',
       'sitter_time_just_now': 'À l\'instant',

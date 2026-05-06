@@ -103,6 +103,9 @@ class SubscriptionStatus {
 class SubscriptionController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isPurchasing = false.obs;
+  // v23.1 part 63 — Bug G : track WHICH plan is being purchased so the
+  // UI only spins the tapped row, not all rows in the tab.
+  final RxnString purchasingPlan = RxnString();
   final Rxn<SubscriptionStatus> status = Rxn<SubscriptionStatus>();
   final RxList<SubscriptionPlan> plans = <SubscriptionPlan>[].obs;
   final RxList<String> supportedCurrencies =
@@ -184,6 +187,7 @@ class SubscriptionController extends GetxController {
   Future<bool> purchase(String plan) async {
     if (isPurchasing.value) return false;
     isPurchasing.value = true;
+    purchasingPlan.value = plan;
     try {
       final api = Get.find<ApiClient>();
 
@@ -238,6 +242,7 @@ class SubscriptionController extends GetxController {
       return false;
     } finally {
       isPurchasing.value = false;
+      purchasingPlan.value = null;
     }
   }
 

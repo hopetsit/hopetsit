@@ -67,6 +67,9 @@ class MapBoostStatus {
 class MapBoostController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isPurchasing = false.obs;
+  // v23.1 part 63 — Bug G : track WHICH tier is being purchased so the UI
+  // only spins the tapped package, not every package row.
+  final RxnString purchasingTier = RxnString();
   final Rxn<MapBoostStatus> status = Rxn<MapBoostStatus>();
   final RxList<MapBoostPackage> packages = <MapBoostPackage>[].obs;
   final RxString currency = CurrencyHelper.eur.obs;
@@ -168,6 +171,7 @@ class MapBoostController extends GetxController {
   Future<bool> purchase(String tier) async {
     if (isPurchasing.value) return false;
     isPurchasing.value = true;
+    purchasingTier.value = tier;
     try {
       final api = Get.find<ApiClient>();
       final piData = await api.post(
@@ -220,6 +224,7 @@ class MapBoostController extends GetxController {
       return false;
     } finally {
       isPurchasing.value = false;
+      purchasingTier.value = null;
     }
   }
 

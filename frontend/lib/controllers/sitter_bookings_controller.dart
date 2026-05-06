@@ -33,10 +33,21 @@ class SitterBookingsController extends GetxController {
   void _attachSocketListeners() {
     try {
       final s = Get.find<SocketService>();
+      // v23.1 part 63 — Bug A : double-fetch on booking:paid to defeat
+      // the rare race where Mongo hasn't committed paymentStatus='paid'
+      // by the time we hit /bookings/my. The 2s delayed retry catches
+      // it. If the first call already saw the new status, the retry is
+      // a harmless no-op. Same defensive pattern on accepted/new.
       s.socket?.off('booking:paid');
-      s.socket?.on('booking:paid', (_) => loadBookings());
+      s.socket?.on('booking:paid', (_) {
+        loadBookings();
+        Future.delayed(const Duration(seconds: 2), () => loadBookings());
+      });
       s.socket?.off('booking:accepted');
-      s.socket?.on('booking:accepted', (_) => loadBookings());
+      s.socket?.on('booking:accepted', (_) {
+        loadBookings();
+        Future.delayed(const Duration(seconds: 2), () => loadBookings());
+      });
       s.socket?.off('booking:new');
       s.socket?.on('booking:new', (_) => loadBookings());
     } catch (e) {

@@ -83,6 +83,12 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
               if (Get.isRegistered<SitterChatController>()) {
                 Get.find<SitterChatController>().reloadConversations();
               }
+              // v23.1 part 63 — Bug H : reset the chat unread badge when
+              // the user opens the chat tab. The counter will get bumped
+              // again on the next incoming message via the socket listener.
+              if (Get.isRegistered<NotificationsController>()) {
+                Get.find<NotificationsController>().unreadChat.value = 0;
+              }
             }
           },
           items: [
@@ -96,11 +102,55 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
               label: 'nav_home'.tr,
             ),
             BottomNavigationBarItem(
-              icon: Image.asset(
-                AppImages.chatIcon,
-                width: 22,
-                height: 22,
-                color: _currentIndex == 1 ? activeColor : const Color(0xFF9E9E9E),
+              // v23.1 part 63 — Bug H : red unread-chat badge on the chat
+              // tab icon. Reads NotificationsController.unreadChat (RxInt)
+              // which is bumped by chat_controller's "message:new" socket
+              // listener. The Obx auto-rebuilds when the counter changes.
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Image.asset(
+                    AppImages.chatIcon,
+                    width: 22,
+                    height: 22,
+                    color: _currentIndex == 1
+                        ? activeColor
+                        : const Color(0xFF9E9E9E),
+                  ),
+                  if (Get.isRegistered<NotificationsController>())
+                    Positioned(
+                      top: -4,
+                      right: -6,
+                      child: Obx(() {
+                        final n = Get.find<NotificationsController>()
+                            .unreadChat
+                            .value;
+                        if (n <= 0) return const SizedBox.shrink();
+                        final label = n > 9 ? '9+' : n.toString();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          constraints: const BoxConstraints(
+                              minWidth: 16, minHeight: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4324),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          child: Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              height: 1.1,
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                ],
               ),
               label: 'nav_chat'.tr,
             ),

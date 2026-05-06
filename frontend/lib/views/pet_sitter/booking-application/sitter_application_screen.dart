@@ -77,6 +77,137 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
   int get _confirmedCount =>
       _countByFilter('accepted') + _countByFilter('paid');
 
+  // v23.1 part 63 — Bug B : owner profile preview bottom sheet (mirrors
+  // notification_sitter_application_card_view_screen). Lets the sitter
+  // / walker see the requester (avatar, name, email, phone, address)
+  // before tapping Accept or Reject.
+  void _showOwnerProfileSheet(BuildContext ctx, BookingModel booking) {
+    final owner = booking.owner;
+    final avatarUrl = owner.avatar.url;
+    showModalBottomSheet<void>(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: AppColors.scaffold(ctx),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40.w,
+                  height: 4.h,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30.r,
+                    backgroundColor:
+                        AppColors.primaryColor.withValues(alpha: 0.15),
+                    backgroundImage: avatarUrl.isNotEmpty
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: avatarUrl.isEmpty
+                        ? Icon(Icons.person,
+                            size: 30.sp, color: AppColors.primaryColor)
+                        : null,
+                  ),
+                  SizedBox(width: 14.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        InterText(
+                          text: owner.name.isNotEmpty
+                              ? owner.name
+                              : 'profile_unknown_owner'.tr,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(ctx),
+                        ),
+                        if (owner.email.isNotEmpty) ...[
+                          SizedBox(height: 2.h),
+                          InterText(
+                            text: owner.email,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textSecondary(ctx),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 18.h),
+              Divider(color: AppColors.divider(ctx), height: 1),
+              SizedBox(height: 14.h),
+              if (owner.mobile.isNotEmpty)
+                _ownerInfoRow(ctx, Icons.phone_outlined, owner.mobile),
+              if (owner.address.isNotEmpty)
+                _ownerInfoRow(ctx, Icons.location_on_outlined, owner.address),
+              if (booking.petName.isNotEmpty)
+                _ownerInfoRow(ctx, Icons.pets, booking.petName),
+              SizedBox(height: 20.h),
+              SizedBox(
+                width: double.infinity,
+                height: 44.h,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22.r),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(sheetCtx).pop(),
+                  child: InterText(
+                    text: 'common_close'.tr,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _ownerInfoRow(BuildContext ctx, IconData icon, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18.sp, color: AppColors.textSecondary(ctx)),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: InterText(
+              text: value,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary(ctx),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(
@@ -373,6 +504,11 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
               },
               child: PetSitterApplicationCard(
                 application: application,
+                // v23.1 part 63 — Bug B : sitters/walkers can preview the
+                // owner before accept/reject from the direct-request list,
+                // not only via the in-app notification banner.
+                onViewOwnerProfile: () =>
+                    _showOwnerProfileSheet(context, booking),
                 onStartChat: application.paymentStatus == 'paid'
                     ? () async {
                         final ownerImage = booking.owner.avatar.url.isNotEmpty
@@ -386,6 +522,15 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                       }
                     : null,
                 onAccept: () async {
+                  // v23.1 part 63 — Bug D : the underlying controller now
+                  // owns the debounce, but we also short-circuit here if the
+                  // booking already left 'pending' (e.g. from a previous tap
+                  // that succeeded server-side but hadn't yet refreshed the
+                  // list). Without this a fast double-tap raised an API 500
+                  // / 409 wrapped as a generic error and confused the user.
+                  if (booking.status.toLowerCase().trim() != 'pending') {
+                    return;
+                  }
                   final result = await _sitterApplicationController
                       .acceptApplication(booking.id);
                   if (result['success'] == true) {

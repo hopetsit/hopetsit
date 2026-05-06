@@ -1103,7 +1103,12 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                   ),
                   SizedBox(width: 8.w),
                   Obx(() {
-                    if (controller.isPurchasing.value) {
+                    // v23.1 part 63 — Bug G : only spin THIS row when its
+                    // plan is being purchased. Previously isPurchasing
+                    // alone made every row spin at the same time.
+                    final isThisOne =
+                        controller.purchasingPlan.value == plan.plan;
+                    if (controller.isPurchasing.value && isThisOne) {
                       return SizedBox(
                         width: 20.w,
                         height: 20.w,
@@ -1553,7 +1558,11 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     //   • sous-titre descriptif sous le titre pour clarifier la valeur
     final tierAccent = _mapBoostTierAccent(pkg.tier);
     final isPopular = pkg.tier == 'gold';
+    // v23.1 part 63 — Bug G : show spinner only on the tapped tier, not
+    // every package row at once. Disable taps on ALL rows during a purchase
+    // (we don't want concurrent attempts) but ONLY this row spins.
     final isPurchasing = controller.isPurchasing.value;
+    final isThisTier = controller.purchasingTier.value == pkg.tier;
     final sym = CurrencyHelper.symbol(pkg.currency);
     final pricePerDay = pkg.days > 0 ? (pkg.amount / pkg.days) : pkg.amount;
 
@@ -1658,7 +1667,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                     ],
                   ),
                   SizedBox(width: 8.w),
-                  isPurchasing
+                  (isPurchasing && isThisTier)
                       ? SizedBox(
                           width: 20.w,
                           height: 20.w,

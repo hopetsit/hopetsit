@@ -734,6 +734,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'profile_unknown_owner': 'Owner',
       'payment_connecting': 'Secure connection…',
       'payment_secured_by_airwallex': 'Payment is processed by Airwallex (PCI-DSS Level 1). Your card details never transit through HoPetSit.',
+      'invoice_download_failed': 'Unable to open download. Check that a browser is installed.',
       'sitter_status_label': 'Status: @status',
       'sitter_payment_status_label': 'Payment: @status',
       'sitter_time_just_now': 'Just now',
