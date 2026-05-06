@@ -8,7 +8,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 // v23.1 — onglet Factures auto-générées.
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -373,7 +373,7 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                     ? 'walker'
                     : 'sitter';
                 await Get.to(
-                  () => StripePaymentScreen(
+                  () => AirwallexPaymentScreen(
                     booking: booking,
                     totalAmount: base,
                     currency:

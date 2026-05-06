@@ -11,7 +11,7 @@ import 'package:hopetsit/views/service_provider/widgets/service_provider_card.da
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/views/booking/booking_agreement_screen.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -532,7 +532,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
 
           if (!mounted) return;
           await Get.to(
-            () => StripePaymentScreen(
+            () => AirwallexPaymentScreen(
               booking: booking!,
               totalAmount: base,
               currency: pricing?.currency ?? booking.sitter.currency,
@@ -606,7 +606,7 @@ class _ApplicationScreenState extends State<ApplicationScreen> {
                 ?? booking.basePrice) ?? 0.0;
             if (!mounted) return;
             await Get.to(
-              () => StripePaymentScreen(
+              () => AirwallexPaymentScreen(
                 booking: booking,
                 totalAmount: base,
                 currency: pricing?.currency ?? booking.sitter.currency,

@@ -8,7 +8,7 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/pricing_display_helper.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/widgets/service_provider_card.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -59,7 +59,7 @@ class _NotificationApplicationViewScreenState
 
   /// Session v17.2 — when the owner reopens this screen and the application
   /// has ALREADY been accepted (status = 'accepted' and a booking was
-  /// created), jump straight to StripePaymentScreen so the owner can pay.
+  /// created), jump straight to AirwallexPaymentScreen so the owner can pay.
   /// Previously the owner landed on a dead-end card showing "Acceptée" with
   /// no buttons (Bug D reopened: accept worked but re-entering stuck the
   /// owner with no path to payment).
@@ -74,7 +74,7 @@ class _NotificationApplicationViewScreenState
     _autoRedirectAttempted = true;
 
     // Resolve the full booking via BookingsController so we hand a real
-    // BookingModel to StripePaymentScreen (which needs pricing +
+    // BookingModel to AirwallexPaymentScreen (which needs pricing +
     // provider currency).
     try {
       if (!Get.isRegistered<BookingsController>()) {
@@ -106,7 +106,7 @@ class _NotificationApplicationViewScreenState
 
       if (!mounted) return;
       Get.off(
-        () => StripePaymentScreen(
+        () => AirwallexPaymentScreen(
           booking: booking,
           totalAmount: base,
           currency: pricing?.currency ?? booking.sitter.currency,
@@ -135,9 +135,9 @@ class _NotificationApplicationViewScreenState
 
   Future<void> _onAccept(ApplicationModel application) async {
     // v16.3i — owner accepts → if the backend returned a PaymentIntent
-    // (clientSecret) in the response, immediately push StripePaymentScreen.
+    // (clientSecret) in the response, immediately push AirwallexPaymentScreen.
     //
-    // Session v17.1 — we now ALWAYS navigate to StripePaymentScreen as long
+    // Session v17.1 — we now ALWAYS navigate to AirwallexPaymentScreen as long
     // as the backend returned a booking object, even when clientSecret is
     // missing (e.g. provider without active Stripe Connect yet). The payment
     // screen will surface the error on Pay-click and let the owner retry,
@@ -195,7 +195,7 @@ class _NotificationApplicationViewScreenState
                 ?? booking.basePrice) ??
             0.0;
         Get.off(
-          () => StripePaymentScreen(
+          () => AirwallexPaymentScreen(
             booking: booking,
             totalAmount: base,
             currency: pricing?.currency ?? booking.sitter.currency,

@@ -137,7 +137,7 @@ class AddCardScreen extends StatelessWidget {
                       SizedBox(width: 6.w),
                       Expanded(
                         child: InterText(
-                          text: 'add_card_stripe_secure'.tr,
+                          text: 'add_card_secure'.tr,
                           fontSize: 11.sp,
                           color: AppColors.textSecondary(context),
                           maxLines: 2,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/stripe_payment_controller.dart';
+import 'package:hopetsit/controllers/airwallex_payment_controller.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -10,16 +10,17 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:intl/intl.dart';
 
-/// v21.1.1 — Écran de paiement de réservation, pure Airwallex.
+/// v23.1 part 64 — Écran de paiement de réservation, pure Airwallex.
 ///
-/// Stripe purgé. L'écran affiche le résumé de la réservation + un bouton
-/// "Payer" qui ouvre le hosted payment page Airwallex (webview). C'est
-/// Airwallex qui collecte les détails carte / billing — plus de CardFormField
-/// inline, plus de saved cards (PaymentConsent à venir v22).
+/// Précédemment nommé `StripePaymentScreen` (conservé pour la transition
+/// post-purge en v21.1.1). Renommé en `AirwallexPaymentScreen` puisque
+/// Stripe est totalement supprimé du projet et qu'on ne fait que de
+/// l'Airwallex HPP via WebView.
 ///
-/// Le nom de classe `StripePaymentScreen` est conservé pour ne pas casser
-/// les imports existants (notifications, owner_bookings, deep_link...).
-class StripePaymentScreen extends StatefulWidget {
+/// L'écran affiche un loader brandé et auto-lance la HPP Airwallex en
+/// arrière-plan (depuis v23.1 part 62) — l'utilisateur va direct du
+/// booking au formulaire sécurisé Airwallex.
+class AirwallexPaymentScreen extends StatefulWidget {
   final BookingModel booking;
   final double totalAmount;
   final String? currency;
@@ -28,7 +29,7 @@ class StripePaymentScreen extends StatefulWidget {
   /// type is inferred from `booking.serviceType`.
   final String? providerType;
 
-  const StripePaymentScreen({
+  const AirwallexPaymentScreen({
     super.key,
     required this.booking,
     required this.totalAmount,
@@ -37,11 +38,11 @@ class StripePaymentScreen extends StatefulWidget {
   });
 
   @override
-  State<StripePaymentScreen> createState() => _StripePaymentScreenState();
+  State<AirwallexPaymentScreen> createState() => _AirwallexPaymentScreenState();
 }
 
-class _StripePaymentScreenState extends State<StripePaymentScreen> {
-  late final StripePaymentController _controller;
+class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
+  late final AirwallexPaymentController _controller;
   // v23.1 — "Save my card" checkbox state.
   final RxBool _saveCard = false.obs;
   // v23.1 part 39 — saved cards loaded from /owner/payments/methods
@@ -60,12 +61,12 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
   @override
   void initState() {
     super.initState();
-    final tag = 'stripe_payment_${widget.booking.id}';
-    if (Get.isRegistered<StripePaymentController>(tag: tag)) {
-      Get.delete<StripePaymentController>(tag: tag);
+    final tag = 'airwallex_payment_${widget.booking.id}';
+    if (Get.isRegistered<AirwallexPaymentController>(tag: tag)) {
+      Get.delete<AirwallexPaymentController>(tag: tag);
     }
     _controller = Get.put(
-      StripePaymentController(
+      AirwallexPaymentController(
         booking: widget.booking,
         totalAmount: widget.totalAmount,
         currency: widget.currency ??

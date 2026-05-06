@@ -42,7 +42,7 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
@@ -504,7 +504,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   void _onActionTap(_QuickAction a) {
     // v22.5 — PART 3 : owner pay banner court-circuite la chaîne
     //   Banner → BookingsHistory → BookingDetail → BookingAgreement → Payment
-    // pour aller DIRECT à StripePaymentScreen.
+    // pour aller DIRECT à AirwallexPaymentScreen.
     if (a.kind == _Kind.ownerPay) {
       _navigateOwnerPay(a);
       return;
@@ -1214,7 +1214,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     await ctrl.respondToApplication(applicationId: app.id, action: 'reject');
   }
 
-  /// v22.5 — PART 3 : pre-warm createPaymentIntent puis push StripePaymentScreen.
+  /// v22.5 — PART 3 : pre-warm createPaymentIntent puis push AirwallexPaymentScreen.
   Future<void> _navigateOwnerPay(_QuickAction a) async {
     final booking = a.booking;
     try {
@@ -1237,7 +1237,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           ? 'walker'
           : 'sitter';
       await Get.to(
-        () => StripePaymentScreen(
+        () => AirwallexPaymentScreen(
           booking: booking,
           totalAmount: base,
           currency: pricing?.currency ?? booking.sitter.currency,

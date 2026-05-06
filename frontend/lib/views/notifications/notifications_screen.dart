@@ -21,7 +21,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/notifications/notification_application_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_post_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
@@ -266,7 +266,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (!context.mounted) return;
 
           // Session v17.2 — for booking_accepted on the owner side we go
-          // DIRECTLY to StripePaymentScreen (skipping the detour via
+          // DIRECTLY to AirwallexPaymentScreen (skipping the detour via
           // OwnerBookingDetailScreen). Daniel asked for a 1-tap path:
           // provider accepts → owner taps notif → pays.
           //
@@ -307,7 +307,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               );
             }
             await Get.to(
-              () => StripePaymentScreen(
+              () => AirwallexPaymentScreen(
                 booking: booking,
                 totalAmount: base,
                 currency: pricing?.currency ?? booking.sitter.currency,
@@ -337,7 +337,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ?? booking.basePrice) ??
                         0.0;
                     await Get.to(
-                      () => StripePaymentScreen(
+                      () => AirwallexPaymentScreen(
                         booking: booking,
                         totalAmount: base,
                         currency: pricing?.currency
@@ -398,10 +398,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // Session v17.4 — one-tap accept flow for owners. The owner no longer
       // lands on the "Demande du sitter" full screen (which got stuck on
       // "Acceptée" after re-opening). Instead we show a compact dialog
-      // with Accept / Refuse and navigate straight to StripePaymentScreen
+      // with Accept / Refuse and navigate straight to AirwallexPaymentScreen
       // on accept. Same path whether it's a sitter or walker application;
       // provider role drives dialog colours (green walker / blue sitter)
-      // and is forwarded to StripePaymentScreen.providerType.
+      // and is forwarded to AirwallexPaymentScreen.providerType.
       final applicationId = _dataString(data, 'applicationId');
       final providerRoleFromData = _dataString(data, 'providerRole');
       final sitterId = _dataString(data, 'sitterId');
@@ -660,10 +660,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   //   • status = pending   → show a compact Accept / Refuse dialog
   //                          coloured by provider role. On Accept we call
   //                          OwnerRepository.respondToApplication and
-  //                          Get.to() StripePaymentScreen. On Refuse we
+  //                          Get.to() AirwallexPaymentScreen. On Refuse we
   //                          just call respondToApplication(reject).
   //   • status = accepted  → resolve the Booking from bookingsController
-  //                          and push StripePaymentScreen directly.
+  //                          and push AirwallexPaymentScreen directly.
   //                          NO dead-end "Acceptée" card.
   //   • status = rejected  → snackbar "already rejected" and close.
   // ═══════════════════════════════════════════════════════════════════
@@ -716,7 +716,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
-    // 2) Resolve provider type for colour + StripePaymentScreen param.
+    // 2) Resolve provider type for colour + AirwallexPaymentScreen param.
     String resolvedProviderType = (providerRoleHint ?? '').toLowerCase();
     if (resolvedProviderType != 'walker' && resolvedProviderType != 'sitter') {
       final services = ((appJson['sitter']?['service'] as List?) ?? const [])
@@ -733,7 +733,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final String status = (appJson['status'] as String? ?? '').toLowerCase();
 
-    // 3) Already-accepted path → jump straight to StripePaymentScreen.
+    // 3) Already-accepted path → jump straight to AirwallexPaymentScreen.
     if (status == 'accepted') {
       await _openPaymentForAcceptedApplication(
         ownerRepo: ownerRepo,
@@ -753,12 +753,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     // 5) Pending → v18.6 : on saute le dialog "Accepter et payer" et on
-    // envoie direct sur la page paiement. La nouvelle StripePaymentScreen
+    // envoie direct sur la page paiement. La nouvelle AirwallexPaymentScreen
     // (v18.5) affiche déjà provider + service + date + montant dans le
     // summary card, donc le dialog faisait doublon. Pour rejeter une
     // candidature, l'owner passe par l'onglet "Réservations" qui a déjà
     // un bouton reject. Tap sur la notif = consentement à accepter et
-    // payer. Le bouton "Annuler" de la StripePaymentScreen laisse quand
+    // payer. Le bouton "Annuler" de la AirwallexPaymentScreen laisse quand
     // même un retour arrière sans charge (PaymentIntent pas confirmé).
     if (!context.mounted) return;
 
@@ -786,7 +786,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
-    // Re-use BookingModel parser so StripePaymentScreen gets a real object.
+    // Re-use BookingModel parser so AirwallexPaymentScreen gets a real object.
     final bookingMap = response['booking'];
     if (bookingMap is Map) {
       try {
@@ -801,7 +801,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             0.0;
         if (!context.mounted) return;
         Get.to(
-          () => StripePaymentScreen(
+          () => AirwallexPaymentScreen(
             booking: booking,
             totalAmount: base,
             currency: pricing?.currency ?? booking.sitter.currency,
@@ -878,7 +878,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ?? booking.basePrice) ??
           0.0;
       Get.to(
-        () => StripePaymentScreen(
+        () => AirwallexPaymentScreen(
           booking: booking,
           totalAmount: base,
           currency: pricing?.currency ?? booking.sitter.currency,

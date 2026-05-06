@@ -14,14 +14,17 @@ import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 
-/// v21.1.1 — Stripe purgé. Pure Airwallex.
-/// Le nom de classe est conservé pour ne pas casser les imports existants.
-class StripePaymentController extends GetxController {
+/// v23.1 part 64 — Pure Airwallex payment controller.
+///
+/// Précédemment nommé `StripePaymentController` (conservé après la purge
+/// Stripe en v21.1.1 pour ne pas casser les imports). Renommé en
+/// AirwallexPaymentController puisqu'il ne fait que de l'Airwallex.
+class AirwallexPaymentController extends GetxController {
   final BookingModel booking;
   final double totalAmount;
   final String currency;
 
-  StripePaymentController({
+  AirwallexPaymentController({
     required this.booking,
     required this.totalAmount,
     this.currency = 'EUR',

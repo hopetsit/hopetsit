@@ -100,7 +100,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'payment_error_unknown':
           'Ein unerwarteter Fehler ist aufgetreten. Bitte erneut versuchen oder den Support kontaktieren.',
 
-      // Session v17 — role labels used by StripePaymentScreen header chip.
+      // Session v17 — role labels used by AirwallexPaymentScreen header chip.
       'role_walker': 'Gassigeher',
       'role_sitter': 'Tiersitter',
       'role_provider': 'Anbieter',
@@ -768,7 +768,7 @@ const Map<String, String> deDETranslations = <String, String>{
           'Klicke unten auf "Bezahlen", um deine Zahlungsdaten sicher einzugeben.',
       'payment_paypal_info':
           'Du wirst weitergeleitet, um die Zahlung zu bestätigen. Danach bestätigen wir sie hier.',
-      'payment_pay_with_stripe': 'Bezahlen @amount',
+      'payment_pay_with_card': 'Bezahlen @amount',
       'payment_pay_with_paypal': 'Bezahlen @amount',
       'booking_agreement_title': 'Buchungsvereinbarung',
       'booking_agreement_payment_completed': 'Zahlung abgeschlossen',
@@ -1600,7 +1600,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'price_per_day_short': 'Tag',
     'price_per_week_short': 'Wo',
     'price_per_month_short': 'Mo',
-    'payment_stripe_info': 'Sichere Kartenzahlung. Ihre Kartendaten werden nie gespeichert.',
     'payment_card_section_title': 'Kartendaten',
     'payment_cardholder_name': 'Name des Karteninhabers',
     'payment_cardholder_email_optional': 'E-Mail (optional)',
@@ -1608,7 +1607,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'save_card_title': 'Diese Karte speichern',
     'save_card_subtitle': 'Schnellerer Bezahlvorgang beim nächsten Mal. Verschlüsselt.',
     'save_my_card_button': 'Meine Karte speichern',
-    'add_card_stripe_secure': 'Sichere Zahlung. Wir speichern niemals Ihre Kartennummern.',
+    'add_card_secure': 'Sichere Zahlung. Wir speichern niemals Ihre Kartennummern.',
     'payment_card_incomplete_message': 'Bitte füllen Sie alle Kartenfelder aus, bevor Sie zahlen.',
     'payment_cardholder_required_title': 'Name erforderlich',
     'payment_cardholder_required_message': 'Bitte geben Sie den Namen des Karteninhabers ein.',
@@ -1630,7 +1629,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'payout_iban_pending': '⏳ Ausstehend',
     'payout_label_holder': 'Inhaber',
     'payout_label_bic': 'BIC/SWIFT',
-    'payout_chip_stripe': 'Karte',
+    'payout_chip_card': 'Karte',
     'payout_chip_iban': 'Bank (IBAN)',
     'payout_iban_hint': 'z.B. DE89 3704 0044 0532 0130 00',
     'payout_bic_label': 'BIC / SWIFT (optional)',
@@ -1656,8 +1655,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'iban_invalid_format': 'Ungültiges IBAN-Format',
     'payment_management_title': 'Zahlungen verwalten',
     'payment_methods_section': 'Zahlungsmethoden',
-    'payment_stripe_connected': 'Konto verbunden und aktiv',
-    'payment_stripe_not_connected': 'Nicht verbunden — tippen zum Einrichten',
     'payment_paypal_not_set': 'Keine Auszahlungs-E-Mail konfiguriert',
     'payment_iban_title': 'Bankkonto (IBAN)',
     'payment_iban_subtitle': 'Zahlungen per Überweisung erhalten',
@@ -1733,8 +1730,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'payment_transaction_error': 'Während der Transaktion ist ein Fehler aufgetreten.',
     'payment_name_required_title': 'Name erforderlich',
     'payment_name_required_message': 'Füge den Namen des Karteninhabers hinzu.',
-    'payment_stripe_not_configured': 'Zahlung nicht konfiguriert. Schließe die App und öffne sie erneut.',
-    'identity_verify_with_stripe': 'Identität verifizieren',
     'identity_upload_manual': 'Ausweisfoto manuell hochladen',
     'identity_verifying': 'Wird überprüft...',
     'identity_launch_failed': 'Verifizierungsseite konnte nicht geöffnet werden. Erneut versuchen.',

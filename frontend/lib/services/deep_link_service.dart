@@ -8,7 +8,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// v18.8 — écoute les deep links `hopetsit://pay/:bookingId` envoyés dans
@@ -16,7 +16,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 /// acceptée". Avant v18.8, le bouton "Payer maintenant" du mail ouvrait
 /// l'app mais n'ouvrait PAS la page de paiement → l'owner devait naviguer
 /// à la main vers Réservations. Désormais on route automatiquement vers
-/// `StripePaymentScreen(booking: ..., providerType: ...)`.
+/// `AirwallexPaymentScreen(booking: ..., providerType: ...)`.
 class DeepLinkService {
   DeepLinkService._internal();
   static final DeepLinkService instance = DeepLinkService._internal();
@@ -168,7 +168,7 @@ class DeepLinkService {
           ? 'walker'
           : 'sitter';
       Get.to(
-        () => StripePaymentScreen(
+        () => AirwallexPaymentScreen(
           booking: booking!,
           totalAmount: base,
           currency: pricing?.currency ?? booking.sitter.currency,

@@ -15,7 +15,7 @@ class ApplicationModel {
   final BookingPricing? pricing;
   /// Session v17.2 — id of the Booking created when the owner accepts this
   /// application. Populated from `application.bookingId` on the backend
-  /// (sanitizeApplication). Used to open StripePaymentScreen when the
+  /// (sanitizeApplication). Used to open AirwallexPaymentScreen when the
   /// owner reopens a "Demande du sitter / walker" notification that has
   /// already been accepted.
   final String? bookingId;

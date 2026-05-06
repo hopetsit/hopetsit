@@ -194,7 +194,7 @@ class _SitterIbanScreenState extends State<SitterIbanScreen> {
                   SizedBox(height: 8.h),
                   Row(
                     children: [
-                      _methodChip('stripe', 'payout_chip_stripe'.tr, Icons.credit_card),
+                      _methodChip('stripe', 'payout_chip_card'.tr, Icons.credit_card),
                       SizedBox(width: 8.w),
                       _methodChip('paypal', 'PayPal', Icons.paypal),
                       SizedBox(width: 8.w),

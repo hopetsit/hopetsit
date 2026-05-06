@@ -11,7 +11,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
-import 'package:hopetsit/views/payment/stripe_payment_screen.dart';
+import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/payment/paypal_payment_screen.dart';
 import 'package:hopetsit/utils/app_constants.dart';
 import 'package:hopetsit/controllers/loyalty_controller.dart';
@@ -323,7 +323,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
                           },
                         ),
                         CustomButton(
-                          title: 'payment_pay_with_stripe'.tr.replaceAll(
+                          title: 'payment_pay_with_card'.tr.replaceAll(
                             '@amount',
                             CurrencyHelper.format(
                               _currency ??
@@ -475,7 +475,7 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
     }
     if (!mounted) return;
     Get.to(
-      () => StripePaymentScreen(
+      () => AirwallexPaymentScreen(
         booking: widget.booking,
         totalAmount: finalTotal,
         currency: _currency ??
