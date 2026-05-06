@@ -730,6 +730,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'sitter_not_available_yet': 'Not available yet',
       'sitter_reject': 'Reject',
       'sitter_accept': 'Accept',
+      'sitter_view_owner_profile': 'View owner profile',
+      'profile_unknown_owner': 'Owner',
       'sitter_status_label': 'Status: @status',
       'sitter_payment_status_label': 'Payment: @status',
       'sitter_time_just_now': 'Just now',

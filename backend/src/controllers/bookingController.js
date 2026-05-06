@@ -2247,22 +2247,36 @@ const createBookingPaymentIntent = async (req, res) => {
     // v23.1 part 40 — fix Daniel : OR if user picked an existing saved card
     // (paymentConsentId), attach customer + that specific consent to the PI
     // so Airwallex HPP pre-fills with the card (no manual re-entry).
+    //
+    // v23.1 part 58 — CRITICAL FIX. Per Airwallex docs, the HPP auto-discovers
+    // saved cards by reading `customer_id` off the PaymentIntent. Previously
+    // we only attached customer_id when wantsSaveCard || selectedConsentId
+    // was true — meaning if the owner just tapped "Pay" without explicitly
+    // ticking "save card" or selecting a saved card, no customer_id was
+    // attached → HPP had nothing to look up → "enter card manually" UI.
+    //
+    // Now we ALWAYS attach customer_id (idempotent — findOrCreateCustomer
+    // returns the same customer for the same user). Whether to save the
+    // card on this PI is still gated on wantsSaveCard / first-time logic.
     const wantsSaveCard = req.body?.saveCard === true;
     const selectedConsentId = (req.body?.paymentConsentId || '').toString().trim();
     let airwallexCustomerId = null;
-    if (wantsSaveCard || selectedConsentId) {
-      try {
-        const ownerDoc = booking.ownerId;
-        const customer = await airwallex.findOrCreateCustomer({
-          userId: ownerDoc._id.toString(),
-          email: ownerDoc.email,
-          firstName: (ownerDoc.name || '').split(' ')[0] || ownerDoc.name,
-          lastName: (ownerDoc.name || '').split(' ').slice(1).join(' ') || '',
-        });
-        airwallexCustomerId = customer?.id || null;
-      } catch (custErr) {
-        logger.warn(`[createPaymentIntent] saveCard customer ensure failed: ${custErr?.message || custErr}`);
-      }
+    try {
+      const ownerDoc = booking.ownerId;
+      const customer = await airwallex.findOrCreateCustomer({
+        userId: ownerDoc._id.toString(),
+        email: ownerDoc.email,
+        firstName: (ownerDoc.name || '').split(' ')[0] || ownerDoc.name,
+        lastName: (ownerDoc.name || '').split(' ').slice(1).join(' ') || '',
+      });
+      airwallexCustomerId = customer?.id || null;
+      logger.info(
+        `[createPaymentIntent] customer ensured ${airwallexCustomerId} ` +
+        `(merchant=${ownerDoc._id.toString()}) wantsSave=${wantsSaveCard} ` +
+        `selectedConsent=${selectedConsentId || 'none'}`,
+      );
+    } catch (custErr) {
+      logger.warn(`[createPaymentIntent] customer ensure failed: ${custErr?.message || custErr}`);
     }
 
     // Session v18.0 — use Stripe Connect destination charge ONLY when the

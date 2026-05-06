@@ -59,6 +59,10 @@ class PetSitterApplicationCard extends StatefulWidget {
   final Future<void> Function()? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onStartChat;
+  // v23.1 part 58 — sitter/walker need to see who's behind the booking before
+  // accepting/refusing. Caller supplies a callback that opens an owner-profile
+  // bottom sheet with name, avatar, email, phone, address, etc.
+  final VoidCallback? onViewOwnerProfile;
 
   const PetSitterApplicationCard({
     super.key,
@@ -66,6 +70,7 @@ class PetSitterApplicationCard extends StatefulWidget {
     this.onAccept,
     this.onReject,
     this.onStartChat,
+    this.onViewOwnerProfile,
   });
 
   @override
@@ -169,6 +174,43 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
                 ),
               ),
             ),
+
+          // v23.1 part 58 — "Voir profil propriétaire" button : sitter / walker
+          // can preview the owner before tapping Accept / Reject.
+          if (application.status == 'pending' &&
+              widget.onViewOwnerProfile != null) ...[
+            Padding(
+              padding: EdgeInsets.only(right: 16.w),
+              child: GestureDetector(
+                onTap: widget.onViewOwnerProfile,
+                child: Container(
+                  height: 44.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.card(context),
+                    border: Border.all(color: _roleAccent),
+                    borderRadius: BorderRadius.circular(22.r),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_outline,
+                            size: 18.sp, color: _roleAccent),
+                        SizedBox(width: 8.w),
+                        InterText(
+                          text: 'sitter_view_owner_profile'.tr,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                          color: _roleAccent,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 10.h),
+          ],
 
           // Action Buttons
           if (application.status == 'pending') _buildActionButtons(context),

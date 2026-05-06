@@ -198,7 +198,14 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
     return buf.toString();
   }
 
-  Future<void> _onCancelTap() async {
+  // v23.1 part 58 — track whether the payment succeeded so we know if a
+  // pop = user-cancel (→ void the PI) vs payment-screen replaced by
+  // PaymentResultScreen on success (→ no cleanup needed, controller did
+  // the work).
+  bool _paymentSucceeded = false;
+
+  Future<void> _voidIntentIfNeeded() async {
+    if (_paymentSucceeded) return;
     try {
       final repo = Get.find<OwnerRepository>();
       await repo.cancelPaymentIntent(bookingId: widget.booking.id);
@@ -206,6 +213,10 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
       // Soft-fail — even if the cancel call errors, we still pop the screen.
       // The PI will expire on Airwallex side anyway.
     }
+  }
+
+  Future<void> _onCancelTap() async {
+    await _voidIntentIfNeeded();
     if (mounted) Get.back();
   }
 
@@ -228,7 +239,20 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
         widget.booking.pricing?.currency ??
         widget.booking.sitter.currency;
 
-    return Scaffold(
+    // v23.1 part 58 — PopScope ensures that a back-gesture / system back /
+    // AppBar back arrow ALSO voids the pending PaymentIntent on the backend.
+    // Without this, the booking stayed in paymentStatus='pending' forever
+    // when the user opened the payment screen and bounced out without
+    // tapping the explicit "Annuler" button — leaving "Vérifier" / pending
+    // pills on candidate profiles.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _voidIntentIfNeeded();
+        if (mounted) Get.back();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
@@ -236,7 +260,13 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: accent),
-        leading: const BackButton(),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () async {
+            await _voidIntentIfNeeded();
+            if (mounted) Get.back();
+          },
+        ),
         title: PoppinsText(
           text: 'payment_title'.tr,
           fontSize: 18.sp,
@@ -357,6 +387,7 @@ class _StripePaymentScreenState extends State<StripePaymentScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

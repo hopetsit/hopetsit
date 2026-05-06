@@ -155,6 +155,137 @@ class _NotificationSitterApplicationCardViewScreenState
     }
   }
 
+  // v23.1 part 58 — bottom sheet showing owner basic profile (avatar, name,
+  // email, phone, address) so sitters / walkers can preview the requester
+  // before accepting/rejecting a booking from the in-app banner.
+  void _showOwnerProfileSheet(BuildContext context, BookingModel booking) {
+    final owner = booking.owner;
+    final avatarUrl = owner.avatar.url;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.scaffold(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2.r),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30.r,
+                      backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? NetworkImage(avatarUrl)
+                          : null,
+                      child: avatarUrl.isEmpty
+                          ? Icon(Icons.person, size: 30.sp,
+                              color: AppColors.primaryColor)
+                          : null,
+                    ),
+                    SizedBox(width: 14.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InterText(
+                            text: owner.name.isNotEmpty
+                                ? owner.name
+                                : 'profile_unknown_owner'.tr,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                          ),
+                          if (owner.email.isNotEmpty) ...[
+                            SizedBox(height: 2.h),
+                            InterText(
+                              text: owner.email,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.textSecondary(context),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 18.h),
+                Divider(color: AppColors.divider(context), height: 1),
+                SizedBox(height: 14.h),
+                if (owner.mobile.isNotEmpty)
+                  _ownerInfoRow(context, Icons.phone_outlined, owner.mobile),
+                if (owner.address.isNotEmpty)
+                  _ownerInfoRow(context, Icons.location_on_outlined, owner.address),
+                if (booking.petName.isNotEmpty)
+                  _ownerInfoRow(context, Icons.pets, booking.petName),
+                SizedBox(height: 20.h),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44.h,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22.r),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(sheetCtx).pop(),
+                    child: InterText(
+                      text: 'common_close'.tr,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _ownerInfoRow(BuildContext context, IconData icon, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18.sp, color: AppColors.textSecondary(context)),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: InterText(
+              text: value,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -199,6 +330,8 @@ class _NotificationSitterApplicationCardViewScreenState
                     children: [
                       PetSitterApplicationCard(
                     application: _convertBookingToApplication(booking),
+                    onViewOwnerProfile: () =>
+                        _showOwnerProfileSheet(context, booking),
                     onAccept: () async {
                       final result = await _controller.acceptApplication(
                         booking.id,

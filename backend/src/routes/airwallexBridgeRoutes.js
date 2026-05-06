@@ -75,6 +75,16 @@ router.get('/checkout', (req, res) => {
   // The components-sdk auto-discovers the customer and saved cards from the
   // PaymentIntent's `customer_id` server-side. We just call redirectToCheckout
   // with the standard params — Airwallex does the rest.
+  // v23.1 part 58 — Bridge rewrite. The `components/v1/index.js` ESM module
+  // path was either wrong or stuck (Daniel reported the page hanging on
+  // "Connexion sécurisée…" indefinitely). We switch to the well-documented
+  // `airwallex-payment-elements` global script, which exposes a stable
+  // `Airwallex.redirectToCheckout(...)` and is what Airwallex itself uses
+  // in the official HPP examples. We also :
+  //   - Show JS errors visibly on the page (otherwise stuck = invisible)
+  //   - Add a 6-second watchdog that surfaces a "still loading…" message
+  //   - Catch every onerror / unhandledrejection and report to the page
+  //   - Provide a manual "Continuer" button as a last-resort escape hatch
   const html = `<!doctype html>
 <html lang="fr">
 <head>
@@ -98,48 +108,153 @@ router.get('/checkout', (req, res) => {
   .hint { font-size: 12px; color: #777; margin-top: 16px; max-width: 320px;
           padding: 0 16px; text-align: center; line-height: 1.4; }
   .err { color: #C62828; font-weight: 700; }
+  .btn { display: inline-block; margin-top: 16px; padding: 12px 24px;
+         background: #EF4324; color: #fff; border: none; border-radius: 24px;
+         font-size: 14px; font-weight: 700; cursor: pointer;
+         text-decoration: none; }
+  .btn:active { opacity: 0.8; }
+  #cancelLink { display: block; margin-top: 12px; font-size: 12px; color: #999;
+                text-decoration: underline; }
 </style>
 </head>
 <body>
   <div class="lock">🔒</div>
-  <div class="title">Connexion sécurisée…</div>
-  <div class="spinner"></div>
+  <div class="title" id="title">Connexion sécurisée…</div>
+  <div class="spinner" id="spinner"></div>
   <div class="hint">Le paiement est traité par Airwallex (PCI-DSS Level 1).
   Vos données carte ne transitent jamais par HoPetSit.</div>
+  <div id="status" class="hint" style="display:none"></div>
   <div id="error" class="hint err" style="display:none"></div>
+  <button id="retryBtn" class="btn" style="display:none">Continuer</button>
+  <a href="${cancelUrl}" id="cancelLink">Annuler</a>
 
-  <script type="module">
-    import { init } from 'https://static.airwallex.com/components/v1/index.js';
+  <script>
+    // ─── State ────────────────────────────────────────────────────────────
+    var INTENT   = ${JSON.stringify(intent)};
+    var SECRET   = ${JSON.stringify(secret)};
+    var CURRENCY = ${JSON.stringify(currency)};
+    var COUNTRY  = ${JSON.stringify(country)};
+    var ENV      = ${JSON.stringify(env)};
+    var SUCCESS  = ${JSON.stringify(successUrl)};
+    var CANCEL   = ${JSON.stringify(cancelUrl)};
+    var FAILU    = ${JSON.stringify(failUrl)};
 
-    const errorEl = document.getElementById('error');
-    function fail(msg) {
-      console.error('[bridge] error:', msg);
+    var statusEl = document.getElementById('status');
+    var errorEl  = document.getElementById('error');
+    var retryBtn = document.getElementById('retryBtn');
+    var titleEl  = document.getElementById('title');
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+      statusEl.style.display = 'block';
+      console.log('[bridge]', msg);
+    }
+    function showError(msg) {
       errorEl.textContent = '⚠️ ' + msg;
       errorEl.style.display = 'block';
-      // Redirect to fail URL after 1.5s so the WebView resolves.
-      setTimeout(() => { window.location.href = ${JSON.stringify(failUrl)}; }, 1500);
+      retryBtn.style.display = 'inline-block';
+      titleEl.textContent = 'Erreur de chargement';
+      console.error('[bridge] ERROR:', msg);
     }
 
-    try {
-      const { payments } = await init({
-        env: ${JSON.stringify(env)},
-        enabledElements: ['payments'],
-      });
-      console.log('[bridge] sdk init ok, redirecting to checkout');
-      payments.redirectToCheckout({
-        intent_id: ${JSON.stringify(intent)},
-        client_secret: ${JSON.stringify(secret)},
-        currency: ${JSON.stringify(currency)},
-        country_code: ${JSON.stringify(country)},
-        successUrl: ${JSON.stringify(successUrl)},
-        cancelUrl: ${JSON.stringify(cancelUrl)},
-        failUrl: ${JSON.stringify(failUrl)},
-        // No customer_id here — Airwallex picks it up from the PaymentIntent
-        // and auto-displays the customer's saved cards on the HPP.
-      });
-    } catch (e) {
-      fail((e && e.message) ? e.message : 'Impossible d\\'initialiser le paiement.');
+    // Catch any uncaught error so we can surface it (otherwise the user
+    // is stuck on a silent loading screen).
+    window.addEventListener('error', function(ev) {
+      showError((ev && ev.message) ? ev.message : 'Script error');
+    });
+    window.addEventListener('unhandledrejection', function(ev) {
+      var r = ev && ev.reason;
+      showError(r && r.message ? r.message : (typeof r === 'string' ? r : 'Promise rejected'));
+    });
+
+    // ─── Load the Airwallex script with error fallback ────────────────────
+    // We try the modern hosted bundle first ; if it fails to load we surface
+    // a clear error rather than spinning forever.
+    function loadScript(src, onload, onerror) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = onload;
+      s.onerror = function() { onerror(new Error('Failed to load ' + src)); };
+      document.head.appendChild(s);
     }
+
+    function doRedirect() {
+      try {
+        var Aw = window.Airwallex || window.AirwallexPayments;
+        if (!Aw) {
+          showError('SDK Airwallex introuvable. Vérifie ta connexion.');
+          return;
+        }
+        setStatus('Redirection vers Airwallex…');
+        if (typeof Aw.init === 'function') {
+          Aw.init({ env: ENV, origin: window.location.origin });
+        }
+        var redirect = (Aw.redirectToCheckout || (Aw.payments && Aw.payments.redirectToCheckout));
+        if (typeof redirect !== 'function') {
+          showError('redirectToCheckout indisponible dans le SDK.');
+          return;
+        }
+        redirect.call(Aw, {
+          env: ENV,
+          intent_id: INTENT,
+          client_secret: SECRET,
+          currency: CURRENCY,
+          country_code: COUNTRY,
+          successUrl: SUCCESS,
+          cancelUrl:  CANCEL,
+          failUrl:    FAILU,
+          // We don't pass customer_id here — Airwallex auto-discovers it
+          // from the customer_id attached on the PaymentIntent server-side.
+        });
+        // If after 4s we're still on this page, something went wrong.
+        setTimeout(function() {
+          if (document.visibilityState === 'visible') {
+            setStatus('Si rien ne s\\'affiche, appuie sur Continuer.');
+            retryBtn.style.display = 'inline-block';
+          }
+        }, 4000);
+      } catch (e) {
+        showError((e && e.message) ? e.message : 'Erreur inconnue redirectToCheckout.');
+      }
+    }
+
+    setStatus('Chargement du SDK Airwallex…');
+    loadScript(
+      'https://checkout.airwallex.com/assets/elements.bundle.min.js',
+      function() {
+        setStatus('SDK chargé, init…');
+        doRedirect();
+      },
+      function() {
+        // Fallback to a second known CDN path
+        loadScript(
+          'https://static.airwallex.com/payments/v1/airwallex-payment.min.js',
+          function() {
+            setStatus('SDK chargé (fallback), init…');
+            doRedirect();
+          },
+          function() {
+            showError('Impossible de charger le SDK Airwallex (aucun CDN accessible). Vérifie ta connexion.');
+          }
+        );
+      }
+    );
+
+    // Watchdog : if 8s pass with no progress, show retry button.
+    setTimeout(function() {
+      if (errorEl.style.display === 'none') {
+        setStatus('Si rien ne se passe, vérifie ta connexion et réessaie.');
+        retryBtn.style.display = 'inline-block';
+      }
+    }, 8000);
+
+    retryBtn.addEventListener('click', function() {
+      retryBtn.style.display = 'none';
+      errorEl.style.display = 'none';
+      titleEl.textContent = 'Connexion sécurisée…';
+      doRedirect();
+    });
   </script>
 </body>
 </html>`;
