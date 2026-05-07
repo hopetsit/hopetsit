@@ -13,6 +13,7 @@ import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
+import 'package:hopetsit/widgets/translate_message_button.dart';
 
 class IndividualChatScreen extends StatefulWidget {
   final String conversationId;
@@ -570,7 +571,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                 ],
               ),
             )
-          else if (message.message.isNotEmpty)
+          else if (message.message.isNotEmpty) ...[
             Padding(
               padding: EdgeInsets.only(left: 41.w),
               child: InterText(
@@ -580,6 +581,14 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                 color: AppColors.textPrimary(context),
               ),
             ),
+            // v23.1 part 105 — bouton "Traduire" sous chaque message texte.
+            // Utilise la langue active de l'app comme cible.
+            TranslateMessageButton(
+              text: message.message,
+              targetLang: Get.locale?.languageCode ?? 'fr',
+              leftPadding: 41.w,
+            ),
+          ],
         ],
       ),
       ),

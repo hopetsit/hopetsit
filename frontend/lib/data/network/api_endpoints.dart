@@ -60,6 +60,10 @@ class ApiEndpoints {
   static const String switchRole = '/users/switch-role';
   static const String conversationsList = '/conversations/list';
 
+  /// v23.1 part 105 — message translation endpoint.
+  /// POST { text, targetLang } → { translated }
+  static const String translate = '/translate';
+
   /// Start a new conversation
   /// Usage: '${ApiEndpoints.conversationsStart}?sitterId={sitterId}'
   static const String conversationsStart = '/conversations/start';

@@ -6,6 +6,7 @@ import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/translate_message_button.dart';
 
 class SitterIndividualChatScreen extends StatefulWidget {
   final String conversationId;
@@ -376,7 +377,7 @@ class _SitterIndividualChatScreenState
                 ],
               ),
             )
-          else if (message.message.isNotEmpty)
+          else if (message.message.isNotEmpty) ...[
             Padding(
               padding: EdgeInsets.only(left: 41.w),
               child: InterText(
@@ -386,6 +387,13 @@ class _SitterIndividualChatScreenState
                 color: AppColors.textPrimary(context),
               ),
             ),
+            // v23.1 part 105 — bouton "Traduire" (cf TranslateMessageButton).
+            TranslateMessageButton(
+              text: message.message,
+              targetLang: Get.locale?.languageCode ?? 'fr',
+              leftPadding: 41.w,
+            ),
+          ],
         ],
       ),
       ),

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 105</title>
+<title>HopeTSIT — Admin v23.1 part 106</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -914,7 +914,7 @@ async function login() {
   const url = document.getElementById('api-url').value.trim().replace(/\/$/, '');
   const email = document.getElementById('admin-email').value.trim();
   const password = document.getElementById('admin-secret').value.trim();
-  if (!url || !email || !password) { showLoginError('Please fill in all fields.'); return; }
+  if (!url || !email || !password) { showLoginError('Merci de remplir tous les champs.'); return; }
   try {
     const r = await fetch(`${url}/auth/admin/login`, {
       method: 'POST',
@@ -1169,6 +1169,14 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${name}`).classList.add('active');
   event.currentTarget.classList.add('active');
+  // v23.1 part 105 — chaque tab refresh les data quand on clique dessus
+  // (avant : les tabs Bookings/Sitters/Owners/Dashboard ne re-chargeaient
+  // jamais après le 1er chargement à _enterApp → données obsolètes).
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'bookings') loadBookings();
+  if (name === 'sitters') loadSitters();
+  if (name === 'owners') loadOwners();
+  if (name === 'walkers') loadWalkers();
   if (name === 'payments') loadPayments();
   if (name === 'invoices') loadInvoices('owner'); // v23.1 — auto-invoices
   if (name === 'iban') { loadIbanPending(); loadIbanSitters(); }
@@ -1176,6 +1184,7 @@ function showPage(name) {
   if (name === 'reviews') loadReviewsModeration('all');
   if (name === 'moderation') loadPlatformStats();
   if (name === 'terms') initTermsPage();
+  if (name === 'privacy') loadPrivacy();
   if (name === 'reports') initReportsPage();
   if (name === 'chat') loadChatConversations();
   if (name === 'wallets') loadAdminWallets();
@@ -1187,9 +1196,6 @@ function showPage(name) {
   if (name === 'services') loadServices();
   if (name === 'pawmap') loadPawmapStats();
   if (name === 'annonces') loadAnnonces();
-  // session v3.2 — walker section + privacy policy editor.
-  if (name === 'walkers') loadWalkers();
-  if (name === 'privacy') loadPrivacy();
 }
 
 // ── ANNONCES ─────────────────────────────────────────────────────────────────
@@ -2393,7 +2399,7 @@ async function loadInvoices(role) {
   }
   const tbody = document.getElementById('invoices-table-body');
   if (!tbody) return;
-  tbody.innerHTML = '<div class="loading"><div class="spinner"></div> Loading invoices...</div>';
+  tbody.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement des factures...</div>';
 
   const from = document.getElementById('inv-filter-from')?.value || '';
   const to   = document.getElementById('inv-filter-to')?.value || '';
@@ -2405,7 +2411,7 @@ async function loadInvoices(role) {
     const d = await api(`/admin/invoices${qs}`);
     const list = d.invoices || [];
     if (list.length === 0) {
-      tbody.innerHTML = '<div class="empty-state">No invoices for this filter.</div>';
+      tbody.innerHTML = '<div class="empty-state">Aucune facture pour ce filtre.</div>';
       return;
     }
     const fmtMoney = (n, c) => `${Number(n || 0).toFixed(2)} ${(c || 'EUR').toUpperCase()}`;

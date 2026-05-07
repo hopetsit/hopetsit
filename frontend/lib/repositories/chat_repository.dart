@@ -263,4 +263,38 @@ class ChatRepository {
       details: response,
     );
   }
+
+  /// v23.1 part 105 — translate a chat message into the user's profile
+  /// language. Backend route POST /translate, mounted at root (no /api/v1
+  /// prefix). The free LibreTranslate / MyMemory providers are used,
+  /// with a fallback that returns the source text unchanged + warning.
+  ///
+  /// Returns a map with keys :
+  ///   translation        — the translated text (or original on fallback)
+  ///   detectedSourceLang — best-effort source language detection
+  ///   provider           — 'libretranslate' / 'mymemory' / 'identity'
+  ///   warning            — present only on identity-fallback
+  Future<Map<String, dynamic>> translateMessage({
+    required String text,
+    required String targetLang,
+    String? sourceLang,
+  }) async {
+    final body = <String, dynamic>{
+      'text': text,
+      'targetLang': targetLang,
+      if (sourceLang != null && sourceLang.isNotEmpty) 'sourceLang': sourceLang,
+    };
+    final response = await _apiClient.post(
+      ApiEndpoints.translate,
+      body: body,
+      requiresAuth: true,
+    ) as dynamic;
+    if (response is Map) {
+      return Map<String, dynamic>.from(response);
+    }
+    throw ApiException(
+      'Unexpected response type when translating message.',
+      details: response,
+    );
+  }
 }
