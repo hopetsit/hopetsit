@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v20.0.4</title>
+<title>HopeTSIT — Admin v23.1 part 89</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -218,7 +218,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> <span data-i18n="nav_bookings">Bookings</span></div>
       <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> <span data-i18n="nav_sitters">Sitters</span></div>
       <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> <span data-i18n="nav_owners">Owners</span></div>
-      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> Walkers</div>
+      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> <span data-i18n="nav_walkers">Walkers</span></div>
       <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💰</span> <span data-i18n="nav_payments">Payments</span></div>
       <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Invoices</span></div>
       <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">IBAN Payouts</span></div>
@@ -245,11 +245,11 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- DASHBOARD -->
       <div id="page-dashboard" class="page active">
-        <div class="section-title">📊 Overview</div>
+        <div class="section-title">📊 <span data-i18n="dash_overview">Vue d'ensemble</span></div>
         <div class="stats-grid" id="stats-grid">
-          <div class="loading"><div class="spinner"></div> Loading...</div>
+          <div class="loading"><div class="spinner"></div> <span data-i18n="loading">Chargement...</span></div>
         </div>
-        <div class="section-title">💳 Recent Payments</div>
+        <div class="section-title">💳 <span data-i18n="dash_recent_payments">Paiements récents</span></div>
         <div class="table-wrap" id="recent-payments-wrap">
           <div class="loading"><div class="spinner"></div></div>
         </div>
@@ -257,22 +257,22 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- BOOKINGS -->
       <div id="page-bookings" class="page">
-        <div class="section-title">📅 All Bookings</div>
+        <div class="section-title">📅 Toutes les réservations</div>
         <div class="table-wrap">
           <div class="table-toolbar">
-            <input class="search-input" id="booking-search" placeholder="🔍 Search booking ID..." oninput="filterBookings()"/>
+            <input class="search-input" id="booking-search" placeholder="🔍 Rechercher par ID de réservation..." oninput="filterBookings()"/>
             <select class="filter-select" id="booking-status-filter" onchange="filterBookings()">
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="agreed">Agreed</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="">Tous les statuts</option>
+              <option value="pending">En attente</option>
+              <option value="agreed">Acceptée</option>
+              <option value="completed">Terminée</option>
+              <option value="cancelled">Annulée</option>
             </select>
             <select class="filter-select" id="booking-payment-filter" onchange="filterBookings()">
-              <option value="">All Payments</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
+              <option value="">Tous les paiements</option>
+              <option value="paid">Payée</option>
+              <option value="pending">En attente</option>
+              <option value="failed">Échouée</option>
             </select>
           </div>
           <div id="bookings-table-body">
@@ -283,14 +283,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- SITTERS -->
       <div id="page-sitters" class="page">
-        <div class="section-title">🐕 Pet Sitters</div>
+        <div class="section-title">🐕 Pet-sitters</div>
         <div class="table-wrap">
           <div class="table-toolbar">
-            <input class="search-input" id="sitter-search" placeholder="🔍 Search sitter..." oninput="renderSitters()"/>
+            <input class="search-input" id="sitter-search" placeholder="🔍 Rechercher un pet-sitter..." oninput="renderSitters()"/>
             <select class="filter-select" id="sitter-verified-filter" onchange="renderSitters()">
-              <option value="">All</option>
-              <option value="true">Verified ✓</option>
-              <option value="false">Not Verified</option>
+              <option value="">Tous</option>
+              <option value="true">Vérifiés ✓</option>
+              <option value="false">Non vérifiés</option>
             </select>
           </div>
           <div id="sitters-table-body">
@@ -309,7 +309,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </p>
         <div class="table-wrap">
           <div class="table-toolbar">
-            <input class="search-input" id="owner-search" placeholder="🔍 Search name or email..." oninput="renderOwners()"/>
+            <input class="search-input" id="owner-search" placeholder="🔍 Rechercher par nom ou email..." oninput="renderOwners()"/>
             <select class="filter-select" id="owner-role-filter" onchange="renderOwners()">
               <option value="all">🌍 Tous les rôles</option>
               <option value="owner">👤 Propriétaires</option>
@@ -317,7 +317,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
               <option value="walker">🚶 Walkers</option>
             </select>
             <select class="filter-select" id="owner-staff-filter" onchange="renderOwners()">
-              <option value="">Tous Staff status</option>
+              <option value="">Tous (staff &amp; non-staff)</option>
               <option value="staff">⭐ Staff uniquement</option>
               <option value="nonstaff">Non-staff uniquement</option>
             </select>
@@ -330,15 +330,15 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- WALKERS (session v3.2) -->
       <div id="page-walkers" class="page">
-        <div class="section-title">🚶 Pet Walkers</div>
+        <div class="section-title">🚶 Promeneurs</div>
         <div class="table-wrap">
           <div class="table-toolbar">
-            <input class="search-input" id="walker-search" placeholder="🔍 Search walker..." oninput="renderWalkers()"/>
+            <input class="search-input" id="walker-search" placeholder="🔍 Rechercher un walker..." oninput="renderWalkers()"/>
             <select class="filter-select" id="walker-verified-filter" onchange="renderWalkers()">
-              <option value="">All verification</option>
-              <option value="verified">✅ Verified</option>
-              <option value="pending">⏳ Pending</option>
-              <option value="unverified">❌ Unverified</option>
+              <option value="">Toutes vérifications</option>
+              <option value="verified">✅ Vérifiés</option>
+              <option value="pending">⏳ En attente</option>
+              <option value="unverified">❌ Non vérifiés</option>
             </select>
           </div>
           <div id="walkers-table-body">
@@ -349,12 +349,12 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- PRIVACY POLICY (session v3.2) -->
       <div id="page-privacy" class="page">
-        <div class="section-title">🔒 Privacy Policy</div>
+        <div class="section-title">🔒 Politique de confidentialité</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:12px">
-          Edit the privacy policy shown to users across the app. Supports the 6 app languages. Plain text — line breaks preserved.
+          Édite la politique affichée aux utilisateurs dans toute l'app. Supporte les 6 langues — texte brut, sauts de ligne préservés.
         </p>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-          <label style="color:var(--text-muted);font-size:13px">Language:</label>
+          <label style="color:var(--text-muted);font-size:13px">Langue :</label>
           <select class="filter-select" id="privacy-lang" onchange="renderPrivacyEditor()">
             <option value="fr">🇫🇷 Français</option>
             <option value="en">🇬🇧 English</option>
@@ -363,19 +363,19 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <option value="es">🇪🇸 Español</option>
             <option value="pt">🇵🇹 Português</option>
           </select>
-          <input class="search-input" id="privacy-version" placeholder="Version (e.g. 2026-04-18)" style="width:220px"/>
-          <button class="action-btn btn-primary" onclick="savePrivacy()" id="privacy-save-btn">💾 Save</button>
+          <input class="search-input" id="privacy-version" placeholder="Version (ex : 2026-04-18)" style="width:220px"/>
+          <button class="action-btn btn-primary" onclick="savePrivacy()" id="privacy-save-btn">💾 Enregistrer</button>
         </div>
         <div id="privacy-editor-wrap">
-          <div class="loading"><div class="spinner"></div> Loading privacy policy…</div>
+          <div class="loading"><div class="spinner"></div> Chargement de la politique…</div>
         </div>
       </div>
 
       <!-- PAYMENTS -->
       <div id="page-payments" class="page">
-        <div class="section-title">💰 Payment & Payout Overview</div>
+        <div class="section-title">💰 Paiements &amp; payouts</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">
-          Complete view of all platform transactions — payments received, commissions earned, and sitter payouts.
+          Vue complète des transactions plateforme — paiements reçus, commissions perçues et virements aux providers.
         </p>
 
         <!-- Summary cards -->
@@ -390,17 +390,17 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <!-- Filters -->
         <div class="table-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
           <select class="filter-select" id="pay-filter-status" onchange="loadPayments()">
-            <option value="">All Payment Status</option>
-            <option value="paid">Paid</option>
-            <option value="failed">Failed</option>
-            <option value="refunded">Refunded</option>
+            <option value="">Tous les statuts paiement</option>
+            <option value="paid">Payé</option>
+            <option value="failed">Échec</option>
+            <option value="refunded">Remboursé</option>
           </select>
           <select class="filter-select" id="pay-filter-payout" onchange="loadPayments()">
-            <option value="">All Payout Status</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
+            <option value="">Tous les statuts payout</option>
+            <option value="pending">En attente</option>
+            <option value="processing">En cours</option>
+            <option value="completed">Terminé</option>
+            <option value="failed">Échec</option>
           </select>
           <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
             <option value="">All Providers</option>
@@ -457,9 +457,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
              but provider receives via IBAN (Stripe Transfers API requires
              Connect, we use manual SEPA instead). Admin marks as paid
              once SEPA transfer is executed. -->
-        <div class="section-title">💸 Pending IBAN Transfers</div>
+        <div class="section-title">💸 Virements IBAN en attente</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:12px">
-          Bookings payed by owners waiting for manual SEPA transfer. Execute the transfer on your bank, then click <strong>Mark as Paid</strong>.
+          Réservations payées par les owners qui attendent un virement SEPA manuel. Exécute le virement depuis ta banque puis clique sur <strong>Marquer comme payé</strong>.
         </p>
         <div id="iban-pending-summary" style="margin-bottom:14px;padding:12px 16px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;font-size:14px;color:#92400E;display:none"></div>
         <div class="table-wrap" style="margin-bottom:32px">
@@ -468,9 +468,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </div>
         </div>
 
-        <div class="section-title">🏦 IBAN Payout Verification</div>
+        <div class="section-title">🏦 Vérification IBAN des providers</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px">
-          Review and verify sitter bank accounts before enabling payouts — like Vinted's bank verification flow.
+          Vérifie les coordonnées bancaires des sitters/walkers avant d'activer les payouts.
         </p>
         <div class="table-wrap">
           <div id="iban-table-body">
@@ -481,25 +481,25 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- USER MODERATION (Sprint 7 step 6) -->
       <div id="page-moderation" class="page">
-        <div class="section-title">🛡️ User moderation</div>
+        <div class="section-title">🛡️ Modération des utilisateurs</div>
         <div id="platform-stats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;"></div>
         <div style="margin-bottom:12px">
-          <input id="user-search-q" placeholder="Search email or name…" style="padding:8px;width:260px" />
-          <button class="action-btn btn-primary" onclick="searchUsers()">Search</button>
+          <input id="user-search-q" placeholder="Rechercher par email ou nom…" style="padding:8px;width:260px" />
+          <button class="action-btn btn-primary" onclick="searchUsers()">Rechercher</button>
         </div>
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
             <thead>
               <tr style="text-align:left;border-bottom:1px solid #333">
-                <th style="padding:8px">Role</th>
-                <th style="padding:8px">Name</th>
+                <th style="padding:8px">Rôle</th>
+                <th style="padding:8px">Nom</th>
                 <th style="padding:8px">Email</th>
-                <th style="padding:8px">Status</th>
+                <th style="padding:8px">Statut</th>
                 <th style="padding:8px">Actions</th>
               </tr>
             </thead>
             <tbody id="users-list">
-              <tr><td colspan="5" style="color:var(--text-muted)">Type an email or name then click Search.</td></tr>
+              <tr><td colspan="5" style="color:var(--text-muted)">Tape un email ou un nom puis clique sur Rechercher.</td></tr>
             </tbody>
           </table>
         </div>
@@ -507,20 +507,20 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- REVIEW MODERATION (Sprint 7 step 5) -->
       <div id="page-reviews" class="page">
-        <div class="section-title">⭐ Review moderation</div>
+        <div class="section-title">⭐ Modération des avis</div>
         <div style="margin-bottom:12px">
-          <button class="action-btn btn-primary" onclick="loadReviewsModeration('all')">All</button>
-          <button class="action-btn" onclick="loadReviewsModeration('reported')">Reported</button>
-          <button class="action-btn" onclick="loadReviewsModeration('hidden')">Hidden</button>
+          <button class="action-btn btn-primary" onclick="loadReviewsModeration('all')">Tous</button>
+          <button class="action-btn" onclick="loadReviewsModeration('reported')">Signalés</button>
+          <button class="action-btn" onclick="loadReviewsModeration('hidden')">Masqués</button>
         </div>
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
             <thead>
               <tr style="text-align:left;border-bottom:1px solid #333">
                 <th style="padding:8px">★</th>
-                <th style="padding:8px">Comment</th>
-                <th style="padding:8px">Reports</th>
-                <th style="padding:8px">Status</th>
+                <th style="padding:8px">Commentaire</th>
+                <th style="padding:8px">Signalements</th>
+                <th style="padding:8px">Statut</th>
                 <th style="padding:8px">Actions</th>
               </tr>
             </thead>
@@ -533,16 +533,16 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- IDENTITY VERIFICATIONS (Sprint 5 step 7) -->
       <div id="page-identity" class="page">
-        <div class="section-title">🪪 Identity verifications (pending)</div>
+        <div class="section-title">🪪 Vérifications d'identité (en attente)</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px">
-          Review sitter ID documents. Documents are confidential — accessible only to admins.
+          Vérifie les pièces d'identité des pet-sitters. Documents confidentiels — accessibles uniquement aux admins.
         </p>
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
             <thead>
               <tr style="text-align:left;border-bottom:1px solid #333">
-                <th style="padding:8px">Sitter</th>
-                <th style="padding:8px">Submitted</th>
+                <th style="padding:8px">Pet-sitter</th>
+                <th style="padding:8px">Soumis le</th>
                 <th style="padding:8px">Document</th>
                 <th style="padding:8px">Action</th>
               </tr>
@@ -552,14 +552,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             </tbody>
           </table>
         </div>
-        <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadIdentityVerifications()">↻ Refresh</button>
+        <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadIdentityVerifications()">↻ Actualiser</button>
       </div>
 
       <!-- TERMS & CONDITIONS (admin-editable) -->
       <div id="page-terms" class="page">
-        <div class="section-title">📜 Terms &amp; Conditions</div>
+        <div class="section-title">📜 Conditions générales</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Edit the Terms of Service shown inside the mobile app, per language. Changes take effect immediately — users see the new text next time they open the Terms screen. If a language has no document, the app falls back to the text bundled with the APK.
+          Édite les conditions affichées dans l'app mobile, par langue. Les changements sont visibles immédiatement par les utilisateurs. Si une langue n'a pas de document, l'app utilise le texte par défaut embarqué dans l'APK.
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="terms-lang-tabs"></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
@@ -567,31 +567,31 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <input id="terms-version-input" class="search-input" style="width:120px" value="1.0" />
           <span id="terms-meta" style="font-size:12px;color:var(--text-muted)"></span>
         </div>
-        <textarea id="terms-content" style="width:100%;min-height:440px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5" placeholder="Write the Terms of Service here (Markdown-like plain text is fine)..."></textarea>
+        <textarea id="terms-content" style="width:100%;min-height:440px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5" placeholder="Écris les conditions ici (texte brut, type Markdown, OK)..."></textarea>
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-          <button class="action-btn btn-primary" onclick="saveTermsDocument()">💾 Save</button>
-          <button class="action-btn" onclick="loadTermsDocument(currentTermsLang)">↻ Reload</button>
-          <button class="action-btn" style="border-color:var(--red);color:var(--red)" onclick="revertTermsDocument()">↩ Revert to bundled default</button>
+          <button class="action-btn btn-primary" onclick="saveTermsDocument()">💾 Enregistrer</button>
+          <button class="action-btn" onclick="loadTermsDocument(currentTermsLang)">↻ Recharger</button>
+          <button class="action-btn" style="border-color:var(--red);color:var(--red)" onclick="revertTermsDocument()">↩ Restaurer le texte par défaut</button>
         </div>
       </div>
 
       <!-- REPORTS (signalements) -->
       <div id="page-reports" class="page">
-        <div class="section-title">🚩 Reports</div>
+        <div class="section-title">🚩 Signalements</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          User-submitted reports (signalements) from profiles, comments, chat messages and photos. Use the filters below to triage.
+          Signalements envoyés par les utilisateurs depuis les profils, commentaires, messages chat et photos. Utilise les filtres ci-dessous pour les trier.
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="reports-status-tabs"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="reports-type-tabs"></div>
         <div id="reports-list" style="display:grid;gap:10px"></div>
-        <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadReports()">↻ Refresh</button>
+        <button class="action-btn btn-primary" style="margin-top:12px" onclick="loadReports()">↻ Actualiser</button>
       </div>
 
       <!-- WALLETS (v19.1.3) -->
       <div id="page-wallets" class="page">
-        <div class="section-title">💰 Wallets</div>
-        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Solde portefeuille des providers (sitter + walker). Auto-géré par Stripe Connect quand le compte bancaire est connecté. Les wallets Stripe-connectés se vident automatiquement sur payout. Les non-connectés gardent leur balance en attendant configuration IBAN/PayPal.
+        <div class="section-title">💰 Portefeuilles providers</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
+          Solde du portefeuille des providers (pet-sitters + walkers). Le provider est crédité de 80% du tarif au début de la mission ; il peut ensuite utiliser ce solde pour la boutique ou le retirer vers son IBAN. Les retraits non éligibles (IBAN non vérifié) restent en attente.
         </p>
         <div class="stats-grid" id="wallets-summary"></div>
         <div class="table-wrap" id="wallets-table-wrap" style="margin-top:16px"><div class="loading"><div class="spinner"></div></div></div>
@@ -599,17 +599,17 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- CHAT MODERATION (v19.1.3) -->
       <div id="page-chat" class="page">
-        <div class="section-title">💬 Chat Moderation</div>
+        <div class="section-title">💬 Modération du chat</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Recent conversations with full message history. Admins can soft-delete any abusive message; deleted messages remain visible here for audit but appear as "Message supprimé" in the app.
+          Conversations récentes avec l'historique complet. Les admins peuvent supprimer un message abusif (soft-delete) ; le message reste visible ici pour l'audit, mais s'affiche comme « Message supprimé » dans l'app.
         </p>
         <div style="display:grid;grid-template-columns:340px 1fr;gap:16px">
           <div>
-            <button class="action-btn btn-primary" style="width:100%;margin-bottom:10px" onclick="loadChatConversations()">↻ Refresh conversations</button>
+            <button class="action-btn btn-primary" style="width:100%;margin-bottom:10px" onclick="loadChatConversations()">↻ Actualiser les conversations</button>
             <div id="chat-conversations-list" style="display:grid;gap:6px;max-height:70vh;overflow-y:auto"></div>
           </div>
           <div>
-            <div id="chat-messages-header" style="color:var(--text-muted);font-size:13px;margin-bottom:8px">Select a conversation on the left</div>
+            <div id="chat-messages-header" style="color:var(--text-muted);font-size:13px;margin-bottom:8px">Sélectionne une conversation à gauche</div>
             <div id="chat-messages-list" style="display:grid;gap:8px;max-height:70vh;overflow-y:auto"></div>
           </div>
         </div>
@@ -626,11 +626,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div style="margin-top:20px" id="loyalty-tables"></div>
       </div>
 
-      <!-- PAYOUTS / REVENUE (v20.0.8) -->
+      <!-- PAYOUTS / REVENUE (v20.0.8 → v23.1 part 89) -->
       <div id="page-payouts" class="page">
-        <div class="section-title">💰 Mes revenus / Payouts plateforme</div>
-        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Récapitulatif de tous les revenus HoPetSit : commissions booking (20% ou 15% pour Top Sitter/Walker), abonnements Premium, donations. Chiffres en temps réel depuis la DB.
+        <div class="section-title">💰 Mes revenus &amp; retraits société</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px;line-height:1.6">
+          Récapitulatif des revenus HoPetSit : commissions sur réservations (20% ou 15% pour Top Sitter/Walker),
+          abonnements Premium, donations.<br>
+          <strong style="color:var(--text)">⬇ Plus bas, le bloc « Mes bénéfices société » te permet de retirer
+          les fonds Airwallex vers l'IBAN de ta société.</strong>
         </p>
         <div class="stats-grid" id="payouts-summary"></div>
         <div style="margin-top:20px" id="payouts-details"></div>
@@ -660,35 +663,35 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- BOOSTS -->
       <div id="page-boosts" class="page">
-        <div class="section-title">🚀 Shop Activity</div>
+        <div class="section-title">🚀 Activité boutique</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Tous les achats shop (Boost profil, Map Boost, Premium, Chat add-on) pour sitters, owners et walkers. Revenus, achats actifs, historique.
+          Tous les achats boutique (Boost profil, Map Boost, Premium, Chat add-on) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
         </p>
         <div class="stats-grid" id="boosts-stats-grid"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
           <select class="filter-select" id="boost-product-filter" onchange="loadBoosts()">
-            <option value="">All Products</option>
-            <option value="profile_boost">🚀 Profile Boost</option>
+            <option value="">Tous les produits</option>
+            <option value="profile_boost">🚀 Boost profil</option>
             <option value="map_boost">🗺️ PawSpot</option>
             <option value="premium">⭐ PawFollow</option>
             <option value="chat_addon">💬 Chat add-on</option>
           </select>
           <select class="filter-select" id="boost-tier-filter" onchange="loadBoosts()">
-            <option value="">All Tiers</option>
+            <option value="">Toutes formules</option>
             <option value="bronze">🥉 Bronze</option>
             <option value="silver">🥈 Silver</option>
             <option value="gold">🥇 Gold</option>
             <option value="platinum">💎 Platinum</option>
-            <option value="monthly">📆 Monthly</option>
-            <option value="yearly">📅 Yearly</option>
+            <option value="monthly">📆 Mensuel</option>
+            <option value="yearly">📅 Annuel</option>
           </select>
           <select class="filter-select" id="boost-role-filter" onchange="loadBoosts()">
-            <option value="">All Roles</option>
-            <option value="sitter">🐕 Sitters</option>
-            <option value="owner">👤 Owners</option>
+            <option value="">Tous les rôles</option>
+            <option value="sitter">🐕 Pet-sitters</option>
+            <option value="owner">👤 Propriétaires</option>
             <option value="walker">🚶 Walkers</option>
           </select>
-          <button class="action-btn btn-primary" onclick="loadBoosts()">↻ Refresh</button>
+          <button class="action-btn btn-primary" onclick="loadBoosts()">↻ Actualiser</button>
         </div>
         <div class="table-wrap">
           <div id="boosts-table-body">
@@ -3061,6 +3064,10 @@ async function loadAdminWallets() {
 }
 
 // v20.0.8 - Admin Payouts / Revenue
+// v23.1 part 89 — ajout du bloc "Mes bénéfices société" (Airwallex sweep) :
+// solde plateforme, bouton "Retirer mes bénéfices vers IBAN société",
+// historique des retraits, config beneficiary (nouveau OU choix d'un compte
+// existant via Airwallex). Endpoints back-end existants depuis v23.1.86-88.
 async function loadAdminPayouts() {
   const sum = document.getElementById('payouts-summary');
   const det = document.getElementById('payouts-details');
@@ -3072,21 +3079,245 @@ async function loadAdminPayouts() {
     const s = d.summary || {};
     const b = d.bookings || {};
     sum.innerHTML =
-      '<div class="stat-card" style="--accent:#16A34A"><div class="stat-label">Revenu total</div><div class="stat-value">' + (s.platformRevenue||0).toFixed(2) + ' EUR</div><div class="stat-sub">All-time</div></div>' +
-      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">Commissions booking</div><div class="stat-value">' + (s.commissionAllTime||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.bookingCount||0)+' bookings</div></div>' +
+      '<div class="stat-card" style="--accent:#16A34A"><div class="stat-label">Revenu total</div><div class="stat-value">' + (s.platformRevenue||0).toFixed(2) + ' EUR</div><div class="stat-sub">Depuis le début</div></div>' +
+      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">Commissions booking</div><div class="stat-value">' + (s.commissionAllTime||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.bookingCount||0)+' réservations</div></div>' +
       '<div class="stat-card" style="--accent:#1A73E8"><div class="stat-label">Abos Premium</div><div class="stat-value">' + (s.subscriptionAllTime||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.subscriptionPaymentCount||0)+' paiements</div></div>' +
       '<div class="stat-card" style="--accent:#F59E0B"><div class="stat-label">Donations</div><div class="stat-value">' + (s.donationsTotal||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.donationsCount||0)+' dons</div></div>';
     det.innerHTML =
-      '<h3 style="font-size:16px;margin:20px 0 10px">Commissions booking par periode</h3>' +
-      '<table class="table"><thead><tr><th>Periode</th><th>Commissions</th><th>Bookings</th></tr></thead><tbody>' +
+      // Bloc Airwallex (rendu async par loadCompanySweep)
+      '<div id="company-sweep-block" style="margin-bottom:28px"></div>' +
+      '<h3 style="font-size:16px;margin:20px 0 10px">Commissions par période</h3>' +
+      '<table class="table"><thead><tr><th>Période</th><th>Commissions</th><th>Réservations</th></tr></thead><tbody>' +
       '<tr><td><strong>7 derniers jours</strong></td><td>'+(b.last7d?.commission||0).toFixed(2)+' EUR</td><td>'+(b.last7d?.count||0)+'</td></tr>' +
       '<tr><td><strong>30 derniers jours</strong></td><td>'+(b.last30d?.commission||0).toFixed(2)+' EUR</td><td>'+(b.last30d?.count||0)+'</td></tr>' +
       '<tr><td><strong>Ce mois</strong></td><td>'+(b.thisMonth?.commission||0).toFixed(2)+' EUR</td><td>'+(b.thisMonth?.count||0)+'</td></tr>' +
-      '<tr><td><strong>Depuis le debut</strong></td><td>'+(b.commissionAllTime||0).toFixed(2)+' EUR</td><td>'+(b.count||0)+'</td></tr>' +
+      '<tr><td><strong>Depuis le début</strong></td><td>'+(b.commissionAllTime||0).toFixed(2)+' EUR</td><td>'+(b.count||0)+'</td></tr>' +
       '</tbody></table>' +
-      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Chiffre d\'affaires brut (bookings payes): <strong style="color:var(--text-primary)">' + (b.grossAllTime||0).toFixed(2) + ' EUR</strong></p>';
+      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Chiffre d\'affaires brut (réservations payées) : <strong style="color:var(--text)">' + (b.grossAllTime||0).toFixed(2) + ' EUR</strong></p>';
+    // Charge le bloc société (solde Airwallex + bouton retrait + historique).
+    loadCompanySweep();
   } catch (e) {
-    det.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
+    det.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
+  }
+}
+
+// ─── v23.1 part 89 — Mes bénéfices (sweep société Airwallex) ────────────────
+// Section dédiée pour Daniel : solde plateforme, bouton "Retirer mes
+// bénéfices vers IBAN société", historique des retraits, config beneficiary.
+async function loadCompanySweep() {
+  const wrap = document.getElementById('company-sweep-block');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement du solde Airwallex...</div>';
+  try {
+    const [bal, hist] = await Promise.all([
+      api('/admin/platform-balance').catch((e) => ({ _err: e.message })),
+      api('/admin/sweep-history').catch((e) => ({ _err: e.message })),
+    ]);
+
+    if (bal._err) {
+      wrap.innerHTML =
+        '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
+          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700;margin-bottom:8px">💼 Mes bénéfices société</h3>' +
+          '<div style="color:var(--red);font-size:13px">Impossible de charger le solde Airwallex : ' + bal._err + '</div>' +
+        '</div>';
+      return;
+    }
+
+    const items = bal.items || [];
+    const beneficiaryConfigured = !!bal.beneficiaryConfigured;
+    const beneficiaryId = bal.beneficiaryId || '';
+
+    // Solde par devise (Airwallex renvoie available_amount + total_amount par currency).
+    const balanceCards = items.length
+      ? items.map((it) => {
+          const cur = (it.currency || 'EUR').toUpperCase();
+          const avail = Number(it.available_amount || 0);
+          const total = Number(it.total_amount || 0);
+          return (
+            '<div class="stat-card" style="--accent:#10B981">' +
+              '<div class="stat-label">Disponible ' + cur + '</div>' +
+              '<div class="stat-value">' + avail.toFixed(2) + '</div>' +
+              '<div class="stat-sub">Total : ' + total.toFixed(2) + ' ' + cur + '</div>' +
+            '</div>'
+          );
+        }).join('')
+      : '<div class="stat-card"><div class="stat-label">Solde Airwallex</div><div class="stat-value" style="font-size:20px">0,00 EUR</div><div class="stat-sub">Aucun fonds disponible</div></div>';
+
+    // Bandeau config + boutons d'action.
+    const cfgBanner = beneficiaryConfigured
+      ? (
+          '<div style="background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px">' +
+            '✅ Compte société configuré (<code style="background:var(--bg);padding:2px 6px;border-radius:4px">' + beneficiaryId + '</code>)' +
+          '</div>'
+        )
+      : (
+          '<div style="background:rgba(243,156,18,0.08);border:1px solid rgba(243,156,18,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">' +
+            '⚠️ <strong>Aucun compte société configuré.</strong> Pour pouvoir retirer tes bénéfices vers ton IBAN, tu dois choisir le compte qui recevra l\'argent.<br>' +
+            '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' +
+              '<button class="action-btn btn-primary" onclick="openPickBeneficiaryDialog()">📋 J\'ai déjà un compte Airwallex</button>' +
+              '<button class="action-btn" style="background:rgba(232,71,42,0.1);color:var(--primary)" onclick="openSetupBeneficiaryDialog()">➕ Créer un nouveau compte</button>' +
+            '</div>' +
+          '</div>'
+        );
+
+    const sweepBtn =
+      '<button class="action-btn btn-primary" style="padding:12px 22px;font-size:14px"' +
+        (beneficiaryConfigured ? '' : ' disabled style="padding:12px 22px;font-size:14px;opacity:.5;cursor:not-allowed"') +
+        ' onclick="openSweepDialog()">' +
+        '💰 Retirer mes bénéfices vers IBAN société' +
+      '</button>';
+
+    // Historique des sweeps.
+    const histItems = (hist && hist.items) || [];
+    const histRows = histItems.length
+      ? histItems.map((s) => {
+          const statusBadge =
+            s.status === 'completed' ? '<span class="badge badge-green">Terminé</span>' :
+            s.status === 'failed' ? '<span class="badge badge-red">Échec</span>' :
+            '<span class="badge badge-orange">En cours</span>';
+          const partial = s.requestedAmount != null
+            ? ' <span style="color:var(--text-muted);font-size:11px">(partiel)</span>'
+            : '';
+          return (
+            '<tr>' +
+              '<td style="font-size:12px;color:var(--text-muted)">' + (fmtDate ? fmtDate(s.createdAt) : new Date(s.createdAt).toLocaleString('fr-FR')) + '</td>' +
+              '<td><strong>' + (Number(s.amount)||0).toFixed(2) + ' ' + (s.currency||'EUR') + '</strong>' + partial + '</td>' +
+              '<td>' + statusBadge + '</td>' +
+              '<td style="font-family:monospace;font-size:11px;color:var(--text-muted)">' + (s.payoutId || '—') + '</td>' +
+              '<td style="font-size:12px;color:var(--text-muted)">' + (s.failureReason || '—') + '</td>' +
+            '</tr>'
+          );
+        }).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">Aucun retrait pour le moment.</td></tr>';
+
+    wrap.innerHTML =
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
+          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">💼 Mes bénéfices société (Airwallex)</h3>' +
+          '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="loadCompanySweep()">↻ Actualiser</button>' +
+        '</div>' +
+        cfgBanner +
+        '<div class="stats-grid" style="margin-bottom:14px">' + balanceCards + '</div>' +
+        '<div style="display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap">' +
+          sweepBtn +
+          '<span style="color:var(--text-muted);font-size:12px">L\'argent partira sur le compte configuré sous 1-2 jours ouvrés.</span>' +
+        '</div>' +
+        '<h4 style="font-family:Syne,sans-serif;font-size:14px;font-weight:700;margin:18px 0 10px">📜 Historique des retraits</h4>' +
+        '<div class="table-wrap">' +
+          '<table><thead><tr><th>Date</th><th>Montant</th><th>Statut</th><th>Payout ID</th><th>Erreur</th></tr></thead>' +
+          '<tbody>' + histRows + '</tbody></table>' +
+        '</div>' +
+      '</div>';
+  } catch (e) {
+    wrap.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
+  }
+}
+
+// Demande à Daniel le montant à retirer (vide = retirer tout).
+function openSweepDialog() {
+  const items = (window._lastBalanceItems || []);
+  const ans = prompt(
+    'Montant à retirer (EUR). Laisse vide pour retirer la totalité du solde disponible.',
+    ''
+  );
+  if (ans === null) return; // cancel
+  const amount = Number(ans);
+  doCompanySweep(ans.trim() === '' ? null : amount);
+}
+
+async function doCompanySweep(amount) {
+  if (amount != null && (!Number.isFinite(amount) || amount <= 0)) {
+    showToast('Montant invalide.', 'error');
+    return;
+  }
+  if (!confirm(amount == null
+    ? 'Retirer la totalité du solde disponible vers ton IBAN société ?'
+    : 'Retirer ' + amount.toFixed(2) + ' EUR vers ton IBAN société ?')) return;
+  showToast('Retrait en cours...', 'success');
+  try {
+    const body = amount == null ? {} : { amount, currency: 'EUR' };
+    const r = await api('/admin/sweep-platform-balance', 'POST', body);
+    const swept = (r.swept || []).map((s) => s.amount.toFixed(2) + ' ' + s.currency).join(', ');
+    showToast(swept ? '✅ Retrait initié : ' + swept : 'ℹ️ Rien à retirer.', 'success');
+    loadCompanySweep();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// Liste les beneficiaries Airwallex existants pour que Daniel choisisse.
+async function openPickBeneficiaryDialog() {
+  showToast('Chargement de tes comptes Airwallex...', 'success');
+  try {
+    const r = await api('/admin/list-beneficiaries');
+    const items = r.items || [];
+    if (!items.length) {
+      if (confirm('Aucun bénéficiaire trouvé sur ton compte Airwallex. Veux-tu en créer un nouveau ?')) {
+        openSetupBeneficiaryDialog();
+      }
+      return;
+    }
+    const lines = items.map((it, idx) =>
+      (idx + 1) + '. ' + (it.nickname || it.accountName || it.id) +
+      ' — ' + (it.bankName || '?') + ' ' + (it.accountNumberMasked || '') +
+      ' (' + (it.currency || '?') + ')'
+    ).join('\n');
+    const choice = prompt(
+      'Tape le numéro du compte qui recevra tes bénéfices :\n\n' + lines,
+      '1'
+    );
+    if (choice === null) return;
+    const idx = parseInt(choice, 10) - 1;
+    if (!(idx >= 0 && idx < items.length)) {
+      showToast('Choix invalide.', 'error');
+      return;
+    }
+    const picked = items[idx];
+    // Affiche l'instruction Render — on ne persiste pas côté serveur, Daniel
+    // copie la ligne dans Render → Environment et redéploiement auto.
+    const msg =
+      'Bénéficiaire choisi : ' + (picked.nickname || picked.accountName || picked.id) + '\n\n' +
+      'AJOUTE MAINTENANT cette ligne dans Render → Environment :\n\n' +
+      'COMPANY_AIRWALLEX_BENEFICIARY_ID=' + picked.id + '\n\n' +
+      'Render redéploiera tout seul, puis le bouton « Retirer » deviendra cliquable.';
+    alert(msg);
+    // Test la validité côté Airwallex pour confirmer.
+    try {
+      await api('/admin/test-beneficiary', 'POST', { beneficiaryId: picked.id });
+      showToast('✅ Bénéficiaire valide. Configure Render maintenant.', 'success');
+    } catch (e) {
+      showToast('⚠️ Bénéficiaire trouvé mais test KO : ' + e.message, 'error');
+    }
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// Crée un nouveau beneficiary société depuis l'admin (formulaire IBAN).
+async function openSetupBeneficiaryDialog() {
+  const companyName = prompt('Raison sociale exacte de ta société (ex : CARDELLI HERMANOS LIMITED) :');
+  if (!companyName) return;
+  const iban = prompt('IBAN du compte société (sans espaces) :');
+  if (!iban) return;
+  const bic = prompt('BIC / SWIFT (recommandé) :', '');
+  const bankName = prompt('Nom de la banque :', '');
+  const bankCountryCode = prompt('Code pays banque (FR, ES, GB, ...) :', 'FR');
+  const currency = prompt('Devise du compte (EUR, GBP, USD) :', 'EUR');
+  const addressLine = prompt('Adresse société (rue + numéro) :', '');
+  const addressCity = prompt('Ville société :', '');
+  const postalCode = prompt('Code postal :', '');
+  const addressCountryCode = prompt('Code pays société :', bankCountryCode || 'FR');
+  if (!confirm('Créer le bénéficiaire « ' + companyName + ' » avec l\'IBAN ' + iban + ' ?')) return;
+  showToast('Création en cours...', 'success');
+  try {
+    const r = await api('/admin/setup-company-beneficiary', 'POST', {
+      companyName, iban, bic, bankName, bankCountryCode, currency,
+      addressLine, addressCity, postalCode, addressCountryCode,
+    });
+    alert(r.message || ('Bénéficiaire créé : ' + r.beneficiaryId));
+    showToast('✅ Bénéficiaire créé. Configure Render maintenant.', 'success');
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
   }
 }
 
