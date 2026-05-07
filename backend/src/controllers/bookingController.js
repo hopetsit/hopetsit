@@ -2038,11 +2038,39 @@ const _prepareOwnerPaymentForAgreedBooking = async (booking, ownerId, body = {})
   // v21.1.1 — Stripe purgé. Airwallex only. No more Stripe Customer creation.
   // v21 — Airwallex flow uses platform-only PI ; the
   // 80% sitter cut is released later by payoutScheduler via IBAN payout.
+  //
+  // v23.1 part 67 — Daniel : "Payer publication bug" → page Airwallex
+  // vide quand owner paie après accept d'une candidature. Root cause :
+  // ce code path (_prepareOwnerPaymentForAgreedBooking, appelé depuis
+  // applicationController) n'avait PAS le fix customer_id de v23.1.58
+  // — la HPP n'avait donc rien à afficher comme moyens de paiement.
+  // Fix : attacher customer_id ici aussi (idempotent, mêmes args que
+  // /create-payment-intent).
+  let airwallexCustomerId = null;
+  try {
+    const ownerDoc = booking.ownerId;
+    const customer = await airwallex.findOrCreateCustomer({
+      userId: ownerDoc._id.toString(),
+      email: ownerDoc.email,
+      firstName: (ownerDoc.name || '').split(' ')[0] || ownerDoc.name || '',
+      lastName: (ownerDoc.name || '').split(' ').slice(1).join(' ') || '',
+    });
+    airwallexCustomerId = customer?.id || null;
+    logger.info(
+      `[booking._prepare] customer ensured ${airwallexCustomerId} for owner ${ownerDoc._id}`,
+    );
+  } catch (custErr) {
+    logger.warn(
+      `[booking._prepare] customer ensure failed (continuing without) : ${custErr?.message || custErr}`,
+    );
+  }
+
   let paymentIntent;
   let usedProvider = 'airwallex';
   paymentIntent = await airwallex.createPlatformPaymentIntent({
     amount: amountInCents,
     currency: bookingCurrency.toUpperCase(),
+    ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
     metadata: {
       type: 'booking',
       bookingId: booking._id.toString(),

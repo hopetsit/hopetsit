@@ -210,7 +210,158 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
   return { activated: true, plan, expiresAt: newExpiry };
 }
 
+/**
+ * v23.1 part 67 — Profile Boost activation from webhook.
+ * Daniel : "Jai aussi payer le forfait boost ne fonctionne pas" — the
+ * boost route created a PI tagged metadata.type='boost_purchase' but
+ * the webhook had no handler for it (only map_boost was wired). Money
+ * was captured, nothing got activated. This function is the missing
+ * piece. Idempotent on (boostPurchases.paymentId).
+ *
+ * Mirrors the in-route /confirm logic but is webhook-driven so it always
+ * runs even if the client app crashes between pay and /confirm.
+ */
+async function activateBoostFromWebhook({ piId, metadata }) {
+  const userId = metadata?.userId;
+  const role = metadata?.role;
+  const tier = metadata?.tier;
+  const days = Number(metadata?.days || 0);
+  const currency = (metadata?.currency || 'EUR').toUpperCase();
+
+  if (!userId || !role || !tier || !days) {
+    throw new Error(
+      `Invalid boost metadata (userId=${userId}, role=${role}, tier=${tier}, days=${days})`,
+    );
+  }
+
+  const Model = _roleModel(role);
+  const user = await Model.findById(userId);
+  if (!user) throw new Error(`User not found ${role}:${userId}`);
+
+  // Idempotency : skip if we already activated this exact PI for profile boost.
+  const alreadyActivated = (user.boostPurchases || []).some(
+    (p) => p.paymentId === piId && (!p.kind || p.kind === 'profile'),
+  );
+  if (alreadyActivated) {
+    logger.info(`[purchaseActivation] profile boost already activated for PI ${piId} — skipping`);
+    return { alreadyActivated: true };
+  }
+
+  const now = new Date();
+  const currentExpiry =
+    user.boostExpiry && new Date(user.boostExpiry) > now
+      ? new Date(user.boostExpiry)
+      : now;
+  const newExpiry = new Date(currentExpiry.getTime() + days * 86_400_000);
+
+  user.boostExpiry = newExpiry;
+  user.boostTier = tier;
+  user.boostPurchases = user.boostPurchases || [];
+  user.boostPurchases.push({
+    tier,
+    amount: 0,
+    currency,
+    days,
+    purchasedAt: now,
+    paymentProvider: 'airwallex',
+    paymentId: piId,
+    kind: 'profile',
+  });
+  await user.save();
+
+  logger.info(
+    `[purchaseActivation] profile boost activated ${role} ${userId} tier=${tier} days=${days} → ${newExpiry.toISOString()}`,
+  );
+
+  try {
+    const { sendNotification } = require('../services/notificationSender');
+    await sendNotification({
+      userId,
+      role,
+      type: 'profile_boost_activated',
+      data: { tier, days: String(days), expiresAt: newExpiry.toISOString() },
+      actor: { role: 'system', id: null },
+    });
+  } catch (_) { /* non-critical */ }
+
+  return { activated: true, tier, days, expiresAt: newExpiry };
+}
+
+/**
+ * v23.1 part 67 — Chat add-on activation from webhook.
+ * Same rationale as activateBoostFromWebhook : the chatAddon route
+ * created a PI tagged 'chat_addon_purchase' but the webhook never
+ * activated it. Idempotent on UserChatAddon.history[].paymentId.
+ */
+async function activateChatAddonFromWebhook({ piId, metadata }) {
+  const userId = metadata?.userId;
+  const role = metadata?.role;
+  const intervalDays = Number(metadata?.intervalDays || 30);
+  const currency = (metadata?.currency || 'EUR').toUpperCase();
+
+  if (!userId || !role) {
+    throw new Error(`Invalid chat_addon metadata (userId=${userId}, role=${role})`);
+  }
+
+  const UserChatAddon = require('../models/UserChatAddon');
+  const userModelName = _roleModelName(role);
+
+  let addon = await UserChatAddon.findOne({ userId, userModel: userModelName });
+  if (!addon) {
+    addon = new UserChatAddon({
+      userId,
+      userModel: userModelName,
+      status: 'active',
+      currency,
+    });
+  }
+
+  const history = addon.history || [];
+  if (history.some((h) => h.paymentId === piId)) {
+    logger.info(`[purchaseActivation] chat_addon already activated for PI ${piId} — skipping`);
+    return { alreadyActivated: true };
+  }
+
+  const now = new Date();
+  const currentExpiry = addon.expiresAt && new Date(addon.expiresAt) > now
+    ? new Date(addon.expiresAt) : now;
+  const newExpiry = new Date(currentExpiry.getTime() + intervalDays * 86_400_000);
+
+  addon.status = 'active';
+  addon.expiresAt = newExpiry;
+  addon.currency = currency;
+  addon.history = history;
+  addon.history.push({
+    paymentProvider: 'airwallex',
+    paymentId: piId,
+    activatedAt: now,
+    expiresAt: newExpiry,
+    intervalDays,
+    currency,
+  });
+  await addon.save();
+
+  logger.info(
+    `[purchaseActivation] chat_addon activated ${role} ${userId} → ${newExpiry.toISOString()}`,
+  );
+
+  try {
+    const { sendNotification } = require('../services/notificationSender');
+    await sendNotification({
+      userId,
+      role,
+      type: 'chat_addon_activated',
+      data: { intervalDays: String(intervalDays), expiresAt: newExpiry.toISOString() },
+      actor: { role: 'system', id: null },
+    });
+  } catch (_) { /* non-critical */ }
+
+  return { activated: true, intervalDays, expiresAt: newExpiry };
+}
+
 module.exports = {
   activateMapBoostFromWebhook,
   activateSubscriptionFromWebhook,
+  activateBoostFromWebhook,
+  activateChatAddonFromWebhook,
 };

@@ -81,11 +81,28 @@ const initiatePayment = async (req, res) => {
       });
     }
 
+    // v23.1 part 67 — Daniel : "verification identite ne marche pas" /
+    // "page Airwallex vide". Same fix as boutique : ALWAYS attach
+    // customer_id so the HPP renders the payment-method picker.
+    let airwallexCustomerId = null;
+    try {
+      const customer = await airwallex.findOrCreateCustomer({
+        userId: user._id.toString(),
+        email: user.email,
+        firstName: (user.name || '').split(' ')[0] || user.name || '',
+        lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
+      });
+      airwallexCustomerId = customer?.id || null;
+    } catch (custErr) {
+      logger.warn(`[kyc.initiatePayment] customer ensure failed : ${custErr?.message || custErr}`);
+    }
+
     // Crée Airwallex PI tagged metadata.type='kyc'
     const amountInCents = KYC_PRICE_EUR * 100;
     const paymentIntent = await airwallex.createPlatformPaymentIntent({
       amount: amountInCents,
       currency: 'EUR',
+      ...(airwallexCustomerId ? { customer_id: airwallexCustomerId } : {}),
       metadata: {
         type: 'kyc',
         userId: user._id.toString(),

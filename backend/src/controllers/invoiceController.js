@@ -320,15 +320,26 @@ const renderInvoiceHtml = async (req, res) => {
   </div>
   <div class="head">
     <div class="brand" style="display: flex; align-items: center; gap: 12px;">
-      <!-- v23.1 part 34 — logo HoPetSit SVG inline (paw + "H" stylisé en orange) -->
-      <svg width="48" height="48" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="32" cy="32" r="32" fill="#EF4324"/>
-        <g fill="#FFFFFF">
-          <ellipse cx="32" cy="42" rx="14" ry="11"/>
-          <ellipse cx="20" cy="26" rx="5" ry="6.5"/>
-          <ellipse cx="44" cy="26" rx="5" ry="6.5"/>
-          <ellipse cx="13" cy="35" rx="4" ry="5"/>
-          <ellipse cx="51" cy="35" rx="4" ry="5"/>
+      <!-- v23.1 part 67 — official HoPetSit logo (orange rounded square +
+           white paw with red/blue/green dots), copy of frontend
+           assets/brand/web/logo-orange.svg. Daniel : "Mettre notre logo
+           sur la facture". -->
+      <svg width="56" height="56" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1024" height="1024" rx="200" fill="#EF4324"/>
+        <g transform="translate(512, 471)">
+          <path d="M0,-427 C-427,-427 -427,-171 -427,55 C-427,300 -215,478 0,539 C215,478 427,300 427,55 C427,-171 427,-427 0,-427 Z" fill="white"/>
+          <ellipse cx="-195" cy="-154" rx="58" ry="65" fill="#EF4324"/>
+          <ellipse cx="-68" cy="-235" rx="58" ry="65" fill="#1A73E8"/>
+          <ellipse cx="68"  cy="-235" rx="58" ry="65" fill="#008000"/>
+          <ellipse cx="195" cy="-154" rx="58" ry="65" fill="#EF4324"/>
+          <path d="M-290,120 C-290,-34 -181,-119 0,-119 C181,-119 290,-34 290,120 C290,239 181,314 0,314 C-181,314 -290,239 -290,120 Z" fill="#1A1A1A"/>
+          <ellipse cx="0" cy="120" rx="205" ry="102" fill="#0D0D0D"/>
+          <circle cx="0" cy="120" r="99" fill="#EF4324"/>
+          <circle cx="0" cy="120" r="55" fill="#0D0D0D"/>
+          <circle cx="24" cy="92" r="26" fill="white"/>
+          <circle cx="-20" cy="137" r="14" fill="white" opacity="0.5"/>
+          <path d="M-205,120 C-116,55 116,55 205,120" fill="none" stroke="#0D0D0D" stroke-width="8.9" stroke-linecap="round"/>
+          <path d="M-205,120 C-116,184 116,184 205,120" fill="none" stroke="#0D0D0D" stroke-width="8.9" stroke-linecap="round"/>
         </g>
       </svg>
       <div>

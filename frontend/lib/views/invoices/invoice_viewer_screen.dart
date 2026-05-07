@@ -122,13 +122,11 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
               ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download_rounded, color: Colors.white),
-            tooltip: 'Télécharger PDF',
-            onPressed: _triggerPrint,
-          ),
-        ],
+        // v23.1 part 67 — Daniel : "Enlever icone blanche en haut a droite".
+        // The AppBar download icon was redundant : the invoice HTML itself
+        // shows a big orange "⬇ Télécharger PDF" button at the top AND a
+        // sticky one at the bottom (both calling Hopetsit.postMessage
+        // 'download' which pops out to the OS browser). actions: [] now.
       ),
       body: Stack(
         children: [

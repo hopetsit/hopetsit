@@ -976,12 +976,16 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   ),
                 ),
 
-                // v23.1 part 40 — Daniel : déplace Signaler du BOTTOM-RIGHT
-                // vers le HAUT-RIGHT (sous le bouton géoloc, à côté de
-                // PawFollow/PawSpot). Libère la zone du bas pour la map.
+                // v23.1 part 67 — Daniel : "2 boutons qui se chevauchent".
+                // Le Signaler FAB et le bouton géoloc étaient tous les deux
+                // en haut à droite avec un gap insuffisant sur petits écrans.
+                // On remet Signaler en BOTTOM-RIGHT (au-dessus de la nav bar)
+                // pour séparer clairement les deux affordances : géoloc en
+                // haut, signaler en bas. La zone centrale de la map reste
+                // dégagée.
                 Positioned(
                   right: 12.w,
-                  top: 80.h,
+                  bottom: 24.h,
                   child: _buildReportFab(),
                 ),
               ],

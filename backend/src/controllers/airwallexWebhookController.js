@@ -82,6 +82,32 @@ const handleAirwallexWebhook = async (req, res) => {
           break;
         }
 
+        // v23.1 part 67 — Daniel : "Jai aussi payer le forfait boost ne
+        // fonctionne pas". Profile Boost & Chat Add-on PIs were never
+        // activated by the webhook (handler missing). Money in, no
+        // benefit out. Now wired.
+        if (purchaseType === 'boost_purchase') {
+          try {
+            const { activateBoostFromWebhook } = require('./purchaseActivationController');
+            await activateBoostFromWebhook({ piId, metadata: piMetadata });
+            logger.info(`✅ [airwallex.webhook] profile boost activated from PI ${piId} for user ${piMetadata.userId}`);
+          } catch (e) {
+            logger.error(`[airwallex.webhook] profile boost activation failed for PI ${piId} : ${e.message}`);
+          }
+          break;
+        }
+
+        if (purchaseType === 'chat_addon_purchase') {
+          try {
+            const { activateChatAddonFromWebhook } = require('./purchaseActivationController');
+            await activateChatAddonFromWebhook({ piId, metadata: piMetadata });
+            logger.info(`✅ [airwallex.webhook] chat addon activated from PI ${piId} for user ${piMetadata.userId}`);
+          } catch (e) {
+            logger.error(`[airwallex.webhook] chat addon activation failed for PI ${piId} : ${e.message}`);
+          }
+          break;
+        }
+
         // v23.1 part 36 — KYC payment (3 EUR sitter/walker identity verification).
         if (purchaseType === 'kyc' || piMetadata.type === 'kyc') {
           try {
@@ -141,6 +167,32 @@ const handleAirwallexWebhook = async (req, res) => {
         booking.paidAt = new Date();
         await booking.save();
         logger.info(`✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})`);
+
+        // v23.1 part 67 — Daniel : "Une fois la reservation fini que
+        // l'ancienne publication s'efface". When the owner pays a booking
+        // that originated from a public post, close the post so the
+        // walker/sitter community no longer sees it as open. We only
+        // mark it 'closed' (status) so the data stays for analytics ;
+        // no hard-delete.
+        try {
+          const Application = require('../models/Application');
+          const Post = require('../models/Post');
+          const app = await Application.findOne({
+            bookingId: booking._id,
+            postId: { $ne: null },
+          }).lean();
+          if (app && app.postId) {
+            await Post.updateOne(
+              { _id: app.postId, status: { $ne: 'closed' } },
+              { $set: { status: 'closed', closedAt: new Date(), closedReason: 'booking_paid' } },
+            );
+            logger.info(
+              `[airwallex.webhook] auto-closed Post ${app.postId} after booking ${booking._id} was paid`,
+            );
+          }
+        } catch (e) {
+          logger.warn(`[airwallex.webhook] auto-close post failed : ${e.message}`);
+        }
 
         // v23.1 part 47 — credit wallet immediately on payment success,
         // independent of payout outcome (mirror of the confirmBookingPayment
