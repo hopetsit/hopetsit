@@ -178,8 +178,8 @@ exports.requestWithdrawal = async (req, res) => {
       method,
       message:
         method === 'iban'
-          ? 'Withdrawal queued. Funds will hit your IBAN within 3 business days.'
-          : 'Withdrawal queued. Funds will hit your PayPal within 1 business day.',
+          ? 'Retrait enregistré. Versement automatique sur ton IBAN sous 1 à 3 jours ouvrés.'
+          : 'Retrait enregistré. Le versement PayPal est traité manuellement par notre équipe sous 1 à 2 jours ouvrés.',
     });
   } catch (e) {
     if (e.code === 'INSUFFICIENT_BALANCE') {

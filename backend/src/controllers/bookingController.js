@@ -1506,7 +1506,41 @@ const refundBookingPayment = async (booking) => {
     if (!captureId) throw new Error('No PayPal capture ID to refund.');
     return refundPaypalCapture(captureId);
   }
-  // TODO: implement Airwallex refund when needed
+  // v23.1 part 79 — implement Airwallex refund (was stubbed). Owner
+  // self-cancel < 72h auto-refund + admin manual refund both flow
+  // through here. Refunds the FULL booking amount to the original
+  // card via the saved PaymentIntent. createRefund returns the
+  // Airwallex refund id ; we store it on the booking for audit.
+  if (booking.paymentProvider === 'airwallex') {
+    const piId = booking.airwallexPaymentIntentId;
+    if (!piId) throw new Error('No Airwallex PaymentIntent ID to refund.');
+    const grossCents = Math.round(
+      ((booking.pricing && booking.pricing.totalPrice) ||
+        booking.totalAmount ||
+        0) * 100,
+    );
+    if (!Number.isFinite(grossCents) || grossCents <= 0) {
+      throw new Error('Invalid booking amount for refund.');
+    }
+    const refund = await airwallex.createRefund({
+      paymentIntentId: piId,
+      amount: grossCents,
+      reason: 'requested_by_customer',
+      metadata: {
+        type: 'booking_refund',
+        bookingId: booking._id.toString(),
+      },
+    });
+    if (refund && refund.id) {
+      booking.refundId = refund.id;
+      booking.refundedAt = new Date();
+      await booking.save().catch(() => {});
+    }
+    logger.info(
+      `[refundBookingPayment] airwallex refund ${refund?.id} issued for booking ${booking._id} (€${grossCents / 100}).`,
+    );
+    return refund;
+  }
   throw new Error(`Refund not implemented for provider: ${booking.paymentProvider}`);
 };
 

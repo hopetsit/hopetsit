@@ -663,6 +663,82 @@ async function retrievePayout(id) {
   return awxFetch(`/api/v1/payouts/${encodeURIComponent(id)}`);
 }
 
+/**
+ * v23.1 part 79 — Daniel : "verifie les payout pour ma societer".
+ *
+ * Get the HoPetSit platform's current available balance per currency.
+ * Returns the raw Airwallex /balances/current response shape :
+ *   { items: [{ currency, available_amount, total_amount, ... }] }
+ *
+ * Used by the company sweep flow to decide how much to transfer to
+ * Daniel's company bank account. Available balance excludes funds
+ * already pending payout / in-flight refunds.
+ */
+async function getPlatformBalance() {
+  return awxFetch('/api/v1/balances/current');
+}
+
+/**
+ * v23.1 part 79 — sweep the available platform balance to a saved
+ * company beneficiary. This is how Daniel actually receives the
+ * accumulated commissions + boutique revenue (Boost / PawSpot /
+ * PawFollow / Chat Add-on / KYC) into his company bank account.
+ *
+ * The COMPANY_AIRWALLEX_BENEFICIARY_ID env var must point to a
+ * pre-saved Airwallex beneficiary representing Daniel's company bank
+ * (created once via the Airwallex dashboard or via a one-off
+ * createBeneficiary call). Each currency is swept independently.
+ *
+ * @param {object} opts
+ * @param {string} opts.beneficiaryId - Airwallex beneficiary id (Daniel's company bank).
+ * @param {number} [opts.minSweepAmount=10] - Skip sweep if available < this in major units.
+ * @param {string[]} [opts.currencies] - Optional whitelist (default: all currencies with balance).
+ * @returns {Promise<{swept: Array<{currency, amount, payoutId}>, skipped: Array<{currency, available, reason}>}>}
+ */
+async function sweepPlatformBalance({
+  beneficiaryId,
+  minSweepAmount = 10,
+  currencies = null,
+}) {
+  if (!beneficiaryId) {
+    throw new Error('beneficiaryId is required (set COMPANY_AIRWALLEX_BENEFICIARY_ID).');
+  }
+  const balance = await getPlatformBalance();
+  const items = (balance && Array.isArray(balance.items)) ? balance.items : [];
+  const swept = [];
+  const skipped = [];
+  for (const item of items) {
+    const currency = (item.currency || '').toUpperCase();
+    if (!currency) continue;
+    if (currencies && !currencies.includes(currency)) continue;
+    const available = Number(item.available_amount || 0);
+    if (!Number.isFinite(available) || available < minSweepAmount) {
+      skipped.push({ currency, available, reason: 'below_min' });
+      continue;
+    }
+    try {
+      // amount comes back from Airwallex as major units already (EUR
+      // not cents), but our createPayout helper takes cents → multiply.
+      const amountInCents = Math.round(available * 100);
+      const payout = await createPayout({
+        beneficiaryId,
+        amount: amountInCents,
+        currency,
+        reference: `HoPetSit sweep ${new Date().toISOString().slice(0, 10)}`.slice(0, 35),
+        metadata: { type: 'company_sweep' },
+      });
+      swept.push({
+        currency,
+        amount: available,
+        payoutId: payout?.id || null,
+      });
+    } catch (e) {
+      skipped.push({ currency, available, reason: 'payout_failed', error: e.message });
+    }
+  }
+  return { swept, skipped };
+}
+
 
 // ─── Structured error mapping ──────────────────────────────────────────────
 //
@@ -776,6 +852,10 @@ module.exports = {
   // Payouts (sitter/walker payouts) — v21
   createPayout,
   retrievePayout,
+  // v23.1 part 79 — company-side payouts (sweep platform balance to
+  // Daniel's company bank).
+  getPlatformBalance,
+  sweepPlatformBalance,
   // Constants
   PLATFORM_COMMISSION_RATE,
   // Error mapping (v23.1)

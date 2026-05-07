@@ -2347,4 +2347,67 @@ router.get('/payouts', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── v23.1 part 79 — Company payouts (sweep platform balance) ──────────────
+//
+// Daniel : "verifie les payout pour ma societer". Until now there was no
+// way for HoPetSit to actually receive its accumulated 20% commissions
+// + boutique revenue (Boost, PawSpot, PawFollow, Chat-Add-on, KYC) —
+// the money sat in the Airwallex platform wallet indefinitely.
+//
+// These two endpoints close the loop :
+//
+// GET  /admin/platform-balance  → returns the per-currency balance.
+// POST /admin/sweep-platform-balance { beneficiaryId?, minSweepAmount?,
+//                                      currencies? }
+//      → transfers the available balance to the configured company
+//        beneficiary (Daniel's company bank account, saved as an
+//        Airwallex Beneficiary). One Airwallex Payout per currency.
+//
+// Setup once on Airwallex dashboard → Beneficiaries → create
+// "HoPetSit company bank" → save the resulting `ben_xxx` id either
+// as env COMPANY_AIRWALLEX_BENEFICIARY_ID OR pass it in the request
+// body.
+const _airwallex = require('../services/airwallexService');
+
+router.get('/platform-balance', requireAdmin, async (req, res) => {
+  try {
+    const data = await _airwallex.getPlatformBalance();
+    res.json({ raw: data, items: (data && data.items) || [] });
+  } catch (e) {
+    logger.error('[admin/platform-balance]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
+  try {
+    const beneficiaryId =
+      (req.body && req.body.beneficiaryId) ||
+      process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID ||
+      '';
+    if (!beneficiaryId) {
+      return res.status(400).json({
+        error:
+          'No beneficiary configured. Set COMPANY_AIRWALLEX_BENEFICIARY_ID ' +
+          'env on Render OR pass beneficiaryId in the request body.',
+      });
+    }
+    const minSweepAmount = Number(req.body?.minSweepAmount) || 10;
+    const currencies = Array.isArray(req.body?.currencies) ? req.body.currencies : null;
+    const result = await _airwallex.sweepPlatformBalance({
+      beneficiaryId,
+      minSweepAmount,
+      currencies,
+    });
+    logger.info(
+      `[admin/sweep-platform-balance] swept ${result.swept.length} payout(s), ` +
+      `skipped ${result.skipped.length} (beneficiary=${beneficiaryId})`,
+    );
+    res.json(result);
+  } catch (e) {
+    logger.error('[admin/sweep-platform-balance]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
