@@ -218,6 +218,8 @@ const versionedRoutes = [
   { path: '/chat-addon', mw: [sensitiveLimiter], router: chatAddonRoutes },
   { path: '/friends', mw: [], router: friendRoutes },
   { path: '/bug-reports', mw: [sensitiveLimiter], router: bugReportRoutes },
+  // v23.1 part 72 — Bug 11 : in-chat translation (POST /translate).
+  { path: '/translate', mw: [], router: require('./routes/translateRoutes') },
   // v19.0 — Wallet Vinted-style (sitter+walker balance + withdrawals).
   { path: '/wallet', mw: [], router: require('./routes/walletRoutes') },
   // v23.1 part 57 — self-hosted Airwallex bridge (replaces hopetsit.com/pay)

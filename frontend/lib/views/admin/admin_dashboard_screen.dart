@@ -58,12 +58,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     super.dispose();
   }
 
+  // v23.1 part 72 — Daniel "admin et tout deconnecter". Root cause :
+  // every admin call passed `'/admin/...'` to
+  // `ApiClient().get(endpoint)` which itself does
+  // `Uri.parse('${ApiConfig.baseUrl}$endpoint')` → DOUBLE baseUrl,
+  // every request 404'd. Fixed by using relative paths everywhere
+  // (just '/admin/...').
   Future<void> _login() async {
     _adminSecret = _adminSecretController.text.trim();
     if (_adminSecret.isEmpty) return;
     try {
       final response = await ApiClient().get(
-        '${ApiConfig.baseUrl}/admin/stats',
+        '/admin/stats',
         headers: {'x-admin-secret': _adminSecret},
       );
       setState(() {
@@ -82,9 +88,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     setState(() => _listLoading = true);
     try {
       final headers = {'x-admin-secret': _adminSecret};
-      final bookings = await ApiClient().get('${ApiConfig.baseUrl}/admin/bookings?limit=50', headers: headers);
-      final sitters = await ApiClient().get('${ApiConfig.baseUrl}/admin/sitters?limit=50', headers: headers);
-      final owners = await ApiClient().get('${ApiConfig.baseUrl}/admin/owners?limit=50', headers: headers);
+      final bookings = await ApiClient().get('/admin/bookings?limit=50', headers: headers);
+      final sitters = await ApiClient().get('/admin/sitters?limit=50', headers: headers);
+      final owners = await ApiClient().get('/admin/owners?limit=50', headers: headers);
       setState(() {
         _bookings = (bookings as Map)['bookings'] ?? [];
         _sitters = (sitters as Map)['sitters'] ?? [];
@@ -107,7 +113,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     setState(() => _pricingLoading = true);
     try {
       final response = await ApiClient().get(
-        '${ApiConfig.baseUrl}/admin/pricing',
+        '/admin/pricing',
         headers: {'x-admin-secret': _adminSecret},
       );
       setState(() {
@@ -163,7 +169,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       }
 
       await ApiClient().patch(
-        '${ApiConfig.baseUrl}/admin/pricing',
+        '/admin/pricing',
         body: patch,
         headers: {'x-admin-secret': _adminSecret},
       );
@@ -197,7 +203,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     if (confirm != true) return;
     try {
       await ApiClient().post(
-        '${ApiConfig.baseUrl}/admin/pricing/reset',
+        '/admin/pricing/reset',
         body: {},
         headers: {'x-admin-secret': _adminSecret},
       );
@@ -213,7 +219,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _verifySitter(String id, bool verified) async {
     try {
       await ApiClient().patch(
-        '${ApiConfig.baseUrl}/admin/sitters/$id/verify',
+        '/admin/sitters/$id/verify',
         body: {'verified': verified},
         headers: {'x-admin-secret': _adminSecret},
       );
@@ -228,7 +234,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _verifyIban(String sitterId) async {
     try {
       await ApiClient().patch(
-        '${ApiConfig.baseUrl}/admin/sitters/$sitterId/iban/verify',
+        '/admin/sitters/$sitterId/iban/verify',
         body: {},
         headers: {'x-admin-secret': _adminSecret},
       );
@@ -243,7 +249,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _updateBookingStatus(String id, String status) async {
     try {
       await ApiClient().patch(
-        '${ApiConfig.baseUrl}/admin/bookings/$id',
+        '/admin/bookings/$id',
         body: {'status': status},
         headers: {'x-admin-secret': _adminSecret},
       );
@@ -340,7 +346,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     ];
 
     return RefreshIndicator(
-      onRefresh: () async { final r = await ApiClient().get('${ApiConfig.baseUrl}/admin/stats', headers: {'x-admin-secret': _adminSecret}); setState(() => _stats = r as Map<String, dynamic>); },
+      onRefresh: () async { final r = await ApiClient().get('/admin/stats', headers: {'x-admin-secret': _adminSecret}); setState(() => _stats = r as Map<String, dynamic>); },
       child: GridView.builder(
         padding: EdgeInsets.all(16.w),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

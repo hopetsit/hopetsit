@@ -59,6 +59,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
   /// `_reloadAtCenter()` via `/posts/requests/nearby`. Empty for owner role.
   final RxList<NearbyRequestPost> _requests = <NearbyRequestPost>[].obs;
 
+  /// v23.1 part 72 — Bug 10 : nearby walkers/sitters with their boost flag.
+  /// Owners see them as map markers — boosted ones get a bigger gold pin
+  /// (PawSpot) so paying actually translates to map visibility.
+  final RxList<Map<String, dynamic>> _nearbyProviders = <Map<String, dynamic>>[].obs;
+  final RxBool _showProviders = true.obs;
+
   /// Debounce the `onCameraIdle` callback so panning/zooming quickly doesn't
   /// fire 5+ POI/report requests in a row. 500 ms is short enough to feel
   /// instant but long enough to collapse a flick-zoom into one call.
@@ -284,8 +290,55 @@ class _PawMapScreenState extends State<PawMapScreen> {
     // owner sessions.
     if (_isSitterOrWalker) {
       futures.add(_loadNearbyRequests());
+    } else {
+      // v23.1 part 72 — owners see nearby walkers/sitters as map pins
+      // with PawSpot-boosted ones highlighted.
+      futures.add(_loadNearbyProviders());
     }
     await Future.wait(futures);
+  }
+
+  /// v23.1 part 72 — Bug 10 : fetch nearby walkers + sitters and merge
+  /// into _nearbyProviders so the map can render them. Boosted ones
+  /// (isMapBoosted=true) come back from the backend already enriched.
+  Future<void> _loadNearbyProviders() async {
+    try {
+      final api = Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
+      if (api == null) return;
+      final params = {
+        'lat': _currentCenter.latitude.toString(),
+        'lng': _currentCenter.longitude.toString(),
+        'radiusInMeters': '25000',
+      };
+      final results = await Future.wait([
+        api.get('/walkers/nearby', queryParameters: params, requiresAuth: true)
+            .catchError((_) => <String, dynamic>{}),
+        api.get('/sitters/nearby', queryParameters: params, requiresAuth: true)
+            .catchError((_) => <String, dynamic>{}),
+      ]);
+      final walkers = ((results[0] as Map?)?['walkers'] as List?) ?? const [];
+      final sitters = ((results[1] as Map?)?['sitters'] as List?) ?? const [];
+      final merged = <Map<String, dynamic>>[];
+      for (final w in walkers) {
+        if (w is Map) {
+          merged.add({
+            ...Map<String, dynamic>.from(w),
+            '_role': 'walker',
+          });
+        }
+      }
+      for (final s in sitters) {
+        if (s is Map) {
+          merged.add({
+            ...Map<String, dynamic>.from(s),
+            '_role': 'sitter',
+          });
+        }
+      }
+      _nearbyProviders.assignAll(merged);
+    } catch (_) {
+      /* keep last list */
+    }
   }
 
   /// Fetches owner reservation requests within ~25km of the current map
@@ -383,6 +436,44 @@ class _PawMapScreenState extends State<PawMapScreen> {
   // ─── Marker building ─────────────────────────────────────────────────────
   Set<Marker> _buildMarkers() {
     final Set<Marker> markers = {};
+    // v23.1 part 72 — Bug 10 : render nearby providers (owner side).
+    // Boosted (isMapBoosted) get gold hue ; non-boosted get role color.
+    if (_showProviders.value && !_isSitterOrWalker) {
+      for (final p in _nearbyProviders) {
+        final loc = p['location'] is Map ? p['location'] as Map : null;
+        final coords = loc != null && loc['coordinates'] is List
+            ? loc['coordinates'] as List
+            : null;
+        if (coords == null || coords.length < 2) continue;
+        final lng = (coords[0] as num).toDouble();
+        final lat = (coords[1] as num).toDouble();
+        final id = (p['id'] ?? p['_id'] ?? '').toString();
+        if (id.isEmpty) continue;
+        final role = (p['_role'] ?? 'walker').toString();
+        final name = (p['name'] ?? '').toString();
+        final isMapBoosted = p['isMapBoosted'] == true;
+        final isBoosted = p['isBoosted'] == true;
+        final hue = isMapBoosted
+            ? BitmapDescriptor.hueYellow // gold = PawSpot boost
+            : (role == 'walker'
+                ? BitmapDescriptor.hueGreen
+                : BitmapDescriptor.hueAzure);
+        markers.add(
+          Marker(
+            markerId: MarkerId('provider_${role}_$id'),
+            position: LatLng(lat, lng),
+            icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+            infoWindow: InfoWindow(
+              title: '${role == 'walker' ? '🐕' : '🐾'} ${name.isNotEmpty ? name : (role == 'walker' ? 'Walker' : 'Sitter')}'
+                  '${isMapBoosted ? ' ⭐' : (isBoosted ? ' 🚀' : '')}',
+              snippet: isMapBoosted
+                  ? 'PawSpot actif'
+                  : (isBoosted ? 'Profil boosté' : ''),
+            ),
+          ),
+        );
+      }
+    }
     if (_showPois.value) {
       for (final poi in _poiController.visiblePois) {
         markers.add(
