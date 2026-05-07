@@ -2517,39 +2517,45 @@ router.get('/payouts-debug', requireAdmin, async (req, res) => {
   try {
     const days = Math.min(parseInt(req.query.days, 10) || 7, 90);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    // v23.1 part 102 — fix : schema uses ownerId/sitterId/walkerId, not
+    // owner/sitter/walker. Mongoose strictPopulate rejects the bad path.
     const bookings = await Booking.find({
       paymentStatus: 'paid',
       paidAt: { $gte: since },
     })
       .sort({ paidAt: -1 })
       .limit(200)
-      .populate('owner', 'firstName lastName email')
-      .populate('sitter', 'firstName lastName email')
-      .populate('walker', 'firstName lastName email')
+      .populate('ownerId', 'firstName lastName email')
+      .populate('sitterId', 'firstName lastName email')
+      .populate('walkerId', 'firstName lastName email')
       .lean();
-    const items = bookings.map((b) => ({
-      _id: b._id,
-      role: b.sitter ? 'sitter' : (b.walker ? 'walker' : '?'),
-      paidAt: b.paidAt,
-      paymentStatus: b.paymentStatus,
-      payoutStatus: b.payoutStatus,
-      bookingStatus: b.status,
-      owner: b.owner ? {
-        id: String(b.owner._id),
-        name: ((b.owner.firstName || '') + ' ' + (b.owner.lastName || '')).trim() || null,
-        email: b.owner.email || null,
-      } : null,
-      provider: (b.sitter || b.walker) ? {
-        id: String((b.sitter || b.walker)._id),
-        name: (((b.sitter || b.walker).firstName || '') + ' ' + ((b.sitter || b.walker).lastName || '')).trim() || null,
-        email: (b.sitter || b.walker).email || null,
-      } : null,
-      pricing: {
-        totalPrice: Number(b.pricing?.totalPrice || 0),
-        commission: Number(b.pricing?.commission || 0),
-        netPayout: Number(b.pricing?.netPayout || 0),
-      },
-    }));
+    const items = bookings.map((b) => {
+      const o = b.ownerId;
+      const p = b.sitterId || b.walkerId;
+      return {
+        _id: b._id,
+        role: b.sitterId ? 'sitter' : (b.walkerId ? 'walker' : '?'),
+        paidAt: b.paidAt,
+        paymentStatus: b.paymentStatus,
+        payoutStatus: b.payoutStatus,
+        bookingStatus: b.status,
+        owner: o ? {
+          id: String(o._id),
+          name: ((o.firstName || '') + ' ' + (o.lastName || '')).trim() || null,
+          email: o.email || null,
+        } : null,
+        provider: p ? {
+          id: String(p._id),
+          name: ((p.firstName || '') + ' ' + (p.lastName || '')).trim() || null,
+          email: p.email || null,
+        } : null,
+        pricing: {
+          totalPrice: Number(b.pricing?.totalPrice || 0),
+          commission: Number(b.pricing?.commission || 0),
+          netPayout: Number(b.pricing?.netPayout || 0),
+        },
+      };
+    });
     const totals = items.reduce((acc, it) => {
       acc.totalGross += it.pricing.totalPrice;
       acc.totalCommission += it.pricing.commission;
@@ -2582,15 +2588,16 @@ router.post('/cleanup-test-data', requireAdmin, async (req, res) => {
       // owner.email === provider.email. On loop : récupère les bookings
       // paid + populate, puis on filtre ceux dont owner.email matche
       // sitter.email OU walker.email.
+      // v23.1 part 102 — schema uses ownerId/sitterId/walkerId.
       const all = await Booking.find({ paymentStatus: 'paid' })
-        .populate('owner', 'email')
-        .populate('sitter', 'email')
-        .populate('walker', 'email')
+        .populate('ownerId', 'email')
+        .populate('sitterId', 'email')
+        .populate('walkerId', 'email')
         .lean();
       const idsToDelete = [];
       for (const b of all) {
-        const oEmail = (b.owner?.email || '').toLowerCase();
-        const pEmail = ((b.sitter?.email || b.walker?.email || '')).toLowerCase();
+        const oEmail = (b.ownerId?.email || '').toLowerCase();
+        const pEmail = ((b.sitterId?.email || b.walkerId?.email || '')).toLowerCase();
         if (oEmail && pEmail && oEmail === pEmail) idsToDelete.push(b._id);
       }
       filter = { _id: { $in: idsToDelete } };
@@ -2616,10 +2623,11 @@ router.post('/cleanup-test-data', requireAdmin, async (req, res) => {
       const userIds = [
         ...oRows.map((u) => u._id), ...sRows.map((u) => u._id), ...wRows.map((u) => u._id),
       ];
+      // v23.1 part 102 — fix field names (ownerId / sitterId / walkerId).
       filter = { $or: [
-        { owner: { $in: userIds } },
-        { sitter: { $in: userIds } },
-        { walker: { $in: userIds } },
+        { ownerId: { $in: userIds } },
+        { sitterId: { $in: userIds } },
+        { walkerId: { $in: userIds } },
       ] };
       description = `bookings where owner/provider email matches "${email}"`;
     } else if (mode === 'byIds') {
