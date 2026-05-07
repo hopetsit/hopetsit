@@ -45,6 +45,20 @@ async function creditWallet({
   bookingId = null,
   referenceId = '',
   meta = {},
+  // v23.1 part 81 — Daniel : "walker et sitter sont independent avec
+  // leur iban comment fait til pour retirer leur argent". When auto-
+  // payout to IBAN already succeeded (createPayout returned ok), the
+  // money is already moving to the walker's bank. We still want to
+  // record a WalletTransaction for the in-app earnings history, but
+  // we must NOT increment walletBalance — otherwise the walker could
+  // withdraw the same amount a second time = double pay.
+  //
+  // withdrawable=true (default) : balance += amount, walker can later
+  //                                request a withdrawal.
+  // withdrawable=false           : transaction logged only, balance
+  //                                untouched. Used when an IBAN payout
+  //                                already shipped the money.
+  withdrawable = true,
 }) {
   if (!userId || !userRole || !amount || amount <= 0) {
     throw new Error('walletService.creditWallet: invalid args');
@@ -84,11 +98,20 @@ async function creditWallet({
   const rounded = Math.round(amount * 100) / 100;
 
   // Atomique : $inc + returnDocument=after pour lire le nouveau solde.
-  const updated = await Model.findByIdAndUpdate(
-    userId,
-    { $inc: { walletBalance: rounded }, $set: { walletCurrency: currency } },
-    { new: true },
-  ).select('walletBalance walletCurrency email');
+  // v23.1 part 81 — when withdrawable=false the IBAN payout already moved
+  // the money so we don't increment balance. We still want walletCurrency
+  // synced to provide UI defaults.
+  const updated = withdrawable
+    ? await Model.findByIdAndUpdate(
+        userId,
+        { $inc: { walletBalance: rounded }, $set: { walletCurrency: currency } },
+        { new: true },
+      ).select('walletBalance walletCurrency email')
+    : await Model.findByIdAndUpdate(
+        userId,
+        { $set: { walletCurrency: currency } },
+        { new: true },
+      ).select('walletBalance walletCurrency email');
 
   if (!updated) {
     throw new Error(`walletService.creditWallet: user not found (${userRole}:${userId})`);
@@ -105,7 +128,7 @@ async function creditWallet({
     status: 'completed',
     balanceAfter: updated.walletBalance,
     completedAt: new Date(),
-    meta,
+    meta: { ...meta, withdrawable },
   });
 
   logger.info(

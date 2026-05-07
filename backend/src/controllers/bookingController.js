@@ -1012,9 +1012,14 @@ const processProviderPayoutForBooking = async (booking) => {
           booking.payoutError = null;
           await booking.save();
 
-          // v23.1 — credit the provider's wallet so the lifetime earnings
-          // history is visible in the in-app wallet screen, even though the
-          // money is being auto-paid out to their bank in parallel.
+          // v23.1 part 81 — credit the provider's wallet for HISTORY only
+          // (withdrawable=false). The €80 net payout already shipped to
+          // the walker's IBAN via createPayout above. If we incremented
+          // walletBalance here too, the walker could request a manual
+          // withdrawal of the same amount and end up paid TWICE.
+          // withdrawable=false logs the transaction in the wallet history
+          // (visible in the in-app earnings screen) but leaves the
+          // available balance untouched.
           try {
             const { creditWallet } = require('../services/walletService');
             await creditWallet({
@@ -1026,10 +1031,9 @@ const processProviderPayoutForBooking = async (booking) => {
               bookingId: booking._id.toString(),
               referenceId: payout?.id || '',
               meta: { source: 'airwallex_payout', autoPayout: true },
+              withdrawable: false, // money already left to IBAN
             });
           } catch (walletErr) {
-            // Non-fatal — payout itself already succeeded, wallet credit
-            // is a bookkeeping sugar. Logged so admin can reconcile later.
             logger.warn(
               `⚠️ wallet credit skipped after payout (booking ${booking._id}): ${walletErr?.message || walletErr}`,
             );
@@ -1105,7 +1109,8 @@ const processProviderPayoutForBooking = async (booking) => {
       booking.payoutError = null;
       await booking.save();
 
-      // v23.1 — credit provider wallet (lifetime earnings history).
+      // v23.1 part 81 — credit provider wallet for HISTORY only
+      // (withdrawable=false). PayPal payout already shipped the money.
       try {
         const { creditWallet } = require('../services/walletService');
         await creditWallet({
@@ -1117,6 +1122,7 @@ const processProviderPayoutForBooking = async (booking) => {
           bookingId: booking._id.toString(),
           referenceId: payoutResult.payoutItemId || '',
           meta: { source: 'paypal_payout', autoPayout: true },
+          withdrawable: false,
         });
       } catch (walletErr) {
         logger.warn(
@@ -2906,6 +2912,13 @@ const confirmBookingPayment = async (req, res) => {
             Number.isFinite(netPayout) &&
             netPayout > 0
           ) {
+            // v23.1 part 81 — wallet is now purely informational for the
+            // booking flow. The actual money will be auto-paid to the
+            // walker's IBAN at service start (processProviderPayoutForBooking
+            // → airwallex.createPayout). Crediting the wallet balance here
+            // would let the walker request a manual withdrawal of the same
+            // amount on top of the auto-payout = double pay. We only
+            // log the transaction for the in-app earnings history.
             await creditWallet({
               userId: provider.id,
               userRole: provider.type,
@@ -2914,6 +2927,7 @@ const confirmBookingPayment = async (req, res) => {
               type: 'credit_booking',
               bookingId: booking._id.toString(),
               meta: { source: 'confirm_payment_sync', autoPayout: false },
+              withdrawable: false,
             });
           }
         } catch (walletErr) {

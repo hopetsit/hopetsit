@@ -193,6 +193,10 @@ const handleAirwallexWebhook = async (req, res) => {
             Number.isFinite(netPayout) &&
             netPayout > 0
           ) {
+            // v23.1 part 81 — history-only credit. The auto-payout to
+            // walker's IBAN happens later in processProviderPayoutForBooking,
+            // which actually moves the money. If we credited the balance
+            // here, the walker could double-withdraw.
             await creditWallet({
               userId: providerId,
               userRole: providerRole,
@@ -201,6 +205,7 @@ const handleAirwallexWebhook = async (req, res) => {
               type: 'credit_booking',
               bookingId: booking._id.toString(),
               meta: { source: 'airwallex_webhook', autoPayout: false },
+              withdrawable: false,
             });
           }
         } catch (walletErr) {
