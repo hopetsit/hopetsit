@@ -2265,6 +2265,12 @@ router.get('/payouts', requireAdmin, async (req, res) => {
     const Subscription = require('../models/UserSubscription');
     let Donation = null;
     try { Donation = require('../models/Donation'); } catch (_) {}
+    let UserChatAddon = null;
+    try { UserChatAddon = require('../models/UserChatAddon'); } catch (_) {}
+    const Owner = require('../models/Owner');
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    const CompanySweep = require('../models/CompanySweep');
 
     const now = new Date();
     const start30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -2317,10 +2323,64 @@ router.get('/payouts', requireAdmin, async (req, res) => {
       } catch (_) {}
     }
 
+    // v23.1 part 99 — Daniel : "dans revenus je veux voir juste mes
+    // commission et les paiement boutique et pouvoir retirer". On ajoute
+    // l'agrégation boutique : Boost profil + PawSpot (map boost) +
+    // Premium (subscriptions ci-dessus) + Chat add-on. + le total déjà
+    // retiré (CompanySweep) → solde net retirable.
+    const aggBoost = async (Model, kind) => {
+      const r = await Model.aggregate([
+        { $match: { 'boostPurchases.0': { $exists: true } } },
+        { $unwind: '$boostPurchases' },
+        { $match: { 'boostPurchases.kind': kind } },
+        { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $ifNull: ['$boostPurchases.amount', 0] } } } },
+      ]);
+      return r[0] || { count: 0, total: 0 };
+    };
+    const [pBoO, pBoS, pBoW, mBoO, mBoS, mBoW] = await Promise.all([
+      aggBoost(Owner, 'profile'),
+      aggBoost(Sitter, 'profile'),
+      aggBoost(Walker, 'profile'),
+      aggBoost(Owner, 'map'),
+      aggBoost(Sitter, 'map'),
+      aggBoost(Walker, 'map'),
+    ]);
+    const profileBoostTotal = pBoO.total + pBoS.total + pBoW.total;
+    const profileBoostCount = pBoO.count + pBoS.count + pBoW.count;
+    const mapBoostTotal = mBoO.total + mBoS.total + mBoW.total;
+    const mapBoostCount = mBoO.count + mBoS.count + mBoW.count;
+
+    let chatAddonTotal = 0; let chatAddonCount = 0;
+    if (UserChatAddon) {
+      try {
+        const cA = await UserChatAddon.aggregate([
+          { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+          { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $ifNull: ['$payments.amount', 0] } } } },
+        ]);
+        chatAddonTotal = cA[0]?.total || 0;
+        chatAddonCount = cA[0]?.count || 0;
+      } catch (_) {}
+    }
+
     const a = agg[0] || {};
     const commissionAllTime = a.totalCommission || 0;
     const subscriptionAllTime = subAgg[0]?.total || 0;
-    const platformRevenue = commissionAllTime + subscriptionAllTime + donationsTotal;
+    const boutiqueAllTime =
+      profileBoostTotal + mapBoostTotal + subscriptionAllTime + chatAddonTotal;
+    // platformRevenue : commissions + boutique. Donations sont volontaires
+    // et listées séparément (pas comptées dans le retirable).
+    const platformRevenue = commissionAllTime + boutiqueAllTime;
+
+    // v23.1 part 99 — déjà retiré via le bouton « Retirer mes bénéfices »
+    // (toutes les CompanySweep status != failed comptent comme déjà parti).
+    const sweepAgg = await CompanySweep.aggregate([
+      { $match: { status: { $in: ['initiated', 'completed'] } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } }, count: { $sum: 1 } } },
+    ]);
+    const cumulativeSwept = Number(sweepAgg[0]?.total || 0);
+    const cumulativeSweepsCount = Number(sweepAgg[0]?.count || 0);
+    // Solde net HoPetSit retirable = revenus accumulés moins déjà retiré.
+    const hopetsitNetAvailable = Math.max(0, platformRevenue - cumulativeSwept);
 
     res.json({
       summary: {
@@ -2331,6 +2391,17 @@ router.get('/payouts', requireAdmin, async (req, res) => {
         bookingCount: a.count || 0,
         subscriptionPaymentCount: subAgg[0]?.count || 0,
         donationsCount,
+        // v23.1 part 99 — nouveaux champs
+        boutiqueAllTime,
+        boutiqueBreakdown: {
+          profileBoost: { total: profileBoostTotal, count: profileBoostCount },
+          mapBoost:     { total: mapBoostTotal,     count: mapBoostCount },
+          premium:      { total: subscriptionAllTime, count: subAgg[0]?.count || 0 },
+          chatAddon:    { total: chatAddonTotal,    count: chatAddonCount },
+        },
+        cumulativeSwept,
+        cumulativeSweepsCount,
+        hopetsitNetAvailable,
       },
       bookings: {
         grossAllTime: a.totalGross || 0,
@@ -2832,12 +2903,85 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
           'env sur Render OU passe beneficiaryId dans le body.',
       });
     }
+
+    // v23.1 part 99 — Daniel : "166 EUR sur Airwallex c les sous d emon
+    // compte perso". On cap maintenant le retrait au solde HoPetSit net
+    // (commissions + boutique − déjà retiré) pour qu'il ne pioche jamais
+    // dans son argent perso ni dans la part des providers.
+    let hopetsitCap = null;
+    try {
+      const Subscription = require('../models/UserSubscription');
+      let UserChatAddon = null; try { UserChatAddon = require('../models/UserChatAddon'); } catch (_) {}
+      const Owner = require('../models/Owner');
+      const Sitter = require('../models/Sitter');
+      const Walker = require('../models/Walker');
+      const [bAgg, sAgg, swAgg] = await Promise.all([
+        Booking.aggregate([
+          { $match: { paymentStatus: 'paid' } },
+          { $group: { _id: null, c: { $sum: { $ifNull: ['$pricing.commission', 0] } } } },
+        ]),
+        Subscription.aggregate([
+          { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$payments.amount', 0] } } } },
+        ]),
+        CompanySweep.aggregate([
+          { $match: { status: { $in: ['initiated', 'completed'] } } },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$amount', 0] } } } },
+        ]),
+      ]);
+      const aggBoostKind = async (Model, kind) => {
+        const r = await Model.aggregate([
+          { $match: { 'boostPurchases.0': { $exists: true } } },
+          { $unwind: '$boostPurchases' },
+          { $match: { 'boostPurchases.kind': kind } },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$boostPurchases.amount', 0] } } } },
+        ]);
+        return r[0]?.t || 0;
+      };
+      const [pO, pS, pW, mO, mS, mW] = await Promise.all([
+        aggBoostKind(Owner, 'profile'), aggBoostKind(Sitter, 'profile'), aggBoostKind(Walker, 'profile'),
+        aggBoostKind(Owner, 'map'),     aggBoostKind(Sitter, 'map'),     aggBoostKind(Walker, 'map'),
+      ]);
+      let chatAddonT = 0;
+      if (UserChatAddon) {
+        try {
+          const cA = await UserChatAddon.aggregate([
+            { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+            { $group: { _id: null, t: { $sum: { $ifNull: ['$payments.amount', 0] } } } },
+          ]);
+          chatAddonT = cA[0]?.t || 0;
+        } catch (_) {}
+      }
+      const commissions = bAgg[0]?.c || 0;
+      const boutique = pO + pS + pW + mO + mS + mW + (sAgg[0]?.t || 0) + chatAddonT;
+      const swept = swAgg[0]?.t || 0;
+      hopetsitCap = Math.max(0, commissions + boutique - swept);
+      logger.info(`[admin/sweep] hopetsitCap calc: commissions=${commissions} boutique=${boutique} swept=${swept} → cap=${hopetsitCap}`);
+    } catch (e) {
+      logger.warn('[admin/sweep] hopetsitCap calc failed (non-fatal):', e.message);
+    }
     // v23.1 part 86 — Daniel : "controle des retrait pour ma societer".
     // Optional partial sweep — body { amount: 100, currency: 'EUR' }
     // pour ne retirer qu'une partie. Si absent, on sweep tout (minSweepAmount).
     const partialAmount = Number(req.body?.amount);
     const partialCurrency = (req.body?.currency || '').toString().toUpperCase();
     if (Number.isFinite(partialAmount) && partialAmount > 0 && partialCurrency) {
+      // v23.1 part 99 — cap au solde HoPetSit net (anti-pioche dans le
+      // compte perso de Daniel ou dans la part des providers).
+      if (hopetsitCap != null && partialAmount > hopetsitCap) {
+        return res.status(400).json({
+          error: `Montant demandé (${partialAmount.toFixed(2)} ${partialCurrency}) supérieur au solde HoPetSit retirable (${hopetsitCap.toFixed(2)} EUR).`,
+          breakdown: {
+            currency: partialCurrency,
+            requested: partialAmount,
+            hopetsitNetAvailable: hopetsitCap,
+          },
+          hint: hopetsitCap > 0
+            ? 'Tu peux retirer au maximum ' + hopetsitCap.toFixed(2) + ' EUR de bénéfices HoPetSit. ' +
+              'Le reste de ton solde Airwallex provient d\'autres activités ou est dû aux providers.'
+            : 'Aucun bénéfice HoPetSit retirable pour le moment (commissions + boutique − déjà retiré = 0).',
+        });
+      }
       const balance = await _airwallex.getPlatformBalance();
       const item = (balance.items || []).find(
         (i) => (i.currency || '').toUpperCase() === partialCurrency,

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 98</title>
+<title>HopeTSIT — Admin v23.1 part 99</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -626,14 +626,13 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div style="margin-top:20px" id="loyalty-tables"></div>
       </div>
 
-      <!-- PAYOUTS / REVENUE (v20.0.8 → v23.1 part 89) -->
+      <!-- PAYOUTS / REVENUE (v20.0.8 → v23.1 part 99) -->
       <div id="page-payouts" class="page">
-        <div class="section-title">💰 Mes revenus &amp; retraits société</div>
+        <div class="section-title">💰 Mes revenus &amp; retraits</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px;line-height:1.6">
-          Récapitulatif des revenus HoPetSit : commissions sur réservations (20% ou 15% pour Top Sitter/Walker),
-          abonnements Premium, donations.<br>
-          <strong style="color:var(--text)">⬇ Plus bas, le bloc « Mes bénéfices société » te permet de retirer
-          les fonds Airwallex vers l'IBAN de ta société.</strong>
+          Tes <strong style="color:var(--text)">commissions HoPetSit</strong> (20% sur réservations) +
+          <strong style="color:var(--text)">paiements boutique</strong> (Boost, PawSpot, Premium, Chat add-on).
+          <br>La card verte <strong style="color:var(--green)">« Solde retirable »</strong> ci-dessous est le montant que tu peux envoyer vers ton IBAN société d'un clic.
         </p>
         <div class="stats-grid" id="payouts-summary"></div>
         <div style="margin-top:20px" id="payouts-details"></div>
@@ -3078,10 +3077,12 @@ async function loadAdminWallets() {
 }
 
 // v20.0.8 - Admin Payouts / Revenue
-// v23.1 part 89 — ajout du bloc "Mes bénéfices société" (Airwallex sweep) :
-// solde plateforme, bouton "Retirer mes bénéfices vers IBAN société",
-// historique des retraits, config beneficiary (nouveau OU choix d'un compte
-// existant via Airwallex). Endpoints back-end existants depuis v23.1.86-88.
+// v23.1 part 99 — Daniel : "dans revenus je veux voir juste mes
+// commission et les paiement boutique et pouvoir retirer". On recentre
+// la page autour de :
+//   1. Commissions HoPetSit (20% des bookings)
+//   2. Boutique (Boost + PawSpot + Premium + Chat add-on)
+//   3. Solde net HoPetSit retirable (commissions + boutique − déjà retiré)
 async function loadAdminPayouts() {
   const sum = document.getElementById('payouts-summary');
   const det = document.getElementById('payouts-details');
@@ -3092,22 +3093,56 @@ async function loadAdminPayouts() {
     const d = await api('/admin/payouts');
     const s = d.summary || {};
     const b = d.bookings || {};
+    const bb = s.boutiqueBreakdown || {};
+    // Stash le solde HoPetSit retirable pour que la modale de sweep s'en
+    // serve comme valeur par défaut + plafond.
+    window._hopetsitNetAvailable = Number(s.hopetsitNetAvailable || 0);
+
     sum.innerHTML =
-      '<div class="stat-card" style="--accent:#16A34A"><div class="stat-label">Revenu total</div><div class="stat-value">' + (s.platformRevenue||0).toFixed(2) + ' EUR</div><div class="stat-sub">Depuis le début</div></div>' +
-      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">Commissions booking</div><div class="stat-value">' + (s.commissionAllTime||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.bookingCount||0)+' réservations</div></div>' +
-      '<div class="stat-card" style="--accent:#1A73E8"><div class="stat-label">Abos Premium</div><div class="stat-value">' + (s.subscriptionAllTime||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.subscriptionPaymentCount||0)+' paiements</div></div>' +
-      '<div class="stat-card" style="--accent:#F59E0B"><div class="stat-label">Donations</div><div class="stat-value">' + (s.donationsTotal||0).toFixed(2) + ' EUR</div><div class="stat-sub">'+(s.donationsCount||0)+' dons</div></div>';
+      '<div class="stat-card" style="--accent:#EF4324">' +
+        '<div class="stat-label">💼 Commissions HoPetSit</div>' +
+        '<div class="stat-value">' + (s.commissionAllTime||0).toFixed(2) + ' EUR</div>' +
+        '<div class="stat-sub">'+(s.bookingCount||0)+' réservations payées</div>' +
+      '</div>' +
+      '<div class="stat-card" style="--accent:#8B5CF6">' +
+        '<div class="stat-label">🛍️ Boutique</div>' +
+        '<div class="stat-value">' + (s.boutiqueAllTime||0).toFixed(2) + ' EUR</div>' +
+        '<div class="stat-sub">Boost + PawSpot + Premium + Chat</div>' +
+      '</div>' +
+      '<div class="stat-card" style="--accent:#F59E0B">' +
+        '<div class="stat-label">↩️ Déjà retiré</div>' +
+        '<div class="stat-value">' + (s.cumulativeSwept||0).toFixed(2) + ' EUR</div>' +
+        '<div class="stat-sub">'+(s.cumulativeSweepsCount||0)+' retrait(s) au total</div>' +
+      '</div>' +
+      '<div class="stat-card" style="--accent:#16A34A">' +
+        '<div class="stat-label">💰 Solde retirable</div>' +
+        '<div class="stat-value" style="color:var(--green)">' + (s.hopetsitNetAvailable||0).toFixed(2) + ' EUR</div>' +
+        '<div class="stat-sub">Commission + Boutique − Déjà retiré</div>' +
+      '</div>';
+
     det.innerHTML =
       // Bloc Airwallex (rendu async par loadCompanySweep)
       '<div id="company-sweep-block" style="margin-bottom:28px"></div>' +
-      '<h3 style="font-size:16px;margin:20px 0 10px">Commissions par période</h3>' +
+      // Détail boutique
+      '<h3 style="font-size:16px;margin:20px 0 10px">🛍️ Détail boutique</h3>' +
+      '<table class="table"><thead><tr><th>Produit</th><th>Total</th><th>Achats</th></tr></thead><tbody>' +
+      '<tr><td><strong>🚀 Boost profil</strong></td><td>'+(bb.profileBoost?.total||0).toFixed(2)+' EUR</td><td>'+(bb.profileBoost?.count||0)+'</td></tr>' +
+      '<tr><td><strong>🗺️ PawSpot (map boost)</strong></td><td>'+(bb.mapBoost?.total||0).toFixed(2)+' EUR</td><td>'+(bb.mapBoost?.count||0)+'</td></tr>' +
+      '<tr><td><strong>⭐ Premium / PawFollow</strong></td><td>'+(bb.premium?.total||0).toFixed(2)+' EUR</td><td>'+(bb.premium?.count||0)+'</td></tr>' +
+      '<tr><td><strong>💬 Chat add-on</strong></td><td>'+(bb.chatAddon?.total||0).toFixed(2)+' EUR</td><td>'+(bb.chatAddon?.count||0)+'</td></tr>' +
+      '</tbody></table>' +
+      // Détail commissions par période
+      '<h3 style="font-size:16px;margin:24px 0 10px">💼 Commissions par période</h3>' +
       '<table class="table"><thead><tr><th>Période</th><th>Commissions</th><th>Réservations</th></tr></thead><tbody>' +
       '<tr><td><strong>7 derniers jours</strong></td><td>'+(b.last7d?.commission||0).toFixed(2)+' EUR</td><td>'+(b.last7d?.count||0)+'</td></tr>' +
       '<tr><td><strong>30 derniers jours</strong></td><td>'+(b.last30d?.commission||0).toFixed(2)+' EUR</td><td>'+(b.last30d?.count||0)+'</td></tr>' +
       '<tr><td><strong>Ce mois</strong></td><td>'+(b.thisMonth?.commission||0).toFixed(2)+' EUR</td><td>'+(b.thisMonth?.count||0)+'</td></tr>' +
       '<tr><td><strong>Depuis le début</strong></td><td>'+(b.commissionAllTime||0).toFixed(2)+' EUR</td><td>'+(b.count||0)+'</td></tr>' +
       '</tbody></table>' +
-      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Chiffre d\'affaires brut (réservations payées) : <strong style="color:var(--text)">' + (b.grossAllTime||0).toFixed(2) + ' EUR</strong></p>';
+      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">' +
+        'Chiffre d\'affaires brut (réservations payées) : <strong style="color:var(--text)">' + (b.grossAllTime||0).toFixed(2) + ' EUR</strong>' +
+        ((s.donationsTotal||0) > 0 ? ' · Donations reçues (non comptées dans le retirable) : <strong>' + s.donationsTotal.toFixed(2) + ' EUR</strong>' : '') +
+      '</p>';
     // Charge le bloc société (solde Airwallex + bouton retrait + historique).
     loadCompanySweep();
   } catch (e) {
@@ -3254,18 +3289,29 @@ async function loadCompanySweep() {
           ) : '') +
         '</div>';
     }
+    // v23.1 part 99 — ajoute une note expliquant que le solde Airwallex
+    // global inclut TOUTES les activités du compte société (HoPetSit +
+    // autres business). Le bouton Retirer est cap au solde HoPetSit net.
+    const totalAvailEur = items.find(it => (it.currency || '').toUpperCase() === 'EUR');
+    const eurAvail = totalAvailEur ? Number(totalAvailEur.available_amount || 0) : 0;
+    const airwallexNote =
+      '<div style="background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;line-height:1.5;color:var(--text-muted)">' +
+        'ℹ️ Ce solde Airwallex (<strong style="color:var(--text)">' + eurAvail.toFixed(2) + ' EUR disponibles</strong>) inclut TOUTES les activités de ton compte société (HoPetSit + autres). ' +
+        'Le bouton « Retirer » plafonne automatiquement au solde HoPetSit retirable (commissions + boutique − déjà retiré, voir card verte plus haut) pour ne pas empiéter sur ton argent perso ou la part des providers.' +
+      '</div>';
     wrap.innerHTML =
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
-          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">💼 Mes bénéfices société (Airwallex)</h3>' +
+          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">🏦 Solde Airwallex (compte société)</h3>' +
           '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="loadCompanySweep()">↻ Actualiser</button>' +
         '</div>' +
         diagBlock +
         cfgBanner +
+        airwallexNote +
         '<div class="stats-grid" style="margin-bottom:14px">' + balanceCards + '</div>' +
         '<div style="display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap">' +
           sweepBtn +
-          '<span style="color:var(--text-muted);font-size:12px">L\'argent partira sur le compte configuré sous 1-2 jours ouvrés.</span>' +
+          '<span style="color:var(--text-muted);font-size:12px">Plafonné au solde HoPetSit retirable. Délai : 1-2 jours ouvrés.</span>' +
         '</div>' +
         '<h4 style="font-family:Syne,sans-serif;font-size:14px;font-weight:700;margin:18px 0 10px">📜 Historique des retraits</h4>' +
         '<div class="table-wrap">' +
@@ -3288,26 +3334,36 @@ function openSweepDialog() {
   ov = document.createElement('div');
   ov.id = 'sweep-overlay';
   ov.className = 'modal-overlay open';
+  // v23.1 part 99 — propose le solde HoPetSit retirable comme valeur par
+  // défaut pour que Daniel n'ait qu'à cliquer "Retirer" pour tout sortir
+  // (sans empiéter sur son argent perso ou la part des providers).
+  const cap = Number(window._hopetsitNetAvailable || 0);
   ov.innerHTML =
     '<div class="modal" style="width:480px">' +
       '<div class="modal-title">💰 Retirer mes bénéfices société</div>' +
       '<div style="color:var(--text-muted);font-size:13px;margin-bottom:14px;line-height:1.5">' +
-        'Le montant indiqué partira sur le compte société configuré (IBAN entreprise) sous 1-2 jours ouvrés. ' +
-        'Laisse vide pour retirer la totalité du solde disponible.' +
+        'Le montant partira sur le compte société configuré (IBAN entreprise) sous 1-2 jours ouvrés. ' +
+        '<br><strong style="color:var(--green)">Solde HoPetSit retirable : ' + cap.toFixed(2) + ' EUR</strong> ' +
+        '(commissions + boutique − déjà retiré).' +
       '</div>' +
       '<div class="modal-field">' +
         '<label class="modal-label">Montant à retirer (EUR)</label>' +
-        '<input id="sweep-amount" class="login-input" type="number" min="0" step="0.01" placeholder="ex : 20.00 — vide pour tout retirer" style="margin-bottom:0"/>' +
+        '<input id="sweep-amount" class="login-input" type="number" min="0" step="0.01" max="' + cap.toFixed(2) + '" value="' + cap.toFixed(2) + '" placeholder="ex : 20.00" style="margin-bottom:0"/>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">Maximum : ' + cap.toFixed(2) + ' EUR. Tu peux taper moins si tu préfères.</div>' +
       '</div>' +
       '<div id="sweep-status" style="display:none;margin-top:14px;padding:12px;border-radius:8px;font-size:13px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;max-height:240px;overflow-y:auto"></div>' +
       '<div class="modal-actions">' +
         '<button id="sweep-close-btn" class="modal-close" onclick="document.getElementById(\'sweep-overlay\').remove()">Annuler</button>' +
-        '<button id="sweep-submit" class="action-btn btn-primary" style="padding:10px 22px" onclick="doCompanySweep()">Retirer</button>' +
+        '<button id="sweep-submit" class="action-btn btn-primary" style="padding:10px 22px"' + (cap <= 0 ? ' disabled style="padding:10px 22px;opacity:.5;cursor:not-allowed"' : '') + ' onclick="doCompanySweep()">' + (cap <= 0 ? 'Rien à retirer' : 'Retirer') + '</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(ov);
-  // Auto-focus sur le champ montant.
-  setTimeout(() => document.getElementById('sweep-amount')?.focus(), 50);
+  // Auto-focus sur le champ montant + sélectionne le contenu pour qu'il
+  // soit modifiable d'un coup de clavier.
+  setTimeout(() => {
+    const inp = document.getElementById('sweep-amount');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 50);
 }
 
 async function doCompanySweep() {
