@@ -98,6 +98,46 @@ function registerMapHandlers(io, socket) {
       const lng = Number(payload.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
+      // v23.1 part 77 — Daniel : "jai mis suivre et activer la
+      // geolocalisation du walker et ya ce message geoloc pas activer".
+      // Root cause : this handler used to broadcast lat/lng via socket
+      // ONLY, never persist it on the User document. So when the owner
+      // hit GET /bookings/:id/provider-location later, Walker.location
+      // .coordinates was empty → 204 NO_LOCATION_YET.
+      //
+      // Fix : also UPDATE the User's GeoJSON `location.coordinates` so
+      // PawFollow live-tracking has a stable read source. Throttled to
+      // one DB write every ~10s to avoid hammering Mongo on a fast
+      // GPS stream. Only updates on roles that have a `location` field
+      // (walker / sitter / owner all do per their respective schemas).
+      try {
+        const lastDbWrite = socket.data.lastLocationDbWrite || 0;
+        if (now - lastDbWrite >= 10000) {
+          socket.data.lastLocationDbWrite = now;
+          let Model = null;
+          if (identity.role === 'walker') Model = require('../models/Walker');
+          else if (identity.role === 'sitter') Model = require('../models/Sitter');
+          else if (identity.role === 'owner') Model = require('../models/Owner');
+          if (Model) {
+            await Model.updateOne(
+              { _id: identity.userId },
+              {
+                $set: {
+                  location: {
+                    type: 'Point',
+                    coordinates: [lng, lat], // GeoJSON = [lng, lat]
+                    ...(payload.city ? { city: String(payload.city) } : {}),
+                  },
+                },
+              },
+            );
+          }
+        }
+      } catch (e) {
+        // Best-effort persist — never block the real-time fanout.
+        logger.warn(`[mapSocket:position-update] DB persist failed : ${e.message}`);
+      }
+
       const listeners = await listPositionListeners(identity.userId, identity.role);
       if (listeners.length === 0) return;
 
