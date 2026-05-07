@@ -590,6 +590,67 @@ async function createBeneficiary({
 }
 
 /**
+ * v23.1 part 87 — Daniel : "comment crrer sur airwallex ton lien me
+ * donne page blanche". On lui crée le beneficiary société directement
+ * via l'API au lieu de le faire pointer vers la dashboard.
+ *
+ * Crée un beneficiary BUSINESS pour HoPetSit lui-même (CARDELLI
+ * HERMANOS LIMITED ou autre entité) qu'on stocke ensuite dans
+ * COMPANY_AIRWALLEX_BENEFICIARY_ID. C'est CE beneficiary qui reçoit
+ * le sweep des bénéfices société.
+ *
+ * Différent de createBeneficiary() (qui crée des INDIVIDUAL pour les
+ * walkers/sitters).
+ */
+async function createCompanyBeneficiary({
+  companyName,
+  iban,
+  bic,
+  bankName,
+  bankCountryCode,
+  currency = 'EUR',
+  addressLine,
+  addressCity,
+  addressCountryCode,
+  postalCode,
+}) {
+  if (!companyName) throw new Error('companyName is required');
+  if (!iban) throw new Error('iban is required');
+  const cleanIban = iban.replace(/\s+/g, '').toUpperCase();
+  const country = (bankCountryCode || cleanIban.slice(0, 2)).toUpperCase();
+  return awxFetch('/api/v1/beneficiaries/create', {
+    method: 'POST',
+    body: {
+      request_id: genRequestId('compbenef'),
+      nickname: `HoPetSit company sweep`,
+      transfer_methods: ['LOCAL'],
+      beneficiary: {
+        type: 'COMPANY',
+        entity_type: 'COMPANY',
+        company_name: companyName.trim(),
+        bank_details: {
+          account_currency: currency.toUpperCase(),
+          account_name: companyName.trim(),
+          account_number: cleanIban,
+          bank_country_code: country,
+          ...(bic ? { swift_code: bic.replace(/\s+/g, '').toUpperCase() } : {}),
+          ...(bankName ? { bank_name: bankName.trim() } : {}),
+        },
+        ...(addressLine || addressCity ? {
+          address: {
+            ...(addressLine ? { street_address: addressLine } : {}),
+            ...(addressCity ? { city: addressCity } : {}),
+            ...(addressCountryCode ? { country_code: addressCountryCode.toUpperCase() } : {}),
+            ...(postalCode ? { postcode: postalCode } : {}),
+          },
+        } : {}),
+      },
+      payment_methods: ['LOCAL'],
+    },
+  });
+}
+
+/**
  * Retrieve a Beneficiary by ID.
  * @param {string} id — Airwallex beneficiary id
  */
@@ -849,6 +910,8 @@ module.exports = {
   createBeneficiary,
   getBeneficiary,
   deleteBeneficiary,
+  // v23.1 part 87 — company beneficiary (HoPetSit's own bank for sweeps)
+  createCompanyBeneficiary,
   // Payouts (sitter/walker payouts) — v21
   createPayout,
   retrievePayout,

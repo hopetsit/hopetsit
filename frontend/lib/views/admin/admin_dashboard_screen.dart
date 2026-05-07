@@ -548,15 +548,163 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
           SizedBox(height: 8.h),
           Text(
-            'Pour pouvoir retirer tes bénéfices vers ton compte société, '
-            'configure d\'abord ton beneficiary Airwallex :\n'
-            '\n1. Va sur https://www.airwallex.com/app/recipients\n'
-            '2. Crée un beneficiary "HoPetSit Company Bank"\n'
-            '3. Récupère son ID (ben_xxx)\n'
-            '4. Sur Render → Environment → ajoute COMPANY_AIRWALLEX_BENEFICIARY_ID=ben_xxx',
+            'Tu dois indiquer ton compte bancaire société UNE FOIS pour '
+            'pouvoir retirer tes bénéfices. Tape ci-dessous, je le crée '
+            'automatiquement chez Airwallex.',
             style: TextStyle(fontSize: 12.sp, color: const Color(0xFF7A4F00), height: 1.5),
           ),
+          SizedBox(height: 12.h),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showSetupBeneficiaryDialog,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              icon: const Icon(Icons.business_rounded),
+              label: Text('Configurer mon compte société',
+                  style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w800)),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showSetupBeneficiaryDialog() async {
+    final company = TextEditingController(text: 'CARDELLI HERMANOS LIMITED');
+    final iban = TextEditingController();
+    final bic = TextEditingController();
+    final bankName = TextEditingController();
+    final bankCountry = TextEditingController(text: 'FR');
+    final addrLine = TextEditingController();
+    final addrCity = TextEditingController();
+    final addrCountry = TextEditingController(text: 'HK');
+    final postalCode = TextEditingController();
+
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Mon compte bancaire société'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ces infos servent à créer ton bénéficiaire Airwallex (le compte qui reçoit tes virements société).',
+                style: TextStyle(fontSize: 11.sp, color: Colors.grey[700]),
+              ),
+              SizedBox(height: 12.h),
+              _formField(company, 'Nom de l\'entreprise *', 'CARDELLI HERMANOS LIMITED'),
+              _formField(iban, 'IBAN ou n° de compte *', 'FR76 1234 5678 9012 3456 7890 123'),
+              _formField(bic, 'BIC / SWIFT', 'BNPAFRPP'),
+              _formField(bankName, 'Nom de la banque', 'BNP Paribas'),
+              _formField(bankCountry, 'Code pays banque (ISO 2)', 'FR'),
+              SizedBox(height: 12.h),
+              Text('Adresse (optionnel mais recommandé) :',
+                  style: TextStyle(fontSize: 11.sp, color: Colors.grey[700])),
+              _formField(addrLine, 'Adresse', '12 rue de la Paix'),
+              _formField(addrCity, 'Ville', 'Hong Kong'),
+              _formField(addrCountry, 'Pays adresse (ISO 2)', 'HK'),
+              _formField(postalCode, 'Code postal', '99999'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Créer le compte'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+    if (ok != true) return;
+    if (iban.text.trim().isEmpty || company.text.trim().isEmpty) {
+      Get.snackbar('Champs requis', 'IBAN et nom d\'entreprise sont obligatoires.',
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+    try {
+      final r = await ApiClient().post(
+        '/admin/setup-company-beneficiary',
+        body: {
+          'companyName': company.text.trim(),
+          'iban': iban.text.trim().replaceAll(' ', ''),
+          'bic': bic.text.trim(),
+          'bankName': bankName.text.trim(),
+          'bankCountryCode': bankCountry.text.trim().toUpperCase(),
+          'currency': 'EUR',
+          'addressLine': addrLine.text.trim(),
+          'addressCity': addrCity.text.trim(),
+          'addressCountryCode': addrCountry.text.trim().toUpperCase(),
+          'postalCode': postalCode.text.trim(),
+        },
+        headers: {'x-admin-secret': _adminSecret},
+      );
+      final m = r as Map;
+      final benId = (m['beneficiaryId'] ?? '').toString();
+      // Important : show the env var line for Daniel to copy.
+      await Get.dialog<void>(
+        AlertDialog(
+          title: const Text('✅ Bénéficiaire créé !'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Étape finale : copie cette ligne dans Render → Environment Variables :',
+                  style: TextStyle(fontSize: 13.sp),
+                ),
+                SizedBox(height: 12.h),
+                Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: SelectableText(
+                    'COMPANY_AIRWALLEX_BENEFICIARY_ID=$benId',
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                Text(
+                  'Render redéploiera automatiquement (~2 min). Ensuite reviens ici, et le bouton "Retirer mes bénéfices" sera actif.',
+                  style: TextStyle(fontSize: 12.sp, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Get.back(), child: const Text('OK, je copie')),
+          ],
+        ),
+      );
+    } catch (e) {
+      Get.snackbar('Création échouée', e.toString(),
+          backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  Widget _formField(TextEditingController c, String label, String hint) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4.h),
+      child: TextField(
+        controller: c,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          isDense: true,
+          border: const OutlineInputBorder(),
+        ),
       ),
     );
   }

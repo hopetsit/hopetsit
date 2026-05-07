@@ -2389,6 +2389,63 @@ router.get('/platform-balance', requireAdmin, async (req, res) => {
   }
 });
 
+// v23.1 part 87 — Daniel : "comment crrer sur airwallex ton lien me
+// donne page blanche". On crée le beneficiary société directement via
+// l'API Airwallex (depuis l'admin Daniel). Daniel n'a qu'à remplir un
+// formulaire dans l'app.
+router.post('/setup-company-beneficiary', requireAdmin, async (req, res) => {
+  try {
+    const {
+      companyName,
+      iban,
+      bic,
+      bankName,
+      bankCountryCode,
+      currency,
+      addressLine,
+      addressCity,
+      addressCountryCode,
+      postalCode,
+    } = req.body || {};
+
+    if (!companyName || !iban) {
+      return res.status(400).json({
+        error: 'companyName + iban are required (BIC recommended).',
+      });
+    }
+    const result = await _airwallex.createCompanyBeneficiary({
+      companyName,
+      iban,
+      bic,
+      bankName,
+      bankCountryCode,
+      currency: currency || 'EUR',
+      addressLine,
+      addressCity,
+      addressCountryCode,
+      postalCode,
+    });
+    const beneficiaryId = result?.id;
+    if (!beneficiaryId) {
+      return res.status(502).json({
+        error: 'Airwallex did not return a beneficiary id.',
+        raw: result,
+      });
+    }
+    logger.info(`✅ [admin/setup-company-beneficiary] created ${beneficiaryId} for ${companyName}`);
+    return res.json({
+      beneficiaryId,
+      message:
+        'Bénéficiaire créé. ⚠️ AJOUTE MAINTENANT cette ligne dans Render → Environment :\n' +
+        `COMPANY_AIRWALLEX_BENEFICIARY_ID=${beneficiaryId}\n` +
+        'Render redéploiera tout seul puis le bouton "Retirer" deviendra cliquable.',
+    });
+  } catch (e) {
+    logger.error('[admin/setup-company-beneficiary]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // v23.1 part 86 — historique des "Retirer mes bénéfices" passés.
 router.get('/sweep-history', requireAdmin, async (req, res) => {
   try {
