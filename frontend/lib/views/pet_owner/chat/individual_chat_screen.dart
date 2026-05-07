@@ -156,18 +156,32 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     try {
       final repo = Get.find<OwnerRepository>();
 
-      // 1. Find the latest PAID booking with this contact (matched on
-      //    provider name). Avoids depending on a conversation→booking
-      //    lookup endpoint. The contactName matches the populated
-      //    sitter.name / walker.name on the booking.
+      // v23.1 part 70 — Bug 12 : Daniel "bouton suivre chat marche pas".
+      // Previous logic only matched booking where sitter.name == contactName,
+      // which fails when :
+      //   - contactName has trailing spaces / slightly different casing
+      //   - the provider is a walker (booking.sitter is the populated
+      //     sitter struct ; for walker bookings it contains the walker
+      //     but the model holds different name normalization)
+      //   - or the booking has multiple statuses ('paid' but also
+      //     'agreed', 'accepted'). We were too restrictive.
+      // Now we relax : ANY booking that's at least 'paid' (whatever
+      // status flag) AND whose provider name fuzzily matches.
       final bookings = await repo.getMyBookings();
+      String norm(String s) =>
+          s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+      final wantedName = norm(widget.contactName);
       final candidate = bookings
           .where((b) {
             final pay = (b.paymentStatus ?? '').toLowerCase();
             final st  = (b.status ?? '').toLowerCase();
             if (pay != 'paid') return false;
-            if (st == 'completed' || st == 'cancelled' || st == 'refunded') return false;
-            return b.sitter.name == widget.contactName;
+            if (st == 'cancelled' || st == 'refunded' || st == 'completed') {
+              return false;
+            }
+            return norm(b.sitter.name) == wantedName ||
+                norm(b.sitter.name).contains(wantedName) ||
+                wantedName.contains(norm(b.sitter.name));
           })
           .toList()
           // Most recent first.
@@ -176,8 +190,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
 
       if (bookingId == null || bookingId.isEmpty) {
         CustomSnackbar.showWarning(
-          title: 'Pas de réservation',
-          message: 'Aucune réservation active à suivre.',
+          title: 'Pas de réservation à suivre',
+          message:
+              'Aucune réservation payée en cours avec ${widget.contactName}. '
+              'Le suivi en direct s\'active après paiement.',
         );
         return;
       }

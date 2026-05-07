@@ -87,11 +87,33 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
           title: 'Paiement confirmé',
           message: 'On lance maintenant la vérification d\'identité.',
         );
-        await Future.delayed(const Duration(seconds: 2)); // wait for webhook
-        await _refresh();
-        // Auto-launch verification after payment
-        if (_status['kycStatus'] == 'pending_verification') {
+        // v23.1 part 70 — Bug 14 : Daniel "verification apres paiement
+        // ne se connecte pas a persona". The previous 2s wait wasn't
+        // enough for the Airwallex webhook to land + update Mongo +
+        // /kyc/status to reflect 'pending_verification'. We now poll
+        // up to 6 times (every 1.5s = 9s max) to give the webhook a
+        // realistic margin. If kycStatus stays != pending_verification
+        // we tell the user to retry from the screen instead of failing
+        // silently.
+        bool reachedPending = false;
+        for (int i = 0; i < 6; i++) {
+          await Future.delayed(const Duration(milliseconds: 1500));
+          await _refresh();
+          if (_status['kycStatus'] == 'pending_verification') {
+            reachedPending = true;
+            break;
+          }
+        }
+        if (reachedPending) {
           _onStartVerification();
+        } else {
+          CustomSnackbar.showWarning(
+            title: 'Synchronisation en cours',
+            message:
+                'Ton paiement est confirmé mais la vérification met un peu '
+                'plus longtemps que prévu. Réappuie sur "Continuer" dans '
+                'quelques secondes.',
+          );
         }
       } else {
         CustomSnackbar.showError(
@@ -126,7 +148,21 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       await _refresh();
     } catch (e) {
       AppLogger.logError('kyc.start failed', error: e);
-      CustomSnackbar.showError(title: 'common_error'.tr, message: e.toString());
+      // v23.1 part 70 — Bug 14 : if backend is missing PERSONA env vars
+      // it returns 503 with code='KYC_NOT_CONFIGURED'. Show a clear
+      // message instead of the raw exception. Owner needs to set
+      // PERSONA_API_KEY + PERSONA_TEMPLATE_ID on Render.
+      final s = e.toString();
+      if (s.contains('KYC_NOT_CONFIGURED') || s.contains('temporarily unavailable')) {
+        CustomSnackbar.showWarning(
+          title: 'Vérification temporairement indisponible',
+          message:
+              'La vérification d\'identité est désactivée pour le moment. '
+              'Ton paiement est conservé, on activera la vérification très bientôt.',
+        );
+      } else {
+        CustomSnackbar.showError(title: 'common_error'.tr, message: s);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -6,13 +6,17 @@
 // HoPetSit : a branded app bar, no URL visible, and a bottom-right floating
 // button that triggers the in-page `window.print()` for save-as-PDF.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class InvoiceViewerScreen extends StatefulWidget {
@@ -60,25 +64,37 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
       ..loadRequest(Uri.parse(widget.url));
   }
 
-  // v23.1 part 63 — Bug F : open the invoice in the system browser /
-  // Chrome so the OS's native "Save as PDF / Print / Share" handles it
-  // properly. window.print() inside an embedded Android WebView is
-  // unreliable (no Print Service bound, silent no-op on many devices)
-  // — Daniel reported "le bouton telecharger nest pas connecter".
-  // External launch is the cross-OS path that always works.
+  // v23.1 part 70 — Bug 13 : Daniel "renvoi a render au lieu de se
+  // telecharger ds telephone". Previously _triggerPrint used launchUrl
+  // which opened Chrome with the raw Render URL visible. Daniel wants
+  // the file to land on his phone directly. Solution :
+  //   1. Fetch the invoice HTML via http (with the auth token already
+  //      embedded in widget.url as ?token=JWT)
+  //   2. Save to phone temporary directory as invoice-XXX.html
+  //   3. Open the system Share sheet so the user can save to Drive /
+  //      Files / email — no Render URL exposed, file lives on the phone.
   Future<void> _triggerPrint() async {
-    final uri = Uri.parse(widget.url);
     try {
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
+      CustomSnackbar.showInfo(
+        title: 'Téléchargement…',
+        message: 'Préparation de la facture',
       );
-      if (!launched) {
-        // Fallback : try in-page window.print() if external launch fails
-        // (rare — only if no browser is installed).
-        await _controller.runJavaScript('window.print();');
+      final res = await http.get(Uri.parse(widget.url));
+      if (res.statusCode != 200) {
+        throw Exception('HTTP ${res.statusCode}');
       }
-    } catch (_) {
+      final dir = await getTemporaryDirectory();
+      final safeNumber = widget.invoiceNumber.isNotEmpty
+          ? widget.invoiceNumber.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')
+          : 'invoice';
+      final file = File('${dir.path}/HoPetSit-$safeNumber.html');
+      await file.writeAsBytes(res.bodyBytes);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'text/html')],
+        subject: 'Facture HoPetSit $safeNumber',
+        text: 'Facture HoPetSit',
+      );
+    } catch (e) {
       try {
         await _controller.runJavaScript('window.print();');
       } catch (_) {
