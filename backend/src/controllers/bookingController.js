@@ -4023,6 +4023,9 @@ const getProviderLocation = async (req, res) => {
     }
 
     // PawFollow subscription check.
+    // v23.1 part 74 — read both currentPeriodEnd (canonical) and
+    // expiresAt (legacy alias) so existing subs that may carry only
+    // one of them still authorize tracking.
     let hasPawFollow = false;
     try {
       const UserSubscription = require('../models/UserSubscription');
@@ -4031,8 +4034,11 @@ const getProviderLocation = async (req, res) => {
         userModel: 'Owner',
         status: 'active',
       }).lean();
-      if (sub && sub.expiresAt && new Date(sub.expiresAt) > new Date()) {
-        hasPawFollow = true;
+      if (sub) {
+        const expiry = sub.currentPeriodEnd || sub.expiresAt;
+        if (expiry && new Date(expiry) > new Date()) {
+          hasPawFollow = true;
+        }
       }
     } catch (_) { /* fall through */ }
 

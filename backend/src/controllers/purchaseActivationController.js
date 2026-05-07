@@ -156,12 +156,25 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
   }
 
   const now = new Date();
+  // v23.1 part 74 — Daniel : "PawFollow pris mais Suivre dit toujours
+  // PAWFOLLOW_REQUIRED". Root cause : we were setting `sub.expiresAt`
+  // but the UserSubscription schema field is actually `currentPeriodEnd`
+  // (cf. models/UserSubscription.js line 209). Mongoose silently dropped
+  // expiresAt with strict mode, so the subscription was status='active'
+  // but currentPeriodEnd=null → every PawFollow check failed.
+  // Now we set BOTH the canonical currentPeriodEnd AND the legacy
+  // expiresAt (for any code that may still read the old name).
   const currentExpiry =
-    sub.expiresAt && new Date(sub.expiresAt) > now ? new Date(sub.expiresAt) : now;
+    sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
+      ? new Date(sub.currentPeriodEnd)
+      : now;
   const newExpiry = new Date(currentExpiry.getTime() + intervalDays * 86_400_000);
 
   sub.plan = plan;
   sub.status = 'active';
+  sub.currentPeriodStart = sub.currentPeriodStart || now;
+  sub.currentPeriodEnd = newExpiry;
+  // legacy alias
   sub.expiresAt = newExpiry;
   sub.currency = currency;
 

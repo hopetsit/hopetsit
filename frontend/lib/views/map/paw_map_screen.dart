@@ -453,11 +453,46 @@ class _PawMapScreenState extends State<PawMapScreen> {
         final name = (p['name'] ?? '').toString();
         final isMapBoosted = p['isMapBoosted'] == true;
         final isBoosted = p['isBoosted'] == true;
-        final hue = isMapBoosted
-            ? BitmapDescriptor.hueYellow // gold = PawSpot boost
-            : (role == 'walker'
-                ? BitmapDescriptor.hueGreen
-                : BitmapDescriptor.hueAzure);
+        final mapTier = (p['mapBoostTier'] ?? '').toString();
+
+        // v23.1 part 74 — Daniel : "il yas que celuis a 1.99 qui marche
+        // ... pin dore et pin dore + halo marche pas". Different tiers
+        // now get distinct hues so the user sees the difference :
+        //   bronze   (€1.99)  → blue (Visible)
+        //   silver   (€8.99)  → violet (Pin surligné)
+        //   gold     (€14.99) → yellow (Pin doré)
+        //   platinum (€24.99) → orange (Pin doré + halo)
+        // non-boosted falls back to role color.
+        double hue;
+        if (isMapBoosted) {
+          switch (mapTier) {
+            case 'platinum':
+              hue = BitmapDescriptor.hueOrange;
+              break;
+            case 'gold':
+              hue = BitmapDescriptor.hueYellow;
+              break;
+            case 'silver':
+              hue = BitmapDescriptor.hueViolet;
+              break;
+            case 'bronze':
+            default:
+              hue = BitmapDescriptor.hueAzure;
+          }
+        } else {
+          hue = role == 'walker'
+              ? BitmapDescriptor.hueGreen
+              : BitmapDescriptor.hueAzure;
+        }
+        final tierLabel = isMapBoosted
+            ? ({
+                'bronze': 'Visible (24h)',
+                'silver': 'Pin surligné (7j)',
+                'gold': 'Pin doré (15j)',
+                'platinum': 'Pin doré + halo (30j)',
+              }[mapTier] ?? 'PawSpot actif')
+            : (isBoosted ? 'Profil boosté' : '');
+
         markers.add(
           Marker(
             markerId: MarkerId('provider_${role}_$id'),
@@ -466,9 +501,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
             infoWindow: InfoWindow(
               title: '${role == 'walker' ? '🐕' : '🐾'} ${name.isNotEmpty ? name : (role == 'walker' ? 'Walker' : 'Sitter')}'
                   '${isMapBoosted ? ' ⭐' : (isBoosted ? ' 🚀' : '')}',
-              snippet: isMapBoosted
-                  ? 'PawSpot actif'
-                  : (isBoosted ? 'Profil boosté' : ''),
+              snippet: tierLabel,
             ),
           ),
         );
