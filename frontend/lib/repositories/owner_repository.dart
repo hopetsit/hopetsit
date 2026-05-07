@@ -1280,16 +1280,37 @@ class OwnerRepository {
   ///   402 { code: 'PAWFOLLOW_REQUIRED' } → owner needs to subscribe
   ///   204 { code: 'NO_LOCATION_YET' }    → provider hasn't shared yet
   ///   404 / 403 / 409                    → various error states
+  ///
+  /// v23.1 part 71 — Bug Suivre 402 : ApiClient throws on any non-2xx
+  /// (including 402) which made the original handler see "API 402"
+  /// without ever reading our { code: 'PAWFOLLOW_REQUIRED' } body.
+  /// We now CATCH the exception and surface the body verbatim so the
+  /// UI can branch on `code`. Real network errors still bubble up.
   Future<Map<String, dynamic>> getProviderLocationForBooking({
     required String bookingId,
   }) async {
-    final response = await _apiClient.get(
-      '/bookings/$bookingId/provider-location',
-      requiresAuth: true,
-    );
-    if (response is Map<String, dynamic>) return response;
-    if (response is Map) return Map<String, dynamic>.from(response);
-    throw ApiException('Unexpected provider-location response.', details: response);
+    try {
+      final response = await _apiClient.get(
+        '/bookings/$bookingId/provider-location',
+        requiresAuth: true,
+      );
+      if (response is Map<String, dynamic>) return response;
+      if (response is Map) return Map<String, dynamic>.from(response);
+      throw ApiException('Unexpected provider-location response.', details: response);
+    } on ApiException catch (e) {
+      // 402 / 404 / 409 carry a JSON body we want to read.
+      final details = e.details;
+      if (details is Map<String, dynamic>) return details;
+      if (details is Map) return Map<String, dynamic>.from(details);
+      // Fallback : synthesize a minimal map so the UI can still react.
+      return {
+        'code': e.statusCode == 402 ? 'PAWFOLLOW_REQUIRED'
+              : e.statusCode == 404 ? 'NOT_FOUND'
+              : e.statusCode == 409 ? 'NOT_PAID'
+              : 'ERROR',
+        'error': e.message,
+      };
+    }
   }
 
 }

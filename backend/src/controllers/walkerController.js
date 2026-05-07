@@ -48,8 +48,33 @@ const listWalkers = async (req, res) => {
       Walker.countDocuments(filter),
     ]);
 
+    // v23.1 part 71 — Daniel : "forfait boost jai ni licone ni lannonce
+    // qui remonte". Root cause : this listWalkers (used by the general
+    // feed) was returning walkers WITHOUT the isBoosted/boostTier flags.
+    // Only findNearbyWalkers had them. Now we enrich + bubble boosted
+    // walkers to the top here too. Mirrored on sitterController.
+    const _now = new Date();
+    const enriched = walkers.map((w) => {
+      const safe = sanitizeUser(w);
+      const isBoosted = w.boostExpiry && new Date(w.boostExpiry) > _now;
+      const isMapBoosted = w.mapBoostExpiry && new Date(w.mapBoostExpiry) > _now;
+      return {
+        ...safe,
+        isBoosted: Boolean(isBoosted),
+        boostTier: isBoosted ? (w.boostTier || null) : null,
+        isMapBoosted: Boolean(isMapBoosted),
+        mapBoostTier: isMapBoosted ? (w.mapBoostTier || null) : null,
+      };
+    });
+    enriched.sort((a, b) => {
+      const aRank = (a.isMapBoosted ? 2 : 0) + (a.isBoosted ? 1 : 0);
+      const bRank = (b.isMapBoosted ? 2 : 0) + (b.isBoosted ? 1 : 0);
+      if (aRank !== bRank) return bRank - aRank;
+      return 0;
+    });
+
     res.json({
-      walkers: walkers.map((w) => sanitizeUser(w)),
+      walkers: enriched,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
