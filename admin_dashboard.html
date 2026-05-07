@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 104</title>
+<title>HopeTSIT — Admin v23.1 part 105</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -185,7 +185,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <label class="login-label" for="admin-email" data-i18n="admin_email">Admin Email</label>
     <input id="admin-email" class="login-input" type="email" autocomplete="username" name="email" placeholder="admin@hopetsit.local"/>
     <label class="login-label" for="admin-secret" data-i18n="admin_password">Admin Password</label>
-    <input id="admin-secret" class="login-input" type="password" autocomplete="current-password" name="password" placeholder="Enter admin password"/>
+    <input id="admin-secret" class="login-input" type="password" autocomplete="current-password" name="password" placeholder="Mot de passe admin"/>
     <button type="submit" class="login-btn" data-i18n="access_dashboard">Access Dashboard →</button>
     <div class="login-error" id="login-error"></div>
   </form>
@@ -211,33 +211,52 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   </header>
 
   <div class="main-content">
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR — v23.1 part 105 : reorganisée par catégories logiques. -->
     <nav class="sidebar">
-      <div class="nav-section" style="margin-bottom:16px;margin-top:8px">Navigation</div>
-      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Dashboard</span></div>
-      <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> <span data-i18n="nav_bookings">Bookings</span></div>
-      <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> <span data-i18n="nav_sitters">Sitters</span></div>
-      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> <span data-i18n="nav_owners">Owners</span></div>
-      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> <span data-i18n="nav_walkers">Walkers</span></div>
-      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💰</span> <span data-i18n="nav_payments">Payments</span></div>
-      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Invoices</span></div>
-      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">IBAN Payouts</span></div>
-      <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Identity verifications</span></div>
-      <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> <span data-i18n="nav_reviews">Review moderation</span></div>
-      <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">User moderation</span></div>
-      <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> <span data-i18n="nav_terms">Terms &amp; Conditions</span></div>
-      <div class="nav-item" onclick="showPage('privacy')"><span class="nav-icon">🔒</span> <span data-i18n="nav_privacy">Privacy Policy</span></div>
-      <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> <span data-i18n="nav_reports">Reports</span></div>
-      <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> <span data-i18n="nav_chat">Chat Moderation</span></div>
-      <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💰</span> <span data-i18n="nav_wallets">Wallets</span></div>
-      <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages</span></div>
-      <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> <span data-i18n="nav_payouts">Mes revenus</span></div>
-      <div class="nav-item" onclick="showPage('bugs')"><span class="nav-icon">🐛</span> <span data-i18n="nav_bugs">Bug reports</span></div>
-      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> <span data-i18n="nav_shop">Shop Activity</span></div>
-      <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> <span data-i18n="nav_pricing">Pricing</span></div>
-      <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> <span data-i18n="nav_services">Services</span></div>
-      <div class="nav-item" onclick="showPage('pawmap')"><span class="nav-icon">🗺️</span> <span data-i18n="nav_pawmap">PawMap</span></div>
-      <div class="nav-item" onclick="showPage('annonces')"><span class="nav-icon">📣</span> <span data-i18n="nav_annonces">Annonces</span></div>
+      <!-- Vue d'ensemble -->
+      <div class="nav-section" style="margin-top:8px">📊 Vue d'ensemble</div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Tableau de bord</div>
+      <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> Mes revenus</div>
+
+      <!-- Utilisateurs -->
+      <div class="nav-section" style="margin-top:18px">👥 Utilisateurs</div>
+      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> Propriétaires</div>
+      <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> Pet-sitters</div>
+      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> Promeneurs</div>
+      <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> Vérifications ID</div>
+      <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> Modération users</div>
+      <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> Avantages fidélité</div>
+
+      <!-- Activité -->
+      <div class="nav-section" style="margin-top:18px">📅 Activité</div>
+      <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> Réservations</div>
+      <div class="nav-item" onclick="showPage('annonces')"><span class="nav-icon">📣</span> Annonces</div>
+      <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> Chat &amp; messages</div>
+      <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> Avis utilisateurs</div>
+      <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> Signalements</div>
+
+      <!-- Finance -->
+      <div class="nav-section" style="margin-top:18px">💳 Finance</div>
+      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💳</span> Paiements</div>
+      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> Factures</div>
+      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> Virements IBAN</div>
+      <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> Portefeuilles</div>
+
+      <!-- Boutique -->
+      <div class="nav-section" style="margin-top:18px">🛍️ Boutique</div>
+      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Activité boutique</div>
+      <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> Tarifs</div>
+      <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> Services</div>
+
+      <!-- Contenu -->
+      <div class="nav-section" style="margin-top:18px">📜 Contenu</div>
+      <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> CGU</div>
+      <div class="nav-item" onclick="showPage('privacy')"><span class="nav-icon">🔒</span> Confidentialité</div>
+
+      <!-- Système -->
+      <div class="nav-section" style="margin-top:18px">⚙️ Système</div>
+      <div class="nav-item" onclick="showPage('pawmap')"><span class="nav-icon">🗺️</span> PawMap</div>
+      <div class="nav-item" onclick="showPage('bugs')"><span class="nav-icon">🐛</span> Bugs reportés</div>
     </nav>
 
     <!-- PAGES -->
@@ -305,7 +324,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div class="section-title">👤 Tous les utilisateurs</div>
         <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;max-width:720px">
           Vue unifiée : propriétaires + pet-sitters + walkers. Filtre par rôle en haut.
-          Utilise les boutons Staff pour accorder Premium gratuit, ou Delete pour supprimer.
+          Utilise les boutons « Staff » pour accorder Premium gratuit, ou « Supprimer » pour effacer un compte.
         </p>
         <div class="table-wrap">
           <div class="table-toolbar">
@@ -403,7 +422,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <option value="failed">Échec</option>
           </select>
           <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
-            <option value="">All Providers</option>
+            <option value="">Tous les providers</option>
             <option value="stripe">Stripe</option>
             <option value="paypal">PayPal</option>
           </select>
@@ -763,34 +782,34 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-services" class="page">
         <div class="section-title">🧰 Service catalog</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
-          Edit the 3 bookable services exposed to owners (Promenade / Garderie / Garde multi-jours) and the duration presets for short walks and long outings.
-          Toggle <em>Active</em> off to temporarily hide a service from the publish flow. Label &amp; description overrides are optional — leave empty to use the app's default translations.
+          Modifie les 3 services proposés aux propriétaires (Promenade / Garderie / Garde multi-jours) et les durées pré-configurées pour les promenades courtes et longues.
+          Désactive <em>Actif</em> pour masquer temporairement un service de l'app. Les overrides de label &amp; description sont optionnels — laisse vide pour utiliser les traductions par défaut.
         </p>
         <div id="services-editor">
           <div class="loading"><div class="spinner"></div> Loading catalog…</div>
         </div>
         <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap">
-          <button class="action-btn btn-primary" onclick="saveServices()" id="services-save-btn">💾 Save changes</button>
-          <button class="action-btn" onclick="loadServices()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Reload</button>
-          <button class="action-btn" onclick="resetServices()" style="background:var(--surface2);color:var(--red);border:1px solid var(--red)">↺ Reset defaults</button>
+          <button class="action-btn btn-primary" onclick="saveServices()" id="services-save-btn">💾 Enregistrer</button>
+          <button class="action-btn" onclick="loadServices()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Recharger</button>
+          <button class="action-btn" onclick="resetServices()" style="background:var(--surface2);color:var(--red);border:1px solid var(--red)">↺ Valeurs par défaut</button>
         </div>
       </div>
 
       <!-- PRICING -->
       <div id="page-pricing" class="page">
-        <div class="section-title">💶 Shop Pricing</div>
+        <div class="section-title">💶 Tarifs boutique</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
-          Edit the live price grid for Boost, Map Boost, and Premium subscriptions across the 4 supported currencies.
+          Modifie la grille tarifaire live pour Boost, Map Boost et abonnements Premium dans les 4 devises supportées.
           Changes take effect immediately in the mobile app — no server restart required.
-          Use "Reset defaults" to restore the baseline values from code.
+          Utilise « Valeurs par défaut » pour restaurer les valeurs initiales du code.
         </p>
         <div id="pricing-editor">
           <div class="loading"><div class="spinner"></div> Loading pricing…</div>
         </div>
         <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap">
-          <button class="action-btn btn-primary" onclick="savePricing()" id="pricing-save-btn">💾 Save changes</button>
-          <button class="action-btn" onclick="loadPricing()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Reload</button>
-          <button class="action-btn" onclick="resetPricing()" style="background:var(--surface2);color:var(--red);border:1px solid var(--red)">↺ Reset defaults</button>
+          <button class="action-btn btn-primary" onclick="savePricing()" id="pricing-save-btn">💾 Enregistrer</button>
+          <button class="action-btn" onclick="loadPricing()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Recharger</button>
+          <button class="action-btn" onclick="resetPricing()" style="background:var(--surface2);color:var(--red);border:1px solid var(--red)">↺ Valeurs par défaut</button>
         </div>
       </div>
 
@@ -804,8 +823,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="modal-title" id="modal-booking-title">Booking Detail</div>
     <div id="modal-booking-content"></div>
     <div class="modal-actions">
-      <button class="modal-close" onclick="closeModal('booking-modal')">Close</button>
-      <button class="action-btn btn-primary" id="modal-booking-save" onclick="saveBookingStatus()">Save Changes</button>
+      <button class="modal-close" onclick="closeModal('booking-modal')">Fermer</button>
+      <button class="action-btn btn-primary" id="modal-booking-save" onclick="saveBookingStatus()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -816,7 +835,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="modal-title">🏦 IBAN Details</div>
     <div id="modal-iban-content"></div>
     <div class="modal-actions">
-      <button class="modal-close" onclick="closeModal('iban-modal')">Close</button>
+      <button class="modal-close" onclick="closeModal('iban-modal')">Fermer</button>
       <button class="action-btn btn-verify" id="modal-iban-verify-btn">✓ Verify IBAN</button>
     </div>
   </div>
@@ -1004,8 +1023,8 @@ async function loadIdentityVerifications() {
         <td>${v.submittedAt ? new Date(v.submittedAt).toLocaleString() : '—'}</td>
         <td><a href="${escapeHtml(v.documentUrl)}" target="_blank" rel="noopener">View document</a></td>
         <td>
-          <button class="btn-approve" onclick="reviewIdentity('${v.id}', 'approve')">Approve</button>
-          <button class="btn-reject" onclick="reviewIdentity('${v.id}', 'reject')">Reject</button>
+          <button class="btn-approve" onclick="reviewIdentity('${v.id}', 'approve')">Approuver</button>
+          <button class="btn-reject" onclick="reviewIdentity('${v.id}', 'reject')">Rejeter</button>
         </td>
       </tr>
     `).join('');
@@ -1017,7 +1036,7 @@ async function loadIdentityVerifications() {
 async function reviewIdentity(id, action) {
   let reason = '';
   if (action === 'reject') {
-    reason = prompt('Rejection reason?') || '';
+    reason = prompt('Raison du rejet ?') || '';
     if (!reason) return;
   }
   try {
@@ -1112,7 +1131,7 @@ async function loadReviewsModeration(status) {
           ${r.hidden
             ? `<button class="action-btn btn-verify" onclick="moderateReview('${r._id}','restore')">Restore</button>`
             : `<button class="action-btn" onclick="moderateReview('${r._id}','hide')">Hide</button>`}
-          <button class="btn-reject" onclick="moderateReview('${r._id}','delete')">Delete</button>
+          <button class="btn-reject" onclick="moderateReview('${r._id}','delete')">Supprimer</button>
         </td>
       </tr>
     `).join('');
@@ -1286,7 +1305,7 @@ async function deleteAnnonce(id) {
     await api(`/admin/posts/${id}`, 'DELETE');
     showToast('🗑 Annonce supprimée.');
     loadAnnonces();
-  } catch (e) { showToast('❌ ' + (e.message || 'Delete failed')); }
+  } catch (e) { showToast('❌ ' + (e.message || 'Échec de suppression')); }
 }
 
 // ── PAWMAP ANALYTICS ─────────────────────────────────────────────────────────
@@ -1431,7 +1450,7 @@ function renderPawmapStats(d) {
       <div class="stat-card" style="--accent:var(--blue)"><div class="stat-label">Expirés (archivés)</div><div class="stat-value">${r.expired || 0}</div><div class="stat-sub">Dataset historique</div></div>
       <div class="stat-card" style="--accent:var(--red)"><div class="stat-label">Masqués (flags)</div><div class="stat-value">${r.hidden || 0}</div><div class="stat-sub">À modérer</div></div>
       <div class="stat-card" style="--accent:var(--orange)"><div class="stat-label">7 derniers jours</div><div class="stat-value">${r.last7d || 0}</div><div class="stat-sub">Signalements créés</div></div>
-      <div class="stat-card"><div class="stat-label">Signalements total</div><div class="stat-value">${r.total || 0}</div><div class="stat-sub">All-time</div></div>
+      <div class="stat-card"><div class="stat-label">Signalements total</div><div class="stat-value">${r.total || 0}</div><div class="stat-sub">Depuis le début</div></div>
     </div>`;
 
   // Reports by type table.
@@ -1563,12 +1582,12 @@ function renderServices() {
         <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">${lang.toUpperCase()}</div>
         <input
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:4px"
-          placeholder="Label override (leave empty = app default)"
+          placeholder="Override du label (vide = défaut app)"
           value="${(labelOverride[lang] || '').replace(/"/g, '&quot;')}"
           onchange="onServiceFieldEdit('${s.key}','labelOverride','${lang}', this)">
         <input
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px"
-          placeholder="Description override (leave empty = app default)"
+          placeholder="Override de la description (vide = défaut app)"
           value="${(descOverride[lang] || '').replace(/"/g, '&quot;')}"
           onchange="onServiceFieldEdit('${s.key}','descOverride','${lang}', this)">
       </div>
@@ -1634,7 +1653,7 @@ async function saveServices() {
     _servicesState.catalog = res.catalog || _servicesState.catalog;
     showToast('✅ Service catalog updated.');
   } catch (e) {
-    showToast('❌ ' + (e.message || 'Save failed'));
+    showToast('❌ ' + (e.message || 'Échec d\'enregistrement'));
   } finally {
     btn.disabled = false;
     btn.innerHTML = prev;
@@ -1642,14 +1661,14 @@ async function saveServices() {
 }
 
 async function resetServices() {
-  if (!confirm('Reset service catalog to defaults? Custom overrides will be lost.')) return;
+  if (!confirm('Réinitialiser le catalogue de services aux valeurs par défaut ? Tes overrides custom seront perdus.')) return;
   try {
     const res = await api('/admin/services/reset', 'POST', {});
     _servicesState.catalog = res.catalog;
     renderServices();
     showToast('↺ Services reset to defaults.');
   } catch (e) {
-    showToast('❌ ' + (e.message || 'Reset failed'));
+    showToast('❌ ' + (e.message || 'Échec de réinitialisation'));
   }
 }
 
@@ -1775,7 +1794,7 @@ async function savePricing() {
     _pricingState.pricing = res.pricing || _pricingState.pricing;
     showToast('✅ Pricing updated. Mobile app sees new prices immediately.');
   } catch (e) {
-    showToast('❌ ' + (e.message || 'Save failed'));
+    showToast('❌ ' + (e.message || 'Échec d\'enregistrement'));
   } finally {
     btn.disabled = false;
     btn.innerHTML = prev;
@@ -1783,14 +1802,14 @@ async function savePricing() {
 }
 
 async function resetPricing() {
-  if (!confirm('Reset all prices to hardcoded defaults? Your custom values will be lost.')) return;
+  if (!confirm('Réinitialiser tous les prix aux valeurs par défaut du code ? Tes valeurs custom seront perdues.')) return;
   try {
     const res = await api('/admin/pricing/reset', 'POST', {});
     _pricingState.pricing = res.pricing;
     renderPricing();
     showToast('↺ Pricing reset to defaults.');
   } catch (e) {
-    showToast('❌ ' + (e.message || 'Reset failed'));
+    showToast('❌ ' + (e.message || 'Échec de réinitialisation'));
   }
 }
 
@@ -1832,7 +1851,7 @@ function setReportsType(ty) {
 
 async function loadReports() {
   const list = document.getElementById('reports-list');
-  list.innerHTML = '<div style="color:var(--text-muted)">Loading…</div>';
+  list.innerHTML = '<div style="color:var(--text-muted)">Chargement…</div>';
   try {
     const qs = [];
     if (reportsStatusFilter && reportsStatusFilter !== 'all') qs.push(`status=${reportsStatusFilter}`);
@@ -1870,7 +1889,7 @@ function renderReportCard(r) {
         <button class="action-btn" onclick="updateReportStatus('${r._id}','reviewing')">👀 Reviewing</button>
         <button class="action-btn btn-verify" onclick="updateReportStatus('${r._id}','resolved')">✓ Resolved</button>
         <button class="action-btn" onclick="updateReportStatus('${r._id}','dismissed')">✕ Dismiss</button>
-        <button class="action-btn" style="border-color:var(--red);color:var(--red);margin-left:auto" onclick="deleteReport('${r._id}')">🗑 Delete</button>
+        <button class="action-btn" style="border-color:var(--red);color:var(--red);margin-left:auto" onclick="deleteReport('${r._id}')">🗑 Supprimer</button>
       </div>
     </div>
   `;
@@ -1882,7 +1901,7 @@ async function updateReportStatus(id, status) {
     showToast(`Report marked ${status}`, 'success');
     loadReports();
   } catch (e) {
-    showToast('Update failed: ' + e.message, 'error');
+    showToast('Échec de mise à jour : ' + e.message, 'error');
   }
 }
 
@@ -1893,7 +1912,7 @@ async function deleteReport(id) {
     showToast('Report deleted', 'success');
     loadReports();
   } catch (e) {
-    showToast('Delete failed: ' + e.message, 'error');
+    showToast('Échec de suppression : ' + e.message, 'error');
   }
 }
 
@@ -1948,13 +1967,13 @@ async function saveTermsDocument() {
     showToast(`Terms saved for ${lang.toUpperCase()}`, 'success');
     loadTermsDocument(lang);
   } catch (e) {
-    showToast('Save failed: ' + e.message, 'error');
+    showToast('Échec d\'enregistrement : ' + e.message, 'error');
   }
 }
 
 async function revertTermsDocument() {
   const lang = currentTermsLang;
-  if (!confirm(`Delete the stored ${lang.toUpperCase()} document? The app will fall back to the text bundled in the APK.`)) return;
+  if (!confirm(`Supprimer le document ${lang.toUpperCase()} stocké ? L'app retombera sur le texte par défaut embarqué dans l'APK.`)) return;
   try {
     await api(`/admin/terms/${lang}`, 'DELETE');
     showToast(`Reverted ${lang.toUpperCase()} to bundled default`, 'success');
@@ -2002,7 +2021,7 @@ async function savePrivacy() {
     showToast(`Privacy policy saved for ${lang.toUpperCase()}`, 'success');
     renderPrivacyEditor();
   } catch (e) {
-    showToast('Save failed: ' + e.message, 'error');
+    showToast('Échec d\'enregistrement : ' + e.message, 'error');
   }
 }
 
@@ -2155,7 +2174,7 @@ function renderSitters() {
   });
   if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>No sitters found.</div></div>'; return; }
   document.getElementById('sitters-table-body').innerHTML = `
-    <table><thead><tr><th>Name</th><th>Email</th><th>Hourly Rate</th><th>Services</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Nom</th><th>Email</th><th>Tarif horaire</th><th>Services</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(s => {
       const boosted = s.boostExpiry && new Date(s.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(s.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
@@ -2165,7 +2184,7 @@ function renderSitters() {
         <td style="color:var(--text-muted)">${s.email||'-'}</td>
         <td>€${(s.hourlyRate||0).toFixed(2)}/hr</td>
         <td style="font-size:12px">${(s.service||[]).join(', ')||'-'}</td>
-        <td>${s.verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
+        <td>${s.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${s.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${s.payoutMethod||'stripe'}</span></td>
         <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
@@ -2311,7 +2330,7 @@ function renderWalkers() {
     return;
   }
   document.getElementById('walkers-table-body').innerHTML = `
-    <table><thead><tr><th>Name</th><th>Email</th><th>Rate</th><th>Coverage</th><th>Verified</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Nom</th><th>Email</th><th>Tarif</th><th>Zone</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(w => {
       const boosted = w.boostExpiry && new Date(w.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(w.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
@@ -2327,7 +2346,7 @@ function renderWalkers() {
         <td style="color:var(--text-muted)">${w.email||'-'}</td>
         <td>${rate}</td>
         <td style="font-size:12px">${coverage}</td>
-        <td>${w.verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending</span>'}</td>
+        <td>${w.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${w.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${w.payoutMethod||'stripe'}</span></td>
         <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
@@ -2671,7 +2690,7 @@ function showPaymentModal(p) {
         <!-- Reason field -->
         <div style="margin-bottom:16px">
           <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Admin note / reason</label>
-          <input id="pm-reason" type="text" placeholder="Reason for change (optional)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)" />
+          <input id="pm-reason" type="text" placeholder="Raison de la modification (optionnel)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)" />
         </div>
 
         <!-- Action buttons -->
@@ -2750,8 +2769,8 @@ async function loadIbanSitters() {
           <td>${s.ibanHolder||'-'}</td>
           <td style="font-family:monospace">${maskIban(s.ibanNumber)}</td>
           <td>${s.ibanBic||'-'}</td>
-          <td>${s.ibanVerified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-orange">Pending verification</span>'}</td>
-          <td><button class="action-btn btn-verify" onclick="openIbanModal('${s._id}')">Review</button></td>
+          <td>${s.ibanVerified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">À vérifier</span>'}</td>
+          <td><button class="action-btn btn-verify" onclick="openIbanModal('${s._id}')">Examiner</button></td>
         </tr>
       `).join('')}</tbody></table>
     `;
@@ -2858,7 +2877,7 @@ async function markIbanPaid(bookingId, providerName, amount, currency) {
 let boostsPage = 1;
 const TIER_LABELS = {
   bronze: '🥉 Bronze', silver: '🥈 Silver', gold: '🥇 Gold', platinum: '💎 Platinum',
-  monthly: '📆 Monthly', yearly: '📅 Yearly',
+  monthly: '📆 Mensuel', yearly: '📅 Annuel',
 };
 const TIER_COLORS = {
   bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700', platinum: '#B9F2FF',
