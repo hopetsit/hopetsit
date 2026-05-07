@@ -195,6 +195,51 @@ router.post('/purchase', requireAuth, async (req, res) => {
 
     const amountCents = Math.round(pricing.amount * 100);
 
+    // ─── v23.1 part 84 — pay-with-wallet for PawSpot (walker/sitter only)
+    const payWithWallet = req.body?.payWithWallet === true;
+    if (payWithWallet && (req.user.role === 'walker' || req.user.role === 'sitter')) {
+      try {
+        const { payFromWallet } = require('../services/walletService');
+        await payFromWallet({
+          userId: String(req.user.id),
+          userRole: req.user.role,
+          amount: pricing.amount,
+          currency: pricing.currency,
+          type: 'debit_purchase',
+          reference: `pawspot_${tier}`,
+          meta: { kind: 'map_boost', tier, days: pricing.days },
+        });
+        const { activateMapBoostFromWebhook } = require('../controllers/purchaseActivationController');
+        await activateMapBoostFromWebhook({
+          piId: `wallet_${Date.now()}_${tier}`,
+          metadata: {
+            userId: String(req.user.id),
+            role: req.user.role,
+            tier,
+            days: String(pricing.days),
+            currency: pricing.currency,
+          },
+        });
+        return res.json({
+          activated: true,
+          paidFromWallet: true,
+          tier,
+          days: pricing.days,
+          amount: pricing.amount,
+          currency: pricing.currency,
+        });
+      } catch (e) {
+        if (e.code === 'INSUFFICIENT_BALANCE') {
+          return res.status(402).json({
+            error: 'Solde wallet insuffisant. Utilise une carte ou retire moins.',
+            code: 'INSUFFICIENT_BALANCE',
+          });
+        }
+        logger.error('[mapBoost/purchase] payWithWallet failed', e);
+        return res.status(500).json({ error: e.message });
+      }
+    }
+
     // ─── Airwallex flow ────────────────────────────────────────────────────
     if (PROVIDER === 'airwallex') {
       try {

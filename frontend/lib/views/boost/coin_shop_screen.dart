@@ -211,7 +211,39 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     }
   }
 
-  Future<void> _purchaseBoost(String tier) async {
+  /// v23.1 part 84 — long-press shortcut on a tier card : confirm dialog
+  /// then call _purchaseBoost(tier, payWithWallet: true). Only relevant
+  /// for walker/sitter (owners get 402 from backend). Caller doesn't
+  /// have to know about wallet — backend rejects with INSUFFICIENT_BALANCE
+  /// and we fall back to a clear message.
+  Future<void> _confirmPayWithWallet(String tier) async {
+    final pkg = _packages.firstWhere(
+      (p) => p['tier'] == tier,
+      orElse: () => const <String, dynamic>{},
+    );
+    final amount = ((pkg['amount'] as num?) ?? 0).toDouble();
+    final currency = (pkg['currency'] ?? 'EUR').toString();
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Payer avec ton wallet ?'),
+        content: Text(
+          'Débiter ${amount.toStringAsFixed(2)} $currency de ton wallet pour activer le boost ?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Payer avec wallet 💰'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _purchaseBoost(tier, payWithWallet: true);
+    }
+  }
+
+  Future<void> _purchaseBoost(String tier, {bool payWithWallet = false}) async {
     setState(() {
       _purchasing = true;
       _selectedTier = tier;
@@ -226,17 +258,25 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
           : 'EUR';
       final piData = await api.post(
         '/boost/purchase',
-        body: {'tier': tier, 'currency': currency},
+        // v23.1 part 84 — Daniel : "soit il l'utilise pour la boutique
+        // soit il le retire". When payWithWallet=true the backend debits
+        // the walker / sitter's wallet and activates immediately —
+        // skipping the Airwallex HPP entirely.
+        body: {'tier': tier, 'currency': currency, 'payWithWallet': payWithWallet},
         requiresAuth: true,
       );
       final map = piData as Map<String, dynamic>;
 
       // v20.0.2 — Staff short-circuit: server already activated the boost
-      // for free. Skip the Stripe payment sheet entirely.
-      if (map['staff'] == true && map['activated'] == true) {
+      // for free. Skip the payment sheet entirely.
+      // v23.1 part 84 — same shortcut when paid from wallet.
+      if ((map['staff'] == true && map['activated'] == true) ||
+          (map['paidFromWallet'] == true && map['activated'] == true)) {
         CustomSnackbar.showSuccess(
           title: 'boost_purchase_success_title'.tr,
-          message: 'boost_purchase_success_msg'.tr,
+          message: payWithWallet
+              ? 'Boost activé avec ton solde wallet 💰'
+              : 'boost_purchase_success_msg'.tr,
         );
         await _loadBoostStatus();
         setState(() {
@@ -445,6 +485,13 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       child: Stack(
         children: [
           GestureDetector(
+            // v23.1 part 84 — long-press to pay with wallet, tap = card.
+            // Daniel : "soit il l'utilise pour la boutique soit il le
+            // retire et reçoit automatiquement". Walkers/sitters with
+            // a wallet balance now have a 1-tap shortcut to apply
+            // their earnings directly without going through the card
+            // HPP. Long-press → confirm dialog → debit wallet.
+            onLongPress: _purchasing ? null : () => _confirmPayWithWallet(tier),
             onTap: _purchasing ? null : () => _purchaseBoost(tier),
             child: Container(
               padding: EdgeInsets.all(16.w),

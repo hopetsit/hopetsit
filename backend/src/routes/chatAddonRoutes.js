@@ -96,6 +96,46 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     const role = req.user.role;
     const amountCents = Math.round(pricing.amount * 100);
 
+    // ─── v23.1 part 84 — pay-with-wallet shortcut (walker/sitter only)
+    const payWithWallet = req.body?.payWithWallet === true;
+    if (payWithWallet && (role === 'walker' || role === 'sitter')) {
+      try {
+        const { payFromWallet } = require('../services/walletService');
+        await payFromWallet({
+          userId: String(userId),
+          userRole: role,
+          amount: pricing.amount,
+          currency: pricing.currency,
+          type: 'debit_purchase',
+          reference: 'chat_addon',
+          meta: { kind: 'chat_addon', intervalDays: pricing.intervalDays },
+        });
+        const { activateChatAddonFromWebhook } = require('../controllers/purchaseActivationController');
+        await activateChatAddonFromWebhook({
+          piId: `wallet_${Date.now()}_chatAddon`,
+          metadata: {
+            userId: String(userId),
+            role,
+            intervalDays: String(pricing.intervalDays),
+            currency: pricing.currency,
+          },
+        });
+        return res.json({
+          activated: true,
+          paidFromWallet: true,
+          intervalDays: pricing.intervalDays,
+          amount: pricing.amount,
+          currency: pricing.currency,
+        });
+      } catch (e) {
+        if (e.code === 'INSUFFICIENT_BALANCE') {
+          return res.status(402).json({ error: 'Solde wallet insuffisant.', code: 'INSUFFICIENT_BALANCE' });
+        }
+        logger.error('[chatAddon] payWithWallet failed', e);
+        return res.status(500).json({ error: e.message });
+      }
+    }
+
     // ─── Airwallex flow ────────────────────────────────────────────────────
     if (PROVIDER === 'airwallex') {
       try {

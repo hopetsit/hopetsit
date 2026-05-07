@@ -372,9 +372,91 @@ async function processPendingWithdrawals() {
   }
 }
 
+/**
+ * v23.1 part 84 — pay-from-wallet for boutique purchases.
+ *
+ * Daniel : "soit il l'utilise pour la boutique soit il le retire". When
+ * a walker / sitter wants to buy a Boost / PawSpot / Chat-Addon / KYC
+ * with their accumulated earnings instead of a credit card, the boutique
+ * route flips a `payWithWallet=true` flag and calls this helper :
+ *
+ *   1. Atomically debit the wallet by `amount`.
+ *   2. Create a WalletTransaction tagged with the purchase metadata.
+ *   3. Return { transactionId, balance } for the route to record on the
+ *      user's purchase entry (so it can be reconciled with the activation
+ *      side-effects).
+ *
+ * Throws { code: 'INSUFFICIENT_BALANCE' } if balance < amount — the
+ * route catches this and falls back to "ouvre la HPP carte" UX.
+ *
+ * Idempotency : the caller is responsible for not double-charging
+ * (e.g. by checking they haven't already activated for this purchaseId).
+ * This helper itself doesn't dedup.
+ */
+async function payFromWallet({
+  userId,
+  userRole,
+  amount,
+  currency = 'EUR',
+  type = 'debit_purchase',
+  reference = '',
+  meta = {},
+}) {
+  if (!userId || !userRole || !Number.isFinite(amount) || amount <= 0) {
+    throw new Error('walletService.payFromWallet: invalid args');
+  }
+  const Model = _roleModel(userRole);
+  if (!Model) {
+    throw new Error(`walletService: unknown userRole "${userRole}"`);
+  }
+  const rounded = Math.round(amount * 100) / 100;
+
+  // CAS atomic debit : decrement only if balance >= rounded.
+  const updated = await Model.findOneAndUpdate(
+    { _id: userId, walletBalance: { $gte: rounded } },
+    {
+      $inc: { walletBalance: -rounded },
+      $set: { walletCurrency: currency },
+    },
+    { new: true },
+  ).select('walletBalance walletCurrency email');
+
+  if (!updated) {
+    const err = new Error('Insufficient wallet balance.');
+    err.code = 'INSUFFICIENT_BALANCE';
+    throw err;
+  }
+
+  const tx = await WalletTransaction.create({
+    userId,
+    userRole,
+    type,
+    amount: rounded,
+    currency,
+    referenceId: reference || '',
+    status: 'completed',
+    balanceAfter: updated.walletBalance,
+    completedAt: new Date(),
+    meta: { ...meta, source: 'wallet_purchase' },
+  });
+
+  logger.info(
+    `🛒 Wallet purchase : -${rounded} ${currency} from ${userRole}:${userId} ` +
+    `(remaining: ${updated.walletBalance}) ref=${reference || '?'}`,
+  );
+
+  return {
+    success: true,
+    transactionId: tx._id.toString(),
+    balance: updated.walletBalance,
+    currency: updated.walletCurrency,
+  };
+}
+
 module.exports = {
   creditWallet,
   debitWallet,
   getBalance,
   processPendingWithdrawals,
+  payFromWallet,
 };

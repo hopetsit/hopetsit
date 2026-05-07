@@ -81,6 +81,43 @@ const initiatePayment = async (req, res) => {
       });
     }
 
+    // v23.1 part 84 — pay-with-wallet shortcut for KYC (3€). Walker/sitter
+    // only (already gated above). Skip Airwallex PI entirely : debit
+    // wallet + flip kycStatus to pending_verification.
+    const payWithWallet = req.body?.payWithWallet === true;
+    if (payWithWallet) {
+      try {
+        const { payFromWallet } = require('../services/walletService');
+        await payFromWallet({
+          userId: user._id.toString(),
+          userRole: role,
+          amount: KYC_PRICE_EUR,
+          currency: 'EUR',
+          type: 'debit_purchase',
+          reference: 'kyc',
+          meta: { kind: 'kyc' },
+        });
+        // Same activation as the webhook would do.
+        user.kycStatus = 'pending_verification';
+        user.kycPaidAt = new Date();
+        user.kycPaymentIntentId = `wallet_${Date.now()}`;
+        await user.save();
+        return res.status(201).json({
+          paidFromWallet: true,
+          kycStatus: user.kycStatus,
+          kycPaidAt: user.kycPaidAt,
+          amount: KYC_PRICE_EUR,
+          currency: 'EUR',
+        });
+      } catch (e) {
+        if (e.code === 'INSUFFICIENT_BALANCE') {
+          return res.status(402).json({ error: 'Solde wallet insuffisant.', code: 'INSUFFICIENT_BALANCE' });
+        }
+        logger.error('[kyc.initiatePayment] payWithWallet failed', e);
+        return res.status(500).json({ error: e.message });
+      }
+    }
+
     // v23.1 part 67 — Daniel : "verification identite ne marche pas" /
     // "page Airwallex vide". Same fix as boutique : ALWAYS attach
     // customer_id so the HPP renders the payment-method picker.
