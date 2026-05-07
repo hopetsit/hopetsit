@@ -624,26 +624,26 @@ async function createCompanyBeneficiary({
   // v23.1 part 91 — pour SEPA/IBAN, Airwallex exige le champ `iban`.
   const isIbanValue = /^[A-Z]{2}\d{2}/.test(cleanIban);
 
-  // v23.1 part 92 — Daniel a obtenu invalid_argument sans source. Nettoyage
-  // défensif :
-  //   • Si le postcode est manifestement bidon (000000, vide, que des
-  //     espaces, "0"), on n'envoie pas l'address du tout. Airwallex stocke
-  //     le COMPANY beneficiary sans address (l'address sert pour les
-  //     transferts internationaux KYC, pas pour SEPA en EUR).
-  //   • Idem si HK ou un pays sans code postal réel — on drop tout le bloc
-  //     address pour éviter les rejets opaques.
+  // v23.1 part 93 — Airwallex exige TOUJOURS street_address + city +
+  // country_code pour les COMPANY beneficiaries (validation_failed code 001
+  // sur ces 3 champs sinon). Seul le postcode est optionnel : on le saute
+  // quand il est manifestement bidon (000000, vide) ou que le pays n'a pas
+  // de code postal standardisé (HK, IE, AE, …).
+  if (!addressLine) throw new Error('addressLine est obligatoire (Airwallex exige beneficiary.address.street_address)');
+  if (!addressCity) throw new Error('addressCity est obligatoire (Airwallex exige beneficiary.address.city)');
+  const addrCC = (addressCountryCode || country || 'FR').toUpperCase();
+
   const cleanZip = (postalCode || '').toString().trim();
   const isFakeZip = !cleanZip || /^0+$/.test(cleanZip.replace(/\s+/g, ''));
-  // Liste des pays sans code postal standardisé (HK, IE, AE, …) — on évite
-  // d'envoyer un postcode bidon à Airwallex pour ces pays.
-  const noPostcodeCountries = ['HK', 'IE', 'AE', 'AO', 'AG', 'BS', 'BZ', 'BJ',
-    'BO', 'BW', 'BF', 'BI', 'CM', 'CF', 'TD', 'KM', 'CG', 'CD', 'CI', 'DJ',
-    'DM', 'GQ', 'ER', 'FJ', 'GM', 'GH', 'GD', 'GY', 'KE', 'KI', 'LY', 'MO',
-    'MW', 'ML', 'MR', 'NR', 'KP', 'PA', 'QA', 'RW', 'KN', 'LC', 'ST', 'SC',
-    'SL', 'SB', 'SO', 'SR', 'SY', 'TZ', 'TG', 'TV', 'UG', 'VU', 'YE', 'ZW'];
-  const addrCC = (addressCountryCode || '').toUpperCase();
-  const stripAddress = isFakeZip || noPostcodeCountries.includes(addrCC) ||
-    !addressLine || !addressCity;
+  // Pays sans code postal standardisé (HK, IE, AE, …) — Airwallex accepte
+  // que postcode soit absent.
+  const noPostcodeCountries = new Set(['HK', 'IE', 'AE', 'AO', 'AG', 'BS', 'BZ',
+    'BJ', 'BO', 'BW', 'BF', 'BI', 'CM', 'CF', 'TD', 'KM', 'CG', 'CD', 'CI',
+    'DJ', 'DM', 'GQ', 'ER', 'FJ', 'GM', 'GH', 'GD', 'GY', 'KE', 'KI', 'LY',
+    'MO', 'MW', 'ML', 'MR', 'NR', 'KP', 'PA', 'QA', 'RW', 'KN', 'LC', 'ST',
+    'SC', 'SL', 'SB', 'SO', 'SR', 'SY', 'TZ', 'TG', 'TV', 'UG', 'VU', 'YE',
+    'ZW']);
+  const sendPostcode = !!cleanZip && !isFakeZip && !noPostcodeCountries.has(addrCC);
 
   const body = {
     request_id: genRequestId('compbenef'),
@@ -661,14 +661,12 @@ async function createCompanyBeneficiary({
         ...(bic ? { swift_code: bic.replace(/\s+/g, '').toUpperCase() } : {}),
         ...(bankName ? { bank_name: bankName.trim() } : {}),
       },
-      ...(stripAddress ? {} : {
-        address: {
-          street_address: addressLine,
-          city: addressCity,
-          country_code: addrCC,
-          ...(cleanZip && !isFakeZip ? { postcode: cleanZip } : {}),
-        },
-      }),
+      address: {
+        street_address: addressLine.trim(),
+        city: addressCity.trim(),
+        country_code: addrCC,
+        ...(sendPostcode ? { postcode: cleanZip } : {}),
+      },
     },
     payment_methods: ['LOCAL'],
   };
