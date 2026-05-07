@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 99</title>
+<title>HopeTSIT — Admin v23.1 part 100</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3123,6 +3123,8 @@ async function loadAdminPayouts() {
     det.innerHTML =
       // Bloc Airwallex (rendu async par loadCompanySweep)
       '<div id="company-sweep-block" style="margin-bottom:28px"></div>' +
+      // v23.1 part 100 — bloc debug "Mes paiements récents" + cleanup
+      '<div id="payouts-debug-block" style="margin-bottom:28px"></div>' +
       // Détail boutique
       '<h3 style="font-size:16px;margin:20px 0 10px">🛍️ Détail boutique</h3>' +
       '<table class="table"><thead><tr><th>Produit</th><th>Total</th><th>Achats</th></tr></thead><tbody>' +
@@ -3145,8 +3147,130 @@ async function loadAdminPayouts() {
       '</p>';
     // Charge le bloc société (solde Airwallex + bouton retrait + historique).
     loadCompanySweep();
+    // v23.1 part 100 — charge le bloc debug "Mes paiements récents".
+    loadPayoutsDebug();
   } catch (e) {
     det.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
+  }
+}
+
+// v23.1 part 100 — Daniel : "rien que aujourdhui jai payer plus de 30e
+// et je peux meme pas retirer". On affiche les bookings paid des 7 derniers
+// jours pour qu'il vérifie ce que la DB voit, avec une checkbox + bouton
+// supprimer pour nettoyer les transactions test (paiements à soi-même, etc).
+async function loadPayoutsDebug() {
+  const wrap = document.getElementById('payouts-debug-block');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement des paiements récents...</div>';
+  try {
+    const d = await api('/admin/payouts-debug?days=7');
+    const items = d.items || [];
+    const t = d.totals || {};
+    const fmt = (n) => Number(n||0).toFixed(2);
+    const rows = items.length ? items.map((it) => {
+      const oEmail = it.owner?.email || '?';
+      const pEmail = it.provider?.email || '?';
+      const isSelfPay = oEmail !== '?' && pEmail !== '?' && oEmail.toLowerCase() === pEmail.toLowerCase();
+      const dateStr = it.paidAt ? new Date(it.paidAt).toLocaleString('fr-FR') : '-';
+      return (
+        '<tr style="' + (isSelfPay ? 'background:rgba(243,156,18,0.06)' : '') + '">' +
+          '<td><input type="checkbox" class="dbg-pick" data-id="' + it._id + '" ' + (isSelfPay ? 'checked' : '') + '/></td>' +
+          '<td style="font-size:11px;color:var(--text-muted)">' + dateStr + '</td>' +
+          '<td><strong>' + fmt(it.pricing.totalPrice) + '</strong> EUR</td>' +
+          '<td style="color:var(--green)">' + fmt(it.pricing.commission) + '</td>' +
+          '<td style="color:var(--text-muted)">' + fmt(it.pricing.netPayout) + '</td>' +
+          '<td style="font-size:12px">' + oEmail + '</td>' +
+          '<td style="font-size:12px">' + pEmail + (isSelfPay ? ' <span style="background:var(--orange);color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700">SELF</span>' : '') + '</td>' +
+          '<td><span class="badge badge-' + (it.bookingStatus === 'completed' ? 'green' : it.bookingStatus === 'cancelled' ? 'red' : 'orange') + '">' + (it.bookingStatus || '-') + '</span></td>' +
+        '</tr>'
+      );
+    }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Aucun paiement sur les 7 derniers jours.</td></tr>';
+    wrap.innerHTML =
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
+          '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">🔍 Paiements récents (7 jours)</h3>' +
+          '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="loadPayoutsDebug()">↻ Actualiser</button>' +
+        '</div>' +
+        '<div style="background:rgba(52,152,219,0.06);border:1px solid rgba(52,152,219,0.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">' +
+          '<strong>Total brut :</strong> ' + fmt(t.totalGross) + ' EUR · ' +
+          '<strong style="color:var(--green)">Commissions :</strong> ' + fmt(t.totalCommission) + ' EUR · ' +
+          '<strong style="color:var(--text-muted)">Reversé providers :</strong> ' + fmt(t.totalNetPayout) + ' EUR · ' +
+          '<strong>' + items.length + '</strong> paiement(s)' +
+        '</div>' +
+        '<div style="background:rgba(243,156,18,0.06);border:1px solid rgba(243,156,18,0.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;line-height:1.5;color:var(--text-muted)">' +
+          '🟧 <strong style="color:var(--orange)">SELF</strong> = paiement où owner.email = provider.email (probablement un test). ' +
+          'Coche les lignes que tu veux supprimer (les SELF sont pré-cochés) puis clique sur "Supprimer la sélection". Cliquer sur "Nettoyer tous les self-payments" supprime tous les SELF en un clic.' +
+        '</div>' +
+        '<div class="table-wrap">' +
+          '<table>' +
+            '<thead><tr>' +
+              '<th><input type="checkbox" id="dbg-pick-all" onclick="document.querySelectorAll(\'.dbg-pick\').forEach(c => c.checked = this.checked)"/></th>' +
+              '<th>Date</th><th>Total</th><th>Commission</th><th>Provider</th>' +
+              '<th>Owner email</th><th>Provider email</th><th>Statut</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">' +
+          '<button class="action-btn btn-delete" onclick="cleanupSelectedBookings()">🗑️ Supprimer la sélection</button>' +
+          '<button class="action-btn" style="background:rgba(243,156,18,0.15);color:var(--orange)" onclick="cleanupSelfPayments()">🟧 Nettoyer tous les self-payments</button>' +
+          '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="cleanupByEmail()">📧 Supprimer par email</button>' +
+        '</div>' +
+      '</div>';
+  } catch (e) {
+    wrap.innerHTML = '<div style="color:var(--red);padding:14px">' + e.message + '</div>';
+  }
+}
+
+async function cleanupSelectedBookings() {
+  const ids = Array.from(document.querySelectorAll('.dbg-pick:checked')).map((c) => c.dataset.id);
+  if (!ids.length) {
+    showToast('Aucun booking sélectionné.', 'error');
+    return;
+  }
+  // Dry-run d'abord pour confirmation.
+  try {
+    const dry = await api('/admin/cleanup-test-data', 'POST', { mode: 'byIds', ids });
+    if (!confirm('Supprimer ' + (dry.wouldDelete || ids.length) + ' booking(s) ? Cette action est irréversible. Les commissions associées seront retirées des statistiques.')) return;
+    const r = await api('/admin/cleanup-test-data', 'POST', { mode: 'byIds', ids, confirm: true });
+    showToast('✅ ' + (r.deleted || 0) + ' booking(s) supprimé(s).', 'success');
+    loadAdminPayouts();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+async function cleanupSelfPayments() {
+  try {
+    const dry = await api('/admin/cleanup-test-data', 'POST', { mode: 'self-payments' });
+    if (!dry.wouldDelete) {
+      showToast('Aucun self-payment à supprimer.', 'success');
+      return;
+    }
+    if (!confirm('Supprimer ' + dry.wouldDelete + ' self-payment(s) (owner = provider) ? Cette action est irréversible.')) return;
+    const r = await api('/admin/cleanup-test-data', 'POST', { mode: 'self-payments', confirm: true });
+    showToast('✅ ' + (r.deleted || 0) + ' booking(s) supprimé(s).', 'success');
+    loadAdminPayouts();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+async function cleanupByEmail() {
+  const email = prompt('Email à filtrer (les bookings où owner OU provider a cet email seront supprimés) :', '');
+  if (!email) return;
+  try {
+    const dry = await api('/admin/cleanup-test-data', 'POST', { mode: 'byEmail', email });
+    if (!dry.wouldDelete) {
+      showToast('Aucun booking ne correspond à cet email.', 'success');
+      return;
+    }
+    if (!confirm('Supprimer ' + dry.wouldDelete + ' booking(s) liés à "' + email + '" ?')) return;
+    const r = await api('/admin/cleanup-test-data', 'POST', { mode: 'byEmail', email, confirm: true });
+    showToast('✅ ' + (r.deleted || 0) + ' booking(s) supprimé(s).', 'success');
+    loadAdminPayouts();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
   }
 }
 

@@ -2505,6 +2505,158 @@ router.get('/list-beneficiaries', requireAdmin, async (req, res) => {
   }
 });
 
+// v23.1 part 100 — Daniel : "rien que aujourdhui jai payer plus de 30e
+// et je peux meme pas retirer". On expose un endpoint debug qui montre
+// les bookings paid récents + un endpoint cleanup pour supprimer les
+// transactions de test.
+
+// GET /admin/payouts-debug — liste les bookings paid des 7 derniers jours
+// avec tous les détails (pricing + emails) pour vérifier ce que la DB
+// contient vraiment vs ce que les stats agrégées disent.
+router.get('/payouts-debug', requireAdmin, async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days, 10) || 7, 90);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const bookings = await Booking.find({
+      paymentStatus: 'paid',
+      paidAt: { $gte: since },
+    })
+      .sort({ paidAt: -1 })
+      .limit(200)
+      .populate('owner', 'firstName lastName email')
+      .populate('sitter', 'firstName lastName email')
+      .populate('walker', 'firstName lastName email')
+      .lean();
+    const items = bookings.map((b) => ({
+      _id: b._id,
+      role: b.sitter ? 'sitter' : (b.walker ? 'walker' : '?'),
+      paidAt: b.paidAt,
+      paymentStatus: b.paymentStatus,
+      payoutStatus: b.payoutStatus,
+      bookingStatus: b.status,
+      owner: b.owner ? {
+        id: String(b.owner._id),
+        name: ((b.owner.firstName || '') + ' ' + (b.owner.lastName || '')).trim() || null,
+        email: b.owner.email || null,
+      } : null,
+      provider: (b.sitter || b.walker) ? {
+        id: String((b.sitter || b.walker)._id),
+        name: (((b.sitter || b.walker).firstName || '') + ' ' + ((b.sitter || b.walker).lastName || '')).trim() || null,
+        email: (b.sitter || b.walker).email || null,
+      } : null,
+      pricing: {
+        totalPrice: Number(b.pricing?.totalPrice || 0),
+        commission: Number(b.pricing?.commission || 0),
+        netPayout: Number(b.pricing?.netPayout || 0),
+      },
+    }));
+    const totals = items.reduce((acc, it) => {
+      acc.totalGross += it.pricing.totalPrice;
+      acc.totalCommission += it.pricing.commission;
+      acc.totalNetPayout += it.pricing.netPayout;
+      return acc;
+    }, { totalGross: 0, totalCommission: 0, totalNetPayout: 0 });
+    res.json({ since, days, count: items.length, items, totals });
+  } catch (e) {
+    logger.error('[admin/payouts-debug]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /admin/cleanup-test-data — supprime les bookings (et donc leur
+// commission comptée) selon plusieurs critères. NON destructif sur les
+// utilisateurs/IBAN/etc — uniquement les bookings + leurs traces.
+//
+// Body :
+//   { mode: 'self-payments' }    → supprime les bookings où owner.email === provider.email
+//   { mode: 'before', date }     → supprime tous les bookings paid avant `date`
+//   { mode: 'byEmail', email }   → supprime les bookings où owner.email === email (ou provider.email)
+//   { mode: 'byIds', ids: [...]} → supprime les bookings dont l'ID est dans la liste
+router.post('/cleanup-test-data', requireAdmin, async (req, res) => {
+  try {
+    const mode = (req.body?.mode || '').toString();
+    let filter = null;
+    let description = '';
+
+    if (mode === 'self-payments') {
+      // owner.email === provider.email. On loop : récupère les bookings
+      // paid + populate, puis on filtre ceux dont owner.email matche
+      // sitter.email OU walker.email.
+      const all = await Booking.find({ paymentStatus: 'paid' })
+        .populate('owner', 'email')
+        .populate('sitter', 'email')
+        .populate('walker', 'email')
+        .lean();
+      const idsToDelete = [];
+      for (const b of all) {
+        const oEmail = (b.owner?.email || '').toLowerCase();
+        const pEmail = ((b.sitter?.email || b.walker?.email || '')).toLowerCase();
+        if (oEmail && pEmail && oEmail === pEmail) idsToDelete.push(b._id);
+      }
+      filter = { _id: { $in: idsToDelete } };
+      description = `self-payments (owner === provider) → ${idsToDelete.length} match(s)`;
+    } else if (mode === 'before') {
+      const date = new Date(req.body?.date);
+      if (Number.isNaN(date.getTime())) {
+        return res.status(400).json({ error: 'Invalid date for mode=before.' });
+      }
+      filter = { paidAt: { $lt: date } };
+      description = `paid before ${date.toISOString()}`;
+    } else if (mode === 'byEmail') {
+      const email = (req.body?.email || '').toString().toLowerCase().trim();
+      if (!email) return res.status(400).json({ error: 'email required for mode=byEmail.' });
+      const Owner = require('../models/Owner');
+      const Sitter = require('../models/Sitter');
+      const Walker = require('../models/Walker');
+      const [oRows, sRows, wRows] = await Promise.all([
+        Owner.find({ email: { $regex: email, $options: 'i' } }, '_id').lean(),
+        Sitter.find({ email: { $regex: email, $options: 'i' } }, '_id').lean(),
+        Walker.find({ email: { $regex: email, $options: 'i' } }, '_id').lean(),
+      ]);
+      const userIds = [
+        ...oRows.map((u) => u._id), ...sRows.map((u) => u._id), ...wRows.map((u) => u._id),
+      ];
+      filter = { $or: [
+        { owner: { $in: userIds } },
+        { sitter: { $in: userIds } },
+        { walker: { $in: userIds } },
+      ] };
+      description = `bookings where owner/provider email matches "${email}"`;
+    } else if (mode === 'byIds') {
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+      if (!ids.length) return res.status(400).json({ error: 'ids[] required.' });
+      filter = { _id: { $in: ids } };
+      description = `bookings with ids: ${ids.join(', ')}`;
+    } else {
+      return res.status(400).json({
+        error: 'mode is required. Allowed: self-payments | before | byEmail | byIds',
+      });
+    }
+
+    const candidatesBefore = await Booking.countDocuments(filter);
+    if (candidatesBefore === 0) {
+      return res.json({ deleted: 0, description, message: 'Aucun booking ne matche le critère.' });
+    }
+
+    // Dry-run par défaut. Pour vraiment supprimer, body.confirm doit être true.
+    if (!req.body?.confirm) {
+      return res.json({
+        dryRun: true,
+        wouldDelete: candidatesBefore,
+        description,
+        hint: 'Re-envoie la même requête avec { confirm: true } pour effectuer la suppression.',
+      });
+    }
+
+    const r = await Booking.deleteMany(filter);
+    logger.info(`[admin/cleanup-test-data] mode=${mode} deleted=${r.deletedCount} (${description})`);
+    return res.json({ deleted: r.deletedCount, description });
+  } catch (e) {
+    logger.error('[admin/cleanup-test-data]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // v23.1 part 88 — set the chosen beneficiary id as the active company
 // beneficiary in DB (we use a tiny KV via the existing PricingConfig
 // model... actually let's just save it in a CompanySweep doc as a
