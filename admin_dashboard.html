@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 94</title>
+<title>HopeTSIT — Admin v23.1 part 95</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3401,11 +3401,17 @@ async function submitSetupBeneficiary() {
         txt += '\n\n— Détails Airwallex —\n' + JSON.stringify(e.details, null, 2);
       } catch (_) { /* ignore */ }
     }
-    // v23.1 part 94 — affiche aussi le body envoyé (IBAN masqué côté
-    // serveur) pour qu'on voie exactement ce qui a été transmis.
+    // v23.1 part 94 — body envoyé (IBAN masqué).
     if (e.payload && e.payload.sentBody) {
       try {
         txt += '\n\n— Body envoyé à Airwallex (IBAN masqué) —\n' + JSON.stringify(e.payload.sentBody, null, 2);
+      } catch (_) { /* ignore */ }
+    }
+    // v23.1 part 95 — réponse brute Airwallex (pour le cas "did not return
+    // a beneficiary id" : on voit la vraie structure de la réponse).
+    if (e.payload && e.payload.raw) {
+      try {
+        txt += '\n\n— Réponse brute Airwallex —\n' + JSON.stringify(e.payload.raw, null, 2);
       } catch (_) { /* ignore */ }
     }
     errBox.style.display = 'block';

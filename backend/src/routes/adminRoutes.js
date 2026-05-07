@@ -2469,10 +2469,21 @@ router.post('/setup-company-beneficiary', requireAdmin, async (req, res) => {
       addressCountryCode,
       postalCode,
     });
-    const beneficiaryId = result?.id;
+    // v23.1 part 95 — Airwallex peut renvoyer l'id à différents endroits
+    // selon la version d'API : top-level `id`, ou imbriqué dans `beneficiary.id`,
+    // ou dans `data.id`. On cherche partout avant de baisser les bras.
+    logger.info('[admin/setup-company-beneficiary] raw response keys: ' +
+      JSON.stringify(Object.keys(result || {})));
+    const beneficiaryId =
+      result?.id ||
+      result?.beneficiary_id ||
+      result?.beneficiary?.id ||
+      result?.data?.id ||
+      result?.data?.beneficiary?.id ||
+      null;
     if (!beneficiaryId) {
       return res.status(502).json({
-        error: 'Airwallex did not return a beneficiary id.',
+        error: 'Airwallex n\'a pas renvoyé d\'id de bénéficiaire dans la réponse. Vois `raw` ci-dessous pour la structure réelle.',
         raw: result,
       });
     }
