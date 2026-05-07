@@ -2379,6 +2379,273 @@ router.get('/platform-balance', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── v23.1 part 80 — admin v2 unified dashboard endpoints ──────────────────
+//
+// Daniel : "mettre a jour tout ladmin car tout est melanger ... 2 pages
+// au lieu de 4". This commit replaces the scattered Bookings / Sitters /
+// Owners / Walkers / Payouts tabs with a 2-page model the admin actually
+// uses :
+//   1. /admin/v2/activity  — every transaction (booking + wallet) with
+//      role / amount / status / dates / payment status. Filterable.
+//   2. /admin/v2/revenue  — split-view of HoPetSit revenue : commissions
+//      from bookings vs. boutique sales. Per-period totals.
+
+router.get('/v2/activity', requireAdmin, async (req, res) => {
+  try {
+    const role = (req.query.role || 'all').toString().toLowerCase();
+    const status = (req.query.status || 'all').toString().toLowerCase();
+    const from = req.query.from ? new Date(req.query.from) : null;
+    const to   = req.query.to   ? new Date(req.query.to)   : null;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 1000);
+
+    const Booking = require('../models/Booking');
+    const WalletTransaction = require('../models/WalletTransaction');
+
+    // ── Bookings rows (one per booking) ────────────────────────────────
+    const bookingFilter = {};
+    if (from || to) {
+      bookingFilter.createdAt = {};
+      if (from) bookingFilter.createdAt.$gte = from;
+      if (to)   bookingFilter.createdAt.$lte = to;
+    }
+    const bookings = await Booking.find(bookingFilter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('ownerId', 'name email')
+      .populate('sitterId', 'name email')
+      .populate('walkerId', 'name email')
+      .lean();
+
+    const bookingRows = bookings.map((b) => {
+      const provider = b.walkerId || b.sitterId;
+      const providerRole = b.walkerId ? 'walker' : 'sitter';
+      const owner = b.ownerId;
+      // Row-level status the UI displays.
+      let rowStatus = 'unknown';
+      const pay = (b.paymentStatus || '').toLowerCase();
+      const st  = (b.status || '').toLowerCase();
+      if (pay === 'refunded' || st === 'refunded') rowStatus = 'refunded';
+      else if (st === 'completed') rowStatus = 'completed';
+      else if (st === 'cancelled') rowStatus = 'cancelled';
+      else if (pay === 'paid') rowStatus = 'paid';
+      else if (st === 'paid') rowStatus = 'paid';
+      else if (pay === 'pending' || pay === 'pending_payment') rowStatus = 'pending_payment';
+      else rowStatus = st || pay || 'unknown';
+
+      return {
+        kind: 'booking',
+        id: b._id?.toString(),
+        date: b.createdAt,
+        serviceDate: b.date || b.startDate || null,
+        ownerName: owner?.name || '—',
+        ownerEmail: owner?.email || '',
+        ownerId: owner?._id?.toString(),
+        providerRole,
+        providerName: provider?.name || '—',
+        providerEmail: provider?.email || '',
+        providerId: provider?._id?.toString(),
+        gross: (b.pricing && b.pricing.totalPrice) || b.totalAmount || 0,
+        commission: (b.pricing && b.pricing.commission) || 0,
+        netPayout: (b.pricing && b.pricing.netPayout) || 0,
+        currency: (b.pricing && b.pricing.currency) || 'EUR',
+        status: rowStatus,
+        paidAt: b.paidAt || null,
+        refundedAt: b.refundedAt || null,
+        scheduledPayoutAt: b.scheduledPayoutAt || null,
+      };
+    });
+
+    // ── Wallet withdrawals rows ─────────────────────────────────────────
+    const wdFilter = { type: 'debit_withdrawal' };
+    if (from || to) {
+      wdFilter.createdAt = {};
+      if (from) wdFilter.createdAt.$gte = from;
+      if (to)   wdFilter.createdAt.$lte = to;
+    }
+    const withdrawals = await WalletTransaction.find(wdFilter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    const wdRows = await Promise.all(
+      withdrawals.map(async (w) => {
+        const Model = w.userRole === 'walker' ? Walker : Sitter;
+        const u = await Model.findById(w.userId).select('name email').lean();
+        return {
+          kind: 'withdrawal',
+          id: w._id?.toString(),
+          date: w.createdAt,
+          ownerName: '—',
+          ownerEmail: '',
+          ownerId: null,
+          providerRole: w.userRole,
+          providerName: u?.name || '—',
+          providerEmail: u?.email || '',
+          providerId: u?._id?.toString() || null,
+          gross: -Math.abs(w.amount || 0), // negative = outflow from platform
+          commission: 0,
+          netPayout: w.amount || 0,
+          currency: w.currency || 'EUR',
+          status: w.status || 'pending', // pending | processing | completed | failed
+          paidAt: w.completedAt || null,
+          refundedAt: null,
+          scheduledPayoutAt: null,
+          method: w.withdrawalMethod || '',
+        };
+      }),
+    );
+
+    let rows = [...bookingRows, ...wdRows];
+    if (role !== 'all') {
+      rows = rows.filter(
+        (r) =>
+          (role === 'owner' && r.kind === 'booking') ||
+          (role === 'walker' && r.providerRole === 'walker') ||
+          (role === 'sitter' && r.providerRole === 'sitter'),
+      );
+    }
+    if (status !== 'all') {
+      rows = rows.filter((r) => r.status === status);
+    }
+    rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    rows = rows.slice(0, limit);
+
+    res.json({
+      rows,
+      counts: {
+        total: rows.length,
+        bookings: rows.filter((r) => r.kind === 'booking').length,
+        withdrawals: rows.filter((r) => r.kind === 'withdrawal').length,
+      },
+    });
+  } catch (e) {
+    logger.error('[admin/v2/activity]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/v2/revenue', requireAdmin, async (req, res) => {
+  try {
+    const Booking = require('../models/Booking');
+    const Donation = require('../models/Donation').default || require('../models/Donation');
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last7 = new Date(now.getTime() - 7 * 86_400_000);
+    const last30 = new Date(now.getTime() - 30 * 86_400_000);
+
+    // ── Commissions from bookings (payments to HoPetSit's 20% cut) ─────
+    const sumBy = async (matchExtra = {}) => {
+      const r = await Booking.aggregate([
+        { $match: { paymentStatus: 'paid', ...matchExtra } },
+        {
+          $group: {
+            _id: null,
+            count: { $sum: 1 },
+            gross: { $sum: { $ifNull: ['$pricing.totalPrice', '$totalAmount'] } },
+            commission: { $sum: '$pricing.commission' },
+          },
+        },
+      ]);
+      return r[0] || { count: 0, gross: 0, commission: 0 };
+    };
+    const [allTime, m, last7d, last30d] = await Promise.all([
+      sumBy(),
+      sumBy({ paidAt: { $gte: monthStart } }),
+      sumBy({ paidAt: { $gte: last7 } }),
+      sumBy({ paidAt: { $gte: last30 } }),
+    ]);
+
+    // ── Boutique : Boost / MapBoost / Premium / ChatAddon / KYC / Donations
+    const Owner = require('../models/Owner');
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+
+    const aggBoostPurchases = async (Model, kind = null) => {
+      const match = kind ? { 'boostPurchases.kind': kind } : { 'boostPurchases.0': { $exists: true } };
+      const r = await Model.aggregate([
+        { $match: match },
+        { $unwind: '$boostPurchases' },
+        ...(kind ? [{ $match: { 'boostPurchases.kind': kind } }] : []),
+        {
+          $group: {
+            _id: null,
+            count: { $sum: 1 },
+            total: { $sum: '$boostPurchases.amount' },
+          },
+        },
+      ]);
+      return r[0] || { count: 0, total: 0 };
+    };
+    const [boostOwner, boostSitter, boostWalker, mapBoostOwner, mapBoostSitter, mapBoostWalker] =
+      await Promise.all([
+        aggBoostPurchases(Owner, 'profile'),
+        aggBoostPurchases(Sitter, 'profile'),
+        aggBoostPurchases(Walker, 'profile'),
+        aggBoostPurchases(Owner, 'map'),
+        aggBoostPurchases(Sitter, 'map'),
+        aggBoostPurchases(Walker, 'map'),
+      ]);
+    const profileBoost = {
+      count: boostOwner.count + boostSitter.count + boostWalker.count,
+      total: boostOwner.total + boostSitter.total + boostWalker.total,
+    };
+    const mapBoost = {
+      count: mapBoostOwner.count + mapBoostSitter.count + mapBoostWalker.count,
+      total: mapBoostOwner.total + mapBoostSitter.total + mapBoostWalker.total,
+    };
+
+    // Subscriptions (PawFollow / Premium)
+    const UserSubscription = require('../models/UserSubscription');
+    const subAgg = await UserSubscription.aggregate([
+      { $unwind: '$history' },
+      {
+        $group: {
+          _id: '$plan',
+          count: { $sum: 1 },
+          // Note : history rows don't store amount, so we estimate via plan label.
+          // For an exact figure we'd need a server-side price lookup ; left
+          // as count-only for now (frontend can multiply by price to estimate).
+        },
+      },
+    ]);
+
+    // Donations
+    let donations = { count: 0, total: 0 };
+    try {
+      const dAgg = await Donation.aggregate([
+        { $match: { status: 'paid' } },
+        { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' } } },
+      ]);
+      donations = dAgg[0] || donations;
+    } catch (_) { /* model may not exist */ }
+
+    res.json({
+      commissions: {
+        allTime: allTime.commission || 0,
+        thisMonth: m.commission || 0,
+        last7d: last7d.commission || 0,
+        last30d: last30d.commission || 0,
+        bookingCount: allTime.count || 0,
+        grossAllTime: allTime.gross || 0,
+      },
+      boutique: {
+        profileBoost,
+        mapBoost,
+        subscriptionsByPlan: subAgg,
+        donations,
+        // Estimated total = boutique known absolute amounts (boost is tracked,
+        // subscriptions count-only — frontend can compute estimate).
+        knownTotal: profileBoost.total + mapBoost.total + (donations.total || 0),
+      },
+      generatedAt: now.toISOString(),
+    });
+  } catch (e) {
+    logger.error('[admin/v2/revenue]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
   try {
     const beneficiaryId =

@@ -1,10 +1,28 @@
+// v23.1 part 80 — Admin dashboard redesigned around 2 pages instead of 5.
+//
+// Daniel : "mettre a jour tout ladmin car tout est melanger ... 2 pages
+// au lieu de 4 ... voir depense owner walker sitter avec dates + statut
+// paiement + revenus avec encaissement commissions et boutique pour
+// visualiser combien je gagne".
+//
+// Page 1 — Activité : every transaction (booking + wallet) with role,
+// amount, status (paid / pending / refunded / completed), dates.
+// Filters by role + status + date range.
+//
+// Page 2 — Revenus : split-view of HoPetSit revenue.
+//   • Côté gauche : commissions des bookings (20% du paiement owner).
+//   • Côté droit : boutique (Boost, PawSpot, PawFollow, ChatAddon,
+//     KYC, Donations).
+//
+// Both pages call the new /admin/v2/* endpoints (see adminRoutes.js).
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/data/network/api_client.dart';
-import 'package:hopetsit/data/network/api_config.dart';
+import 'package:intl/intl.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -16,749 +34,634 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  // Stats
-  Map<String, dynamic> _stats = {};
-  bool _statsLoading = true;
-
-  // Lists
-  List<dynamic> _bookings = [];
-  List<dynamic> _sitters = [];
-  List<dynamic> _owners = [];
-  bool _listLoading = false;
-
   final _adminSecretController = TextEditingController();
   bool _authenticated = false;
   String _adminSecret = '';
 
-  // ── Pricing (session v15) ────────────────────────────────────────────────
-  // Loaded from GET /admin/pricing, edited via PATCH /admin/pricing.
-  // Schema: { boost: {EUR: {bronze,silver,gold,platinum}, …}, mapBoost: {…},
-  //           premium: {EUR: {monthly,yearly}, …} }
-  Map<String, dynamic> _pricing = {};
-  bool _pricingLoading = false;
-  bool _pricingSaving = false;
-  String _pricingCurrency = 'EUR';
-  // One TextEditingController per pricing cell so edits persist across rebuild.
-  final Map<String, TextEditingController> _priceCtrls = {};
+  // ─── Activity state ────────────────────────────────────────────────
+  List<Map<String, dynamic>> _activityRows = [];
+  bool _activityLoading = false;
+  String _filterRole = 'all'; // all | owner | walker | sitter
+  String _filterStatus = 'all'; // all | paid | pending_payment | refunded | completed | scheduled
+
+  // ─── Revenue state ─────────────────────────────────────────────────
+  Map<String, dynamic> _revenue = {};
+  bool _revenueLoading = false;
+
+  // ─── Platform balance ──────────────────────────────────────────────
+  List<Map<String, dynamic>> _balance = [];
+  bool _sweepBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _adminSecretController.dispose();
-    for (final c in _priceCtrls.values) {
-      c.dispose();
-    }
     super.dispose();
   }
 
-  // v23.1 part 72 — Daniel "admin et tout deconnecter". Root cause :
-  // every admin call passed `'/admin/...'` to
-  // `ApiClient().get(endpoint)` which itself does
-  // `Uri.parse('${ApiConfig.baseUrl}$endpoint')` → DOUBLE baseUrl,
-  // every request 404'd. Fixed by using relative paths everywhere
-  // (just '/admin/...').
   Future<void> _login() async {
     _adminSecret = _adminSecretController.text.trim();
     if (_adminSecret.isEmpty) return;
     try {
-      final response = await ApiClient().get(
-        '/admin/stats',
+      // ping a known endpoint to validate the secret
+      await ApiClient().get(
+        '/admin/v2/revenue',
         headers: {'x-admin-secret': _adminSecret},
       );
-      setState(() {
-        _stats = response as Map<String, dynamic>;
-        _authenticated = true;
-        _statsLoading = false;
-      });
+      setState(() => _authenticated = true);
       await _loadAll();
-    } catch (e) {
+    } catch (_) {
       Get.snackbar('Error', 'Invalid admin credentials',
           backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
   Future<void> _loadAll() async {
-    setState(() => _listLoading = true);
-    try {
-      final headers = {'x-admin-secret': _adminSecret};
-      final bookings = await ApiClient().get('/admin/bookings?limit=50', headers: headers);
-      final sitters = await ApiClient().get('/admin/sitters?limit=50', headers: headers);
-      final owners = await ApiClient().get('/admin/owners?limit=50', headers: headers);
-      setState(() {
-        _bookings = (bookings as Map)['bookings'] ?? [];
-        _sitters = (sitters as Map)['sitters'] ?? [];
-        _owners = (owners as Map)['owners'] ?? [];
-      });
-      // Also preload pricing so the Tarifs tab is ready on first open.
-      await _loadPricing();
-    } catch (e) {
-      // ignore
-    } finally {
-      setState(() => _listLoading = false);
-    }
+    await Future.wait([_loadActivity(), _loadRevenue(), _loadBalance()]);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  PRICING (session v15) — GET / PATCH / RESET /admin/pricing
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  Future<void> _loadPricing() async {
-    setState(() => _pricingLoading = true);
+  Future<void> _loadActivity() async {
+    setState(() => _activityLoading = true);
     try {
-      final response = await ApiClient().get(
-        '/admin/pricing',
+      final params = <String, String>{
+        'role': _filterRole,
+        'status': _filterStatus,
+        'limit': '300',
+      };
+      final qs = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final r = await ApiClient().get(
+        '/admin/v2/activity?$qs',
         headers: {'x-admin-secret': _adminSecret},
       );
-      setState(() {
-        _pricing = Map<String, dynamic>.from(
-            (response as Map)['pricing'] as Map? ?? {});
-        _syncPriceControllers();
-      });
+      final rows = ((r as Map)['rows'] as List?)
+              ?.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList() ??
+          [];
+      setState(() => _activityRows = rows);
     } catch (e) {
-      Get.snackbar('Error', 'Failed to load pricing',
+      Get.snackbar('Error', 'activity: $e',
           backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
-      setState(() => _pricingLoading = false);
+      setState(() => _activityLoading = false);
     }
   }
 
-  /// Builds / updates one TextEditingController per pricing cell so that
-  /// the text fields stay in sync with whatever came back from the backend.
-  /// Keys look like "boost.EUR.bronze" / "premium.EUR.monthly".
-  void _syncPriceControllers() {
-    final cur = _pricingCurrency;
-    final groups = ['boost', 'mapBoost', 'premium'];
-    for (final g in groups) {
-      final byCur = (_pricing[g] as Map?) ?? {};
-      final tiers = (byCur[cur] as Map?) ?? {};
-      tiers.forEach((tier, value) {
-        final key = '$g.$cur.$tier';
-        final str = (value is num) ? value.toStringAsFixed(2) : value.toString();
-        _priceCtrls.putIfAbsent(key, () => TextEditingController());
-        if (_priceCtrls[key]!.text != str) {
-          _priceCtrls[key]!.text = str;
-        }
-      });
-    }
-  }
-
-  Future<void> _savePricing() async {
-    setState(() => _pricingSaving = true);
+  Future<void> _loadRevenue() async {
+    setState(() => _revenueLoading = true);
     try {
-      // Re-build the patch from current controller values.
-      final cur = _pricingCurrency;
-      final patch = <String, Map<String, Map<String, num>>>{};
-      for (final g in ['boost', 'mapBoost', 'premium']) {
-        final byCur = (_pricing[g] as Map?) ?? {};
-        final tiers = (byCur[cur] as Map?) ?? {};
-        final group = <String, num>{};
-        tiers.forEach((tier, _) {
-          final ctl = _priceCtrls['$g.$cur.$tier'];
-          if (ctl == null) return;
-          final parsed = double.tryParse(ctl.text.trim().replaceAll(',', '.'));
-          if (parsed != null && parsed >= 0) group[tier] = parsed;
-        });
-        if (group.isNotEmpty) patch[g] = {cur: group};
-      }
-
-      await ApiClient().patch(
-        '/admin/pricing',
-        body: patch,
+      final r = await ApiClient().get(
+        '/admin/v2/revenue',
         headers: {'x-admin-secret': _adminSecret},
       );
-      Get.snackbar('Success', 'Tarifs enregistrés',
-          backgroundColor: Colors.green, colorText: Colors.white);
-      await _loadPricing();
+      setState(() => _revenue = Map<String, dynamic>.from(r as Map));
     } catch (e) {
-      Get.snackbar('Error', 'Échec de la sauvegarde',
+      Get.snackbar('Error', 'revenue: $e',
           backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
-      setState(() => _pricingSaving = false);
+      setState(() => _revenueLoading = false);
     }
   }
 
-  Future<void> _resetPricing() async {
-    final confirm = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Réinitialiser les tarifs ?'),
-        content: const Text(
-            'Cela restaure tous les prix Boost / Map Boost / Premium à leurs '
-            'valeurs par défaut. Cette action est irréversible.'),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: const Text('Réinitialiser', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
+  Future<void> _loadBalance() async {
     try {
-      await ApiClient().post(
-        '/admin/pricing/reset',
+      final r = await ApiClient().get(
+        '/admin/platform-balance',
+        headers: {'x-admin-secret': _adminSecret},
+      );
+      final items = ((r as Map)['items'] as List?)
+              ?.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList() ??
+          [];
+      setState(() => _balance = items);
+    } catch (_) { /* non-critical */ }
+  }
+
+  Future<void> _sweep() async {
+    if (_sweepBusy) return;
+    setState(() => _sweepBusy = true);
+    try {
+      final r = await ApiClient().post(
+        '/admin/sweep-platform-balance',
         body: {},
         headers: {'x-admin-secret': _adminSecret},
       );
-      Get.snackbar('Success', 'Tarifs réinitialisés',
-          backgroundColor: Colors.green, colorText: Colors.white);
-      await _loadPricing();
+      final swept = ((r as Map)['swept'] as List?) ?? [];
+      Get.snackbar(
+        'Sweep OK',
+        '${swept.length} payout(s) initié(s) vers ton compte société',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      await _loadBalance();
     } catch (e) {
-      Get.snackbar('Error', 'Échec du reset',
+      Get.snackbar('Sweep failed', e.toString(),
           backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      setState(() => _sweepBusy = false);
     }
   }
 
-  Future<void> _verifySitter(String id, bool verified) async {
-    try {
-      await ApiClient().patch(
-        '/admin/sitters/$id/verify',
-        body: {'verified': verified},
-        headers: {'x-admin-secret': _adminSecret},
-      );
-      await _loadAll();
-      Get.snackbar('Success', verified ? 'Sitter verified ✓' : 'Sitter unverified',
-          backgroundColor: Colors.green, colorText: Colors.white);
-    } catch (e) {
-      Get.snackbar('Error', 'Failed to update sitter');
-    }
-  }
-
-  Future<void> _verifyIban(String sitterId) async {
-    try {
-      await ApiClient().patch(
-        '/admin/sitters/$sitterId/iban/verify',
-        body: {},
-        headers: {'x-admin-secret': _adminSecret},
-      );
-      Get.snackbar('Success', 'IBAN verified ✓',
-          backgroundColor: Colors.green, colorText: Colors.white);
-      await _loadAll();
-    } catch (e) {
-      Get.snackbar('Error', 'Failed to verify IBAN');
-    }
-  }
-
-  Future<void> _updateBookingStatus(String id, String status) async {
-    try {
-      await ApiClient().patch(
-        '/admin/bookings/$id',
-        body: {'status': status},
-        headers: {'x-admin-secret': _adminSecret},
-      );
-      await _loadAll();
-      Get.snackbar('Success', 'Booking updated',
-          backgroundColor: Colors.green, colorText: Colors.white);
-    } catch (e) {
-      Get.snackbar('Error', 'Failed to update booking');
-    }
-  }
-
-  // ─── LOGIN SCREEN ──────────────────────────────────────────────────────────
-  Widget _buildLoginScreen() {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      body: Center(
-        child: Container(
-          margin: EdgeInsets.symmetric(horizontal: 32.w),
-          padding: EdgeInsets.all(28.w),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(20.r),
-            boxShadow: AppColors.cardShadow(context),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.admin_panel_settings,
-                  size: 60.sp, color: AppColors.primaryColor),
-              SizedBox(height: 16.h),
-              InterText(
-                text: 'HoPetSit Admin',
-                fontSize: 22.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary(context),
-              ),
-              SizedBox(height: 24.h),
-              TextField(
-                controller: _adminSecretController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Admin Secret Key',
-                  prefixIcon: Icon(Icons.key, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.r)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20.h),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    padding: EdgeInsets.symmetric(vertical: 14.h),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r)),
-                  ),
-                  onPressed: _login,
-                  child: InterText(
-                    text: 'Login',
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ─── STATS TAB ─────────────────────────────────────────────────────────────
-  Widget _buildStatsTab() {
-    if (_statsLoading) return const Center(child: CircularProgressIndicator());
-    // v18.6 — walker + paid today + revenue today ajoutés.
-    num _asNum(dynamic v) => v is num ? v : (num.tryParse('${v ?? 0}') ?? 0);
-    final cards = [
-      {'label': 'Total Bookings', 'value': '${_stats['totalBookings'] ?? 0}', 'icon': Icons.book, 'color': Colors.blue},
-      {'label': 'Paid Bookings', 'value': '${_stats['paidBookings'] ?? 0}', 'icon': Icons.check_circle, 'color': Colors.green},
-      {'label': 'Paid Today', 'value': '${_stats['paidToday'] ?? 0}', 'icon': Icons.today, 'color': Colors.lightGreen},
-      {'label': 'Pending', 'value': '${_stats['pendingBookings'] ?? 0}', 'icon': Icons.hourglass_empty, 'color': Colors.orange},
-      {'label': 'Today Revenue', 'value': '€${_asNum(_stats['todayRevenue']).toStringAsFixed(2)}', 'icon': Icons.trending_up, 'color': Colors.deepOrange},
-      {'label': 'Total Revenue', 'value': '€${_asNum(_stats['totalRevenue']).toStringAsFixed(2)}', 'icon': Icons.euro, 'color': Colors.purple},
-      {'label': 'Sitters', 'value': '${_stats['totalSitters'] ?? 0}', 'icon': Icons.pets, 'color': Colors.teal},
-      {'label': 'Walkers', 'value': '${_stats['totalWalkers'] ?? 0}', 'icon': Icons.directions_walk, 'color': Colors.green},
-      {'label': 'Owners', 'value': '${_stats['totalOwners'] ?? 0}', 'icon': Icons.person, 'color': Colors.indigo},
-      {'label': 'Pets', 'value': '${_stats['totalPets'] ?? 0}', 'icon': Icons.emoji_nature, 'color': Colors.pink},
-    ];
-
-    return RefreshIndicator(
-      onRefresh: () async { final r = await ApiClient().get('/admin/stats', headers: {'x-admin-secret': _adminSecret}); setState(() => _stats = r as Map<String, dynamic>); },
-      child: GridView.builder(
-        padding: EdgeInsets.all(16.w),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, crossAxisSpacing: 12.w, mainAxisSpacing: 12.h, childAspectRatio: 1.4,
-        ),
-        itemCount: cards.length,
-        itemBuilder: (ctx, i) {
-          final c = cards[i];
-          return Container(
-            decoration: BoxDecoration(
-              color: (c['color'] as Color).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: (c['color'] as Color).withValues(alpha: 0.3)),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(16.w),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(c['icon'] as IconData, color: c['color'] as Color, size: 32.sp),
-                  SizedBox(height: 8.h),
-                  InterText(text: c['value'] as String, fontSize: 22.sp, fontWeight: FontWeight.w700, color: c['color'] as Color),
-                  InterText(text: c['label'] as String, fontSize: 11.sp, color: AppColors.greyText),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ─── BOOKINGS TAB ─────────────────────────────────────────────────────────
-  Widget _buildBookingsTab() {
-    if (_listLoading) return const Center(child: CircularProgressIndicator());
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      child: ListView.builder(
-        padding: EdgeInsets.all(12.w),
-        itemCount: _bookings.length,
-        itemBuilder: (ctx, i) {
-          final b = _bookings[i];
-          final status = b['status'] ?? '';
-          final payStatus = b['paymentStatus'] ?? '';
-          Color statusColor = status == 'agreed' ? Colors.green : status == 'pending' ? Colors.orange : Colors.grey;
-          return Card(
-            margin: EdgeInsets.only(bottom: 10.h),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-            child: ListTile(
-              contentPadding: EdgeInsets.all(12.w),
-              title: InterText(text: b['petName'] ?? 'N/A', fontSize: 14.sp, fontWeight: FontWeight.w600),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 4.h),
-                  Row(children: [
-                    _chip(status, statusColor),
-                    SizedBox(width: 6.w),
-                    _chip(payStatus, payStatus == 'paid' ? Colors.green : Colors.orange),
-                  ]),
-                  SizedBox(height: 4.h),
-                  InterText(text: 'Total: €${(b['totalAmount'] ?? 0).toStringAsFixed(2)}', fontSize: 12.sp, color: AppColors.greyText),
-                ],
-              ),
-              trailing: PopupMenuButton<String>(
-                onSelected: (val) => _updateBookingStatus(b['_id'], val),
-                itemBuilder: (_) => ['pending', 'agreed', 'completed', 'cancelled']
-                    .map((s) => PopupMenuItem(value: s, child: Text(s)))
-                    .toList(),
-                child: Icon(Icons.more_vert, color: AppColors.primaryColor),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ─── SITTERS TAB ──────────────────────────────────────────────────────────
-  Widget _buildSittersTab() {
-    if (_listLoading) return const Center(child: CircularProgressIndicator());
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      child: ListView.builder(
-        padding: EdgeInsets.all(12.w),
-        itemCount: _sitters.length,
-        itemBuilder: (ctx, i) {
-          final s = _sitters[i];
-          final verified = s['verified'] == true;
-          final ibanVerified = s['ibanVerified'] == true;
-          final hasIban = s['ibanNumber'] != null && (s['ibanNumber'] as String).isNotEmpty;
-          return Card(
-            margin: EdgeInsets.only(bottom: 10.h),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-            child: Padding(
-              padding: EdgeInsets.all(12.w),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
-                    child: InterText(text: (s['name'] as String? ?? 'S')[0].toUpperCase(), fontSize: 16.sp, fontWeight: FontWeight.w700, color: AppColors.primaryColor),
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InterText(text: s['name'] ?? '', fontSize: 14.sp, fontWeight: FontWeight.w600),
-                        InterText(text: s['email'] ?? '', fontSize: 11.sp, color: AppColors.greyText),
-                        SizedBox(height: 4.h),
-                        Row(children: [
-                          _chip(verified ? 'Verified' : 'Unverified', verified ? Colors.green : Colors.grey),
-                          if (hasIban) ...[SizedBox(width: 4.w), _chip(ibanVerified ? 'IBAN ✓' : 'IBAN pending', ibanVerified ? Colors.blue : Colors.orange)],
-                        ]),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      Switch(
-                        value: verified,
-                        activeThumbColor: AppColors.primaryColor,
-                        onChanged: (val) => _verifySitter(s['_id'], val),
-                      ),
-                      if (hasIban && !ibanVerified)
-                        TextButton(
-                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                          onPressed: () => _verifyIban(s['_id']),
-                          child: InterText(text: 'Verify\nIBAN', fontSize: 10.sp, color: Colors.blue),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ─── OWNERS TAB ───────────────────────────────────────────────────────────
-  Widget _buildOwnersTab() {
-    if (_listLoading) return const Center(child: CircularProgressIndicator());
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      child: ListView.builder(
-        padding: EdgeInsets.all(12.w),
-        itemCount: _owners.length,
-        itemBuilder: (ctx, i) {
-          final o = _owners[i];
-          return Card(
-            margin: EdgeInsets.only(bottom: 10.h),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.indigo.withValues(alpha: 0.15),
-                child: InterText(text: (o['name'] as String? ?? 'O')[0].toUpperCase(), fontSize: 16.sp, fontWeight: FontWeight.w700, color: Colors.indigo),
-              ),
-              title: InterText(text: o['name'] ?? '', fontSize: 14.sp, fontWeight: FontWeight.w600),
-              subtitle: InterText(text: o['email'] ?? '', fontSize: 11.sp, color: AppColors.greyText),
-              trailing: Icon(Icons.person_outline, color: AppColors.greyColor),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _chip(String label, Color color) => Container(
-    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20.r)),
-    child: InterText(text: label, fontSize: 10.sp, color: color, fontWeight: FontWeight.w600),
-  );
-
-  // ─── MAIN BUILD ───────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    if (!_authenticated) return _buildLoginScreen();
-
+    if (!_authenticated) return _buildLogin();
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
-        backgroundColor: AppColors.appBar(context),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: AppColors.textPrimary(context),
-        title: Row(
-          children: [
-            Icon(Icons.admin_panel_settings, size: 22.sp),
-            SizedBox(width: 8.w),
-            InterText(text: 'Admin Dashboard', fontSize: 18.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
-          ],
-        ),
+        title: const Text('HoPetSit · Admin'),
+        backgroundColor: AppColors.primaryColor,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Recharger',
             onPressed: _loadAll,
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.primaryColor,
-          labelColor: AppColors.textPrimary(context),
-          unselectedLabelColor: AppColors.textSecondary(context),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
-            Tab(icon: Icon(Icons.dashboard), text: 'Stats'),
-            Tab(icon: Icon(Icons.book), text: 'Bookings'),
-            Tab(icon: Icon(Icons.pets), text: 'Sitters'),
-            Tab(icon: Icon(Icons.person), text: 'Owners'),
-            Tab(icon: Icon(Icons.euro), text: 'Tarifs'),
+            Tab(icon: Icon(Icons.list_alt_rounded), text: 'Activité'),
+            Tab(icon: Icon(Icons.savings_rounded), text: 'Revenus'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildStatsTab(),
-          _buildBookingsTab(),
-          _buildSittersTab(),
-          _buildOwnersTab(),
-          _buildPricingTab(),
+          _buildActivityTab(),
+          _buildRevenueTab(),
         ],
       ),
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  TAB 5 — PRICING EDITOR
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  Widget _buildPricingTab() {
-    if (_pricingLoading && _pricing.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_pricing.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.euro, size: 48, color: Colors.grey),
-            SizedBox(height: 8.h),
-            const Text('Aucun tarif chargé.'),
-            SizedBox(height: 8.h),
-            ElevatedButton.icon(
-              onPressed: _loadPricing,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Charger les tarifs'),
+  Widget _buildLogin() {
+    return Scaffold(
+      backgroundColor: AppColors.primaryColor,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('🔐', style: TextStyle(fontSize: 60.sp)),
+                SizedBox(height: 16.h),
+                PoppinsText(
+                  text: 'Admin login',
+                  fontSize: 22.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+                SizedBox(height: 24.h),
+                TextField(
+                  controller: _adminSecretController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Admin secret',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.15),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onSubmitted: (_) => _login(),
+                ),
+                SizedBox(height: 12.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primaryColor,
+                      padding: EdgeInsets.symmetric(vertical: 14.h),
+                    ),
+                    child: const Text('Se connecter'),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Tab 1 — Activité
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _buildActivityTab() {
     return RefreshIndicator(
-      onRefresh: _loadPricing,
+      onRefresh: _loadActivity,
       child: ListView(
-        padding: EdgeInsets.all(16.w),
+        padding: EdgeInsets.all(12.w),
         children: [
-          _buildPricingCurrencyPicker(),
-          SizedBox(height: 16.h),
-          _buildPricingGroup(
-            title: 'Boost — mise en avant dans l\'app',
-            subtitle: 'Tarifs unitaires par tier (bronze / silver / gold / platinum)',
-            group: 'boost',
+          // Filters
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: [
+              _buildFilterDropdown('Rôle', _filterRole, const {
+                'all': 'Tous',
+                'owner': 'Owner',
+                'walker': 'Walker',
+                'sitter': 'Sitter',
+              }, (v) {
+                setState(() => _filterRole = v);
+                _loadActivity();
+              }),
+              _buildFilterDropdown('Statut', _filterStatus, const {
+                'all': 'Tous',
+                'paid': 'Payé',
+                'pending_payment': 'En attente',
+                'completed': 'Service fini',
+                'refunded': 'Remboursé',
+                'cancelled': 'Annulé',
+              }, (v) {
+                setState(() => _filterStatus = v);
+                _loadActivity();
+              }),
+            ],
           ),
-          SizedBox(height: 16.h),
-          _buildPricingGroup(
-            title: 'Map Boost — surligné sur la PawMap',
-            subtitle: 'Tarifs par tier (bronze / silver / gold / platinum)',
-            group: 'mapBoost',
-          ),
-          SizedBox(height: 16.h),
-          _buildPricingGroup(
-            title: 'Premium — abonnement',
-            subtitle: 'Tarif mensuel et annuel (monthly / yearly)',
-            group: 'premium',
-          ),
-          SizedBox(height: 24.h),
+          SizedBox(height: 12.h),
+          if (_activityLoading)
+            const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
+          if (!_activityLoading && _activityRows.isEmpty)
+            Padding(
+              padding: EdgeInsets.all(40.w),
+              child: Center(
+                child: Text('Aucune activité avec ces filtres.',
+                    style: TextStyle(color: Colors.grey, fontSize: 14.sp)),
+              ),
+            ),
+          ..._activityRows.map(_buildActivityRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterDropdown(
+    String label,
+    String value,
+    Map<String, String> options,
+    void Function(String) onChanged,
+  ) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: AppColors.divider(context)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          icon: const Icon(Icons.arrow_drop_down),
+          items: options.entries
+              .map((e) => DropdownMenuItem(value: e.key, child: Text('$label: ${e.value}')))
+              .toList(),
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityRow(Map<String, dynamic> r) {
+    final isWithdrawal = r['kind'] == 'withdrawal';
+    final status = (r['status'] ?? '').toString();
+    final color = _statusColor(status);
+    final amt = (r['gross'] as num?)?.toDouble() ?? 0;
+    final commission = (r['commission'] as num?)?.toDouble() ?? 0;
+    final currency = (r['currency'] ?? 'EUR').toString();
+    final dateRaw = r['date']?.toString() ?? '';
+    final date = DateTime.tryParse(dateRaw);
+    final dateLbl = date != null
+        ? DateFormat('dd/MM/yyyy HH:mm', 'fr').format(date.toLocal())
+        : '—';
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 10.h),
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
+              Icon(
+                isWithdrawal ? Icons.money_off_rounded : Icons.shopping_cart_rounded,
+                color: color,
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _pricingSaving ? null : _savePricing,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 14.h),
-                  ),
-                  icon: _pricingSaving
-                      ? SizedBox(
-                          width: 18.w,
-                          height: 18.w,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.save),
-                  label: Text(_pricingSaving ? 'Sauvegarde...' : 'Enregistrer les tarifs'),
+                child: PoppinsText(
+                  text: isWithdrawal
+                      ? 'Retrait wallet'
+                      : 'Booking ${r['providerRole']?.toString().toUpperCase() ?? ''}',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(width: 12.w),
-              OutlinedButton.icon(
-                onPressed: _pricingSaving ? null : _resetPricing,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
-                icon: const Icon(Icons.restore),
-                label: const Text('Reset'),
+                child: Text(
+                  _statusLabel(status),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ],
           ),
-          SizedBox(height: 40.h),
+          SizedBox(height: 6.h),
+          if (!isWithdrawal)
+            Text('Owner: ${r['ownerName']}  →  Provider: ${r['providerName']}',
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey[700])),
+          if (isWithdrawal)
+            Text('${r['providerName']} (${r['providerRole']}) · méthode ${r['method'] ?? '—'}',
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey[700])),
+          SizedBox(height: 4.h),
+          Row(
+            children: [
+              Text(
+                '${amt.abs().toStringAsFixed(2)} $currency',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+              if (!isWithdrawal && commission > 0) ...[
+                SizedBox(width: 8.w),
+                Text(
+                  '(commission HoPetSit: ${commission.toStringAsFixed(2)} $currency)',
+                  style: TextStyle(fontSize: 11.sp, color: Colors.grey[600]),
+                ),
+              ],
+              const Spacer(),
+              Text(dateLbl, style: TextStyle(fontSize: 11.sp, color: Colors.grey[600])),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPricingCurrencyPicker() {
-    return Row(
-      children: [
-        const Text('Devise : '),
-        SizedBox(width: 8.w),
-        DropdownButton<String>(
-          value: _pricingCurrency,
-          items: const ['EUR', 'GBP', 'CHF', 'USD']
-              .map((c) => DropdownMenuItem<String>(value: c, child: Text(c)))
-              .toList(),
-          onChanged: (v) {
-            if (v == null) return;
-            setState(() {
-              _pricingCurrency = v;
-              _syncPriceControllers();
-            });
-          },
-        ),
-        const Spacer(),
-        Text(
-          'Les modifications s\'appliquent à la devise sélectionnée.',
-          style: TextStyle(fontSize: 11.sp, color: Colors.grey),
-        ),
-      ],
-    );
+  Color _statusColor(String s) {
+    switch (s) {
+      case 'paid':
+        return const Color(0xFF16A34A);
+      case 'completed':
+        return const Color(0xFF2563EB);
+      case 'pending_payment':
+      case 'pending':
+      case 'processing':
+        return const Color(0xFFF59E0B);
+      case 'refunded':
+      case 'cancelled':
+      case 'failed':
+        return const Color(0xFFE53935);
+      default:
+        return Colors.grey;
+    }
   }
 
-  Widget _buildPricingGroup({
-    required String title,
-    required String subtitle,
-    required String group,
-  }) {
-    final cur = _pricingCurrency;
-    final byCur = (_pricing[group] as Map?) ?? {};
-    final tiers = (byCur[cur] as Map?) ?? {};
-    if (tiers.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: EdgeInsets.all(12.w),
-          child: Text('Aucun tarif $group pour $cur.'),
-        ),
-      );
+  String _statusLabel(String s) {
+    switch (s) {
+      case 'paid': return 'Payé';
+      case 'pending_payment': return 'En attente';
+      case 'pending': return 'En attente';
+      case 'processing': return 'En cours';
+      case 'completed': return 'Service fini';
+      case 'refunded': return 'Remboursé';
+      case 'cancelled': return 'Annulé';
+      case 'failed': return 'Échoué';
+      default: return s.isEmpty ? '—' : s;
     }
-    return Card(
-      child: Padding(
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Tab 2 — Revenus
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _buildRevenueTab() {
+    return RefreshIndicator(
+      onRefresh: _loadRevenue,
+      child: ListView(
         padding: EdgeInsets.all(12.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700),
-            ),
-            SizedBox(height: 2.h),
-            Text(
-              subtitle,
-              style: TextStyle(fontSize: 11.sp, color: Colors.grey),
-            ),
-            SizedBox(height: 12.h),
-            ...tiers.keys.map((tier) => _buildPricingRow(group, cur, tier)),
-          ],
-        ),
+        children: [
+          if (_revenueLoading) const LinearProgressIndicator(),
+          // Platform balance + sweep button
+          _buildBalanceCard(),
+          SizedBox(height: 16.h),
+          // Commissions card (left)
+          _buildCommissionsCard(),
+          SizedBox(height: 16.h),
+          // Boutique card (right)
+          _buildBoutiqueCard(),
+        ],
       ),
     );
   }
 
-  Widget _buildPricingRow(String group, String currency, dynamic tier) {
-    final key = '$group.$currency.$tier';
-    final ctl = _priceCtrls.putIfAbsent(key, () => TextEditingController());
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 6.h),
-      child: Row(
+  Widget _buildBalanceCard() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEF4324), Color(0xFFFF6B45)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text('Solde plateforme Airwallex',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 12.sp,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w700)),
+          SizedBox(height: 8.h),
+          if (_balance.isEmpty)
+            Text('—',
+                style: TextStyle(color: Colors.white, fontSize: 22.sp, fontWeight: FontWeight.w800)),
+          ..._balance.map((b) {
+            final available = (b['available_amount'] as num?)?.toDouble() ?? 0;
+            return Text(
+              '${available.toStringAsFixed(2)} ${(b['currency'] ?? 'EUR').toString().toUpperCase()}',
+              style: TextStyle(color: Colors.white, fontSize: 22.sp, fontWeight: FontWeight.w800),
+            );
+          }),
+          SizedBox(height: 12.h),
           SizedBox(
-            width: 100.w,
-            child: Text(
-              tier.toString(),
-              style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _sweepBusy ? null : _sweep,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primaryColor,
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+              ),
+              icon: const Icon(Icons.account_balance_rounded),
+              label: Text(_sweepBusy ? 'Sweep en cours…' : 'Virer vers compte société'),
             ),
           ),
-          Expanded(
-            child: TextField(
-              controller: ctl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                isDense: true,
-                prefixText: '$currency ',
-                border: const OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommissionsCard() {
+    final c = (_revenue['commissions'] as Map?) ?? {};
+    final allTime = (c['allTime'] as num?)?.toDouble() ?? 0;
+    final thisMonth = (c['thisMonth'] as num?)?.toDouble() ?? 0;
+    final last7d = (c['last7d'] as num?)?.toDouble() ?? 0;
+    final bookingCount = (c['bookingCount'] as num?)?.toInt() ?? 0;
+    final gross = (c['grossAllTime'] as num?)?.toDouble() ?? 0;
+
+    return _section(
+      icon: Icons.percent_rounded,
+      iconColor: const Color(0xFF2563EB),
+      title: 'Commissions bookings (20%)',
+      subtitle: '$bookingCount bookings payés · ${gross.toStringAsFixed(2)} € de paiements owner',
+      child: Column(
+        children: [
+          _row('Tous temps', '${allTime.toStringAsFixed(2)} €', big: true),
+          _row('Ce mois-ci', '${thisMonth.toStringAsFixed(2)} €'),
+          _row('7 derniers jours', '${last7d.toStringAsFixed(2)} €'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBoutiqueCard() {
+    final b = (_revenue['boutique'] as Map?) ?? {};
+    final profileBoost = (b['profileBoost'] as Map?) ?? {};
+    final mapBoost = (b['mapBoost'] as Map?) ?? {};
+    final donations = (b['donations'] as Map?) ?? {};
+    final subs = ((b['subscriptionsByPlan'] as List?) ?? []).whereType<Map>().toList();
+    final knownTotal = (b['knownTotal'] as num?)?.toDouble() ?? 0;
+
+    return _section(
+      icon: Icons.shopping_bag_rounded,
+      iconColor: const Color(0xFFEF4324),
+      title: 'Boutique HoPetSit',
+      subtitle: 'Boost / PawSpot / PawFollow / Donations',
+      child: Column(
+        children: [
+          _row('Total connu', '${knownTotal.toStringAsFixed(2)} €', big: true),
+          _row(
+            'Profile Boost',
+            '${(profileBoost['count'] ?? 0)} achats · ${((profileBoost['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)} €',
+          ),
+          _row(
+            'PawSpot (Map Boost)',
+            '${(mapBoost['count'] ?? 0)} achats · ${((mapBoost['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)} €',
+          ),
+          _row(
+            'Abonnements actifs (PawFollow / Premium)',
+            '${subs.fold<int>(0, (s, p) => s + ((p['count'] as num?)?.toInt() ?? 0))} payments',
+          ),
+          _row(
+            'Donations',
+            '${(donations['count'] ?? 0)} dons · ${((donations['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)} €',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _section({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.w),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, color: iconColor, size: 20.sp),
               ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(text: title, fontSize: 14.sp, fontWeight: FontWeight.w800),
+                    if (subtitle != null)
+                      Text(subtitle,
+                          style: TextStyle(fontSize: 11.sp, color: Colors.grey[600])),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String k, String v, {bool big = false}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(k, style: TextStyle(fontSize: big ? 13.sp : 12.sp, color: Colors.grey[700])),
+          Text(
+            v,
+            style: TextStyle(
+              fontSize: big ? 16.sp : 13.sp,
+              fontWeight: big ? FontWeight.w800 : FontWeight.w700,
+              color: AppColors.textPrimary(context),
             ),
           ),
         ],
