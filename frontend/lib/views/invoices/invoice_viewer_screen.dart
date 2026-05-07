@@ -11,6 +11,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/models/invoice_model.dart';
+import 'package:hopetsit/services/invoice_pdf_generator.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -22,11 +24,16 @@ import 'package:webview_flutter/webview_flutter.dart';
 class InvoiceViewerScreen extends StatefulWidget {
   final String url;
   final String invoiceNumber;
+  // v23.1 part 73 — full InvoiceModel passed in so we can build a real
+  // PDF locally on the phone (no need to scrape the HTML). Optional —
+  // if null, falls back to the legacy http+share-as-html path.
+  final InvoiceModel? invoice;
 
   const InvoiceViewerScreen({
     super.key,
     required this.url,
     required this.invoiceNumber,
+    this.invoice,
   });
 
   @override
@@ -64,29 +71,41 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
       ..loadRequest(Uri.parse(widget.url));
   }
 
-  // v23.1 part 70 — Bug 13 : Daniel "renvoi a render au lieu de se
-  // telecharger ds telephone". Previously _triggerPrint used launchUrl
-  // which opened Chrome with the raw Render URL visible. Daniel wants
-  // the file to land on his phone directly. Solution :
-  //   1. Fetch the invoice HTML via http (with the auth token already
-  //      embedded in widget.url as ?token=JWT)
-  //   2. Save to phone temporary directory as invoice-XXX.html
-  //   3. Open the system Share sheet so the user can save to Drive /
-  //      Files / email — no Render URL exposed, file lives on the phone.
+  // v23.1 part 73 — Bug : "facture se telecharge en htlm elle peux pas
+  // se telecharger directement en pdf sur le tel".
+  // We now generate a real PDF locally on the phone using the `pdf`
+  // package + the InvoiceModel data (already loaded by InvoicesScreen).
+  // No backend round-trip, no third-party service. Saved as a .pdf to
+  // the phone temp dir, opened via the system Share sheet so the user
+  // can save to Files / Drive / email — opens with any PDF viewer.
   Future<void> _triggerPrint() async {
     try {
       CustomSnackbar.showInfo(
         title: 'Téléchargement…',
-        message: 'Préparation de la facture',
+        message: 'Préparation du PDF',
       );
+      final safeNumber = widget.invoiceNumber.isNotEmpty
+          ? widget.invoiceNumber.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')
+          : 'invoice';
+      final dir = await getTemporaryDirectory();
+      // Preferred path : real PDF from InvoiceModel.
+      if (widget.invoice != null) {
+        final bytes = await InvoicePdfGenerator.build(widget.invoice!);
+        final file = File('${dir.path}/HoPetSit-$safeNumber.pdf');
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles(
+          [XFile(file.path, mimeType: 'application/pdf')],
+          subject: 'Facture HoPetSit $safeNumber',
+          text: 'Facture HoPetSit',
+        );
+        return;
+      }
+      // Fallback : legacy HTML download for callers that haven't yet
+      // started passing widget.invoice.
       final res = await http.get(Uri.parse(widget.url));
       if (res.statusCode != 200) {
         throw Exception('HTTP ${res.statusCode}');
       }
-      final dir = await getTemporaryDirectory();
-      final safeNumber = widget.invoiceNumber.isNotEmpty
-          ? widget.invoiceNumber.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')
-          : 'invoice';
       final file = File('${dir.path}/HoPetSit-$safeNumber.html');
       await file.writeAsBytes(res.bodyBytes);
       await Share.shareXFiles(

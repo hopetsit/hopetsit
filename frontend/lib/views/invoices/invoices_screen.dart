@@ -63,6 +63,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       () => InvoiceViewerScreen(
         url: url,
         invoiceNumber: inv.invoiceNumber,
+        invoice: inv, // v23.1 part 73 — needed for native PDF generation
       ),
     );
   }
