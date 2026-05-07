@@ -97,7 +97,7 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         title: PoppinsText(
-          text: 'Live walk',
+          text: 'live_walk_title'.tr.isEmpty ? 'Balade en direct' : 'live_walk_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),

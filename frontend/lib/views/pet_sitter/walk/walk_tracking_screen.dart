@@ -22,7 +22,12 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
       ? Get.find<ApiClient>()
       : ApiClient();
   String? _walkId;
-  Timer? _timer;
+  // v23.1 part 106 — replace Timer.periodic with realtime position stream.
+  // Geolocator.getPositionStream emits each time the device moves more
+  // than `distanceFilter` meters, with `accuracy` controlling the GPS
+  // fix quality. Battery-efficient (no spin when stationary) and gives
+  // owner-side updates as soon as the sitter actually moves.
+  StreamSubscription<Position>? _positionSub;
   int _pushed = 0;
   bool _busy = false;
 
@@ -37,7 +42,9 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
     if (!await _ensurePermission()) {
       CustomSnackbar.showError(
         title: 'common_error',
-        message: 'Location permission denied.',
+        message: 'live_track_perm_denied'.tr.isEmpty
+            ? 'Permission de localisation refusée.'
+            : 'live_track_perm_denied'.tr,
       );
       return;
     }
@@ -51,7 +58,7 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
       final walk = r is Map ? r['walk'] : null;
       if (walk is Map) {
         _walkId = (walk['_id'] ?? walk['id']).toString();
-        _startTicker();
+        _startStreamingPositions();
       }
     } catch (e) {
       CustomSnackbar.showError(title: 'common_error', message: e.toString());
@@ -60,19 +67,38 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
     }
   }
 
-  void _startTicker() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _pushPosition());
-    // Push immediately too.
-    _pushPosition();
+  void _startStreamingPositions() {
+    _positionSub?.cancel();
+    // distanceFilter = 10m → on émet une position à chaque déplacement
+    // d'au moins 10 mètres. accuracy = high pour précision GPS suffisante
+    // (~5m). Le owner reçoit les updates via le socket walk.position que
+    // le backend émet à la réception du POST /walks/:id/position.
+    final stream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    );
+    _positionSub = stream.listen(_onPosition, onError: (_) {});
+    // Push une 1re fois immédiatement même sans mouvement (pour que le
+    // owner voie le sitter sur la map dès que la balade commence).
+    _pushCurrentPositionOnce();
   }
 
-  Future<void> _pushPosition() async {
-    if (_walkId == null) return;
+  Future<void> _pushCurrentPositionOnce() async {
     try {
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
+      _onPosition(pos);
+    } catch (_) {
+      // best-effort
+    }
+  }
+
+  Future<void> _onPosition(Position pos) async {
+    if (_walkId == null) return;
+    try {
       await _api.post(
         '${ApiEndpoints.walksPosition}/$_walkId/position',
         body: {'lat': pos.latitude, 'lng': pos.longitude},
@@ -80,12 +106,13 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
       );
       if (mounted) setState(() => _pushed++);
     } catch (_) {
-      // best-effort; keep ticking
+      // best-effort; ignore individual failures
     }
   }
 
   Future<void> _stop() async {
-    _timer?.cancel();
+    await _positionSub?.cancel();
+    _positionSub = null;
     if (_walkId == null) return;
     setState(() => _busy = true);
     try {
@@ -104,7 +131,7 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _positionSub?.cancel();
     super.dispose();
   }
 
@@ -118,25 +145,42 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
-        title: Text('Walk tracking', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context))),
+        title: Text(
+          'live_track_title'.tr.isEmpty ? 'Suivi de balade' : 'live_track_title'.tr,
+          style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(active ? 'Walk is live · $_pushed positions pushed' : 'Ready to start'),
+            Text(
+              active
+                  ? '🟢 Balade en cours · $_pushed position(s) envoyée(s)'
+                  : 'Prêt à démarrer la balade',
+            ),
+            const SizedBox(height: 8),
+            if (active)
+              Text(
+                'Position envoyée automatiquement à chaque déplacement de 10m+',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary(context),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
             const SizedBox(height: 24),
             if (!active)
               ElevatedButton.icon(
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('Start walk'),
+                label: const Text('Démarrer la balade'),
                 onPressed: _busy ? null : _start,
               )
             else
               ElevatedButton.icon(
                 icon: const Icon(Icons.stop),
-                label: const Text('End walk'),
+                label: const Text('Terminer la balade'),
                 onPressed: _busy ? null : _stop,
               ),
           ],
