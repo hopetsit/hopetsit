@@ -651,6 +651,16 @@ async function createCompanyBeneficiary({
 }
 
 /**
+ * v23.1 part 88 — Daniel : "jai deja un compte ouvert je veux
+ * recevoir les sous sur ce compte". List les beneficiaries existants
+ * pour que Daniel choisisse celui sur lequel il veut recevoir les
+ * bénéfices société (au lieu d'en créer un nouveau).
+ */
+async function listBeneficiaries({ pageSize = 50 } = {}) {
+  return awxFetch(`/api/v1/beneficiaries?page_size=${pageSize}`);
+}
+
+/**
  * Retrieve a Beneficiary by ID.
  * @param {string} id — Airwallex beneficiary id
  */
@@ -912,6 +922,8 @@ module.exports = {
   deleteBeneficiary,
   // v23.1 part 87 — company beneficiary (HoPetSit's own bank for sweeps)
   createCompanyBeneficiary,
+  // v23.1 part 88 — list existing beneficiaries
+  listBeneficiaries,
   // Payouts (sitter/walker payouts) — v21
   createPayout,
   retrievePayout,

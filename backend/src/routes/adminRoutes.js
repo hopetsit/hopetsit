@@ -2389,6 +2389,50 @@ router.get('/platform-balance', requireAdmin, async (req, res) => {
   }
 });
 
+// v23.1 part 88 — Daniel : "jai deja un compte ouvert je veux recevoir
+// les sous sur ce compte". List les beneficiaries existants Airwallex
+// pour que Daniel choisisse depuis l'app.
+router.get('/list-beneficiaries', requireAdmin, async (req, res) => {
+  try {
+    const r = await _airwallex.listBeneficiaries({ pageSize: 100 });
+    const items = (r?.items || []).map((b) => {
+      const bd = b?.beneficiary?.bank_details || {};
+      const masked = (bd.account_number || '').replace(/(.{4})(.*)(.{4})/, '$1****$3');
+      return {
+        id: b.id,
+        nickname: b.nickname || '',
+        type: b?.beneficiary?.type || '',
+        accountName: bd.account_name || '',
+        accountNumberMasked: masked,
+        currency: bd.account_currency || '',
+        country: bd.bank_country_code || '',
+        bankName: bd.bank_name || '',
+      };
+    });
+    return res.json({ items });
+  } catch (e) {
+    logger.error('[admin/list-beneficiaries]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// v23.1 part 88 — set the chosen beneficiary id as the active company
+// beneficiary in DB (we use a tiny KV via the existing PricingConfig
+// model... actually let's just save it in a CompanySweep doc as a
+// "config" row, OR write directly to a dedicated config). Simpler :
+// we don't actually persist server-side — Daniel just copies the id
+// to Render env. But we provide a one-click "test it" flow.
+router.post('/test-beneficiary', requireAdmin, async (req, res) => {
+  try {
+    const id = (req.body?.beneficiaryId || '').toString().trim();
+    if (!id) return res.status(400).json({ error: 'beneficiaryId required.' });
+    const data = await _airwallex.getBeneficiary(id);
+    return res.json({ ok: true, raw: data });
+  } catch (e) {
+    return res.status(404).json({ error: 'Beneficiary not found or invalid.' });
+  }
+});
+
 // v23.1 part 87 — Daniel : "comment crrer sur airwallex ton lien me
 // donne page blanche". On crée le beneficiary société directement via
 // l'API Airwallex (depuis l'admin Daniel). Daniel n'a qu'à remplir un

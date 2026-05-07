@@ -554,23 +554,151 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             style: TextStyle(fontSize: 12.sp, color: const Color(0xFF7A4F00), height: 1.5),
           ),
           SizedBox(height: 12.h),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _showSetupBeneficiaryDialog,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
+          // 2 boutons : choisir un compte existant OU créer
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showPickExistingBeneficiaryDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  icon: const Icon(Icons.list_rounded, size: 16),
+                  label: Text("J'ai déjà un compte",
+                      style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w800)),
                 ),
               ),
-              icon: const Icon(Icons.business_rounded),
-              label: Text('Configurer mon compte société',
-                  style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w800)),
-            ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showSetupBeneficiaryDialog,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFF59E0B),
+                    side: const BorderSide(color: Color(0xFFF59E0B)),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_business_rounded, size: 16),
+                  label: Text('Créer nouveau',
+                      style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ],
           ),
+        ],
+      ),
+    );
+  }
+
+  /// v23.1 part 88 — Daniel : "jai deja un compte ouvert". Liste les
+  /// beneficiaries existants de son compte Airwallex pour qu'il choisisse.
+  Future<void> _showPickExistingBeneficiaryDialog() async {
+    List<Map<String, dynamic>> items = [];
+    bool loading = true;
+    try {
+      final r = await ApiClient().get(
+        '/admin/list-beneficiaries',
+        headers: {'x-admin-secret': _adminSecret},
+      );
+      items = ((r as Map)['items'] as List?)
+              ?.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList() ??
+          [];
+    } catch (e) {
+      Get.snackbar('Erreur', e.toString(),
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    } finally {
+      loading = false;
+    }
+
+    if (items.isEmpty) {
+      Get.snackbar('Aucun compte trouvé',
+          'Tu n\'as pas encore de bénéficiaire sur Airwallex. Tape "Créer nouveau" pour en ajouter un.',
+          backgroundColor: Colors.orange, colorText: Colors.white);
+      return;
+    }
+
+    final selected = await Get.dialog<String?>(
+      AlertDialog(
+        title: const Text('Choisis ton compte société'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: loading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final b = items[i];
+                    return ListTile(
+                      leading: const Icon(Icons.account_balance_rounded),
+                      title: Text(
+                        (b['accountName'] ?? b['nickname'] ?? '—').toString(),
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        '${b['accountNumberMasked'] ?? ''} · ${b['currency'] ?? ''} · ${b['country'] ?? ''}\n'
+                        'ID: ${b['id']}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      isThreeLine: true,
+                      onTap: () => Get.back(result: b['id']?.toString()),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Annuler')),
+        ],
+      ),
+    );
+
+    if (selected == null || selected.isEmpty) return;
+    // Show "copy this to Render env" dialog
+    await Get.dialog<void>(
+      AlertDialog(
+        title: const Text('✅ Compte sélectionné'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Étape finale : copie cette ligne dans Render → Environment Variables :',
+                style: TextStyle(fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: SelectableText(
+                  'COMPANY_AIRWALLEX_BENEFICIARY_ID=$selected',
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                'Render redéploie en ~2 min. Reviens ici, le bouton "Retirer" sera actif.',
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey[700]),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('OK, je copie')),
         ],
       ),
     );
