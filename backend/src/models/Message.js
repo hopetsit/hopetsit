@@ -58,11 +58,24 @@ const messageSchema = new mongoose.Schema(
       enum: ['sender', 'admin', null],
       default: null,
     },
+    // v23.1 part 76 — Daniel : "messages auto envoye en double". The
+    // v23.1.65 idempotency guard wrote { metadata: { kind, bookingId,
+    // intentId } } on each system message and queried it back to skip
+    // duplicates. Problem : Message had no `metadata` field defined,
+    // so Mongoose strict-mode dropped it. Every payment-confirmed pair
+    // got duplicated on webhook retry. Adding a Mixed metadata field
+    // makes the dedup actually persist + match.
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 messageSchema.index({ conversationId: 1, createdAt: 1 });
+// v23.1 part 76 — quick dedup lookup by bookingId in metadata.
+messageSchema.index({ 'metadata.bookingId': 1, senderRole: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);
 

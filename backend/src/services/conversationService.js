@@ -150,10 +150,17 @@ const hasValidPaidBooking = async (ownerId, sitterId, walkerId) => {
   // (pré-v17, pré-walkerId), le query ne matchait plus → 402
   // CHAT_ACCESS_REQUIRED. On autorise désormais walkerId OU sitterId
   // quand l'un des deux est fourni.
+  //
+  // v23.1 part 76 — Daniel : "Lorsque le booking est fini rebloquer le
+  // chat entre utilisateur". On exclut aussi les bookings 'completed'
+  // pour que le chat passe en mode "premium / chat-addon required" une
+  // fois la prestation finie. La conversation reste lisible (history),
+  // mais l'envoi de nouveaux messages tombe au gate 402 sauf si l'user
+  // a un abonnement actif.
   const providerId = walkerId || sitterId;
   const validPaidBooking = await Booking.findOne({
     ownerId,
-    status: { $nin: ['cancelled', 'refunded'] },
+    status: { $nin: ['cancelled', 'refunded', 'completed'] },
     $and: [
       { $or: [{ status: 'paid' }, { paymentStatus: 'paid' }] },
       { $or: [{ walkerId: providerId }, { sitterId: providerId }] },
