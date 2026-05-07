@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 102</title>
+<title>HopeTSIT — Admin v23.1 part 103</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3346,20 +3346,27 @@ async function loadCompanySweep() {
         }).join('')
       : '<div class="stat-card"><div class="stat-label">Solde Airwallex</div><div class="stat-value" style="font-size:20px">0,00 EUR</div><div class="stat-sub">Aucun fonds reçu</div></div>';
 
-    // Bandeau config + boutons d'action.
-    const cfgBanner = beneficiaryConfigured
+    // v23.1 part 103 — détecte env var "undefined" / "null" / id trop court
+    // pour que la bannière soit jaune même quand le serveur a beneficiaryConfigured=true
+    // par erreur (ancien comportement).
+    const idLooksReal = beneficiaryId && beneficiaryId !== 'undefined' &&
+      beneficiaryId !== 'null' && beneficiaryId.length > 6;
+    const cfgBanner = (beneficiaryConfigured && idLooksReal)
       ? (
           '<div style="background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px">' +
-            '✅ Compte société configuré (<code style="background:var(--bg);padding:2px 6px;border-radius:4px">' + beneficiaryId + '</code>)' +
+            '✅ Compte société configuré (<code style="background:var(--bg);padding:2px 6px;border-radius:4px">' + beneficiaryId + '</code>) ' +
+            '<button class="action-btn" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:3px 10px;font-size:11px;margin-left:8px" onclick="openPickBeneficiaryDialog()">🔍 Voir tous les bénéficiaires</button>' +
           '</div>'
         )
       : (
           '<div style="background:rgba(243,156,18,0.08);border:1px solid rgba(243,156,18,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">' +
-            '⚠️ <strong>Aucun compte société configuré sur Render.</strong><br>' +
-            'Pour activer le bouton « Retirer », ajoute la variable <code style="background:var(--bg);padding:1px 5px;border-radius:3px">COMPANY_AIRWALLEX_BENEFICIARY_ID</code> dans <strong>Render → Environment</strong>, ' +
-            'puis attends que le service redémarre (~1 min). Si tu n\'as pas encore de bénéficiaire :' +
+            '⚠️ <strong>Beneficiary ID invalide</strong>' +
+            (beneficiaryId ? ' (actuellement : <code style="background:var(--bg);padding:1px 5px;border-radius:3px">' + beneficiaryId + '</code>)' : ' (non configuré)') +
+            '<br>' +
+            'Pour activer le bouton « Retirer », mets la variable <code style="background:var(--bg);padding:1px 5px;border-radius:3px">COMPANY_AIRWALLEX_BENEFICIARY_ID</code> dans <strong>Render → Environment</strong> avec le VRAI id (commence par <code>ben</code>), ' +
+            'puis attends que le service redémarre (~1 min).' +
             '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' +
-              '<button class="action-btn btn-primary" onclick="openPickBeneficiaryDialog()">📋 J\'ai déjà un compte Airwallex</button>' +
+              '<button class="action-btn btn-primary" onclick="openPickBeneficiaryDialog()">📋 Voir mes bénéficiaires Airwallex</button>' +
               '<button class="action-btn" style="background:rgba(232,71,42,0.1);color:var(--primary)" onclick="openSetupBeneficiaryDialog()">➕ Créer un nouveau compte</button>' +
             '</div>' +
           '</div>'

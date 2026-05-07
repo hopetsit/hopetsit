@@ -2445,7 +2445,14 @@ router.get('/platform-balance', requireAdmin, async (req, res) => {
     const data = await _airwallex.getPlatformBalance();
     // v23.1 part 86 — also expose beneficiary configuration so the UI
     // knows whether the "Retirer" button can work end-to-end.
-    const beneficiaryConfigured = !!process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID;
+    // v23.1 part 103 — Daniel a Render env var = literal "undefined". On
+    // valide maintenant que l'env var commence par "ben" (préfixe Airwallex
+    // pour les beneficiary ids) — sinon on traite comme non-configuré.
+    const rawBenefId = (process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID || '').trim();
+    const beneficiaryConfigured = !!rawBenefId &&
+      rawBenefId !== 'undefined' &&
+      rawBenefId !== 'null' &&
+      rawBenefId.length > 6;
     // v23.1 part 98 — Daniel : "solde airwallex est a 0 mais jai fai
     // paiement reel". On expose le mode (live/demo) + le préfixe du
     // client_id pour qu'il vérifie d'un coup d'œil que Render appelle le
@@ -3052,15 +3059,22 @@ router.get('/v2/revenue', requireAdmin, async (req, res) => {
 router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
   try {
     const CompanySweep = require('../models/CompanySweep');
-    const beneficiaryId =
+    // v23.1 part 103 — defense contre env var = chaîne "undefined" sur Render.
+    let beneficiaryId =
       (req.body && req.body.beneficiaryId) ||
       process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID ||
       '';
-    if (!beneficiaryId) {
+    beneficiaryId = String(beneficiaryId).trim();
+    const isInvalidId = !beneficiaryId ||
+      beneficiaryId === 'undefined' ||
+      beneficiaryId === 'null' ||
+      beneficiaryId.length < 6;
+    if (isInvalidId) {
       return res.status(400).json({
         error:
-          'Aucun beneficiary configuré. Set COMPANY_AIRWALLEX_BENEFICIARY_ID ' +
-          'env sur Render OU passe beneficiaryId dans le body.',
+          'Beneficiary ID invalide ou non configuré sur Render (actuellement : "' + beneficiaryId + '"). ' +
+          'Mets COMPANY_AIRWALLEX_BENEFICIARY_ID dans Render avec le vrai ID Airwallex (commence par "ben...").',
+        currentEnvValue: beneficiaryId,
       });
     }
 
