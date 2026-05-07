@@ -790,17 +790,77 @@ async function retrievePayout(id) {
 
 /**
  * v23.1 part 79 — Daniel : "verifie les payout pour ma societer".
+ * v23.1 part 98 — Daniel a 168.30 EUR sur son dashboard Airwallex
+ * (compte multi-devises + règlements quotidiens) mais notre app voyait
+ * 0. /balances/current renvoie probablement vide pour son type de
+ * compte (Standard, pas Marketplace). On essaie plusieurs endpoints en
+ * parallèle, on retourne le premier qui a des items, et on inclut une
+ * diagnostic verbose pour qu'on voie ce que chaque endpoint renvoie.
  *
- * Get the HoPetSit platform's current available balance per currency.
- * Returns the raw Airwallex /balances/current response shape :
- *   { items: [{ currency, available_amount, total_amount, ... }] }
- *
- * Used by the company sweep flow to decide how much to transfer to
- * Daniel's company bank account. Available balance excludes funds
- * already pending payout / in-flight refunds.
+ * Returns: { items, raw, diagnosticEndpoints }
  */
 async function getPlatformBalance() {
-  return awxFetch('/api/v1/balances/current');
+  const endpoints = [
+    '/api/v1/balances/current',
+    '/api/v1/balances',
+    '/api/v1/balances/history?page_size=1',
+    '/api/v1/accounts/balance',
+    '/api/v1/wallets/balance',
+  ];
+  const diagnosticEndpoints = [];
+  let firstWithItems = null;
+
+  for (const ep of endpoints) {
+    try {
+      const r = await awxFetch(ep);
+      // Normalisation : on cherche des "items" ou similar.
+      let items = [];
+      if (r && Array.isArray(r.items)) items = r.items;
+      else if (Array.isArray(r)) items = r;
+      else if (r && Array.isArray(r.balances)) items = r.balances;
+      else if (r && r.currency) items = [r]; // single-balance shape
+
+      diagnosticEndpoints.push({
+        endpoint: ep,
+        ok: true,
+        itemsCount: items.length,
+        keysAtRoot: r && typeof r === 'object' ? Object.keys(r) : null,
+        sample: items[0] || null,
+      });
+
+      if (!firstWithItems && items.length > 0) {
+        firstWithItems = { endpoint: ep, items, raw: r };
+      }
+    } catch (e) {
+      diagnosticEndpoints.push({
+        endpoint: ep,
+        ok: false,
+        error: e.message,
+        status: e.status,
+      });
+    }
+  }
+
+  if (firstWithItems) {
+    console.log('[airwallex/getPlatformBalance] using endpoint=' + firstWithItems.endpoint +
+      ' itemsCount=' + firstWithItems.items.length);
+    return {
+      items: firstWithItems.items,
+      raw: firstWithItems.raw,
+      sourceEndpoint: firstWithItems.endpoint,
+      diagnosticEndpoints,
+    };
+  }
+
+  // Aucun endpoint n'a renvoyé d'items.
+  console.warn('[airwallex/getPlatformBalance] aucun endpoint n\'a renvoyé d\'items :');
+  for (const d of diagnosticEndpoints) console.warn('   • ' + JSON.stringify(d));
+  return {
+    items: [],
+    raw: null,
+    sourceEndpoint: null,
+    diagnosticEndpoints,
+  };
 }
 
 /**

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 97</title>
+<title>HopeTSIT — Admin v23.1 part 98</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3140,6 +3140,8 @@ async function loadCompanySweep() {
     const items = bal.items || [];
     const beneficiaryConfigured = !!bal.beneficiaryConfigured;
     const beneficiaryId = bal.beneficiaryId || '';
+    // v23.1 part 98 — diagnostic Airwallex (endpoint utilisé, env, etc.)
+    const diag = bal.diagnostic || null;
 
     // v23.1 part 97 — On expose 3 chiffres au lieu de 2 :
     //   • Disponible : ce qu'on peut retirer maintenant (available_amount)
@@ -3224,12 +3226,41 @@ async function loadCompanySweep() {
         }).join('')
       : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">Aucun retrait pour le moment.</td></tr>';
 
+    // v23.1 part 98 — Bandeau diagnostic visible quand le solde est 0 ou
+    // que l'environnement Airwallex semble incohérent (ex : DEMO en prod).
+    const totalAvail = items.reduce((s, it) => s + Number(it.available_amount || 0), 0);
+    const totalBrut  = items.reduce((s, it) => s + Number(it.total_amount || 0), 0);
+    const showDiag = (totalAvail + totalBrut) === 0 || (diag && diag.isDemoMode);
+    let diagBlock = '';
+    if (diag) {
+      const modeColor = diag.isDemoMode ? 'var(--orange)' : 'var(--green)';
+      const modeBg = diag.isDemoMode ? 'rgba(243,156,18,0.08)' : 'rgba(46,204,113,0.06)';
+      const modeBorder = diag.isDemoMode ? 'rgba(243,156,18,0.4)' : 'rgba(46,204,113,0.3)';
+      diagBlock =
+        '<div style="background:' + modeBg + ';border:1px solid ' + modeBorder + ';border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.6">' +
+          '<strong style="color:' + modeColor + '">🛠️ Diagnostic Airwallex</strong>' +
+          '<div style="display:grid;grid-template-columns:140px 1fr;gap:4px 12px;margin-top:8px;font-family:ui-monospace,Menlo,Consolas,monospace">' +
+            '<div style="color:var(--text-muted)">Mode :</div><div style="color:' + modeColor + ';font-weight:700">' + (diag.mode || '?') + '</div>' +
+            '<div style="color:var(--text-muted)">Base URL :</div><div>' + (diag.baseUrl || '?') + '</div>' +
+            '<div style="color:var(--text-muted)">Client ID :</div><div>' + (diag.clientIdPrefix || '?') + '</div>' +
+            '<div style="color:var(--text-muted)">API Key :</div><div>' + (diag.apiKeyConfigured ? '✅ configurée' : '❌ manquante') + '</div>' +
+            '<div style="color:var(--text-muted)">Endpoint utilisé :</div><div>' + (diag.sourceEndpoint || '<span style="color:var(--red)">aucun n\'a renvoyé d\'items</span>') + '</div>' +
+          '</div>' +
+          (showDiag && diag.endpointsProbed && diag.endpointsProbed.length ? (
+            '<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--text-muted)">Voir le résultat des ' + diag.endpointsProbed.length + ' endpoints testés</summary>' +
+            '<pre style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:6px;max-height:300px;overflow:auto;font-size:11px">' +
+            JSON.stringify(diag.endpointsProbed, null, 2).replace(/</g, '&lt;') +
+            '</pre></details>'
+          ) : '') +
+        '</div>';
+    }
     wrap.innerHTML =
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
           '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">💼 Mes bénéfices société (Airwallex)</h3>' +
           '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="loadCompanySweep()">↻ Actualiser</button>' +
         '</div>' +
+        diagBlock +
         cfgBanner +
         '<div class="stats-grid" style="margin-bottom:14px">' + balanceCards + '</div>' +
         '<div style="display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap">' +

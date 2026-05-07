@@ -2375,13 +2375,31 @@ router.get('/platform-balance', requireAdmin, async (req, res) => {
     // v23.1 part 86 — also expose beneficiary configuration so the UI
     // knows whether the "Retirer" button can work end-to-end.
     const beneficiaryConfigured = !!process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID;
+    // v23.1 part 98 — Daniel : "solde airwallex est a 0 mais jai fai
+    // paiement reel". On expose le mode (live/demo) + le préfixe du
+    // client_id pour qu'il vérifie d'un coup d'œil que Render appelle le
+    // bon environnement Airwallex.
+    const baseUrl = process.env.AIRWALLEX_BASE_URL || 'https://api-demo.airwallex.com';
+    const isDemoMode = baseUrl.includes('demo');
+    const clientId = process.env.AIRWALLEX_CLIENT_ID || '';
+    const clientIdPrefix = clientId ? clientId.slice(0, 6) + '...' : '(non défini)';
     res.json({
-      raw: data,
+      raw: data?.raw || null,
       items: (data && data.items) || [],
       beneficiaryConfigured,
       beneficiaryId: beneficiaryConfigured
         ? process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID
         : null,
+      diagnostic: {
+        baseUrl,
+        mode: isDemoMode ? 'DEMO (test)' : 'LIVE (production)',
+        isDemoMode,
+        clientIdPrefix,
+        clientIdConfigured: !!clientId,
+        apiKeyConfigured: !!process.env.AIRWALLEX_API_KEY,
+        sourceEndpoint: data?.sourceEndpoint || null,
+        endpointsProbed: data?.diagnosticEndpoints || [],
+      },
     });
   } catch (e) {
     logger.error('[admin/platform-balance]', e);
