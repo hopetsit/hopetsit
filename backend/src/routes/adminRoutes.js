@@ -2825,9 +2825,27 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
         (i) => (i.currency || '').toUpperCase() === partialCurrency,
       );
       const available = Number(item?.available_amount || 0);
+      const total = Number(item?.total_amount || 0);
       if (available < partialAmount) {
+        // v23.1 part 97 — Daniel : "le sold nest pas crediter pourtant ya
+        // bien 94e". L'écart vient de Airwallex qui distingue total_amount
+        // (brut, fonds reçus) et available_amount (dispo pour payout).
+        // Les fonds passent du total au dispo après settlement (T+1 à T+7
+        // selon les paiements). On l'explique clairement dans l'erreur.
+        const pending = Math.max(0, total - available);
         return res.status(400).json({
-          error: `Solde ${partialCurrency} insuffisant : ${available.toFixed(2)} dispo, ${partialAmount.toFixed(2)} demandé.`,
+          error: `Solde ${partialCurrency} insuffisant : ${available.toFixed(2)} disponible (sur ${total.toFixed(2)} total), ${partialAmount.toFixed(2)} demandé.`,
+          breakdown: {
+            currency: partialCurrency,
+            available,
+            total,
+            pendingSettlement: pending,
+            requested: partialAmount,
+          },
+          hint: pending > 0
+            ? 'Une partie du solde est encore en cours de settlement Airwallex (T+1 à T+7 jours). ' +
+              'Réessaie dans 1-2 jours, ou retire au maximum ' + available.toFixed(2) + ' ' + partialCurrency + ' tout de suite.'
+            : 'Aucun fonds disponible pour le moment.',
         });
       }
       const sweepDoc = await CompanySweep.create({

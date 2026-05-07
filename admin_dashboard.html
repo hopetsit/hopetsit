@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 96</title>
+<title>HopeTSIT — Admin v23.1 part 97</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3141,21 +3141,39 @@ async function loadCompanySweep() {
     const beneficiaryConfigured = !!bal.beneficiaryConfigured;
     const beneficiaryId = bal.beneficiaryId || '';
 
-    // Solde par devise (Airwallex renvoie available_amount + total_amount par currency).
+    // v23.1 part 97 — On expose 3 chiffres au lieu de 2 :
+    //   • Disponible : ce qu'on peut retirer maintenant (available_amount)
+    //   • En attente : settlement Airwallex T+1 à T+7  (total - available)
+    //   • Total      : somme brute reçue (total_amount)
+    // Daniel voyait 94€ en total et essayait de retirer 20€, mais available
+    // pouvait être à 0 (settlement pas encore fait) → 400 insuffisant.
     const balanceCards = items.length
       ? items.map((it) => {
           const cur = (it.currency || 'EUR').toUpperCase();
           const avail = Number(it.available_amount || 0);
           const total = Number(it.total_amount || 0);
+          const pending = Math.max(0, total - avail);
           return (
             '<div class="stat-card" style="--accent:#10B981">' +
-              '<div class="stat-label">Disponible ' + cur + '</div>' +
-              '<div class="stat-value">' + avail.toFixed(2) + '</div>' +
-              '<div class="stat-sub">Total : ' + total.toFixed(2) + ' ' + cur + '</div>' +
+              '<div class="stat-label">💰 Disponible ' + cur + '</div>' +
+              '<div class="stat-value" style="color:var(--green)">' + avail.toFixed(2) + '</div>' +
+              '<div class="stat-sub">Retirable maintenant</div>' +
+            '</div>' +
+            (pending > 0 ? (
+              '<div class="stat-card" style="--accent:#F39C12">' +
+                '<div class="stat-label">⏳ En attente ' + cur + '</div>' +
+                '<div class="stat-value" style="color:var(--orange)">' + pending.toFixed(2) + '</div>' +
+                '<div class="stat-sub">Settlement Airwallex (T+1 à T+7)</div>' +
+              '</div>'
+            ) : '') +
+            '<div class="stat-card">' +
+              '<div class="stat-label">Total brut ' + cur + '</div>' +
+              '<div class="stat-value" style="font-size:24px">' + total.toFixed(2) + '</div>' +
+              '<div class="stat-sub">Disponible + en attente</div>' +
             '</div>'
           );
         }).join('')
-      : '<div class="stat-card"><div class="stat-label">Solde Airwallex</div><div class="stat-value" style="font-size:20px">0,00 EUR</div><div class="stat-sub">Aucun fonds disponible</div></div>';
+      : '<div class="stat-card"><div class="stat-label">Solde Airwallex</div><div class="stat-value" style="font-size:20px">0,00 EUR</div><div class="stat-sub">Aucun fonds reçu</div></div>';
 
     // Bandeau config + boutons d'action.
     const cfgBanner = beneficiaryConfigured
@@ -3313,12 +3331,24 @@ async function doCompanySweep() {
     loadCompanySweep();
   } catch (e) {
     let txt = '❌ ' + (e.message || 'Erreur inconnue.');
-    if (e.code) txt += '\nCode : ' + e.code;
-    if (e.details) {
-      try { txt += '\n\n— Détails —\n' + JSON.stringify(e.details, null, 2); } catch (_) {}
-    }
-    if (e.payload && e.payload.raw) {
-      try { txt += '\n\n— Réponse —\n' + JSON.stringify(e.payload.raw, null, 2); } catch (_) {}
+    // v23.1 part 97 — solde insuffisant → on affiche le breakdown lisible
+    // (dispo / en attente / total) au lieu d'un dump JSON brut.
+    const bk = e.payload && e.payload.breakdown;
+    if (bk) {
+      txt += '\n\n📊 Détail du solde ' + bk.currency + ' :' +
+        '\n   • Disponible (retirable) : ' + Number(bk.available).toFixed(2) +
+        '\n   • En attente (settlement) : ' + Number(bk.pendingSettlement).toFixed(2) +
+        '\n   • Total brut : ' + Number(bk.total).toFixed(2) +
+        '\n   • Demandé : ' + Number(bk.requested).toFixed(2);
+      if (e.payload.hint) txt += '\n\n💡 ' + e.payload.hint;
+    } else {
+      if (e.code) txt += '\nCode : ' + e.code;
+      if (e.details) {
+        try { txt += '\n\n— Détails —\n' + JSON.stringify(e.details, null, 2); } catch (_) {}
+      }
+      if (e.payload && e.payload.raw) {
+        try { txt += '\n\n— Réponse —\n' + JSON.stringify(e.payload.raw, null, 2); } catch (_) {}
+      }
     }
     status.style.background = 'rgba(231,76,60,0.1)';
     status.style.border = '1px solid rgba(231,76,60,0.4)';
