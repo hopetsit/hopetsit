@@ -205,7 +205,7 @@ const handleAirwallexWebhook = async (req, res) => {
               type: 'credit_booking',
               bookingId: booking._id.toString(),
               meta: { source: 'airwallex_webhook', autoPayout: false },
-              withdrawable: false,
+              withdrawable: true,
             });
           }
         } catch (walletErr) {

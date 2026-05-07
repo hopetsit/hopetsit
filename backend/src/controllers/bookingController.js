@@ -981,11 +981,18 @@ const processProviderPayoutForBooking = async (booking) => {
           ? ibanNumber.slice(0, 4) + '****' + ibanNumber.slice(-4)
           : ibanNumber;
 
-      // v21 — Automatic Airwallex Payout. When the provider has an
-      // airwallexBeneficiaryId tied to this IBAN AND PAYMENT_PROVIDER is
-      // airwallex, we trigger a SEPA payout via /payouts/create instead of
-      // queueing a manual transfer. Falls back to manual queue if anything
-      // throws so a failed payout can still be reconciled by admin.
+      // v23.1 part 83 — NOUVEAU MODÈLE Daniel : "le walker est payé le
+      // jour où il commence sa mission, l'argent va dans son wallet et
+      // soit il l'utilise pour la boutique soit il le retire et reçoit
+      // automatiquement l'argent sur son compte".
+      //
+      // Au lieu de pousser direct vers l'IBAN au start service, on
+      // CRÉDITE le wallet (withdrawable=true). Le walker décide ensuite :
+      //   • dépenser le solde dans la boutique (Boost / PawSpot / etc.)
+      //   • OU tap "Retirer" → processPendingWithdrawals (v23.1.78)
+      //     déclenche createPayout vers son IBAN.
+      // Plus besoin de createPayout ici. Le booking est marqué
+      // 'completed' (côté payout) dès que le wallet est crédité.
       const useAirwallexPayout =
         (PAYMENT_PROVIDER === 'airwallex')
         && !!sitter.airwallexBeneficiaryId
@@ -993,71 +1000,39 @@ const processProviderPayoutForBooking = async (booking) => {
 
       if (useAirwallexPayout) {
         try {
-          const payoutAmountCents = Math.round(Number(netPayout) * 100);
-          const payout = await airwallex.createPayout({
-            beneficiaryId: sitter.airwallexBeneficiaryId,
-            amount: payoutAmountCents,
+          const { creditWallet } = require('../services/walletService');
+          const credit = await creditWallet({
+            userId: sitter._id.toString(),
+            userRole: provider.type,
+            amount: netPayout,
             currency: (currency || 'EUR').toUpperCase(),
-            reference: `HoPetSit ${(booking._id.toString()).slice(-8)}`,
-            metadata: {
-              type: 'booking_payout',
-              bookingId: booking._id.toString(),
-              providerId: sitter._id.toString(),
-              providerRole: provider.type,
-            },
+            type: 'credit_booking',
+            bookingId: booking._id.toString(),
+            referenceId: '',
+            meta: { source: 'wallet_credit_at_service_start', autoPayout: false },
+            withdrawable: true,
           });
-          booking.payoutMethod = 'iban';
-          booking.payoutStatus = 'processing';
-          booking.airwallexPayoutId = payout?.id || '';
+          booking.payoutMethod = 'wallet';
+          booking.payoutStatus = 'completed'; // wallet credit is the settlement
+          booking.payoutCompletedAt = new Date();
           booking.payoutError = null;
           await booking.save();
-
-          // v23.1 part 81 — credit the provider's wallet for HISTORY only
-          // (withdrawable=false). The €80 net payout already shipped to
-          // the walker's IBAN via createPayout above. If we incremented
-          // walletBalance here too, the walker could request a manual
-          // withdrawal of the same amount and end up paid TWICE.
-          // withdrawable=false logs the transaction in the wallet history
-          // (visible in the in-app earnings screen) but leaves the
-          // available balance untouched.
-          try {
-            const { creditWallet } = require('../services/walletService');
-            await creditWallet({
-              userId: sitter._id.toString(),
-              userRole: provider.type,
-              amount: netPayout,
-              currency: (currency || 'EUR').toUpperCase(),
-              type: 'credit_booking',
-              bookingId: booking._id.toString(),
-              referenceId: payout?.id || '',
-              meta: { source: 'airwallex_payout', autoPayout: true },
-              withdrawable: false, // money already left to IBAN
-            });
-          } catch (walletErr) {
-            logger.warn(
-              `⚠️ wallet credit skipped after payout (booking ${booking._id}): ${walletErr?.message || walletErr}`,
-            );
-          }
-
           logger.info(
-            `🚀 Airwallex payout created for booking=${booking._id.toString()} ` +
+            `💰 Wallet credit (au start service) booking=${booking._id.toString()} ` +
             `provider=${provider.type}:${sitter._id} amount=${netPayout} ${currency} ` +
-            `payoutId=${payout?.id || '?'}`,
+            `wallet_tx=${credit?.transactionId || '?'}`,
           );
-          // v23.1 part 82 — notify the provider that their auto-payout
-          // has been initiated. They'll get a 2nd "completed" notif
-          // once Airwallex confirms the bank settlement (1-3 jours).
+          // Notif walker : argent disponible.
           try {
             const { sendNotification } = require('../services/notificationSender');
             await sendNotification({
               userId: sitter._id.toString(),
               role: provider.type,
-              type: 'payout_initiated',
+              type: 'wallet_credited',
               data: {
                 bookingId: booking._id.toString(),
                 amount: String(netPayout),
                 currency: (currency || 'EUR').toUpperCase(),
-                payoutId: payout?.id || '',
               },
               actor: { role: 'system', id: null },
             });
@@ -2945,7 +2920,7 @@ const confirmBookingPayment = async (req, res) => {
               type: 'credit_booking',
               bookingId: booking._id.toString(),
               meta: { source: 'confirm_payment_sync', autoPayout: false },
-              withdrawable: false,
+              withdrawable: true,
             });
           }
         } catch (walletErr) {

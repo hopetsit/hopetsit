@@ -125,6 +125,12 @@
     "emailSubject": "Your payment is confirmed — HoPetSit",
     "emailBody": "<p>Your payment has just been confirmed. Your booking is now <strong>active</strong>. Open the HoPetSit app to chat with your provider and agree on the final details.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
   },
+  "wallet_credited": {
+    "title": "Money available 🎉",
+    "body": "You just received {{amount}} {{currency}} in your wallet. Use it in the shop or withdraw to your IBAN anytime.",
+    "emailSubject": "Service started — {{amount}} {{currency}} credited",
+    "emailBody": "<p>Your HoPetSit service just started. <strong>{{amount}} {{currency}}</strong> have been credited to your wallet. Use them in the HoPetSit shop or withdraw to your IBAN any time from the app.</p>"
+  },
   "payout_initiated": {
     "title": "Payout on the way",
     "body": "{{amount}} {{currency}} have been sent to your IBAN. Expected within 1–3 business days.",
