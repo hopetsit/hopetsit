@@ -20,6 +20,8 @@ import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents).
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/profile/bug_report_screen.dart';
+// v23.1 part 85 — entry to the admin dashboard for the platform owner.
+import 'package:hopetsit/views/admin/admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -434,6 +436,20 @@ class ProfileScreen extends StatelessWidget {
           Icons.bug_report_rounded,
           const Color(0xFFF59E0B),
           () => Get.to(() => const BugReportScreen()),
+        ),
+
+        // v23.1 part 85 — Daniel : "ou je retire mes benefice sur admin ?"
+        // Entry point clair vers le dashboard admin (page Activité +
+        // page Revenus avec bouton "Retirer mes bénéfices vers IBAN").
+        // Le code admin_secret garde l'accès limité — pas un user normal
+        // qui pourrait toucher aux endpoints même s'il navigue ici.
+        _sectionHeader('Plateforme'),
+        _buildSettingsTile(
+          '🔧 Dashboard admin',
+          'Activité, revenus, retirer mes bénéfices',
+          Icons.admin_panel_settings_rounded,
+          const Color(0xFFEF4324),
+          () => Get.to(() => const AdminDashboardScreen()),
         ),
 
         // ── ZONE DANGER ───────────────────────────────────

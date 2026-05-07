@@ -155,14 +155,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       );
       final swept = ((r as Map)['swept'] as List?) ?? [];
       Get.snackbar(
-        'Sweep OK',
-        '${swept.length} payout(s) initié(s) vers ton compte société',
+        'Virement réussi 💰',
+        '${swept.length} virement(s) lancé(s) vers ton compte société',
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
       await _loadBalance();
     } catch (e) {
-      Get.snackbar('Sweep failed', e.toString(),
+      Get.snackbar('Virement échoué', e.toString(),
           backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
       setState(() => _sweepBusy = false);
@@ -219,7 +219,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 Text('🔐', style: TextStyle(fontSize: 60.sp)),
                 SizedBox(height: 16.h),
                 PoppinsText(
-                  text: 'Admin login',
+                  text: 'Connexion admin',
                   fontSize: 22.sp,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
@@ -230,7 +230,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   obscureText: true,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Admin secret',
+                    hintText: 'Code admin',
                     hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.15),
@@ -493,47 +493,79 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Widget _buildBalanceCard() {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFEF4324), Color(0xFFFF6B45)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(20.r),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFEF4324).withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Solde plateforme Airwallex',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 12.sp,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w700)),
-          SizedBox(height: 8.h),
+          Row(
+            children: [
+              Icon(Icons.savings_rounded, color: Colors.white, size: 24.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text('💰 MES BÉNÉFICES À RETIRER',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.sp,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
           if (_balance.isEmpty)
-            Text('—',
-                style: TextStyle(color: Colors.white, fontSize: 22.sp, fontWeight: FontWeight.w800)),
+            Text('— € (en attente de paiements)',
+                style: TextStyle(color: Colors.white, fontSize: 24.sp, fontWeight: FontWeight.w800)),
           ..._balance.map((b) {
             final available = (b['available_amount'] as num?)?.toDouble() ?? 0;
-            return Text(
-              '${available.toStringAsFixed(2)} ${(b['currency'] ?? 'EUR').toString().toUpperCase()}',
-              style: TextStyle(color: Colors.white, fontSize: 22.sp, fontWeight: FontWeight.w800),
+            return Padding(
+              padding: EdgeInsets.symmetric(vertical: 2.h),
+              child: Text(
+                '${available.toStringAsFixed(2)} ${(b['currency'] ?? 'EUR').toString().toUpperCase()}',
+                style: TextStyle(color: Colors.white, fontSize: 28.sp, fontWeight: FontWeight.w900),
+              ),
             );
           }),
-          SizedBox(height: 12.h),
+          SizedBox(height: 8.h),
+          Text(
+            'Argent disponible sur ta plateforme HoPetSit (commissions + boutique). Tape ci-dessous pour le virer vers ton IBAN société.',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11.sp),
+          ),
+          SizedBox(height: 16.h),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _sweepBusy ? null : _sweep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: AppColors.primaryColor,
-                padding: EdgeInsets.symmetric(vertical: 12.h),
+                foregroundColor: const Color(0xFFEF4324),
+                padding: EdgeInsets.symmetric(vertical: 16.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                ),
+                elevation: 4,
               ),
-              icon: const Icon(Icons.account_balance_rounded),
-              label: Text(_sweepBusy ? 'Sweep en cours…' : 'Virer vers compte société'),
+              icon: Icon(_sweepBusy ? Icons.hourglass_top : Icons.account_balance_rounded, size: 22.sp),
+              label: Text(
+                _sweepBusy
+                    ? 'Virement en cours…'
+                    : 'Retirer mes bénéfices vers mon IBAN',
+                style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w800),
+              ),
             ),
           ),
         ],
