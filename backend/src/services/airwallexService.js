@@ -645,12 +645,17 @@ async function createCompanyBeneficiary({
     'ZW']);
   const sendPostcode = !!cleanZip && !isFakeZip && !noPostcodeCountries.has(addrCC);
 
+  // v23.1 part 94 — On retire `type: 'COMPANY'` au profit de `entity_type`
+  // seul. Le doublon est probablement la cause du `invalid_argument` opaque
+  // (les docs Airwallex récentes ne mentionnent que `entity_type`).
+  // Si ça échoue encore, l'API du back-end retournera maintenant les logs
+  // serveur détaillés (request body + response Airwallex masqué) → on
+  // pourra trancher sur les vrais champs rejetés.
   const body = {
     request_id: genRequestId('compbenef'),
     nickname: `HoPetSit company sweep`,
     transfer_methods: ['LOCAL'],
     beneficiary: {
-      type: 'COMPANY',
       entity_type: 'COMPANY',
       company_name: companyName.trim(),
       bank_details: {
@@ -691,6 +696,10 @@ async function createCompanyBeneficiary({
       details: e.details,
       sentBody: logBody,
     });
+    // v23.1 part 94 — attache le body envoyé à l'erreur pour qu'il remonte
+    // jusqu'au formulaire admin (avec IBAN masqué). Daniel verra
+    // exactement ce qui a été envoyé sans avoir à ouvrir Render logs.
+    e.sentBody = logBody;
     throw e;
   }
 }
