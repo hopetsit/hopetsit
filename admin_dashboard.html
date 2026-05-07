@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 100</title>
+<title>HopeTSIT — Admin v23.1 part 101</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3302,14 +3302,24 @@ async function loadCompanySweep() {
     // v23.1 part 98 — diagnostic Airwallex (endpoint utilisé, env, etc.)
     const diag = bal.diagnostic || null;
 
-    // v23.1 part 97 — On expose 3 chiffres au lieu de 2 :
-    //   • Disponible : ce qu'on peut retirer maintenant (available_amount)
-    //   • En attente : settlement Airwallex T+1 à T+7  (total - available)
-    //   • Total      : somme brute reçue (total_amount)
-    // Daniel voyait 94€ en total et essayait de retirer 20€, mais available
-    // pouvait être à 0 (settlement pas encore fait) → 400 insuffisant.
-    const balanceCards = items.length
-      ? items.map((it) => {
+    // v23.1 part 97 — Cards par devise (Disponible / En attente / Total brut).
+    // v23.1 part 101 — Daniel : "enleve moi tt c solde". Airwallex renvoie
+    // 30+ devises à 0 (toutes celles qu'il pourrait théoriquement gérer) ;
+    // on filtre maintenant pour n'afficher QUE les devises non-zéro, et on
+    // s'assure qu'EUR est toujours visible (même à 0) pour donner un repère.
+    const nonZeroItems = items.filter((it) => {
+      const a = Number(it.available_amount || 0);
+      const t = Number(it.total_amount || 0);
+      return a !== 0 || t !== 0;
+    });
+    // Si rien de non-zéro, on garde au moins EUR pour ne pas avoir un vide.
+    const displayItems = nonZeroItems.length
+      ? nonZeroItems
+      : (items.find((it) => (it.currency || '').toUpperCase() === 'EUR')
+          ? [items.find((it) => (it.currency || '').toUpperCase() === 'EUR')]
+          : []);
+    const balanceCards = displayItems.length
+      ? displayItems.map((it) => {
           const cur = (it.currency || 'EUR').toUpperCase();
           const avail = Number(it.available_amount || 0);
           const total = Number(it.total_amount || 0);
