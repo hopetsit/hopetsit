@@ -2372,9 +2372,35 @@ const _airwallex = require('../services/airwallexService');
 router.get('/platform-balance', requireAdmin, async (req, res) => {
   try {
     const data = await _airwallex.getPlatformBalance();
-    res.json({ raw: data, items: (data && data.items) || [] });
+    // v23.1 part 86 — also expose beneficiary configuration so the UI
+    // knows whether the "Retirer" button can work end-to-end.
+    const beneficiaryConfigured = !!process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID;
+    res.json({
+      raw: data,
+      items: (data && data.items) || [],
+      beneficiaryConfigured,
+      beneficiaryId: beneficiaryConfigured
+        ? process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID
+        : null,
+    });
   } catch (e) {
     logger.error('[admin/platform-balance]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// v23.1 part 86 — historique des "Retirer mes bénéfices" passés.
+router.get('/sweep-history', requireAdmin, async (req, res) => {
+  try {
+    const CompanySweep = require('../models/CompanySweep');
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const items = await CompanySweep.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    res.json({ items });
+  } catch (e) {
+    logger.error('[admin/sweep-history]', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -2648,6 +2674,7 @@ router.get('/v2/revenue', requireAdmin, async (req, res) => {
 
 router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
   try {
+    const CompanySweep = require('../models/CompanySweep');
     const beneficiaryId =
       (req.body && req.body.beneficiaryId) ||
       process.env.COMPANY_AIRWALLEX_BENEFICIARY_ID ||
@@ -2655,9 +2682,56 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
     if (!beneficiaryId) {
       return res.status(400).json({
         error:
-          'No beneficiary configured. Set COMPANY_AIRWALLEX_BENEFICIARY_ID ' +
-          'env on Render OR pass beneficiaryId in the request body.',
+          'Aucun beneficiary configuré. Set COMPANY_AIRWALLEX_BENEFICIARY_ID ' +
+          'env sur Render OU passe beneficiaryId dans le body.',
       });
+    }
+    // v23.1 part 86 — Daniel : "controle des retrait pour ma societer".
+    // Optional partial sweep — body { amount: 100, currency: 'EUR' }
+    // pour ne retirer qu'une partie. Si absent, on sweep tout (minSweepAmount).
+    const partialAmount = Number(req.body?.amount);
+    const partialCurrency = (req.body?.currency || '').toString().toUpperCase();
+    if (Number.isFinite(partialAmount) && partialAmount > 0 && partialCurrency) {
+      const balance = await _airwallex.getPlatformBalance();
+      const item = (balance.items || []).find(
+        (i) => (i.currency || '').toUpperCase() === partialCurrency,
+      );
+      const available = Number(item?.available_amount || 0);
+      if (available < partialAmount) {
+        return res.status(400).json({
+          error: `Solde ${partialCurrency} insuffisant : ${available.toFixed(2)} dispo, ${partialAmount.toFixed(2)} demandé.`,
+        });
+      }
+      const sweepDoc = await CompanySweep.create({
+        triggeredBy: 'admin',
+        beneficiaryId,
+        currency: partialCurrency,
+        amount: partialAmount,
+        requestedAmount: partialAmount,
+        status: 'initiated',
+      });
+      try {
+        const payout = await _airwallex.createPayout({
+          beneficiaryId,
+          amount: Math.round(partialAmount * 100),
+          currency: partialCurrency,
+          reference: `HoPetSit sweep ${new Date().toISOString().slice(0, 10)}`.slice(0, 35),
+          metadata: { type: 'company_sweep', sweepId: String(sweepDoc._id) },
+        });
+        sweepDoc.payoutId = payout?.id || '';
+        await sweepDoc.save();
+        return res.json({
+          swept: [{ currency: partialCurrency, amount: partialAmount, payoutId: payout?.id || null }],
+          skipped: [],
+          partial: true,
+          sweepId: sweepDoc._id,
+        });
+      } catch (e) {
+        sweepDoc.status = 'failed';
+        sweepDoc.failureReason = e.message;
+        await sweepDoc.save();
+        return res.status(502).json({ error: e.message });
+      }
     }
     const minSweepAmount = Number(req.body?.minSweepAmount) || 10;
     const currencies = Array.isArray(req.body?.currencies) ? req.body.currencies : null;
@@ -2666,6 +2740,18 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
       minSweepAmount,
       currencies,
     });
+    // Persist each swept currency to history.
+    for (const s of result.swept) {
+      await CompanySweep.create({
+        triggeredBy: 'admin',
+        beneficiaryId,
+        currency: s.currency,
+        amount: s.amount,
+        requestedAmount: null,
+        payoutId: s.payoutId || '',
+        status: 'initiated',
+      });
+    }
     logger.info(
       `[admin/sweep-platform-balance] swept ${result.swept.length} payout(s), ` +
       `skipped ${result.skipped.length} (beneficiary=${beneficiaryId})`,

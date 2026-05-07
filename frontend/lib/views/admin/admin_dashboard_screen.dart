@@ -50,7 +50,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   // ─── Platform balance ──────────────────────────────────────────────
   List<Map<String, dynamic>> _balance = [];
+  bool _beneficiaryConfigured = false;
+  String? _beneficiaryId;
   bool _sweepBusy = false;
+  List<Map<String, dynamic>> _sweepHistory = [];
 
   @override
   void initState() {
@@ -135,12 +138,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         '/admin/platform-balance',
         headers: {'x-admin-secret': _adminSecret},
       );
+      final m = r as Map;
+      final items = ((m['items'] as List?)
+              ?.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()) ??
+          [];
+      setState(() {
+        _balance = items;
+        _beneficiaryConfigured = m['beneficiaryConfigured'] == true;
+        _beneficiaryId = (m['beneficiaryId'] ?? '').toString();
+      });
+    } catch (_) { /* non-critical */ }
+    // History
+    try {
+      final r = await ApiClient().get(
+        '/admin/sweep-history',
+        headers: {'x-admin-secret': _adminSecret},
+      );
       final items = ((r as Map)['items'] as List?)
               ?.whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList() ??
           [];
-      setState(() => _balance = items);
+      setState(() => _sweepHistory = items);
     } catch (_) { /* non-critical */ }
   }
 
@@ -473,22 +494,216 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   // ═══════════════════════════════════════════════════════════════════════
   Widget _buildRevenueTab() {
     return RefreshIndicator(
-      onRefresh: _loadRevenue,
+      onRefresh: () async {
+        await Future.wait([_loadRevenue(), _loadBalance()]);
+      },
       child: ListView(
         padding: EdgeInsets.all(12.w),
         children: [
           if (_revenueLoading) const LinearProgressIndicator(),
-          // Platform balance + sweep button
+          // 1. Beneficiary config status (warning if not set)
+          if (!_beneficiaryConfigured) _buildBeneficiaryWarning(),
+          if (!_beneficiaryConfigured) SizedBox(height: 16.h),
+          // 2. Platform balance + RETIRER MES BÉNÉFICES
           _buildBalanceCard(),
           SizedBox(height: 16.h),
-          // Commissions card (left)
+          // 3. Historique des virements société
+          _buildSweepHistoryCard(),
+          SizedBox(height: 16.h),
+          // 4. Commissions card (booking 20%)
           _buildCommissionsCard(),
           SizedBox(height: 16.h),
-          // Boutique card (right)
+          // 5. Boutique card
           _buildBoutiqueCard(),
         ],
       ),
     );
+  }
+
+  Widget _buildBeneficiaryWarning() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        border: Border.all(color: const Color(0xFFF59E0B)),
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: const Color(0xFFF59E0B), size: 22.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: PoppinsText(
+                  text: 'Compte société non configuré',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFB35900),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            'Pour pouvoir retirer tes bénéfices vers ton compte société, '
+            'configure d\'abord ton beneficiary Airwallex :\n'
+            '\n1. Va sur https://www.airwallex.com/app/recipients\n'
+            '2. Crée un beneficiary "HoPetSit Company Bank"\n'
+            '3. Récupère son ID (ben_xxx)\n'
+            '4. Sur Render → Environment → ajoute COMPANY_AIRWALLEX_BENEFICIARY_ID=ben_xxx',
+            style: TextStyle(fontSize: 12.sp, color: const Color(0xFF7A4F00), height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSweepHistoryCard() {
+    return _section(
+      icon: Icons.history_rounded,
+      iconColor: const Color(0xFF6B7280),
+      title: 'Historique des virements société',
+      subtitle: '${_sweepHistory.length} virement(s) effectué(s)',
+      child: _sweepHistory.isEmpty
+          ? Padding(
+              padding: EdgeInsets.symmetric(vertical: 12.h),
+              child: Center(
+                child: Text('Aucun virement effectué pour l\'instant.',
+                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600])),
+              ),
+            )
+          : Column(
+              children: _sweepHistory.take(20).map((s) {
+                final status = (s['status'] ?? '').toString();
+                final statusColor = status == 'completed'
+                    ? const Color(0xFF16A34A)
+                    : status == 'failed'
+                        ? const Color(0xFFE53935)
+                        : const Color(0xFFF59E0B);
+                final amt = (s['amount'] as num?)?.toDouble() ?? 0;
+                final cur = (s['currency'] ?? 'EUR').toString();
+                final dateRaw = s['createdAt']?.toString() ?? '';
+                final date = DateTime.tryParse(dateRaw);
+                final dateLbl = date != null
+                    ? DateFormat('dd/MM/yyyy HH:mm', 'fr').format(date.toLocal())
+                    : '—';
+                return Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6.h),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8.w,
+                        height: 8.w,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${amt.toStringAsFixed(2)} $cur',
+                              style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                            Text(dateLbl,
+                                style: TextStyle(
+                                    fontSize: 11.sp,
+                                    color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        _frenchSweepStatus(status),
+                        style: TextStyle(
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w800,
+                            color: statusColor),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+    );
+  }
+
+  String _frenchSweepStatus(String s) {
+    switch (s) {
+      case 'completed': return 'Reçu ✓';
+      case 'failed': return 'Échec';
+      case 'initiated':
+      default: return 'En cours';
+    }
+  }
+
+  Future<void> _showPartialSweepDialog() async {
+    final ctrl = TextEditingController();
+    final firstCur = _balance.isNotEmpty
+        ? (_balance.first['currency'] ?? 'EUR').toString().toUpperCase()
+        : 'EUR';
+    final firstAvail = _balance.isNotEmpty
+        ? ((_balance.first['available_amount'] as num?)?.toDouble() ?? 0)
+        : 0;
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Retirer un montant précis'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Solde dispo : ${firstAvail.toStringAsFixed(2)} $firstCur',
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey[700])),
+            SizedBox(height: 12.h),
+            TextField(
+              controller: ctrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Montant à retirer',
+                suffixText: 'EUR',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final amt = double.tryParse(ctrl.text.replaceAll(',', '.'));
+    if (amt == null || amt <= 0) {
+      Get.snackbar('Montant invalide', 'Entre un montant numérique positif.',
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+    setState(() => _sweepBusy = true);
+    try {
+      await ApiClient().post(
+        '/admin/sweep-platform-balance',
+        body: {'amount': amt, 'currency': firstCur},
+        headers: {'x-admin-secret': _adminSecret},
+      );
+      Get.snackbar('Virement réussi 💰', '${amt.toStringAsFixed(2)} $firstCur lancé(s) vers ton compte société',
+          backgroundColor: Colors.green, colorText: Colors.white);
+      await _loadBalance();
+    } catch (e) {
+      Get.snackbar('Virement échoué', e.toString(),
+          backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      setState(() => _sweepBusy = false);
+    }
   }
 
   Widget _buildBalanceCard() {
@@ -549,7 +764,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _sweepBusy ? null : _sweep,
+              onPressed: (_sweepBusy || !_beneficiaryConfigured) ? null : _sweep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFFEF4324),
@@ -563,8 +778,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               label: Text(
                 _sweepBusy
                     ? 'Virement en cours…'
-                    : 'Retirer mes bénéfices vers mon IBAN',
-                style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w800),
+                    : 'Retirer TOUT mes bénéfices vers mon IBAN',
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+          SizedBox(height: 8.h),
+          // Bouton "montant précis" pour les retraits partiels
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: (_sweepBusy || !_beneficiaryConfigured) ? null : _showPartialSweepDialog,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white, width: 1.5),
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                ),
+              ),
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: Text(
+                'Retirer un montant précis…',
+                style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700),
               ),
             ),
           ),
