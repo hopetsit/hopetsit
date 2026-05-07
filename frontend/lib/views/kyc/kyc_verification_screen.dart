@@ -87,14 +87,20 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
           title: 'Paiement confirmé',
           message: 'On lance maintenant la vérification d\'identité.',
         );
-        // v23.1 part 70 — Bug 14 : Daniel "verification apres paiement
-        // ne se connecte pas a persona". The previous 2s wait wasn't
-        // enough for the Airwallex webhook to land + update Mongo +
-        // /kyc/status to reflect 'pending_verification'. We now poll
-        // up to 6 times (every 1.5s = 9s max) to give the webhook a
-        // realistic margin. If kycStatus stays != pending_verification
-        // we tell the user to retry from the screen instead of failing
-        // silently.
+
+        // v23.1 part 75 — Daniel : "sa as debiter et sa menvoi pas a la
+        // verification id". Don't rely solely on the Airwallex webhook
+        // to flip kycStatus → call /kyc/confirm-payment which re-checks
+        // the PI server-side and forces the activation. Idempotent : if
+        // the webhook already ran, this is a no-op. Race-safe.
+        try {
+          await _repo.confirmPayment();
+        } catch (e) {
+          AppLogger.logError('kyc.confirmPayment fallback failed', error: e);
+        }
+
+        // Poll /kyc/status as a safety net in case confirm-payment was
+        // delayed (network / server). 6 polls × 1.5s = 9s max.
         bool reachedPending = false;
         for (int i = 0; i < 6; i++) {
           await Future.delayed(const Duration(milliseconds: 1500));

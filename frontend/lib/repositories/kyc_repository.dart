@@ -35,4 +35,19 @@ class KycRepository {
     if (response is Map) return Map<String, dynamic>.from(response);
     return const {};
   }
+
+  /// v23.1 part 75 — POST /kyc/confirm-payment.
+  /// Forces server-side confirmation of the KYC payment without waiting
+  /// for the Airwallex webhook. Idempotent : if already confirmed,
+  /// returns the existing kycStatus. Used as a fallback when the webhook
+  /// is misconfigured or hasn't yet landed.
+  Future<Map<String, dynamic>> confirmPayment() async {
+    final response = await _apiClient.post(
+      '/kyc/confirm-payment',
+      requiresAuth: true,
+      body: {},
+    );
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return const {};
+  }
 }

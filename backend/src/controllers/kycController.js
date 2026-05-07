@@ -233,6 +233,81 @@ const getStatus = async (req, res) => {
 };
 
 /**
+ * v23.1 part 75 — POST /kyc/confirm-payment
+ * Body: {} (auth, sitter/walker)
+ * Returns: { kycStatus, kycPaidAt }
+ *
+ * Daniel : "sa as debiter et sa menvoi pas a la verification id". The
+ * Airwallex webhook is unreliable in some setups (signature mismatch,
+ * URL not yet configured, transient 5xx). This endpoint lets the
+ * frontend force-confirm the KYC payment after the payment WebView
+ * closes with success — we re-fetch the PI from Airwallex to verify
+ * status, and if SUCCEEDED we run the same activation logic the
+ * webhook would have. Fully idempotent : safe to call from both the
+ * webhook AND the frontend without double-effects.
+ */
+const confirmPayment = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    const role = (req.user.role || '').toLowerCase();
+    const Model = _modelForRole(role);
+    if (!Model) return res.status(403).json({ error: 'Only sitter or walker.' });
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // Already verified or in flight → just return current status (idempotent).
+    if (user.kycStatus === 'verified' || user.kycStatus === 'pending_verification') {
+      return res.json({
+        kycStatus: user.kycStatus,
+        kycPaidAt: user.kycPaidAt || null,
+        alreadyConfirmed: true,
+      });
+    }
+
+    const piId = user.kycPaymentIntentId;
+    if (!piId) {
+      return res.status(400).json({
+        error: 'No KYC payment intent recorded. Call /kyc/initiate-payment first.',
+        kycStatus: user.kycStatus || 'none',
+      });
+    }
+
+    let pi;
+    try {
+      pi = await airwallex.retrievePaymentIntent(piId);
+    } catch (e) {
+      logger.error(`[kyc.confirmPayment] Airwallex retrieve failed for ${piId} : ${e.message}`);
+      return res.status(502).json({ error: 'Unable to verify payment with Airwallex.' });
+    }
+
+    const status = (pi?.status || '').toUpperCase();
+    if (status !== 'SUCCEEDED') {
+      return res.status(409).json({
+        error: `Payment not yet succeeded (status=${status}).`,
+        kycStatus: user.kycStatus || 'none',
+        airwallexStatus: status,
+      });
+    }
+
+    // Run the same logic as the webhook handler.
+    await onKycPaymentSucceeded(pi);
+
+    // Reload to return fresh status.
+    const fresh = await Model.findById(req.user.id).lean();
+    return res.json({
+      kycStatus: fresh?.kycStatus || 'pending_verification',
+      kycPaidAt: fresh?.kycPaidAt || null,
+      forced: true,
+    });
+  } catch (err) {
+    logger.error('[kyc.confirmPayment]', err);
+    return res.status(500).json({ error: 'Unable to confirm KYC payment.', details: err.message });
+  }
+};
+
+/**
  * Internal helper: called by airwallexWebhookController when a KYC payment
  * succeeds (metadata.type === 'kyc'). Marks user kycStatus='pending_verification'
  * + kycPaidAt = now. Frontend must then POST /kyc/start to launch the inquiry.
@@ -362,6 +437,7 @@ module.exports = {
   initiatePayment,
   startVerification,
   getStatus,
+  confirmPayment, // v23.1 part 75 — client-side KYC payment confirmation fallback
   onKycPaymentSucceeded,
   personaWebhook,
 };
