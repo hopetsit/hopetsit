@@ -564,6 +564,9 @@ async function createBeneficiary({
 
   const cleanIban = iban.replace(/\s+/g, '').toUpperCase();
   const country   = (bankCountryCode || cleanIban.slice(0, 2)).toUpperCase();
+  // v23.1 part 91 — pour SEPA, Airwallex exige le champ `iban` ; on n'envoie
+  // `account_number` que pour les comptes non-IBAN (US ACH, UK FPS sans IBAN…).
+  const isIbanValue = /^[A-Z]{2}\d{2}/.test(cleanIban);
 
   return awxFetch('/api/v1/beneficiaries/create', {
     method: 'POST',
@@ -577,7 +580,7 @@ async function createBeneficiary({
         bank_details: {
           account_currency: currency.toUpperCase(),
           account_name: holderName.trim(),
-          account_number: cleanIban,
+          ...(isIbanValue ? { iban: cleanIban } : { account_number: cleanIban }),
           bank_country_code: country,
           ...(bic ? { swift_code: bic.replace(/\s+/g, '').toUpperCase() } : {}),
         },
@@ -618,6 +621,13 @@ async function createCompanyBeneficiary({
   if (!iban) throw new Error('iban is required');
   const cleanIban = iban.replace(/\s+/g, '').toUpperCase();
   const country = (bankCountryCode || cleanIban.slice(0, 2)).toUpperCase();
+  // v23.1 part 91 — fix Daniel "validation_failed sur beneficiary.bank_details.iban" :
+  // pour SEPA/COMPANY, Airwallex exige le champ littéralement nommé `iban`,
+  // pas `account_number` (qui est réservé aux ACH US / FPS UK / autres
+  // bank accounts non-IBAN). On envoie maintenant DEUX clés : `iban` (pour
+  // que la validation Airwallex passe) ET `account_number` en doublon
+  // (compat backward au cas où certaines régions exigent toujours ce champ).
+  const isIbanValue = /^[A-Z]{2}\d{2}/.test(cleanIban);
   return awxFetch('/api/v1/beneficiaries/create', {
     method: 'POST',
     body: {
@@ -631,7 +641,8 @@ async function createCompanyBeneficiary({
         bank_details: {
           account_currency: currency.toUpperCase(),
           account_name: companyName.trim(),
-          account_number: cleanIban,
+          // Champ requis par la validation Airwallex pour les SEPA/IBAN.
+          ...(isIbanValue ? { iban: cleanIban } : { account_number: cleanIban }),
           bank_country_code: country,
           ...(bic ? { swift_code: bic.replace(/\s+/g, '').toUpperCase() } : {}),
           ...(bankName ? { bank_name: bankName.trim() } : {}),
