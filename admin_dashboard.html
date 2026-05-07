@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 95</title>
+<title>HopeTSIT — Admin v23.1 part 96</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3166,7 +3166,9 @@ async function loadCompanySweep() {
         )
       : (
           '<div style="background:rgba(243,156,18,0.08);border:1px solid rgba(243,156,18,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">' +
-            '⚠️ <strong>Aucun compte société configuré.</strong> Pour pouvoir retirer tes bénéfices vers ton IBAN, tu dois choisir le compte qui recevra l\'argent.<br>' +
+            '⚠️ <strong>Aucun compte société configuré sur Render.</strong><br>' +
+            'Pour activer le bouton « Retirer », ajoute la variable <code style="background:var(--bg);padding:1px 5px;border-radius:3px">COMPANY_AIRWALLEX_BENEFICIARY_ID</code> dans <strong>Render → Environment</strong>, ' +
+            'puis attends que le service redémarre (~1 min). Si tu n\'as pas encore de bénéficiaire :' +
             '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' +
               '<button class="action-btn btn-primary" onclick="openPickBeneficiaryDialog()">📋 J\'ai déjà un compte Airwallex</button>' +
               '<button class="action-btn" style="background:rgba(232,71,42,0.1);color:var(--primary)" onclick="openSetupBeneficiaryDialog()">➕ Créer un nouveau compte</button>' +
@@ -3227,35 +3229,103 @@ async function loadCompanySweep() {
   }
 }
 
-// Demande à Daniel le montant à retirer (vide = retirer tout).
+// v23.1 part 96 — Daniel : "jai mis retirer 20e mais y se passe rien".
+// Avant : prompt() + confirm() + toast (3s) → enchainement fragile, le toast
+// d'erreur disparaissait trop vite. Maintenant : vraie modale avec input,
+// boutons clairs, et zone de status persistante (succès vert / erreur rouge).
 function openSweepDialog() {
-  const items = (window._lastBalanceItems || []);
-  const ans = prompt(
-    'Montant à retirer (EUR). Laisse vide pour retirer la totalité du solde disponible.',
-    ''
-  );
-  if (ans === null) return; // cancel
-  const amount = Number(ans);
-  doCompanySweep(ans.trim() === '' ? null : amount);
+  let ov = document.getElementById('sweep-overlay');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'sweep-overlay';
+  ov.className = 'modal-overlay open';
+  ov.innerHTML =
+    '<div class="modal" style="width:480px">' +
+      '<div class="modal-title">💰 Retirer mes bénéfices société</div>' +
+      '<div style="color:var(--text-muted);font-size:13px;margin-bottom:14px;line-height:1.5">' +
+        'Le montant indiqué partira sur le compte société configuré (IBAN entreprise) sous 1-2 jours ouvrés. ' +
+        'Laisse vide pour retirer la totalité du solde disponible.' +
+      '</div>' +
+      '<div class="modal-field">' +
+        '<label class="modal-label">Montant à retirer (EUR)</label>' +
+        '<input id="sweep-amount" class="login-input" type="number" min="0" step="0.01" placeholder="ex : 20.00 — vide pour tout retirer" style="margin-bottom:0"/>' +
+      '</div>' +
+      '<div id="sweep-status" style="display:none;margin-top:14px;padding:12px;border-radius:8px;font-size:13px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;max-height:240px;overflow-y:auto"></div>' +
+      '<div class="modal-actions">' +
+        '<button id="sweep-close-btn" class="modal-close" onclick="document.getElementById(\'sweep-overlay\').remove()">Annuler</button>' +
+        '<button id="sweep-submit" class="action-btn btn-primary" style="padding:10px 22px" onclick="doCompanySweep()">Retirer</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  // Auto-focus sur le champ montant.
+  setTimeout(() => document.getElementById('sweep-amount')?.focus(), 50);
 }
 
-async function doCompanySweep(amount) {
+async function doCompanySweep() {
+  const $ = (id) => document.getElementById(id);
+  const status = $('sweep-status');
+  const submit = $('sweep-submit');
+  const closeBtn = $('sweep-close-btn');
+  const raw = ($('sweep-amount')?.value || '').trim();
+  const amount = raw === '' ? null : Number(raw);
   if (amount != null && (!Number.isFinite(amount) || amount <= 0)) {
-    showToast('Montant invalide.', 'error');
+    status.style.display = 'block';
+    status.style.background = 'rgba(231,76,60,0.1)';
+    status.style.border = '1px solid rgba(231,76,60,0.4)';
+    status.style.color = 'var(--red)';
+    status.textContent = '❌ Montant invalide. Tape un nombre positif (ou laisse vide pour retirer tout).';
     return;
   }
-  if (!confirm(amount == null
-    ? 'Retirer la totalité du solde disponible vers ton IBAN société ?'
-    : 'Retirer ' + amount.toFixed(2) + ' EUR vers ton IBAN société ?')) return;
-  showToast('Retrait en cours...', 'success');
+  // Confirmation in-modal (pas de native confirm() qui pourrait être bloqué).
+  status.style.display = 'block';
+  status.style.background = 'rgba(243,156,18,0.1)';
+  status.style.border = '1px solid rgba(243,156,18,0.4)';
+  status.style.color = 'var(--orange)';
+  status.textContent = '⏳ Envoi du retrait à Airwallex...';
+  submit.disabled = true;
+  submit.textContent = 'En cours...';
   try {
     const body = amount == null ? {} : { amount, currency: 'EUR' };
     const r = await api('/admin/sweep-platform-balance', 'POST', body);
-    const swept = (r.swept || []).map((s) => s.amount.toFixed(2) + ' ' + s.currency).join(', ');
-    showToast(swept ? '✅ Retrait initié : ' + swept : 'ℹ️ Rien à retirer.', 'success');
+    const swept = (r.swept || []);
+    const skipped = (r.skipped || []);
+    let msg = '';
+    if (swept.length) {
+      msg += '✅ Retrait initié avec succès :\n';
+      for (const s of swept) {
+        msg += '   • ' + s.amount.toFixed(2) + ' ' + s.currency +
+          (s.payoutId ? ' (payout ' + s.payoutId + ')' : '') + '\n';
+      }
+      msg += '\nL\'argent arrivera sur ton IBAN société sous 1-2 jours ouvrés.';
+    } else {
+      msg = 'ℹ️ Rien à retirer.';
+    }
+    if (skipped.length) {
+      msg += '\n\nIgnoré (solde insuffisant) :\n';
+      for (const s of skipped) msg += '   • ' + s.currency + ' (raison : ' + s.reason + ')\n';
+    }
+    status.style.background = 'rgba(46,204,113,0.1)';
+    status.style.border = '1px solid rgba(46,204,113,0.4)';
+    status.style.color = 'var(--green)';
+    status.textContent = msg;
+    submit.style.display = 'none';
+    closeBtn.textContent = 'Fermer';
     loadCompanySweep();
   } catch (e) {
-    showToast('Erreur : ' + e.message, 'error');
+    let txt = '❌ ' + (e.message || 'Erreur inconnue.');
+    if (e.code) txt += '\nCode : ' + e.code;
+    if (e.details) {
+      try { txt += '\n\n— Détails —\n' + JSON.stringify(e.details, null, 2); } catch (_) {}
+    }
+    if (e.payload && e.payload.raw) {
+      try { txt += '\n\n— Réponse —\n' + JSON.stringify(e.payload.raw, null, 2); } catch (_) {}
+    }
+    status.style.background = 'rgba(231,76,60,0.1)';
+    status.style.border = '1px solid rgba(231,76,60,0.4)';
+    status.style.color = 'var(--red)';
+    status.textContent = txt;
+    submit.disabled = false;
+    submit.textContent = 'Réessayer';
   }
 }
 
