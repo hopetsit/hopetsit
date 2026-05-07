@@ -240,4 +240,60 @@ class MapBoostController extends GetxController {
       return false;
     }
   }
+
+  // v23.1 part 108 — PawSpot custom location.
+  // GET  /map-boost/location → { boostActive, hasCustomLocation, lat, lng, label, isFallback }
+  // POST /map-boost/location { lat, lng, label? }
+  // DEL  /map-boost/location
+
+  /// Réactif : la position courante du PawSpot (custom OU fallback adresse).
+  final Rx<Map<String, dynamic>?> currentLocation = Rx<Map<String, dynamic>?>(null);
+
+  Future<void> loadCurrentLocation() async {
+    try {
+      final api = Get.find<ApiClient>();
+      final r = await api.get('/map-boost/location', requiresAuth: true);
+      if (r is Map) {
+        currentLocation.value = Map<String, dynamic>.from(r);
+      }
+    } catch (e) {
+      debugPrint('[MapBoost] loadCurrentLocation error: $e');
+    }
+  }
+
+  Future<bool> setCustomLocation({
+    required double lat,
+    required double lng,
+    String? label,
+  }) async {
+    try {
+      final api = Get.find<ApiClient>();
+      await api.post(
+        '/map-boost/location',
+        body: {
+          'lat': lat,
+          'lng': lng,
+          if (label != null && label.isNotEmpty) 'label': label,
+        },
+        requiresAuth: true,
+      );
+      await loadCurrentLocation();
+      return true;
+    } catch (e) {
+      debugPrint('[MapBoost] setCustomLocation error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> clearCustomLocation() async {
+    try {
+      final api = Get.find<ApiClient>();
+      await api.delete('/map-boost/location', requiresAuth: true);
+      await loadCurrentLocation();
+      return true;
+    } catch (e) {
+      debugPrint('[MapBoost] clearCustomLocation error: $e');
+      return false;
+    }
+  }
 }

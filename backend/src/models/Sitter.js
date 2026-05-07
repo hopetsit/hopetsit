@@ -72,6 +72,12 @@ const sitterSchema = new mongoose.Schema(
     // Phase 5 — PawMap boost (pin highlighted on the map)
     mapBoostExpiry: { type: Date, default: null },
     mapBoostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },
+    // v23.1 part 108 — PawSpot location custom (cf Walker.js).
+    mapBoostLocation: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], default: undefined },
+      label: { type: String, default: '' },
+    },
     // Sprint 7 step 2 — Top sitter flag (completed>=20 && avgRating>4.5).
     isTopSitter: { type: Boolean, default: false },
     completedServicesCount: { type: Number, default: 0 },
@@ -252,6 +258,8 @@ sitterSchema.pre('save', function encryptSensitive(next) {
 
 // Create geospatial index for location queries (e.g., finding nearby sitters)
 sitterSchema.index({ 'location': '2dsphere' });
+// v23.1 part 108 — 2dsphere sur mapBoostLocation (PawSpot custom).
+sitterSchema.index({ 'mapBoostLocation': '2dsphere' }, { sparse: true });
 
 module.exports = mongoose.model('Sitter', sitterSchema);
 

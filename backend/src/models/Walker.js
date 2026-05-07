@@ -195,6 +195,21 @@ const walkerSchema = new mongoose.Schema(
       enum: [null, 'bronze', 'silver', 'gold', 'platinum'],
       default: null,
     },
+    // v23.1 part 108 — Daniel : "les pawspot ne marchent toujours pas".
+    // Le PawSpot DOIT pouvoir être placé à un endroit choisi sur la carte
+    // (ex : un parc populaire, près d'un vétérinaire, le quartier où on
+    // veut être visible) — pas seulement à l'adresse perso du user.
+    // GeoJSON Point. Si non défini, /walkers/nearby retombe sur
+    // location.coordinates comme avant.
+    mapBoostLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: { type: [Number], default: undefined },
+      label: { type: String, default: '' }, // optionnel : "Parc Buttes Chaumont"
+    },
 
     // Referral program
     referralCode: { type: String, unique: true, sparse: true, index: true },
@@ -357,6 +372,10 @@ walkerSchema.pre('save', function encryptSensitive(next) {
 
 // Geospatial index for "walkers nearby" queries.
 walkerSchema.index({ location: '2dsphere' });
+
+// v23.1 part 108 — index 2dsphere sur mapBoostLocation pour la 2e passe
+// du /walkers/nearby (PawSpot custom location).
+walkerSchema.index({ mapBoostLocation: '2dsphere' }, { sparse: true });
 
 // Compound index to quickly find boosted walkers on the PawMap.
 walkerSchema.index({ mapBoostExpiry: 1, boostExpiry: 1 });

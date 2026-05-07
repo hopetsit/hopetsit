@@ -9,6 +9,7 @@ import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/views/auth/location_picker_map_screen.dart';
 import 'package:hopetsit/views/boost/widgets/map_boost_pin_icon.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -1378,6 +1379,9 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildMapBoostStatus(context, controller),
+              SizedBox(height: 12.h),
+              // v23.1 part 108 — section PawSpot location custom.
+              _buildPawSpotLocationCard(context, controller),
               SizedBox(height: 16.h),
               _buildPremiumCreditCard(context, controller),
               SizedBox(height: 20.h),
@@ -1493,6 +1497,157 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
         ],
       ),
     );
+  }
+
+  // v23.1 part 108 — Daniel : "les pawspot ne marchent toujours pas".
+  // Le PawSpot avait besoin d'une position spécifique sur la carte (pas
+  // l'adresse perso du user). Ce widget permet à l'user de :
+  //   - voir la position actuelle de son PawSpot (custom ou fallback)
+  //   - choisir un nouveau spot (ouvre le LocationPickerMapScreen)
+  //   - revenir au fallback (= adresse perso) en supprimant le custom
+  // Au 1er affichage, on charge la location courante.
+  Widget _buildPawSpotLocationCard(
+    BuildContext context,
+    MapBoostController controller,
+  ) {
+    if (!_locLoaded) {
+      _locLoaded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.loadCurrentLocation();
+      });
+    }
+    return Obx(() {
+      final loc = controller.currentLocation.value;
+      if (loc == null) return const SizedBox.shrink();
+      final hasCustom = loc['hasCustomLocation'] == true;
+      final isFallback = loc['isFallback'] == true;
+      final hasFallback = loc['hasFallback'] == true;
+      final lat = loc['lat'] is num ? (loc['lat'] as num).toDouble() : null;
+      final lng = loc['lng'] is num ? (loc['lng'] as num).toDouble() : null;
+      final label = (loc['label'] as String?) ?? '';
+
+      String summary;
+      Color borderColor;
+      if (hasCustom) {
+        summary = label.isNotEmpty
+            ? '📍 PawSpot : $label'
+            : '📍 PawSpot personnalisé (${lat?.toStringAsFixed(4)}, ${lng?.toStringAsFixed(4)})';
+        borderColor = const Color(0xFF10B981);
+      } else if (isFallback) {
+        summary = '⚠️ PawSpot utilise ton adresse perso. Choisis un emplacement spécifique pour mieux apparaître sur la carte.';
+        borderColor = const Color(0xFFF39C12);
+      } else if (!hasFallback) {
+        summary = '❌ Aucune position définie. Ton PawSpot est invisible sur la carte tant que tu ne choisis pas un emplacement.';
+        borderColor = const Color(0xFFE74C3C);
+      } else {
+        summary = 'Position non chargée.';
+        borderColor = AppColors.divider(context);
+      }
+
+      return Container(
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: borderColor, width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.place, color: AppColors.primaryColor, size: 20.sp),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: InterText(
+                    text: 'Emplacement de ton PawSpot',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            InterText(
+              text: summary,
+              fontSize: 12.sp,
+              color: AppColors.textSecondary(context),
+            ),
+            SizedBox(height: 12.h),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _pickPawSpotLocation(context, controller),
+                    icon: const Icon(Icons.map),
+                    label: Text(hasCustom ? 'Changer' : 'Choisir mon spot'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 10.h),
+                    ),
+                  ),
+                ),
+                if (hasCustom) ...[
+                  SizedBox(width: 8.w),
+                  IconButton(
+                    onPressed: () => _clearPawSpotLocation(context, controller),
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Revenir à mon adresse perso',
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  bool _locLoaded = false;
+
+  Future<void> _pickPawSpotLocation(
+    BuildContext context,
+    MapBoostController controller,
+  ) async {
+    // Réutilise le LocationPickerMapScreen existant (utilisé déjà au signup).
+    // Il retourne { city, latitude, longitude } via Get.back(result: ...).
+    final result = await Get.to<Map<String, dynamic>?>(
+      () => const LocationPickerMapScreen(),
+    );
+    if (result == null) return;
+    final lat = (result['latitude'] as num?)?.toDouble();
+    final lng = (result['longitude'] as num?)?.toDouble();
+    final label = (result['city'] as String?) ?? '';
+    if (lat == null || lng == null) return;
+    final ok = await controller.setCustomLocation(lat: lat, lng: lng, label: label);
+    if (!mounted) return;
+    if (ok) {
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'PawSpot mis à jour : $label',
+      );
+    } else {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'Échec de mise à jour du PawSpot.',
+      );
+    }
+  }
+
+  Future<void> _clearPawSpotLocation(
+    BuildContext context,
+    MapBoostController controller,
+  ) async {
+    final ok = await controller.clearCustomLocation();
+    if (!mounted) return;
+    if (ok) {
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'PawSpot supprimé. Ton adresse perso est utilisée.',
+      );
+    }
   }
 
   Widget _buildPremiumCreditCard(BuildContext context, MapBoostController controller) {

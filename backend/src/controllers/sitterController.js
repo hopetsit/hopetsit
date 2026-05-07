@@ -127,6 +127,7 @@ const findNearbySitters = async (req, res) => {
         distanceField: 'distance', // Distance in meters
         spherical: true,
         query: filter,
+        key: 'location',
       },
     };
 
@@ -151,7 +152,39 @@ const findNearbySitters = async (req, res) => {
       });
     }
 
-    const sitters = await Sitter.aggregate(aggregationPipeline);
+    // v23.1 part 108 — 2e passe : sitters avec PawSpot custom
+    // (mapBoostLocation) actifs dans le rayon. On les fusionne dans la
+    // liste pour qu'ils apparaissent même si leur Sitter.location est
+    // ailleurs (ou non défini).
+    const nowMb = new Date();
+    const mbStage = {
+      $geoNear: {
+        near: { type: 'Point', coordinates: [longitude, latitude] },
+        distanceField: 'distance',
+        spherical: true,
+        key: 'mapBoostLocation',
+        query: {
+          ...filter,
+          mapBoostExpiry: { $gt: nowMb },
+          'mapBoostLocation.coordinates': { $exists: true, $ne: null },
+        },
+      },
+    };
+    if (radiusInMeters !== null) mbStage.$geoNear.maxDistance = radiusInMeters;
+    const [primary, viaPawSpot] = await Promise.all([
+      Sitter.aggregate(aggregationPipeline),
+      Sitter.aggregate([mbStage, { $sort: { distance: 1 } }, { $limit: 500 }])
+        .catch(() => []),
+    ]);
+    const sittersById = new Map();
+    for (const s of primary) sittersById.set(String(s._id), s);
+    for (const s of viaPawSpot) {
+      const id = String(s._id);
+      if (!sittersById.has(id) || s.distance < (sittersById.get(id).distance || Infinity)) {
+        sittersById.set(id, { ...s, _matchedBy: 'mapBoostLocation' });
+      }
+    }
+    const sitters = Array.from(sittersById.values());
 
     // Format response with sitter details
     // v23.1 part 65 — Bug 9 : also surface MAP BOOST (PawSpot) data, not

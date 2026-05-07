@@ -419,4 +419,97 @@ router.post('/claim-credit', requireAuth, async (req, res) => {
   }
 });
 
+// v23.1 part 108 — Daniel : "les pawspot ne marchent toujours pas".
+// Le PawSpot avait besoin de location.coordinates du user (son adresse
+// perso) pour apparaître sur la map. Si le user n'avait pas géocodé
+// son adresse, son PawSpot était invisible. Plus grave : « PawSpot »
+// suggère un SPOT spécifique sur la map, pas l'adresse perso.
+//
+// Ces 2 endpoints permettent au user de définir/lire l'emplacement de
+// son PawSpot indépendamment de son adresse.
+//
+// GET /map-boost/location → { active, lat, lng, label }
+// POST /map-boost/location { lat, lng, label? } → 200 OK
+
+router.get('/location', requireAuth, async (req, res) => {
+  try {
+    const Model = roleToModel(req.user.role);
+    const user = await Model.findById(req.user.id).select(
+      'mapBoostLocation mapBoostExpiry mapBoostTier location',
+    );
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    const now = new Date();
+    const isBoostActive = !!(user.mapBoostExpiry && new Date(user.mapBoostExpiry) > now);
+    const ml = user.mapBoostLocation || {};
+    const hasCustom = Array.isArray(ml.coordinates) && ml.coordinates.length === 2;
+    // Fallback : location.coordinates du user.
+    const fallback = user.location && Array.isArray(user.location.coordinates)
+      ? user.location.coordinates
+      : null;
+    const coords = hasCustom ? ml.coordinates : fallback;
+    res.json({
+      boostActive: isBoostActive,
+      tier: isBoostActive ? user.mapBoostTier : null,
+      hasCustomLocation: hasCustom,
+      lat: coords ? Number(coords[1]) : null,
+      lng: coords ? Number(coords[0]) : null,
+      label: ml.label || '',
+      isFallback: !hasCustom && !!fallback,
+      hasFallback: !!fallback,
+    });
+  } catch (e) {
+    logger.error('[mapBoost/location GET]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/location', requireAuth, async (req, res) => {
+  try {
+    const lat = Number(req.body?.lat);
+    const lng = Number(req.body?.lng);
+    const label = (req.body?.label || '').toString().trim().slice(0, 80);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      return res.status(400).json({ error: 'Invalid lat.' });
+    }
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+      return res.status(400).json({ error: 'Invalid lng.' });
+    }
+    const Model = roleToModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    user.mapBoostLocation = {
+      type: 'Point',
+      coordinates: [lng, lat], // GeoJSON ordering : [lng, lat]
+      label,
+    };
+    await user.save();
+    logger.info(
+      `[mapBoost/location] ${req.user.role} ${req.user.id} set PawSpot to [${lng},${lat}] (${label || '?'})`,
+    );
+    res.json({
+      message: 'PawSpot location updated.',
+      lat,
+      lng,
+      label,
+    });
+  } catch (e) {
+    logger.error('[mapBoost/location POST]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/location', requireAuth, async (req, res) => {
+  try {
+    const Model = roleToModel(req.user.role);
+    const user = await Model.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    user.mapBoostLocation = undefined;
+    await user.save();
+    res.json({ message: 'PawSpot location cleared (will fallback to user address).' });
+  } catch (e) {
+    logger.error('[mapBoost/location DELETE]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

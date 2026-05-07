@@ -51,6 +51,12 @@ const ownerSchema = new mongoose.Schema(
     // Phase 5 — PawMap boost (pin highlighted on the map)
     mapBoostExpiry: { type: Date, default: null },
     mapBoostTier: { type: String, enum: [null, 'bronze', 'silver', 'gold', 'platinum'], default: null },
+    // v23.1 part 108 — PawSpot location custom (cf Walker.js).
+    mapBoostLocation: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], default: undefined },
+      label: { type: String, default: '' },
+    },
     // Sprint 7 step 1 — loyalty: true when 10+ completed bookings.
     isPremium: { type: Boolean, default: false },
     // Sprint 7 step 3 — referral program.
@@ -111,6 +117,8 @@ const ownerSchema = new mongoose.Schema(
 
 // Create geospatial index for location queries (e.g., finding nearby sitters)
 ownerSchema.index({ 'location': '2dsphere' });
+// v23.1 part 108 — 2dsphere sur mapBoostLocation (PawSpot custom).
+ownerSchema.index({ 'mapBoostLocation': '2dsphere' }, { sparse: true });
 
 // Strip invalid location before save so MongoDB 2dsphere index never sees coordinates: null
 ownerSchema.pre('save', function stripInvalidLocation(next) {

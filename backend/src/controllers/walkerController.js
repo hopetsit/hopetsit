@@ -118,39 +118,79 @@ const findNearbyWalkers = async (req, res) => {
       return res.status(400).json({ error: 'Query params `lat` and `lng` are required.' });
     }
 
-    const walkers = await Walker.aggregate([
-      {
-        $geoNear: {
-          near: { type: 'Point', coordinates: [lng, lat] },
-          distanceField: 'distanceInMeters',
-          maxDistance: radiusInMeters,
-          spherical: true,
-          // Session v15-6 — include legacy walkers without status field.
-          query: {
-            $or: [
-              { status: 'active' },
-              { status: { $exists: false } },
-              { status: null },
-            ],
+    // v23.1 part 108 — recherche en 2 passes pour que les PawSpot avec
+    // mapBoostLocation custom apparaissent même si Walker.location est
+    // ailleurs (ou pas défini).
+    //   Pass 1 : near walker.location (existant)
+    //   Pass 2 : near walker.mapBoostLocation, boost actif uniquement
+    // On dédupe par _id (la plus proche distance gagne).
+    const now = new Date();
+    const baseStatusFilter = {
+      $or: [
+        { status: 'active' },
+        { status: { $exists: false } },
+        { status: null },
+      ],
+    };
+    const [byLocation, byMapBoost] = await Promise.all([
+      Walker.aggregate([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lng, lat] },
+            distanceField: 'distanceInMeters',
+            maxDistance: radiusInMeters,
+            spherical: true,
+            query: baseStatusFilter,
+            key: 'location',
           },
         },
-      },
-      { $limit: 50 },
-      {
-        $project: {
-          password: 0,
-          ibanNumber: 0,
-          insuranceCertUrl: 0,
-          paypalEmail: 0,
+        { $limit: 50 },
+      ]),
+      Walker.aggregate([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lng, lat] },
+            distanceField: 'distanceInMeters',
+            maxDistance: radiusInMeters,
+            spherical: true,
+            query: {
+              ...baseStatusFilter,
+              mapBoostExpiry: { $gt: now },
+              'mapBoostLocation.coordinates': { $exists: true, $ne: null },
+            },
+            key: 'mapBoostLocation',
+          },
         },
-      },
+        { $limit: 50 },
+      ]).catch(() => []), // si l'index n'existe pas encore, on ignore.
     ]);
+    // Dédupe : on garde la plus petite distance par _id.
+    const byId = new Map();
+    for (const w of byLocation) {
+      const id = String(w._id);
+      if (!byId.has(id) || w.distanceInMeters < byId.get(id).distanceInMeters) {
+        byId.set(id, w);
+      }
+    }
+    for (const w of byMapBoost) {
+      const id = String(w._id);
+      // Les boostés via PawSpot location sont "vus" depuis ce point custom.
+      // On préfère les garder (distance via mapBoostLocation = ce qui compte
+      // pour eux).
+      if (!byId.has(id) || w.distanceInMeters < byId.get(id).distanceInMeters) {
+        byId.set(id, { ...w, _matchedBy: 'mapBoostLocation' });
+      }
+    }
+    const walkers = Array.from(byId.values()).map((w) => {
+      // Strip sensitive fields
+      const { password, ibanNumber, insuranceCertUrl, paypalEmail, ...rest } = w;
+      return rest;
+    });
 
     // v23.1 part 65 — Bug 9 : annotate boost flags so the PawMap UI can
     // bubble PawSpot-paid walkers to the top of the list and apply
     // a special pin treatment. Without this, paying for PawSpot had
     // zero visible effect on the map for the walker.
-    const now = new Date();
     const enriched = walkers.map((w) => {
       const safe = sanitizeUser(w);
       const isBoosted = w.boostExpiry && new Date(w.boostExpiry) > now;
