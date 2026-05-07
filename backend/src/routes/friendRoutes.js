@@ -75,6 +75,65 @@ async function enrichFriendship(friendship, viewerId) {
   };
 }
 
+// v23.1 part 69 — Bug 9 : "Comment sajoute les amis ?". Daniel didn't
+// know how to add friends. Added a search-by-email endpoint that the
+// frontend's "+ Ajouter un ami" dialog calls.
+//
+// GET /friends/search?q=<email_or_name>
+//   Returns up to 10 users (owner/sitter/walker) whose email contains
+//   the query, plus their role and id. Excludes the caller themselves.
+router.get('/search', requireAuth, async (req, res) => {
+  try {
+    const q = (req.query.q || '').toString().trim().toLowerCase();
+    if (q.length < 2) {
+      return res.json({ users: [] });
+    }
+    const meId = req.user.id;
+    const escape = q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const re = new RegExp(escape, 'i');
+    const projection = 'name email avatar';
+
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find({ $or: [{ email: re }, { name: re }] })
+        .select(projection).limit(10).lean(),
+      Sitter.find({ $or: [{ email: re }, { name: re }] })
+        .select(projection).limit(10).lean(),
+      Walker.find({ $or: [{ email: re }, { name: re }] })
+        .select(projection).limit(10).lean(),
+    ]);
+
+    const _avatarUrl = (a) => (a && (a.url || a)) || '';
+    const merged = [
+      ...owners.map((u) => ({
+        id: u._id.toString(),
+        role: 'owner',
+        name: u.name || '',
+        email: u.email || '',
+        avatar: _avatarUrl(u.avatar),
+      })),
+      ...sitters.map((u) => ({
+        id: u._id.toString(),
+        role: 'sitter',
+        name: u.name || '',
+        email: u.email || '',
+        avatar: _avatarUrl(u.avatar),
+      })),
+      ...walkers.map((u) => ({
+        id: u._id.toString(),
+        role: 'walker',
+        name: u.name || '',
+        email: u.email || '',
+        avatar: _avatarUrl(u.avatar),
+      })),
+    ].filter((u) => u.id !== meId).slice(0, 10);
+
+    res.json({ users: merged });
+  } catch (e) {
+    logger.error('[friends/search]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── GET /friends — my accepted friends ─────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
   try {

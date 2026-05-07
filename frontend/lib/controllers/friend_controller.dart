@@ -72,6 +72,24 @@ class FriendController extends GetxController {
     }
   }
 
+  /// v23.1 part 69 — Bug 9 : search users by email or name to send a
+  /// friend request. Backend returns up to 10 owners/sitters/walkers
+  /// whose email or name match the query.
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      final api = Get.find<ApiClient>();
+      final r = await api.get(
+        '/friends/search?q=${Uri.encodeQueryComponent(query)}',
+        requiresAuth: true,
+      );
+      final list = (r is Map && r['users'] is List) ? r['users'] as List : [];
+      return list.whereType<Map>().map((u) => Map<String, dynamic>.from(u)).toList();
+    } catch (e) {
+      debugPrint('[Friends] searchUsers error: $e');
+      return [];
+    }
+  }
+
   Future<bool> accept(String friendshipId) async {
     try {
       final api = Get.find<ApiClient>();

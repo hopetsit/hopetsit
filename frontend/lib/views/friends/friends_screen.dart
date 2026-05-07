@@ -91,6 +91,170 @@ class FriendsScreen extends StatelessWidget {
             _RequestsTab(controller: controller),
           ],
         ),
+        // v23.1 part 69 — Bug 9 : Daniel "Comment sajoute les amis ?".
+        // Adds a clear "+ Ajouter un ami" FAB that opens a search-by-
+        // email dialog. The empty state was just text so the user had
+        // no idea how to find people. FAB is always visible.
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: AppColors.primaryColor,
+          icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
+          label: Text(
+            'Ajouter un ami',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 14.sp,
+            ),
+          ),
+          onPressed: () => _showAddFriendDialog(context, controller),
+        ),
+      ),
+    );
+  }
+
+  /// v23.1 part 69 — Bug 9 : add-friend dialog with email/name search.
+  void _showAddFriendDialog(BuildContext context, FriendController controller) {
+    final searchCtrl = TextEditingController();
+    final results = <Map<String, dynamic>>[].obs;
+    final loading = false.obs;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        child: Padding(
+          padding: EdgeInsets.all(20.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.person_add_alt_1_rounded,
+                      color: AppColors.primaryColor, size: 24.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: InterText(
+                      text: 'Ajouter un ami',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, size: 22.sp),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+              InterText(
+                text: 'Cherche par email ou nom (min. 2 caractères)',
+                fontSize: 12.sp,
+                color: AppColors.greyText,
+              ),
+              SizedBox(height: 12.h),
+              TextField(
+                controller: searchCtrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'ami@example.com ou Daniel',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                ),
+                onChanged: (q) async {
+                  if (q.length < 2) {
+                    results.clear();
+                    return;
+                  }
+                  loading.value = true;
+                  results.assignAll(await controller.searchUsers(q));
+                  loading.value = false;
+                },
+              ),
+              SizedBox(height: 12.h),
+              SizedBox(
+                height: 240.h,
+                child: Obx(() {
+                  if (loading.value) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (results.isEmpty) {
+                    return Center(
+                      child: InterText(
+                        text: searchCtrl.text.isEmpty
+                            ? 'Tape un email ou un nom'
+                            : 'Aucun résultat',
+                        fontSize: 13.sp,
+                        color: AppColors.greyText,
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    itemCount: results.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: AppColors.divider(context),
+                    ),
+                    itemBuilder: (_, i) {
+                      final u = results[i];
+                      final id = (u['id'] ?? '').toString();
+                      final role = (u['role'] ?? '').toString();
+                      final name = (u['name'] ?? '').toString();
+                      final email = (u['email'] ?? '').toString();
+                      final avatar = (u['avatar'] ?? '').toString();
+                      return ListTile(
+                        leading: CircleAvatar(
+                          radius: 18.r,
+                          backgroundColor:
+                              AppColors.primaryColor.withValues(alpha: 0.15),
+                          backgroundImage:
+                              avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                          child: avatar.isEmpty
+                              ? Icon(Icons.person,
+                                  size: 18.sp, color: AppColors.primaryColor)
+                              : null,
+                        ),
+                        title: Text(name.isNotEmpty ? name : email),
+                        subtitle: Text('$role · $email'),
+                        trailing: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20.r),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12.w, vertical: 6.h),
+                          ),
+                          onPressed: () async {
+                            final ok = await controller.sendRequest(id, role);
+                            if (!context.mounted) return;
+                            if (ok) {
+                              Navigator.of(ctx).pop();
+                              CustomSnackbar.showSuccess(
+                                title: 'Demande envoyée',
+                                message: 'On préviendra $name dès qu\'iel accepte.',
+                              );
+                            } else {
+                              CustomSnackbar.showError(
+                                title: 'Erreur',
+                                message: 'Impossible d\'envoyer la demande.',
+                              );
+                            }
+                          },
+                          child: const Text('Inviter',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                      );
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
