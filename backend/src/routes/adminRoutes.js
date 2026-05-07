@@ -2491,21 +2491,43 @@ router.get('/platform-balance', requireAdmin, async (req, res) => {
 router.get('/list-beneficiaries', requireAdmin, async (req, res) => {
   try {
     const r = await _airwallex.listBeneficiaries({ pageSize: 100 });
-    const items = (r?.items || []).map((b) => {
-      const bd = b?.beneficiary?.bank_details || {};
-      const masked = (bd.account_number || '').replace(/(.{4})(.*)(.{4})/, '$1****$3');
+    // v23.1 part 104 — Daniel : "le pop up dis tjr undefinided".
+    // Airwallex peut renvoyer la liste sous différentes shapes selon la
+    // version d'API : { items: [...] }, [...], { data: [...] },
+    // { beneficiaries: [...] }. On normalise + on cherche l'id à 5
+    // positions plausibles, comme on l'avait fait pour setup-beneficiary.
+    let rawList = [];
+    if (Array.isArray(r)) rawList = r;
+    else if (Array.isArray(r?.items)) rawList = r.items;
+    else if (Array.isArray(r?.data)) rawList = r.data;
+    else if (Array.isArray(r?.beneficiaries)) rawList = r.beneficiaries;
+
+    logger.info('[admin/list-beneficiaries] response shape: ' +
+      'isArray=' + Array.isArray(r) +
+      ' keys=' + (r && typeof r === 'object' ? JSON.stringify(Object.keys(r)) : 'n/a') +
+      ' itemsCount=' + rawList.length);
+
+    const items = rawList.map((b) => {
+      // Multiple paths to find the id (depending on Airwallex API version).
+      const id = b?.id || b?.beneficiary_id || b?.beneficiary?.id || b?.data?.id || null;
+      const bd = b?.beneficiary?.bank_details || b?.bank_details || {};
+      const beneficiary = b?.beneficiary || b;
+      const masked = (bd.account_number || bd.iban || '').replace(/(.{4})(.*)(.{4})/, '$1****$3');
       return {
-        id: b.id,
-        nickname: b.nickname || '',
-        type: b?.beneficiary?.type || '',
+        id,
+        nickname: b?.nickname || beneficiary?.nickname || '',
+        type: beneficiary?.type || beneficiary?.entity_type || '',
         accountName: bd.account_name || '',
         accountNumberMasked: masked,
         currency: bd.account_currency || '',
         country: bd.bank_country_code || '',
         bankName: bd.bank_name || '',
+        // v23.1 part 104 — debug : on inclut une copie réduite du raw
+        // Airwallex pour les éléments où id manque, pour diagnostic.
+        _rawKeys: !id ? Object.keys(b || {}).slice(0, 10) : undefined,
       };
     });
-    return res.json({ items });
+    return res.json({ items, rawCount: rawList.length });
   } catch (e) {
     logger.error('[admin/list-beneficiaries]', e);
     return res.status(500).json({ error: e.message });

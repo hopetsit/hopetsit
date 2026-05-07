@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 103</title>
+<title>HopeTSIT — Admin v23.1 part 104</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3587,52 +3587,96 @@ async function doCompanySweep() {
   }
 }
 
-// Liste les beneficiaries Airwallex existants pour que Daniel choisisse.
+// v23.1 part 104 — Liste les beneficiaries Airwallex existants. Vraie
+// modale (au lieu de prompt + alert) avec dump JSON debug si l'extraction
+// d'id échoue, pour qu'on puisse trouver le bon path.
 async function openPickBeneficiaryDialog() {
-  showToast('Chargement de tes comptes Airwallex...', 'success');
+  let ov = document.getElementById('pick-benef-overlay');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'pick-benef-overlay';
+  ov.className = 'modal-overlay open';
+  ov.innerHTML =
+    '<div class="modal" style="width:640px;max-height:85vh;overflow-y:auto">' +
+      '<div class="modal-title">📋 Mes bénéficiaires Airwallex</div>' +
+      '<div id="pick-benef-status" style="color:var(--text-muted);font-size:13px;margin-bottom:12px">Chargement...</div>' +
+      '<div id="pick-benef-list" style="display:grid;gap:8px"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="modal-close" onclick="document.getElementById(\'pick-benef-overlay\').remove()">Fermer</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
   try {
     const r = await api('/admin/list-beneficiaries');
     const items = r.items || [];
+    const list = document.getElementById('pick-benef-list');
+    const status = document.getElementById('pick-benef-status');
     if (!items.length) {
-      if (confirm('Aucun bénéficiaire trouvé sur ton compte Airwallex. Veux-tu en créer un nouveau ?')) {
-        openSetupBeneficiaryDialog();
-      }
+      status.textContent = 'Aucun bénéficiaire trouvé.';
+      list.innerHTML =
+        '<div style="padding:14px;background:var(--bg);border-radius:8px;text-align:center">' +
+          '<button class="action-btn btn-primary" onclick="document.getElementById(\'pick-benef-overlay\').remove(); openSetupBeneficiaryDialog()">➕ Créer un nouveau bénéficiaire</button>' +
+        '</div>';
       return;
     }
-    const lines = items.map((it, idx) =>
-      (idx + 1) + '. ' + (it.nickname || it.accountName || it.id) +
-      ' — ' + (it.bankName || '?') + ' ' + (it.accountNumberMasked || '') +
-      ' (' + (it.currency || '?') + ')'
-    ).join('\n');
-    const choice = prompt(
-      'Tape le numéro du compte qui recevra tes bénéfices :\n\n' + lines,
-      '1'
-    );
-    if (choice === null) return;
-    const idx = parseInt(choice, 10) - 1;
-    if (!(idx >= 0 && idx < items.length)) {
-      showToast('Choix invalide.', 'error');
-      return;
-    }
-    const picked = items[idx];
-    // Affiche l'instruction Render — on ne persiste pas côté serveur, Daniel
-    // copie la ligne dans Render → Environment et redéploiement auto.
-    const msg =
-      'Bénéficiaire choisi : ' + (picked.nickname || picked.accountName || picked.id) + '\n\n' +
-      'AJOUTE MAINTENANT cette ligne dans Render → Environment :\n\n' +
-      'COMPANY_AIRWALLEX_BENEFICIARY_ID=' + picked.id + '\n\n' +
-      'Render redéploiera tout seul, puis le bouton « Retirer » deviendra cliquable.';
-    alert(msg);
-    // Test la validité côté Airwallex pour confirmer.
-    try {
-      await api('/admin/test-beneficiary', 'POST', { beneficiaryId: picked.id });
-      showToast('✅ Bénéficiaire valide. Configure Render maintenant.', 'success');
-    } catch (e) {
-      showToast('⚠️ Bénéficiaire trouvé mais test KO : ' + e.message, 'error');
+    status.innerHTML = '<strong>' + items.length + '</strong> bénéficiaire(s) trouvé(s). Clique sur celui qui doit recevoir tes bénéfices :';
+    list.innerHTML = items.map((it, idx) => {
+      const idDisplay = it.id || '<span style="color:var(--red)">id manquant</span>';
+      const name = it.nickname || it.accountName || (it.id ? it.id : '?');
+      const debug = it._rawKeys ? '<div style="font-size:10px;color:var(--orange);margin-top:4px">⚠️ id manquant. Champs disponibles : ' + JSON.stringify(it._rawKeys) + '</div>' : '';
+      return (
+        '<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+          '<div style="flex:1;min-width:220px">' +
+            '<div style="font-weight:700;font-size:14px">' + name + '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' +
+              (it.bankName || '?') + ' · ' + (it.accountNumberMasked || '?') + ' · ' + (it.currency || '?') + ' · ' + (it.country || '?') +
+            '</div>' +
+            '<div style="font-family:monospace;font-size:11px;color:var(--text-muted);margin-top:4px">' + idDisplay + '</div>' +
+            debug +
+          '</div>' +
+          (it.id ? (
+            '<button class="action-btn btn-primary" onclick="pickBeneficiary(' + idx + ', \'' + it.id + '\', \'' + (name.replace(/'/g, "\\'")) + '\')">Choisir</button>'
+          ) : '<span style="color:var(--red);font-size:12px">non sélectionnable</span>') +
+        '</div>'
+      );
+    }).join('');
+    // Si AUCUN id valide n'a été extrait, on affiche le payload entier
+    // pour que Daniel puisse me le coller.
+    const validCount = items.filter((it) => !!it.id).length;
+    if (validCount === 0) {
+      list.innerHTML += (
+        '<div style="margin-top:14px;padding:12px;background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.4);border-radius:10px">' +
+          '<div style="color:var(--red);font-weight:700;font-size:13px;margin-bottom:8px">⚠️ Aucun id n\'a pu être extrait</div>' +
+          '<pre style="background:var(--bg);padding:10px;border-radius:8px;font-size:11px;max-height:280px;overflow:auto">' +
+            JSON.stringify(r, null, 2).replace(/</g, '&lt;') +
+          '</pre>' +
+        '</div>'
+      );
     }
   } catch (e) {
-    showToast('Erreur : ' + e.message, 'error');
+    document.getElementById('pick-benef-list').innerHTML =
+      '<div style="color:var(--red);padding:14px">' + e.message + '</div>';
   }
+}
+
+async function pickBeneficiary(idx, id, name) {
+  if (!id || id === 'undefined' || id === 'null') {
+    showToast('Id invalide.', 'error');
+    return;
+  }
+  // Test la validité côté Airwallex pour confirmer.
+  try {
+    await api('/admin/test-beneficiary', 'POST', { beneficiaryId: id });
+  } catch (e) {
+    showToast('⚠️ Bénéficiaire trouvé mais test KO : ' + e.message, 'error');
+  }
+  document.getElementById('pick-benef-overlay').remove();
+  alert(
+    'Bénéficiaire choisi : ' + name + '\n\n' +
+    '⚠️ AJOUTE MAINTENANT cette ligne dans Render → Environment :\n\n' +
+    'COMPANY_AIRWALLEX_BENEFICIARY_ID=' + id + '\n\n' +
+    'Remplace la valeur "undefined" actuelle. Render redéploiera tout seul (~1 min) puis le bouton « Retirer » fonctionnera.'
+  );
 }
 
 // Crée un nouveau beneficiary société depuis l'admin (formulaire IBAN).
