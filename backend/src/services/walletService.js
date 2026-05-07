@@ -217,8 +217,124 @@ async function getBalance({ userId, userRole }) {
   };
 }
 
+/**
+ * v23.1 part 78 — Daniel : "jai fais des payout sur walker cest toujour
+ * en attente le statut ne bouge pas argent pas recu".
+ *
+ * Auto-process pending wallet withdrawals via Airwallex Payout API. Run
+ * every tick of the existing payoutScheduler. For each pending
+ * `debit_withdrawal` transaction :
+ *   1. Re-validate that the user still has IBAN configured + Airwallex
+ *      beneficiary id
+ *   2. Call airwallex.createPayout to actually move the money to the
+ *      walker / sitter's bank
+ *   3. Flip the transaction to status='processing' with the Airwallex
+ *      payout id stored in referenceId
+ *   4. Booking webhook (payout.status update) will later flip it to
+ *      'completed'.
+ *
+ * If beneficiaryId is missing → leave as pending so the admin can
+ * resolve manually (or the IBAN-save flow auto-creates it later).
+ * Errors are non-fatal — kept pending for retry.
+ */
+async function processPendingWithdrawals() {
+  let released = 0;
+  try {
+    const airwallex = require('./airwallexService');
+    const items = await WalletTransaction.find({
+      type: 'debit_withdrawal',
+      status: 'pending',
+      withdrawalMethod: 'iban', // PayPal payouts go through a separate flow
+    })
+      .sort({ createdAt: 1 })
+      .limit(50)
+      .lean();
+
+    for (const tx of items) {
+      try {
+        const Model = _roleModel(tx.userRole);
+        if (!Model) continue;
+        const user = await Model.findById(tx.userId).select(
+          'airwallexBeneficiaryId ibanVerified ibanHolder name email',
+        );
+        if (!user) {
+          logger.warn(`[wallet.processPendingWithdrawals] user not found ${tx.userId}`);
+          continue;
+        }
+        if (!user.airwallexBeneficiaryId) {
+          logger.info(
+            `[wallet.processPendingWithdrawals] tx ${tx._id} user ${tx.userId} ` +
+            `has no Airwallex beneficiary yet — keeping pending for next tick.`,
+          );
+          continue;
+        }
+        if (!user.ibanVerified) {
+          logger.info(
+            `[wallet.processPendingWithdrawals] tx ${tx._id} user ${tx.userId} ` +
+            `IBAN not yet verified — keeping pending.`,
+          );
+          continue;
+        }
+
+        // Mark as processing BEFORE the API call so concurrent ticks
+        // can't double-pay.
+        const claimed = await WalletTransaction.findOneAndUpdate(
+          { _id: tx._id, status: 'pending' },
+          { $set: { status: 'processing', processingStartedAt: new Date() } },
+          { new: true },
+        );
+        if (!claimed) continue; // another tick beat us
+
+        try {
+          const amountInCents = Math.round(tx.amount * 100);
+          const payout = await airwallex.createPayout({
+            beneficiaryId: user.airwallexBeneficiaryId,
+            amount: amountInCents,
+            currency: tx.currency || 'EUR',
+            reference: `Wallet WD ${String(tx._id).slice(-8)}`,
+            metadata: {
+              type: 'wallet_withdrawal',
+              transactionId: String(tx._id),
+              userId: String(tx.userId),
+              userRole: tx.userRole,
+            },
+          });
+          claimed.referenceId = payout?.id || claimed.referenceId;
+          // Airwallex returns status PENDING → flip to processing
+          // confirmed. Webhook later confirms COMPLETED.
+          await claimed.save();
+          logger.info(
+            `[wallet.processPendingWithdrawals] tx ${tx._id} → Airwallex payout ` +
+            `${payout?.id} (${tx.amount} ${tx.currency} to ${tx.userRole} ${tx.userId}).`,
+          );
+          released += 1;
+        } catch (apiErr) {
+          // Roll back to pending so a later tick can retry.
+          claimed.status = 'pending';
+          claimed.processingStartedAt = null;
+          await claimed.save();
+          logger.error(
+            `[wallet.processPendingWithdrawals] Airwallex payout failed for tx ` +
+            `${tx._id} : ${apiErr.message}`,
+          );
+        }
+      } catch (e) {
+        logger.error(
+          `[wallet.processPendingWithdrawals] error on tx ${tx._id} : ${e.message}`,
+        );
+      }
+    }
+  } catch (e) {
+    logger.error('[wallet.processPendingWithdrawals] outer error', e);
+  }
+  if (released > 0) {
+    logger.info(`💸 [wallet.processPendingWithdrawals] released ${released} withdrawal(s).`);
+  }
+}
+
 module.exports = {
   creditWallet,
   debitWallet,
   getBalance,
+  processPendingWithdrawals,
 };

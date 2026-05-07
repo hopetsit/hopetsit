@@ -55,6 +55,11 @@ function startPayoutScheduler({
     processHeldPayouts,
   } = require('../controllers/bookingController');
 
+  // v23.1 part 78 — Daniel : "payout walker reste en attente". Auto-
+  // process pending wallet withdrawals via Airwallex Payout API on the
+  // same tick as booking payouts.
+  const { processPendingWithdrawals } = require('./walletService');
+
   const tick = async () => {
     try {
       await processScheduledSitterPayouts();
@@ -67,6 +72,11 @@ function startPayoutScheduler({
       await processHeldPayouts();
     } catch (error) {
       logger.error('❌ Payout scheduler tick (held) failed', error);
+    }
+    try {
+      await processPendingWithdrawals();
+    } catch (error) {
+      logger.error('❌ Payout scheduler tick (withdrawals) failed', error);
     }
   };
 
