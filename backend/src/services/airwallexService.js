@@ -621,44 +621,80 @@ async function createCompanyBeneficiary({
   if (!iban) throw new Error('iban is required');
   const cleanIban = iban.replace(/\s+/g, '').toUpperCase();
   const country = (bankCountryCode || cleanIban.slice(0, 2)).toUpperCase();
-  // v23.1 part 91 — fix Daniel "validation_failed sur beneficiary.bank_details.iban" :
-  // pour SEPA/COMPANY, Airwallex exige le champ littéralement nommé `iban`,
-  // pas `account_number` (qui est réservé aux ACH US / FPS UK / autres
-  // bank accounts non-IBAN). On envoie maintenant DEUX clés : `iban` (pour
-  // que la validation Airwallex passe) ET `account_number` en doublon
-  // (compat backward au cas où certaines régions exigent toujours ce champ).
+  // v23.1 part 91 — pour SEPA/IBAN, Airwallex exige le champ `iban`.
   const isIbanValue = /^[A-Z]{2}\d{2}/.test(cleanIban);
-  return awxFetch('/api/v1/beneficiaries/create', {
-    method: 'POST',
-    body: {
-      request_id: genRequestId('compbenef'),
-      nickname: `HoPetSit company sweep`,
-      transfer_methods: ['LOCAL'],
-      beneficiary: {
-        type: 'COMPANY',
-        entity_type: 'COMPANY',
-        company_name: companyName.trim(),
-        bank_details: {
-          account_currency: currency.toUpperCase(),
-          account_name: companyName.trim(),
-          // Champ requis par la validation Airwallex pour les SEPA/IBAN.
-          ...(isIbanValue ? { iban: cleanIban } : { account_number: cleanIban }),
-          bank_country_code: country,
-          ...(bic ? { swift_code: bic.replace(/\s+/g, '').toUpperCase() } : {}),
-          ...(bankName ? { bank_name: bankName.trim() } : {}),
-        },
-        ...(addressLine || addressCity ? {
-          address: {
-            ...(addressLine ? { street_address: addressLine } : {}),
-            ...(addressCity ? { city: addressCity } : {}),
-            ...(addressCountryCode ? { country_code: addressCountryCode.toUpperCase() } : {}),
-            ...(postalCode ? { postcode: postalCode } : {}),
-          },
-        } : {}),
+
+  // v23.1 part 92 — Daniel a obtenu invalid_argument sans source. Nettoyage
+  // défensif :
+  //   • Si le postcode est manifestement bidon (000000, vide, que des
+  //     espaces, "0"), on n'envoie pas l'address du tout. Airwallex stocke
+  //     le COMPANY beneficiary sans address (l'address sert pour les
+  //     transferts internationaux KYC, pas pour SEPA en EUR).
+  //   • Idem si HK ou un pays sans code postal réel — on drop tout le bloc
+  //     address pour éviter les rejets opaques.
+  const cleanZip = (postalCode || '').toString().trim();
+  const isFakeZip = !cleanZip || /^0+$/.test(cleanZip.replace(/\s+/g, ''));
+  // Liste des pays sans code postal standardisé (HK, IE, AE, …) — on évite
+  // d'envoyer un postcode bidon à Airwallex pour ces pays.
+  const noPostcodeCountries = ['HK', 'IE', 'AE', 'AO', 'AG', 'BS', 'BZ', 'BJ',
+    'BO', 'BW', 'BF', 'BI', 'CM', 'CF', 'TD', 'KM', 'CG', 'CD', 'CI', 'DJ',
+    'DM', 'GQ', 'ER', 'FJ', 'GM', 'GH', 'GD', 'GY', 'KE', 'KI', 'LY', 'MO',
+    'MW', 'ML', 'MR', 'NR', 'KP', 'PA', 'QA', 'RW', 'KN', 'LC', 'ST', 'SC',
+    'SL', 'SB', 'SO', 'SR', 'SY', 'TZ', 'TG', 'TV', 'UG', 'VU', 'YE', 'ZW'];
+  const addrCC = (addressCountryCode || '').toUpperCase();
+  const stripAddress = isFakeZip || noPostcodeCountries.includes(addrCC) ||
+    !addressLine || !addressCity;
+
+  const body = {
+    request_id: genRequestId('compbenef'),
+    nickname: `HoPetSit company sweep`,
+    transfer_methods: ['LOCAL'],
+    beneficiary: {
+      type: 'COMPANY',
+      entity_type: 'COMPANY',
+      company_name: companyName.trim(),
+      bank_details: {
+        account_currency: currency.toUpperCase(),
+        account_name: companyName.trim(),
+        ...(isIbanValue ? { iban: cleanIban } : { account_number: cleanIban }),
+        bank_country_code: country,
+        ...(bic ? { swift_code: bic.replace(/\s+/g, '').toUpperCase() } : {}),
+        ...(bankName ? { bank_name: bankName.trim() } : {}),
       },
-      payment_methods: ['LOCAL'],
+      ...(stripAddress ? {} : {
+        address: {
+          street_address: addressLine,
+          city: addressCity,
+          country_code: addrCC,
+          ...(cleanZip && !isFakeZip ? { postcode: cleanZip } : {}),
+        },
+      }),
     },
-  });
+    payment_methods: ['LOCAL'],
+  };
+
+  // Logs explicites pour qu'on puisse diagnostiquer si Airwallex rejette.
+  // On masque l'IBAN dans les logs (4 premiers + 4 derniers caractères).
+  const maskIban = (s) => s ? (s.slice(0, 4) + '***' + s.slice(-4)) : '';
+  const logBody = JSON.parse(JSON.stringify(body));
+  if (logBody.beneficiary?.bank_details?.iban) logBody.beneficiary.bank_details.iban = maskIban(logBody.beneficiary.bank_details.iban);
+  if (logBody.beneficiary?.bank_details?.account_number) logBody.beneficiary.bank_details.account_number = maskIban(logBody.beneficiary.bank_details.account_number);
+  console.log('[airwallex/createCompanyBeneficiary] ▶ request body:', JSON.stringify(logBody));
+
+  try {
+    const r = await awxFetch('/api/v1/beneficiaries/create', { method: 'POST', body });
+    console.log('[airwallex/createCompanyBeneficiary] ✅ created id=' + r.id);
+    return r;
+  } catch (e) {
+    console.error('[airwallex/createCompanyBeneficiary] ❌', {
+      message: e.message,
+      status: e.status,
+      code: e.code,
+      details: e.details,
+      sentBody: logBody,
+    });
+    throw e;
+  }
 }
 
 /**
