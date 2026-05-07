@@ -5,9 +5,13 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 
 class IndividualChatScreen extends StatefulWidget {
@@ -140,6 +144,76 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     super.dispose();
   }
 
+  // v23.1 part 68 — Bug 13 : "Suivre" button handler.
+  // Looks up the most recent active paid booking with this contact, then
+  // calls /bookings/:id/provider-location. Handles 4 cases :
+  //   200      → opens PawMap (live location of the provider)
+  //   402      → CoinShop tab 1 (PawFollow upsell)
+  //   204      → snackbar "Le prestataire n'a pas encore partagé sa
+  //              position"
+  //   no book  → snackbar "Aucune réservation active à suivre"
+  Future<void> _onSuivreTap() async {
+    try {
+      final repo = Get.find<OwnerRepository>();
+
+      // 1. Find the latest PAID booking with this contact (matched on
+      //    provider name). Avoids depending on a conversation→booking
+      //    lookup endpoint. The contactName matches the populated
+      //    sitter.name / walker.name on the booking.
+      final bookings = await repo.getMyBookings();
+      final candidate = bookings
+          .where((b) {
+            final pay = (b.paymentStatus ?? '').toLowerCase();
+            final st  = (b.status ?? '').toLowerCase();
+            if (pay != 'paid') return false;
+            if (st == 'completed' || st == 'cancelled' || st == 'refunded') return false;
+            return b.sitter.name == widget.contactName;
+          })
+          .toList()
+          // Most recent first.
+          ..sort((a, b) => (b.updatedAt).compareTo(a.updatedAt));
+      final bookingId = candidate.isNotEmpty ? candidate.first.id : null;
+
+      if (bookingId == null || bookingId.isEmpty) {
+        CustomSnackbar.showWarning(
+          title: 'Pas de réservation',
+          message: 'Aucune réservation active à suivre.',
+        );
+        return;
+      }
+
+      // 2. Call the provider-location endpoint.
+      final result = await repo.getProviderLocationForBooking(bookingId: bookingId);
+      final code = (result['code'] ?? '').toString();
+      final coords = result['coordinates'];
+
+      if (code == 'PAWFOLLOW_REQUIRED') {
+        CustomSnackbar.showWarning(
+          title: 'PawFollow requis',
+          message: 'Active PawFollow pour suivre ton walker / sitter en direct.',
+        );
+        await Future.delayed(const Duration(milliseconds: 700));
+        Get.to(() => const CoinShopScreen(initialTab: 1));
+        return;
+      }
+      if (code == 'NO_LOCATION_YET' || coords == null) {
+        CustomSnackbar.showInfo(
+          title: 'Position pas encore partagée',
+          message: 'Le prestataire n\'a pas encore activé son partage de position.',
+        );
+        return;
+      }
+      // 3. Open PawMap (the existing screen — it shows the user's location
+      //    + nearby providers so the live position will appear once shared).
+      Get.to(() => const PawMapScreen());
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'Suivi indisponible',
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,6 +270,45 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
             ),
           ],
         ),
+        // v23.1 part 68 — Bug 13 : "Suivre" button in chat AppBar.
+        // Calls /api/v1/bookings/:id/provider-location which returns
+        //   200 { coordinates } → open PawMap centered on provider
+        //   402 PAWFOLLOW_REQUIRED → upsell sheet (open CoinShop tab 1)
+        //   204 NO_LOCATION_YET → snackbar "Provider hasn't shared yet"
+        //   404 / 409 → "no active booking" snackbar
+        actions: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.w),
+            child: GestureDetector(
+              onTap: _onSuivreTap,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFEF4324), Color(0xFFFF6B45)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20.r),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_on_rounded,
+                        size: 14.sp, color: Colors.white),
+                    SizedBox(width: 4.w),
+                    InterText(
+                      text: 'Suivre',
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: Obx(() {
         if (chatController.isLoading.value) {

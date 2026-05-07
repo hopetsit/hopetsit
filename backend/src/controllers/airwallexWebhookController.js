@@ -168,31 +168,12 @@ const handleAirwallexWebhook = async (req, res) => {
         await booking.save();
         logger.info(`✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})`);
 
-        // v23.1 part 67 — Daniel : "Une fois la reservation fini que
-        // l'ancienne publication s'efface". When the owner pays a booking
-        // that originated from a public post, close the post so the
-        // walker/sitter community no longer sees it as open. We only
-        // mark it 'closed' (status) so the data stays for analytics ;
-        // no hard-delete.
-        try {
-          const Application = require('../models/Application');
-          const Post = require('../models/Post');
-          const app = await Application.findOne({
-            bookingId: booking._id,
-            postId: { $ne: null },
-          }).lean();
-          if (app && app.postId) {
-            await Post.updateOne(
-              { _id: app.postId, status: { $ne: 'closed' } },
-              { $set: { status: 'closed', closedAt: new Date(), closedReason: 'booking_paid' } },
-            );
-            logger.info(
-              `[airwallex.webhook] auto-closed Post ${app.postId} after booking ${booking._id} was paid`,
-            );
-          }
-        } catch (e) {
-          logger.warn(`[airwallex.webhook] auto-close post failed : ${e.message}`);
-        }
+        // v23.1 part 68 — Daniel correction : "ancinne publication sefface
+        // apres le booking FINI" (pas payé). On ne ferme PAS le post au
+        // paiement (un booking peut être payé puis annulé/remboursé). On
+        // le ferme quand le booking passe en 'completed' (cf bookingController
+        // .completeBooking). Le code de close-post est déplacé dans
+        // completeBooking — voir bookingController.js.
 
         // v23.1 part 47 — credit wallet immediately on payment success,
         // independent of payout outcome (mirror of the confirmBookingPayment

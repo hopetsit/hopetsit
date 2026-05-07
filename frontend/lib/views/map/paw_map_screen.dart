@@ -864,7 +864,17 @@ class _PawMapScreenState extends State<PawMapScreen> {
                       onCameraMove: _onCameraMove,
                       onCameraIdle: _scheduleReload,
                       myLocationEnabled: true,
-                      myLocationButtonEnabled: true,
+                      // v23.1 part 68 — Daniel : "cest derriere le bouton ma
+                      // position quil ya un autre bouton a effacer". Google
+                      // Maps' default location button overlapped our custom
+                      // geoloc pin in the top row. Disabled here ; keep our
+                      // own _recenterOnUser pin only.
+                      myLocationButtonEnabled: false,
+                      // v23.1 part 68 — disable Google's default zoom
+                      // controls (they appear bottom-right on Android and
+                      // overlap with the Signaler FAB). We provide our own
+                      // +/- pair under the geoloc pin.
+                      zoomControlsEnabled: false,
                       markers: _buildMarkers(),
                     );
                   }),
@@ -976,6 +986,22 @@ class _PawMapScreenState extends State<PawMapScreen> {
                   ),
                 ),
 
+                // v23.1 part 68 — Daniel : "mettre bouton + - en haut a
+                // droit en dessous du petit bouton ma position". Custom
+                // zoom +/- pair, vertical, white pills, calls
+                // _mapCtl.future.then(c => c.animateCamera(zoomIn/Out)).
+                Positioned(
+                  top: 64.h,
+                  right: 12.w,
+                  child: Column(
+                    children: [
+                      _buildZoomBtn(Icons.add_rounded, _zoomIn),
+                      SizedBox(height: 6.h),
+                      _buildZoomBtn(Icons.remove_rounded, _zoomOut),
+                    ],
+                  ),
+                ),
+
                 // v23.1 part 67 — Daniel : "2 boutons qui se chevauchent".
                 // Le Signaler FAB et le bouton géoloc étaient tous les deux
                 // en haut à droite avec un gap insuffisant sur petits écrans.
@@ -994,6 +1020,36 @@ class _PawMapScreenState extends State<PawMapScreen> {
         ],
       ),
     );
+  }
+
+  /// v23.1 part 68 — Daniel : "mettre bouton + - en haut a droit".
+  /// Small white pill that wraps a zoom-in / zoom-out icon.
+  Widget _buildZoomBtn(IconData icon, VoidCallback onTap) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 4,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.all(8.w),
+          child: Icon(icon, color: AppColors.primaryColor, size: 22.sp),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _zoomIn() async {
+    if (!_mapCtl.isCompleted) return;
+    final ctl = await _mapCtl.future;
+    await ctl.animateCamera(CameraUpdate.zoomIn());
+  }
+
+  Future<void> _zoomOut() async {
+    if (!_mapCtl.isCompleted) return;
+    final ctl = await _mapCtl.future;
+    await ctl.animateCamera(CameraUpdate.zoomOut());
   }
 
   /// Recenters the GoogleMap camera on the user's current GPS location.

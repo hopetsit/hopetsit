@@ -1271,4 +1271,25 @@ class OwnerRepository {
     throw ApiException('Unexpected unblock user response.', details: response);
   }
 
+  /// v23.1 part 68 — PawFollow live-tracking: fetch the latest GeoJSON
+  /// position of the provider for an active paid booking. Returns the
+  /// raw response map ; the UI inspects status / code to react.
+  ///
+  /// Possible responses :
+  ///   200 { providerRole, coordinates: {lat, lng}, ... }
+  ///   402 { code: 'PAWFOLLOW_REQUIRED' } → owner needs to subscribe
+  ///   204 { code: 'NO_LOCATION_YET' }    → provider hasn't shared yet
+  ///   404 / 403 / 409                    → various error states
+  Future<Map<String, dynamic>> getProviderLocationForBooking({
+    required String bookingId,
+  }) async {
+    final response = await _apiClient.get(
+      '/bookings/$bookingId/provider-location',
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected provider-location response.', details: response);
+  }
+
 }

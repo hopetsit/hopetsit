@@ -3915,6 +3915,29 @@ const completeBooking = async (req, res) => {
     } catch (e) {
       logger.warn('loyalty hook failed', e.message);
     }
+    // v23.1 part 68 — Daniel : "ancinne publication sefface apres le
+    // booking FINI". Auto-close the originating Post (if any) so the
+    // owner's old request stops appearing in candidate feeds. We only
+    // mark it 'closed' (status) ; data stays in DB for analytics.
+    try {
+      const Application = require('../models/Application');
+      const Post = require('../models/Post');
+      const app = await Application.findOne({
+        bookingId: booking._id,
+        postId: { $ne: null },
+      }).lean();
+      if (app && app.postId) {
+        await Post.updateOne(
+          { _id: app.postId, status: { $ne: 'closed' } },
+          { $set: { status: 'closed', closedAt: new Date(), closedReason: 'booking_completed' } },
+        );
+        logger.info(
+          `[completeBooking] auto-closed Post ${app.postId} after booking ${booking._id} completed`,
+        );
+      }
+    } catch (e) {
+      logger.warn(`[completeBooking] auto-close post failed : ${e.message}`);
+    }
     return res.json({ booking: sanitizeBooking(booking) });
   } catch (e) {
     logger.error('completeBooking error', e);
