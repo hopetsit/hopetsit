@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 89</title>
+<title>HopeTSIT — Admin v23.1 part 90</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -921,6 +921,10 @@ function logout() {
 function showLoginError(msg) { document.getElementById('login-error').textContent = msg; }
 
 // ── API HELPER ────────────────────────────────────────────────────────────────
+// v23.1 part 90 — quand le back-end renvoie un body JSON {error, details, ...}
+// on extrait `error` (et on garde `details` sur l'erreur lancée) pour que les
+// dialogs côté admin puissent afficher le vrai message Airwallex au lieu d'un
+// "500 Internal Server Error" générique.
 async function api(path, method = 'GET', body = null) {
   const opts = {
     method,
@@ -931,9 +935,19 @@ async function api(path, method = 'GET', body = null) {
   if (r.status === 401) {
     // Token expired or invalid — back to login.
     logout();
-    throw new Error('Session expired, please log in again.');
+    throw new Error('Session expirée, reconnecte-toi.');
   }
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  if (!r.ok) {
+    let payload = null;
+    try { payload = await r.json(); } catch (_) { /* not json */ }
+    const msg = (payload && (payload.error || payload.message)) || `${r.status} ${r.statusText}`;
+    const err = new Error(msg);
+    err.status = r.status;
+    err.payload = payload;
+    err.details = payload && payload.details;
+    err.code = payload && payload.code;
+    throw err;
+  }
   return r.json();
 }
 
@@ -3294,30 +3308,103 @@ async function openPickBeneficiaryDialog() {
 }
 
 // Crée un nouveau beneficiary société depuis l'admin (formulaire IBAN).
-async function openSetupBeneficiaryDialog() {
-  const companyName = prompt('Raison sociale exacte de ta société (ex : CARDELLI HERMANOS LIMITED) :');
-  if (!companyName) return;
-  const iban = prompt('IBAN du compte société (sans espaces) :');
-  if (!iban) return;
-  const bic = prompt('BIC / SWIFT (recommandé) :', '');
-  const bankName = prompt('Nom de la banque :', '');
-  const bankCountryCode = prompt('Code pays banque (FR, ES, GB, ...) :', 'FR');
-  const currency = prompt('Devise du compte (EUR, GBP, USD) :', 'EUR');
-  const addressLine = prompt('Adresse société (rue + numéro) :', '');
-  const addressCity = prompt('Ville société :', '');
-  const postalCode = prompt('Code postal :', '');
-  const addressCountryCode = prompt('Code pays société :', bankCountryCode || 'FR');
-  if (!confirm('Créer le bénéficiaire « ' + companyName + ' » avec l\'IBAN ' + iban + ' ?')) return;
-  showToast('Création en cours...', 'success');
+// v23.1 part 90 — vrai formulaire HTML (au lieu de chain de prompts) +
+// affichage détaillé de l'erreur Airwallex (e.payload.details).
+function openSetupBeneficiaryDialog() {
+  // Si une overlay existe déjà, on la re-crée pour repartir vide.
+  let ov = document.getElementById('setup-benef-overlay');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'setup-benef-overlay';
+  ov.className = 'modal-overlay open';
+  ov.innerHTML =
+    '<div class="modal" style="width:560px;max-height:90vh;overflow-y:auto">' +
+      '<div class="modal-title">➕ Créer un bénéficiaire société</div>' +
+      '<div style="color:var(--text-muted);font-size:13px;margin-bottom:14px;line-height:1.5">' +
+        'Tous les champs marqués <span style="color:var(--red)">*</span> sont obligatoires. ' +
+        'Pour un IBAN européen, le BIC/SWIFT est fortement recommandé.' +
+      '</div>' +
+      '<div class="modal-field"><label class="modal-label">Raison sociale <span style="color:var(--red)">*</span></label>' +
+        '<input id="sb-name" class="login-input" placeholder="ex : CARDELLI HERMANOS LIMITED" style="margin-bottom:0"/></div>' +
+      '<div class="modal-field"><label class="modal-label">IBAN <span style="color:var(--red)">*</span></label>' +
+        '<input id="sb-iban" class="login-input" placeholder="GB00 BARC 0000 0000 0000 00" style="margin-bottom:0;font-family:monospace"/></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        '<div class="modal-field"><label class="modal-label">BIC / SWIFT</label>' +
+          '<input id="sb-bic" class="login-input" placeholder="ex : BARCGB22" style="margin-bottom:0;font-family:monospace"/></div>' +
+        '<div class="modal-field"><label class="modal-label">Devise <span style="color:var(--red)">*</span></label>' +
+          '<select id="sb-currency" class="login-input" style="margin-bottom:0">' +
+            '<option value="EUR">EUR</option><option value="GBP">GBP</option><option value="USD">USD</option><option value="CHF">CHF</option>' +
+          '</select></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">' +
+        '<div class="modal-field"><label class="modal-label">Nom de la banque</label>' +
+          '<input id="sb-bankname" class="login-input" placeholder="ex : Barclays" style="margin-bottom:0"/></div>' +
+        '<div class="modal-field"><label class="modal-label">Pays banque <span style="color:var(--red)">*</span></label>' +
+          '<input id="sb-bankcountry" class="login-input" placeholder="GB" maxlength="2" style="margin-bottom:0;text-transform:uppercase"/></div>' +
+      '</div>' +
+      '<div style="border-top:1px solid var(--border);margin:14px 0;padding-top:14px;font-size:12px;color:var(--text-muted)">Adresse de la société (souvent obligatoire pour les comptes COMPANY)</div>' +
+      '<div class="modal-field"><label class="modal-label">Adresse (rue + numéro)</label>' +
+        '<input id="sb-addr" class="login-input" placeholder="ex : 71-75 Shelton Street" style="margin-bottom:0"/></div>' +
+      '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px">' +
+        '<div class="modal-field"><label class="modal-label">Ville</label>' +
+          '<input id="sb-city" class="login-input" placeholder="ex : London" style="margin-bottom:0"/></div>' +
+        '<div class="modal-field"><label class="modal-label">Code postal</label>' +
+          '<input id="sb-zip" class="login-input" placeholder="ex : WC2H 9JQ" style="margin-bottom:0"/></div>' +
+        '<div class="modal-field"><label class="modal-label">Pays société</label>' +
+          '<input id="sb-country" class="login-input" placeholder="GB" maxlength="2" style="margin-bottom:0;text-transform:uppercase"/></div>' +
+      '</div>' +
+      '<div id="sb-error" style="display:none;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.4);border-radius:8px;padding:12px;margin:14px 0;font-size:12px;color:var(--red);white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;max-height:180px;overflow-y:auto"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="modal-close" onclick="document.getElementById(\'setup-benef-overlay\').remove()">Annuler</button>' +
+        '<button id="sb-submit" class="action-btn btn-primary" style="padding:10px 20px" onclick="submitSetupBeneficiary()">Créer le bénéficiaire</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+}
+
+async function submitSetupBeneficiary() {
+  const $ = (id) => document.getElementById(id);
+  const errBox = $('sb-error');
+  const submitBtn = $('sb-submit');
+  errBox.style.display = 'none';
+  errBox.textContent = '';
+  const payload = {
+    companyName: $('sb-name').value.trim(),
+    iban: $('sb-iban').value.replace(/\s+/g, '').toUpperCase(),
+    bic: $('sb-bic').value.replace(/\s+/g, '').toUpperCase(),
+    bankName: $('sb-bankname').value.trim(),
+    bankCountryCode: $('sb-bankcountry').value.trim().toUpperCase(),
+    currency: $('sb-currency').value,
+    addressLine: $('sb-addr').value.trim(),
+    addressCity: $('sb-city').value.trim(),
+    postalCode: $('sb-zip').value.trim(),
+    addressCountryCode: $('sb-country').value.trim().toUpperCase() || $('sb-bankcountry').value.trim().toUpperCase(),
+  };
+  if (!payload.companyName) { errBox.style.display='block'; errBox.textContent = 'Raison sociale obligatoire.'; return; }
+  if (!payload.iban) { errBox.style.display='block'; errBox.textContent = 'IBAN obligatoire.'; return; }
+  if (!payload.bankCountryCode) payload.bankCountryCode = payload.iban.slice(0, 2);
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Création...';
   try {
-    const r = await api('/admin/setup-company-beneficiary', 'POST', {
-      companyName, iban, bic, bankName, bankCountryCode, currency,
-      addressLine, addressCity, postalCode, addressCountryCode,
-    });
+    const r = await api('/admin/setup-company-beneficiary', 'POST', payload);
+    document.getElementById('setup-benef-overlay').remove();
     alert(r.message || ('Bénéficiaire créé : ' + r.beneficiaryId));
     showToast('✅ Bénéficiaire créé. Configure Render maintenant.', 'success');
+    loadCompanySweep();
   } catch (e) {
-    showToast('Erreur : ' + e.message, 'error');
+    // Affiche l'erreur Airwallex complète dans l'overlay (pas un toast).
+    let txt = '❌ ' + (e.message || 'Erreur inconnue.');
+    if (e.code) txt += '\nCode : ' + e.code;
+    if (e.details) {
+      try {
+        txt += '\n\n— Détails Airwallex —\n' + JSON.stringify(e.details, null, 2);
+      } catch (_) { /* ignore */ }
+    }
+    errBox.style.display = 'block';
+    errBox.textContent = txt;
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Réessayer';
   }
 }
 

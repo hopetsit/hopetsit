@@ -2485,8 +2485,20 @@ router.post('/setup-company-beneficiary', requireAdmin, async (req, res) => {
         'Render redéploiera tout seul puis le bouton "Retirer" deviendra cliquable.',
     });
   } catch (e) {
-    logger.error('[admin/setup-company-beneficiary]', e);
-    return res.status(500).json({ error: e.message });
+    // v23.1 part 90 — Daniel : "sa marche pa". On renvoie maintenant le
+    // détail Airwallex (e.details) pour qu'on voie quel champ est rejeté
+    // côté front (ex : "iban_invalid", "bic_required", "country_mismatch").
+    logger.error('[admin/setup-company-beneficiary]', {
+      message: e.message,
+      status: e.status,
+      code: e.code,
+      details: e.details,
+    });
+    return res.status(e.status && e.status >= 400 && e.status < 600 ? e.status : 500).json({
+      error: e.message,
+      code: e.code || null,
+      details: e.details || null,
+    });
   }
 });
 
