@@ -539,12 +539,70 @@ const handleAirwallexWebhook = async (req, res) => {
       case 'payout.completed': {
         const payoutId = data?.id;
         if (!payoutId) break;
+        // v23.1 part 82 — try booking payout first ; fall back to wallet
+        // withdrawal payout if no booking matches.
         const booking = await Booking.findOne({ airwallexPayoutId: payoutId });
-        if (!booking) break;
-        booking.payoutStatus = 'completed';
-        booking.payoutCompletedAt = new Date();
-        await booking.save();
-        logger.info(`✅ [airwallex.webhook] payout ${payoutId} → booking ${booking._id} marked paid out`);
+        if (booking) {
+          booking.payoutStatus = 'completed';
+          booking.payoutCompletedAt = new Date();
+          await booking.save();
+          logger.info(`✅ [airwallex.webhook] payout ${payoutId} → booking ${booking._id} marked paid out`);
+          // Notify the provider that the money landed in their bank.
+          try {
+            const { sendNotification } = require('../services/notificationSender');
+            const providerRole = booking.walkerId ? 'walker' : 'sitter';
+            const providerId = booking.walkerId
+              ? booking.walkerId.toString()
+              : (booking.sitterId ? booking.sitterId.toString() : null);
+            if (providerId) {
+              const amt = booking.pricing?.netPayout || 0;
+              const cur = (booking.pricing?.currency || 'EUR').toUpperCase();
+              await sendNotification({
+                userId: providerId,
+                role: providerRole,
+                type: 'payout_completed',
+                data: {
+                  bookingId: booking._id.toString(),
+                  amount: String(amt),
+                  currency: cur,
+                  payoutId,
+                },
+                actor: { role: 'system', id: null },
+              });
+            }
+          } catch (e) {
+            logger.warn(`[airwallex.webhook] payout notif failed : ${e.message}`);
+          }
+          break;
+        }
+        // Wallet withdrawal payout case
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          const wd = await WalletTransaction.findOne({
+            referenceId: payoutId,
+            type: 'debit_withdrawal',
+          });
+          if (wd) {
+            wd.status = 'completed';
+            wd.completedAt = new Date();
+            await wd.save();
+            const { sendNotification } = require('../services/notificationSender');
+            await sendNotification({
+              userId: wd.userId.toString(),
+              role: wd.userRole,
+              type: 'withdrawal_completed',
+              data: {
+                transactionId: wd._id.toString(),
+                amount: String(wd.amount),
+                currency: (wd.currency || 'EUR').toUpperCase(),
+              },
+              actor: { role: 'system', id: null },
+            });
+            logger.info(`✅ [airwallex.webhook] withdrawal ${wd._id} → completed (Airwallex payout ${payoutId})`);
+          }
+        } catch (e) {
+          logger.warn(`[airwallex.webhook] withdrawal completion notif failed : ${e.message}`);
+        }
         break;
       }
 
@@ -554,14 +612,73 @@ const handleAirwallexWebhook = async (req, res) => {
         const payoutId = data?.id;
         if (!payoutId) break;
         const booking = await Booking.findOne({ airwallexPayoutId: payoutId });
-        if (!booking) break;
-        booking.payoutStatus = 'failed';
-        booking.payoutError =
-          (data?.failure_reason || data?.last_error || `airwallex ${eventName}`).toString();
-        await booking.save();
-        logger.error(
-          `❌ [airwallex.webhook] payout ${payoutId} (${eventName}) for booking ${booking._id} : ${booking.payoutError}`,
-        );
+        if (booking) {
+          booking.payoutStatus = 'failed';
+          booking.payoutError =
+            (data?.failure_reason || data?.last_error || `airwallex ${eventName}`).toString();
+          await booking.save();
+          logger.error(
+            `❌ [airwallex.webhook] payout ${payoutId} (${eventName}) for booking ${booking._id} : ${booking.payoutError}`,
+          );
+          // Notify provider that the bank rejected the transfer.
+          try {
+            const { sendNotification } = require('../services/notificationSender');
+            const providerRole = booking.walkerId ? 'walker' : 'sitter';
+            const providerId = booking.walkerId
+              ? booking.walkerId.toString()
+              : (booking.sitterId ? booking.sitterId.toString() : null);
+            if (providerId) {
+              await sendNotification({
+                userId: providerId,
+                role: providerRole,
+                type: 'payout_failed',
+                data: {
+                  bookingId: booking._id.toString(),
+                  reason: booking.payoutError,
+                },
+                actor: { role: 'system', id: null },
+              });
+            }
+          } catch (_) { /* non-critical */ }
+          break;
+        }
+        // Wallet withdrawal failure
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          const wd = await WalletTransaction.findOne({
+            referenceId: payoutId,
+            type: 'debit_withdrawal',
+          });
+          if (wd) {
+            wd.status = 'failed';
+            wd.failureReason =
+              (data?.failure_reason || data?.last_error || eventName).toString();
+            await wd.save();
+            // Re-credit the wallet so the user can retry.
+            const Model = wd.userRole === 'walker'
+              ? require('../models/Walker')
+              : require('../models/Sitter');
+            await Model.findByIdAndUpdate(wd.userId, {
+              $inc: { walletBalance: Math.abs(wd.amount) },
+            });
+            const { sendNotification } = require('../services/notificationSender');
+            await sendNotification({
+              userId: wd.userId.toString(),
+              role: wd.userRole,
+              type: 'withdrawal_failed',
+              data: {
+                transactionId: wd._id.toString(),
+                amount: String(wd.amount),
+                currency: (wd.currency || 'EUR').toUpperCase(),
+                reason: wd.failureReason,
+              },
+              actor: { role: 'system', id: null },
+            });
+            logger.error(
+              `❌ [airwallex.webhook] withdrawal ${wd._id} failed (${wd.failureReason}) — balance restored.`,
+            );
+          }
+        } catch (_) { /* non-critical */ }
         break;
       }
 

@@ -124,5 +124,41 @@
     "body": "Your payment has been registered. The booking is active — chat with your provider to agree on the details.",
     "emailSubject": "Your payment is confirmed — HoPetSit",
     "emailBody": "<p>Your payment has just been confirmed. Your booking is now <strong>active</strong>. Open the HoPetSit app to chat with your provider and agree on the final details.</p><p><a href=\"hopetsit://bookings/{{bookingId}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, open the HoPetSit app manually.</p>"
+  },
+  "payout_initiated": {
+    "title": "Payout on the way",
+    "body": "{{amount}} {{currency}} have been sent to your IBAN. Expected within 1–3 business days.",
+    "emailSubject": "HoPetSit payout on the way — {{amount}} {{currency}}",
+    "emailBody": "<p>Your HoPetSit payout of <strong>{{amount}} {{currency}}</strong> has been initiated. Expected within 1–3 business days.</p>"
+  },
+  "payout_completed": {
+    "title": "Payout received ✅",
+    "body": "{{amount}} {{currency}} are now on your bank account.",
+    "emailSubject": "Payout received — {{amount}} {{currency}}",
+    "emailBody": "<p>Your HoPetSit payout of <strong>{{amount}} {{currency}}</strong> has landed on your bank account.</p>"
+  },
+  "payout_failed": {
+    "title": "Payout failed",
+    "body": "The transfer could not be completed. Check your IBAN in the app and try again.",
+    "emailSubject": "HoPetSit payout failed",
+    "emailBody": "<p>Your HoPetSit payout to your IBAN has failed. Reason: {{reason}}. Verify your IBAN and contact support if needed.</p>"
+  },
+  "withdrawal_initiated": {
+    "title": "Withdrawal in progress",
+    "body": "Your withdrawal of {{amount}} {{currency}} is on its way to your IBAN.",
+    "emailSubject": "HoPetSit withdrawal in progress",
+    "emailBody": "<p>Your HoPetSit withdrawal of <strong>{{amount}} {{currency}}</strong> is on its way to your IBAN. 1–3 business days.</p>"
+  },
+  "withdrawal_completed": {
+    "title": "Withdrawal received ✅",
+    "body": "{{amount}} {{currency}} are now on your bank account.",
+    "emailSubject": "Withdrawal received — {{amount}} {{currency}}",
+    "emailBody": "<p>Your HoPetSit withdrawal of <strong>{{amount}} {{currency}}</strong> has been credited to your bank account.</p>"
+  },
+  "withdrawal_failed": {
+    "title": "Withdrawal failed",
+    "body": "Your withdrawal could not be processed. Your wallet balance has been restored.",
+    "emailSubject": "HoPetSit withdrawal failed",
+    "emailBody": "<p>Your HoPetSit withdrawal failed. Reason: {{reason}}. Your wallet balance was restored, you can retry.</p>"
   }
 }

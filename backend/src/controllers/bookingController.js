@@ -1044,6 +1044,24 @@ const processProviderPayoutForBooking = async (booking) => {
             `provider=${provider.type}:${sitter._id} amount=${netPayout} ${currency} ` +
             `payoutId=${payout?.id || '?'}`,
           );
+          // v23.1 part 82 — notify the provider that their auto-payout
+          // has been initiated. They'll get a 2nd "completed" notif
+          // once Airwallex confirms the bank settlement (1-3 jours).
+          try {
+            const { sendNotification } = require('../services/notificationSender');
+            await sendNotification({
+              userId: sitter._id.toString(),
+              role: provider.type,
+              type: 'payout_initiated',
+              data: {
+                bookingId: booking._id.toString(),
+                amount: String(netPayout),
+                currency: (currency || 'EUR').toUpperCase(),
+                payoutId: payout?.id || '',
+              },
+              actor: { role: 'system', id: null },
+            });
+          } catch (_) { /* non-critical */ }
           return;
         } catch (awxErr) {
           logger.error(

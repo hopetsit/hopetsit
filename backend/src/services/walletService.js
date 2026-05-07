@@ -330,6 +330,23 @@ async function processPendingWithdrawals() {
             `[wallet.processPendingWithdrawals] tx ${tx._id} → Airwallex payout ` +
             `${payout?.id} (${tx.amount} ${tx.currency} to ${tx.userRole} ${tx.userId}).`,
           );
+          // v23.1 part 82 — notify the user their withdrawal is being
+          // sent to their bank. A 2nd "completed" notif fires from the
+          // webhook once the bank confirms.
+          try {
+            const { sendNotification } = require('./notificationSender');
+            await sendNotification({
+              userId: String(tx.userId),
+              role: tx.userRole,
+              type: 'withdrawal_initiated',
+              data: {
+                transactionId: String(tx._id),
+                amount: String(tx.amount),
+                currency: (tx.currency || 'EUR').toUpperCase(),
+              },
+              actor: { role: 'system', id: null },
+            });
+          } catch (_) { /* non-critical */ }
           released += 1;
         } catch (apiErr) {
           // Roll back to pending so a later tick can retry.
