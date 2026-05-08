@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 110</title>
+<title>HopeTSIT — Admin v23.1 part 111</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -836,7 +836,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="modal-iban-content"></div>
     <div class="modal-actions">
       <button class="modal-close" onclick="closeModal('iban-modal')">Fermer</button>
-      <button class="action-btn btn-verify" id="modal-iban-verify-btn">✓ Verify IBAN</button>
+      <button class="action-btn btn-verify" id="modal-iban-verify-btn">✓ Vérifier IBAN</button>
     </div>
   </div>
 </div>
@@ -921,9 +921,9 @@ async function login() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    if (!r.ok) throw new Error('Invalid admin credentials.');
+    if (!r.ok) throw new Error('Identifiants admin invalides.');
     const data = await r.json();
-    if (!data.token) throw new Error('No token returned.');
+    if (!data.token) throw new Error('Aucun token reçu du serveur.');
     _enterApp(url, data.token);
   } catch(e) { showLoginError(e.message); }
 }
@@ -1014,7 +1014,7 @@ async function loadIdentityVerifications() {
     const data = await api('/admin/identity-verifications?status=pending');
     const list = data.verifications || [];
     if (list.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-muted)">No pending verifications.</p>';
+      container.innerHTML = '<p style="color:var(--text-muted)">Aucune vérification en attente.</p>';
       return;
     }
     container.innerHTML = list.map(v => `
@@ -1074,7 +1074,7 @@ async function searchUsers() {
     const data = await api(`/admin/users/search?q=${encodeURIComponent(q)}`);
     const rows = data.results || [];
     if (rows.length === 0) {
-      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">No match.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">Aucun résultat.</td></tr>';
       return;
     }
     tb.innerHTML = rows.map(u => `
@@ -1084,9 +1084,9 @@ async function searchUsers() {
         <td style="padding:8px">${escapeHtml(u.email || '')}</td>
         <td style="padding:8px">${u.status || 'active'}</td>
         <td style="padding:8px">
-          <button class="action-btn" onclick="moderateUser('${u._id}','${u.role}','suspend')">Suspend</button>
-          <button class="action-btn btn-verify" onclick="moderateUser('${u._id}','${u.role}','reactivate')">Reactivate</button>
-          <button class="btn-reject" onclick="moderateUser('${u._id}','${u.role}','ban')">Ban</button>
+          <button class="action-btn" onclick="moderateUser('${u._id}','${u.role}','suspend')">Suspendre</button>
+          <button class="action-btn btn-verify" onclick="moderateUser('${u._id}','${u.role}','reactivate')">Réactiver</button>
+          <button class="btn-reject" onclick="moderateUser('${u._id}','${u.role}','ban')">Bannir</button>
         </td>
       </tr>
     `).join('');
@@ -1101,7 +1101,7 @@ async function moderateUser(id, role, action) {
     if (action === 'suspend' || action === 'ban') {
       reason = prompt(`Reason to ${action}?`) || '';
     }
-    if (action === 'ban' && !confirm('Ban definitively?')) return;
+    if (action === 'ban' && !confirm('Bannir définitivement ? Cette action est réversible mais l\'utilisateur ne pourra plus se connecter.')) return;
     await api(`/admin/users/${id}/${action}`, 'POST', { role, reason });
     searchUsers();
   } catch (e) {
@@ -1118,7 +1118,7 @@ async function loadReviewsModeration(status) {
     const data = await api(`/admin/reviews?status=${encodeURIComponent(status)}`);
     const rows = data.reviews || [];
     if (rows.length === 0) {
-      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">No reviews.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">Aucun avis.</td></tr>';
       return;
     }
     tb.innerHTML = rows.map(r => `
@@ -1148,7 +1148,7 @@ async function moderateReview(id, action) {
     } else if (action === 'restore') {
       await api(`/admin/reviews/${id}/restore`, 'PATCH');
     } else if (action === 'delete') {
-      if (!confirm('Permanently delete this review?')) return;
+      if (!confirm('Supprimer définitivement cet avis ?')) return;
       await api(`/admin/reviews/${id}`, 'DELETE');
     }
     loadReviewsModeration('all');
@@ -1232,7 +1232,7 @@ async function loadAnnonces(pageOverride) {
     list.innerHTML = renderAnnoncesList(data.posts || []);
     renderAnnoncesPagination(data);
   } catch (e) {
-    list.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${e.message}</div>`;
+    list.innerHTML = `<div style="color:var(--red);padding:16px">Erreur : ${e.message}</div>`;
   }
 }
 
@@ -1357,7 +1357,7 @@ async function loadPawmapStats() {
     // Also refresh any in-progress jobs.
     loadSeedJobs();
   } catch (e) {
-    wrap.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${e.message}</div>`;
+    wrap.innerHTML = `<div style="color:var(--red);padding:16px">Erreur : ${e.message}</div>`;
   }
 }
 
@@ -1547,7 +1547,7 @@ async function loadServices() {
     _servicesState = JSON.parse(JSON.stringify(data));
     renderServices();
   } catch (e) {
-    editor.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${e.message}</div>`;
+    editor.innerHTML = `<div style="color:var(--red);padding:16px">Erreur : ${e.message}</div>`;
   }
 }
 
@@ -1724,7 +1724,7 @@ async function loadPricing() {
     _pricingState = JSON.parse(JSON.stringify(data));
     renderPricing();
   } catch (e) {
-    editor.innerHTML = `<div style="color:var(--red);padding:16px">Error loading pricing: ${e.message}</div>`;
+    editor.innerHTML = `<div style="color:var(--red);padding:16px">Erreur de chargement des tarifs : ${e.message}</div>`;
   }
 }
 
@@ -1865,7 +1865,7 @@ async function loadReports() {
     const d = await api('/admin/reports' + (qs.length ? '?' + qs.join('&') : ''));
     const items = Array.isArray(d) ? d : (d.reports || []);
     if (!items.length) {
-      list.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">No reports.</div>';
+      list.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">Aucun signalement.</div>';
       return;
     }
     list.innerHTML = items.map(r => renderReportCard(r)).join('');
@@ -1912,7 +1912,7 @@ async function updateReportStatus(id, status) {
 }
 
 async function deleteReport(id) {
-  if (!confirm('Permanently delete this report?')) return;
+  if (!confirm('Supprimer définitivement ce signalement ?')) return;
   try {
     await api(`/admin/reports/${id}`, 'DELETE');
     showToast('Report deleted', 'success');
@@ -2005,7 +2005,7 @@ async function renderPrivacyEditor() {
     document.getElementById('privacy-version').value = d.version || '1.0';
     const meta = d.exists
       ? `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Last updated ${d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ''} by ${d.updatedBy || 'admin'}</div>`
-      : `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">No document yet for ${lang.toUpperCase()} — app falls back to the bundled default.</div>`;
+      : `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Aucun document pour ${lang.toUpperCase()} — l'app utilise le texte par défaut intégré.</div>`;
     wrap.innerHTML = `
       ${meta}
       <textarea id="privacy-content" style="width:100%;min-height:480px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.5">${(d.content || '').replace(/</g,'&lt;')}</textarea>
@@ -2033,7 +2033,7 @@ async function savePrivacy() {
 
 async function revertPrivacy() {
   const lang = document.getElementById('privacy-lang').value || 'fr';
-  if (!confirm(`Delete stored ${lang.toUpperCase()} privacy policy? The app will fall back to the bundled default.`)) return;
+  if (!confirm(`Supprimer la politique de confidentialité ${lang.toUpperCase()} ? L'app utilisera le texte par défaut intégré.`)) return;
   try {
     await api(`/admin/privacy-policy/${lang}`, 'DELETE');
     showToast(`Reverted ${lang.toUpperCase()} privacy policy`, 'success');
@@ -2083,7 +2083,7 @@ async function loadDashboard() {
           <td><span class="badge badge-green">Paid</span></td>
         </tr>
       `).join('')}</tbody></table>
-    ` : '<div class="empty-state"><div class="empty-icon">💳</div><div>No paid bookings yet.</div></div>';
+    ` : '<div class="empty-state"><div class="empty-icon">💳</div><div>Aucune réservation payée pour l\'instant.</div></div>';
     document.getElementById('recent-payments-wrap').innerHTML = html;
   } catch(e) {}
 }
@@ -2094,7 +2094,7 @@ async function loadBookings() {
     const d = await api('/admin/bookings?limit=100');
     allBookings = d.bookings || [];
     renderBookings();
-  } catch(e) { document.getElementById('bookings-table-body').innerHTML = `<div class="empty-state"><div>Error: ${e.message}</div></div>`; }
+  } catch(e) { document.getElementById('bookings-table-body').innerHTML = `<div class="empty-state"><div>Erreur : ${e.message}</div></div>`; }
 }
 function filterBookings() { renderBookings(); }
 function renderBookings() {
@@ -2107,7 +2107,7 @@ function renderBookings() {
     const pay = !payF || b.paymentStatus === payF;
     return match && st && pay;
   });
-  if (!filtered.length) { document.getElementById('bookings-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><div>No bookings found.</div></div>'; return; }
+  if (!filtered.length) { document.getElementById('bookings-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><div>Aucune réservation trouvée.</div></div>'; return; }
   document.getElementById('bookings-table-body').innerHTML = `
     <table><thead><tr><th>Date</th><th>Owner</th><th>Sitter</th><th>Service</th><th>Total</th><th>Status</th><th>Payment</th><th>Action</th></tr></thead>
     <tbody>${filtered.map(b => `
@@ -2159,7 +2159,7 @@ async function saveBookingStatus() {
     closeModal('booking-modal');
     renderBookings();
     showToast('Booking updated ✓', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 // ── SITTERS ───────────────────────────────────────────────────────────────────
@@ -2178,7 +2178,7 @@ function renderSitters() {
     const v = !vf || String(s.verified) === vf;
     return match && v;
   });
-  if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>No sitters found.</div></div>'; return; }
+  if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>Aucun pet-sitter trouvé.</div></div>'; return; }
   document.getElementById('sitters-table-body').innerHTML = `
     <table><thead><tr><th>Nom</th><th>Email</th><th>Tarif horaire</th><th>Services</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(s => {
@@ -2196,7 +2196,7 @@ function renderSitters() {
         <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn" style="background:${s.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Delete</button>
+          <button class="action-btn" style="background:${s.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Supprimer</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -2209,16 +2209,16 @@ async function verifySitter(id) {
     if (s) s.verified = true;
     renderSitters();
     showToast('Sitter verified ✓', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 async function deleteSitter(id, name) {
-  if (!confirm(`Delete sitter "${name}"? This cannot be undone.`)) return;
+  if (!confirm(`Supprimer le pet-sitter "${name}" ? Action irréversible.`)) return;
   try {
     await api(`/admin/sitters/${id}`, 'DELETE');
     allSitters = allSitters.filter(s => s._id !== id);
     renderSitters();
-    showToast('Sitter deleted.', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('Pet-sitter supprimé.', 'success');
+  } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 // ── OWNERS — v20.0.7: unified with sitters + walkers ─────────────────────────
@@ -2279,7 +2279,7 @@ function renderOwners() {
         <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
-          <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}','${(u.name||'').replace(/'/g,"\\'")}')">Delete</button>
+          <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}','${(u.name||'').replace(/'/g,"\\'")}')">Supprimer</button>
         </td>
       </tr>`;
     }).join('')}</tbody></table>
@@ -2293,16 +2293,16 @@ async function deleteUnifiedUser(role, id, name) {
     allOwners = allOwners.filter(u => u._id !== id);
     renderOwners();
     showToast(`${role} supprimé.`, 'success');
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 async function deleteOwner(id, name) {
-  if (!confirm(`Delete owner "${name}"?`)) return;
+  if (!confirm(`Supprimer le propriétaire "${name}" ?`)) return;
   try {
     await api(`/admin/owners/${id}`, 'DELETE');
     allOwners = allOwners.filter(o => o._id !== id);
     renderOwners();
-    showToast('Owner deleted.', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('Propriétaire supprimé.', 'success');
+  } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 // ── WALKERS (session v3.2) ───────────────────────────────────────────────────
@@ -2332,7 +2332,7 @@ function renderWalkers() {
   });
   if (!filtered.length) {
     document.getElementById('walkers-table-body').innerHTML =
-      '<div class="empty-state"><div class="empty-icon">🚶</div><div>No walkers found.</div></div>';
+      '<div class="empty-state"><div class="empty-icon">🚶</div><div>Aucun walker trouvé.</div></div>';
     return;
   }
   document.getElementById('walkers-table-body').innerHTML = `
@@ -2358,7 +2358,7 @@ function renderWalkers() {
         <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn" style="background:${w.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}','${w.name}')">Delete</button>
+          <button class="action-btn" style="background:${w.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}','${w.name}')">Supprimer</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -2371,16 +2371,16 @@ async function verifyWalker(id) {
     if (w) w.verified = true;
     renderWalkers();
     showToast('Walker verified ✓', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 async function deleteWalker(id, name) {
-  if (!confirm(`Delete walker "${name}"? This cannot be undone.`)) return;
+  if (!confirm(`Supprimer le walker "${name}" ? Action irréversible.`)) return;
   try {
     await api(`/admin/walkers/${id}`, 'DELETE');
     allWalkers = allWalkers.filter(w => w._id !== id);
     renderWalkers();
-    showToast('Walker deleted.', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('Walker supprimé.', 'success');
+  } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 // ── PAYMENTS ─────────────────────────────────────────────────────────────────
@@ -2456,7 +2456,7 @@ async function loadInvoices(role) {
       </div>
     `;
   } catch (e) {
-    tbody.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+    tbody.innerHTML = `<div class="empty-state">Erreur : ${e.message}</div>`;
   }
 }
 
@@ -2484,7 +2484,7 @@ async function loadPayments(page) {
     renderPaymentsTable(d.payments, d.total);
     renderPaymentsPagination(d.total);
   } catch (e) {
-    tbody.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+    tbody.innerHTML = `<div class="empty-state">Erreur : ${e.message}</div>`;
   }
 }
 
@@ -2507,7 +2507,7 @@ function renderPaymentSummary(summary, providers, payouts) {
       <div style="font-size:11px;color:var(--text-muted)">~80% to sitters</div>
     </div>
     <div class="stat-card" style="border-left:4px solid #f59e0b">
-      <div style="font-size:13px;color:var(--text-muted)">Pending Payouts</div>
+      <div style="font-size:13px;color:var(--text-muted)">Payouts en attente</div>
       <div style="font-size:22px;font-weight:700;color:#f59e0b">${fmt(payouts?.pending?.total || 0)}</div>
       <div style="font-size:11px;color:var(--text-muted)">${payouts?.pending?.count || 0} awaiting</div>
     </div>
@@ -2534,11 +2534,11 @@ function renderPaymentSummary(summary, providers, payouts) {
   document.getElementById('payment-breakdown-row').innerHTML = `
     <div style="background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border)">
       <div style="font-weight:600;margin-bottom:8px">Provider Breakdown</div>
-      ${provHtml || '<div style="color:var(--text-muted)">No data yet</div>'}
+      ${provHtml || '<div style="color:var(--text-muted)">Aucune donnée</div>'}
     </div>
     <div style="background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border)">
       <div style="font-weight:600;margin-bottom:8px">Payout Status</div>
-      ${payoutHtml || '<div style="color:var(--text-muted)">No data yet</div>'}
+      ${payoutHtml || '<div style="color:var(--text-muted)">Aucune donnée</div>'}
     </div>
   `;
 }
@@ -2546,7 +2546,7 @@ function renderPaymentSummary(summary, providers, payouts) {
 function renderPaymentsTable(payments, total) {
   const tbody = document.getElementById('payments-table-body');
   if (!payments || payments.length === 0) {
-    tbody.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><div>No payments found matching filters.</div></div>';
+    tbody.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><div>Aucun paiement ne correspond aux filtres.</div></div>';
     return;
   }
   const fmt = (c, v) => `${c === 'EUR' ? '€' : c}${Number(v || 0).toFixed(2)}`;
@@ -2627,7 +2627,7 @@ async function retryPayout(bookingId) {
     showToast('Payout retry queued — status will update shortly.', 'success');
     loadPayments();
   } catch (e) {
-    showToast('Error: ' + e.message, 'error');
+    showToast('Erreur : ' + e.message, 'error');
   }
 }
 
@@ -2643,7 +2643,7 @@ function openPaymentDetail(bookingId) {
     if (!p) { showToast('Payment not found', 'error'); return; }
     paymentDetailCache = p;
     showPaymentModal(p);
-  }).catch(e => showToast('Error: ' + e.message, 'error'));
+  }).catch(e => showToast('Erreur : ' + e.message, 'error'));
 }
 
 function showPaymentModal(p) {
@@ -2673,7 +2673,7 @@ function showPaymentModal(p) {
             <div><span style="color:var(--text-muted)">Payout:</span> ${fmtDate(p.payoutAt)}</div>
             ${p.stripePaymentIntentId ? `<div style="grid-column:span 2"><span style="color:var(--text-muted)">Stripe PI:</span> <code style="font-size:11px">${p.stripePaymentIntentId}</code></div>` : ''}
             ${p.paypalOrderId ? `<div style="grid-column:span 2"><span style="color:var(--text-muted)">PayPal Order:</span> <code style="font-size:11px">${p.paypalOrderId}</code></div>` : ''}
-            ${p.payoutError ? `<div style="grid-column:span 2;color:var(--red)"><span style="color:var(--text-muted)">Error:</span> ${escapeHtml(p.payoutError)}</div>` : ''}
+            ${p.payoutError ? `<div style="grid-column:span 2;color:var(--red)"><span style="color:var(--text-muted)">Erreur :</span> ${escapeHtml(p.payoutError)}</div>` : ''}
           </div>
         </div>
 
@@ -2721,7 +2721,7 @@ async function savePaymentStatusOverride(bookingId) {
     document.getElementById('payment-detail-modal')?.remove();
     showToast('Status updated ✓', 'success');
     loadPayments();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 async function adminRefund(bookingId) {
@@ -2753,7 +2753,7 @@ async function retryPayoutFromModal(bookingId) {
     document.getElementById('payment-detail-modal')?.remove();
     showToast('Payout retry queued ✓', 'success');
     loadPayments();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 // ── IBAN ──────────────────────────────────────────────────────────────────────
@@ -2763,7 +2763,7 @@ async function loadIbanSitters() {
     const d = await api('/admin/sitters?limit=100');
     const sitters = (d.sitters || []).filter(s => s.payoutMethod === 'iban' || s.ibanHolder);
     if (!sitters.length) {
-      document.getElementById('iban-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🏦</div><div>No sitters have submitted IBAN details yet.</div></div>';
+      document.getElementById('iban-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🏦</div><div>Aucun provider n\'a soumis ses coordonnées bancaires.</div></div>';
       return;
     }
     document.getElementById('iban-table-body').innerHTML = `
@@ -2780,7 +2780,7 @@ async function loadIbanSitters() {
         </tr>
       `).join('')}</tbody></table>
     `;
-  } catch(e) { document.getElementById('iban-table-body').innerHTML = `<div class="empty-state">Error: ${e.message}</div>`; }
+  } catch(e) { document.getElementById('iban-table-body').innerHTML = `<div class="empty-state">Erreur : ${e.message}</div>`; }
 }
 function maskIban(iban) {
   if (!iban) return '-';
@@ -2791,25 +2791,25 @@ async function openIbanModal(sitterId) {
   try {
     const d = await api(`/admin/sitters/${sitterId}/iban`);
     document.getElementById('modal-iban-content').innerHTML = `
-      <div class="modal-field"><label class="modal-label">Account Holder</label><div class="modal-value">${d.ibanHolder||'-'}</div></div>
-      <div class="modal-field"><label class="modal-label">IBAN (masked)</label><div class="modal-value" style="font-family:monospace">${d.ibanNumberMasked||'-'}</div></div>
+      <div class="modal-field"><label class="modal-label">Titulaire du compte</label><div class="modal-value">${d.ibanHolder||'-'}</div></div>
+      <div class="modal-field"><label class="modal-label">IBAN (masqué)</label><div class="modal-value" style="font-family:monospace">${d.ibanNumberMasked||'-'}</div></div>
       <div class="modal-field"><label class="modal-label">BIC / SWIFT</label><div class="modal-value">${d.ibanBic||'-'}</div></div>
-      <div class="modal-field"><label class="modal-label">Current Status</label><div class="modal-value">${d.ibanVerified ? '✅ Verified — payouts enabled' : '⏳ Pending — payouts blocked until verified'}</div></div>
-      <p style="font-size:12px;color:var(--text-muted);margin-top:12px">⚠️ Once verified, this sitter will receive IBAN bank transfers after each completed booking.</p>
+      <div class="modal-field"><label class="modal-label">Statut actuel</label><div class="modal-value">${d.ibanVerified ? '✅ Vérifié — virements activés' : '⏳ En attente — virements bloqués tant que non vérifié'}</div></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:12px">⚠️ Une fois vérifié, ce provider recevra des virements IBAN après chaque réservation terminée.</p>
     `;
     const btn = document.getElementById('modal-iban-verify-btn');
     btn.style.display = d.ibanVerified ? 'none' : '';
     btn.onclick = () => verifyIban(sitterId);
     document.getElementById('iban-modal').classList.add('open');
-  } catch(e) { showToast('Error loading IBAN: ' + e.message, 'error'); }
+  } catch(e) { showToast('Erreur de chargement IBAN : ' + e.message, 'error'); }
 }
 async function verifyIban(sitterId) {
   try {
     await api(`/admin/sitters/${sitterId}/iban/verify`, 'PATCH');
     closeModal('iban-modal');
     loadIbanSitters();
-    showToast('IBAN verified ✓ — sitter can now receive payouts!', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('IBAN vérifié ✓ — le provider peut maintenant recevoir des virements !', 'success');
+  } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 // v18.9.8 — Pending manual IBAN transfers. Appelle le nouvel endpoint
@@ -2818,12 +2818,12 @@ async function verifyIban(sitterId) {
 async function loadIbanPending() {
   const body = document.getElementById('iban-pending-body');
   const summary = document.getElementById('iban-pending-summary');
-  body.innerHTML = '<div class="loading"><div class="spinner"></div> Loading pending transfers...</div>';
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement des virements en attente...</div>';
   try {
     const d = await api('/admin/iban-payouts/pending');
     const items = d.items || [];
     if (!items.length) {
-      body.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div>No pending IBAN transfers — you are up to date!</div></div>';
+      body.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div>Aucun virement IBAN en attente — tout est à jour !</div></div>';
       summary.style.display = 'none';
       return;
     }
@@ -2852,12 +2852,12 @@ async function loadIbanPending() {
             <td style="font-family:monospace;font-size:12px">${it.ibanMasked}<br><span style="font-size:11px;color:var(--text-muted)">${it.ibanHolder}</span></td>
             <td style="font-family:monospace;font-size:12px">${it.ibanBic}</td>
             <td style="font-size:12px;color:var(--text-muted)">${it.queuedAt ? new Date(it.queuedAt).toLocaleDateString() : '-'}</td>
-            <td><button class="action-btn btn-verify" style="background:#059669" onclick="markIbanPaid('${it.bookingId}', '${it.providerName.replace(/'/g, "\\'")}', ${Number(it.amount).toFixed(2)}, '${it.currency}')">Mark as Paid</button></td>
+            <td><button class="action-btn btn-verify" style="background:#059669" onclick="markIbanPaid('${it.bookingId}', '${it.providerName.replace(/'/g, "\\'")}', ${Number(it.amount).toFixed(2)}, '${it.currency}')">Marquer comme payé</button></td>
           </tr>
         `).join('')}</tbody>
       </table>`;
   } catch(e) {
-    body.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+    body.innerHTML = `<div class="empty-state">Erreur : ${e.message}</div>`;
     summary.style.display = 'none';
   }
 }
@@ -2875,7 +2875,7 @@ async function markIbanPaid(bookingId, providerName, amount, currency) {
     showToast(`✓ Transfer marked as paid for ${providerName}`, 'success');
     loadIbanPending();
   } catch(e) {
-    showToast('Error: ' + e.message, 'error');
+    showToast('Erreur : ' + e.message, 'error');
   }
 }
 
@@ -2917,7 +2917,7 @@ async function loadBoosts(page) {
     renderBoostsTable(data.purchases, data.total);
     renderBoostsPagination(data.total);
   } catch (e) {
-    document.getElementById('boosts-table-body').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
+    document.getElementById('boosts-table-body').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Erreur : ${e.message}</div>`;
   }
 }
 
@@ -2944,14 +2944,14 @@ function renderBoostStats(summary) {
 function renderBoostsTable(purchases, total) {
   const container = document.getElementById('boosts-table-body');
   if (!purchases || !purchases.length) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>No purchases match the filters.</div>';
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>Aucun achat ne correspond aux filtres.</div>';
     return;
   }
   let rows = '';
   for (const p of purchases) {
     const isActive = p.isActive === true;
     const statusHtml = isActive
-      ? `<span class="badge badge-green">Active</span>`
+      ? `<span class="badge badge-green">Actif</span>`
       : `<span class="badge badge-gray">Expired</span>`;
     const productKey = p.product || 'profile_boost';
     const productBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${PRODUCT_COLORS[productKey]||'#555'}22;color:${PRODUCT_COLORS[productKey]||'#888'}">${PRODUCT_LABELS[productKey]||productKey}</span>`;
@@ -3856,7 +3856,7 @@ async function updateBugStatus(id, status) {
     await api('/admin/bug-reports/' + id, 'PATCH', { status });
     showToast('Bug mis a jour.', 'success');
     loadBugReports();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 async function deleteBugReport(id) {
   if (!confirm('Supprimer ce bug report ?')) return;
@@ -3864,7 +3864,7 @@ async function deleteBugReport(id) {
     await api('/admin/bug-reports/' + id, 'DELETE');
     loadBugReports();
     showToast('Bug supprime.', 'success');
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
 // v20.0.10 - Toggle Staff flag on owner/sitter/walker. Grants free Premium
@@ -3882,7 +3882,7 @@ async function toggleStaff(role, userId, isStaff) {
     else if (role === 'sitter') { loadSitters(); loadOwners(); }
     else if (role === 'walker') { loadWalkers(); loadOwners(); }
   } catch (e) {
-    showToast('Error: ' + e.message, 'error');
+    showToast('Erreur : ' + e.message, 'error');
   }
 }
   </script>
