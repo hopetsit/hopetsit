@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -9,6 +11,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// v23.1 part 36 — KYC verification screen pour sitter/walker.
@@ -395,37 +398,157 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       );
     }
     // 'none' or 'pending_payment'
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _busy ? null : _onPay,
-        icon: _busy
-            ? SizedBox(
-                width: 18.sp, height: 18.sp,
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Icon(Icons.payment_rounded,
-                color: Colors.white, size: 20.sp),
-        label: Text(
-          _busy ? 'Chargement...' : 'Procéder à la vérification — $price €',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w700,
+    return Column(
+      children: [
+        // Persona automatique 3€ — vérification rapide
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _busy ? null : _onPay,
+            icon: _busy
+                ? SizedBox(
+                    width: 18.sp, height: 18.sp,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Icon(Icons.bolt_rounded,
+                    color: Colors.white, size: 20.sp),
+            label: Text(
+              _busy ? 'Chargement...' : '⚡ Vérification rapide — $price €',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _accent,
+              padding: EdgeInsets.symmetric(vertical: 14.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
           ),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _accent,
-          padding: EdgeInsets.symmetric(vertical: 14.h),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.r),
+        SizedBox(height: 8.h),
+        Row(
+          children: [
+            Expanded(child: Divider(color: AppColors.divider(context))),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10.w),
+              child: InterText(
+                text: 'OU',
+                fontSize: 11.sp,
+                color: AppColors.greyColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Expanded(child: Divider(color: AppColors.divider(context))),
+          ],
+        ),
+        SizedBox(height: 8.h),
+        // v23.1 part 113 — fallback manuel : envoie une photo de pièce
+        // d'identité, l'admin la review (gratuit, 24-48h).
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _busy ? null : _onManualUpload,
+            icon: Icon(Icons.upload_file_rounded, color: _accent, size: 20.sp),
+            label: Text(
+              _busy ? 'Envoi...' : 'Envoyer une photo de ma pièce (gratuit)',
+              style: TextStyle(
+                color: _accent,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: _accent, width: 1.5),
+              padding: EdgeInsets.symmetric(vertical: 14.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
           ),
+        ),
+        SizedBox(height: 4.h),
+        InterText(
+          text: 'Revue par l\'admin sous 24-48h, sans frais.',
+          fontSize: 11.sp,
+          color: AppColors.greyColor,
+        ),
+      ],
+    );
+  }
+
+  // v23.1 part 113 — flow manuel : prend une photo (caméra ou galerie)
+  // de la pièce d'identité et l'upload. L'admin review depuis la queue
+  // admin web ; à l'approbation, kycStatus passe à 'verified' (cf v112).
+  Future<void> _onManualUpload() async {
+    if (_busy) return;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Choisir depuis la galerie'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.close_rounded),
+              title: const Text('Annuler'),
+              onTap: () => Navigator.pop(ctx),
+            ),
+          ],
         ),
       ),
     );
+    if (source == null) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 2000,
+    );
+    if (picked == null) return;
+    final file = File(picked.path);
+    setState(() => _busy = true);
+    try {
+      final role = (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
+      if (role != 'sitter' && role != 'walker') {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'Seuls les pet-sitters et walkers peuvent vérifier leur identité.',
+        );
+        return;
+      }
+      await _repo.uploadIdentityManually(file: file, role: role);
+      // L'upload met identityVerification.status='pending' (manuel) — pas
+      // forcément kycStatus, donc on poll juste pour rafraîchir la vue.
+      await _refresh();
+      CustomSnackbar.showSuccess(
+        title: 'Document envoyé',
+        message: 'L\'admin va vérifier ton document sous 24-48h.',
+      );
+    } catch (e) {
+      AppLogger.logError('kyc.manualUpload failed', error: e);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'Échec de l\'envoi : ${e.toString()}',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Widget _buildSteps() {

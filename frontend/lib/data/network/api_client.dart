@@ -21,6 +21,10 @@ class ApiClient {
   final http.Client _httpClient;
   final GetStorage _storage;
 
+  /// v23.1 part 113 — public getter so external multipart uploaders can
+  /// re-use the stored auth token without re-implementing storage access.
+  String? get authToken => _storage.read<String>(StorageKeys.authToken);
+
   Map<String, String> get _defaultHeaders => const {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
