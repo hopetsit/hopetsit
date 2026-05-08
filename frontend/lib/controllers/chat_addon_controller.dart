@@ -4,6 +4,7 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/post_purchase_refresh.dart';
 
 /// Pricing snapshot from GET /chat-addon/plans.
 class ChatAddonPlan {
@@ -150,6 +151,7 @@ class ChatAddonController extends GetxController {
           requiresAuth: true,
         );
         await loadStatus();
+        await refreshAfterPurchase();
         return true;
       } else if (result.outcome == AirwallexPaymentOutcome.failed) {
         AppLogger.logError('[chat-addon] Airwallex failed', error: result.errorMessage);

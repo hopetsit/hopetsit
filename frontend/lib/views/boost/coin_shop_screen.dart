@@ -9,6 +9,7 @@ import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/post_purchase_refresh.dart';
 import 'package:hopetsit/views/auth/location_picker_map_screen.dart';
 import 'package:hopetsit/views/boost/widgets/map_boost_pin_icon.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -280,6 +281,8 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
               : 'boost_purchase_success_msg'.tr,
         );
         await _loadBoostStatus();
+        // v23.1 part 109 — refresh aussi les screens profile/map.
+        await refreshAfterPurchase();
         setState(() {
           _purchasing = false;
           _selectedTier = null;
@@ -331,6 +334,8 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
           message: 'boost_purchase_success_msg'.tr,
         );
         await _loadBoostStatus();
+        // v23.1 part 109 — refresh profile + map après achat.
+        await refreshAfterPurchase();
       } else if (result.outcome == AirwallexPaymentOutcome.failed) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,

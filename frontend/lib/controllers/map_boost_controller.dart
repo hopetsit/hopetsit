@@ -4,6 +4,7 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/post_purchase_refresh.dart';
 
 class MapBoostPackage {
   final String tier;
@@ -184,6 +185,7 @@ class MapBoostController extends GetxController {
       // Skip Stripe entirely and refresh status.
       if (piData['staff'] == true && piData['activated'] == true) {
         await loadStatus();
+        await refreshAfterPurchase();
         return true;
       }
 
@@ -215,6 +217,8 @@ class MapBoostController extends GetxController {
           requiresAuth: true,
         );
         await loadStatus();
+        // v23.1 part 109 — refresh profile + map après PawSpot.
+        await refreshAfterPurchase();
         return true;
       } else if (result.outcome == AirwallexPaymentOutcome.failed) {
         AppLogger.logError('[map-boost] Airwallex failed', error: result.errorMessage);
@@ -234,6 +238,7 @@ class MapBoostController extends GetxController {
       final api = Get.find<ApiClient>();
       await api.post('/map-boost/claim-credit', requiresAuth: true);
       await loadStatus();
+      await refreshAfterPurchase();
       return true;
     } catch (e) {
       debugPrint('[MapBoost] claimCredit error: $e');

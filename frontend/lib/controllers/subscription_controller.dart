@@ -5,6 +5,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/post_purchase_refresh.dart';
 
 /// Single plan description as returned by GET /subscriptions/plans.
 class SubscriptionPlan {
@@ -201,6 +202,7 @@ class SubscriptionController extends GetxController {
       // v20.0.2 — Staff short-circuit: Premium is free for staff.
       if (piData['staff'] == true && piData['activated'] == true) {
         await loadStatus();
+        await refreshAfterPurchase();
         return true;
       }
 
@@ -233,6 +235,9 @@ class SubscriptionController extends GetxController {
           requiresAuth: true,
         );
         await loadStatus();
+        // v23.1 part 109 — refresh profile pour que le badge Premium
+        // s'affiche immédiatement.
+        await refreshAfterPurchase();
         return true;
       } else if (result.outcome == AirwallexPaymentOutcome.failed) {
         AppLogger.logError('[subscription] Airwallex failed', error: result.errorMessage);
