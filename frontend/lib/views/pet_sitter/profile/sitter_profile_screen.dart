@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -183,6 +184,8 @@ class SitterProfileScreen extends StatelessWidget {
                           fontWeight: FontWeight.w400,
                           color: Colors.white.withValues(alpha: 0.85),
                         )),
+                        // v23.1 part 109 — badges Boost / PawSpot / Premium.
+                        const ActiveBenefitsRow(compact: true),
                         SizedBox(height: 6.h),
                         Obx(() {
                           // Session v3.3 — dog walking est désormais une

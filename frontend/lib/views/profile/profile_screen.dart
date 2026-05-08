@@ -10,6 +10,7 @@ import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
@@ -141,6 +142,9 @@ class ProfileScreen extends StatelessWidget {
                         fontWeight: FontWeight.w400,
                         color: Colors.white.withValues(alpha: 0.85),
                       )),
+                      // v23.1 part 109 — badges Boost / PawSpot / Premium
+                      // visibles dans le header (rebuild auto via Obx).
+                      const ActiveBenefitsRow(compact: true),
                     ],
                   ),
                 ],

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -206,6 +207,8 @@ class WalkerProfileScreen extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             )),
+                        // v23.1 part 109 — badges Boost / PawSpot / Premium.
+                        const ActiveBenefitsRow(compact: true),
                         SizedBox(height: 6.h),
                         // Session v3.3 — service pill "Promenade" so the
                         // walker hero mirrors the sitter hero layout.
