@@ -350,26 +350,63 @@ router.post('/bookings/:id/retry-payout', requireAuth, requireRole('owner'), ret
 router.get('/identity-verifications', requireAdmin, async (req, res) => {
   try {
     const { status = 'pending' } = req.query;
+    // v23.1 part 112 — La queue admin doit afficher BOTH :
+    //   1. Les users qui ont uploadé manuellement (identityVerification.status='pending')
+    //   2. Les users en cours de vérification Persona (kycStatus='pending_verification')
+    // Avant : on ne voyait que les manuels → les Persona étaient orphelins.
+    // Le mapping de status query :
+    //   pending  → identityVerification.status='pending' OU kycStatus='pending_verification'
+    //   verified → identityVerification.status='verified' OU kycStatus='verified'
+    //   rejected → identityVerification.status='rejected' OU kycStatus='rejected'
+    const ivStatusMap = { pending: 'pending', verified: 'verified', rejected: 'rejected' };
+    const kycStatusMap = {
+      pending: 'pending_verification',
+      verified: 'verified',
+      rejected: 'rejected',
+    };
+    const filter = {
+      $or: [
+        { 'identityVerification.status': ivStatusMap[status] || 'pending' },
+        { kycStatus: kycStatusMap[status] || 'pending_verification' },
+      ],
+    };
     const [sitters, walkers] = await Promise.all([
-      Sitter.find({ 'identityVerification.status': status })
-        .select('name identityVerification')
+      Sitter.find(filter)
+        .select('name email identityVerification kycStatus kycPaidAt kycVerifiedAt kycRejectionReason kycApplicantId')
         .sort({ 'identityVerification.submittedAt': -1 })
         .lean(),
-      Walker.find({ 'identityVerification.status': status })
-        .select('name identityVerification')
+      Walker.find(filter)
+        .select('name email identityVerification kycStatus kycPaidAt kycVerifiedAt kycRejectionReason kycApplicantId')
         .sort({ 'identityVerification.submittedAt': -1 })
         .lean(),
     ]);
-    const mapDoc = (role) => (u) => ({
-      id: u._id.toString(),
-      name: u.name,
-      role,
-      submittedAt: u.identityVerification?.submittedAt || null,
-      status: u.identityVerification?.status || 'none',
-      documentUrl: u.identityVerification?.documentUrl
-        ? decrypt(u.identityVerification.documentUrl)
-        : '',
-    });
+    const mapDoc = (role) => (u) => {
+      const iv = u.identityVerification || {};
+      const isManualPending = iv.status && iv.status !== 'none';
+      // Pour Persona-only : pas de documentUrl, source = 'persona'.
+      const source = isManualPending ? 'manual' : 'persona';
+      return {
+        id: u._id.toString(),
+        name: u.name,
+        email: u.email || '',
+        role,
+        source, // 'manual' (upload direct) | 'persona' (KYC payant)
+        submittedAt:
+          iv.submittedAt ||
+          u.kycPaidAt ||
+          null,
+        status: isManualPending ? iv.status : (
+          u.kycStatus === 'pending_verification' ? 'pending' :
+          u.kycStatus === 'verified' ? 'verified' :
+          u.kycStatus === 'rejected' ? 'rejected' : 'none'
+        ),
+        rejectionReason: iv.rejectionReason || u.kycRejectionReason || '',
+        documentUrl: iv.documentUrl ? decrypt(iv.documentUrl) : '',
+        // Persona-specific fields (utiles pour le diagnostic admin).
+        kycApplicantId: u.kycApplicantId || null,
+        kycVerifiedAt: u.kycVerifiedAt || null,
+      };
+    };
     const payload = [
       ...sitters.map(mapDoc('sitter')),
       ...walkers.map(mapDoc('walker')),
@@ -380,6 +417,7 @@ router.get('/identity-verifications', requireAdmin, async (req, res) => {
     });
     res.json({ verifications: payload });
   } catch (e) {
+    logger.error('[admin/identity-verifications GET]', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -580,25 +618,49 @@ router.patch('/identity-verifications/:id', requireAdmin, async (req, res) => {
     if (!['approve', 'reject'].includes(action)) {
       return res.status(400).json({ error: "action must be 'approve' or 'reject'." });
     }
+    // v23.1 part 112 — Daniel : "la verification id ne marche pas".
+    // Bug : on ne touchait QUE identityVerification.status, mais le
+    // reste de l'app (badge Verified sur les cartes, écran KYC user)
+    // lit `verified` ET `kycStatus`. Du coup admin approuvait mais le
+    // sitter restait "non vérifié" partout. Maintenant on sync les 3
+    // sources de vérité dans une seule requête atomique.
+    const now = new Date();
+    const isApprove = action === 'approve';
     const update = {
-      'identityVerification.status': action === 'approve' ? 'verified' : 'rejected',
-      'identityVerification.reviewedAt': new Date(),
-      'identityVerification.rejectionReason': action === 'reject' ? String(reason || '') : '',
+      'identityVerification.status': isApprove ? 'verified' : 'rejected',
+      'identityVerification.reviewedAt': now,
+      'identityVerification.rejectionReason': isApprove ? '' : String(reason || ''),
+      // Sync legacy "verified" flag (utilisé par sitter_card / walker_card
+      // / admin lists pour afficher le badge "Vérifié ✓").
+      verified: isApprove,
+      // Sync kycStatus (utilisé par l'écran KYC mobile pour afficher
+      // l'état actuel à l'utilisateur).
+      kycStatus: isApprove ? 'verified' : 'rejected',
+      kycVerifiedAt: isApprove ? now : null,
+      kycRejectionReason: isApprove ? null : String(reason || ''),
     };
     // Session v3.2 — try Sitter first, then Walker. Same doc id space.
+    let role = 'sitter';
     let doc = await Sitter.findByIdAndUpdate(req.params.id, { $set: update }, { new: true })
-      .select('identityVerification');
+      .select('name email identityVerification verified kycStatus');
     if (!doc) {
+      role = 'walker';
       doc = await Walker.findByIdAndUpdate(req.params.id, { $set: update }, { new: true })
-        .select('identityVerification');
+        .select('name email identityVerification verified kycStatus');
     }
     if (!doc) return res.status(404).json({ error: 'Verification target not found.' });
+    logger.info(
+      `[admin/identity-verifications] ${action} ${role} ${req.params.id} (${doc.email || '?'})${reason ? ' — ' + reason : ''}`,
+    );
     res.json({
       status: doc.identityVerification.status,
       reviewedAt: doc.identityVerification.reviewedAt,
       rejectionReason: doc.identityVerification.rejectionReason,
+      verified: doc.verified,
+      kycStatus: doc.kycStatus,
     });
   } catch (e) {
+    logger.error('[admin/identity-verifications]', e);
     res.status(500).json({ error: e.message });
   }
 });

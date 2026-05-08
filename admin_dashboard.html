@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 111</title>
+<title>HopeTSIT — Admin v23.1 part 112</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -553,8 +553,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <!-- IDENTITY VERIFICATIONS (Sprint 5 step 7) -->
       <div id="page-identity" class="page">
         <div class="section-title">🪪 Vérifications d'identité (en attente)</div>
-        <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px">
-          Vérifie les pièces d'identité des pet-sitters. Documents confidentiels — accessibles uniquement aux admins.
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;line-height:1.5">
+          Vérifie les pièces d'identité des pet-sitters et walkers. Documents confidentiels — accessibles uniquement aux admins.<br>
+          <span style="font-size:12px"><span class="badge badge-blue">Upload manuel</span> = soumis directement par le user · <span class="badge badge-orange">Persona</span> = vérification automatique payante (3€).</span><br>
+          <strong style="color:var(--text)">Approuver</strong> active immédiatement le badge ✓ Vérifié sur l'app du user.
         </p>
         <div class="table-wrap">
           <table style="width:100%;border-collapse:collapse">
@@ -1017,17 +1019,29 @@ async function loadIdentityVerifications() {
       container.innerHTML = '<p style="color:var(--text-muted)">Aucune vérification en attente.</p>';
       return;
     }
-    container.innerHTML = list.map(v => `
+    // v23.1 part 112 — affiche aussi le rôle + la source (manual upload
+    // VS Persona payant) pour distinguer les 2 flows. Le badge orange
+    // "Persona" indique que la vérif a été faite via le service tiers.
+    container.innerHTML = list.map(v => {
+      const sourceBadge = v.source === 'persona'
+        ? '<span class="badge badge-orange" style="margin-left:6px">Persona</span>'
+        : '<span class="badge badge-blue" style="margin-left:6px">Upload manuel</span>';
+      const docCell = v.documentUrl
+        ? `<a href="${escapeHtml(v.documentUrl)}" target="_blank" rel="noopener">📄 Voir le document</a>`
+        : (v.source === 'persona'
+            ? `<span style="color:var(--text-muted);font-size:12px">Vérification via Persona${v.kycApplicantId ? ' (#' + v.kycApplicantId + ')' : ''}</span>`
+            : '<span style="color:var(--text-muted);font-size:12px">—</span>');
+      return `
       <tr>
-        <td>${escapeHtml(v.name || '')}</td>
-        <td>${v.submittedAt ? new Date(v.submittedAt).toLocaleString() : '—'}</td>
-        <td><a href="${escapeHtml(v.documentUrl)}" target="_blank" rel="noopener">View document</a></td>
+        <td><strong>${escapeHtml(v.name || '')}</strong>${sourceBadge}<br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(v.email || '')} · ${v.role}</span></td>
+        <td>${v.submittedAt ? new Date(v.submittedAt).toLocaleString('fr-FR') : '—'}</td>
+        <td>${docCell}</td>
         <td>
-          <button class="btn-approve" onclick="reviewIdentity('${v.id}', 'approve')">Approuver</button>
-          <button class="btn-reject" onclick="reviewIdentity('${v.id}', 'reject')">Rejeter</button>
+          <button class="btn-approve" onclick="reviewIdentity('${v.id}', 'approve')">✅ Approuver</button>
+          <button class="btn-reject" onclick="reviewIdentity('${v.id}', 'reject')">❌ Rejeter</button>
         </td>
       </tr>
-    `).join('');
+    `;}).join('');
   } catch (e) {
     container.innerHTML = `<p style="color:var(--error)">${e.message}</p>`;
   }
@@ -1038,12 +1052,15 @@ async function reviewIdentity(id, action) {
   if (action === 'reject') {
     reason = prompt('Raison du rejet ?') || '';
     if (!reason) return;
+  } else if (!confirm('Approuver cette vérification d\'identité ? Le user sera marqué « Vérifié ✓ » dans toute l\'app.')) {
+    return;
   }
   try {
     await api(`/admin/identity-verifications/${id}`, 'PATCH', { action, reason });
+    showToast(action === 'approve' ? '✅ Vérification approuvée.' : '❌ Vérification rejetée.', 'success');
     loadIdentityVerifications();
   } catch (e) {
-    alert(`Review failed: ${e.message}`);
+    alert(`Échec : ${e.message}`);
   }
 }
 
