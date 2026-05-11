@@ -1283,6 +1283,24 @@ class AuthController extends GetxController {
 
   /// Logs out the user by clearing all stored data and navigating to login screen
   Future<void> logout() async {
+    // v23.1 part 121 — Daniel : "le bug de qd jme connecte les anciens
+    // payment reaparaisse dans la barre de notification est revenue ds
+    // owner". Cause : les notifications locales restent dans la barre du
+    // système même après logout. Quand un user se reconnecte, elles sont
+    // toujours visibles, faisant croire que ce sont les notifs du nouveau
+    // compte. On les efface MAINTENANT au début du logout.
+    try {
+      if (Get.isRegistered<PushNotificationService>()) {
+        final push = Get.find<PushNotificationService>();
+        await push.clearAllLocalNotifications();
+        // Aussi : retirer le FCM token du backend pour ne plus recevoir
+        // de push à destination de l'ancien compte sur ce device.
+        await push.unregisterCurrentToken();
+      }
+    } catch (_) {
+      // best-effort, le logout doit toujours réussir.
+    }
+
     // Clear all stored authentication data
     await _storage.remove(StorageKeys.authToken);
     await _storage.remove(StorageKeys.userProfile);

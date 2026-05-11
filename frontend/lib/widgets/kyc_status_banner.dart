@@ -29,7 +29,7 @@ class KycStatusBanner extends StatefulWidget {
 
 class _KycStatusBannerState extends State<KycStatusBanner> {
   String _kycStatus = 'none';
-  bool _verified = false;
+  String _identityVerificationStatus = 'none';
   bool _loaded = false;
   Worker? _tickWorker;
 
@@ -60,7 +60,8 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
       if (r is Map) {
         setState(() {
           _kycStatus = (r['kycStatus'] as String?) ?? 'none';
-          _verified = r['verified'] == true;
+          _identityVerificationStatus =
+              (r['identityVerificationStatus'] as String?) ?? 'none';
           _loaded = true;
         });
       }
@@ -73,8 +74,23 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
   Widget build(BuildContext context) {
     if (!_loaded) return const SizedBox.shrink();
 
-    // verified : badge vert ✓
-    if (_kycStatus == 'verified' || _verified) {
+    // v23.1 part 121 — Daniel : "le profil walker me dise identite verifier
+    // alors que jai meme pas envoyer limage". Le banner se basait sur
+    // `verified || kycStatus=='verified'`, mais `verified` est le flag
+    // legacy mis à true par diverses actions admin (vérif IBAN, etc.) et
+    // PAS forcément lié à une vérif d'identité. Maintenant on combine
+    // kycStatus (flow Persona payant) ET identityVerificationStatus (flow
+    // manuel upload + admin review). Le flag legacy `verified` n'est plus
+    // utilisé pour décider du badge KYC.
+    final isKycVerified = _kycStatus == 'verified' ||
+        _identityVerificationStatus == 'verified';
+    final isKycRejected = _kycStatus == 'rejected' ||
+        _identityVerificationStatus == 'rejected';
+    final isKycPending = _kycStatus == 'pending_payment' ||
+        _kycStatus == 'pending_verification' ||
+        _identityVerificationStatus == 'pending';
+
+    if (isKycVerified) {
       return _banner(
         color: const Color(0xFF16A34A),
         icon: Icons.verified_rounded,
@@ -83,7 +99,7 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
         onTap: null,
       );
     }
-    if (_kycStatus == 'rejected') {
+    if (isKycRejected) {
       return _banner(
         color: const Color(0xFFE53935),
         icon: Icons.cancel_outlined,
@@ -92,7 +108,7 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
         onTap: _openKyc,
       );
     }
-    if (_kycStatus == 'pending_payment' || _kycStatus == 'pending_verification') {
+    if (isKycPending) {
       return _banner(
         color: const Color(0xFFF39C12),
         icon: Icons.hourglass_top_rounded,

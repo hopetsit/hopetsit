@@ -384,6 +384,34 @@ class PushNotificationService extends GetxService {
       debugPrint('FCM token unregister failed: $e');
     }
   }
+
+  /// v23.1 part 121 — Daniel : "le bug de qd jme connecte les anciens
+  /// payment reaparaisse dans la barre de notification". Cause : les
+  /// notifications locales (flutter_local_notifications) restent dans
+  /// la barre du système même après logout. Quand un autre user se
+  /// connecte ou que le même user se reconnecte, elles sont toujours
+  /// visibles.
+  ///
+  /// Cette méthode :
+  ///   1. Annule TOUTES les notifications locales actives
+  ///   2. Reset le badge de notifications iOS (à 0)
+  ///   3. (déjà fait par unregisterCurrentToken) Supprime le FCM token
+  ///      côté backend pour ne plus recevoir de push.
+  Future<void> clearAllLocalNotifications() async {
+    try {
+      await _localNotifications.cancelAll();
+    } catch (e) {
+      debugPrint('cancelAll local notifications failed: $e');
+    }
+    // Reset badge counter (iOS principalement).
+    try {
+      final iosPlugin = _localNotifications.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (iosPlugin != null) {
+        await iosPlugin.requestPermissions(badge: true);
+      }
+    } catch (_) {/* ignore */}
+  }
 }
 
 /// Top-level background handler (must be a top-level or static function

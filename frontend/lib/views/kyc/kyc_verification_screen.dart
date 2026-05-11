@@ -386,15 +386,18 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       );
     }
     if (status == 'pending_verification') {
-      // v23.1 part 115 — En cas d'erreur Persona (env vars manquants),
-      // Daniel doit toujours pouvoir uploader manuellement. On affiche
-      // les 2 options ici aussi.
+      // v23.1 part 121 — Daniel : "le bouton lancer verification ne sert
+      // pas il faut un bouton payer et apres le bouton upload". Persona
+      // n'est pas configuré → la "Vérification Persona" renvoie "Lien
+      // indisponible". On met maintenant l'UPLOAD MANUEL en bouton PRIMAIRE
+      // (rempli, full width) et la Persona en option secondaire.
       return Column(
         children: [
+          // PRIMAIRE : Upload manuel (gratuit, l'admin review).
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _busy ? null : _onStartVerification,
+              onPressed: _busy ? null : _onManualUpload,
               icon: _busy
                   ? SizedBox(
                       width: 18.sp, height: 18.sp,
@@ -403,10 +406,10 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : Icon(Icons.camera_alt_rounded,
+                  : Icon(Icons.upload_file_rounded,
                       color: Colors.white, size: 20.sp),
               label: Text(
-                _busy ? 'Chargement...' : 'Lancer la vérification Persona',
+                _busy ? 'Envoi...' : '📷 Envoyer une photo de ma pièce',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14.sp,
@@ -422,50 +425,27 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
               ),
             ),
           ),
-          SizedBox(height: 8.h),
-          Row(
-            children: [
-              Expanded(child: Divider(color: AppColors.divider(context))),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10.w),
-                child: InterText(
-                  text: 'OU si Persona ne fonctionne pas',
-                  fontSize: 11.sp,
-                  color: AppColors.greyColor,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Expanded(child: Divider(color: AppColors.divider(context))),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _busy ? null : _onManualUpload,
-              icon: Icon(Icons.upload_file_rounded, color: _accent, size: 20.sp),
-              label: Text(
-                _busy ? 'Envoi...' : 'Envoyer une photo manuellement',
-                style: TextStyle(
-                  color: _accent,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: _accent, width: 1.5),
-                padding: EdgeInsets.symmetric(vertical: 14.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-              ),
-            ),
-          ),
           SizedBox(height: 4.h),
           InterText(
-            text: 'Revue par l\'admin sous 24-48h.',
+            text: 'Revue par l\'admin sous 24-48h (gratuit).',
             fontSize: 11.sp,
             color: AppColors.greyColor,
+          ),
+          SizedBox(height: 12.h),
+          // SECONDAIRE : Persona (uniquement si configuré). Pas de
+          // séparateur visuel — bouton text-only discret.
+          TextButton.icon(
+            onPressed: _busy ? null : _onStartVerification,
+            icon: Icon(Icons.bolt_rounded, color: AppColors.greyColor, size: 16.sp),
+            label: Text(
+              'Sinon, vérification rapide Persona',
+              style: TextStyle(
+                color: AppColors.greyColor,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.underline,
+              ),
+            ),
           ),
         ],
       );
