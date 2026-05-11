@@ -1078,6 +1078,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               // this post.
                               isReserved: post.isReserved,
                               reservedProviderRole: post.reservedBy?.providerRole,
+                              // v23.1 part 116 — annonce boostée (owner a un
+                              // Boost actif). Affiche le ruban "🚀 URGENT".
+                              isOwnerBoosted: post.isOwnerBoosted,
+                              ownerBoostTier: post.ownerBoostTier,
                               // Comments disabled on publications
                               commentCount: 0,
                               isLiked: postsController.isPostLiked(post.id),

@@ -93,31 +93,59 @@ class PetPostCard extends StatelessWidget {
     this.isReserved = false,
     this.ownerViewOfOwnPost = false,
     this.reservedProviderRole,
+    // v23.1 part 116 — Daniel : "sitter et walker aussi vois que lannonce
+    // et booster et en haut". Quand isOwnerBoosted=true, on affiche un
+    // ruban "🚀 Urgent" en haut de la card pour attirer l'œil.
+    this.isOwnerBoosted = false,
+    this.ownerBoostTier,
   });
+
+  /// v23.1 part 116 — owner boost annotation (du backend listPosts).
+  final bool isOwnerBoosted;
+  final String? ownerBoostTier;
 
   @override
   Widget build(BuildContext context) {
+    // v23.1 part 116 — bordure rouge + halo subtil pour les posts boostés.
+    final boostBorder = isOwnerBoosted
+        ? Border.all(
+            color: const Color(0xFFE8472A),
+            width: 2.w,
+          )
+        : Border.all(
+            color: AppColors.divider(context).withValues(alpha: 0.35),
+            width: 1.w,
+          );
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(19.r),
-        border: Border.all(
-          color: AppColors.divider(context).withValues(alpha: 0.35),
-          width: 1.w,
-        ),
-        boxShadow: AppColors.cardShadow(context),
+        border: boostBorder,
+        boxShadow: isOwnerBoosted
+            ? [
+                BoxShadow(
+                  color: const Color(0xFFE8472A).withOpacity(0.18),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : AppColors.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // v23.1 part 116 — Ruban "🚀 URGENT" en haut pour les posts dont
+          // l'owner a un boost actif. Plus le tier est haut, plus c'est
+          // explicite (Platinum = "URGENT — Boost Platinum").
+          if (isOwnerBoosted) _buildUrgentBanner(),
           // Header with profile info
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
               color: AppColors.inputFill(context),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(19.r),
-                topRight: Radius.circular(19.r),
+                topLeft: isOwnerBoosted ? Radius.zero : Radius.circular(19.r),
+                topRight: isOwnerBoosted ? Radius.zero : Radius.circular(19.r),
               ),
             ),
             child: Row(
@@ -1248,6 +1276,71 @@ class PetPostCard extends StatelessWidget {
             // Optional: track page changes
           },
         ),
+      ),
+    );
+  }
+
+  /// v23.1 part 116 — Ruban URGENT pour les posts dont l'owner a un Boost
+  /// profil actif. Le tier décide de l'intensité visuelle :
+  ///   bronze   → ruban orange "Boost actif"
+  ///   silver   → ruban orange foncé "🚀 Mise en avant"
+  ///   gold     → ruban rouge "🚀 URGENT"
+  ///   platinum → ruban rouge brillant + pulse "🔥 URGENT — Réponse rapide"
+  Widget _buildUrgentBanner() {
+    String label;
+    Color bg;
+    String emoji;
+    switch (ownerBoostTier) {
+      case 'platinum':
+        label = 'URGENT — RÉPONSE RAPIDE';
+        bg = const Color(0xFFC81E1E);
+        emoji = '🔥';
+        break;
+      case 'gold':
+        label = 'URGENT';
+        bg = const Color(0xFFE8472A);
+        emoji = '🚀';
+        break;
+      case 'silver':
+        label = 'MISE EN AVANT';
+        bg = const Color(0xFFEA580C);
+        emoji = '🚀';
+        break;
+      case 'bronze':
+      default:
+        label = 'BOOST ACTIF';
+        bg = const Color(0xFFF59E0B);
+        emoji = '🚀';
+    }
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [bg, bg.withOpacity(0.85)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(19.r),
+          topRight: Radius.circular(19.r),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(emoji, style: TextStyle(fontSize: 14.sp)),
+          SizedBox(width: 6.w),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }

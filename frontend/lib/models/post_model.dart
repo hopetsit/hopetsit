@@ -29,6 +29,13 @@ class PostModel {
   /// the "Réservé" / "Reserved" badge on PetPostCard.
   final PostReservation? reservedBy;
 
+  /// v23.1 part 116 — owner Boost annotation pour le feed sitter/walker.
+  /// Active = post de l'owner dont boostExpiry > now. Le ruban
+  /// "🚀 URGENT" s'affiche en haut de la card et le post est trié
+  /// avant les non-boostés.
+  final bool isOwnerBoosted;
+  final String? ownerBoostTier;
+
   PostModel({
     required this.id,
     required this.postType,
@@ -53,6 +60,8 @@ class PostModel {
     this.translations = const <String, String>{},
     this.sourceLanguage = '',
     this.reservedBy,
+    this.isOwnerBoosted = false,
+    this.ownerBoostTier,
   });
 
   /// True if the post has an active reservation (owner accepted a sitter
@@ -170,6 +179,9 @@ class PostModel {
           : const <String, String>{},
       sourceLanguage: (json['sourceLanguage'] as String?) ?? '',
       reservedBy: PostReservation.tryParse(json['reservedBy']),
+      // v23.1 part 116 — owner Boost flags (du backend listPosts enrichi).
+      isOwnerBoosted: json['isOwnerBoosted'] == true,
+      ownerBoostTier: json['ownerBoostTier'] as String?,
     );
   }
 
@@ -204,6 +216,8 @@ class PostModel {
       translations: translations,
       sourceLanguage: sourceLanguage,
       reservedBy: reservedBy,
+      isOwnerBoosted: isOwnerBoosted,
+      ownerBoostTier: ownerBoostTier,
     );
   }
 }

@@ -213,12 +213,20 @@ const listPosts = async (req, res) => {
 
     // Safety filter: never return posts without a valid ownerId
     const visiblePosts = posts.filter((post) => !!post.ownerId);
-    
+
+    // v23.1 part 116 — Daniel : "que sitter et walker aussi vois que
+    // lannonce et booster et en haut de toute les annonce". Pour chaque
+    // post on récupère le boost owner (boostExpiry/boostTier) pour
+    // surfacer un flag isOwnerBoosted que le front utilise pour :
+    //   - badge "🚀 Urgent" sur la card
+    //   - tri : posts boostés en haut du feed
+    const now = new Date();
+
     // Enhanced posts with pet information
     const enhancedPosts = await Promise.all(
       visiblePosts.map(async (post) => {
         const sanitizedPost = sanitizePost(post);
-        
+
         // Get owner information
         const owner = post.ownerId;
         const ownerData = {
@@ -227,14 +235,21 @@ const listPosts = async (req, res) => {
           email: owner?.email || '',
           avatar: owner?.avatar?.url || '',
         };
-        
+
+        // v23.1 part 116 — owner boost annotation. On lit les champs
+        // boostExpiry/boostTier directement sur le doc owner populé.
+        const ownerBoostExpiry = owner?.boostExpiry || null;
+        const ownerBoostTier = owner?.boostTier || null;
+        const isOwnerBoosted =
+          ownerBoostExpiry && new Date(ownerBoostExpiry) > now;
+
         // Get all pets for this owner
         const pets = await Pet.find({ ownerId: owner?._id || owner }).sort({ createdAt: -1 });
         const petsData = pets.map((pet) => ({
           id: pet._id.toString(),
           petName: pet.petName || '',
           avatar: pet.avatar?.url || '',
-          photos: Array.isArray(pet.photos) 
+          photos: Array.isArray(pet.photos)
             ? pet.photos.map((photo) => ({
                 url: photo.url || '',
                 publicId: photo.publicId || '',
@@ -242,17 +257,34 @@ const listPosts = async (req, res) => {
               }))
             : [],
         }));
-        
+
         return {
           ...sanitizedPost,
           owner: ownerData,
           pets: petsData,
           likesCount: sanitizedPost.likesCount || 0,
           commentsCount: sanitizedPost.commentsCount || 0,
+          // v23.1 part 116 — boost owner annotation.
+          isOwnerBoosted: Boolean(isOwnerBoosted),
+          ownerBoostTier: isOwnerBoosted ? ownerBoostTier : null,
+          ownerBoostExpiry: isOwnerBoosted ? ownerBoostExpiry : null,
         };
       })
     );
-    
+
+    // v23.1 part 116 — tri : boosted-first puis createdAt desc.
+    // Stable : on garde l'ordre createdAt initial entre posts du même rang.
+    const tierRank = { platinum: 4, gold: 3, silver: 2, bronze: 1 };
+    enhancedPosts.sort((a, b) => {
+      const ra = a.isOwnerBoosted ? (tierRank[a.ownerBoostTier] || 1) : 0;
+      const rb = b.isOwnerBoosted ? (tierRank[b.ownerBoostTier] || 1) : 0;
+      if (ra !== rb) return rb - ra; // boostés en tête, plus haut tier d'abord
+      // Égalité : on garde l'ordre par createdAt desc (déjà set par Mongo).
+      const da = new Date(a.createdAt || 0).getTime();
+      const db = new Date(b.createdAt || 0).getTime();
+      return db - da;
+    });
+
     res.json({
       posts: enhancedPosts,
     });
