@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/chat_addon_controller.dart';
 import 'package:hopetsit/controllers/map_boost_controller.dart';
@@ -1604,10 +1605,89 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                 ],
               ],
             ),
+            // v23.1 part 115 — Daniel : "pkoi ne pas joindre ma position a
+            // paw spot cest plus facile non ?". Bouton shortcut qui prend
+            // la position GPS actuelle et l'affecte directement, sans
+            // ouvrir le picker carte.
+            SizedBox(height: 8.h),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () => _useCurrentLocationAsPawSpot(context, controller),
+                icon: Icon(Icons.my_location_rounded, color: AppColors.primaryColor, size: 18.sp),
+                label: Text(
+                  '📍 Utiliser ma position actuelle',
+                  style: TextStyle(
+                    color: AppColors.primaryColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 8.h),
+                ),
+              ),
+            ),
           ],
         ),
       );
     });
+  }
+
+  // v23.1 part 115 — récupère la position GPS du device et la set comme
+  // PawSpot directement, sans passer par le picker carte.
+  Future<void> _useCurrentLocationAsPawSpot(
+    BuildContext context,
+    MapBoostController controller,
+  ) async {
+    try {
+      // Demande la permission de localisation si pas déjà OK.
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.deniedForever ||
+          perm == LocationPermission.denied) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'Permission de localisation refusée.',
+        );
+        return;
+      }
+      // Snackbar de chargement (la lecture GPS peut prendre 2-5s).
+      CustomSnackbar.showSuccess(
+        title: 'Localisation...',
+        message: 'Récupération de ta position GPS en cours.',
+      );
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      final ok = await controller.setCustomLocation(
+        lat: pos.latitude,
+        lng: pos.longitude,
+        label: 'Ma position',
+      );
+      if (!mounted) return;
+      if (ok) {
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: '📍 PawSpot placé sur ta position actuelle.',
+        );
+      } else {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'Échec de mise à jour du PawSpot.',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'Erreur GPS : ${e.toString()}',
+      );
+    }
   }
 
   bool _locLoaded = false;

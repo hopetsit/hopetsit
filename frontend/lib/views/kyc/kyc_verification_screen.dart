@@ -360,41 +360,114 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
               fontSize: 13.sp,
               color: AppColors.textPrimary(context),
             ),
+            SizedBox(height: 12.h),
+            // v23.1 part 115 — proposer un nouvel upload manuel après rejet.
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _onManualUpload,
+                icon: Icon(Icons.upload_file_rounded, color: _accent, size: 20.sp),
+                label: Text(
+                  _busy ? 'Envoi...' : 'Réessayer avec un autre document',
+                  style: TextStyle(
+                    color: _accent,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: _accent, width: 1.5),
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                ),
+              ),
+            ),
           ],
         ),
       );
     }
     if (status == 'pending_verification') {
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: _busy ? null : _onStartVerification,
-          icon: _busy
-              ? SizedBox(
-                  width: 18.sp, height: 18.sp,
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : Icon(Icons.camera_alt_rounded,
-                  color: Colors.white, size: 20.sp),
-          label: Text(
-            _busy ? 'Chargement...' : 'Lancer la vérification',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
+      // v23.1 part 115 — En cas d'erreur Persona (env vars manquants),
+      // Daniel doit toujours pouvoir uploader manuellement. On affiche
+      // les 2 options ici aussi.
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _busy ? null : _onStartVerification,
+              icon: _busy
+                  ? SizedBox(
+                      width: 18.sp, height: 18.sp,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Icon(Icons.camera_alt_rounded,
+                      color: Colors.white, size: 20.sp),
+              label: Text(
+                _busy ? 'Chargement...' : 'Lancer la vérification Persona',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accent,
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
             ),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _accent,
-            padding: EdgeInsets.symmetric(vertical: 14.h),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.r),
+          SizedBox(height: 8.h),
+          Row(
+            children: [
+              Expanded(child: Divider(color: AppColors.divider(context))),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10.w),
+                child: InterText(
+                  text: 'OU si Persona ne fonctionne pas',
+                  fontSize: 11.sp,
+                  color: AppColors.greyColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Expanded(child: Divider(color: AppColors.divider(context))),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : _onManualUpload,
+              icon: Icon(Icons.upload_file_rounded, color: _accent, size: 20.sp),
+              label: Text(
+                _busy ? 'Envoi...' : 'Envoyer une photo manuellement',
+                style: TextStyle(
+                  color: _accent,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: _accent, width: 1.5),
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
             ),
           ),
-        ),
+          SizedBox(height: 4.h),
+          InterText(
+            text: 'Revue par l\'admin sous 24-48h.',
+            fontSize: 11.sp,
+            color: AppColors.greyColor,
+          ),
+        ],
       );
     }
     // 'none' or 'pending_payment'

@@ -49,36 +49,46 @@ router.get(
   requireAuth,
   requireRole('owner', 'sitter', 'walker'),
   async (req, res) => {
+    const logger = require('../utils/logger');
     try {
       const role = (req.user.role || '').toLowerCase();
       let Model;
-      if (role === 'owner') Model = require('../models/Owner');
-      else if (role === 'sitter') Model = require('../models/Sitter');
-      else if (role === 'walker') Model = require('../models/Walker');
+      let modelName;
+      if (role === 'owner') { Model = require('../models/Owner'); modelName = 'Owner'; }
+      else if (role === 'sitter') { Model = require('../models/Sitter'); modelName = 'Sitter'; }
+      else if (role === 'walker') { Model = require('../models/Walker'); modelName = 'Walker'; }
       else return res.status(403).json({ error: 'Unsupported role.' });
 
-      const user = await Model.findById(req.user.id)
-        .select(
-          'boostExpiry boostTier mapBoostExpiry mapBoostTier mapBoostLocation ' +
-          'isPremium kycStatus kycVerifiedAt verified ibanVerified',
-        )
-        .lean();
-      if (!user) return res.status(404).json({ error: 'User not found.' });
+      // v23.1 part 115 — on retire isPremium du select() pour Sitter/Walker
+      // (le champ n'existe que sur Owner). On lit `lean()` puis on fallback
+      // sur undefined sans erreur.
+      const user = await Model.findById(req.user.id).lean();
+      if (!user) {
+        logger.warn(`[users/me/benefits] user not found role=${role} id=${req.user.id}`);
+        return res.status(404).json({ error: 'User not found.' });
+      }
 
-      // Premium dérivé : isPremium OU subscription active.
+      // v23.1 part 115 — Premium dérivé : isPremium (owner) OU UserSubscription
+      // active. La query filtre par {userId, userModel} (composite unique
+      // index) pour éviter les collisions entre rôles.
       let subscriptionActive = false;
+      let subscriptionPlan = null;
       try {
         const UserSubscription = require('../models/UserSubscription');
         const sub = await UserSubscription.findOne({
           userId: req.user.id,
+          userModel: modelName,
           status: 'active',
         }).select('currentPeriodEnd plan').lean();
         if (sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > new Date()) {
           subscriptionActive = true;
+          subscriptionPlan = sub.plan || null;
         }
-      } catch (_) {/* ignore */}
+      } catch (e) {
+        logger.warn(`[users/me/benefits] subscription lookup failed : ${e.message}`);
+      }
 
-      return res.json({
+      const payload = {
         role,
         boostExpiry: user.boostExpiry || null,
         boostTier: user.boostTier || null,
@@ -90,9 +100,17 @@ router.get(
         verified: !!user.verified,
         ibanVerified: !!user.ibanVerified,
         isPremium: !!user.isPremium || subscriptionActive,
-      });
+        subscriptionPlan,
+        // v23.1 part 115 — flag identityVerification (manual upload status)
+        // pour le banner KYC du profil.
+        identityVerificationStatus: user.identityVerification?.status || 'none',
+      };
+      logger.debug(
+        `[users/me/benefits] role=${role} id=${req.user.id} boost=${!!payload.boostExpiry} mapBoost=${!!payload.mapBoostExpiry} kyc=${payload.kycStatus} premium=${payload.isPremium}`,
+      );
+      return res.json(payload);
     } catch (e) {
-      require('../utils/logger').error('[users/me/benefits]', e);
+      logger.error('[users/me/benefits]', e);
       return res.status(500).json({ error: e.message });
     }
   },

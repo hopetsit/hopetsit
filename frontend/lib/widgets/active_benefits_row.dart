@@ -32,6 +32,12 @@ class ActiveBenefitsRow extends StatefulWidget {
   static void notifyChanged() {
     _refreshTick.value += 1;
   }
+
+  // v23.1 part 115 — exposé pour que KycStatusBanner (et autres widgets
+  // dépendants de /users/me/benefits) puissent aussi se rafraichir
+  // après un changement (achat, KYC submit, etc.).
+  // ignore: prefer_const_declarations
+  static RxInt get refreshTickAccessor => _refreshTick;
 }
 
 class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {

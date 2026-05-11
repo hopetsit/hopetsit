@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
+import 'package:hopetsit/widgets/kyc_status_banner.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -392,6 +393,9 @@ class SitterProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // v23.1 part 115 — Banner KYC : « Vérifier mon identité » CTA quand
+        // l'utilisateur n'a pas encore complété sa vérif, sinon badge ✓.
+        const KycStatusBanner(),
         // v18.6 — Booster mon profil (bleu sitter).
         BoostProfileCard(role: 'sitter'),
         SizedBox(height: 16.h),

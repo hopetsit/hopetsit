@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
+import 'package:hopetsit/widgets/kyc_status_banner.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
@@ -83,6 +84,9 @@ class WalkerProfileScreen extends StatelessWidget {
                   // Quick Actions: revenues, calendar, boost, iban.
                   _buildQuickActions(context),
                   SizedBox(height: 20.h),
+
+                  // v23.1 part 115 — banner KYC (CTA "Vérifier mon identité").
+                  const KycStatusBanner(),
 
                   // v18.6 — Booster mon profil (vert walker).
                   BoostProfileCard(role: 'walker'),
