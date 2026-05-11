@@ -1281,34 +1281,31 @@ class PetPostCard extends StatelessWidget {
   }
 
   /// v23.1 part 116 — Ruban URGENT pour les posts dont l'owner a un Boost
-  /// profil actif. Le tier décide de l'intensité visuelle :
-  ///   bronze   → ruban orange "Boost actif"
-  ///   silver   → ruban orange foncé "🚀 Mise en avant"
-  ///   gold     → ruban rouge "🚀 URGENT"
-  ///   platinum → ruban rouge brillant + pulse "🔥 URGENT — Réponse rapide"
+  /// profil actif. Le tier décide de l'intensité visuelle.
+  /// v23.1 part 117 — i18n keys post_urgent_*.
   Widget _buildUrgentBanner() {
     String label;
     Color bg;
     String emoji;
     switch (ownerBoostTier) {
       case 'platinum':
-        label = 'URGENT — RÉPONSE RAPIDE';
+        label = 'post_urgent_platinum'.tr;
         bg = const Color(0xFFC81E1E);
         emoji = '🔥';
         break;
       case 'gold':
-        label = 'URGENT';
+        label = 'post_urgent_gold'.tr;
         bg = const Color(0xFFE8472A);
         emoji = '🚀';
         break;
       case 'silver':
-        label = 'MISE EN AVANT';
+        label = 'post_urgent_silver'.tr;
         bg = const Color(0xFFEA580C);
         emoji = '🚀';
         break;
       case 'bronze':
       default:
-        label = 'BOOST ACTIF';
+        label = 'post_urgent_bronze'.tr;
         bg = const Color(0xFFF59E0B);
         emoji = '🚀';
     }

@@ -1616,7 +1616,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                 onPressed: () => _useCurrentLocationAsPawSpot(context, controller),
                 icon: Icon(Icons.my_location_rounded, color: AppColors.primaryColor, size: 18.sp),
                 label: Text(
-                  '📍 Utiliser ma position actuelle',
+                  'pawspot_use_my_position'.tr,
                   style: TextStyle(
                     color: AppColors.primaryColor,
                     fontSize: 12.sp,
@@ -1650,14 +1650,14 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
           perm == LocationPermission.denied) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: 'Permission de localisation refusée.',
+          message: 'pawspot_perm_denied'.tr,
         );
         return;
       }
       // Snackbar de chargement (la lecture GPS peut prendre 2-5s).
       CustomSnackbar.showSuccess(
-        title: 'Localisation...',
-        message: 'Récupération de ta position GPS en cours.',
+        title: 'pawspot_use_loading_title'.tr,
+        message: 'pawspot_use_loading_msg'.tr,
       );
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -1667,25 +1667,25 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
       final ok = await controller.setCustomLocation(
         lat: pos.latitude,
         lng: pos.longitude,
-        label: 'Ma position',
+        label: 'pawspot_use_my_position_label'.tr,
       );
       if (!mounted) return;
       if (ok) {
         CustomSnackbar.showSuccess(
           title: 'common_success'.tr,
-          message: '📍 PawSpot placé sur ta position actuelle.',
+          message: 'pawspot_use_success_msg'.tr,
         );
       } else {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: 'Échec de mise à jour du PawSpot.',
+          message: 'pawspot_use_fail_msg'.tr,
         );
       }
     } catch (e) {
       if (!mounted) return;
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'Erreur GPS : ${e.toString()}',
+        message: 'pawspot_gps_error'.trParams({'error': e.toString()}),
       );
     }
   }

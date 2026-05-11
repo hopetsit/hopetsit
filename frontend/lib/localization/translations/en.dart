@@ -2123,4 +2123,30 @@ const Map<String, String> enUSTranslations = <String, String>{
     'pawpass_required_message': 'Unlock this feature with PawFollow.',
     'pawpass_discover_button': 'Discover PawFollow',
     'pawpass_later_button': 'Later',
+
+    // v23.1 part 117 — Urgent ribbon on boosted owner's posts.
+    'post_urgent_platinum': 'URGENT — FAST REPLY',
+    'post_urgent_gold': 'URGENT',
+    'post_urgent_silver': 'HIGHLIGHTED',
+    'post_urgent_bronze': 'BOOST ACTIVE',
+
+    // v23.1 part 117 — KYC status banner on sitter/walker profile.
+    'kyc_banner_verified': 'Identity verified',
+    'kyc_banner_verified_sub': 'Your ✓ badge is visible to owners.',
+    'kyc_banner_rejected': 'Verification declined',
+    'kyc_banner_rejected_sub': 'Tap to submit a new document.',
+    'kyc_banner_pending': 'Verification in progress',
+    'kyc_banner_pending_sub': 'Tap to track or retry.',
+    'kyc_banner_none': 'Verify your identity',
+    'kyc_banner_none_sub': 'A "Verified ✓" badge reassures owners and boosts your chances of being picked.',
+
+    // v23.1 part 117 — "Use my GPS position" PawSpot shortcut.
+    'pawspot_use_my_position': '📍 Use my current location',
+    'pawspot_use_my_position_label': 'My location',
+    'pawspot_use_loading_title': 'Locating...',
+    'pawspot_use_loading_msg': 'Getting your GPS position.',
+    'pawspot_use_success_msg': '📍 PawSpot set to your current location.',
+    'pawspot_use_fail_msg': 'Failed to update PawSpot.',
+    'pawspot_perm_denied': 'Location permission denied.',
+    'pawspot_gps_error': 'GPS error: @error',
 };

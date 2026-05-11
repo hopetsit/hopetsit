@@ -78,8 +78,8 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
       return _banner(
         color: const Color(0xFF16A34A),
         icon: Icons.verified_rounded,
-        label: 'Identité vérifiée',
-        sublabel: 'Ton badge ✓ est visible aux propriétaires.',
+        label: 'kyc_banner_verified'.tr,
+        sublabel: 'kyc_banner_verified_sub'.tr,
         onTap: null,
       );
     }
@@ -87,8 +87,8 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
       return _banner(
         color: const Color(0xFFE53935),
         icon: Icons.cancel_outlined,
-        label: 'Vérification refusée',
-        sublabel: 'Touche pour soumettre un nouveau document.',
+        label: 'kyc_banner_rejected'.tr,
+        sublabel: 'kyc_banner_rejected_sub'.tr,
         onTap: _openKyc,
       );
     }
@@ -96,8 +96,8 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
       return _banner(
         color: const Color(0xFFF39C12),
         icon: Icons.hourglass_top_rounded,
-        label: 'Vérification en cours',
-        sublabel: 'Touche pour suivre l\'état ou réessayer.',
+        label: 'kyc_banner_pending'.tr,
+        sublabel: 'kyc_banner_pending_sub'.tr,
         onTap: _openKyc,
       );
     }
@@ -105,9 +105,8 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
     return _banner(
       color: AppColors.primaryColor,
       icon: Icons.assignment_ind_rounded,
-      label: 'Vérifie ton identité',
-      sublabel:
-          'Un badge « Vérifié ✓ » rassure les propriétaires et augmente tes chances d\'être choisi.',
+      label: 'kyc_banner_none'.tr,
+      sublabel: 'kyc_banner_none_sub'.tr,
       onTap: _openKyc,
     );
   }
