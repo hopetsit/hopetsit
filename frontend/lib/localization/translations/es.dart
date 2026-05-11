@@ -2099,4 +2099,11 @@ const Map<String, String> esESTranslations = <String, String>{
     'signup_location_not_found': 'Ubicación no encontrada',
     'sitter_application_accept_success': 'Candidatura aceptada con éxito',
     'sitter_application_reject_success': 'Candidatura rechazada con éxito',
+
+    // v23.1 part 118 — Botón "Traducir" en cada mensaje del chat.
+    'translate_button': 'Traducir',
+    'translating': 'Traduciendo...',
+    'translate_show_translation': 'Mostrar traducción',
+    'translate_show_original': 'Mostrar original',
+    'translation_unavailable': 'Traducción no disponible ahora.',
 };

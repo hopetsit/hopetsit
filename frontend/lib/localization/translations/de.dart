@@ -2137,4 +2137,11 @@ const Map<String, String> deDETranslations = <String, String>{
     'signup_location_not_found': 'Standort nicht gefunden',
     'sitter_application_accept_success': 'Bewerbung erfolgreich angenommen',
     'sitter_application_reject_success': 'Bewerbung erfolgreich abgelehnt',
+
+    // v23.1 part 118 — „Übersetzen"-Button auf jeder Chat-Nachricht.
+    'translate_button': 'Übersetzen',
+    'translating': 'Übersetze...',
+    'translate_show_translation': 'Übersetzung anzeigen',
+    'translate_show_original': 'Original anzeigen',
+    'translation_unavailable': 'Übersetzung gerade nicht verfügbar.',
 };

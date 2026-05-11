@@ -2142,4 +2142,12 @@ const Map<String, String> frFRTranslations = <String, String>{
     'signup_location_not_found': 'Position introuvable',
     'sitter_application_accept_success': 'Candidature acceptée avec succès',
     'sitter_application_reject_success': 'Candidature rejetée avec succès',
+
+    // v23.1 part 118 — Bouton "Traduire" sur chaque message du chat
+    // (TranslateMessageButton, intégré dans owner + sitter individual chats).
+    'translate_button': 'Traduire',
+    'translating': 'Traduction...',
+    'translate_show_translation': 'Voir la traduction',
+    'translate_show_original': 'Voir l\'original',
+    'translation_unavailable': 'Traduction indisponible pour l\'instant.',
 };

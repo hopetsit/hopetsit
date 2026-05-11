@@ -67,10 +67,10 @@ class _TranslateMessageButtonState extends State<TranslateMessageButton> {
         _translated = translated;
         _showOriginal = false;
         _loading = false;
+        // v23.1 part 118 — la clé translation_unavailable existe maintenant
+        // dans les 6 langues, on lit direct.
         _error = warning == 'translation_unavailable'
-            ? 'translation_unavailable'.trParams({}).isEmpty
-                ? 'Traduction indisponible pour l\'instant.'
-                : 'translation_unavailable'.tr
+            ? 'translation_unavailable'.tr
             : null;
       });
     } catch (e) {
@@ -114,13 +114,14 @@ class _TranslateMessageButtonState extends State<TranslateMessageButton> {
                   ),
                 SizedBox(width: 4.w),
                 InterText(
+                  // v23.1 part 118 — keys présents dans les 6 langues.
                   text: _loading
-                      ? (_translateLabel('translating', 'Traduction...'))
+                      ? 'translating'.tr
                       : (_translated == null
-                          ? _translateLabel('translate_button', 'Traduire')
+                          ? 'translate_button'.tr
                           : (_showOriginal
-                              ? _translateLabel('translate_show_translation', 'Voir la traduction')
-                              : _translateLabel('translate_show_original', 'Voir l\'original'))),
+                              ? 'translate_show_translation'.tr
+                              : 'translate_show_original'.tr)),
                   fontSize: 12.sp,
                   color: accent,
                   fontWeight: FontWeight.w600,
@@ -163,9 +164,4 @@ class _TranslateMessageButtonState extends State<TranslateMessageButton> {
     );
   }
 
-  // Helper : utilise la clé i18n si dispo, sinon fallback FR codé en dur.
-  String _translateLabel(String key, String fallback) {
-    final t = key.tr;
-    return (t.isEmpty || t == key) ? fallback : t;
-  }
 }

@@ -2134,4 +2134,11 @@ const Map<String, String> itITTranslations = <String, String>{
     'signup_location_not_found': 'Posizione non trovata',
     'sitter_application_accept_success': 'Candidatura accettata con successo',
     'sitter_application_reject_success': 'Candidatura rifiutata con successo',
+
+    // v23.1 part 118 — Pulsante "Traduci" su ogni messaggio della chat.
+    'translate_button': 'Traduci',
+    'translating': 'Traduzione...',
+    'translate_show_translation': 'Mostra traduzione',
+    'translate_show_original': 'Mostra originale',
+    'translation_unavailable': 'Traduzione non disponibile al momento.',
 };

@@ -2126,4 +2126,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'signup_location_not_found': 'Localização não encontrada',
     'sitter_application_accept_success': 'Candidatura aceite com sucesso',
     'sitter_application_reject_success': 'Candidatura recusada com sucesso',
+
+    // v23.1 part 118 — Botão "Traduzir" em cada mensagem do chat.
+    'translate_button': 'Traduzir',
+    'translating': 'A traduzir...',
+    'translate_show_translation': 'Mostrar tradução',
+    'translate_show_original': 'Mostrar original',
+    'translation_unavailable': 'Tradução indisponível neste momento.',
 };

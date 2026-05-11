@@ -2149,4 +2149,11 @@ const Map<String, String> enUSTranslations = <String, String>{
     'pawspot_use_fail_msg': 'Failed to update PawSpot.',
     'pawspot_perm_denied': 'Location permission denied.',
     'pawspot_gps_error': 'GPS error: @error',
+
+    // v23.1 part 118 — Per-message "Translate" button in chat.
+    'translate_button': 'Translate',
+    'translating': 'Translating...',
+    'translate_show_translation': 'Show translation',
+    'translate_show_original': 'Show original',
+    'translation_unavailable': 'Translation unavailable right now.',
 };
