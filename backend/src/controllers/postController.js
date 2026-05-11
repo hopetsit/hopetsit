@@ -394,12 +394,19 @@ const getRequestPosts = async (req, res) => {
 
     const posts = await Post.find(filter).sort({ createdAt: -1 }).populate('ownerId');
     const visiblePosts = posts.filter((post) => !!post.ownerId);
-    
+
+    // v23.1 part 120 — Daniel : "jai fais une annonce acheter un boost
+    // owner et y saafiche nulpar". Bug : l'enrichissement isOwnerBoosted /
+    // tri boosted-first n'avait été ajouté qu'à listPosts (v116), pas à
+    // getRequestPosts qui est l'endpoint utilisé par le feed walker/sitter.
+    // Maintenant ce endpoint annote et trie aussi.
+    const now = new Date();
+
     // Enhanced posts with pet information
     const enhancedPosts = await Promise.all(
       visiblePosts.map(async (post) => {
         const sanitizedPost = sanitizePost(post);
-        
+
         // Get owner information
         const owner = post.ownerId;
         const ownerData = {
@@ -408,14 +415,20 @@ const getRequestPosts = async (req, res) => {
           email: owner?.email || '',
           avatar: owner?.avatar?.url || '',
         };
-        
+
+        // v23.1 part 120 — owner Boost annotation (boostExpiry/Tier).
+        const ownerBoostExpiry = owner?.boostExpiry || null;
+        const ownerBoostTier = owner?.boostTier || null;
+        const isOwnerBoosted =
+          ownerBoostExpiry && new Date(ownerBoostExpiry) > now;
+
         // Get all pets for this owner
         const pets = await Pet.find({ ownerId: owner?._id || owner }).sort({ createdAt: -1 });
         const petsData = pets.map((pet) => ({
           id: pet._id.toString(),
           petName: pet.petName || '',
           avatar: pet.avatar?.url || '',
-          photos: Array.isArray(pet.photos) 
+          photos: Array.isArray(pet.photos)
             ? pet.photos.map((photo) => ({
                 url: photo.url || '',
                 publicId: photo.publicId || '',
@@ -423,15 +436,30 @@ const getRequestPosts = async (req, res) => {
               }))
             : [],
         }));
-        
+
         return {
           ...sanitizedPost,
           owner: ownerData,
           pets: petsData,
+          // v23.1 part 120 — surface boost flags pour ruban URGENT côté front.
+          isOwnerBoosted: Boolean(isOwnerBoosted),
+          ownerBoostTier: isOwnerBoosted ? ownerBoostTier : null,
+          ownerBoostExpiry: isOwnerBoosted ? ownerBoostExpiry : null,
         };
       })
     );
-    
+
+    // v23.1 part 120 — tri boosted-first puis createdAt desc.
+    const tierRank = { platinum: 4, gold: 3, silver: 2, bronze: 1 };
+    enhancedPosts.sort((a, b) => {
+      const ra = a.isOwnerBoosted ? (tierRank[a.ownerBoostTier] || 1) : 0;
+      const rb = b.isOwnerBoosted ? (tierRank[b.ownerBoostTier] || 1) : 0;
+      if (ra !== rb) return rb - ra;
+      const da = new Date(a.createdAt || 0).getTime();
+      const db = new Date(b.createdAt || 0).getTime();
+      return db - da;
+    });
+
     res.json({
       posts: enhancedPosts,
       count: enhancedPosts.length,

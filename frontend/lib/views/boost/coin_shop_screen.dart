@@ -247,6 +247,44 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   }
 
   Future<void> _purchaseBoost(String tier, {bool payWithWallet = false}) async {
+    // v23.1 part 120 — Daniel : "qd on va pour acheter mais on met retour
+    // sa met paw spot activer alors que c pas payer". Le backend active
+    // automatiquement les users staff (isStaff=true) dès l'appel POST
+    // /boost/purchase, sans confirmation. Donc Daniel active sans le
+    // vouloir chaque fois qu'il tape un tier. On force un dialog avant.
+    if (!payWithWallet) {
+      final pkg = _packages.firstWhereOrNull((p) => p['tier'] == tier);
+      final priceLabel = pkg != null
+          ? '${(pkg['amount'] as num).toStringAsFixed(2)} ${pkg['currency']}'
+          : '?';
+      final daysLabel = pkg != null ? '${pkg['days']} jours' : '?';
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          title: Text('Acheter Boost ${tier.toUpperCase()} ?'),
+          content: Text(
+            'Tier : ${tier.toUpperCase()}\n'
+            'Durée : $daysLabel\n'
+            'Prix : $priceLabel\n\n'
+            'Ton profil sera mis en avant pendant la durée choisie.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Confirmer'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
     setState(() {
       _purchasing = true;
       _selectedTier = tier;
@@ -1388,6 +1426,44 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
               SizedBox(height: 12.h),
               // v23.1 part 108 — section PawSpot location custom.
               _buildPawSpotLocationCard(context, controller),
+              // v23.1 part 120 — Daniel : "le paw sport ne saffiche pas sur
+              // la carte". En réalité ton propre marker n'est visible que
+              // pour les OWNERS regardant la map. En walker/sitter mode,
+              // tu ne vois pas les autres walkers/sitters (par design).
+              // On rajoute une note pour clarifier.
+              Obx(() {
+                final isActive = controller.status.value?.isActive ?? false;
+                if (!isActive) return const SizedBox.shrink();
+                return Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.h),
+                  child: Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(10.r),
+                      border: Border.all(
+                        color: const Color(0xFF3B82F6).withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            color: const Color(0xFF3B82F6), size: 16.sp),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: InterText(
+                            text:
+                                'Ton PawSpot est visible par les owners qui regardent la map à cet endroit. Passe en mode Propriétaire et ouvre la map pour le vérifier toi-même.',
+                            fontSize: 11.sp,
+                            color: AppColors.textPrimary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
               SizedBox(height: 16.h),
               _buildPremiumCreditCard(context, controller),
               SizedBox(height: 20.h),
@@ -2133,6 +2209,46 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     MapBoostController controller,
     String tier,
   ) async {
+    // v23.1 part 120 — Daniel : "qd on va pour acheter mais on met retour
+    // sa met paw spot activer alors que c pas payer". Cause : si Daniel est
+    // staff dans la DB (isStaff=true), le backend active gratuitement
+    // dès le POST /map-boost/purchase, SANS confirmation. Donc Daniel
+    // active accidentellement chaque fois qu'il clique sur un tier.
+    //
+    // Fix : ajoute un confirm dialog AVANT d'appeler controller.purchase().
+    // Le dialog affiche le prix et la durée pour que Daniel sache ce qu'il
+    // active.
+    final pkg = controller.packages.firstWhereOrNull((p) => p.tier == tier);
+    final priceLabel = pkg != null
+        ? '${pkg.amount.toStringAsFixed(2)} ${pkg.currency}'
+        : '?';
+    final daysLabel = pkg != null ? '${pkg.days} jours' : '?';
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('Acheter PawSpot ${tier.toUpperCase()} ?'),
+        content: Text(
+          'Tier : ${tier.toUpperCase()}\n'
+          'Durée : $daysLabel\n'
+          'Prix : $priceLabel\n\n'
+          'Ton PawSpot sera mis en avant pendant la durée choisie.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     try {
       await controller.purchase(tier);
       if (!mounted) return;
