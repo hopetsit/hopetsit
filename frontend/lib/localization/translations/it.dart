@@ -2108,7 +2108,6 @@ const Map<String, String> itITTranslations = <String, String>{
     'otp_complete_code_required': 'Inserisci il codice completo a 6 cifre.',
     'otp_login_again': 'Effettua nuovamente l\'accesso',
     'otp_verification_success': 'Verifica riuscita!',
-    'payment_pay_with_card': 'Paga @amount',
     'pet_create_failed': 'Impossibile creare il profilo animale. Riprova.',
     'pet_create_success': 'Profilo animale creato con successo!',
     'pet_create_validation_error_message': 'Compila tutti i campi richiesti',

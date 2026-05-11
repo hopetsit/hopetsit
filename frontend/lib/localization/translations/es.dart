@@ -2073,7 +2073,6 @@ const Map<String, String> esESTranslations = <String, String>{
     'otp_complete_code_required': 'Ingresa el código completo de 6 dígitos.',
     'otp_login_again': 'Vuelve a iniciar sesión',
     'otp_verification_success': '¡Verificación exitosa!',
-    'payment_pay_with_card': 'Pagar @amount',
     'pet_create_failed': 'No se pudo crear el perfil de la mascota. Inténtalo de nuevo.',
     'pet_create_success': '¡Perfil de mascota creado con éxito!',
     'pet_create_validation_error_message': 'Completa todos los campos requeridos',

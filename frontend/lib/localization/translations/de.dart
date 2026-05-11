@@ -2111,7 +2111,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'otp_complete_code_required': 'Gib den vollständigen 6-stelligen Code ein.',
     'otp_login_again': 'Bitte erneut anmelden',
     'otp_verification_success': 'Verifizierung erfolgreich!',
-    'payment_pay_with_card': '@amount bezahlen',
     'pet_create_failed': 'Tierprofil konnte nicht erstellt werden. Bitte erneut versuchen.',
     'pet_create_success': 'Tierprofil erfolgreich erstellt!',
     'pet_create_validation_error_message': 'Bitte alle Pflichtfelder ausfüllen',
