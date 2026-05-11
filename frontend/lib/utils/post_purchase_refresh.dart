@@ -15,6 +15,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 
 /// Re-fetch all profile-related state to surface boost / premium / pawspot
 /// flags freshly across the app. Best-effort : si un controller n'est
@@ -46,4 +47,8 @@ Future<void> refreshAfterPurchase() async {
   // Note : PawMapController.loadNearby() requires a center LatLng, donc
   // on ne le déclenche pas ici — la map se rechargera au prochain
   // mouvement de caméra et lira les flags fraîchement depuis l'API.
+
+  // v23.1 part 114 — déclenche le refresh des ActiveBenefitsRow visibles
+  // (qui appellent /users/me/benefits indépendamment des controllers).
+  ActiveBenefitsRow.notifyChanged();
 }

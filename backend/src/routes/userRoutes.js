@@ -38,6 +38,66 @@ const upload = multer({
  */
 router.get('/me/profile', requireAuth, requireRole('owner'), getOwnerProfile);
 
+// v23.1 part 114 — Daniel : "le boost marche pas" / "aucun des paw spot ne marche".
+// Endpoint léger qui renvoie les flags d'avantages actifs (boostExpiry,
+// mapBoostExpiry, kycStatus, isPremium, etc.) pour le user courant, peu
+// importe son rôle. Permet à l'app mobile d'afficher les badges
+// (ActiveBenefitsRow) instantanément même pour les sitters/walkers
+// (qui n'ont pas accès à /users/me/profile, réservé aux owners).
+router.get(
+  '/me/benefits',
+  requireAuth,
+  requireRole('owner', 'sitter', 'walker'),
+  async (req, res) => {
+    try {
+      const role = (req.user.role || '').toLowerCase();
+      let Model;
+      if (role === 'owner') Model = require('../models/Owner');
+      else if (role === 'sitter') Model = require('../models/Sitter');
+      else if (role === 'walker') Model = require('../models/Walker');
+      else return res.status(403).json({ error: 'Unsupported role.' });
+
+      const user = await Model.findById(req.user.id)
+        .select(
+          'boostExpiry boostTier mapBoostExpiry mapBoostTier mapBoostLocation ' +
+          'isPremium kycStatus kycVerifiedAt verified ibanVerified',
+        )
+        .lean();
+      if (!user) return res.status(404).json({ error: 'User not found.' });
+
+      // Premium dérivé : isPremium OU subscription active.
+      let subscriptionActive = false;
+      try {
+        const UserSubscription = require('../models/UserSubscription');
+        const sub = await UserSubscription.findOne({
+          userId: req.user.id,
+          status: 'active',
+        }).select('currentPeriodEnd plan').lean();
+        if (sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > new Date()) {
+          subscriptionActive = true;
+        }
+      } catch (_) {/* ignore */}
+
+      return res.json({
+        role,
+        boostExpiry: user.boostExpiry || null,
+        boostTier: user.boostTier || null,
+        mapBoostExpiry: user.mapBoostExpiry || null,
+        mapBoostTier: user.mapBoostTier || null,
+        mapBoostLocation: user.mapBoostLocation || null,
+        kycStatus: user.kycStatus || 'none',
+        kycVerifiedAt: user.kycVerifiedAt || null,
+        verified: !!user.verified,
+        ibanVerified: !!user.ibanVerified,
+        isPremium: !!user.isPremium || subscriptionActive,
+      });
+    } catch (e) {
+      require('../utils/logger').error('[users/me/benefits]', e);
+      return res.status(500).json({ error: e.message });
+    }
+  },
+);
+
 /**
  * @swagger
  * /users/me/card:

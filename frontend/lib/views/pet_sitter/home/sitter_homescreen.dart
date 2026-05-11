@@ -68,6 +68,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   double _providerHourlyRate = 0.0;
   double _providerDailyRate = 0.0;
   double _providerWeeklyRate = 0.0;
+  // v23.1 part 114 — exact per-duration rates for walker (30/60 min).
+  double _providerWalkRate30 = 0.0;
+  double _providerWalkRate60 = 0.0;
   double _providerMonthlyRate = 0.0;
   String _providerCurrency = 'EUR';
 
@@ -122,6 +125,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         if (!mounted) return;
         setState(() {
           _providerHourlyRate = derivedHourly;
+          // v23.1 part 114 — store the EXACT 30/60 rates so the estimator
+          // can use them directly for posts of those specific durations
+          // (au lieu de proratiser depuis hourly).
+          _providerWalkRate30 = halfHour;
+          _providerWalkRate60 = hourly;
         });
       } else if (role == 'sitter') {
         final storage = GetStorage();
@@ -370,6 +378,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         weeklyRate: _providerWeeklyRate,
         monthlyRate: _providerMonthlyRate,
         currency: _providerCurrency,
+        // v23.1 part 114 — passe les tarifs exacts pour 30/60 min.
+        walkRate30: _providerWalkRate30 > 0 ? _providerWalkRate30 : null,
+        walkRate60: _providerWalkRate60 > 0 ? _providerWalkRate60 : null,
       );
     } catch (e) {
       AppLogger.logDebug('estimateForPost failed: $e');

@@ -199,6 +199,17 @@ const findNearbySitters = async (req, res) => {
       const isBoosted = sitter.boostExpiry && new Date(sitter.boostExpiry) > now;
       const isMapBoosted =
         sitter.mapBoostExpiry && new Date(sitter.mapBoostExpiry) > now;
+      // v23.1 part 114 — override location quand PawSpot custom actif.
+      const customCoords = isMapBoosted &&
+        sitter.mapBoostLocation?.coordinates &&
+        Array.isArray(sitter.mapBoostLocation.coordinates) &&
+        sitter.mapBoostLocation.coordinates.length === 2
+          ? sitter.mapBoostLocation.coordinates
+          : null;
+      const displayCoords = customCoords || sitter.location?.coordinates || null;
+      const displayCity = customCoords
+        ? (sitter.mapBoostLocation?.label || sitter.location?.city || '')
+        : (sitter.location?.city || '');
 
       return {
         id: sitter._id.toString(),
@@ -217,9 +228,10 @@ const findNearbySitters = async (req, res) => {
         monthlyRate: sitter.monthlyRate || 0,
         bio: sitter.bio || '',
         location: {
-          coordinates: sitter.location?.coordinates || null,
-          city: sitter.location?.city || '',
+          coordinates: displayCoords,
+          city: displayCity,
         },
+        pawSpotLabel: customCoords ? (sitter.mapBoostLocation?.label || '') : null,
         distance: sitter.distance ? (sitter.distance / 1000).toFixed(2) : null,
         distanceInMeters: sitter.distance || null,
         verified: sitter.verified || false,

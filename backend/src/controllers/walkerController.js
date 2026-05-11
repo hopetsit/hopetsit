@@ -191,16 +191,38 @@ const findNearbyWalkers = async (req, res) => {
     // bubble PawSpot-paid walkers to the top of the list and apply
     // a special pin treatment. Without this, paying for PawSpot had
     // zero visible effect on the map for the walker.
+    // v23.1 part 114 — Daniel : "aucun des paw spot ne marche". Quand un
+    // walker a un mapBoostLocation custom et que son boost est actif, le
+    // marker doit être plotté SUR le PawSpot custom, pas sur son adresse
+    // perso. Sinon il achète PawSpot à Pego mais le marker reste chez lui.
     const enriched = walkers.map((w) => {
       const safe = sanitizeUser(w);
       const isBoosted = w.boostExpiry && new Date(w.boostExpiry) > now;
       const isMapBoosted = w.mapBoostExpiry && new Date(w.mapBoostExpiry) > now;
+      // Override location.coordinates avec mapBoostLocation quand boost
+      // actif ET location custom configurée. La PawMap UI plotte le pin
+      // à `safe.location.coordinates`.
+      const customCoords = isMapBoosted &&
+        w.mapBoostLocation?.coordinates &&
+        Array.isArray(w.mapBoostLocation.coordinates) &&
+        w.mapBoostLocation.coordinates.length === 2
+          ? w.mapBoostLocation.coordinates
+          : null;
+      const displayLocation = customCoords
+        ? {
+            type: 'Point',
+            coordinates: customCoords,
+            city: w.mapBoostLocation?.label || safe.location?.city || '',
+          }
+        : safe.location;
       return {
         ...safe,
+        location: displayLocation,
         isBoosted: Boolean(isBoosted),
         boostTier: isBoosted ? (w.boostTier || null) : null,
         isMapBoosted: Boolean(isMapBoosted),
         mapBoostTier: isMapBoosted ? (w.mapBoostTier || null) : null,
+        pawSpotLabel: customCoords ? (w.mapBoostLocation?.label || '') : null,
       };
     });
 

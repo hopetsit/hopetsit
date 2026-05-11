@@ -49,6 +49,12 @@ PostPriceEstimate? estimatePostPrice({
   required double monthlyRate,
   required String currency,
   double commissionRate = 0.20,
+  // v23.1 part 114 — Daniel : "jai changer de tarif et sa ne saffiche pas
+  // le bon prix qd je vois la nouvelle publication". Le walker peut définir
+  // un tarif EXACT pour 30min (différent de hourlyRate / 2). Si fourni, on
+  // l'utilise tel quel pour les balades de 30 min (et 60min idem).
+  double? walkRate30,
+  double? walkRate60,
 }) {
   // v20.0.19 — soften the date requirement so the price block appears on
   // publications that don't carry a full end date. Most owners publish a
@@ -73,8 +79,38 @@ PostPriceEstimate? estimatePostPrice({
 
   // ----- WALKER ---------------------------------------------------------
   if (role == 'walker' || (role != 'sitter' && isWalkingPost)) {
-    if (hourlyRate <= 0) return null;
     final duration = end.difference(start);
+    // v23.1 part 114 — pour les balades EXACTEMENT 30 ou 60 min, on
+    // privilégie le tarif explicite du walker (walkRate30 / walkRate60)
+    // au lieu de multiplier hourlyRate × hours. Ça matche le comportement
+    // du backend (bookingController.js:383-395 shim v18.9.3).
+    final durationMinutes = duration.inMinutes;
+    if (durationMinutes == 30 && walkRate30 != null && walkRate30 > 0) {
+      final brut = walkRate30;
+      final commission = brut * commissionRate;
+      return PostPriceEstimate(
+        brut: brut + commission,
+        net: brut,
+        commission: commission,
+        currency: currency,
+        breakdown: '30 min × ${_money(brut, currency)}',
+        unit: 'hour',
+      );
+    }
+    if (durationMinutes == 60 && walkRate60 != null && walkRate60 > 0) {
+      final brut = walkRate60;
+      final commission = brut * commissionRate;
+      return PostPriceEstimate(
+        brut: brut + commission,
+        net: brut,
+        commission: commission,
+        currency: currency,
+        breakdown: '1h × ${_money(brut, currency)}',
+        unit: 'hour',
+      );
+    }
+    // Pas de tarif exact → fallback sur hourlyRate × hours (comportement legacy).
+    if (hourlyRate <= 0) return null;
     // Minimum billable slot = 30 min, round up to nearest 30 min.
     double hours = duration.inMinutes / 60.0;
     if (hours < 0.5) hours = 0.5;
