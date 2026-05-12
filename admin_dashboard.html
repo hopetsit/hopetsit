@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 122</title>
+<title>HopeTSIT — Admin v23.1 part 123</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -906,6 +906,8 @@ function _enterApp(url, token) {
   document.getElementById('app').style.display = 'flex';
   document.getElementById('api-url-display').textContent = url;
   loadDashboard();
+  // v23.1 part 122 — auto-refresh du dashboard tant qu'on est sur ce tab.
+  startDashboardAutoRefresh();
   loadBookings();
   loadSitters();
   loadOwners();
@@ -1189,7 +1191,7 @@ function showPage(name) {
   // v23.1 part 105 — chaque tab refresh les data quand on clique dessus
   // (avant : les tabs Bookings/Sitters/Owners/Dashboard ne re-chargeaient
   // jamais après le 1er chargement à _enterApp → données obsolètes).
-  if (name === 'dashboard') loadDashboard();
+  if (name === 'dashboard') { loadDashboard(); startDashboardAutoRefresh(); } else { stopDashboardAutoRefresh(); }
   if (name === 'bookings') loadBookings();
   if (name === 'sitters') loadSitters();
   if (name === 'owners') loadOwners();
@@ -1271,19 +1273,28 @@ function renderAnnoncesList(posts) {
     const reason = banned && p.bannedReason
       ? `<div style="color:var(--red);font-size:11px;margin-top:6px">Raison : ${p.bannedReason}</div>`
       : '';
+    // v23.1 part 122 — Daniel : "onglet annonce Je dois pouvoir lire les
+    // annonces". Le body était affiché en color:var(--text-muted) ce qui
+    // le rendait peu lisible. Maintenant body en color:var(--text), font
+    // 14px, white-space:pre-wrap pour préserver les sauts de ligne.
+    const dateStr = new Date(p.createdAt).toLocaleString('fr-FR');
+    const dates = (p.startDate || p.endDate)
+      ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📅 ${p.startDate ? new Date(p.startDate).toLocaleDateString('fr-FR') : '?'} → ${p.endDate ? new Date(p.endDate).toLocaleDateString('fr-FR') : '?'}</div>`
+      : '';
     return `
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px">
         <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
           <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
               ${statusBadge}
-              <span style="color:var(--text-muted);font-size:12px">${new Date(p.createdAt).toLocaleString()}</span>
+              <span style="color:var(--text-muted);font-size:12px">${dateStr}</span>
               <span style="color:var(--text-muted);font-size:12px">· ${p.postType}</span>
             </div>
-            <div style="font-weight:600;margin-bottom:4px">${p.owner.name || p.owner.email || '(anonyme)'}</div>
-            <div style="color:var(--text-muted);font-size:13px;margin-bottom:6px">${p.body || '(pas de texte)'}</div>
-            ${services ? `<div style="margin-top:4px">${services}</div>` : ''}
-            ${p.city ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">📍 ${p.city}</div>` : ''}
+            <div style="font-weight:700;margin-bottom:6px;font-size:14px">${p.owner.name || p.owner.email || '(anonyme)'} <span style="color:var(--text-muted);font-weight:400;font-size:12px">${p.owner.email ? '(' + p.owner.email + ')' : ''}</span></div>
+            <div style="color:var(--text);font-size:14px;margin-bottom:8px;line-height:1.5;white-space:pre-wrap;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px solid var(--border)">${p.body ? p.body.replace(/</g,'&lt;') : '<em style="color:var(--text-muted)">(pas de texte)</em>'}</div>
+            ${services ? `<div style="margin-top:6px">${services}</div>` : ''}
+            ${dates}
+            ${p.city ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📍 ${p.city}</div>` : ''}
             ${reason}
           </div>
         </div>
@@ -2061,6 +2072,28 @@ async function revertPrivacy() {
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
+// v23.1 part 122 — Daniel : "Admin navigateur tableau de bord ne se met
+// pas a jour". Auto-refresh toutes les 30s quand le tab Dashboard est
+// actif. Le timer est arrêté quand on change de tab.
+let _dashboardAutoRefreshTimer = null;
+function startDashboardAutoRefresh() {
+  stopDashboardAutoRefresh();
+  _dashboardAutoRefreshTimer = setInterval(() => {
+    const dashPage = document.getElementById('page-dashboard');
+    if (dashPage && dashPage.classList.contains('active')) {
+      loadDashboard();
+    } else {
+      stopDashboardAutoRefresh();
+    }
+  }, 30000);
+}
+function stopDashboardAutoRefresh() {
+  if (_dashboardAutoRefreshTimer) {
+    clearInterval(_dashboardAutoRefreshTimer);
+    _dashboardAutoRefreshTimer = null;
+  }
+}
+
 async function loadDashboard() {
   try {
     const d = await api('/admin/stats');

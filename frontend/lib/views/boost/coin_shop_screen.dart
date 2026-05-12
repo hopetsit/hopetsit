@@ -2250,12 +2250,19 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     );
     if (confirmed != true) return;
     try {
-      await controller.purchase(tier);
+      // v23.1 part 122 — Daniel : "Si jarrive sur la page de paiement et
+      // je met retour sa met paw spot activer". Le bug : on affichait
+      // TOUJOURS Success même quand purchase() retournait false (annul
+      // ou échec silencieux). Maintenant on check la valeur de retour.
+      final ok = await controller.purchase(tier);
       if (!mounted) return;
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: 'map_boost_purchase_success'.tr,
-      );
+      if (ok == true) {
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'map_boost_purchase_success'.tr,
+        );
+      }
+      // Sinon : annulation ou échec silencieux → pas de snackbar.
     } catch (e) {
       debugPrint('MapBoost purchase failed: $e');
       if (!mounted) return;
