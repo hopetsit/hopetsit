@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 
 /// Push notification service for HopeTSIT.
 ///
@@ -215,6 +216,14 @@ class PushNotificationService extends GetxService {
             nc.bumpUnreadBookingsImmediate();
           }
           nc.bumpUnreadCountImmediate();
+          // v23.1 part 123 — Daniel : "profil verifier par admin mais pas
+          // de badge vérifié". Quand admin approuve à distance, refetch
+          // /users/me/benefits pour que le banner KYC passe au vert.
+          if (rawType == 'kyc_verified' || rawType == 'kyc_rejected') {
+            try {
+              ActiveBenefitsRow.notifyChanged();
+            } catch (_) {/* best-effort */}
+          }
         }
       }
     } catch (_) {

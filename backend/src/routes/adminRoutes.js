@@ -652,6 +652,26 @@ router.patch('/identity-verifications/:id', requireAdmin, async (req, res) => {
     logger.info(
       `[admin/identity-verifications] ${action} ${role} ${req.params.id} (${doc.email || '?'})${reason ? ' — ' + reason : ''}`,
     );
+
+    // v23.1 part 123 — Daniel : "profil verifier par admin mais pas de
+    // badge vérifié". Le badge se met à jour quand le client refetch
+    // /users/me/benefits — déclenchons-le via FCM. Réutilise le même
+    // type que Persona pour que le handler client soit unique.
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      sendNotification({
+        userId: req.params.id,
+        role,
+        type: isApprove ? 'kyc_verified' : 'kyc_rejected',
+        data: {
+          kycStatus: isApprove ? 'verified' : 'rejected',
+          reason: isApprove ? '' : String(reason || ''),
+          source: 'admin_manual',
+        },
+        actor: { role: 'admin', id: req.user?.id || null },
+      }).catch(() => {});
+    } catch (_) { /* non-critical */ }
+
     res.json({
       status: doc.identityVerification.status,
       reviewedAt: doc.identityVerification.reviewedAt,

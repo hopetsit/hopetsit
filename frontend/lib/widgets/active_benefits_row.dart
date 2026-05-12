@@ -113,11 +113,44 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
   }
 
   Widget _badge(BuildContext context, String emoji, String label, Color color) {
+    // v23.1 part 123 — Daniel : "owner le boost marche tjr pas" / "le badge
+    // ne s'affiche pas sur le profil owner". Le bug : le badge orange Boost
+    // (#E8472A à 15% d'opacité) sur un hero orange owner = invisible. En
+    // mode compact (= utilisé dans les headers colorés), on inverse le
+    // contraste : fond plein + texte blanc + bordure blanche translucide.
+    if (widget.compact) {
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(color: Colors.white, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: TextStyle(fontSize: 11.sp)),
+            SizedBox(width: 4.w),
+            InterText(
+              text: label,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ],
+        ),
+      );
+    }
+    // Mode non-compact (anciens écrans) : tons clairs, pour fonds clairs.
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.compact ? 8.w : 10.w,
-        vertical: widget.compact ? 3.h : 5.h,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20.r),
@@ -126,14 +159,11 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            emoji,
-            style: TextStyle(fontSize: widget.compact ? 11.sp : 13.sp),
-          ),
+          Text(emoji, style: TextStyle(fontSize: 13.sp)),
           SizedBox(width: 4.w),
           InterText(
             text: label,
-            fontSize: widget.compact ? 10.sp : 12.sp,
+            fontSize: 12.sp,
             fontWeight: FontWeight.w700,
             color: color,
           ),

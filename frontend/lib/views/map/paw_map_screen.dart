@@ -70,6 +70,14 @@ class _PawMapScreenState extends State<PawMapScreen> {
   /// instant but long enough to collapse a flick-zoom into one call.
   Timer? _reloadDebounce;
 
+  /// v23.1 part 123 — Daniel : "PawSpot Platinum (30j) doit avoir un halo
+  /// animé, là c'est juste un pin doré". Animated halo pulse around every
+  /// Platinum-boosted provider. Cycles 0→1 every 2.4s (5 fps, 12 ticks).
+  /// Drives Circle radius (50..160m) and opacity (0.45→0) so the marker
+  /// looks like a beacon pulsing outward.
+  Timer? _haloTimer;
+  final RxDouble _haloPhase = 0.0.obs;
+
   /// Cached role lookup — read once, used for layer gating and UI.
   String get _role {
     final auth = Get.isRegistered<AuthController>()
@@ -111,6 +119,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
         : Get.put(LiveMapService(), permanent: true);
     _liveMap.attach();
 
+    // v23.1 part 123 — halo pulse pour Platinum.
+    _haloTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted) return;
+      _haloPhase.value = (_haloPhase.value + 1.0 / 12.0) % 1.0;
+    });
+
     // Paris fallback is the initial value — the map renders immediately
     // and _bootstrap() upgrades to real location in the background.
     _bootstrap();
@@ -119,6 +133,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
   @override
   void dispose() {
     _reloadDebounce?.cancel();
+    _haloTimer?.cancel();
     _liveMap.stopBroadcasting();
     _cityCtrl.dispose();
     super.dispose();
@@ -431,6 +446,49 @@ class _PawMapScreenState extends State<PawMapScreen> {
         ),
       );
     } catch (_) {}
+  }
+
+  // v23.1 part 123 — Platinum halo pulse. Returns a Set<Circle> with one
+  // animated circle per Platinum-boosted provider visible on the map.
+  // The phase is read from _haloPhase (0..1) — Obx parent re-runs us at
+  // 5fps which is enough for a peaceful beacon feel without thrashing GL.
+  Set<Circle> _buildHaloCircles() {
+    final Set<Circle> circles = {};
+    if (_isSitterOrWalker) return circles; // owner-only feature
+    if (!_showProviders.value) return circles;
+    final phase = _haloPhase.value; // 0..1
+    // Radius grows from 30 → 160 m, opacity fades 0.45 → 0.
+    final radius = 30.0 + 130.0 * phase;
+    final opacity = (0.45 * (1.0 - phase)).clamp(0.0, 1.0);
+    // Platinum color = doré chaud (mêmes tons que le pin orange).
+    final fill = const Color(0xFFFFAA00).withValues(alpha: opacity * 0.55);
+    final stroke = const Color(0xFFFFAA00).withValues(alpha: opacity);
+    for (final p in _nearbyProviders) {
+      final isMapBoosted = p['isMapBoosted'] == true;
+      if (!isMapBoosted) continue;
+      final mapTier = (p['mapBoostTier'] ?? '').toString();
+      if (mapTier != 'platinum') continue;
+      final loc = p['location'] is Map ? p['location'] as Map : null;
+      final coords = loc != null && loc['coordinates'] is List
+          ? loc['coordinates'] as List
+          : null;
+      if (coords == null || coords.length < 2) continue;
+      final lng = (coords[0] as num).toDouble();
+      final lat = (coords[1] as num).toDouble();
+      final id = (p['id'] ?? p['_id'] ?? '').toString();
+      if (id.isEmpty) continue;
+      circles.add(
+        Circle(
+          circleId: CircleId('halo_$id'),
+          center: LatLng(lat, lng),
+          radius: radius,
+          fillColor: fill,
+          strokeColor: stroke,
+          strokeWidth: 2,
+        ),
+      );
+    }
+    return circles;
   }
 
   // ─── Marker building ─────────────────────────────────────────────────────
@@ -977,6 +1035,9 @@ class _PawMapScreenState extends State<PawMapScreen> {
                     _reportController.reports.length;
                     _showPois.value;
                     _showReports.value;
+                    // v23.1 part 123 — rebuild every halo tick (~5 fps) so
+                    // le pulse Platinum reste fluide.
+                    _haloPhase.value;
                     return GoogleMap(
                       initialCameraPosition: CameraPosition(
                         target: _currentCenter,
@@ -1000,6 +1061,7 @@ class _PawMapScreenState extends State<PawMapScreen> {
                       // +/- pair under the geoloc pin.
                       zoomControlsEnabled: false,
                       markers: _buildMarkers(),
+                      circles: _buildHaloCircles(),
                     );
                   }),
 
