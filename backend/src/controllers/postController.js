@@ -26,6 +26,38 @@ const includesHouseSittingService = (serviceTypes = []) => {
   return normalizedServices.includes('house_sitting') || normalizedServices.includes('house sitting');
 };
 
+// v23.1 part 122 — Daniel : "Dans lapp publication mail et tel interdit ds
+// description". Détecte les emails ET numéros de téléphone dans un texte
+// libre (anti-leak vers WhatsApp / SMS / contact direct). Couvre :
+//   - emails (john.doe@example.com, john@dot.co.uk, etc.)
+//   - téléphones français (06 12 34 56 78, +33 6 12...)
+//   - téléphones internationaux (+XX YYY..., XX-XXX-XXXX)
+//   - longues séquences de chiffres (≥ 9 digits collés ou séparés par
+//     espace/point/tiret) qui ressemblent à un téléphone
+//   - leetspeak basique (z3ro -> zero, ou "six douze" en lettres → on
+//     ignore intentionnellement, c'est trop permissif sinon).
+const _detectContactInfo = (text) => {
+  if (!text) return { hasContact: false, types: [] };
+  const types = [];
+
+  // 1. Email — regex standard RFC-light (assez tolérante).
+  const emailRe = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+  if (emailRe.test(text)) types.push('email');
+
+  // 2. Téléphone — séquence de ≥ 9 chiffres consécutifs ou séparés par
+  //    espace/point/tiret/parenthèses. Couvre les formats :
+  //    "0612345678", "06 12 34 56 78", "06.12.34.56.78", "+33 6 12 34..."
+  const phoneRe = /(?:\+?\d[\d\s().-]{8,}\d)/;
+  if (phoneRe.test(text)) {
+    // Compte juste les chiffres pour éviter les faux positifs (codes
+    // postaux 5 chiffres, "75001 Paris" par exemple).
+    const digits = (text.match(/\d/g) || []).length;
+    if (digits >= 9) types.push('phone');
+  }
+
+  return { hasContact: types.length > 0, types };
+};
+
 const createPost = async (req, res) => {
   try {
     const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation } = req.body || {};
@@ -39,6 +71,19 @@ const createPost = async (req, res) => {
 
     if (!trimmedBody) {
       return res.status(400).json({ error: 'Post body is required.' });
+    }
+
+    // v23.1 part 122 — Daniel : "Dans lapp publication mail et tel
+    // interdit ds description". Anti-leak : on bloque la création de
+    // posts contenant un email ou un numéro de téléphone dans la
+    // description, pour empêcher les owners de contourner la plateforme.
+    const contactCheck = _detectContactInfo(trimmedBody);
+    if (contactCheck.hasContact) {
+      return res.status(400).json({
+        error: 'Pour ta sécurité, les emails et numéros de téléphone sont interdits dans les annonces. Utilise le chat HoPetSit pour partager tes coordonnées avec un sitter/walker une fois la réservation acceptée.',
+        code: 'CONTACT_INFO_FORBIDDEN',
+        detected: contactCheck.types,
+      });
     }
 
     const owner = await Owner.findById(ownerId);
@@ -893,6 +938,20 @@ const createPostWithMedia = async (req, res) => {
 
     if (userRole !== 'owner') {
       return res.status(403).json({ error: 'Only owners can create posts.' });
+    }
+
+    // v23.1 part 122 — même protection que createPost : bloque les
+    // emails / téléphones dans le body.
+    const _body = typeof body === 'string' ? body.trim() : '';
+    if (_body) {
+      const contactCheck = _detectContactInfo(_body);
+      if (contactCheck.hasContact) {
+        return res.status(400).json({
+          error: 'Pour ta sécurité, les emails et numéros de téléphone sont interdits dans les annonces. Utilise le chat HoPetSit pour partager tes coordonnées.',
+          code: 'CONTACT_INFO_FORBIDDEN',
+          detected: contactCheck.types,
+        });
+      }
     }
 
     const owner = await Owner.findById(ownerId);

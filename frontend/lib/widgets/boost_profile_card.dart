@@ -28,11 +28,12 @@ class BoostProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // v19.1.5 — 3 tuiles compactes, labels courts et LISIBLES (plus de texte
-    // tronqué). Layout vertical : icône en haut, label unique en dessous.
-    // Couleurs fixes : Boost=red #E8472A, PawPass=gold #F5A623, PawSpot=blue #2196F3.
+    // v23.1 part 122 — Daniel : "Ameliorer - icone premium pawfollow et
+    // pawspot plus visible". Chips agrandies (height 86→110), icones plus
+    // grandes (34→48), avec animation de pulse subtile pour attirer le
+    // regard. Labels en deux lignes possibles (max 2 lines).
     return SizedBox(
-      height: 86.h,
+      height: 112.h,
       child: Row(
         children: [
           Expanded(
@@ -85,39 +86,50 @@ class _BoostChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 10.h),
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [accent, accent.withValues(alpha: 0.82)],
+            colors: [accent, accent.withValues(alpha: 0.78)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(18.r),
           boxShadow: [
             BoxShadow(
-              color: accent.withValues(alpha: 0.30),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
+              color: accent.withValues(alpha: 0.42),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.18),
+            width: 1.5,
+          ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 34.w,
-              height: 34.w,
+              width: 48.w,
+              height: 48.w,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.24),
+                color: Colors.white.withValues(alpha: 0.28),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    blurRadius: 8,
+                    offset: const Offset(0, 0),
+                  ),
+                ],
               ),
-              child: Icon(icon, color: Colors.white, size: 20.sp),
+              child: Icon(icon, color: Colors.white, size: 28.sp),
             ),
-            SizedBox(height: 6.h),
+            SizedBox(height: 8.h),
             PoppinsText(
               text: label,
               fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               color: Colors.white,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

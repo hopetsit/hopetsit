@@ -56,26 +56,59 @@ async function _tryLibreTranslate(text, source, target) {
   return null;
 }
 
-// MyMemory free fallback : GET https://api.mymemory.translated.net/get?q=...&langpair=fr|en
+// v23.1 part 122 — Daniel : "'AUTO' IS AN INVALID SOURCE LANGUAGE".
+// MyMemory n'accepte PAS 'auto' comme source — il faut un code ISO-2.
+// Quand source='auto', on essaie plusieurs candidats courants jusqu'à ce
+// qu'on en trouve un qui marche (avec un score > 0.5). On commence par
+// les langues les plus probables : EN puis la langue du target (souvent
+// le user parle la même que target), puis les autres principales.
 async function _tryMyMemory(text, source, target) {
+  // Si source connue et différente de 'auto', essai unique.
+  if (source && source !== 'auto') {
+    return _myMemoryTrySingle(text, source, target);
+  }
+  // Auto-detect : on essaie EN, FR, ES, DE, IT, PT en cascade.
+  // Quasi-tout le monde tape soit en EN soit dans sa langue. Le first
+  // success match est retourné.
+  const candidates = ['en', 'fr', 'es', 'de', 'it', 'pt'].filter(
+    (l) => l !== target,
+  );
+  for (const src of candidates) {
+    const r = await _myMemoryTrySingle(text, src, target);
+    if (r) return r;
+  }
+  return null;
+}
+
+async function _myMemoryTrySingle(text, src, target) {
   try {
-    const src = source && source !== 'auto' ? source : 'auto';
     const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${target}`;
     const r = await fetch(url);
     if (!r.ok) return null;
     const data = await r.json();
     const tr = data?.responseData?.translatedText;
-    if (tr && typeof tr === 'string') {
-      return {
-        translation: tr,
-        detectedSourceLang: src,
-        provider: 'mymemory',
-      };
+    const match = Number(data?.responseData?.match || 0);
+    // Si MyMemory renvoie une erreur (genre "INVALID SOURCE LANGUAGE")
+    // dans le translatedText, on ignore.
+    if (!tr || typeof tr !== 'string') return null;
+    if (tr.toUpperCase().includes('INVALID') ||
+        tr.toUpperCase().includes('NO CONTENT') ||
+        tr.toUpperCase().includes('MUST BE A VALID')) {
+      return null;
     }
+    // Score < 0.5 = traduction très approximative, on l'ignore pour
+    // éviter de retourner du charabia.
+    if (match < 0.5) return null;
+    return {
+      translation: tr,
+      detectedSourceLang: src,
+      provider: 'mymemory',
+      matchScore: match,
+    };
   } catch (e) {
-    logger.warn(`[translate] MyMemory failed : ${e.message}`);
+    logger.warn(`[translate] MyMemory ${src}->${target} failed : ${e.message}`);
+    return null;
   }
-  return null;
 }
 
 router.post('/', requireAuth, async (req, res) => {

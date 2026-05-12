@@ -991,15 +991,48 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         SizedBox(height: 12.h),
                         if (sortedFeed.isEmpty)
                           Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16.h),
+                            padding: EdgeInsets.symmetric(vertical: 24.h),
                             child: Center(
-                              child: InterText(
-                                text: _filterState.hasActiveFilters
-                                    ? 'sitter_no_requests_match'.tr
-                                    : 'posts_empty_title'.tr,
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w400,
-                                color: AppColors.greyText,
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.inbox_rounded,
+                                    size: 48.sp,
+                                    color: AppColors.greyText,
+                                  ),
+                                  SizedBox(height: 12.h),
+                                  InterText(
+                                    text: _filterState.hasActiveFilters
+                                        ? 'sitter_no_requests_match'.tr
+                                        : 'posts_empty_title'.tr,
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.greyText,
+                                  ),
+                                  // v23.1 part 122 — Daniel : "Qd il ny
+                                  // aucune annonce publier walker doit
+                                  // avoir sa car il ad que rafraichir".
+                                  // Bouton refresh manuel dans tous les cas
+                                  // d'empty state (avec ou sans filtre).
+                                  SizedBox(height: 16.h),
+                                  TextButton.icon(
+                                    onPressed: () =>
+                                        postsController.refreshPosts(),
+                                    icon: Icon(
+                                      Icons.refresh_rounded,
+                                      color: AppColors.primaryColor,
+                                      size: 18.sp,
+                                    ),
+                                    label: Text(
+                                      'common_refresh'.tr,
+                                      style: TextStyle(
+                                        color: AppColors.primaryColor,
+                                        fontSize: 13.sp,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
