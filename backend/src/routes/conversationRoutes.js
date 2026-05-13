@@ -228,7 +228,9 @@ router.get('/list', requireAuth, getChatList);
  *       400:
  *         description: Invalid input
  */
-router.get('/', listConversations);
+// v23.1 part 127 — Phase 3 audit P3-28 : auth obligatoire. AVANT
+// renvoyait toutes les conversations de tout user via ?ownerId/sitterId.
+router.get('/', requireAuth, listConversations);
 
 /**
  * @swagger
@@ -425,7 +427,9 @@ router.post('/:id/messages/attachments', requireAuth, requirePaidBooking, upload
  *       400:
  *         description: Invalid input
  */
-router.post('/:id/read', markConversationRead);
+// v23.1 part 127 — Phase 3 audit P3-28/P3-41 : auth obligatoire.
+// Le handler doit vérifier que l'user est partie à la conversation.
+router.post('/:id/read', requireAuth, markConversationRead);
 
 // Sprint 3 step 6 — sitter shares their phone number as a special message.
 // Post-payment only (gated by requirePaidBooking).

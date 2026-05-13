@@ -848,7 +848,14 @@ const addComment = async (req, res) => {
 const deleteComment = async (req, res) => {
   try {
     const { id, commentId } = req.params;
-    const { userId } = req.body || {};
+    // v23.1 part 127 — Phase 3 audit P3-28 : auth ajoutée au router. Le
+    // userId vient du JWT (req.user.id), plus du body. L'utilisateur ne
+    // peut supprimer QUE son propre commentaire OU un commentaire sur
+    // un post dont il est owner.
+    const callerId = req.user?.id;
+    if (!callerId) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
 
     if (!commentId) {
       return res.status(400).json({ error: 'commentId is required.' });
@@ -868,8 +875,13 @@ const deleteComment = async (req, res) => {
     }
 
     const comment = post.comments[commentIndex];
-    if (userId && comment.userId?.toString() !== userId.toString()) {
-      return res.status(403).json({ error: 'You can only delete your own comments.' });
+    const isCommentAuthor = comment.userId?.toString() === callerId;
+    const postOwnerId = post.ownerId?._id ? post.ownerId._id.toString() : post.ownerId?.toString();
+    const isPostOwner = postOwnerId === callerId;
+    if (!isCommentAuthor && !isPostOwner) {
+      return res.status(403).json({
+        error: 'You can only delete your own comments or comments on your own post.',
+      });
     }
 
     post.comments.splice(commentIndex, 1);

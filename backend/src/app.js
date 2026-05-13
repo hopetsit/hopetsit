@@ -209,7 +209,10 @@ const versionedRoutes = [
   { path: '/walks', mw: [], router: walkRoutes },
   { path: '/terms', mw: [], router: termsRoutes },
   { path: '/privacy-policy', mw: [], router: privacyPolicyRoutes },
-  { path: '/reports', mw: [], router: reportRoutes },
+  // v23.1 part 127 — Phase 3 audit P3-51 : rate-limit anti-spam reports
+  // (user pourrait sinon spammer la report d'un sitter pour le faire
+  // suspendre par accumulation).
+  { path: '/reports', mw: [sensitiveLimiter], router: reportRoutes },
   { path: '/boost', mw: [], router: boostRoutes },
   { path: '/map-pois', mw: [], router: mapPoiRoutes },
   { path: '/map-reports', mw: [], router: mapReportRoutes },

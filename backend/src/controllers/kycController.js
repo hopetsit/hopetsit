@@ -70,6 +70,28 @@ const initiatePayment = async (req, res) => {
     const user = await Model.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
+    // v23.1 part 127 — Phase 3 audit P3-10 : si le doc a un GeoJSON
+    // pourri (`location.coordinates = []`, `[null,null]`, etc.), on
+    // l'unset proprement AVANT toute autre opération. Sinon les save()
+    // ultérieurs (boost, profile update) re-lèveront "Can't extract geo
+    // keys" à chaque action.
+    const _coords = user.location?.coordinates;
+    const _isBroken =
+      user.location &&
+      (!Array.isArray(_coords) ||
+        _coords.length !== 2 ||
+        typeof _coords[0] !== 'number' ||
+        typeof _coords[1] !== 'number' ||
+        !Number.isFinite(_coords[0]) ||
+        !Number.isFinite(_coords[1]));
+    if (_isBroken) {
+      logger.warn(
+        `[kyc.initiatePayment] sanitizing broken location for ${role} ${user._id} : ${JSON.stringify(user.location)}`,
+      );
+      await Model.updateOne({ _id: user._id }, { $unset: { location: '' } });
+      user.location = undefined;
+    }
+
     // Idempotence : si déjà vérifié ou en cours, on ne paie pas une 2e fois.
     if (user.kycStatus === 'verified') {
       return res.status(400).json({ error: 'Already verified.', kycStatus: 'verified' });
@@ -98,10 +120,26 @@ const initiatePayment = async (req, res) => {
           meta: { kind: 'kyc' },
         });
         // Same activation as the webhook would do.
+        // v23.1 part 127 — Phase 3 audit P3-10 : Daniel "Can't extract
+        // geo keys" 500. Cause : user.save() revalide TOUT le doc, et si
+        // `location.coordinates` est malformé (null, [], [null,null]),
+        // l'index 2dsphere lève cette erreur. On update juste les champs
+        // KYC en bypass de la revalidation Mongoose.
+        const now = new Date();
+        const piIdWallet = `wallet_${Date.now()}`;
+        await Model.updateOne(
+          { _id: user._id },
+          {
+            $set: {
+              kycStatus: 'pending_verification',
+              kycPaidAt: now,
+              kycPaymentIntentId: piIdWallet,
+            },
+          },
+        );
         user.kycStatus = 'pending_verification';
-        user.kycPaidAt = new Date();
-        user.kycPaymentIntentId = `wallet_${Date.now()}`;
-        await user.save();
+        user.kycPaidAt = now;
+        user.kycPaymentIntentId = piIdWallet;
         return res.status(201).json({
           paidFromWallet: true,
           kycStatus: user.kycStatus,
@@ -149,9 +187,19 @@ const initiatePayment = async (req, res) => {
     });
     logger.info(`[kyc.initiatePayment] PI ${paymentIntent.id} created for ${role} ${user._id}`);
 
+    // v23.1 part 127 — Phase 3 audit P3-10 : updateOne pour bypass la
+    // revalidation 2dsphere (cf bloc wallet ci-dessus).
+    await Model.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          kycStatus: 'pending_payment',
+          kycPaymentIntentId: paymentIntent.id,
+        },
+      },
+    );
     user.kycStatus = 'pending_payment';
     user.kycPaymentIntentId = paymentIntent.id;
-    await user.save();
 
     return res.status(201).json({
       paymentIntent: {
@@ -210,8 +258,13 @@ const startVerification = async (req, res) => {
       if (!inquiryId) {
         return res.status(502).json({ error: 'Persona inquiry creation failed.', details: inquiry });
       }
+      // v23.1 part 127 — Phase 3 audit P3-10 : updateOne pour bypass la
+      // revalidation 2dsphere (cf bloc wallet/PI ci-dessus).
+      await Model.updateOne(
+        { _id: user._id },
+        { $set: { kycApplicantId: inquiryId } },
+      );
       user.kycApplicantId = inquiryId;
-      await user.save();
       logger.info(`[kyc.start] Persona inquiry ${inquiryId} created for ${role} ${user._id}`);
     }
 
@@ -361,10 +414,22 @@ const onKycPaymentSucceeded = async (paymentIntent) => {
     const user = await Model.findById(userId);
     if (!user) return;
     if (user.kycStatus === 'verified') return; // idempotent
+    // v23.1 part 127 — Phase 3 audit P3-10 : updateOne pour bypass la
+    // revalidation 2dsphere (cf initiatePayment).
+    const _pidNow = new Date();
+    await Model.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          kycStatus: 'pending_verification',
+          kycPaidAt: _pidNow,
+          kycPaymentIntentId: paymentIntent.id,
+        },
+      },
+    );
     user.kycStatus = 'pending_verification';
-    user.kycPaidAt = new Date();
+    user.kycPaidAt = _pidNow;
     user.kycPaymentIntentId = paymentIntent.id;
-    await user.save();
     logger.info(`✅ [kyc.onPaymentSucceeded] ${role} ${userId} → pending_verification`);
 
     // Notif user : "Paiement confirmé, complète maintenant ta vérification"
@@ -435,8 +500,6 @@ const personaWebhook = async (req, res) => {
         rejectionReason = 'Document or selfie verification failed.';
       } else {
         newStatus = 'verified';
-        user.kycVerifiedAt = new Date();
-        user.verified = true; // sync with legacy `verified` field
       }
     } else if (inquiryStatus === 'declined' || inquiryStatus === 'failed') {
       newStatus = 'rejected';
@@ -445,9 +508,21 @@ const personaWebhook = async (req, res) => {
       newStatus = 'rejected';
       rejectionReason = 'Verification link expired.';
     }
+    // v23.1 part 127 — Phase 3 audit P3-10 : updateOne pour bypass la
+    // revalidation 2dsphere. On regroupe les champs à set selon newStatus.
+    const _persUpdate = {
+      kycStatus: newStatus,
+      kycRejectionReason: rejectionReason,
+    };
+    if (newStatus === 'verified') {
+      _persUpdate.kycVerifiedAt = new Date();
+      _persUpdate.verified = true; // sync legacy `verified` field
+      user.kycVerifiedAt = _persUpdate.kycVerifiedAt;
+      user.verified = true;
+    }
+    await Model.updateOne({ _id: user._id }, { $set: _persUpdate });
     user.kycStatus = newStatus;
     user.kycRejectionReason = rejectionReason;
-    await user.save();
     logger.info(`✅ [persona.webhook] ${role} ${userId} → kycStatus=${newStatus}`);
 
     // Notif user

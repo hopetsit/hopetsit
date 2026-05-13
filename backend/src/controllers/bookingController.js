@@ -1,3 +1,4 @@
+const dayjs = require('dayjs');
 const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
@@ -238,8 +239,25 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ error: 'serviceDate is required.' });
     }
 
+    // v23.1 part 127 — Phase 3 audit P3-29 : refuser les dates passées.
+    // dayjs gère la TZ system, on compare sur le jour calendaire.
+    if (dayjs(normalizedDate).startOf('day').isBefore(dayjs().startOf('day'))) {
+      return res.status(400).json({
+        error: 'serviceDate cannot be in the past.',
+        code: 'DATE_IN_PAST',
+      });
+    }
+
     if (!trimmedTimeSlot) {
       return res.status(400).json({ error: 'timeSlot is required.' });
+    }
+
+    // v23.1 part 127 — Phase 3 audit P3-30 : ceinture+bretelles, vérifier
+    // qu'on a au moins 1 pet après dedup (techniquement impossible vu la
+    // boucle ci-dessus, mais on ne veut surtout pas créer une booking
+    // sans pet — la pricing pourrait être 0).
+    if (uniquePetIds.length === 0) {
+      return res.status(400).json({ error: 'At least one valid petId is required.' });
     }
 
     // Relaxed serviceType handling: accept any value from client.
@@ -1718,23 +1736,52 @@ const respondBooking = async (req, res) => {
   try {
     const { id } = req.params;
     const { action } = req.body || {};
+    // v23.1 part 127 — Phase 3 audit P3-25 : auth ajoutée côté router,
+    // ici on a req.user.id et req.user.role garantis.
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     if (!['accept', 'reject'].includes(action)) {
       return res.status(400).json({ error: 'Invalid action. Expected "accept" or "reject".' });
     }
 
-    const booking = await Booking.findById(id)
+    // v23.1 part 127 — Phase 3 audit P3-27 : update atomique pour éviter
+    // la race entre 2 providers qui acceptent simultanément. On update
+    // uniquement si le statut est encore "pending" ET si l'user
+    // authentifié est bien le sitter/walker cible de la booking. Si null,
+    // c'est qu'un autre acteur a déjà répondu (ou que l'user n'est pas
+    // partie à la booking) → 409.
+    const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+    const timestampField = action === 'accept' ? 'acceptedAt' : 'rejectedAt';
+
+    const ownershipFilter = userRole === 'walker'
+      ? { _id: id, status: 'pending', walkerId: userId }
+      : { _id: id, status: 'pending', sitterId: userId };
+
+    const updatedBooking = await Booking.findOneAndUpdate(
+      ownershipFilter,
+      { $set: { status: newStatus, [timestampField]: new Date() } },
+      { new: true },
+    )
       .populate('ownerId')
       .populate('sitterId')
       .populate('walkerId')
       .populate('petIds');
-    if (!booking) {
-      return res.status(404).json({ error: 'Booking not found.' });
+
+    if (!updatedBooking) {
+      // Soit la booking n'existe pas, soit elle n'est plus pending,
+      // soit l'user n'est pas le provider. On distingue les 2 cas
+      // pour donner un message utile (sans leak l'existence du doc).
+      const existing = await Booking.findById(id).select('status sitterId walkerId').lean();
+      if (!existing) return res.status(404).json({ error: 'Booking not found.' });
+      const expectedProvider = userRole === 'walker' ? existing.walkerId : existing.sitterId;
+      if (!expectedProvider || expectedProvider.toString() !== userId) {
+        return res.status(403).json({ error: 'You are not the provider on this booking.' });
+      }
+      return res.status(409).json({ error: `Booking already ${existing.status}.` });
     }
 
-    if (booking.status !== 'pending') {
-      return res.status(409).json({ error: `Booking already ${booking.status}.` });
-    }
+    const booking = updatedBooking;
 
     // Session v16.2 - derive actor info from whichever provider field is set
     // so walker accept/reject notifications reach the owner correctly.
@@ -1745,9 +1792,7 @@ const respondBooking = async (req, res) => {
       : (booking.sitterId?._id ? booking.sitterId._id.toString() : booking.sitterId.toString());
 
     if (action === 'accept') {
-      booking.status = 'accepted';
-      booking.acceptedAt = new Date();
-      await booking.save();
+      // status/acceptedAt déjà set par findOneAndUpdate.
 
       // v18.4 — single path via sendNotification (bell + FCM + email).
       // v23.1 part 45 — fix Daniel "je ne reçois pas l'acceptation sitter".
@@ -1826,10 +1871,9 @@ const respondBooking = async (req, res) => {
       });
     }
 
-    booking.status = 'rejected';
-    booking.rejectedAt = new Date();
-    await booking.save();
-    await booking.populate(['ownerId', 'sitterId', 'walkerId']);
+    // v23.1 part 127 — Phase 3 audit P3-27 : status/rejectedAt déjà
+    // set par findOneAndUpdate ci-dessus. On garde uniquement les
+    // notifs + retour de réponse.
 
     // v18.4 — single path via sendNotification (bell + FCM + email).
     sendNotification({

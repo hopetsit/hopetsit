@@ -321,7 +321,14 @@ const createConversationAttachmentMessage = async (req, res) => {
 const markConversationRead = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role, userId } = req.body;
+    // v23.1 part 127 — Phase 3 audit P3-28/P3-41 : auth ajoutée au
+    // router. Le role + userId proviennent du JWT, plus du body — sinon
+    // n'importe qui pouvait reset le compteur unread d'un autre user.
+    const role = req.user?.role;
+    const userId = req.user?.id;
+    if (!role || !userId) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
 
     const { conversation, updated } = await markConversationReadService({
       conversationId: id,

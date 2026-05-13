@@ -160,7 +160,8 @@ router.post('/', requireAuth, requireRole('sitter', 'walker'), createApplication
  *                   items:
  *                     $ref: '#/components/schemas/Application'
  */
-router.get('/', listApplications);
+// v23.1 part 127 — Phase 3 audit P3-28 : auth obligatoire.
+router.get('/', requireAuth, attachUserFromToken, listApplications);
 
 /**
  * @swagger
@@ -259,7 +260,15 @@ router.post('/:id/respond', requireAuth, requireRole('owner'), respondToApplicat
  *       404:
  *         description: Application not found
  */
-router.delete('/:id', cancelApplication);
+// v23.1 part 127 — Phase 3 audit P3-28 : seul le sitter/walker auteur
+// peut cancel SON application. Le handler doit vérifier que
+// req.user.id === application.sitterId OR application.walkerId.
+router.delete(
+  '/:id',
+  requireAuth,
+  requireRole('sitter', 'walker'),
+  cancelApplication,
+);
 
 /**
  * @swagger

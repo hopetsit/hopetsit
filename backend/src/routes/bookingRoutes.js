@@ -295,7 +295,12 @@ router.post('/', requireAuth, requireRole('owner'), createBooking);
  *       500:
  *         description: Server error
  */
-router.get('/', listBookings);
+// v23.1 part 127 — Phase 3 audit P3-26 : auth obligatoire. AVANT cette
+// route renvoyait toutes les bookings de n'importe quel user via
+// ?ownerId=... ou ?sitterId=... sans auth. PII leak massive.
+// Maintenant : requireAuth + attachUserFromToken pour forcer le filter
+// par rôle dans le handler (cf listBookings:filter.ownerId = userId).
+router.get('/', requireAuth, attachUserFromToken, listBookings);
 
 /**
  * @docs
@@ -945,7 +950,18 @@ router.post('/:id/cancel-request', requireAuth, requireRole('owner'), cancelOwne
  *       409:
  *         description: Booking already responded to
  */
-router.post('/:id/respond', respondBooking);
+// v23.1 part 127 — Phase 3 audit P3-25 : auth + role obligatoires. AVANT
+// n'importe qui sur internet pouvait accepter/refuser une booking en
+// connaissant juste l'ID (présent dans les emails FCM, deep links, etc.).
+// Maintenant requireRole('sitter','walker') + le handler vérifie en plus
+// que req.user.id === booking.sitterId OR booking.walkerId (cf
+// respondBooking après le fix v127).
+router.post(
+  '/:id/respond',
+  requireAuth,
+  requireRole('sitter', 'walker'),
+  respondBooking,
+);
 
 // Sprint 6 step 3 — visit report.
 const visitReportUpload = multer({

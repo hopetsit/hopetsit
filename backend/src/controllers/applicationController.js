@@ -33,10 +33,15 @@ const logger = require('../utils/logger');
 const cancelApplication = async (req, res) => {
   try {
     const { id } = req.params;
-    const { sitterId } = req.body || {};
+    // v23.1 part 127 — Phase 3 audit P3-28 : auth ajoutée au router.
+    // L'ownership est désormais validée via le JWT du caller, pas via
+    // un sitterId arbitraire dans le body (qui permettait à l'attaquant
+    // de prétendre être le propriétaire de l'application).
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
-    if (!sitterId) {
-      return res.status(400).json({ error: 'sitterId is required to cancel an application.' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required.' });
     }
 
     const application = await Application.findById(id);
@@ -45,7 +50,9 @@ const cancelApplication = async (req, res) => {
       return res.status(404).json({ error: 'Application not found.' });
     }
 
-    if (application.sitterId.toString() !== sitterId) {
+    const ownerField = userRole === 'walker' ? 'walkerId' : 'sitterId';
+    const applicationOwnerId = application[ownerField]?.toString();
+    if (!applicationOwnerId || applicationOwnerId !== userId) {
       return res.status(403).json({ error: 'You are not allowed to cancel this application.' });
     }
 

@@ -365,10 +365,13 @@ const signup = async (req, res) => {
       logger.error('Failed to send verification email', emailError);
     }
 
+    // v23.1 part 127 — Phase 3 audit P3-1 : NE JAMAIS renvoyer le code
+    // de vérification dans la réponse HTTP. Le client doit lire son email
+    // pour récupérer le code, sinon n'importe qui crée un compte et
+    // se vérifie sans accès au mailbox → bypass total de l'anti-bot.
     res.status(201).json({
       role,
       user: sanitizeUser(newUser, { includeEmail: true }),
-      verificationCode,
       message: 'Account created. Please verify your email.',
     });
   } catch (error) {
@@ -1129,7 +1132,9 @@ const resendVerificationCode = async (req, res) => {
       logger.error('Failed to resend verification email', emailError);
     }
 
-    res.json({ message: 'Verification code resent.', verificationCode });
+    // v23.1 part 127 — Phase 3 audit P3-2 : idem signup, le code reste
+    // côté email seulement.
+    res.json({ message: 'Verification code resent.' });
   } catch (error) {
     logger.error('Resend code error', error);
     res.status(500).json({ error: 'Unable to resend verification code. Please try again later.' });

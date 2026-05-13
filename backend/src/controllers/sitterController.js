@@ -84,9 +84,12 @@ const findNearbySitters = async (req, res) => {
     
     if (radius !== undefined) {
       radiusInKm = parseFloat(radius);
-      if (isNaN(radiusInKm) || radiusInKm <= 0 || radiusInKm > 10000) {
+      // v23.1 part 127 — Phase 3 audit P3-19 : cap à 200km pour aligner
+      // sur findNearbyWalkers et empêcher un full-scan DoS via un radius
+      // ridiculement grand. AVANT : jusqu'à 10000km (= toute la planète).
+      if (isNaN(radiusInKm) || radiusInKm <= 0 || radiusInKm > 200) {
         return res.status(400).json({
-          error: 'Radius must be a positive number between 1 and 10000 kilometers.',
+          error: 'Radius must be a positive number between 1 and 200 kilometers.',
         });
       }
       // Convert radius from km to meters for MongoDB (MongoDB uses meters)

@@ -36,9 +36,21 @@ const uploadMedia = async ({ file, folder = 'petsinsta', resourceType = 'auto', 
   if (!file) {
     throw new Error('File payload is required for upload.');
   }
+  // v23.1 part 127 — Phase 3 audit P3-5 : strip systématique de l'EXIF
+  // sur tous les uploads. Sans ça, une photo de profil owner uploadée
+  // depuis un téléphone perso embarque les coords GPS du domicile dans
+  // ses métadonnées, et la photo est ensuite servie publiquement via le
+  // CDN Cloudinary → leak RGPD + sécurité.
+  //   - image_metadata: false   → l'API n'attache PAS les métadonnées
+  //   - quality_analysis: false → idem
+  //   - transformation `flags: 'strip_profile'` → strip ICC + EXIF + XMP
+  //     sur le fichier servi (et stocké)
   const result = await cloudinary.uploader.upload(file, {
     folder,
     resource_type: resourceType,
+    image_metadata: false,
+    quality_analysis: false,
+    transformation: [{ flags: 'strip_profile' }],
     ...options,
   });
 

@@ -219,7 +219,10 @@ router.post('/with-media', requireAuth, requireRole('owner'), postMediaUpload, c
  *                   items:
  *                     $ref: '#/components/schemas/Post'
  */
-router.get('/media', getMediaPosts);
+// v23.1 part 127 — Phase 3 audit P3-28 : auth obligatoire pour éviter
+// l'enum publique du feed média (les owners voient des photos de pets
+// non publiées sinon).
+router.get('/media', requireAuth, getMediaPosts);
 // v16.3h — single post fetch used by the notification handler when the post
 // is not currently in the client's feed cache (e.g. like notification).
 router.get('/by-id/:id', requireAuth, getPostById);
@@ -285,7 +288,8 @@ router.get('/requests/nearby', requireAuth, getNearbyRequestPosts);
  *                   items:
  *                     $ref: '#/components/schemas/Post'
  */
-router.get('/', listPosts);
+// v23.1 part 127 — Phase 3 audit P3-28 : auth obligatoire.
+router.get('/', requireAuth, listPosts);
 
 /**
  * @swagger
@@ -467,7 +471,10 @@ router.post('/:id/comments', requireAuth, addComment);
  *       404:
  *         description: Post or comment not found
  */
-router.delete('/:id/comments/:commentId', deleteComment);
+// v23.1 part 127 — Phase 3 audit P3-28 : auth obligatoire. Le handler
+// doit vérifier que l'user est soit l'auteur du commentaire soit le
+// owner du post.
+router.delete('/:id/comments/:commentId', requireAuth, deleteComment);
 
 module.exports = router;
 
