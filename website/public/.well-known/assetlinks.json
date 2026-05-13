@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hopetsit.app",
+      "sha256_cert_fingerprints": [
+        "2E:AE:C3:53:49:9E:32:B5:78:DB:7F:52:3E:C8:75:1A:15:0A:33:E0:2E:8C:CF:46:D1:A2:D7:B4:00:12:C8:16"
+      ]
+    }
+  }
+]
