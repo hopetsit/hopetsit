@@ -1,7 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode, FlutterError;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -27,6 +30,17 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // v23.1 part 125 — Phase 2 audit C1.
+  // En release, `debugPrint` ne doit RIEN écrire. Flutter ne strip pas
+  // debugPrint automatiquement, donc 194 sites du codebase loguaient PII
+  // (FCM tokens, body de réponses, emails) dans logcat → vu par d'autres
+  // apps sur device rooté + politique Play "logs de données utilisateurs".
+  // Ce no-op global couvre l'ensemble du codebase d'un coup, sans toucher
+  // aux 200 sites un par un.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   // v23.1 part 29 — RADICAL : edge-to-edge mode forcé. Notre app peint
   // jusqu'au pixel TOUT en bas. Système Samsung devient transparent et
   // overlay au-dessus → notre Container blanc explicite se voit dans toute
@@ -43,6 +57,12 @@ void main() async {
 
   await GetStorage.init();
   await dotenv.load(fileName: ".env");
+
+  // v23.1 part 125 — Phase 2 audit C4 : migrer le JWT depuis GetStorage
+  // vers flutter_secure_storage (Keystore Android / Keychain iOS) au boot,
+  // AVANT que les controllers / api_client ne tentent de le lire.
+  await SecureTokenStore.instance.migrateFromLegacyIfNeeded();
+
   var initialNotification = await flutterLocalNotificationsPlugin
       .getNotificationAppLaunchDetails();
   if (initialNotification?.didNotificationLaunchApp == true) {
@@ -59,6 +79,22 @@ void main() async {
     // setupDependencies qui put-async PushNotificationService. Sans ça,
     // l'OS drop les push reçues app-killed/background.
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // v23.1 part 125 — Phase 2 audit L3 : Crashlytics.
+    // Collecte les crashes natifs + non-fatal Flutter errors. Désactivé en
+    // debug pour ne pas polluer le tableau de bord Firebase. Crash-free %
+    // visible côté Play Vitals.
+    if (kReleaseMode) {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      // Capture aussi les async errors hors zone Flutter.
+      WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+    } else {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
+    }
   } catch (e) {
     debugPrint("Firebase error is $e");
   }

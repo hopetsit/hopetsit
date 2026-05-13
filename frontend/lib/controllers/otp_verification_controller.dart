@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -185,6 +186,8 @@ class OtpVerificationController extends GetxController {
       // authenticated requests can use it.
       final token = response['token'] as String?;
       if (token != null && token.isNotEmpty) {
+        // v23.1 part 125 — Phase 2 audit C4 : SecureTokenStore.
+        await SecureTokenStore.instance.writeToken(token);
         await _storage.write(StorageKeys.authToken, token);
       }
 

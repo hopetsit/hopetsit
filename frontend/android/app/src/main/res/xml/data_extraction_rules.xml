@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  v23.1 part 125 — Android 12+ Auto Backup / Device Transfer policy.
+  HoPetSit stocke des données sensibles dans GetStorage (JWT, FCM token,
+  user prefs) et plus tard dans flutter_secure_storage. On exclut TOUT
+  de l'auto-backup Google Drive ET du transfert device-to-device. Les
+  users devront se reconnecter sur un nouveau device, ce qui est le
+  comportement attendu pour une app marketplace avec paiements.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

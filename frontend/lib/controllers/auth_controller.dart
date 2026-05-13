@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
@@ -127,6 +128,10 @@ class AuthController extends GetxController {
       }
 
       // Save token
+      // v23.1 part 125 — Phase 2 audit C4 : JWT écrit dans Keystore Android
+      // / Keychain iOS via SecureTokenStore. GetStorage gardé en miroir
+      // pour les anciens lecteurs qui n'ont pas encore migré.
+      await SecureTokenStore.instance.writeToken(token);
       await _storage.write(StorageKeys.authToken, token);
       final tokenPreview = token.length > 20
           ? '${token.substring(0, 20)}...'
@@ -347,6 +352,8 @@ class AuthController extends GetxController {
           (backendToken != null && backendToken.isNotEmpty);
 
       if (isSuccess && backendToken != null) {
+        // v23.1 part 125 — Phase 2 audit C4 : SecureTokenStore mirror.
+        await SecureTokenStore.instance.writeToken(backendToken);
         await _storage.write(StorageKeys.authToken, backendToken);
         debugPrint('[HOPETSIT] ✅ Token saved from Google sign-in');
 
@@ -552,6 +559,8 @@ class AuthController extends GetxController {
           (backendToken != null && backendToken.isNotEmpty);
 
       if (isSuccess && backendToken != null) {
+        // v23.1 part 125 — Phase 2 audit C4 : SecureTokenStore mirror.
+        await SecureTokenStore.instance.writeToken(backendToken);
         await _storage.write(StorageKeys.authToken, backendToken);
 
         // v23.1 part 46 — same FCM register fix as the Google path. Without
@@ -922,6 +931,8 @@ class AuthController extends GetxController {
       // subsequent requests (e.g. GET /users/me/profile, GET /blocks) succeed.
       final newToken = _extractToken(response);
       if (newToken != null && newToken.isNotEmpty) {
+        // v23.1 part 125 — Phase 2 audit C4 : SecureTokenStore mirror.
+        await SecureTokenStore.instance.writeToken(newToken);
         await _storage.write(StorageKeys.authToken, newToken);
         debugPrint('[HOPETSIT] ✅ New token saved after role switch');
         // v23.1 part 46 — re-register FCM token under the NEW role's doc.
@@ -1302,6 +1313,8 @@ class AuthController extends GetxController {
     }
 
     // Clear all stored authentication data
+    // v23.1 part 125 — Phase 2 audit C4 : purge SecureTokenStore aussi.
+    await SecureTokenStore.instance.clear();
     await _storage.remove(StorageKeys.authToken);
     await _storage.remove(StorageKeys.userProfile);
     await _storage.remove(StorageKeys.userRole);

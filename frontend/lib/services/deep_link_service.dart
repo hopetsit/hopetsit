@@ -57,13 +57,37 @@ class DeepLinkService {
     _started = false;
   }
 
+  /// v23.1 part 125 — Phase 2 audit M1.
+  /// Regex strict pour valider un Mongo ObjectId 24 hex chars. Tout autre
+  /// pattern (URL malicieuse passée via Intent depuis une app tierce, ou
+  /// payload nullbyte/SQLi style) est rejeté AVANT navigation.
+  static final RegExp _objectIdRegex = RegExp(r'^[a-fA-F0-9]{24}$');
+
   Future<void> _handle(Uri uri) async {
-    // Accepte hopetsit://* ET https://app.hopetsit.com/*
-    if (uri.scheme != 'hopetsit' && !uri.host.contains('hopetsit')) return;
+    // v23.1 part 125 — accepte exclusivement :
+    //   hopetsit://<action>[/<arg>]                    (deep link app)
+    //   https://hopetsit.com/<action>[/<arg>]          (App Links signés)
+    //   https://app.hopetsit.com/<action>[/<arg>]      (sous-domaine futur)
+    // Tout autre host HTTPS est rejeté — empêche une app tierce de
+    // forger une URL `https://malicious.example/pay/<id>` qui serait
+    // résolue par notre AppLinks listener.
+    if (uri.scheme == 'hopetsit') {
+      // OK, scheme custom propre.
+    } else if (uri.scheme == 'https' &&
+        (uri.host == 'hopetsit.com' || uri.host == 'app.hopetsit.com')) {
+      // OK, App Links signés (autoVerify=true en manifest).
+    } else {
+      AppLogger.logWarning(
+        'DeepLink rejected (unsupported scheme/host): ${uri.scheme}://${uri.host}',
+      );
+      return;
+    }
 
     final segs = uri.pathSegments;
     final first =
-        uri.host.isNotEmpty ? uri.host : (segs.isNotEmpty ? segs.first : '');
+        uri.host.isNotEmpty && uri.scheme == 'hopetsit'
+            ? uri.host
+            : (segs.isNotEmpty ? segs.first : '');
 
     // v19.2.0 — 4 chemins supportés :
     //   hopetsit://pay/:bookingId          → écran paiement
@@ -71,10 +95,16 @@ class DeepLinkService {
     //   hopetsit://bookings[/:bookingId]   → écran réservations (provider accepte)
     //   hopetsit://notifications           → écran notifications
     if (first == 'pay') {
-      final bookingId = segs.isNotEmpty ? segs.last : '';
-      if (bookingId.isNotEmpty) {
-        await _openPayment(bookingId);
+      // v23.1 part 125 — bookingId DOIT être un ObjectId 24 hex. Sinon
+      // on log et on ignore (anti Intent Redirection).
+      final rawBookingId = segs.isNotEmpty ? segs.last : '';
+      if (!_objectIdRegex.hasMatch(rawBookingId)) {
+        AppLogger.logWarning(
+          'DeepLink rejected (invalid bookingId): "$rawBookingId"',
+        );
+        return;
       }
+      await _openPayment(rawBookingId);
     } else if (first == 'chat') {
       // Récupère ?conversationId ou /chat/:id. Pour l'instant on navigue vers
       // le tab Chat — l'écran individuel sera ouvert via le badge si besoin.

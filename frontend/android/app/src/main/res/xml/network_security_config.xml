@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  v23.1 part 125 — Network Security Config.
+  - cleartextTrafficPermitted=false : aucun HTTP en clair n'est autorisé,
+    toute lib qui tente d'ouvrir un canal non-TLS est bloquée par l'OS.
+  - Sous-domaines explicitement listés :
+      api.hopetsit.com         → cible prod future
+      hopetsit-backend.onrender.com → cible actuelle (dev/staging)
+      *.cloudinary.com         → médias uploadés/affichés
+      *.googleapis.com         → Maps tiles, Firebase
+      *.google.com / *.gstatic.com → Maps + auth Google
+      airwallex.com / airwallex.com.au → HPP paiement
+      *.persona.com / withpersona.com → KYC
+      *.paypal.com / *.paypalobjects.com → PayPal SDK
+  - Domain `hopetsit.com` autorisé (App Links HTTPS + page /pay).
+  Aucune autorisation cleartext même en debug : on force la qualité dès
+  le dev local (utilise ngrok ou Render staging).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">hopetsit.com</domain>
+        <domain includeSubdomains="true">onrender.com</domain>
+        <domain includeSubdomains="true">cloudinary.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">google.com</domain>
+        <domain includeSubdomains="true">gstatic.com</domain>
+        <domain includeSubdomains="true">airwallex.com</domain>
+        <domain includeSubdomains="true">airwallex.com.au</domain>
+        <domain includeSubdomains="true">withpersona.com</domain>
+        <domain includeSubdomains="true">persona.com</domain>
+        <domain includeSubdomains="true">paypal.com</domain>
+        <domain includeSubdomains="true">paypalobjects.com</domain>
+    </domain-config>
+</network-security-config>

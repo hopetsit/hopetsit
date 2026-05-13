@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
@@ -425,6 +426,8 @@ class ProfileController extends GetxController {
       await _userRepository.deleteAccount();
 
       // Clear authentication token and user data
+      // v23.1 part 125 — Phase 2 audit C4 : purge SecureTokenStore aussi.
+      await SecureTokenStore.instance.clear();
       await _storage.remove(StorageKeys.authToken);
       await _storage.remove(StorageKeys.userProfile);
       await _storage.remove(StorageKeys.userRole);

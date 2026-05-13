@@ -1,7 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Sprint 6 step 2 — background location for live walk tracking. -->
+    <!-- Sprint 6 step 2 — background location for live walk tracking.
+         Play Store requires a written + video justification: the sitter
+         taps "Démarrer promenade", minimizes the app, and the owner sees
+         live GPS dots on the map (walk_tracking_screen.dart). -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
@@ -11,13 +15,25 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- v23.1 part 125 — READ_EXTERNAL_STORAGE capée à Android 12 (API 32) ;
+         Android 13+ utilise READ_MEDIA_IMAGES/VIDEO ci-dessous. Évite que
+         Play Console signale une permission non scopée. -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <application
         android:label="HoPetSit"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="33">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -39,18 +55,42 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- v18.6 — deep link hopetsit://pay/:bookingId depuis email
-                 "Payer maintenant". Quand l'user tape le bouton du mail,
-                 Android ouvre l'app sur cet intent et le handler Flutter
-                 route vers StripePaymentScreen. -->
+            <!-- v18.6 — deep link hopetsit://pay/:bookingId envoyé dans l'email
+                 "Payer maintenant". Conservé comme fallback : si l'app est
+                 installée, l'OS l'ouvre directement.
+                 v23.1 part 125 — Daniel : "M1 Phase 2 audit". Risque
+                 d'Intent Redirection (Play policy) si on accepte ce scheme
+                 sans validation. Le handler Flutter (deep_link_service.dart)
+                 doit donc vérifier que l'URI matche /pay/:bookingId hex24
+                 AVANT de naviguer vers le PaymentScreen. -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="hopetsit" />
             </intent-filter>
+            <!-- v23.1 part 125 — App Links HTTPS signés via /.well-known/
+                 assetlinks.json hébergé sur hopetsit.com.
+                 autoVerify=true → Android valide la signature au moment de
+                 l'install et seul HoPetSit peut intercepter ces URLs.
+                 PRÉ-REQUIS : déployer /.well-known/assetlinks.json sur
+                 hopetsit.com avec le SHA-256 du keystore release une fois
+                 généré (cf docs/play-review/applinks-setup.md). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="hopetsit.com" />
+                <data android:pathPrefix="/pay" />
+            </intent-filter>
         </activity>
         <!-- Google Maps API Key -->
+        <!-- v23.1 part 125 — Cette clé EST extraite de l'APK. Elle DOIT être
+             restreinte côté Google Cloud Console à `com.hopetsit.app` +
+             SHA-1 du keystore release. Sans ça, n'importe qui peut s'en
+             servir → facturation Google sur ton compte.
+             Voir docs/play-review/maps-key-restriction.md -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBw11dPKfWj67XM_xOQdL5VU0au2GijxuI" />

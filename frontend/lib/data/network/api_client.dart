@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,6 +10,7 @@ import 'package:mime/mime.dart';
 
 import 'api_config.dart';
 import 'api_exception.dart';
+import 'secure_token_store.dart';
 import '../../utils/logger.dart';
 import '../../utils/storage_keys.dart';
 
@@ -23,12 +25,59 @@ class ApiClient {
 
   /// v23.1 part 113 — public getter so external multipart uploaders can
   /// re-use the stored auth token without re-implementing storage access.
-  String? get authToken => _storage.read<String>(StorageKeys.authToken);
+  /// v23.1 part 125 — Phase 2 audit C4 : lit en priorité depuis
+  /// SecureTokenStore (keystore Android / Keychain iOS) ; fallback
+  /// GetStorage le temps que la migration au boot finisse.
+  String? get authToken =>
+      SecureTokenStore.instance.tokenSync ??
+      _storage.read<String>(StorageKeys.authToken);
 
   Map<String, String> get _defaultHeaders => const {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+
+  /// v23.1 part 125 — Phase 2 audit C3.
+  /// Wrapper qui exécute une requête HTTP et convertit les erreurs bas
+  /// niveau en exceptions métier distinctes :
+  ///   - `SocketException`     → `NetworkUnreachableException` (pas de réseau)
+  ///   - `TimeoutException`    → `ApiTimeoutException` (Render cold start, etc.)
+  ///   - `http.ClientException`/autre IO → `NetworkUnreachableException`
+  ///   - tout autre throw (incl. `ApiException` levée par `_decodeResponse`)
+  ///     remonte tel quel.
+  Future<dynamic> _runRequest(
+    String method,
+    Uri uri,
+    Future<http.Response> Function() task,
+  ) async {
+    final start = DateTime.now();
+    try {
+      final response = await task();
+      _logResponse(uri, response);
+      return _decodeResponse(response);
+    } on SocketException catch (e) {
+      throw NetworkUnreachableException(
+        'No internet connection',
+        cause: e,
+      );
+    } on TimeoutException catch (e) {
+      throw ApiTimeoutException(
+        '$method ${uri.path} timed out',
+        elapsed: DateTime.now().difference(start),
+      );
+    } on http.ClientException catch (e) {
+      // Réseau interrompu, TLS handshake KO, DNS introuvable, etc.
+      throw NetworkUnreachableException(
+        'Network request failed: ${e.message}',
+        cause: e,
+      );
+    } on HandshakeException catch (e) {
+      throw NetworkUnreachableException(
+        'TLS handshake failed',
+        cause: e,
+      );
+    }
+  }
 
   /// Executes a GET request and returns the decoded JSON body.
   Future<dynamic> get(
@@ -43,11 +92,9 @@ class ApiClient {
       requiresAuth: requiresAuth,
     );
     _logRequest('GET', uri, resolvedHeaders);
-    final response = await _httpClient
+    return _runRequest('GET', uri, () => _httpClient
         .get(uri, headers: resolvedHeaders)
-        .timeout(ApiConfig.receiveTimeout);
-    _logResponse(uri, response);
-    return _decodeResponse(response);
+        .timeout(ApiConfig.receiveTimeout));
   }
 
   /// Executes a POST request and returns the decoded JSON body.
@@ -64,11 +111,9 @@ class ApiClient {
       requiresAuth: requiresAuth,
     );
     _logRequest('POST', uri, resolvedHeaders, body: body);
-    final response = await _httpClient
+    return _runRequest('POST', uri, () => _httpClient
         .post(uri, headers: resolvedHeaders, body: _encodeBody(body))
-        .timeout(ApiConfig.receiveTimeout);
-    _logResponse(uri, response);
-    return _decodeResponse(response);
+        .timeout(ApiConfig.receiveTimeout));
   }
 
   /// Executes a PUT request and returns the decoded JSON body.
@@ -85,11 +130,9 @@ class ApiClient {
       requiresAuth: requiresAuth,
     );
     _logRequest('PUT', uri, resolvedHeaders, body: body);
-    final response = await _httpClient
+    return _runRequest('PUT', uri, () => _httpClient
         .put(uri, headers: resolvedHeaders, body: _encodeBody(body))
-        .timeout(ApiConfig.receiveTimeout);
-    _logResponse(uri, response);
-    return _decodeResponse(response);
+        .timeout(ApiConfig.receiveTimeout));
   }
 
   /// Executes a PATCH request and returns the decoded JSON body.
@@ -106,11 +149,9 @@ class ApiClient {
       requiresAuth: requiresAuth,
     );
     _logRequest('PATCH', uri, resolvedHeaders, body: body);
-    final response = await _httpClient
+    return _runRequest('PATCH', uri, () => _httpClient
         .patch(uri, headers: resolvedHeaders, body: _encodeBody(body))
-        .timeout(ApiConfig.receiveTimeout);
-    _logResponse(uri, response);
-    return _decodeResponse(response);
+        .timeout(ApiConfig.receiveTimeout));
   }
 
   /// Executes a DELETE request and returns the decoded JSON body (if any).
@@ -127,11 +168,9 @@ class ApiClient {
       requiresAuth: requiresAuth,
     );
     _logRequest('DELETE', uri, resolvedHeaders, body: body);
-    final response = await _httpClient
+    return _runRequest('DELETE', uri, () => _httpClient
         .delete(uri, headers: resolvedHeaders, body: _encodeBody(body))
-        .timeout(ApiConfig.receiveTimeout);
-    _logResponse(uri, response);
-    return _decodeResponse(response);
+        .timeout(ApiConfig.receiveTimeout));
   }
 
   /// Executes a POST request with multipart/form-data for file uploads.
@@ -355,7 +394,11 @@ class ApiClient {
       return mergedHeaders;
     }
 
-    final token = _storage.read<String>(StorageKeys.authToken);
+    // v23.1 part 125 — Phase 2 audit C4 : SecureTokenStore prioritaire,
+    // GetStorage en fallback (cas où l'app vient juste d'être upgrade et
+    // la migration au boot n'a pas encore tourné).
+    final token = SecureTokenStore.instance.tokenSync ??
+        _storage.read<String>(StorageKeys.authToken);
 
     if (token == null || token.isEmpty) {
       throw ApiException(

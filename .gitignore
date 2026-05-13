@@ -30,6 +30,14 @@ frontend/android/local.properties
 frontend/android/**/gradle-wrapper.jar
 frontend/flutter_*.log
 
+# v23.1 part 125 — Phase 2 audit B1/B8 : keystore release.
+# JAMAIS de keystore ni de password en clair dans git.
+frontend/android/key.properties
+!frontend/android/key.properties.example
+frontend/android/*.jks
+frontend/android/*.keystore
+*.jks
+
 # Backups
 *.bak
 

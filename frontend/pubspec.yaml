@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.125+125
+version: 23.1.126+126
 
 environment:
   sdk: ^3.9.2
@@ -79,6 +79,15 @@ dependencies:
   # auto-dismiss 3s. Utilisé via lib/widgets/modern_toast.dart et le shim
   # CustomSnackbar (qui appelle ModernToast en interne, backward compat).
   awesome_snackbar_content: ^0.1.5
+  # v23.1 part 125 — Phase 2 audit C4. JWT + tokens sensibles déplacés
+  # depuis GetStorage (JSON en clair dans app docs dir) vers le keystore
+  # Android (EncryptedSharedPreferences) / Keychain iOS. Inviolable sans
+  # root + clé device.
+  flutter_secure_storage: ^9.2.2
+  # v23.1 part 125 — Phase 2 audit L3. Crash reporting dans Firebase
+  # Console + Play Vitals (Sentry restait privé). Initialisé à partir
+  # de main.dart, captureUnhandledErrors + onError Flutter.
+  firebase_crashlytics: ^4.1.3
 
 dev_dependencies:
   flutter_test:

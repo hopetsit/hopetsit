@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -6,6 +9,18 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// v23.1 part 125 — Phase 2 audit B1/B8 :
+// Lit le keystore release depuis android/key.properties (gitignored).
+// Si le fichier est absent (cas dev local sans cert), on retombe sur
+// le keystore debug pour que `flutter run` continue de marcher. Le
+// release CI/Play Store doit IMPÉRATIVEMENT avoir key.properties.
+val keyPropertiesFile = rootProject.file("key.properties")
+val keyProperties = Properties()
+val hasReleaseKeystore = keyPropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keyProperties.load(FileInputStream(keyPropertiesFile))
 }
 
 android {
@@ -27,21 +42,54 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.hopetsit.app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    // v23.1 part 125 — Phase 2 audit B1 : keystore release distinct.
+    // Voir android/key.properties.example pour le format attendu.
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keyProperties.getProperty("storeFile"))
+                storePassword = keyProperties.getProperty("storePassword")
+                keyAlias = keyProperties.getProperty("keyAlias")
+                keyPassword = keyProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // v23.1 part 125 — Phase 2 audit B1/B2 :
+            //  - Signing : keystore release si key.properties existe,
+            //    debug sinon (dev local seulement, JAMAIS pour le Play Store).
+            //  - minify + shrinkResources : code Dart est déjà AOT, mais R8
+            //    élimine le bytecode Kotlin / Java mort (Stripe purgé, etc.)
+            //    et obfuscit les noms — extraction APK 5× plus dure.
+            //  - proguard-rules.pro maintient les classes de
+            //    Firebase / Cloudinary / socket.io / Geolocator / etc.
+            //    qui font de la reflection runtime.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        getByName("debug") {
+            // Debug build : pas de minify, sinon `flutter run` casse les
+            // hot reloads et l'attachement du debugger.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

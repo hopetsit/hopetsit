@@ -1,0 +1,30 @@
+# v23.1 part 125 — Template release signing config.
+# DO NOT COMMIT le vrai key.properties (déjà gitignored).
+#
+# Procédure pour Daniel :
+#   1) Générer le keystore RSA 4096 (une seule fois, valide 25 ans) :
+#      keytool -genkey -v -keystore C:/Users/Usuario/hopetsit-release.jks \
+#         -alias hopetsit -keyalg RSA -keysize 4096 -validity 25000
+#      Mot de passe FORT — sauvegarder dans 1Password / Bitwarden.
+#
+#   2) Copier ce fichier en key.properties (sans le .example) et
+#      remplacer les valeurs ci-dessous par les vraies.
+#
+#   3) Sauvegarder hopetsit-release.jks dans 3 endroits :
+#        - 1Password / Bitwarden (file attachment)
+#        - clé USB chiffrée
+#        - drive perso chiffré
+#      Sans cette clé, **plus possible de publier des updates sur le Play
+#      Store sous le même applicationId**.
+#
+#   4) Récupérer le SHA-1 + SHA-256 pour Google Cloud Console (Maps key
+#      restriction) ET Firebase Console (Authentication / google-services
+#      Android app) :
+#      keytool -list -v -keystore hopetsit-release.jks -alias hopetsit
+#
+#   5) Activer Play App Signing à la 1re publication (Google garde la
+#      clé upload, peut la rotater). Cf https://developer.android.com/studio/publish/app-signing#enroll
+storeFile=C:/Users/Usuario/hopetsit-release.jks
+storePassword=REMPLACER_PAR_LE_VRAI_PASSWORD
+keyAlias=hopetsit
+keyPassword=REMPLACER_PAR_LE_VRAI_PASSWORD

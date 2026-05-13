@@ -143,6 +143,19 @@ class AppLogger {
     }
   }
 
+  /// v23.1 part 125 — Log warning level (deep-link rejet, dégradations
+  /// non-critiques). kDebugMode-gated comme tout le reste.
+  static void logWarning(String message, {Object? error}) {
+    if (kDebugMode) {
+      debugPrint('$_tag ========== WARNING ==========');
+      debugPrint('$_tag Message: $message');
+      if (error != null) {
+        debugPrint('$_tag Error: $error');
+      }
+      debugPrint('$_tag =============================');
+    }
+  }
+
   /// Log User Action
   static void logUserAction(String action, {Map<String, dynamic>? data}) {
     if (kDebugMode) {

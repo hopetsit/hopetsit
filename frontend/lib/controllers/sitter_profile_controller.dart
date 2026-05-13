@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -444,6 +445,8 @@ class SitterProfileController extends GetxController {
       await _sitterRepository.deleteAccount();
 
       // Clear authentication token and user data
+      // v23.1 part 125 — Phase 2 audit C4 : purge SecureTokenStore aussi.
+      await SecureTokenStore.instance.clear();
       await _storage.remove(StorageKeys.authToken);
       await _storage.remove(StorageKeys.userProfile);
       await _storage.remove(StorageKeys.userRole);
