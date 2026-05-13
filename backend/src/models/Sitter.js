@@ -23,8 +23,10 @@ const sitterSchema = new mongoose.Schema(
     currency: { type: String, enum: ['EUR', 'USD'], default: 'EUR' },
     address: { type: String, default: '' },
     rate: { type: String, default: '' },
-    skills: { type: String, default: '' },
-    bio: { type: String, default: '' },
+    // v23.1 part 130 — Phase 6 audit P6-4 : cap les champs texte
+    // long-format pour éviter le stockage abusif.
+    skills: { type: String, default: '', maxlength: 1000 },
+    bio: { type: String, default: '', maxlength: 3000 },
     acceptedTerms: { type: Boolean, default: false },
     // Sprint 5 step 4 — traceability of T&C acceptance.
     termsAcceptedAt: { type: Date, default: null },

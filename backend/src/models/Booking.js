@@ -10,7 +10,8 @@ const bookingSchema = new mongoose.Schema(
     sitterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sitter', default: null },
     walkerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Walker', default: null },
     petIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Pet' }], // Array of pet IDs
-    description: { type: String, default: '' },
+    // v23.1 part 130 — Phase 6 audit P6-4 : cap les champs texte.
+    description: { type: String, default: '', maxlength: 3000 },
     date: { type: String, required: true },
     startDate: { type: String, default: null },
     endDate: { type: String, default: null },

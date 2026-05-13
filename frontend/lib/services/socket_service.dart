@@ -72,10 +72,15 @@ class SocketService {
 
       AppLogger.logInfo('Connecting to socket: $socketUrl');
 
+      // v23.1 part 130 — Phase 6 audit P6-1 : envoyer le JWT via
+      // l'option `auth` qui est la voie officielle socket.io v3+ et que
+      // le middleware io.use lit en priorité. setExtraHeaders reste en
+      // fallback pour les vieux clients (et les WebView).
       _socket = io.io(
         socketUrl,
         io.OptionBuilder()
             .setTransports(['websocket'])
+            .setAuth({'token': token})
             .setExtraHeaders({'Authorization': 'Bearer $token'})
             .enableAutoConnect()
             .enableReconnection()

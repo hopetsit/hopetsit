@@ -38,6 +38,11 @@ const messageSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      // v23.1 part 130 — Phase 6 audit P6-4 : cap à 4000 chars (~750 mots,
+      // largement suffisant pour un message de chat). AVANT pas de limite
+      // → un attaquant pouvait pousser 10MB de texte dans un message →
+      // doc Mongo gonflé, UI ralentie, coût stockage.
+      maxlength: 4000,
     },
     attachments: {
       type: [attachmentSchema],

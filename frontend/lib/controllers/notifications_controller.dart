@@ -127,7 +127,24 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       // chat ne bumpait jamais. Maintenant on écoute aussi message:new pour
       // bump unreadChat directement, indépendamment du flux notification.
       s.socket?.off('message:new');
-      s.socket?.on('message:new', (_) {
+      s.socket?.on('message:new', (data) {
+        // v23.1 part 130 — Phase 6 audit P6-2 : ne pas bumper le badge
+        // chat quand C'EST NOUS qui avons envoyé le message. AVANT le
+        // backend emit message:new à TOUS les membres de la room
+        // (incluant le sender) → l'expéditeur voyait son propre badge
+        // chat s'allumer (Daniel : "badge message doit aparaitre
+        // uniquement qd on recoi d message").
+        try {
+          final map = data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
+          final triggered = map['triggeredBy'];
+          final triggeredId = triggered is Map ? triggered['userId']?.toString() : null;
+          final profile = _storage.read<Map<String, dynamic>>('user_profile');
+          final myId = profile?['id']?.toString();
+          if (triggeredId != null && myId != null && triggeredId == myId) {
+            // Message envoyé par soi-même → on ne bumpe rien.
+            return;
+          }
+        } catch (_) {/* best-effort */}
         unreadChat.value = unreadChat.value + 1;
         _storage.write(_kUnreadChat, unreadChat.value);
       });

@@ -361,6 +361,16 @@ class PushNotificationService extends GetxService {
   /// Otherwise, fetch a fresh token from FCM and register.
   Future<void> reRegisterAfterLogin() async {
     try {
+      // v23.1 part 130 — Phase 6 audit P6-3 : Daniel "anciens payments
+      // réapparaissent dans la barre de notif au login". Cause : les
+      // notifs système Android délivrées avant le logout restaient dans
+      // le centre de notifications. Au login suivant, on les voyait
+      // refaire surface comme si elles venaient du nouveau compte. On
+      // les purge MAINTENANT au début du login pour une "ardoise vierge".
+      try {
+        await _localNotifications.cancelAll();
+      } catch (_) {/* best-effort */}
+
       String? token = fcmToken.value;
       if (token == null || token.isEmpty) {
         token = await _messaging.getToken();

@@ -61,9 +61,29 @@ const asErrorPayload = (error) => ({
 });
 
 const registerChatHandlers = (io, socket) => {
+  // v23.1 part 130 — Phase 6 audit P6-1 : helper qui retourne l'identité
+  // authentifiée du socket (depuis le JWT validé par io.use), en fallback
+  // sur le payload pour les anciens clients (à virer une fois le rollout
+  // v130 terminé). Toute donnée payload est ignorée si elle ne matche
+  // pas le JWT.
+  const _authedIdentity = (payload = {}) => {
+    const trusted = socket.data?.user;
+    if (trusted?.id && trusted?.role) {
+      return { role: trusted.role, userId: trusted.id };
+    }
+    // Fallback legacy : si pas d'auth socket (rolling deploy), on
+    // tolère le payload — mais le middleware io.use renvoie 'AUTH_REQUIRED'
+    // avant d'arriver ici en prod, donc ce chemin ne devrait JAMAIS
+    // se déclencher.
+    return { role: payload.role, userId: payload.userId };
+  };
+
   // Sprint 4 step 4 — per-user room for targeted notifications.
   socket.on('user:identify', (payload = {}, callback) => {
-    const { role, userId } = payload;
+    // v23.1 part 130 — Phase 6 audit P6-1 : role/userId proviennent
+    // toujours du JWT, plus du payload. Sinon n'importe qui pouvait
+    // join le user-room d'autrui et recevoir ses notifs.
+    const { role, userId } = _authedIdentity(payload);
     if (role && userId) {
       socket.join(userRoom(role, userId));
       socket.data = socket.data || {};
@@ -74,7 +94,9 @@ const registerChatHandlers = (io, socket) => {
 
   socket.on('conversation:join', async (payload = {}, callback) => {
     try {
-      const { conversationId, role, userId } = payload;
+      // v23.1 part 130 — Phase 6 audit P6-1 : identité depuis JWT.
+      const { conversationId } = payload;
+      const { role, userId } = _authedIdentity(payload);
       const conversation = await assertAccessAndFetch({ conversationId, role, userId });
       await assertChatPaid(conversation, role, userId);
 
@@ -103,7 +125,9 @@ const registerChatHandlers = (io, socket) => {
   // Sprint 6 step 2 — join a walk room to receive live positions.
   socket.on('walk:join', async (payload = {}, callback) => {
     try {
-      const { walkId, role, userId } = payload;
+      // v23.1 part 130 — Phase 6 audit P6-1 : identité depuis JWT.
+      const { walkId } = payload;
+      const { role, userId } = _authedIdentity(payload);
       if (!walkId || !role || !userId) {
         throw new HttpError(400, 'walkId, role, userId required');
       }
@@ -136,7 +160,14 @@ const registerChatHandlers = (io, socket) => {
 
   socket.on('message:send', async (payload = {}, callback) => {
     try {
-      const { conversationId, senderRole, senderId, body } = payload;
+      // v23.1 part 130 — Phase 6 audit P6-1 : sender depuis JWT pour
+      // empêcher l'usurpation. AVANT le client pouvait poser
+      // senderRole/senderId arbitraires et envoyer un message au nom
+      // d'un autre user.
+      const { conversationId, body } = payload;
+      const authed = _authedIdentity(payload);
+      const senderRole = authed.role;
+      const senderId = authed.userId;
 
       // Gate chat: verify conversation exists, user is participant, and the
       // latest booking between these two parties is paid (or absent).
@@ -173,7 +204,9 @@ const registerChatHandlers = (io, socket) => {
 
   socket.on('conversation:read', async (payload = {}, callback) => {
     try {
-      const { conversationId, role, userId } = payload;
+      // v23.1 part 130 — Phase 6 audit P6-1 : identité depuis JWT.
+      const { conversationId } = payload;
+      const { role, userId } = _authedIdentity(payload);
       const { conversation, updated } = await markConversationRead({
         conversationId,
         role,

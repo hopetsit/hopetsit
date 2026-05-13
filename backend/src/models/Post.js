@@ -13,6 +13,8 @@ const postSchema = new mongoose.Schema(
       type: String,
       default: '',
       trim: true,
+      // v23.1 part 130 — Phase 6 audit P6-4 : cap à 5000 chars.
+      maxlength: 5000,
     },
     // Optional booking-related dates for this post
     startDate: {
@@ -90,7 +92,7 @@ const postSchema = new mongoose.Schema(
         authorAvatar: {
           url: { type: String, default: '' },
         },
-        body: { type: String, required: true, trim: true },
+        body: { type: String, required: true, trim: true, maxlength: 2000 },
         createdAt: { type: Date, default: Date.now },
       },
     ],

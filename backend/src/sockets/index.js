@@ -1,7 +1,9 @@
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 const registerChatHandlers = require('./chatSocket');
 const registerMapHandlers = require('./mapSocket');
 const { setSocketServer } = require('./emitter');
+const logger = require('../utils/logger');
 
 // v23.1 part 128 — Phase 4 audit P4-14 : whitelist explicite des origins
 // pour Socket.IO. AVANT : cors.origin='*' par défaut → tout site externe
@@ -40,6 +42,46 @@ const createSocketServer = (httpServer) => {
   });
 
   setSocketServer(io);
+
+  // v23.1 part 130 — Phase 6 audit P6-1 (BLOCKER) :
+  // AVANT : pas d'auth socket → un attaquant pouvait envoyer
+  // `user:identify {role:'admin', userId:<anyone>}` puis recevoir tous
+  // les évènements de cet user (chat, notif, paiements). De même
+  // `conversation:join` acceptait un userId arbitraire du payload.
+  // MAINTENANT : middleware io.use qui valide le JWT au handshake
+  // exactement comme requireAuth REST. Le token doit arriver via
+  //   - socket.handshake.auth.token  (recommandé, socket.io v3+)
+  //   - OU socket.handshake.headers.authorization (Bearer …) en
+  //     fallback (compat avec setExtraHeaders côté Flutter).
+  // Le payload {id, role} décodé est stocké sur socket.data.user et
+  // les handlers (chatSocket, mapSocket) doivent désormais utiliser
+  // CETTE source de vérité, pas le payload client.
+  io.use((socket, next) => {
+    try {
+      const authToken =
+        socket.handshake?.auth?.token ||
+        ((socket.handshake?.headers?.authorization || '')
+          .replace(/^Bearer\s+/i, '')
+          .trim());
+      if (!authToken) {
+        return next(new Error('AUTH_REQUIRED'));
+      }
+      if (!process.env.JWT_SECRET) {
+        return next(new Error('JWT_SECRET not configured'));
+      }
+      const payload = jwt.verify(authToken, process.env.JWT_SECRET);
+      if (!payload?.id || !payload?.role) {
+        return next(new Error('AUTH_INVALID'));
+      }
+      // ignore: no-param-reassign
+      socket.data = socket.data || {};
+      socket.data.user = { id: String(payload.id), role: String(payload.role) };
+      return next();
+    } catch (e) {
+      logger.warn(`[socket] auth rejected : ${e?.message || e}`);
+      return next(new Error('AUTH_FAILED'));
+    }
+  });
 
   io.on('connection', (socket) => {
     registerChatHandlers(io, socket);

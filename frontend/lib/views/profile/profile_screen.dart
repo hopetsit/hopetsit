@@ -112,53 +112,73 @@ class ProfileScreen extends StatelessWidget {
           child: SafeArea(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+              // v23.1 part 130 — Phase 6 audit P6-5 : Daniel "Photo profil
+              // gene". L'avatar overlap les badges Premium/Boost/PawSpot.
+              // Solution : on réserve 130.w à droite pour que la Column
+              // ne déborde plus sous l'avatar, et on remonte l'avatar à
+              // top:60 pour qu'il dépasse du hero sous forme de tuile
+              // classique "Instagram profile".
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.pets, color: Colors.white.withValues(alpha: 0.9), size: 20.sp),
-                          SizedBox(width: 8.w),
-                          PoppinsText(
-                            text: 'role_pet_owner'.tr,
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 6.h),
-                      Obx(() => PoppinsText(
-                        text: controller.userName.value,
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      )),
-                      SizedBox(height: 4.h),
-                      Obx(() => InterText(
-                        text: controller.email.value,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white.withValues(alpha: 0.85),
-                      )),
-                      // v23.1 part 109 — badges Boost / PawSpot / Premium
-                      // visibles dans le header (rebuild auto via Obx).
-                      const ActiveBenefitsRow(compact: true),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.pets, color: Colors.white.withValues(alpha: 0.9), size: 20.sp),
+                            SizedBox(width: 8.w),
+                            PoppinsText(
+                              text: 'role_pet_owner'.tr,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 6.h),
+                        Obx(() => PoppinsText(
+                          text: controller.userName.value,
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )),
+                        SizedBox(height: 4.h),
+                        Obx(() => InterText(
+                          text: controller.email.value,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )),
+                        // v23.1 part 109 — badges Boost / PawSpot / Premium
+                        // visibles dans le header (rebuild auto via Obx).
+                        const ActiveBenefitsRow(compact: true),
+                      ],
+                    ),
                   ),
+                  // v23.1 part 130 — Phase 6 audit P6-5 : reserve la zone
+                  // de l'avatar pour empêcher la Column de déborder.
+                  SizedBox(width: 110.w),
                 ],
               ),
             ),
           ),
         ),
         // Avatar overlay
+        // v23.1 part 130 — Phase 6 audit P6-5 : top:60h (au lieu de 80)
+        // pour que l'avatar dépasse plus visiblement du hero. Avec
+        // hero 200h + avatar 100h, top 60 = bottom 160 = juste à
+        // l'intérieur du hero (40h de dépassement avec le border-radius
+        // de 55r). Look "Instagram profile".
         Positioned(
           right: 20.w,
-          top: 80.h,
+          top: 60.h,
           child: _buildOwnerAvatar(controller),
         ),
       ],
