@@ -48,12 +48,27 @@ const chatAddonRoutes = require('./routes/chatAddonRoutes');
 const friendRoutes = require('./routes/friendRoutes');
 // v20.0.8 — in-app "Signaler un bug" from 3 profiles, emails hopetsit@gmail.com.
 const bugReportRoutes = require('./routes/bugReportRoutes');
-const { authLimiter, sensitiveLimiter } = require('./middleware/rateLimiters');
+const { authLimiter, sensitiveLimiter, adminLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
 
-// Configure helmet with CSP
+// v23.1 part 128 — Phase 4 audit P4-9 : Render route via load balancer.
+// Sans trust proxy, req.ip = IP du LB → rate-limit global pour tout
+// internet (1 attaquant peut bloquer les login de tout le monde). Avec
+// trust proxy=1, Express lit X-Forwarded-For en respectant le 1er hop
+// (Render LB) et utilise l'IP du vrai client en aval pour le bucket
+// rate-limit. C'est CRITIQUE pour express-rate-limit fonctionnel.
+app.set('trust proxy', 1);
+
+// Configure helmet with CSP + HSTS strict.
 app.use(helmet({
+  // v23.1 part 128 — Phase 4 audit P4-8 : HSTS strict (1 an + subdomains
+  // + preload), au cas où helmet default change.
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -190,7 +205,9 @@ const versionedRoutes = [
   { path: '/reviews', mw: [], router: reviewRoutes },
   { path: '/uploads', mw: [], router: uploadRoutes },
   { path: '/pricing', mw: [], router: pricingRoutes },
-  { path: '/admin', mw: [], router: adminRoutes },
+  // v23.1 part 128 — Phase 4 audit P4-20 : rate-limit anti-abus si le
+  // token admin est compromis (XSS, phishing).
+  { path: '/admin', mw: [adminLimiter], router: adminRoutes },
   { path: '/sitter', mw: [], router: ibanRoutes },
   // v18.5 — #7 fix : expose IBAN routes sous /walker aussi. Le router
   // ibanRoutes lui-même gère les 2 rôles via requireProviderRole('sitter','walker').
@@ -269,9 +286,11 @@ app.use((err, req, res, next) => {
     userId: req.user?.id,
   });
   if (res.headersSent) return;
-  // v22.1 — pour les routes admin login/diagnostic, on remonte le détail de
-  // l'erreur dans la réponse pour debug. À retirer en v22.2 une fois stable.
-  const isAdminDebug = req.path && req.path.startsWith('/auth/admin');
+  // v23.1 part 128 — Phase 4 audit P4-21 : le debug détaillé sur les
+  // routes admin reste utile EN DEV seulement. En prod, info disclosure.
+  const isAdminDebug = req.path
+    && req.path.startsWith('/auth/admin')
+    && process.env.NODE_ENV !== 'production';
   res.status(err.status || 500).json({
     error: err.expose ? err.message : 'Internal server error',
     ...(isAdminDebug ? {

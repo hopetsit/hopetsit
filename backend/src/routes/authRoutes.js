@@ -15,6 +15,7 @@ const {
   adminLogin,
 } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
+const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 const router = express.Router();
 
@@ -283,7 +284,12 @@ router.post('/signup', signup);
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/login', login);
-router.post('/admin/login', adminLogin);
+// v23.1 part 128 — Phase 4 audit P4-2 : rate-limit dédié anti-brute-force.
+// 3 tentatives par 15 minutes — un admin légitime ne se trompe pas 4 fois.
+// La route /auth est déjà sous authLimiter (5/min) pour ne pas affecter
+// les users légitimes ; adminLoginLimiter s'applique EN PLUS sur ce seul
+// endpoint.
+router.post('/admin/login', adminLoginLimiter, adminLogin);
 
 // v21.1.1 — Diagnostic endpoint TEMPORAIRE pour debug "Invalid admin credentials".
 // Retourne juste si un admin existe en DB et avec quel email (sans password).

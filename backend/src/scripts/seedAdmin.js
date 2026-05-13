@@ -4,9 +4,13 @@ const Admin = require('../models/Admin');
 const logger = require('../utils/logger');
 
 // Sprint 6.5 step 5 — exposed as function so runAllMigrations can chain it.
-// v21.1.1 — passe en upsert : si l'admin existe déjà, on resync son password
-// avec ADMIN_SEED_PASSWORD au lieu de skipper. Comme ça l'admin perdu de
-// password peut juste set la var d'env et redeploy pour reset.
+// v23.1 part 128 — Phase 4 audit P4-5 : NE PLUS resync le password admin
+// à chaque boot. Avant : un git push redéployait Render → reset auto du
+// password depuis ADMIN_SEED_PASSWORD → tout changement de password
+// effectué via la DB / un futur panel admin était effacé. Désormais on
+// crée uniquement si l'admin n'existe pas. Pour reset manuellement,
+// utiliser le flag explicite ADMIN_SEED_FORCE_RESET=true (au lieu d'un
+// re-sync silencieux).
 const seedAdmin = async () => {
   const email = process.env.ADMIN_SEED_EMAIL;
   const password = process.env.ADMIN_SEED_PASSWORD;
@@ -14,15 +18,23 @@ const seedAdmin = async () => {
     logger.info('[seedAdmin] ADMIN_SEED_EMAIL/PASSWORD not set — skipped.');
     return { skipped: true };
   }
-  const passwordHash = await Admin.hashPassword(password);
   const lowered = email.toLowerCase();
   const existing = await Admin.findOne({ email: lowered });
   if (existing) {
-    existing.passwordHash = passwordHash;
-    await existing.save();
-    logger.info(`[seedAdmin] admin password resynced for ${existing.email}`);
-    return { updated: true };
+    if (process.env.ADMIN_SEED_FORCE_RESET === 'true') {
+      const passwordHash = await Admin.hashPassword(password);
+      existing.passwordHash = passwordHash;
+      await existing.save();
+      logger.warn(
+        `[seedAdmin] admin password FORCE-RESET (ADMIN_SEED_FORCE_RESET=true) for ${existing.email}. ` +
+        `Retirer la var une fois fait.`,
+      );
+      return { forceReset: true };
+    }
+    logger.info(`[seedAdmin] admin ${existing.email} already exists, password unchanged.`);
+    return { alreadyExists: true };
   }
+  const passwordHash = await Admin.hashPassword(password);
   const admin = await Admin.create({
     email: lowered,
     passwordHash,

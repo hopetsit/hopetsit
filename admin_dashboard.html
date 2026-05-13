@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 124</title>
+<title>HopeTSIT — Admin v23.1 part 128</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -1291,7 +1291,7 @@ function renderAnnoncesList(posts) {
               <span style="color:var(--text-muted);font-size:12px">· ${p.postType}</span>
             </div>
             <div style="font-weight:700;margin-bottom:6px;font-size:14px">${p.owner.name || p.owner.email || '(anonyme)'} <span style="color:var(--text-muted);font-weight:400;font-size:12px">${p.owner.email ? '(' + p.owner.email + ')' : ''}</span></div>
-            <div style="color:var(--text);font-size:14px;margin-bottom:8px;line-height:1.5;white-space:pre-wrap;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px solid var(--border)">${p.body ? p.body.replace(/</g,'&lt;') : '<em style="color:var(--text-muted)">(pas de texte)</em>'}</div>
+            <div style="color:var(--text);font-size:14px;margin-bottom:8px;line-height:1.5;white-space:pre-wrap;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px solid var(--border)">${p.body ? escapeHtml(p.body) : '<em style="color:var(--text-muted)">(pas de texte)</em>'}</div>
             ${services ? `<div style="margin-top:6px">${services}</div>` : ''}
             ${dates}
             ${p.city ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📍 ${p.city}</div>` : ''}
@@ -2075,10 +2075,19 @@ async function revertPrivacy() {
 // v23.1 part 122 — Daniel : "Admin navigateur tableau de bord ne se met
 // pas a jour". Auto-refresh toutes les 30s quand le tab Dashboard est
 // actif. Le timer est arrêté quand on change de tab.
+// v23.1 part 128 — Phase 4 audit P4-13 : skip le tick quand l'onglet
+// n'est pas visible (l'admin a switché d'onglet OS, ou l'écran est
+// verrouillé). Sinon 960 appels/24h pour rien si l'admin laisse l'onglet
+// ouvert toute la journée.
 let _dashboardAutoRefreshTimer = null;
 function startDashboardAutoRefresh() {
   stopDashboardAutoRefresh();
   _dashboardAutoRefreshTimer = setInterval(() => {
+    if (document.visibilityState !== 'visible') {
+      // Onglet caché ou écran verrouillé — on saute, le tick reprend
+      // au prochain intervalle quand l'onglet sera de nouveau visible.
+      return;
+    }
     const dashPage = document.getElementById('page-dashboard');
     if (dashPage && dashPage.classList.contains('active')) {
       loadDashboard();
@@ -2158,14 +2167,15 @@ function renderBookings() {
     return match && st && pay;
   });
   if (!filtered.length) { document.getElementById('bookings-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><div>Aucune réservation trouvée.</div></div>'; return; }
+  // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep sur bookings.
   document.getElementById('bookings-table-body').innerHTML = `
     <table><thead><tr><th>Date</th><th>Owner</th><th>Sitter</th><th>Service</th><th>Total</th><th>Status</th><th>Payment</th><th>Action</th></tr></thead>
     <tbody>${filtered.map(b => `
       <tr>
         <td>${fmtDate(b.createdAt)}</td>
-        <td>${b.owner?.name || '-'}</td>
-        <td>${b.sitter?.name || '-'}</td>
-        <td>${(b.serviceType||'').replace('_',' ') || '-'}</td>
+        <td>${escapeHtml(b.owner?.name || '-')}</td>
+        <td>${escapeHtml(b.sitter?.name || '-')}</td>
+        <td>${escapeHtml((b.serviceType||'').replace('_',' ') || '-')}</td>
         <td>€${(b.totalAmount||b.basePrice||0).toFixed(2)}</td>
         <td>${statusBadge(b.status)}</td>
         <td>${payBadge(b.paymentStatus)}</td>
@@ -2179,9 +2189,10 @@ function openBookingModal(id) {
   if (!b) return;
   currentBookingId = id;
   document.getElementById('modal-booking-title').textContent = `Booking ${id.slice(-6).toUpperCase()}`;
+  // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('modal-booking-content').innerHTML = `
-    <div class="modal-field"><label class="modal-label">Owner</label><div class="modal-value">${b.owner?.name||'-'} (${b.owner?.email||'-'})</div></div>
-    <div class="modal-field"><label class="modal-label">Sitter</label><div class="modal-value">${b.sitter?.name||'-'}</div></div>
+    <div class="modal-field"><label class="modal-label">Owner</label><div class="modal-value">${escapeHtml(b.owner?.name||'-')} (${escapeHtml(b.owner?.email||'-')})</div></div>
+    <div class="modal-field"><label class="modal-label">Sitter</label><div class="modal-value">${escapeHtml(b.sitter?.name||'-')}</div></div>
     <div class="modal-field"><label class="modal-label">Total Amount</label><div class="modal-value">€${(b.totalAmount||0).toFixed(2)}</div></div>
     <div class="modal-field"><label class="modal-label">Pricing Tier</label><div class="modal-value">${b.pricing?.pricingTier||'hourly'}</div></div>
     <div class="modal-field">
@@ -2229,24 +2240,31 @@ function renderSitters() {
     return match && v;
   });
   if (!filtered.length) { document.getElementById('sitters-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🐕</div><div>Aucun pet-sitter trouvé.</div></div>'; return; }
+  // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep. AVANT, un
+  // sitter pouvait s'inscrire avec name="<img src=x onerror=fetch(...)>"
+  // et tout admin ouvrant cette page exécutait le payload (XSS → vol
+  // du token admin via localStorage). Maintenant chaque champ
+  // user-controlled passe par escapeHtml. _id (ObjectId 24 hex) reste
+  // safe à inliner en attribut.
   document.getElementById('sitters-table-body').innerHTML = `
     <table><thead><tr><th>Nom</th><th>Email</th><th>Tarif horaire</th><th>Services</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(s => {
       const boosted = s.boostExpiry && new Date(s.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(s.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
+      const services = (s.service||[]).map(escapeHtml).join(', ') || '-';
       return `
       <tr>
-        <td><strong>${s.name||'-'}</strong></td>
-        <td style="color:var(--text-muted)">${s.email||'-'}</td>
+        <td><strong>${escapeHtml(s.name||'-')}</strong></td>
+        <td style="color:var(--text-muted)">${escapeHtml(s.email||'-')}</td>
         <td>€${(s.hourlyRate||0).toFixed(2)}/hr</td>
-        <td style="font-size:12px">${(s.service||[]).join(', ')||'-'}</td>
+        <td style="font-size:12px">${services}</td>
         <td>${s.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
-        <td>${boosted ? `<span class="badge badge-orange">🔥 ${s.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td><span class="badge badge-blue">${s.payoutMethod||'stripe'}</span></td>
+        <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(s.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td><span class="badge badge-blue">${escapeHtml(s.payoutMethod||'stripe')}</span></td>
         <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn" style="background:${s.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}','${s.name}')">Supprimer</button>
+          <button class="action-btn" style="background:${s.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('sitter','${s._id}',${!s.isStaff})">${s.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteSitter('${s._id}')">Supprimer</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -2261,11 +2279,16 @@ async function verifySitter(id) {
     showToast('Sitter verified ✓', 'success');
   } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
-async function deleteSitter(id, name) {
-  if (!confirm(`Supprimer le pet-sitter "${name}" ? Action irréversible.`)) return;
+async function deleteSitter(id) {
+  // v23.1 part 128 — Phase 4 audit P4-3 : le nom n'est plus passé en
+  // attribut HTML (risque JS-injection si nom = `';alert(1);//`). On
+  // le lookup dans le cache local.
+  const s = allSitters.find(x => x._id === id);
+  const safeName = s ? (s.name || s.email || id) : id;
+  if (!confirm(`Supprimer le pet-sitter "${safeName}" ? Action irréversible.`)) return;
   try {
     await api(`/admin/sitters/${id}`, 'DELETE');
-    allSitters = allSitters.filter(s => s._id !== id);
+    allSitters = allSitters.filter(x => x._id !== id);
     renderSitters();
     showToast('Pet-sitter supprimé.', 'success');
   } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
@@ -2315,6 +2338,7 @@ function renderOwners() {
       '<div class="empty-state"><div class="empty-icon">👤</div><div>Aucun utilisateur trouvé.</div></div>';
     return;
   }
+  // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('owners-table-body').innerHTML = `
     <table><thead><tr><th>Role</th><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(u => {
@@ -2322,21 +2346,25 @@ function renderOwners() {
       return `
       <tr>
         <td><span style="background:${b.color};color:#fff;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">${b.icon} ${b.label}</span></td>
-        <td><strong>${u.name||'-'}</strong></td>
-        <td style="color:var(--text-muted)">${u.email||'-'}</td>
-        <td>${u.mobile||'-'}</td>
+        <td><strong>${escapeHtml(u.name||'-')}</strong></td>
+        <td style="color:var(--text-muted)">${escapeHtml(u.email||'-')}</td>
+        <td>${escapeHtml(u.mobile||'-')}</td>
         <td>${fmtDate(u.createdAt)}</td>
         <td>${u.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="action-btn" style="background:${u.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('${u._role}','${u._id}',${!u.isStaff})">${u.isStaff?'Revoke ⭐':'Make Staff ⭐'}</button>
-          <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}','${(u.name||'').replace(/'/g,"\\'")}')">Supprimer</button>
+          <button class="action-btn btn-delete" onclick="deleteUnifiedUser('${u._role}','${u._id}')">Supprimer</button>
         </td>
       </tr>`;
     }).join('')}</tbody></table>
   `;
 }
-async function deleteUnifiedUser(role, id, name) {
-  if (!confirm(`Supprimer ${role} "${name}" ?`)) return;
+async function deleteUnifiedUser(role, id) {
+  // v23.1 part 128 — Phase 4 audit P4-3 : nom récupéré depuis le cache,
+  // plus passé en attribut.
+  const u = (allOwners || []).find(x => x._id === id) || {};
+  const safeName = u.name || u.email || id;
+  if (!confirm(`Supprimer ${role} "${safeName}" ?`)) return;
   const endpoint = role === 'owner' ? '/admin/owners/' : role === 'walker' ? '/admin/walkers/' : '/admin/sitters/';
   try {
     await api(endpoint + id, 'DELETE');
@@ -2385,30 +2413,31 @@ function renderWalkers() {
       '<div class="empty-state"><div class="empty-icon">🚶</div><div>Aucun walker trouvé.</div></div>';
     return;
   }
+  // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('walkers-table-body').innerHTML = `
     <table><thead><tr><th>Nom</th><th>Email</th><th>Tarif</th><th>Zone</th><th>Vérifié</th><th>Boost</th><th>Payout</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(w => {
       const boosted = w.boostExpiry && new Date(w.boostExpiry) > new Date();
       const boostDays = boosted ? Math.ceil((new Date(w.boostExpiry).getTime() - Date.now()) / 86400000) : 0;
       const coverage = w.coverage
-        ? `${w.coverage.city || '-'} · ${w.coverage.radiusKm || 0} km`
+        ? `${escapeHtml(w.coverage.city || '-')} · ${Number(w.coverage.radiusKm || 0)} km`
         : '-';
       const rate = w.rates && w.rates.length
-        ? `€${(w.rates[0].amount || 0).toFixed(2)}/${w.rates[0].duration || '?'}min`
+        ? `€${(w.rates[0].amount || 0).toFixed(2)}/${escapeHtml(String(w.rates[0].duration || '?'))}min`
         : '—';
       return `
       <tr>
-        <td><strong>${w.name||'-'}</strong></td>
-        <td style="color:var(--text-muted)">${w.email||'-'}</td>
+        <td><strong>${escapeHtml(w.name||'-')}</strong></td>
+        <td style="color:var(--text-muted)">${escapeHtml(w.email||'-')}</td>
         <td>${rate}</td>
         <td style="font-size:12px">${coverage}</td>
         <td>${w.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
-        <td>${boosted ? `<span class="badge badge-orange">🔥 ${w.boostTier||'boost'} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td><span class="badge badge-blue">${w.payoutMethod||'stripe'}</span></td>
+        <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(w.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td><span class="badge badge-blue">${escapeHtml(w.payoutMethod||'stripe')}</span></td>
         <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
-          <button class="action-btn" style="background:${w.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}','${w.name}')">Supprimer</button>
+          <button class="action-btn" style="background:${w.isStaff?'#6B7280':'#16A34A'};color:#fff" onclick="toggleStaff('walker','${w._id}',${!w.isStaff})">${w.isStaff?'Retirer Staff ⭐':'Activer Staff ⭐'}</button><button class="action-btn btn-delete" onclick="deleteWalker('${w._id}')">Supprimer</button>
         </td>
       </tr>
     `;}).join('')}</tbody></table>
@@ -2423,11 +2452,15 @@ async function verifyWalker(id) {
     showToast('Walker verified ✓', 'success');
   } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
 }
-async function deleteWalker(id, name) {
-  if (!confirm(`Supprimer le walker "${name}" ? Action irréversible.`)) return;
+async function deleteWalker(id) {
+  // v23.1 part 128 — Phase 4 audit P4-3 : nom lookup, plus passé en
+  // attribut HTML.
+  const w = allWalkers.find(x => x._id === id);
+  const safeName = w ? (w.name || w.email || id) : id;
+  if (!confirm(`Supprimer le walker "${safeName}" ? Action irréversible.`)) return;
   try {
     await api(`/admin/walkers/${id}`, 'DELETE');
-    allWalkers = allWalkers.filter(w => w._id !== id);
+    allWalkers = allWalkers.filter(x => x._id !== id);
     renderWalkers();
     showToast('Walker supprimé.', 'success');
   } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
@@ -2816,15 +2849,16 @@ async function loadIbanSitters() {
       document.getElementById('iban-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🏦</div><div>Aucun provider n\'a soumis ses coordonnées bancaires.</div></div>';
       return;
     }
+    // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     document.getElementById('iban-table-body').innerHTML = `
       <table><thead><tr><th>Sitter</th><th>Email</th><th>Account Holder</th><th>IBAN (masked)</th><th>BIC</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>${sitters.map(s => `
         <tr>
-          <td><strong>${s.name||'-'}</strong></td>
-          <td style="color:var(--text-muted)">${s.email||'-'}</td>
-          <td>${s.ibanHolder||'-'}</td>
-          <td style="font-family:monospace">${maskIban(s.ibanNumber)}</td>
-          <td>${s.ibanBic||'-'}</td>
+          <td><strong>${escapeHtml(s.name||'-')}</strong></td>
+          <td style="color:var(--text-muted)">${escapeHtml(s.email||'-')}</td>
+          <td>${escapeHtml(s.ibanHolder||'-')}</td>
+          <td style="font-family:monospace">${escapeHtml(maskIban(s.ibanNumber))}</td>
+          <td>${escapeHtml(s.ibanBic||'-')}</td>
           <td>${s.ibanVerified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">À vérifier</span>'}</td>
           <td><button class="action-btn btn-verify" onclick="openIbanModal('${s._id}')">Examiner</button></td>
         </tr>
@@ -3015,14 +3049,15 @@ function renderBoostsTable(purchases, total) {
       : '<span class="badge badge-orange">👤 Owner</span>';
     const currency = p.currency || 'EUR';
     const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'USD' ? '$' : 'CHF ';
+    // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     rows += `<tr>
       <td>${fmtDate(p.purchasedAt)}</td>
-      <td><strong>${p.userName||'-'}</strong><br><span style="font-size:11px;color:var(--text-muted)">${p.userEmail||''}</span></td>
+      <td><strong>${escapeHtml(p.userName||'-')}</strong><br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(p.userEmail||'')}</span></td>
       <td>${roleBadge}</td>
       <td>${productBadge}</td>
       <td>${tierBadge}</td>
-      <td style="font-weight:600">${symbol}${(p.amount||0).toFixed(2)}</td>
-      <td>${p.paymentProvider}</td>
+      <td style="font-weight:600">${escapeHtml(symbol)}${(p.amount||0).toFixed(2)}</td>
+      <td>${escapeHtml(p.paymentProvider||'')}</td>
       <td>${statusHtml}</td>
     </tr>`;
   }
@@ -3050,9 +3085,10 @@ async function loadChatConversations() {
   list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await api('/admin/conversations?limit=100');
+    // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep sur chat.
     const rows = (data.conversations || []).map(c => {
       const when = c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleString() : '';
-      const preview = (c.lastMessage || '').slice(0, 60);
+      const preview = escapeHtml((c.lastMessage || '').slice(0, 60));
       return `<div class="card" style="padding:10px;cursor:pointer" onclick="loadChatMessages('${c.id}')">
         <div style="font-weight:600;font-size:13px">${c.id.slice(-6)} - ${when}</div>
         <div style="color:var(--text-muted);font-size:12px;margin-top:4px">${preview}</div>
@@ -3071,15 +3107,19 @@ async function loadChatMessages(convId) {
   if (listEl) listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await api('/admin/conversations/' + convId + '/messages');
+    // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep sur chat
+    // messages. AVANT le body était juste replace(/</g,'&lt;') qui ne
+    // protège pas contre `<img src=x onerror=...` injecté via attribut
+    // — escapeHtml gère &, <, >, ", '.
     const rows = (data.messages || []).map(m => {
       const when = m.createdAt ? new Date(m.createdAt).toLocaleString() : '';
-      const deleted = m.deletedAt ? `<span style="color:var(--error);font-size:11px">[deleted by ${m.deletedBy} at ${new Date(m.deletedAt).toLocaleString()}]</span>` : '';
+      const deleted = m.deletedAt ? `<span style="color:var(--error);font-size:11px">[deleted by ${escapeHtml(m.deletedBy||'?')} at ${new Date(m.deletedAt).toLocaleString()}]</span>` : '';
       const btn = m.deletedAt ? '' : `<button class="action-btn" style="background:var(--error);color:#fff;font-size:11px" onclick="adminDeleteMessage('${m.id}')">Supprimer</button>`;
       return `<div class="card" style="padding:10px">
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted)">
-          <span>${m.senderRole} - ${when}</span> ${btn}
+          <span>${escapeHtml(m.senderRole||'?')} - ${when}</span> ${btn}
         </div>
-        <div style="margin-top:6px;font-size:13px">${(m.body || '').replace(/</g, '&lt;')}</div>
+        <div style="margin-top:6px;font-size:13px">${escapeHtml(m.body || '')}</div>
         ${deleted}
       </div>`;
     }).join('');
@@ -3112,9 +3152,10 @@ async function loadAdminLoyalty() {
       '<div class="stat-card"><div class="stat-label">Owners Premium</div><div class="stat-value">' + (s.ownersPremiumCount||0) + ' / ' + (s.ownerTotal||0) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Top Sitters</div><div class="stat-value">' + (s.sittersTopCount||0) + ' / ' + (s.sitterTotal||0) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Top Walkers</div><div class="stat-value">' + (s.walkersTopCount||0) + ' / ' + (s.walkerTotal||0) + '</div></div>';
-    const owners = (d.ownersPremium||[]).map(o => '<tr><td><strong>'+(o.name||'-')+'</strong></td><td>'+(o.email||'-')+'</td><td>'+fmtDate(o.createdAt)+'</td></tr>').join('');
-    const sitters = (d.sittersTop||[]).map(x => '<tr><td><strong>'+(x.name||'-')+'</strong></td><td>'+(x.email||'-')+'</td><td>'+(x.completed||0)+'</td><td>'+(x.rating||0).toFixed(2)+' *</td></tr>').join('');
-    const walkers = (d.walkersTop||[]).map(w => '<tr><td><strong>'+(w.name||'-')+'</strong></td><td>'+(w.email||'-')+'</td><td>'+(w.completed||0)+'</td><td>'+(w.rating||0).toFixed(2)+' *</td></tr>').join('');
+    // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
+    const owners = (d.ownersPremium||[]).map(o => '<tr><td><strong>'+escapeHtml(o.name||'-')+'</strong></td><td>'+escapeHtml(o.email||'-')+'</td><td>'+fmtDate(o.createdAt)+'</td></tr>').join('');
+    const sitters = (d.sittersTop||[]).map(x => '<tr><td><strong>'+escapeHtml(x.name||'-')+'</strong></td><td>'+escapeHtml(x.email||'-')+'</td><td>'+(x.completed||0)+'</td><td>'+(x.rating||0).toFixed(2)+' *</td></tr>').join('');
+    const walkers = (d.walkersTop||[]).map(w => '<tr><td><strong>'+escapeHtml(w.name||'-')+'</strong></td><td>'+escapeHtml(w.email||'-')+'</td><td>'+(w.completed||0)+'</td><td>'+(w.rating||0).toFixed(2)+' *</td></tr>').join('');
     tbl.innerHTML =
       '<h3 style="font-size:16px;margin:20px 0 10px">Owners Premium</h3>' +
       '<table class="table"><thead><tr><th>Nom</th><th>Email</th><th>Inscrit</th></tr></thead><tbody>' + (owners || '<tr><td colspan="3" style="color:var(--text-muted)">Aucun</td></tr>') + '</tbody></table>' +
@@ -3141,9 +3182,11 @@ async function loadAdminWallets() {
         '<div class="stat-card"><div class="stat-label">Providers with balance</div><div class="stat-value">' + (s.providerCount||0) + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Stripe-connected</div><div class="stat-value">' + (s.stripeConnectedCount||0) + '</div></div>';
     }
+    // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     const rows = (data.wallets||[]).map(w => {
       const role = w.role === 'walker' ? 'Walker' : 'Sitter';
-      return '<tr><td>'+role+'</td><td><strong>'+(w.name||'-')+'</strong></td><td>'+(w.email||'-')+'</td><td>'+(w.balance||0).toFixed(2)+' '+(w.currency||'EUR')+'</td><td>'+(w.stripeAccountId ? '<span class="badge badge-green">OK</span>' : '<span class="badge badge-orange">-</span>')+'</td></tr>';
+      const cur = escapeHtml(w.currency || 'EUR');
+      return '<tr><td>'+role+'</td><td><strong>'+escapeHtml(w.name||'-')+'</strong></td><td>'+escapeHtml(w.email||'-')+'</td><td>'+(w.balance||0).toFixed(2)+' '+cur+'</td><td>'+(w.stripeAccountId ? '<span class="badge badge-green">OK</span>' : '<span class="badge badge-orange">-</span>')+'</td></tr>';
     }).join('');
     if (tbl) tbl.innerHTML = '<table class="table"><thead><tr><th>Role</th><th>Nom</th><th>Email</th><th>Solde</th><th>Stripe</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun wallet</td></tr>') + '</tbody></table>';
   } catch (e) {
@@ -3881,14 +3924,18 @@ async function loadBugReports() {
     sum.innerHTML =
       '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">Open</div><div class="stat-value">' + (d.openCount||0) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">' + (d.totalCount||0) + '</div></div>';
+    // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep sur bug
+    // reports. AVANT title/description user-controlled étaient injectés
+    // tels quels → XSS si un user mal intentionné écrivait un bug avec
+    // payload script.
     const rows = (d.reports||[]).map(r => {
       const statusColor = r.status === 'open' ? '#EF4324' : r.status === 'in_progress' ? '#F59E0B' : r.status === 'fixed' ? '#16A34A' : '#6B7280';
       return '<tr>' +
         '<td style="font-size:11px;color:var(--text-muted)">'+fmtDate(r.createdAt)+'</td>' +
-        '<td><span style="background:'+statusColor+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+r.status+'</span></td>' +
-        '<td><strong>'+(r.userName||'-')+'</strong><br><span style="font-size:11px;color:var(--text-muted)">'+r.userRole+' '+(r.userEmail||'-')+'</span></td>' +
-        '<td><strong>'+(r.title||'(sans titre)')+'</strong><br><span style="font-size:12px;white-space:pre-wrap">'+(r.description||'').replace(/</g,'&lt;').substring(0,300)+'</span></td>' +
-        '<td style="font-size:11px;color:var(--text-muted)">'+(r.platform||'-')+' '+(r.appVersion||'')+'</td>' +
+        '<td><span style="background:'+statusColor+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+escapeHtml(r.status||'')+'</span></td>' +
+        '<td><strong>'+escapeHtml(r.userName||'-')+'</strong><br><span style="font-size:11px;color:var(--text-muted)">'+escapeHtml(r.userRole||'?')+' '+escapeHtml(r.userEmail||'-')+'</span></td>' +
+        '<td><strong>'+escapeHtml(r.title||'(sans titre)')+'</strong><br><span style="font-size:12px;white-space:pre-wrap">'+escapeHtml((r.description||'').substring(0,300))+'</span></td>' +
+        '<td style="font-size:11px;color:var(--text-muted)">'+escapeHtml(r.platform||'-')+' '+escapeHtml(r.appVersion||'')+'</td>' +
         '<td style="display:flex;gap:4px;flex-wrap:wrap">' +
           '<button class="action-btn" onclick="updateBugStatus(\''+r._id+'\',\'in_progress\')">In progress</button>' +
           '<button class="action-btn btn-verify" onclick="updateBugStatus(\''+r._id+'\',\'fixed\')">Fixed</button>' +

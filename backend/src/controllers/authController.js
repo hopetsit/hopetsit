@@ -1371,63 +1371,59 @@ const chooseService = async (req, res) => {
 };
 
 const adminLogin = async (req, res) => {
-  // v22.1 debug — wrap chaque étape pour identifier exactement ce qui plante.
-  // Toute erreur retourne 200 avec un champ debug.error pour être visible
-  // côté DevTools sans 500 anonyme.
+  // v23.1 part 128 — Phase 4 audit P4-2 :
+  //   AVANT : tout le `debug` (steps, hash length, env presence, stack)
+  //   était renvoyé au CLIENT, même en prod → info disclosure très utile
+  //   pour un attaquant qui prépare son brute-force.
+  //   MAINTENANT : on log côté server (logger.warn) ; le client reçoit
+  //   uniquement les messages génériques. Le debug détaillé n'apparaît
+  //   dans la réponse QU'EN DEV (NODE_ENV !== 'production').
+  const isDev = process.env.NODE_ENV !== 'production';
   const debug = { steps: [] };
+  const _debugBody = (extra) => (isDev ? { debug: { ...debug, ...extra } } : {});
+
   try {
     debug.steps.push('parse-body');
     const { email, password } = req.body || {};
     if (!email || !password) {
+      logger.warn('[adminLogin] missing fields', {
+        missingEmail: !email,
+        missingPassword: !password,
+      });
       return res.status(400).json({
         error: 'Email and password are required.',
-        debug: { ...debug, missingEmail: !email, missingPassword: !password },
+        ..._debugBody({ missingEmail: !email, missingPassword: !password }),
       });
     }
-    debug.emailReceivedLength = String(email).length;
-    debug.passwordReceivedLength = String(password).length;
 
     debug.steps.push('find-admin');
     const lowered = String(email).toLowerCase().trim();
     const admin = await Admin.findOne({ email: lowered });
     if (!admin) {
+      logger.warn('[adminLogin] admin_not_found', { email: lowered });
       return res.status(401).json({
         error: 'Invalid admin credentials.',
-        debug: { ...debug, reason: 'admin_not_found', emailLooked: lowered },
+        ..._debugBody({ reason: 'admin_not_found', emailLooked: lowered }),
       });
     }
-    debug.adminEmailInDb = admin.email;
-    debug.adminHasHash = !!admin.passwordHash;
-    debug.adminHashLength = (admin.passwordHash || '').length;
-    debug.adminUpdatedAt = admin.updatedAt;
 
     debug.steps.push('verify-password');
     let ok = false;
     try {
       ok = await admin.verifyPassword(password);
     } catch (e) {
+      logger.error('[adminLogin] verifyPassword threw', e);
       return res.status(500).json({
         error: 'Admin login failed.',
-        debug: { ...debug, reason: 'verifyPassword_threw', message: e.message, stack: e.stack },
+        ..._debugBody({ reason: 'verifyPassword_threw', message: e.message }),
       });
     }
 
     if (!ok) {
-      debug.steps.push('compare-env-password');
-      const envPassword = process.env.ADMIN_SEED_PASSWORD || '';
-      debug.envSeedPasswordLength = envPassword.length;
-      debug.envSeedPasswordPresent = !!process.env.ADMIN_SEED_PASSWORD;
-      let envMatches = null;
-      try {
-        const bcrypt = require('bcryptjs');
-        envMatches = await bcrypt.compare(envPassword, admin.passwordHash);
-      } catch (e) {
-        debug.envCompareError = e.message;
-      }
-      debug.envSeedPasswordMatchesDb = envMatches;
+      logger.warn('[adminLogin] wrong_password', { email: lowered });
       return res.status(401).json({
         error: 'Invalid admin credentials.',
-        debug: { ...debug, reason: 'wrong_password' },
+        ..._debugBody({ reason: 'wrong_password' }),
       });
     }
 
@@ -1442,7 +1438,7 @@ const adminLogin = async (req, res) => {
     logger.error('adminLogin error', error);
     return res.status(500).json({
       error: 'Admin login failed.',
-      debug: { ...debug, fatal: error.message, stack: (error.stack || '').split('\n').slice(0, 5) },
+      ..._debugBody({ fatal: error.message }),
     });
   }
 };
