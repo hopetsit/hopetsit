@@ -53,13 +53,19 @@ router.get('/me', requireAuth, requireRole('walker'), getMyWalkerProfile);
 router.patch('/me', requireAuth, requireRole('walker'), updateMyWalkerProfile);
 router.get('/me/rates', requireAuth, requireRole('walker'), getMyWalkerRates);
 router.put('/me/rates', requireAuth, requireRole('walker'), updateMyWalkerRates);
-// Session v3.2 — identity verification (parity with /sitters/identity-verification).
+// v23.1 part 131 — Phase 6 audit P6-7 : manual KYC upload retiré.
+// Voir sitterRoutes pour le motif. 410 Gone signal explicite.
 router.post(
   '/identity-verification',
   requireAuth,
   requireRole('walker'),
-  upload.single('document'),
-  submitIdentityVerification,
+  (req, res) =>
+    res.status(410).json({
+      error:
+        'Manual identity verification is no longer available. ' +
+        'Please use POST /kyc/initiate-payment (Persona, 3 €).',
+      code: 'MANUAL_KYC_DEPRECATED',
+    }),
 );
 router.get(
   '/me/identity-verification',

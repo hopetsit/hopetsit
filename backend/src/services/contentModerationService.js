@@ -18,8 +18,15 @@
 
 const logger = require('../utils/logger');
 
-const ENABLED = String(process.env.CONTENT_MODERATION_ENABLED || '').toLowerCase() === 'true';
+// v23.1 part 131 — Phase 6 audit P6-8 : auto-enable si la clé Google
+// Vision est configurée, sans avoir besoin de CONTENT_MODERATION_ENABLED.
+// Le flag explicite reste prioritaire (ex: 'false' pour désactiver
+// temporairement en dev local sans facturation Google).
 const API_KEY = process.env.GOOGLE_VISION_API_KEY || '';
+const EXPLICIT_FLAG = process.env.CONTENT_MODERATION_ENABLED;
+const ENABLED = (EXPLICIT_FLAG === undefined || EXPLICIT_FLAG === '')
+  ? !!API_KEY
+  : String(EXPLICIT_FLAG).toLowerCase() === 'true';
 
 const LIKELIHOOD_UNSAFE = new Set(['LIKELY', 'VERY_LIKELY']);
 

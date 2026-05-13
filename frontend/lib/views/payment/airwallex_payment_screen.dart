@@ -244,16 +244,30 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
     if (mounted) Get.back();
   }
 
+  // v23.1 part 131 — Phase 6 audit P6-9 : guard explicite contre le
+  // double-tap. AVANT le seul rempart était `_controller.isProcessing`
+  // côté UI, mais entre le 1er tap et le moment où isProcessing passe à
+  // true (qui requiert une frame Obx), un 2e tap rapide pouvait lancer
+  // un 2e createPaymentIntent → 2 PI Airwallex pour la même booking.
+  // Le flag local est SYNCHRONE → bloque immédiatement.
+  bool _payTapInFlight = false;
+
   Future<void> _onPayTap() async {
-    // v21.1.1 — Airwallex HPP collecte la carte directement dans son webview.
-    // Plus besoin de billingDetails côté Flutter.
-    // v23.1 — pass saveCard checkbox state for payment_consent attach.
-    // v23.1 part 40 — fix Daniel : pass selectedConsentId si user a choisi
-    // une carte saved → backend pre-fill la carte sur HPP.
-    await _controller.initiateAndConfirmPayment(
-      saveCard: _saveCard.value,
-      selectedConsentId: _selectedCardId.value,
-    );
+    if (_payTapInFlight) return;
+    _payTapInFlight = true;
+    try {
+      // v21.1.1 — Airwallex HPP collecte la carte directement dans son webview.
+      // Plus besoin de billingDetails côté Flutter.
+      // v23.1 — pass saveCard checkbox state for payment_consent attach.
+      // v23.1 part 40 — fix Daniel : pass selectedConsentId si user a choisi
+      // une carte saved → backend pre-fill la carte sur HPP.
+      await _controller.initiateAndConfirmPayment(
+        saveCard: _saveCard.value,
+        selectedConsentId: _selectedCardId.value,
+      );
+    } finally {
+      _payTapInFlight = false;
+    }
     // v23.1 part 62 — when control returns here, either the HPP was
     // cancelled by the user or it failed (success path replaces the
     // screen via Get.off → PaymentResultScreen so we don't reach here).

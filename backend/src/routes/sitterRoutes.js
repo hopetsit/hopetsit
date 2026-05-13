@@ -233,13 +233,21 @@ router.get('/me/availability', requireAuth, requireRole('sitter'), getMyAvailabi
 router.put('/me/availability', requireAuth, requireRole('sitter'), updateMyAvailability);
 router.get('/:id/availability', getSitterAvailability);
 
-// Sprint 5 step 7 — identity verification (sitter-side)
+// v23.1 part 131 — Daniel : "Verification uniquement par persona,
+// virer verifier gratuit". L'upload manuel est retiré côté backend
+// pour empêcher toute soumission directe via curl ou ancien client.
+// La route renvoie 410 Gone pour signaler la déprécation explicitement.
 router.post(
   '/identity-verification',
   requireAuth,
   requireRole('sitter'),
-  upload.single('document'),
-  submitIdentityVerification
+  (req, res) =>
+    res.status(410).json({
+      error:
+        'Manual identity verification is no longer available. ' +
+        'Please use POST /kyc/initiate-payment (Persona, 3 €).',
+      code: 'MANUAL_KYC_DEPRECATED',
+    }),
 );
 router.get('/me/identity-verification', requireAuth, requireRole('sitter'), getMyIdentityVerification);
 
