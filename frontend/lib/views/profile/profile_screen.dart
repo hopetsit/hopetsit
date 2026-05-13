@@ -21,8 +21,11 @@ import 'package:hopetsit/views/pet_owner/payments/owner_payments_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents).
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/profile/bug_report_screen.dart';
-// v23.1 part 85 — entry to the admin dashboard for the platform owner.
-import 'package:hopetsit/views/admin/admin_dashboard_screen.dart';
+// v23.1 part 124 — Daniel : "Enlever admin de lapp ; car jai admin
+// navigateur". Le panel admin est désormais accessible UNIQUEMENT via
+// le navigateur (https://hopetsit-backend.onrender.com/admin). Le
+// raccourci profil + l'import sont retirés ; le fichier
+// views/admin/admin_dashboard_screen.dart sera supprimé en suivant.
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -442,19 +445,10 @@ class ProfileScreen extends StatelessWidget {
           () => Get.to(() => const BugReportScreen()),
         ),
 
-        // v23.1 part 85 — Daniel : "ou je retire mes benefice sur admin ?"
-        // Entry point clair vers le dashboard admin (page Activité +
-        // page Revenus avec bouton "Retirer mes bénéfices vers IBAN").
-        // Le code admin_secret garde l'accès limité — pas un user normal
-        // qui pourrait toucher aux endpoints même s'il navigue ici.
-        _sectionHeader('Plateforme'),
-        _buildSettingsTile(
-          '🔧 Dashboard admin',
-          'Activité, revenus, retirer mes bénéfices',
-          Icons.admin_panel_settings_rounded,
-          const Color(0xFFEF4324),
-          () => Get.to(() => const AdminDashboardScreen()),
-        ),
+        // v23.1 part 124 — section "Plateforme" + raccourci Dashboard
+        // admin RETIRÉS de l'app. Daniel : "Enlever admin de lapp ; car
+        // jai admin navigateur". Le panel reste dispo via
+        // https://hopetsit-backend.onrender.com/admin.
 
         // ── ZONE DANGER ───────────────────────────────────
         _sectionHeader('profile_section_danger'.tr),
