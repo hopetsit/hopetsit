@@ -520,6 +520,98 @@ const deleteAccount = async (req, res) => {
       }
     );
 
+    // v23.1 part 132 — Phase 7 audit P7-1 : cascade RGPD complète sur
+    // toutes les collections qui contiennent du PII de l'user.
+    // ATTENTION : les invoices sont gardées car obligation légale UE
+    // (conservation 10 ans). On les ANONYMISE plutôt que les supprimer.
+    try {
+      const Invoice = require('../models/Invoice');
+      const Notification = require('../models/Notification');
+      const WalletTransaction = require('../models/WalletTransaction');
+      const UserSubscription = require('../models/UserSubscription');
+      const VerificationCode = require('../models/VerificationCode');
+      const VisitReport = require('../models/VisitReport');
+      const BugReport = require('../models/BugReport');
+      const Report = require('../models/Report');
+      const Friendship = require('../models/Friendship');
+      const OwnerCredit = require('../models/OwnerCredit');
+      const MapReport = require('../models/MapReport');
+
+      // Suppressions hard (pas de valeur légale à conserver) :
+      await Friendship.deleteMany({
+        $or: [{ requesterId: userId }, { addresseeId: userId }],
+      });
+      await Notification.deleteMany({
+        $or: [
+          { recipientId: userId, recipientModel: roleModel },
+          { actorId: userId, actorModel: roleModel },
+        ],
+      });
+      await VerificationCode.deleteMany({ email: (account.email || '').toLowerCase() });
+      await UserSubscription.deleteMany({ userId, userModel: roleModel });
+      await BugReport.deleteMany({ userId });
+      await Report.deleteMany({
+        $or: [
+          { reporterId: userId, reporterModel: roleModel },
+          { targetId: userId, targetModel: roleModel },
+        ],
+      });
+      await MapReport.deleteMany({ authorId: userId, authorModel: roleModel });
+
+      // VisitReports : owner uniquement (sitter peut être référencé dans
+      // les VR créés AVANT son delete — on les laisse pour l'owner
+      // restant).
+      if (role === 'owner') {
+        await VisitReport.deleteMany({ ownerId: userId });
+      }
+
+      // OwnerCredit : owner uniquement, hard-delete (pas de valeur légale).
+      if (role === 'owner') {
+        await OwnerCredit.deleteMany({ ownerId: userId });
+      }
+
+      // WalletTransaction : nous garderons les traces pour traçabilité
+      // financière, MAIS on anonymise la référence vers l'user supprimé.
+      await WalletTransaction.updateMany(
+        { userId, userModel: roleModel },
+        { $set: { userId: null, anonymizedAt: new Date(), _deletedUserRole: roleModel } },
+      );
+
+      // Invoice : OBLIGATION LÉGALE UE (10 ans) → anonymisation, pas
+      // suppression. On efface le nom/email/adresse du buyer/seller
+      // qui correspond à cet user.
+      const _anonStr = '[DELETED]';
+      if (role === 'owner') {
+        await Invoice.updateMany(
+          { ownerId: userId },
+          {
+            $set: {
+              'buyer.name': _anonStr,
+              'buyer.email': _anonStr,
+              'buyer.address': _anonStr,
+              anonymizedAt: new Date(),
+            },
+          },
+        );
+      } else {
+        await Invoice.updateMany(
+          { $or: [{ sitterId: userId }, { walkerId: userId }] },
+          {
+            $set: {
+              'seller.name': _anonStr,
+              'seller.email': _anonStr,
+              'seller.address': _anonStr,
+              anonymizedAt: new Date(),
+            },
+          },
+        );
+      }
+    } catch (e) {
+      // Cleanup best-effort : on log mais on ne bloque pas la suppression
+      // du doc principal. L'admin pourra finir le ménage en backoffice.
+      logger.warn(`[deleteAccount] secondary cascade failed (continuing): ${e?.message || e}`);
+    }
+
     if (role === 'owner') {
       await Pet.deleteMany({ ownerId: userId });
       await Post.deleteMany({ ownerId: userId });
