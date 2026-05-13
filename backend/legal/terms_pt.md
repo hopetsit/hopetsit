@@ -5,9 +5,9 @@
 
 ## 1. Editora
 
-A aplicação HopeTSIT e os serviços associados são publicados pela **HopeTSIT Limited**, sociedade registada em Hong Kong (Companies Registry).
+A aplicação HopeTSIT e os serviços associados são publicados pela **CARDELLI HERMANOS LIMITED**, sociedade registada em Hong Kong (Companies Registry).
 
-- Denominação: HopeTSIT Limited
+- Denominação: CARDELLI HERMANOS LIMITED
 - Jurisdição: Região Administrativa Especial de Hong Kong, República Popular da China
 - Contacto: conforme indicado na aplicação e no site oficial
 - Email de contacto: support@hopetsit.com
@@ -28,7 +28,7 @@ HopeTSIT é uma plataforma que coloca em contacto:
 
 O Serviço inclui igualmente um mapa comunitário ("PawMap") com pontos de interesse para animais (veterinários, parques, pontos de água, etc.), denúncias comunitárias (animal perdido, perigo, etc.), um sistema de mensagens e uma loja de opções Premium.
 
-A HopeTSIT Limited actua exclusivamente como intermediária técnica. O contrato de acolhimento ou passeio é celebrado unicamente entre o dono e o prestador; a HopeTSIT Limited não é parte do contrato e não garante a sua execução.
+A CARDELLI HERMANOS LIMITED actua exclusivamente como intermediária técnica. O contrato de acolhimento ou passeio é celebrado unicamente entre o dono e o prestador; a CARDELLI HERMANOS LIMITED não é parte do contrato e não garante a sua execução.
 
 ## 4. Condições de elegibilidade
 
@@ -41,15 +41,15 @@ Para utilizar o Serviço, o Utilizador deve:
 
 ## 5. Conta de utilizador
 
-Cada Utilizador é responsável pela confidencialidade das suas credenciais e por todas as actividades efectuadas a partir da sua conta. Em caso de suspeita de uso fraudulento, o Utilizador compromete-se a informar imediatamente a HopeTSIT Limited.
+Cada Utilizador é responsável pela confidencialidade das suas credenciais e por todas as actividades efectuadas a partir da sua conta. Em caso de suspeita de uso fraudulento, o Utilizador compromete-se a informar imediatamente a CARDELLI HERMANOS LIMITED.
 
-A HopeTSIT Limited reserva-se o direito de suspender ou eliminar qualquer conta que não cumpra os T&C, em caso de fraude, usurpação de identidade, comportamento abusivo para com outros Utilizadores ou animais, ou falta de pagamento.
+A CARDELLI HERMANOS LIMITED reserva-se o direito de suspender ou eliminar qualquer conta que não cumpra os T&C, em caso de fraude, usurpação de identidade, comportamento abusivo para com outros Utilizadores ou animais, ou falta de pagamento.
 
 ## 6. Pagamentos e comissões
 
 Os pagamentos efectuados através do Serviço são processados pela Stripe, Inc. Os montantes são debitados no método de pagamento fornecido pelo Utilizador no momento da reserva.
 
-A HopeTSIT Limited cobra uma comissão sobre cada prestação reservada através da plataforma. O montante é indicado ao Dono antes da validação do pagamento e ao Prestador na secção "Pagamentos".
+A CARDELLI HERMANOS LIMITED cobra uma comissão sobre cada prestação reservada através da plataforma. O montante é indicado ao Dono antes da validação do pagamento e ao Prestador na secção "Pagamentos".
 
 Os pagamentos aos prestadores seguem o calendário e as condições descritas na secção "IBAN / Payout" da aplicação.
 
@@ -73,9 +73,9 @@ Qualquer incumprimento expõe o Utilizador à suspensão imediata da conta e, se
 
 ## 9. Responsabilidade
 
-A HopeTSIT Limited envida os melhores esforços para oferecer um Serviço de qualidade mas não pode garantir disponibilidade contínua nem ausência de erros técnicos. A responsabilidade é limitada no máximo permitido pela lei aplicável.
+A CARDELLI HERMANOS LIMITED envida os melhores esforços para oferecer um Serviço de qualidade mas não pode garantir disponibilidade contínua nem ausência de erros técnicos. A responsabilidade é limitada no máximo permitido pela lei aplicável.
 
-A HopeTSIT Limited não pode ser responsabilizada por:
+A CARDELLI HERMANOS LIMITED não pode ser responsabilizada por:
 
 - Prestações efectuadas entre Utilizadores (acolhimento, pensão, passeio)
 - Danos causados por animais a terceiros ou a bens
@@ -84,11 +84,11 @@ A HopeTSIT Limited não pode ser responsabilizada por:
 
 ## 10. Propriedade intelectual
 
-Todos os elementos que compõem o Serviço (logótipos, interfaces, textos, ilustrações, código-fonte) são propriedade exclusiva da HopeTSIT Limited ou dos seus parceiros. Qualquer reprodução não autorizada é proibida.
+Todos os elementos que compõem o Serviço (logótipos, interfaces, textos, ilustrações, código-fonte) são propriedade exclusiva da CARDELLI HERMANOS LIMITED ou dos seus parceiros. Qualquer reprodução não autorizada é proibida.
 
 ## 11. Alterações aos T&C
 
-A HopeTSIT Limited reserva-se o direito de alterar estes T&C a qualquer momento. Os Utilizadores serão informados de alterações substanciais por notificação na aplicação ou por email. A continuação da utilização equivale à aceitação dos T&C alterados.
+A CARDELLI HERMANOS LIMITED reserva-se o direito de alterar estes T&C a qualquer momento. Os Utilizadores serão informados de alterações substanciais por notificação na aplicação ou por email. A continuação da utilização equivale à aceitação dos T&C alterados.
 
 ## 12. Lei aplicável e jurisdição
 

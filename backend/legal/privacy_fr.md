@@ -3,7 +3,7 @@
 **Dernière mise à jour : 18 avril 2026**
 **Version : 1.0**
 
-HopeTSIT Limited, société enregistrée à Hong Kong (ci-après « HopeTSIT », « nous »), attache la plus grande importance à la protection de vos données personnelles. La présente politique explique quelles données nous collectons, pourquoi, et comment vous pouvez exercer vos droits.
+CARDELLI HERMANOS LIMITED, société enregistrée à Hong Kong (ci-après « HopeTSIT », « nous »), attache la plus grande importance à la protection de vos données personnelles. La présente politique explique quelles données nous collectons, pourquoi, et comment vous pouvez exercer vos droits.
 
 Cette politique est conforme à la **Personal Data (Privacy) Ordinance (PDPO)** de Hong Kong ainsi qu'au **Règlement Général sur la Protection des Données (RGPD)** pour les Utilisateurs situés dans l'Espace Économique Européen.
 
@@ -11,7 +11,7 @@ Cette politique est conforme à la **Personal Data (Privacy) Ordinance (PDPO)** 
 
 Le responsable du traitement des données est :
 
-- **HopeTSIT Limited**
+- **CARDELLI HERMANOS LIMITED**
 - Juridiction : Hong Kong (PDPO)
 - Email du délégué à la protection des données : privacy@hopetsit.com
 

@@ -3,7 +3,7 @@
 **Letzte Aktualisierung: 18. April 2026**
 **Version: 1.0**
 
-HopeTSIT Limited, eine in Hongkong eingetragene Gesellschaft („HopeTSIT", „wir"), legt größten Wert auf den Schutz Ihrer personenbezogenen Daten. Diese Erklärung beschreibt, welche Daten wir erheben, warum, und wie Sie Ihre Rechte ausüben können.
+CARDELLI HERMANOS LIMITED, eine in Hongkong eingetragene Gesellschaft („HopeTSIT", „wir"), legt größten Wert auf den Schutz Ihrer personenbezogenen Daten. Diese Erklärung beschreibt, welche Daten wir erheben, warum, und wie Sie Ihre Rechte ausüben können.
 
 Diese Erklärung entspricht der **Personal Data (Privacy) Ordinance (PDPO)** Hongkongs sowie der **Datenschutz-Grundverordnung (DSGVO)** für Nutzer im Europäischen Wirtschaftsraum.
 
@@ -11,7 +11,7 @@ Diese Erklärung entspricht der **Personal Data (Privacy) Ordinance (PDPO)** Hon
 
 Verantwortlicher für die Datenverarbeitung ist:
 
-- **HopeTSIT Limited**
+- **CARDELLI HERMANOS LIMITED**
 - Gerichtsbarkeit: Hongkong (PDPO)
 - Datenschutzbeauftragter: privacy@hopetsit.com
 

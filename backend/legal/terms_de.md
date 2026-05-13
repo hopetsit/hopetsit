@@ -5,9 +5,9 @@
 
 ## 1. Herausgeber
 
-Die HopeTSIT-App und ihre zugehörigen Dienste werden von **HopeTSIT Limited** betrieben, einer in Hongkong (Companies Registry) eingetragenen Gesellschaft.
+Die HopeTSIT-App und ihre zugehörigen Dienste werden von **CARDELLI HERMANOS LIMITED** betrieben, einer in Hongkong (Companies Registry) eingetragenen Gesellschaft.
 
-- Firmenname: HopeTSIT Limited
+- Firmenname: CARDELLI HERMANOS LIMITED
 - Gerichtsbarkeit: Sonderverwaltungsregion Hongkong, Volksrepublik China
 - Kontakt: wie in der App und auf der offiziellen Website angegeben
 - Kontakt-E-Mail: support@hopetsit.com
@@ -28,7 +28,7 @@ HopeTSIT ist eine Plattform, die verbindet:
 
 Der Dienst umfasst ebenfalls eine Community-Karte („PawMap") mit tierfreundlichen Points of Interest (Tierärzte, Parks, Wasserstellen usw.), Community-Meldungen (vermisstes Tier, Gefahr usw.), ein Nachrichtensystem und einen Shop für Premium-Optionen.
 
-HopeTSIT Limited fungiert ausschließlich als technischer Vermittler. Der tatsächliche Betreuungs- oder Gassivertrag wird zwischen dem Halter und dem Dienstleister geschlossen; HopeTSIT Limited ist keine Vertragspartei und haftet nicht für die Ausführung.
+CARDELLI HERMANOS LIMITED fungiert ausschließlich als technischer Vermittler. Der tatsächliche Betreuungs- oder Gassivertrag wird zwischen dem Halter und dem Dienstleister geschlossen; CARDELLI HERMANOS LIMITED ist keine Vertragspartei und haftet nicht für die Ausführung.
 
 ## 4. Teilnahmebedingungen
 
@@ -41,15 +41,15 @@ Zur Nutzung des Dienstes muss der Nutzer:
 
 ## 5. Nutzerkonto
 
-Jeder Nutzer ist für die Vertraulichkeit seiner Zugangsdaten und alle über sein Konto ausgeführten Aktivitäten verantwortlich. Bei Verdacht auf missbräuchliche Nutzung hat der Nutzer HopeTSIT Limited unverzüglich zu informieren.
+Jeder Nutzer ist für die Vertraulichkeit seiner Zugangsdaten und alle über sein Konto ausgeführten Aktivitäten verantwortlich. Bei Verdacht auf missbräuchliche Nutzung hat der Nutzer CARDELLI HERMANOS LIMITED unverzüglich zu informieren.
 
-HopeTSIT Limited behält sich das Recht vor, jedes Konto, das gegen die AGB verstößt, zu sperren oder zu löschen: Betrug, Identitätsdiebstahl, missbräuchliches Verhalten gegenüber anderen Nutzern oder Tieren, Zahlungsausfall.
+CARDELLI HERMANOS LIMITED behält sich das Recht vor, jedes Konto, das gegen die AGB verstößt, zu sperren oder zu löschen: Betrug, Identitätsdiebstahl, missbräuchliches Verhalten gegenüber anderen Nutzern oder Tieren, Zahlungsausfall.
 
 ## 6. Zahlungen und Provisionen
 
 Zahlungen über den Dienst werden von Stripe, Inc. verarbeitet. Beträge werden zum Zeitpunkt der Buchung von der hinterlegten Zahlungsmethode des Nutzers eingezogen.
 
-HopeTSIT Limited berechnet eine Provision auf jede Buchung. Die Höhe wird dem Halter vor Zahlungsbestätigung und dem Dienstleister im Bereich „Zahlungen" angezeigt.
+CARDELLI HERMANOS LIMITED berechnet eine Provision auf jede Buchung. Die Höhe wird dem Halter vor Zahlungsbestätigung und dem Dienstleister im Bereich „Zahlungen" angezeigt.
 
 Auszahlungen an Dienstleister erfolgen nach dem im Bereich „IBAN / Payout" der App beschriebenen Zeitplan.
 
@@ -73,9 +73,9 @@ Verstöße können zur sofortigen Kontosperrung und ggf. zu rechtlichen Schritte
 
 ## 9. Haftung
 
-HopeTSIT Limited bemüht sich nach besten Kräften um einen qualitativ hochwertigen Dienst, kann jedoch keine ununterbrochene Verfügbarkeit oder das Ausbleiben technischer Fehler garantieren. Die Haftung ist im gesetzlich maximal zulässigen Umfang beschränkt.
+CARDELLI HERMANOS LIMITED bemüht sich nach besten Kräften um einen qualitativ hochwertigen Dienst, kann jedoch keine ununterbrochene Verfügbarkeit oder das Ausbleiben technischer Fehler garantieren. Die Haftung ist im gesetzlich maximal zulässigen Umfang beschränkt.
 
-HopeTSIT Limited haftet nicht für:
+CARDELLI HERMANOS LIMITED haftet nicht für:
 
 - Zwischen Nutzern erbrachte Dienstleistungen (Betreuung, Pension, Gassi)
 - Schäden, die Tiere an Dritten oder Eigentum verursachen
@@ -84,11 +84,11 @@ HopeTSIT Limited haftet nicht für:
 
 ## 10. Geistiges Eigentum
 
-Alle Elemente des Dienstes (Logos, Oberflächen, Texte, Grafiken, Quellcode) sind ausschließliches Eigentum von HopeTSIT Limited oder ihrer Partner. Unbefugte Vervielfältigung ist untersagt.
+Alle Elemente des Dienstes (Logos, Oberflächen, Texte, Grafiken, Quellcode) sind ausschließliches Eigentum von CARDELLI HERMANOS LIMITED oder ihrer Partner. Unbefugte Vervielfältigung ist untersagt.
 
 ## 11. Änderungen der AGB
 
-HopeTSIT Limited kann diese AGB jederzeit aktualisieren. Nutzer werden über wesentliche Änderungen per In-App-Benachrichtigung oder E-Mail informiert. Die fortgesetzte Nutzung gilt als Zustimmung zu den geänderten AGB.
+CARDELLI HERMANOS LIMITED kann diese AGB jederzeit aktualisieren. Nutzer werden über wesentliche Änderungen per In-App-Benachrichtigung oder E-Mail informiert. Die fortgesetzte Nutzung gilt als Zustimmung zu den geänderten AGB.
 
 ## 12. Anwendbares Recht und Gerichtsstand
 

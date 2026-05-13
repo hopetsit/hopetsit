@@ -5,9 +5,9 @@
 
 ## 1. Publisher
 
-The HopeTSIT application and its related services are published by **HopeTSIT Limited**, a company registered in Hong Kong (Companies Registry).
+The HopeTSIT application and its related services are published by **CARDELLI HERMANOS LIMITED**, a company registered in Hong Kong (Companies Registry).
 
-- Legal name: HopeTSIT Limited
+- Legal name: CARDELLI HERMANOS LIMITED
 - Jurisdiction: Hong Kong Special Administrative Region, People's Republic of China
 - Contact: as listed in the app and on the official website
 - Contact email: support@hopetsit.com
@@ -28,7 +28,7 @@ HopeTSIT is a platform that connects:
 
 The Service also includes a community map (the "PawMap") listing pet-friendly points of interest (vets, parks, water points, etc.), community reports (lost pet, hazard, etc.), a messaging system, and a shop for Premium options.
 
-HopeTSIT Limited acts strictly as a technical intermediary. The actual sitting or walking agreement is concluded between the owner and the service provider; HopeTSIT Limited is not a party to that contract and does not warrant its performance.
+CARDELLI HERMANOS LIMITED acts strictly as a technical intermediary. The actual sitting or walking agreement is concluded between the owner and the service provider; CARDELLI HERMANOS LIMITED is not a party to that contract and does not warrant its performance.
 
 ## 4. Eligibility
 
@@ -41,15 +41,15 @@ To use the Service, the User must:
 
 ## 5. User account
 
-Each User is responsible for keeping their credentials confidential and for all activity under their account. If the User suspects unauthorised use, they must notify HopeTSIT Limited immediately.
+Each User is responsible for keeping their credentials confidential and for all activity under their account. If the User suspects unauthorised use, they must notify CARDELLI HERMANOS LIMITED immediately.
 
-HopeTSIT Limited reserves the right to suspend or delete any account that violates the T&C, for fraud, impersonation, abusive behaviour against other Users or against animals, or unpaid dues.
+CARDELLI HERMANOS LIMITED reserves the right to suspend or delete any account that violates the T&C, for fraud, impersonation, abusive behaviour against other Users or against animals, or unpaid dues.
 
 ## 6. Payments and commissions
 
 Payments made through the Service are processed by Stripe, Inc. Amounts are charged to the payment method provided by the User at the time of booking.
 
-HopeTSIT Limited charges a commission on each booking. The commission amount is displayed to the Owner before payment is confirmed, and to the Provider in the "Payments" section.
+CARDELLI HERMANOS LIMITED charges a commission on each booking. The commission amount is displayed to the Owner before payment is confirmed, and to the Provider in the "Payments" section.
 
 Payouts to providers follow the schedule and conditions described in the "IBAN / Payout" section of the app.
 
@@ -73,9 +73,9 @@ Any breach may result in immediate account suspension and, where applicable, leg
 
 ## 9. Liability
 
-HopeTSIT Limited does its best to offer a quality Service but cannot guarantee uninterrupted availability or the absence of technical errors. Liability is limited to the fullest extent permitted by the applicable law.
+CARDELLI HERMANOS LIMITED does its best to offer a quality Service but cannot guarantee uninterrupted availability or the absence of technical errors. Liability is limited to the fullest extent permitted by the applicable law.
 
-HopeTSIT Limited cannot be held responsible for:
+CARDELLI HERMANOS LIMITED cannot be held responsible for:
 
 - Services provided between Users (sitting, boarding, walking)
 - Damage caused by animals to third parties or to property
@@ -84,11 +84,11 @@ HopeTSIT Limited cannot be held responsible for:
 
 ## 10. Intellectual property
 
-All elements making up the Service (logos, interfaces, text, illustrations, source code) are the exclusive property of HopeTSIT Limited or its partners. Unauthorised reproduction is prohibited.
+All elements making up the Service (logos, interfaces, text, illustrations, source code) are the exclusive property of CARDELLI HERMANOS LIMITED or its partners. Unauthorised reproduction is prohibited.
 
 ## 11. Changes to the T&C
 
-HopeTSIT Limited may update these T&C at any time. Users will be notified of material changes via in-app notification or email. Continued use of the Service constitutes acceptance of the updated T&C.
+CARDELLI HERMANOS LIMITED may update these T&C at any time. Users will be notified of material changes via in-app notification or email. Continued use of the Service constitutes acceptance of the updated T&C.
 
 ## 12. Governing law and jurisdiction
 
@@ -96,4 +96,4 @@ These T&C are governed by the laws of the Hong Kong Special Administrative Regio
 
 ## 13. Contact
 
-For any question about these T&C or the Service, Users can contact HopeTSIT Limited at: support@hopetsit.com
+For any question about these T&C or the Service, Users can contact CARDELLI HERMANOS LIMITED at: support@hopetsit.com

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  v23.1 part 128 — Phase 5 audit P5-20. Le nom de l'app est désormais
+  une string localisable. La langue par défaut (en) reste "HoPetSit".
+  Pour ajouter une traduction : créer values-fr/strings.xml etc.
+-->
+<resources>
+    <string name="app_name">HoPetSit</string>
+</resources>
