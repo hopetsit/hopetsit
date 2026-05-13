@@ -440,5 +440,96 @@ router.get('/me/loyalty', requireAuth, requireRole('owner'), getMyLoyalty);
 // Sprint 7 step 3 — referral program (owner + sitter)
 router.get('/me/referrals', requireAuth, getMyReferralsRoute);
 
+// v23.1 part 133 — Phase 7 audit P7-12 : RGPD article 15 (droit d'accès)
+// + article 20 (droit à la portabilité). Renvoie un JSON complet de
+// toutes les données de l'user sur la plateforme. L'user peut ensuite
+// l'archiver / le porter chez un concurrent.
+router.get(
+  '/me/export',
+  requireAuth,
+  requireRole('owner', 'sitter', 'walker'),
+  async (req, res) => {
+    try {
+      const Owner = require('../models/Owner');
+      const Sitter = require('../models/Sitter');
+      const Walker = require('../models/Walker');
+      const Pet = require('../models/Pet');
+      const Booking = require('../models/Booking');
+      const Application = require('../models/Application');
+      const Review = require('../models/Review');
+      const Message = require('../models/Message');
+      const Conversation = require('../models/Conversation');
+      const Notification = require('../models/Notification');
+      const Invoice = require('../models/Invoice');
+      const WalletTransaction = require('../models/WalletTransaction');
+      const UserSubscription = require('../models/UserSubscription');
+      const BugReport = require('../models/BugReport');
+
+      const role = (req.user.role || '').toLowerCase();
+      const userId = req.user.id;
+      const Model = role === 'sitter' ? Sitter : role === 'walker' ? Walker : Owner;
+      const modelName = role === 'sitter' ? 'Sitter' : role === 'walker' ? 'Walker' : 'Owner';
+
+      const user = await Model.findById(userId).lean();
+      if (!user) return res.status(404).json({ error: 'User not found.' });
+
+      // On strip les champs sensibles d'auth (password hash, refresh
+      // tokens) — l'user n'a pas besoin de ça dans l'export RGPD.
+      delete user.password;
+      delete user.passwordHash;
+      delete user.firebaseUid;
+
+      const conversationFilter =
+        role === 'owner' ? { ownerId: userId } : { sitterId: userId };
+      const conversations = await Conversation.find(conversationFilter).lean();
+      const conversationIds = conversations.map((c) => c._id);
+
+      const [bookings, applications, reviewsByMe, reviewsAboutMe, messages, notifications, invoices, wallet, subs, bugs, pets] = await Promise.all([
+        Booking.find({ [role === 'owner' ? 'ownerId' : role === 'sitter' ? 'sitterId' : 'walkerId']: userId }).lean(),
+        Application.find({ [role === 'owner' ? 'ownerId' : role === 'sitter' ? 'sitterId' : 'walkerId']: userId }).lean(),
+        Review.find({ reviewerId: userId, reviewerModel: modelName }).lean(),
+        Review.find({ revieweeId: userId, revieweeModel: modelName }).lean(),
+        Message.find({ conversationId: { $in: conversationIds } }).lean(),
+        Notification.find({ recipientId: userId, recipientModel: modelName }).lean(),
+        Invoice.find({ [role === 'owner' ? 'ownerId' : role === 'sitter' ? 'sitterId' : 'walkerId']: userId }).lean(),
+        WalletTransaction.find({ userId, userModel: modelName }).lean(),
+        UserSubscription.find({ userId, userModel: modelName }).lean(),
+        BugReport.find({ userId }).lean(),
+        role === 'owner' ? Pet.find({ ownerId: userId }).lean() : Promise.resolve([]),
+      ]);
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        role,
+        rgpdNotice: 'Cet export contient toutes vos données personnelles stockées par HopeTSIT (CARDELLI HERMANOS LIMITED). Article 15 + 20 RGPD.',
+        profile: user,
+        pets,
+        bookings,
+        applications,
+        reviewsByMe,
+        reviewsAboutMe,
+        conversations,
+        messages,
+        notifications,
+        invoices,
+        walletTransactions: wallet,
+        subscriptions: subs,
+        bugReports: bugs,
+      };
+
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="hopetsit-data-export-${userId}.json"`,
+      );
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200).json(payload);
+    } catch (e) {
+      const logger = require('../utils/logger');
+      logger.error('[users/me/export]', e);
+      res.status(500).json({ error: 'Unable to export data.', details: e.message });
+    }
+  },
+);
+
 module.exports = router;
 

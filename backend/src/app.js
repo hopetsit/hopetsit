@@ -207,7 +207,9 @@ const versionedRoutes = [
   { path: '/pricing', mw: [], router: pricingRoutes },
   // v23.1 part 128 — Phase 4 audit P4-20 : rate-limit anti-abus si le
   // token admin est compromis (XSS, phishing).
-  { path: '/admin', mw: [adminLimiter], router: adminRoutes },
+  // v23.1 part 133 — Phase 7 audit P7-24 : audit log toutes les actions
+  // admin write (POST/PUT/PATCH/DELETE). RGPD article 30 + ISO 27001.
+  { path: '/admin', mw: [adminLimiter, require('./middleware/auditAdmin').auditAdmin], router: adminRoutes },
   { path: '/sitter', mw: [], router: ibanRoutes },
   // v18.5 — #7 fix : expose IBAN routes sous /walker aussi. Le router
   // ibanRoutes lui-même gère les 2 rôles via requireProviderRole('sitter','walker').

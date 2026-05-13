@@ -146,9 +146,49 @@ function verifyWebhookSignature(rawBody, signatureHeader) {
   }
 }
 
+/**
+ * v23.1 part 133 — Phase 7 audit P7-14 (RGPD article 17, droit à
+ * l'oubli) : quand un user supprime son compte HoPetSit, on doit
+ * également effacer ses données chez Persona (sous-traitant US). Persona
+ * expose `DELETE /api/v1/inquiries/{id}` qui supprime l'inquiry + tous
+ * les artefacts (photos ID + selfie + verifications). Best-effort : si
+ * Persona renvoie 404 (déjà supprimée) ou 410, on considère OK.
+ */
+async function deleteInquiry(inquiryId) {
+  if (!inquiryId) return { skipped: true, reason: 'no inquiryId' };
+  if (!process.env.PERSONA_API_KEY) {
+    logger.warn('[personaService] deleteInquiry called but PERSONA_API_KEY not set — skipping.');
+    return { skipped: true, reason: 'no api key' };
+  }
+  try {
+    const res = await fetch(`${PERSONA_BASE_URL}/inquiries/${inquiryId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: _authHeader(),
+        'Persona-Version': '2023-01-05',
+      },
+    });
+    if (res.status === 200 || res.status === 204) {
+      logger.info(`[personaService] inquiry ${inquiryId} deleted from Persona.`);
+      return { deleted: true };
+    }
+    if (res.status === 404 || res.status === 410) {
+      logger.info(`[personaService] inquiry ${inquiryId} already gone (status ${res.status}).`);
+      return { alreadyGone: true };
+    }
+    const body = await res.text();
+    logger.warn(`[personaService] deleteInquiry ${inquiryId} returned ${res.status}: ${body.slice(0, 200)}`);
+    return { error: `Persona returned ${res.status}` };
+  } catch (e) {
+    logger.error(`[personaService] deleteInquiry ${inquiryId} failed: ${e.message}`);
+    return { error: e.message };
+  }
+}
+
 module.exports = {
   createInquiry,
   generateOneTimeLink,
   getInquiry,
   verifyWebhookSignature,
+  deleteInquiry,
 };

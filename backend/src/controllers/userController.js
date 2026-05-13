@@ -520,6 +520,21 @@ const deleteAccount = async (req, res) => {
       }
     );
 
+    // v23.1 part 133 — Phase 7 audit P7-14 : RGPD article 17 — supprimer
+    // aussi les données chez Persona (sous-traitant US, KYC). Si l'user
+    // a un kycApplicantId, on appelle DELETE /inquiries/{id} sur Persona.
+    // Best-effort, ne bloque pas la suppression du doc principal.
+    try {
+      const inquiryId = account.kycApplicantId;
+      if (inquiryId) {
+        const { deleteInquiry } = require('../services/personaService');
+        const result = await deleteInquiry(inquiryId);
+        logger.info(`[deleteAccount] Persona cascade for ${role} ${userId}: ${JSON.stringify(result)}`);
+      }
+    } catch (e) {
+      logger.warn(`[deleteAccount] Persona cascade failed (continuing): ${e?.message || e}`);
+    }
+
     // v23.1 part 132 — Phase 7 audit P7-1 : cascade RGPD complète sur
     // toutes les collections qui contiennent du PII de l'user.
     // ATTENTION : les invoices sont gardées car obligation légale UE

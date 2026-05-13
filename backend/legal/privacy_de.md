@@ -14,6 +14,7 @@ Verantwortlicher für die Datenverarbeitung ist:
 - **CARDELLI HERMANOS LIMITED**
 - Gerichtsbarkeit: Hongkong (PDPO)
 - Datenschutzbeauftragter: privacy@hopetsit.com
+- Postanschrift: CARDELLI HERMANOS LIMITED — DPO, Flat/RM A 12/F ZJ 300, 300 Lockhart Road, Wan Chai, Hongkong
 
 ## 2. Erhobene Daten
 

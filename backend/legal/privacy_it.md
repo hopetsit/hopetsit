@@ -14,6 +14,7 @@ Il titolare del trattamento è:
 - **CARDELLI HERMANOS LIMITED**
 - Giurisdizione: Hong Kong (PDPO)
 - Email del responsabile della protezione dei dati: privacy@hopetsit.com
+- Indirizzo postale: CARDELLI HERMANOS LIMITED — DPO, Flat/RM A 12/F ZJ 300, 300 Lockhart Road, Wan Chai, Hong Kong
 
 ## 2. Dati raccolti
 

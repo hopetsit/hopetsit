@@ -14,6 +14,7 @@ The data controller is:
 - **CARDELLI HERMANOS LIMITED**
 - Jurisdiction: Hong Kong (PDPO)
 - Data Protection Officer email: privacy@hopetsit.com
+- Postal address: CARDELLI HERMANOS LIMITED — DPO, Flat/RM A 12/F ZJ 300, 300 Lockhart Road, Wan Chai, Hong Kong
 
 ## 2. Data we collect
 

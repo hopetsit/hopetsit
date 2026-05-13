@@ -7,7 +7,8 @@ const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const VerificationCode = require('../models/VerificationCode');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
-const { generateVerificationCode } = require('../utils/code');
+// v23.1 part 133 — Phase 7 audit P7-7 : OTP stocké en SHA-256.
+const { generateVerificationCode, hashCode, compareCode } = require('../utils/code');
 const { sanitizeUser } = require('../utils/sanitize');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { normalizeCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
@@ -351,7 +352,7 @@ const signup = async (req, res) => {
       { email, purpose: 'email_verification' },
       {
         email,
-        code: verificationCode,
+        code: hashCode(verificationCode),
         expiresAt: dayjs().add(10, 'minute').toDate(),
         purpose: 'email_verification',
         verified: false,
@@ -417,7 +418,7 @@ const login = async (req, res) => {
         { email: userEmail, purpose: 'email_verification' },
         {
           email: userEmail,
-          code: verificationCode,
+          code: hashCode(verificationCode),
           expiresAt: dayjs().add(10, 'minute').toDate(),
           purpose: 'email_verification',
           verified: false,
@@ -1077,7 +1078,9 @@ const verifyEmail = async (req, res) => {
       return res.status(410).json({ error: 'Verification code expired. Please request a new code.' });
     }
 
-    if (record.code !== code) {
+    // v23.1 part 133 — Phase 7 audit P7-7 : record.code = hash SHA-256,
+    // on compare via timingSafeEqual.
+    if (!compareCode(code, record.code)) {
       return res.status(400).json({ error: 'Invalid verification code.' });
     }
 
@@ -1118,7 +1121,7 @@ const resendVerificationCode = async (req, res) => {
       { email: email.toLowerCase(), purpose: 'email_verification' },
       {
         email: email.toLowerCase(),
-        code: verificationCode,
+        code: hashCode(verificationCode),
         expiresAt: dayjs().add(10, 'minute').toDate(),
         purpose: 'email_verification',
         verified: false,
@@ -1159,7 +1162,7 @@ const forgotPassword = async (req, res) => {
       { email: email.toLowerCase() },
       {
         email: email.toLowerCase(),
-        code: resetCode,
+        code: hashCode(resetCode),
         expiresAt: dayjs().add(10, 'minute').toDate(),
         purpose: 'password_reset',
         verified: false, // Reset verified status when new code is generated
@@ -1211,7 +1214,9 @@ const verifyPasswordResetOtp = async (req, res) => {
       return res.status(410).json({ error: 'Reset code expired. Please request a new code.' });
     }
 
-    if (record.code !== code) {
+    // v23.1 part 133 — Phase 7 audit P7-7 : record.code = hash SHA-256,
+    // on compare via timingSafeEqual.
+    if (!compareCode(code, record.code)) {
       return res.status(400).json({ error: 'Invalid reset code.' });
     }
 
