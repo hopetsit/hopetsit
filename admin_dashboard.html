@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 128</title>
+<title>HopeTSIT — Admin v23.1 part 134</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -264,7 +264,18 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- DASHBOARD -->
       <div id="page-dashboard" class="page active">
-        <div class="section-title">📊 <span data-i18n="dash_overview">Vue d'ensemble</span></div>
+        <!-- v23.1 part 134 — Daniel : "tableau de bord ne se met pas à jour".
+             En vrai l'auto-refresh tournait déjà (toutes les 30s) mais
+             c'était invisible. On ajoute un bouton "Actualiser" + un
+             indicateur "dernière mise à jour" pour qu'on VOIE que la
+             page est live. -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+          <div class="section-title" style="margin:0">📊 <span data-i18n="dash_overview">Vue d'ensemble</span></div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="dashboard-last-update" style="font-size:12px;color:var(--text-muted)"></span>
+            <button class="action-btn btn-primary" onclick="loadDashboard()" title="Forcer le rafraîchissement">↻ Actualiser</button>
+          </div>
+        </div>
         <div class="stats-grid" id="stats-grid">
           <div class="loading"><div class="spinner"></div> <span data-i18n="loading">Chargement...</span></div>
         </div>
@@ -2094,7 +2105,11 @@ function startDashboardAutoRefresh() {
     } else {
       stopDashboardAutoRefresh();
     }
-  }, 30000);
+    // v23.1 part 134 — Daniel : "le tableau de bord ne se met pas à jour".
+    // Tick toutes les 15s (au lieu de 30s) pour qu'on voie la mise à
+    // jour de plus près. Combiné au bouton "Actualiser" + timestamp,
+    // le sentiment "live" est restauré.
+  }, 15000);
 }
 function stopDashboardAutoRefresh() {
   if (_dashboardAutoRefreshTimer) {
@@ -2104,6 +2119,11 @@ function stopDashboardAutoRefresh() {
 }
 
 async function loadDashboard() {
+  // v23.1 part 134 — Daniel : "tableau de bord ne se met pas à jour".
+  // Indicateur visuel "Actualisation..." pendant le fetch + timestamp
+  // de dernière mise à jour pour qu'on VOIE que la page est live.
+  const tsEl = document.getElementById('dashboard-last-update');
+  if (tsEl) tsEl.textContent = 'Actualisation...';
   try {
     const d = await api('/admin/stats');
     const colors = ['var(--primary)', 'var(--green)', 'var(--blue)', 'var(--orange)', 'var(--red)', 'var(--green)', 'var(--blue)'];
@@ -2126,9 +2146,16 @@ async function loadDashboard() {
         <div class="stat-sub">${s.sub}</div>
       </div>
     `).join('');
-  } catch(e) { showToast('Failed to load stats: ' + e.message, 'error'); }
+  } catch(e) {
+    showToast('Failed to load stats: ' + e.message, 'error');
+    if (tsEl) tsEl.textContent = '⚠ Échec : ' + e.message;
+    return;
+  }
 
   // Recent paid bookings
+  // v23.1 part 134 — Phase 4 P4-3 follow-up : escapeHtml manquait sur
+  // owner.name / sitter.name (j'avais fixé le tab Bookings mais pas
+  // celui du Dashboard).
   try {
     const d = await api('/admin/bookings?limit=5&paymentStatus=paid');
     const html = d.bookings.length ? `
@@ -2136,15 +2163,24 @@ async function loadDashboard() {
       ${d.bookings.map(b => `
         <tr>
           <td>${fmtDate(b.createdAt)}</td>
-          <td>${b.owner?.name || '-'}</td>
-          <td>${b.sitter?.name || '-'}</td>
+          <td>${escapeHtml(b.owner?.name || '-')}</td>
+          <td>${escapeHtml(b.sitter?.name || '-')}</td>
           <td>€${(b.totalAmount||0).toFixed(2)}</td>
           <td><span class="badge badge-green">Paid</span></td>
         </tr>
       `).join('')}</tbody></table>
     ` : '<div class="empty-state"><div class="empty-icon">💳</div><div>Aucune réservation payée pour l\'instant.</div></div>';
     document.getElementById('recent-payments-wrap').innerHTML = html;
-  } catch(e) {}
+  } catch(e) {/* silent */}
+
+  // v23.1 part 134 — timestamp visible.
+  if (tsEl) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    tsEl.textContent = `✓ Dernière mise à jour : ${hh}:${mm}:${ss}`;
+  }
 }
 
 // ── BOOKINGS ──────────────────────────────────────────────────────────────────
