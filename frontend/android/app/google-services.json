@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "470089536255-nn80cnl57e692oc29tvhm8jhkunrcupg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hopetsit.app",
+            "certificate_hash": "641e19912c1f2a8db5e81fb39dac08233014ed85"
+          }
+        },
+        {
           "client_id": "470089536255-q9nrquiekrp6vmjdua2gio42r19fsrd4.apps.googleusercontent.com",
           "client_type": 3
         }

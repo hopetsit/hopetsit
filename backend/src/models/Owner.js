@@ -139,6 +139,42 @@ ownerSchema.pre('save', function stripInvalidLocation(next) {
   next();
 });
 
+// v23.1 part 136 — fix Daniel "Google Login Error: Can't extract geo keys".
+// Mongoose initialise auto `location: { type: 'Point' }` à cause du default
+// 'Point' sur location.type. Si coordinates sont absentes/cassées, le doc
+// devient un GeoJSON partiel que l'index 2dsphere refuse au save (et qui
+// fait échouer le Google Sign In, le KYC, le boost, l'update profil...).
+// Pre-validate hook : si location.coordinates n'est pas un [lng, lat] valide,
+// on supprime tout l'objet location pour que l'index 2dsphere skippe le doc.
+ownerSchema.pre('validate', function sanitizeLocation(next) {
+  const loc = this.location;
+  if (loc) {
+    const c = loc.coordinates;
+    const valid =
+      Array.isArray(c) &&
+      c.length === 2 &&
+      typeof c[0] === 'number' && Number.isFinite(c[0]) &&
+      typeof c[1] === 'number' && Number.isFinite(c[1]);
+    if (!valid) {
+      this.location = undefined;
+    }
+  }
+  // Idem pour mapBoostLocation (PawSpot custom).
+  const mloc = this.mapBoostLocation;
+  if (mloc) {
+    const c = mloc.coordinates;
+    const valid =
+      Array.isArray(c) &&
+      c.length === 2 &&
+      typeof c[0] === 'number' && Number.isFinite(c[0]) &&
+      typeof c[1] === 'number' && Number.isFinite(c[1]);
+    if (!valid) {
+      this.mapBoostLocation = undefined;
+    }
+  }
+  next();
+});
+
 ownerSchema.pre('save', async function hashPassword(next) {
   if (!this.isModified('password')) {
     return next();

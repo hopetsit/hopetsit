@@ -317,20 +317,21 @@ const walkerSchema = new mongoose.Schema(
 );
 
 // Strip invalid location before save so MongoDB 2dsphere index never sees coordinates: null.
-walkerSchema.pre('save', function stripInvalidLocation(next) {
-  if (!this.location) return next();
-  const coords = this.location.coordinates;
-  const valid =
-    Array.isArray(coords) &&
-    coords.length === 2 &&
-    typeof coords[0] === 'number' &&
-    typeof coords[1] === 'number' &&
-    coords[0] >= -180 &&
-    coords[0] <= 180 &&
-    coords[1] >= -90 &&
-    coords[1] <= 90;
-  if (!valid) {
+// v23.1 part 136 — passé en pre('validate') + mapBoostLocation aussi.
+const _walkerIsValidGeoCoord = (coords) =>
+  Array.isArray(coords) &&
+  coords.length === 2 &&
+  typeof coords[0] === 'number' && Number.isFinite(coords[0]) &&
+  typeof coords[1] === 'number' && Number.isFinite(coords[1]) &&
+  coords[0] >= -180 && coords[0] <= 180 &&
+  coords[1] >= -90 && coords[1] <= 90;
+
+walkerSchema.pre('validate', function stripInvalidLocation(next) {
+  if (this.location && !_walkerIsValidGeoCoord(this.location.coordinates)) {
     this.location = undefined;
+  }
+  if (this.mapBoostLocation && !_walkerIsValidGeoCoord(this.mapBoostLocation.coordinates)) {
+    this.mapBoostLocation = undefined;
   }
   next();
 });
