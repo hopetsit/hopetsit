@@ -288,8 +288,17 @@ class AuthController extends GetxController {
   Future<void> loginWithGoogle({String? role}) async {
     try {
       isSocialLoginLoading.value = true;
-      // For new users (e.g. signing up), use the provided role; otherwise use stored role
-      final roleToSend = role ?? userRole.value;
+      // v23.1 part 142 — Daniel : 'verifie pkoi sitter creer un compte
+      // seul'. Avant : roleToSend = role ?? userRole.value → si un user
+      // avait fait un signup Sitter PRÉCÉDEMMENT, userRole.value=='sitter'
+      // restait stocké dans GetStorage. Au nouveau click "Continue with
+      // Google" depuis LoginScreen (role=null), le fallback prenait
+      // 'sitter' → backend créait un Sitter direct sans demander.
+      // Maintenant : on n'utilise PAS le fallback. Si role est null, on
+      // envoie null au backend. Backend renvoie soit le user existant
+      // (existingUser:true avec son vrai role), soit 400 ROLE_REQUIRED
+      // → redirection vers SignUpAs.
+      final roleToSend = role;
       debugPrint(
         '[HOPETSIT] Google sign-in: role parameter=$role, roleToSend=$roleToSend',
       );
@@ -539,7 +548,10 @@ class AuthController extends GetxController {
   Future<void> loginWithApple({String? role}) async {
     try {
       isSocialLoginLoading.value = true;
-      final roleToSend = role ?? userRole.value;
+      // v23.1 part 142 — idem Google : pas de fallback userRole.value,
+      // sinon un Sitter stocké d'une session précédente force la
+      // création d'un compte Sitter au lieu de demander le rôle.
+      final roleToSend = role;
       if (role != null) {
         userRole.value = role;
       }
