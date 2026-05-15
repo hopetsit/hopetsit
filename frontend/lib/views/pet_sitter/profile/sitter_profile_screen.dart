@@ -320,31 +320,32 @@ class SitterProfileScreen extends StatelessWidget {
   }
 
   /// Quick actions: Earnings, Availability, Boost, IBAN.
+  /// v23.1 part 144 — Daniel : 'icone tjr diforme' après 4 tentatives
+  /// successives (.w/.sp, FittedBox, _outlined, etc.). Material Icons
+  /// sont fondamentalement non-uniformes (chaque glyph dessiné à la
+  /// main). Switch définitif vers EMOJIS rendus par le système Android :
+  /// la fonte emoji du device garantit le même bounding box pour
+  /// tous les caractères. Impossible d'être déformé.
   Widget _buildSitterQuickActions(SitterProfileController controller, Color accent, Color accentLight) {
     return Row(
       children: [
-        // v23.1 part 143 — Daniel : 'icone tjr diforme'. Le FittedBox v140
-        // ne suffit pas car les icônes Material "_rounded" ont des
-        // densités visuelles différentes (wallet est large/filled,
-        // rocket est étroit, etc.). Solution : passer aux variants
-        // "_outlined" qui sont TOUS line-based avec un poids de trait
-        // uniforme, donc visuellement consistents.
-        _sitterQuickAction(Icons.account_balance_wallet_outlined, 'wallet_menu_title'.tr, accent, accentLight,
+        _sitterQuickAction('💼', 'wallet_menu_title'.tr, accent, accentLight,
             () => Get.to(() => const WalletScreen())),
         SizedBox(width: 8.w),
-        _sitterQuickAction(Icons.calendar_today_outlined, 'profile_my_availability'.tr, accent, accentLight,
+        _sitterQuickAction('📅', 'profile_my_availability'.tr, accent, accentLight,
             () => Get.to(() => const AvailabilityCalendarScreen())),
         SizedBox(width: 8.w),
-        _sitterQuickAction(Icons.rocket_launch_outlined, 'boost_shop_title'.tr, accent, accentLight,
+        _sitterQuickAction('🛒', 'boost_shop_title'.tr, accent, accentLight,
             () => Get.to(() => const CoinShopScreen())),
         SizedBox(width: 8.w),
-        _sitterQuickAction(Icons.account_balance_outlined, 'iban_title'.tr, accent, accentLight,
+        _sitterQuickAction('🏦', 'iban_title'.tr, accent, accentLight,
             () => Get.to(() => const IbanSetupScreen())),
       ],
     );
   }
 
-  Widget _sitterQuickAction(IconData icon, String label, Color accent, Color accentLight, VoidCallback onTap) {
+  /// v23.1 part 144 — accepte un emoji (String) au lieu d'un IconData.
+  Widget _sitterQuickAction(String emoji, String label, Color accent, Color accentLight, VoidCallback onTap) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -358,26 +359,23 @@ class SitterProfileScreen extends StatelessWidget {
             ),
           child: Column(
             children: [
-              // v23.1 part 140 — Daniel : "tjr difforme, 2 petites 2 plus
-              // grandes". Les 4 Material Icons (wallet / calendar / rocket
-              // / iban) ont des largeurs visuelles intrinsèquement
-              // différentes (wallet est large, rocket est étroit). À
-              // 18.w dans 36.w, les différences ressortent.
-              // Fix : container plus grand (44.w) + icône 24.w +
-              // FittedBox.contain qui force chaque icône à remplir
-              // proportionnellement le même espace visuel. Le résultat
-              // est uniforme quelle que soit l'icône.
               Container(
                 width: 44.w,
                 height: 44.w,
-                padding: EdgeInsets.all(10.w),
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: accentLight,
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: Icon(icon, size: 24, color: accent),
+                // Emoji rendu par la fonte système Android (Noto Color
+                // Emoji). Taille fixe en pixels (24) — pas de .sp pour
+                // ne pas être affecté par textScaleFactor.
+                child: Text(
+                  emoji,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    height: 1.0,
+                  ),
                 ),
               ),
               SizedBox(height: 6.h),

@@ -340,33 +340,33 @@ class WalkerProfileScreen extends StatelessWidget {
   // ═════════════════════════════════════════════════════════════════════════
 
   Widget _buildQuickActions(BuildContext context) {
+    // v23.1 part 144 — switch vers emojis (cf sitter_profile_screen).
     return Row(
       children: [
-        // v23.1 part 143 — variants outlined uniformes (cf sitter_profile).
         _quickAction(
           context,
-          icon: Icons.account_balance_wallet_outlined,
+          emoji: '💼',
           label: 'wallet_menu_title'.tr,
           onTap: () => Get.to(() => const WalletScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
-          icon: Icons.calendar_today_outlined,
+          emoji: '📅',
           label: 'profile_quick_calendar'.tr,
           onTap: () => Get.to(() => const AvailabilityCalendarScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
-          icon: Icons.rocket_launch_outlined,
+          emoji: '🛒',
           label: 'profile_quick_boost_shop'.tr,
           onTap: () => Get.to(() => const CoinShopScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
-          icon: Icons.account_balance_outlined,
+          emoji: '🏦',
           label: 'profile_quick_iban'.tr,
           onTap: () => Get.to(() => const IbanSetupScreen()),
         ),
@@ -376,7 +376,7 @@ class WalkerProfileScreen extends StatelessWidget {
 
   Widget _quickAction(
     BuildContext context, {
-    required IconData icon,
+    required String emoji,
     required String label,
     required VoidCallback onTap,
   }) {
@@ -392,20 +392,23 @@ class WalkerProfileScreen extends StatelessWidget {
           ),
           child: Column(
             children: [
-              // v23.1 part 140 — fix icône tordue : FittedBox uniformise
-              // les 4 icônes Material qui ont des largeurs intrinsèques
-              // différentes (cf sitter_profile_screen v140).
+              // v23.1 part 144 — emoji rendu par la fonte système Android,
+              // garantit la même taille de bounding box pour tous les
+              // caractères. Impossible d'être "déformé".
               Container(
                 width: 44.w,
                 height: 44.w,
-                padding: EdgeInsets.all(10.w),
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: _accentLight,
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: Icon(icon, size: 24, color: _accent),
+                child: Text(
+                  emoji,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    height: 1.0,
+                  ),
                 ),
               ),
               SizedBox(height: 6.h),
