@@ -468,12 +468,24 @@ class SignUpController extends GetxController {
       final r60 = double.tryParse(
         walkerRate60Controller.text.trim().replaceAll(',', '.'),
       );
+      // v23.1 part 141 — fix : aligner sur le shape du Walker model
+      // backend (durationMinutes + basePrice au lieu de duration + amount).
+      // Backend tolère désormais les 2 formats pour rétrocompat, mais
+      // on envoie le bon format pour rester clean.
       final rates = <Map<String, dynamic>>[];
       if (r30 != null && r30 > 0) {
-        rates.add({'duration': 30, 'amount': r30, 'currency': selectedCurrency.value});
+        rates.add({
+          'durationMinutes': 30,
+          'basePrice': r30,
+          'currency': selectedCurrency.value,
+        });
       }
       if (r60 != null && r60 > 0) {
-        rates.add({'duration': 60, 'amount': r60, 'currency': selectedCurrency.value});
+        rates.add({
+          'durationMinutes': 60,
+          'basePrice': r60,
+          'currency': selectedCurrency.value,
+        });
       }
       if (rates.isNotEmpty) {
         data['walkRates'] = rates;

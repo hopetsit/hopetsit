@@ -285,7 +285,26 @@ const signup = async (req, res) => {
         Number(user.coverageRadiusKm) <= 50
           ? Number(user.coverageRadiusKm)
           : 3,
-      walkRates: Array.isArray(user.walkRates) ? user.walkRates : [],
+      // v23.1 part 141 — Daniel : 'ValidationError walkRates.0.basePrice
+      // walkRates.0.durationMinutes'. Le frontend envoie historiquement
+      // {duration, amount, currency} (cf sign_up_controller.dart) mais
+      // le Walker model attend {durationMinutes, basePrice, currency}.
+      // On normalise ici pour tolérer les 2 formats : si un objet a
+      // `duration`/`amount` on les renomme. Sinon on passe tel quel.
+      walkRates: Array.isArray(user.walkRates)
+        ? user.walkRates
+            .filter((r) => r && typeof r === 'object')
+            .map((r) => ({
+              durationMinutes: r.durationMinutes ?? r.duration,
+              basePrice: r.basePrice ?? r.amount,
+              currency: r.currency || 'EUR',
+              enabled: r.enabled !== false,
+            }))
+            .filter((r) =>
+              Number.isFinite(r.durationMinutes) &&
+              Number.isFinite(r.basePrice),
+            )
+        : [],
       defaultWalkDurationMinutes:
         Number.isInteger(user.defaultWalkDurationMinutes) &&
         user.defaultWalkDurationMinutes >= 15 &&
