@@ -412,14 +412,19 @@ class WalkerProfileScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 6.h),
-              InterText(
-                text: label,
-                fontSize: 9.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.grey700Color,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              // v23.1 part 145 — hauteur fixe pour 2 lignes → cartes
+              // symétriques même si labels de longueurs différentes.
+              SizedBox(
+                height: 26.h,
+                child: InterText(
+                  text: label,
+                  fontSize: 9.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.grey700Color,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

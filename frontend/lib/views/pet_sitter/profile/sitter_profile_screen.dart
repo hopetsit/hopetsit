@@ -345,51 +345,61 @@ class SitterProfileScreen extends StatelessWidget {
   }
 
   /// v23.1 part 144 — accepte un emoji (String) au lieu d'un IconData.
+  /// v23.1 part 145 — Daniel : "le cadre blanc qui est pas simetrique".
+  /// Cause : labels de longueurs différentes (1 ligne vs 2 lignes) →
+  /// hauteurs des cartes différentes. Fix : crossAxisAlignment.stretch
+  /// + IntrinsicHeight au niveau de la Row parente force toutes les
+  /// cartes à la même hauteur. Le label utilise maxLines:2 + minHeight
+  /// pour réserver 2 lignes minimum, peu importe la longueur du texte.
   Widget _sitterQuickAction(String emoji, String label, Color accent, Color accentLight, VoidCallback onTap) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Builder(
           builder: (context) => Container(
-            padding: EdgeInsets.symmetric(vertical: 14.h),
+            padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 4.w),
             decoration: BoxDecoration(
               color: AppColors.card(context),
               borderRadius: BorderRadius.circular(14.r),
               boxShadow: AppColors.cardShadow(context),
             ),
-          child: Column(
-            children: [
-              Container(
-                width: 44.w,
-                height: 44.w,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accentLight,
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                // Emoji rendu par la fonte système Android (Noto Color
-                // Emoji). Taille fixe en pixels (24) — pas de .sp pour
-                // ne pas être affecté par textScaleFactor.
-                child: Text(
-                  emoji,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    height: 1.0,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44.w,
+                  height: 44.w,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accentLight,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    emoji,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      height: 1.0,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(height: 6.h),
-              InterText(
-                text: label,
-                fontSize: 9.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.grey700Color,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+                SizedBox(height: 6.h),
+                // v23.1 part 145 — SizedBox avec height fixe pour réserver
+                // l'espace de 2 lignes. Force toutes les cartes à la même
+                // hauteur visuelle même si certains labels font 1 ligne.
+                SizedBox(
+                  height: 26.h,
+                  child: InterText(
+                    text: label,
+                    fontSize: 9.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.grey700Color,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
