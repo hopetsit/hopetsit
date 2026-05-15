@@ -339,7 +339,7 @@ function SectionTab({
 function PremiumSection({
   plans,
   status,
-  onPurchase,
+  onSubscribe,
   onCancel,
   onResume,
   purchasing,
@@ -347,7 +347,7 @@ function PremiumSection({
 }: {
   plans: SubscriptionPlan[];
   status: SubscriptionStatus | null;
-  onPurchase: (label: string) => void;
+  onSubscribe: (plan: "monthly" | "yearly" | "family") => void;
   onCancel: () => void;
   onResume: () => void;
   purchasing: string | null;
@@ -422,7 +422,7 @@ function PremiumSection({
             <PlanCard
               key={plan.id}
               plan={plan}
-              onPurchase={() => onPurchase(`plan-${plan.id}`)}
+              onPurchase={() => onSubscribe(plan.id)}
               purchasing={purchasing === `plan-${plan.id}`}
               highlighted={plan.id === "yearly"}
             />
@@ -504,14 +504,16 @@ function BoostSection({
   subtitle,
   packages,
   status,
-  onPurchase,
+  purposeKey,
+  onBuy,
   purchasing,
 }: {
   title: string;
   subtitle: string;
   packages: BoostPackage[];
   status: BoostStatus | null;
-  onPurchase: (label: string) => void;
+  purposeKey: "boost" | "mapboost";
+  onBuy: (tier: BoostTier) => void;
   purchasing: string | null;
 }) {
   return (
@@ -544,8 +546,8 @@ function BoostSection({
           <PackageCard
             key={pkg.tier}
             pkg={pkg}
-            onPurchase={() => onPurchase(`pkg-${pkg.tier}`)}
-            purchasing={purchasing === `pkg-${pkg.tier}`}
+            onPurchase={() => onBuy(pkg.tier)}
+            purchasing={purchasing === `${purposeKey}-${pkg.tier}`}
           />
         ))}
       </div>
