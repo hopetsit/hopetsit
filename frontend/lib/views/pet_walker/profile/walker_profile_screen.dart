@@ -392,6 +392,7 @@ class WalkerProfileScreen extends StatelessWidget {
           ),
           child: Column(
             children: [
+              // v23.1 part 139 — fix icône tordue (idem sitter_profile_screen).
               Container(
                 width: 36.w,
                 height: 36.w,
@@ -399,7 +400,7 @@ class WalkerProfileScreen extends StatelessWidget {
                   color: _accentLight,
                   borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(icon, size: 17.sp, color: _accent),
+                child: Icon(icon, size: 18.w, color: _accent),
               ),
               SizedBox(height: 6.h),
               InterText(
@@ -741,6 +742,7 @@ class WalkerProfileScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
+              // v23.1 part 139 — fix icône tordue : .w au lieu de .sp.
               Container(
                 width: 34.w,
                 height: 34.w,
@@ -748,7 +750,7 @@ class WalkerProfileScreen extends StatelessWidget {
                   color: _accentLight,
                   borderRadius: BorderRadius.circular(9.r),
                 ),
-                child: Icon(icon, size: 16.sp, color: _accent),
+                child: Icon(icon, size: 17.w, color: _accent),
               ),
               SizedBox(width: 12.w),
               Expanded(

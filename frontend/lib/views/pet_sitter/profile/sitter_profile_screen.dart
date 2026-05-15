@@ -353,6 +353,15 @@ class SitterProfileScreen extends StatelessWidget {
             ),
           child: Column(
             children: [
+              // v23.1 part 139 — Daniel : "icone tordu page sitter mon
+              // portefeuille mon calendrier boutique et iban". Cause :
+              // l'icône était sized en .sp (sensible au textScaleFactor
+              // système — Samsung "Bold text" ou accessibilité grosse
+              // police), tandis que son container parent est en .w
+              // (fixe). Quand textScale > 1.0 l'icône grossit mais le
+              // container reste pareil → débordement → rendu écrasé.
+              // Fix : .w au lieu de .sp pour les icônes. Règle d'or
+              // ScreenUtil : .sp uniquement pour les textes.
               Container(
                 width: 36.w,
                 height: 36.w,
@@ -360,7 +369,7 @@ class SitterProfileScreen extends StatelessWidget {
                   color: accentLight,
                   borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(icon, size: 17.sp, color: accent),
+                child: Icon(icon, size: 18.w, color: accent),
               ),
               SizedBox(height: 6.h),
               InterText(
