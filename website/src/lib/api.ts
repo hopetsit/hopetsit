@@ -907,6 +907,30 @@ export async function resumeSubscription(): Promise<SubscriptionStatus> {
   return await request("/subscriptions/resume", { method: "POST" });
 }
 
+export type PaymentIntentResponse = {
+  clientSecret: string;
+  paymentIntentId: string;
+  provider: string;
+  amount: number;
+  currency: string;
+  // Selon le contexte :
+  plan?: string;
+  tier?: string;
+  intervalDays?: number;
+  days?: number;
+};
+
+export async function confirmSubscription(
+  plan: string,
+  paymentIntentId: string,
+  currency?: string,
+): Promise<SubscriptionStatus> {
+  return await request("/subscriptions/confirm", {
+    method: "POST",
+    body: JSON.stringify({ plan, paymentIntentId, currency }),
+  });
+}
+
 // ─── Profile Boost (annonce mise en avant) ──────────────────────────────────
 
 export type BoostTier = "bronze" | "silver" | "gold" | "platinum";
@@ -939,6 +963,27 @@ export async function getBoostStatus(): Promise<BoostStatus> {
   return await request<BoostStatus>("/boost/status");
 }
 
+export async function purchaseBoost(
+  tier: BoostTier,
+  currency?: string,
+): Promise<PaymentIntentResponse> {
+  return await request("/boost/purchase", {
+    method: "POST",
+    body: JSON.stringify({ tier, currency }),
+  });
+}
+
+export async function confirmBoost(
+  tier: BoostTier,
+  paymentIntentId: string,
+  currency?: string,
+): Promise<BoostStatus> {
+  return await request("/boost/confirm", {
+    method: "POST",
+    body: JSON.stringify({ tier, paymentIntentId, currency }),
+  });
+}
+
 // ─── Map Boost (PawSpot — visibilité sur la carte) ──────────────────────────
 
 export async function getMapBoostPackages(
@@ -963,6 +1008,27 @@ export async function claimMapBoostCredit(): Promise<{
   mapBoostCreditsRemaining: number;
 }> {
   return await request("/map-boost/claim-credit", { method: "POST" });
+}
+
+export async function purchaseMapBoost(
+  tier: BoostTier,
+  currency?: string,
+): Promise<PaymentIntentResponse> {
+  return await request("/map-boost/purchase", {
+    method: "POST",
+    body: JSON.stringify({ tier, currency }),
+  });
+}
+
+export async function confirmMapBoost(
+  tier: BoostTier,
+  paymentIntentId: string,
+  currency?: string,
+): Promise<BoostStatus> {
+  return await request("/map-boost/confirm", {
+    method: "POST",
+    body: JSON.stringify({ tier, paymentIntentId, currency }),
+  });
 }
 
 // ─── Contact form ───────────────────────────────────────────────────────────

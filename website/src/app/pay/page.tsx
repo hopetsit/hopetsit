@@ -81,10 +81,25 @@ export default function PayPage() {
       envParam === "staging" ? "staging" :
       "prod";
 
+    // v23.1 part 146 — relais des metadata "à quoi sert ce paiement".
+    // Permet à /pay/done d'appeler le bon endpoint /confirm une fois
+    // qu'Airwallex a confirmé le paiement.
+    const purpose = params.get("purpose") || "";        // booking | subscription | boost | mapboost
+    const planParam = params.get("plan") || "";          // monthly | yearly | family
+    const tierParam = params.get("tier") || "";          // bronze | silver | gold | platinum
+    const extraParams = new URLSearchParams();
+    if (purpose) extraParams.set("purpose", purpose);
+    if (planParam) extraParams.set("plan", planParam);
+    if (tierParam) extraParams.set("tier", tierParam);
+    if (currency) extraParams.set("currency", currency);
+    if (intentId) extraParams.set("id", intentId);
+    const extra = extraParams.toString();
+    const extraQs = extra ? `&${extra}` : "";
+
     // Mobile webview detects these — never visible to the user.
-    const successUrl = `${url.origin}/pay/done?status=success`;
-    const failUrl    = `${url.origin}/pay/done?status=fail`;
-    const cancelUrl  = `${url.origin}/pay/done?status=cancel`;
+    const successUrl = `${url.origin}/pay/done?status=success${extraQs}`;
+    const failUrl    = `${url.origin}/pay/done?status=fail${extraQs}`;
+    const cancelUrl  = `${url.origin}/pay/done?status=cancel${extraQs}`;
 
     if (!intentId || !clientSecret) {
       setStatus("error");

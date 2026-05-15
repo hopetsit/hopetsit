@@ -21,6 +21,7 @@ import {
   AuthUser,
   BoostPackage,
   BoostStatus,
+  BoostTier,
   cancelSubscription,
   getBoostPackages,
   getBoostStatus,
@@ -29,8 +30,11 @@ import {
   getStoredUser,
   getSubscriptionPlans,
   getSubscriptionStatus,
-  openInApp,
+  PaymentIntentResponse,
+  purchaseBoost,
+  purchaseMapBoost,
   resumeSubscription,
+  subscribeToPlan,
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@/lib/api";
@@ -102,28 +106,77 @@ export default function BoutiquePage() {
     })();
   }, [router]);
 
-  async function handlePurchase(label: string) {
-    // v23.1 part 146 — paiement = redirection vers l'app via bridge OTT.
-    // Le SDK Airwallex natif gère le 3DS challenge correctement, alors
-    // que le faire dans une webview Next.js demanderait beaucoup plus
-    // de code. On laisse l'app finaliser.
+  /**
+   * v23.1 part 146 — Lance le checkout Airwallex Hosted pour un paiement.
+   * Appelle l'endpoint backend approprié pour obtenir un PaymentIntent,
+   * puis redirige vers /pay (qui boot le SDK Airwallex et lance la
+   * Hosted Payment Page). À la fin, /pay/done auto-confirmera via
+   * /confirm.
+   */
+  async function startCheckout(
+    purpose: "subscription" | "boost" | "mapboost",
+    planOrTier: string,
+    createIntent: () => Promise<PaymentIntentResponse | { clientSecret: string; paymentIntentId: string; amount: number; currency: string }>,
+    label: string,
+  ) {
     setPurchasing(label);
     setError(null);
     try {
-      await openInApp();
+      const intent = await createIntent();
+      if (!intent.clientSecret || !intent.paymentIntentId) {
+        throw new Error("Réponse backend incomplète (paymentIntent manquant).");
+      }
+      const country = guessCountryFromCurrency(intent.currency);
+      const qs = new URLSearchParams({
+        intent: intent.paymentIntentId,
+        secret: intent.clientSecret,
+        currency: intent.currency,
+        country,
+        purpose,
+        ...(purpose === "subscription" ? { plan: planOrTier } : { tier: planOrTier }),
+      });
+      // Full-page redirect — la page /pay enchaîne le SDK Airwallex.
+      window.location.href = `/pay?${qs.toString()}`;
     } catch (e) {
+      setPurchasing(null);
       if (e instanceof ApiError && e.status === 401) {
         router.replace("/login");
         return;
       }
+      // 402 PREMIUM_REQUIRED ou autre erreur business.
       setError(
         e instanceof Error
           ? e.message
-          : "Impossible d'ouvrir l'app. Télécharge HoPetSit pour finaliser l'achat.",
+          : "Impossible de démarrer le paiement. Réessaye dans un instant.",
       );
-    } finally {
-      setTimeout(() => setPurchasing(null), 2000);
     }
+  }
+
+  async function handleSubscribePlan(plan: "monthly" | "yearly" | "family") {
+    return startCheckout(
+      "subscription",
+      plan,
+      () => subscribeToPlan(plan),
+      `plan-${plan}`,
+    );
+  }
+
+  async function handleBuyBoost(tier: BoostTier) {
+    return startCheckout(
+      "boost",
+      tier,
+      () => purchaseBoost(tier),
+      `boost-${tier}`,
+    );
+  }
+
+  async function handleBuyMapBoost(tier: BoostTier) {
+    return startCheckout(
+      "mapboost",
+      tier,
+      () => purchaseMapBoost(tier),
+      `mapboost-${tier}`,
+    );
   }
 
   async function handleCancelSubscription() {
@@ -211,7 +264,7 @@ export default function BoutiquePage() {
         <PremiumSection
           plans={plans}
           status={subStatus}
-          onPurchase={handlePurchase}
+          onSubscribe={handleSubscribePlan}
           onCancel={handleCancelSubscription}
           onResume={handleResumeSubscription}
           purchasing={purchasing}
@@ -225,7 +278,8 @@ export default function BoutiquePage() {
           subtitle="Apparais en haut de la liste pour les owners qui cherchent un sitter dans ta zone."
           packages={boostPkgs}
           status={boostStatus}
-          onPurchase={handlePurchase}
+          purposeKey="boost"
+          onBuy={handleBuyBoost}
           purchasing={purchasing}
         />
       )}
@@ -236,12 +290,28 @@ export default function BoutiquePage() {
           subtitle="Ton profil apparaît directement sur la PawMap des owners autour de toi."
           packages={mapBoostPkgs}
           status={mapBoostStatus}
-          onPurchase={handlePurchase}
+          purposeKey="mapboost"
+          onBuy={handleBuyMapBoost}
           purchasing={purchasing}
         />
       )}
     </div>
   );
+}
+
+/**
+ * v23.1 part 146 — Mapping minimal devise → pays ISO-2 pour Airwallex.
+ * Airwallex exige un `country_code` pour le routing du payment intent.
+ * Quand on ne peut pas dériver le pays depuis le profil user (peu courant
+ * sur le site web), on fallback sur le pays par défaut de la devise.
+ */
+function guessCountryFromCurrency(currency: string): string {
+  const c = (currency || "EUR").toUpperCase();
+  if (c === "USD") return "US";
+  if (c === "GBP") return "GB";
+  if (c === "CHF") return "CH";
+  if (c === "CAD") return "CA";
+  return "FR";
 }
 
 function SectionTab({
