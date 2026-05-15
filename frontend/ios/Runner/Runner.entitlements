@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- v23.1 part 146 — Universal Links iOS.
+	     Quand l'utilisateur tape sur un lien `https://hopetsit.com/pay/xxx`
+	     depuis Safari, Mail, WhatsApp etc., iOS vérifie le fichier
+	     `apple-app-site-association` hébergé sur le domaine et, s'il
+	     autorise l'AppID J7259479JR.com.hopetsit.app, ouvre directement
+	     l'app au lieu de Safari.
+	     Doit être lié au target Runner via Xcode :
+	       Xcode → Runner → Signing & Capabilities → + Capability
+	       → Associated Domains → Add `applinks:hopetsit.com` etc.
+	     (Le simple fait que le fichier .entitlements existe ne suffit pas,
+	     il faut aussi que `CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements`
+	     soit dans le project.pbxproj — Xcode l'ajoute automatiquement
+	     quand on coche "Associated Domains" via l'UI.) -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:hopetsit.com</string>
+		<string>applinks:www.hopetsit.com</string>
+		<string>applinks:app.hopetsit.com</string>
+	</array>
+</dict>
+</plist>

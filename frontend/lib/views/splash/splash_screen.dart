@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/services/deep_link_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/onboarding/onboarding_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
@@ -162,6 +163,20 @@ class _SplashScreenState extends State<SplashScreen>
         );
         Get.offAll(() => const OnboardingScreen());
     }
+
+    // v23.1 part 146 — fix écran noir au boot via deep link.
+    // Le DeepLinkService a pu recevoir un Intent VIEW AVANT que
+    // GetMaterialApp soit monté (cas où l'app est lancée par un lien
+    // hopetsit.com depuis un email/Chrome/etc.). Les URIs reçues trop
+    // tôt sont bufferisées dans `_pendingUris`. Maintenant que la nav
+    // GetX est prête (Get.offAll vient de monter le bon écran), on
+    // rejoue les URIs en attente : `_openPayment` peut push par-dessus
+    // BottomNavWrapper, `/chat` peut routerNamed, etc.
+    // Wrappé en addPostFrameCallback pour laisser le frame se peindre
+    // avant la nav (évite tout flicker visuel).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkService.instance.flushPending();
+    });
   }
 
   @override

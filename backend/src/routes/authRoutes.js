@@ -14,6 +14,11 @@ const {
   chooseService,
   adminLogin,
 } = require('../controllers/authController');
+// v23.1 part 146 — bridge de session web → app.
+const {
+  createOneTimeToken,
+  exchangeOneTimeToken,
+} = require('../controllers/oneTimeTokenController');
 const { requireAuth } = require('../middleware/auth');
 const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
@@ -1070,6 +1075,93 @@ router.put('/change-password', requireAuth, changePassword);
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/choose-service', chooseService);
+
+/**
+ * @swagger
+ * /auth/one-time-token:
+ *   post:
+ *     summary: Generate a one-time token to bridge a web session into the app
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     description: >
+ *       Issues a short-lived (60s), single-use token tied to the authenticated
+ *       user's id+role. The site embeds this token in a `hopetsit://auth?ott=<token>`
+ *       deep link. When the user taps it on mobile, the app calls
+ *       `/auth/exchange` with the token and receives a 30-day JWT, logging the
+ *       user in without re-entering credentials.
+ *     responses:
+ *       200:
+ *         description: Token issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ott:
+ *                   type: string
+ *                   description: 64-char hex token (32 bytes random).
+ *                   example: a8f5b9c2d7e4f3a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7
+ *                 expiresIn:
+ *                   type: integer
+ *                   description: Seconds until the token expires.
+ *                   example: 60
+ *       401:
+ *         description: Missing or invalid auth token
+ *       500:
+ *         description: Server error
+ */
+router.post('/one-time-token', requireAuth, createOneTimeToken);
+
+/**
+ * @swagger
+ * /auth/exchange:
+ *   post:
+ *     summary: Exchange a one-time token for a 30-day JWT
+ *     tags: [Authentication]
+ *     description: >
+ *       Public endpoint (no auth required) used by the mobile app to convert
+ *       a one-time token (received via `hopetsit://auth?ott=<token>` deep link)
+ *       into a regular 30-day session JWT. The token is atomically marked as
+ *       used to prevent double-spend.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: The 64-char hex one-time token.
+ *                 example: a8f5b9c2d7e4f3a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7
+ *     responses:
+ *       200:
+ *         description: Token exchanged, user logged in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: 30-day JWT to use as `Authorization: Bearer <token>`.
+ *                 role:
+ *                   type: string
+ *                   enum: [owner, sitter, walker]
+ *                 user:
+ *                   description: Sanitized user profile.
+ *                   type: object
+ *       400:
+ *         description: Invalid token format
+ *       401:
+ *         description: Invalid, expired, or already used token
+ *       404:
+ *         description: User not found
+ */
+router.post('/exchange', exchangeOneTimeToken);
 
 module.exports = router;
 

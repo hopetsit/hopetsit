@@ -188,6 +188,61 @@ export async function googleSignIn(idToken: string, defaultRole: AuthRole = "own
   return data;
 }
 
+// ─── Session bridge web → app (v23.1 part 146) ──────────────────────────────
+
+// Réponse de POST /auth/one-time-token (côté backend, contrôleur
+// oneTimeTokenController). Le token brut n'apparaît qu'UNE seule fois ici ;
+// le backend stocke uniquement son SHA-256.
+type OneTimeTokenRaw = {
+  ott: string;
+  expiresIn: number;
+};
+
+/**
+ * Demande au backend un one-time token (OTT) lié au JWT actuel de l'utilisateur.
+ * Le token expire en 60 secondes et n'est utilisable qu'UNE seule fois.
+ *
+ * Usage typique : juste avant d'ouvrir l'app mobile via deep link.
+ *   const { ott } = await requestOneTimeToken();
+ *   window.location.href = `hopetsit://auth?ott=${ott}`;
+ */
+export async function requestOneTimeToken(): Promise<OneTimeTokenRaw> {
+  // request<T> ajoute déjà `Authorization: Bearer <token>` depuis localStorage.
+  return request<OneTimeTokenRaw>("/auth/one-time-token", { method: "POST" });
+}
+
+/**
+ * Ouvre l'app mobile HoPetSit en transférant la session web (auto-login).
+ *
+ * Comportement :
+ *   - Si l'utilisateur n'est pas logué côté site → throw, l'UI doit afficher
+ *     un message "Veuillez vous connecter d'abord".
+ *   - Si logué → on demande un OTT, puis on redirige vers
+ *     `hopetsit://auth?ott=<token>`. Sur tel avec l'app installée, le deep
+ *     link ouvre l'app qui auto-login. Sans app installée, rien ne se passe
+ *     visuellement (Android peut afficher un toast "Aucune app pour ouvrir
+ *     ce lien"). On peut éventuellement timeout + rediriger vers le store.
+ *
+ * Le code appelant est responsable d'afficher un loader pendant l'attente
+ * de la requête réseau (~200-500ms typiquement).
+ */
+export async function openInApp(): Promise<void> {
+  if (typeof window === "undefined") {
+    throw new ApiError("openInApp only works in the browser.", 0);
+  }
+  const token = getStoredToken();
+  if (!token) {
+    throw new ApiError("You must be logged in to open the app.", 401);
+  }
+  const { ott } = await requestOneTimeToken();
+  // Redirection vers le scheme custom. Sur Android (avec assetlinks.json
+  // déployé + Universal Links activé), l'app intercepte. Sur iOS l'app
+  // intercepte aussi (Info.plist CFBundleURLTypes + Universal Links).
+  // Si l'app n'est pas installée, le navigateur n'ouvre rien (pas de
+  // page d'erreur 404 puisque pas de host à résoudre).
+  window.location.href = `hopetsit://auth?ott=${encodeURIComponent(ott)}`;
+}
+
 // ─── Contact form ───────────────────────────────────────────────────────────
 
 // Posts to the website's own /api/contact Edge route (which uses Resend to

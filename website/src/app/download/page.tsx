@@ -2,7 +2,12 @@
 
 import { useT } from "@/lib/i18n/LanguageProvider";
 
-const APK_URL = "/HoPetSit.apk"; // placeholder — host the APK at this path or change to a Render URL.
+const APK_URL = "/HoPetSit.apk"; // copied to public/ by BUILD_APK.bat (v23.1 part 146).
+
+// v23.1 part 146 — version courante de l'APK exposée sur le site.
+// Doit être mise à jour manuellement quand BUILD_APK.bat est relancé sur
+// une nouvelle version (ou automatisé plus tard via un /public/apk-info.json).
+const APK_VERSION = "v23.1.146";
 
 export default function DownloadPage() {
   const { t } = useT();
@@ -23,7 +28,7 @@ export default function DownloadPage() {
           <span className="flex items-center gap-3">
             <span className="text-2xl">🤖</span>
             <span>
-              <span className="block text-xs uppercase tracking-wider opacity-80">Android · APK · 93 MB</span>
+              <span className="block text-xs uppercase tracking-wider opacity-80">Android · APK · {APK_VERSION}</span>
               <span className="text-base font-bold">{t("dl_apk")}</span>
             </span>
           </span>

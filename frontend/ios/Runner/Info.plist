@@ -6,6 +6,25 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>HoPetSit</string>
+	<!-- v23.1 part 146 — enregistre le scheme custom `hopetsit://` côté iOS.
+	     Auparavant absent → les liens hopetsit://pay/xxx envoyés dans les
+	     emails ouvraient une page d'erreur Safari sur iPhone. Sur Android
+	     c'était OK grâce à l'intent-filter du manifest. Universal Links
+	     (configuration Associated Domains) sont aussi nécessaires pour
+	     les liens https://hopetsit.com/pay/xxx ; cf Runner.entitlements. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.hopetsit.app.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hopetsit</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

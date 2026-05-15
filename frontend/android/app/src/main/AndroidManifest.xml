@@ -75,14 +75,33 @@
                  l'install et seul HoPetSit peut intercepter ces URLs.
                  PRÉ-REQUIS : déployer /.well-known/assetlinks.json sur
                  hopetsit.com avec le SHA-256 du keystore release une fois
-                 généré (cf docs/play-review/applinks-setup.md). -->
+                 généré (cf docs/play-review/applinks-setup.md).
+
+                 v23.1 part 146 — élargissement.
+                 Avant : seul `/pay` était intercepté → un lien quelconque
+                 vers hopetsit.com (page d'accueil, /walkers, /booking/123…)
+                 ouvrait Chrome. Pire : si Android proposait quand même l'app
+                 via "Ouvrir avec", on retombait dans un Intent VIEW mal
+                 routé → écran noir indéfini.
+                 Maintenant : on whiteliste 5 pathPrefix qui correspondent
+                 exactement à ce que DeepLinkService sait router (`/pay`,
+                 `/chat`, `/bookings`, `/notifications`, `/auth`). Tout
+                 autre path reste ouvert dans Chrome (comportement web
+                 normal). Et on accepte aussi `www.hopetsit.com` car Vercel
+                 sert le site sur les deux variantes. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
                 <data android:host="hopetsit.com" />
+                <data android:host="www.hopetsit.com" />
+                <data android:host="app.hopetsit.com" />
                 <data android:pathPrefix="/pay" />
+                <data android:pathPrefix="/chat" />
+                <data android:pathPrefix="/bookings" />
+                <data android:pathPrefix="/notifications" />
+                <data android:pathPrefix="/auth" />
             </intent-filter>
         </activity>
         <!-- Google Maps API Key -->

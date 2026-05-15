@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["J7259479JR.com.hopetsit.app"],
+        "components": [
+          { "/": "/pay/*", "comment": "Payment screen deep link" },
+          { "/": "/chat/*", "comment": "Chat conversation deep link" },
+          { "/": "/chat", "comment": "Chat list deep link" },
+          { "/": "/bookings/*", "comment": "Booking detail deep link" },
+          { "/": "/bookings", "comment": "Bookings list deep link" },
+          { "/": "/notifications", "comment": "Notifications screen deep link" },
+          { "/": "/auth/*", "comment": "Session bridge from web to app" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["J7259479JR.com.hopetsit.app"]
+  }
+}

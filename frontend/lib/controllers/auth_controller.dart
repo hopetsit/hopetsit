@@ -1472,4 +1472,73 @@ class AuthController extends GetxController {
       Get.offAll(() => const LoginScreen());
     }
   }
+
+  /// v23.1 part 146 — Bridge de session web → app via `hopetsit://auth?ott=...`.
+  ///
+  /// Appelée par `DeepLinkService._handleAuthOtt` après un exchange réussi
+  /// avec le backend (POST /auth/exchange). La réponse doit contenir au
+  /// minimum un JWT (`token`) et un rôle (`role`). On stocke tout comme un
+  /// login email/password classique et on navigue vers le home du rôle.
+  ///
+  /// Effets de bord :
+  ///   - Écrit le JWT dans SecureTokenStore + miroir GetStorage.
+  ///   - Écrit le rôle + le profil utilisateur dans GetStorage.
+  ///   - Re-enregistre le token FCM auprès du backend (push notifs).
+  ///   - Reset les controllers user-scoped pour éviter le cache du compte
+  ///     précédent.
+  ///   - Navigation `Get.offAll(...)` vers BottomNavWrapper / SitterNavWrapper
+  ///     / WalkerNavWrapper selon le rôle.
+  ///
+  /// Retourne `true` si l'auto-login a réussi, `false` sinon (le caller peut
+  /// afficher un toast d'erreur). Ne jette JAMAIS d'exception — c'est volontaire,
+  /// vu que cette méthode est invoquée depuis un deep link async non-awaité.
+  Future<bool> applyExchangedSession(Map<String, dynamic> response) async {
+    try {
+      final token = _extractToken(response);
+      if (token == null || token.isEmpty) {
+        debugPrint('[HOPETSIT] applyExchangedSession: token missing');
+        return false;
+      }
+
+      // 1) Token — keystore + miroir GetStorage (cf. flow login normal).
+      await SecureTokenStore.instance.writeToken(token);
+      await _storage.write(StorageKeys.authToken, token);
+
+      // 2) Role — JWT-derived si possible, sinon top-level dans la réponse.
+      final role = _extractRole(response);
+      if (role != null && role.isNotEmpty) {
+        userRole.value = role;
+        await _storage.write(StorageKeys.userRole, role);
+      } else {
+        debugPrint(
+          '[HOPETSIT] applyExchangedSession: role missing — abort to avoid stale nav',
+        );
+        return false;
+      }
+      // JWT reste la source de vérité même après stockage initial.
+      _syncRoleFromJwt();
+
+      // 3) FCM token — re-register sous la nouvelle auth, sinon les push
+      // continuent à arriver pour l'ancien user.
+      unawaited(_registerFcmTokenWithBackend());
+
+      // 4) User profile (optionnel — l'app peut le refetch via UserController).
+      final userData = _extractUser(response);
+      if (userData != null) {
+        final withRole = Map<String, dynamic>.from(userData);
+        withRole.putIfAbsent('role', () => role);
+        await _storage.write(StorageKeys.userProfile, withRole);
+      }
+
+      // 5) Navigation. _navigateToHome() reset déjà les controllers
+      // user-scoped + clear les service selections avant d'offAll.
+      _navigateToHome();
+
+      debugPrint('[HOPETSIT] ✅ applyExchangedSession success (role=$role)');
+      return true;
+    } catch (e, st) {
+      debugPrint('[HOPETSIT] applyExchangedSession failed: $e\n$st');
+      return false;
+    }
+  }
 }
