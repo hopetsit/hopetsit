@@ -257,7 +257,9 @@ export type UserProfile = {
   avatar?: { url?: string; publicId?: string };
   verified?: boolean;
   role: AuthRole;
-  // Sitter-specific
+  // v23.1 part 146 — devise préférée (sitter facture en cette unité).
+  currency?: "EUR" | "USD";
+  // Sitter/Walker-specific
   hourlyRate?: number;
   weeklyRate?: number;
   monthlyRate?: number;
