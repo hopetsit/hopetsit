@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["J7259479JR.com.hopetsit.app"],
+        "appIDs": ["49C67YDPJ5.com.cardellihermanos.hopetsit"],
         "components": [
           { "/": "/pay/*", "comment": "Payment screen deep link" },
           { "/": "/chat/*", "comment": "Chat conversation deep link" },
@@ -16,6 +16,6 @@
     ]
   },
   "webcredentials": {
-    "apps": ["J7259479JR.com.hopetsit.app"]
+    "apps": ["49C67YDPJ5.com.cardellihermanos.hopetsit"]
   }
 }
