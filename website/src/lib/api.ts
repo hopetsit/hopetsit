@@ -243,6 +243,457 @@ export async function openInApp(): Promise<void> {
   window.location.href = `hopetsit://auth?ott=${encodeURIComponent(ott)}`;
 }
 
+// ─── Profile (v23.1 part 146) ───────────────────────────────────────────────
+
+export type UserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  mobile?: string;
+  countryCode?: string;
+  address?: string;
+  language?: string;
+  bio?: string;
+  avatar?: { url?: string; publicId?: string };
+  verified?: boolean;
+  role: AuthRole;
+  // Sitter-specific
+  hourlyRate?: number;
+  weeklyRate?: number;
+  monthlyRate?: number;
+  skills?: string;
+  service?: string;
+  rating?: number;
+  reviewsCount?: number;
+};
+
+/**
+ * Fetch the logged-in user's full profile. The mobile app uses different
+ * endpoints depending on role (`/users/me/profile` for owner, etc.); the
+ * backend resolves it from the JWT.
+ */
+export async function getMyProfile(): Promise<UserProfile> {
+  const raw = await request<{ profile?: UserProfile; user?: UserProfile }>(
+    "/users/me/profile",
+  );
+  // Backend renvoie soit `{ profile }` soit `{ user }` selon le controller.
+  return (raw.profile || raw.user) as UserProfile;
+}
+
+/**
+ * Upload a new avatar image. Reuse the same endpoint as the app
+ * (PUT /users/me/profile-picture, multipart field name = "avatar").
+ */
+export async function uploadMyAvatar(file: File): Promise<UserProfile> {
+  if (!file.type.startsWith("image/")) {
+    throw new ApiError("Le fichier doit être une image.", 400);
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new ApiError("Image trop grande (10 Mo max).", 400);
+  }
+  const form = new FormData();
+  form.append("avatar", file);
+  const raw = await request<{ user?: UserProfile; avatar?: { url?: string } }>(
+    "/users/me/profile-picture",
+    { method: "PUT", body: form },
+  );
+  // Le backend renvoie { user } complet, sinon on bricole un patch local.
+  if (raw.user) return raw.user;
+  // Fallback: on patch juste l'avatar dans le user en cache et on refetch.
+  return getMyProfile();
+}
+
+export async function updateMyProfile(
+  patch: Partial<UserProfile>,
+): Promise<UserProfile> {
+  // Le backend accepte un PATCH/PUT sur l'user logué. On envoie tout sous
+  // /users/me/profile pour être role-agnostic (le routeur backend dispatch).
+  const raw = await request<{ user?: UserProfile; profile?: UserProfile }>(
+    "/users/me/profile",
+    { method: "PUT", body: JSON.stringify(patch) },
+  );
+  const updated = (raw.user || raw.profile) as UserProfile;
+  // Sync localStorage cache pour que le dashboard reflète les changements.
+  try {
+    const current = getStoredUser();
+    if (current) {
+      const merged: AuthUser = {
+        id: updated.id || current.id,
+        name: updated.name ?? current.name,
+        email: updated.email ?? current.email,
+        role: current.role,
+      };
+      window.localStorage.setItem(USER_KEY, JSON.stringify(merged));
+      notifyAuthChange();
+    }
+  } catch { /* ignore */ }
+  return updated;
+}
+
+// ─── IBAN (sitter / walker only) ────────────────────────────────────────────
+
+export type IbanInfo = {
+  ibanHolder?: string;
+  ibanLast4?: string; // backend renvoie un masque, pas l'IBAN complet
+  ibanBic?: string;
+  ibanVerified?: boolean;
+  payoutMethod?: "iban" | "paypal" | "none";
+};
+
+export async function getMyIban(): Promise<IbanInfo> {
+  const raw = await request<IbanInfo & { iban?: IbanInfo }>("/iban");
+  return raw.iban || raw;
+}
+
+export async function updateMyIban(input: {
+  ibanHolder: string;
+  ibanNumber: string;
+  ibanBic?: string;
+}): Promise<IbanInfo> {
+  const raw = await request<{ provider?: IbanInfo; iban?: IbanInfo }>("/iban", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  return raw.provider || raw.iban || (raw as IbanInfo);
+}
+
+export async function deleteMyIban(): Promise<void> {
+  await request("/iban", { method: "DELETE" });
+}
+
+// ─── Pets (v23.1 part 146) ──────────────────────────────────────────────────
+
+export type Pet = {
+  id: string;
+  petName: string;
+  category?: string;
+  breed?: string;
+  dob?: string;
+  weight?: string;
+  height?: string;
+  colour?: string;
+  passportNumber?: string;
+  chipNumber?: string;
+  medicationAllergies?: string;
+  vaccination?: string;
+  bio?: string;
+  profileView?: "public" | "private";
+  avatar?: { url?: string; publicId?: string };
+};
+
+export async function getMyPets(): Promise<Pet[]> {
+  const raw = await request<{ pets?: Pet[] }>("/pets/me");
+  return raw.pets || [];
+}
+
+export async function createPet(
+  input: Omit<Pet, "id" | "avatar">,
+): Promise<Pet> {
+  const raw = await request<{ pet: Pet }>("/pets/create-pet-profile", {
+    method: "POST",
+    body: JSON.stringify({ pet: input }),
+  });
+  return raw.pet;
+}
+
+export async function updatePet(
+  id: string,
+  patch: Partial<Omit<Pet, "id" | "avatar">>,
+): Promise<Pet> {
+  const raw = await request<{ pet: Pet }>(`/pets/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+  return raw.pet;
+}
+
+export async function deletePet(id: string): Promise<void> {
+  await request(`/pets/${id}`, { method: "DELETE" });
+}
+
+/**
+ * Upload an avatar for a pet (multipart, field = "avatar").
+ * Backend: PUT /pets/:id/media.
+ */
+export async function uploadPetAvatar(petId: string, file: File): Promise<Pet> {
+  if (!file.type.startsWith("image/")) {
+    throw new ApiError("Le fichier doit être une image.", 400);
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new ApiError("Image trop grande (10 Mo max).", 400);
+  }
+  const form = new FormData();
+  form.append("avatar", file);
+  const raw = await request<{ pet?: Pet; avatar?: { url?: string } }>(
+    `/pets/${petId}/media`,
+    { method: "PUT", body: form },
+  );
+  if (raw.pet) return raw.pet;
+  // Fallback: refetch la liste pour récupérer le pet avec son nouvel avatar.
+  const all = await getMyPets();
+  return all.find((p) => p.id === petId) || (raw as unknown as Pet);
+}
+
+// ─── Search providers (v23.1 part 146) ──────────────────────────────────────
+
+export type ProviderProfile = {
+  id: string;
+  name: string;
+  email?: string;
+  bio?: string;
+  skills?: string;
+  service?: string;
+  avatar?: { url?: string; publicId?: string };
+  hourlyRate?: number;
+  weeklyRate?: number;
+  monthlyRate?: number;
+  walkRates?: { walkSolo30?: number; walkSolo60?: number; walkGroup30?: number; walkGroup60?: number };
+  rating?: number;
+  averageRating?: number;
+  reviewsCount?: number;
+  location?: { city?: string; lat?: number; lng?: number };
+  isBoosted?: boolean;
+  isMapBoosted?: boolean;
+};
+
+export type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export async function listSitters(opts?: {
+  page?: number;
+  limit?: number;
+  city?: string;
+}): Promise<{ providers: ProviderProfile[]; pagination?: Pagination }> {
+  const qs = new URLSearchParams();
+  if (opts?.page) qs.set("page", String(opts.page));
+  if (opts?.limit) qs.set("limit", String(opts.limit));
+  if (opts?.city) qs.set("city", opts.city);
+  const path = `/sitters${qs.toString() ? "?" + qs.toString() : ""}`;
+  const raw = await request<{ sitters?: ProviderProfile[]; pagination?: Pagination }>(path);
+  return { providers: raw.sitters || [], pagination: raw.pagination };
+}
+
+export async function listWalkers(opts?: {
+  page?: number;
+  limit?: number;
+  city?: string;
+}): Promise<{ providers: ProviderProfile[]; pagination?: Pagination }> {
+  const qs = new URLSearchParams();
+  if (opts?.page) qs.set("page", String(opts.page));
+  if (opts?.limit) qs.set("limit", String(opts.limit));
+  if (opts?.city) qs.set("city", opts.city);
+  const path = `/walkers${qs.toString() ? "?" + qs.toString() : ""}`;
+  const raw = await request<{ walkers?: ProviderProfile[]; pagination?: Pagination }>(path);
+  return { providers: raw.walkers || [], pagination: raw.pagination };
+}
+
+export async function getProvider(
+  type: "sitter" | "walker",
+  id: string,
+): Promise<ProviderProfile | null> {
+  const raw = await request<{ sitter?: ProviderProfile; walker?: ProviderProfile }>(
+    `/${type}s/${id}`,
+  );
+  return raw.sitter || raw.walker || null;
+}
+
+// ─── Bookings (v23.1 part 146) ──────────────────────────────────────────────
+
+export type BookingStatus =
+  | "pending"
+  | "accepted"
+  | "agreed"
+  | "paid"
+  | "cancelled"
+  | "refunded"
+  | "rejected"
+  | "completed";
+
+export type Booking = {
+  id: string;
+  ownerId: string;
+  sitterId?: string;
+  walkerId?: string;
+  petIds?: string[];
+  status: BookingStatus;
+  serviceType?: string;
+  serviceDate?: string;
+  startDate?: string;
+  endDate?: string;
+  basePrice?: number;
+  totalAmount?: number;
+  currency?: string;
+  paymentStatus?: "pending" | "paid" | "cancelled" | "refund";
+  paidAt?: string;
+  createdAt?: string;
+  // Souvent populé côté backend pour faciliter l'UI :
+  ownerName?: string;
+  sitterName?: string;
+  walkerName?: string;
+};
+
+export async function getMyBookings(
+  status?: BookingStatus,
+): Promise<Booking[]> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  const raw = await request<{ bookings?: Booking[] }>(`/bookings/my${qs}`);
+  return raw.bookings || [];
+}
+
+export async function getBookingDetail(id: string): Promise<Booking | null> {
+  // GET /bookings/{id}/agreement renvoie un objet avec pricing + terms,
+  // mais pour l'écran "mes bookings" la version sommaire de /bookings/my
+  // suffit. Cette fonction est là si on veut le détail complet plus tard.
+  const raw = await request<{ booking?: Booking; agreement?: { booking?: Booking } }>(
+    `/bookings/${id}/agreement`,
+  );
+  return raw.booking || raw.agreement?.booking || null;
+}
+
+export async function createBooking(input: {
+  providerType: "sitter" | "walker";
+  providerId: string;
+  petIds: string[];
+  serviceType: string;
+  serviceDate: string; // ISO date
+  startDate?: string;
+  endDate?: string;
+  duration?: number; // minutes
+  timeSlot?: string; // "HH:MM"
+  description?: string;
+  locationType?: "owner_home" | "sitter_home";
+  addOns?: string[];
+}): Promise<Booking> {
+  const queryKey =
+    input.providerType === "walker" ? "walkerId" : "sitterId";
+  const body = {
+    petIds: input.petIds,
+    serviceType: input.serviceType,
+    serviceDate: input.serviceDate,
+    startDate: input.startDate || input.serviceDate,
+    endDate: input.endDate,
+    duration: input.duration,
+    timeSlot: input.timeSlot,
+    description: input.description || "",
+    locationType: input.locationType,
+    addOns: input.addOns || [],
+  };
+  const raw = await request<{ booking: Booking }>(
+    `/bookings?${queryKey}=${encodeURIComponent(input.providerId)}`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return raw.booking;
+}
+
+export async function respondToBooking(
+  id: string,
+  action: "accept" | "reject",
+): Promise<Booking> {
+  const raw = await request<{ booking: Booking }>(`/bookings/${id}/respond`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+  return raw.booking;
+}
+
+// ─── Invoices (v23.1 part 146) ──────────────────────────────────────────────
+
+export type Invoice = {
+  id: string;
+  invoiceNumber: string;
+  issuedAt: string;
+  bookingId?: string;
+  ownerName?: string;
+  providerName?: string;
+  serviceType?: string;
+  total: number;
+  currency: string;
+  status?: "paid" | "issued" | "void";
+};
+
+export async function getMyInvoices(): Promise<Invoice[]> {
+  const raw = await request<{ invoices?: Invoice[] }>("/invoices/my");
+  return raw.invoices || [];
+}
+
+/**
+ * URL absolue pour ouvrir la version HTML imprimable de la facture dans un
+ * nouvel onglet. Le token JWT est passé en query string parce que le route
+ * backend utilise `requireAuthQueryOrHeader` (les nouvelles fenêtres ne
+ * transmettent pas le header `Authorization` automatiquement).
+ *
+ * L'utilisateur peut ensuite faire Ctrl+P pour imprimer ou enregistrer en PDF.
+ */
+export function getInvoiceHtmlUrl(invoiceId: string): string | null {
+  const token = getStoredToken();
+  if (!token) return null;
+  return `${BASE}/invoices/${invoiceId}/html?token=${encodeURIComponent(token)}`;
+}
+
+// ─── Chat (v23.1 part 146) ──────────────────────────────────────────────────
+
+export type Conversation = {
+  id: string;
+  ownerId?: string;
+  sitterId?: string;
+  walkerId?: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount?: number;
+  // Champs souvent populés côté backend pour la liste :
+  participantName?: string;
+  participantAvatar?: string;
+};
+
+export type ChatMessage = {
+  id: string;
+  body: string;
+  senderRole: AuthRole;
+  senderId: string;
+  createdAt: string;
+  attachments?: Array<{ type?: string; url: string; publicId?: string }>;
+};
+
+export async function getConversations(): Promise<Conversation[]> {
+  const raw = await request<{ conversations?: Conversation[] }>(
+    "/conversations/list",
+  );
+  return raw.conversations || [];
+}
+
+export async function getMessages(
+  conversationId: string,
+): Promise<ChatMessage[]> {
+  const raw = await request<{ messages?: ChatMessage[] }>(
+    `/conversations/${conversationId}/messages`,
+  );
+  return raw.messages || [];
+}
+
+export async function sendMessage(
+  conversationId: string,
+  body: string,
+): Promise<ChatMessage> {
+  const user = getStoredUser();
+  if (!user) throw new ApiError("Not logged in", 401);
+  const raw = await request<{ message: ChatMessage }>(
+    `/conversations/${conversationId}/messages`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        senderRole: user.role,
+        senderId: user.id,
+        body,
+      }),
+    },
+  );
+  return raw.message;
+}
+
 // ─── Contact form ───────────────────────────────────────────────────────────
 
 // Posts to the website's own /api/contact Edge route (which uses Resend to

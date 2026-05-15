@@ -13,6 +13,13 @@ const config: Config = {
     "text-owner-dark", "text-sitter-dark", "text-walker-dark",
     "border-owner", "border-sitter", "border-walker",
     "ring-owner", "ring-sitter", "ring-walker",
+    // v23.1 part 146 — variantes avec opacité utilisées dynamiquement dans
+    // les pages portées (profile / pets / bookings / sitter-setup / book).
+    "bg-owner/5", "bg-sitter/5", "bg-walker/5",
+    "bg-owner/20", "bg-sitter/20", "bg-walker/20",
+    "focus:border-owner", "focus:border-sitter", "focus:border-walker",
+    "focus:ring-owner/20", "focus:ring-sitter/20", "focus:ring-walker/20",
+    "ring-owner/20", "ring-sitter/20", "ring-walker/20",
   ],
   theme: {
     extend: {

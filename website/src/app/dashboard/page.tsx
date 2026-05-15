@@ -215,6 +215,59 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* v23.1 part 146 — Navigation vers les pages portées du site.
+          Cards adaptés au rôle de l'utilisateur. */}
+      <div className="mt-8 grid gap-3 md:grid-cols-2">
+        <NavCard
+          href="/profile"
+          emoji="👤"
+          title="Mon profil"
+          subtitle="Voir et modifier mes infos"
+        />
+        <NavCard
+          href="/bookings"
+          emoji="📅"
+          title="Mes réservations"
+          subtitle={user?.role === "owner" ? "Mes demandes en cours" : "Demandes reçues"}
+        />
+        {user?.role === "owner" && (
+          <>
+            <NavCard
+              href="/pets"
+              emoji="🐾"
+              title="Mes animaux"
+              subtitle="Gérer mes compagnons"
+            />
+            <NavCard
+              href="/search"
+              emoji="🔍"
+              title="Rechercher un sitter"
+              subtitle="Trouver et réserver un pro"
+            />
+          </>
+        )}
+        {(user?.role === "sitter" || user?.role === "walker") && (
+          <NavCard
+            href="/sitter-setup"
+            emoji="⚙️"
+            title="Mes tarifs & IBAN"
+            subtitle="Configurer mon profil pro"
+          />
+        )}
+        <NavCard
+          href="/chat"
+          emoji="💬"
+          title="Messages"
+          subtitle="Conversations en temps réel"
+        />
+        <NavCard
+          href="/invoices"
+          emoji="🧾"
+          title="Mes factures"
+          subtitle="Télécharger en PDF"
+        />
+      </div>
+
       <div className="mt-8 rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
         <div className="flex items-center justify-between">
           <div>
@@ -230,5 +283,34 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// v23.1 part 146 — Card de navigation vers une sous-page.
+function NavCard({
+  href,
+  emoji,
+  title,
+  subtitle,
+}: {
+  href: string;
+  emoji: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card transition hover:border-ink/15 hover:shadow-lg"
+    >
+      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-bg-soft text-2xl">
+        {emoji}
+      </span>
+      <span className="flex-1">
+        <span className="block text-sm font-bold text-ink">{title}</span>
+        <span className="block text-xs text-ink-muted">{subtitle}</span>
+      </span>
+      <span className="text-ink-muted">→</span>
+    </Link>
   );
 }
