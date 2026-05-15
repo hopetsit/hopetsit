@@ -342,8 +342,16 @@ export type IbanInfo = {
   payoutMethod?: "iban" | "paypal" | "none";
 };
 
+// Le backend monte les routes IBAN sous `/sitter` ET `/walker` (même router
+// pour les 2 rôles). On dérive le bon préfixe depuis le rôle stocké.
+function ibanPath(): string {
+  const u = getStoredUser();
+  if (u?.role === "walker") return "/walker/iban";
+  return "/sitter/iban"; // fallback aussi pour sitter
+}
+
 export async function getMyIban(): Promise<IbanInfo> {
-  const raw = await request<IbanInfo & { iban?: IbanInfo }>("/iban");
+  const raw = await request<IbanInfo & { iban?: IbanInfo }>(ibanPath());
   return raw.iban || raw;
 }
 
@@ -352,15 +360,15 @@ export async function updateMyIban(input: {
   ibanNumber: string;
   ibanBic?: string;
 }): Promise<IbanInfo> {
-  const raw = await request<{ provider?: IbanInfo; iban?: IbanInfo }>("/iban", {
-    method: "PUT",
-    body: JSON.stringify(input),
-  });
+  const raw = await request<{ provider?: IbanInfo; iban?: IbanInfo }>(
+    ibanPath(),
+    { method: "PUT", body: JSON.stringify(input) },
+  );
   return raw.provider || raw.iban || (raw as IbanInfo);
 }
 
 export async function deleteMyIban(): Promise<void> {
-  await request("/iban", { method: "DELETE" });
+  await request(ibanPath(), { method: "DELETE" });
 }
 
 // ─── Pets (v23.1 part 146) ──────────────────────────────────────────────────
@@ -694,6 +702,267 @@ export async function sendMessage(
     },
   );
   return raw.message;
+}
+
+// ─── PawMap : POI (v23.1 part 146) ──────────────────────────────────────────
+
+export type PoiCategory =
+  | "vet"
+  | "shop"
+  | "groomer"
+  | "park"
+  | "beach"
+  | "water"
+  | "trainer"
+  | "hotel"
+  | "restaurant"
+  | "other";
+
+export const POI_CATEGORY_LABELS: Record<PoiCategory, { label: string; emoji: string }> = {
+  vet: { label: "Vétérinaires", emoji: "🏥" },
+  shop: { label: "Animaleries", emoji: "🛍️" },
+  groomer: { label: "Toiletteurs", emoji: "✂️" },
+  park: { label: "Parcs canins", emoji: "🌳" },
+  beach: { label: "Plages", emoji: "🏖️" },
+  water: { label: "Points d'eau", emoji: "💧" },
+  trainer: { label: "Éducateurs", emoji: "🦮" },
+  hotel: { label: "Hôtels pet-friendly", emoji: "🏨" },
+  restaurant: { label: "Restos pet-friendly", emoji: "🍽️" },
+  other: { label: "Autre", emoji: "📍" },
+};
+
+export type Poi = {
+  _id: string;
+  title: string;
+  description?: string;
+  category: PoiCategory;
+  location: {
+    type: "Point";
+    coordinates: [number, number]; // [lng, lat]
+    city?: string;
+    country?: string;
+  };
+  address?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+  source?: "seed" | "user" | "admin";
+  status?: "pending" | "active" | "rejected" | "inactive";
+  rating?: number;
+  reviewsCount?: number;
+  photosCount?: number;
+  createdAt?: string;
+};
+
+export async function getPoiCategories(): Promise<string[]> {
+  const raw = await request<{ categories?: string[] }>("/map-pois/categories");
+  return raw.categories || [];
+}
+
+export async function getNearbyPois(opts: {
+  lat: number;
+  lng: number;
+  maxDistance?: number;
+  category?: PoiCategory;
+}): Promise<Poi[]> {
+  const qs = new URLSearchParams({
+    lat: String(opts.lat),
+    lng: String(opts.lng),
+  });
+  if (opts.maxDistance) qs.set("maxDistance", String(opts.maxDistance));
+  if (opts.category) qs.set("category", opts.category);
+  const raw = await request<{ pois?: Poi[] }>(`/map-pois/nearby?${qs.toString()}`);
+  return raw.pois || [];
+}
+
+export async function getMyPois(): Promise<Poi[]> {
+  const raw = await request<{ pois?: Poi[] }>("/map-pois/mine");
+  return raw.pois || [];
+}
+
+export async function createPoi(input: {
+  title: string;
+  category: PoiCategory;
+  lat: number;
+  lng: number;
+  description?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+}): Promise<Poi> {
+  const raw = await request<{ poi: Poi }>("/map-pois", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return raw.poi;
+}
+
+export async function deletePoi(id: string): Promise<void> {
+  await request(`/map-pois/${id}`, { method: "DELETE" });
+}
+
+// ─── PawMap : Map Reports (signalements, Premium-gated) ─────────────────────
+
+export type MapReportType =
+  | "lost_pet"
+  | "aggressive_dog"
+  | "water_active"
+  | "found_pet"
+  | "dead_animal"
+  | "trap"
+  | "poison"
+  | "stray_pet"
+  | "construction";
+
+export type MapReport = {
+  _id: string;
+  type: MapReportType;
+  note?: string;
+  photoUrl?: string;
+  location: { coordinates: [number, number]; city?: string };
+  confirmationsCount?: number;
+  flagsCount?: number;
+  createdAt: string;
+  expiresAt: string;
+};
+
+export async function getNearbyReports(opts: {
+  lat: number;
+  lng: number;
+  maxDistance?: number;
+  type?: MapReportType;
+}): Promise<{ reports: MapReport[]; isPremium: boolean; freeTypes: string[] }> {
+  const qs = new URLSearchParams({
+    lat: String(opts.lat),
+    lng: String(opts.lng),
+  });
+  if (opts.maxDistance) qs.set("maxDistance", String(opts.maxDistance));
+  if (opts.type) qs.set("type", opts.type);
+  const raw = await request<{
+    reports?: MapReport[];
+    isPremium?: boolean;
+    freeTypes?: string[];
+  }>(`/map-reports/nearby?${qs.toString()}`);
+  return {
+    reports: raw.reports || [],
+    isPremium: raw.isPremium || false,
+    freeTypes: raw.freeTypes || [],
+  };
+}
+
+// ─── Subscriptions (PawFollow Premium) ──────────────────────────────────────
+
+export type SubscriptionPlan = {
+  id: "monthly" | "yearly" | "family";
+  name?: string;
+  amount: number;
+  currency: string;
+  intervalDays: number;
+  features?: Record<string, boolean | number>;
+};
+
+export type SubscriptionStatus = {
+  plan: string | null;
+  status: "active" | "cancelled" | "expired" | "none";
+  isPremium: boolean;
+  features?: Record<string, boolean | number>;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
+  mapBoostCreditsRemaining?: number;
+};
+
+export async function getSubscriptionPlans(
+  currency?: string,
+): Promise<SubscriptionPlan[]> {
+  const qs = currency ? `?currency=${currency}` : "";
+  const raw = await request<{ plans?: SubscriptionPlan[] }>(
+    `/subscriptions/plans${qs}`,
+  );
+  return raw.plans || [];
+}
+
+export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  return await request<SubscriptionStatus>("/subscriptions/status");
+}
+
+export async function subscribeToPlan(
+  plan: "monthly" | "yearly" | "family",
+  currency?: string,
+): Promise<{ clientSecret: string; paymentIntentId: string; amount: number; currency: string }> {
+  return await request("/subscriptions/subscribe", {
+    method: "POST",
+    body: JSON.stringify({ plan, currency }),
+  });
+}
+
+export async function cancelSubscription(): Promise<SubscriptionStatus> {
+  return await request("/subscriptions/cancel", { method: "POST" });
+}
+
+export async function resumeSubscription(): Promise<SubscriptionStatus> {
+  return await request("/subscriptions/resume", { method: "POST" });
+}
+
+// ─── Profile Boost (annonce mise en avant) ──────────────────────────────────
+
+export type BoostTier = "bronze" | "silver" | "gold" | "platinum";
+
+export type BoostPackage = {
+  tier: BoostTier;
+  days: number;
+  amount: number;
+  currency: string;
+  label?: string;
+};
+
+export type BoostStatus = {
+  isActive: boolean;
+  tier?: BoostTier;
+  expiresAt?: string;
+  remainingDays?: number;
+  remainingHours?: number;
+};
+
+export async function getBoostPackages(
+  currency?: string,
+): Promise<BoostPackage[]> {
+  const qs = currency ? `?currency=${currency}` : "";
+  const raw = await request<{ packages?: BoostPackage[] }>(`/boost/packages${qs}`);
+  return raw.packages || [];
+}
+
+export async function getBoostStatus(): Promise<BoostStatus> {
+  return await request<BoostStatus>("/boost/status");
+}
+
+// ─── Map Boost (PawSpot — visibilité sur la carte) ──────────────────────────
+
+export async function getMapBoostPackages(
+  currency?: string,
+): Promise<BoostPackage[]> {
+  const qs = currency ? `?currency=${currency}` : "";
+  const raw = await request<{ packages?: BoostPackage[] }>(
+    `/map-boost/packages${qs}`,
+  );
+  return raw.packages || [];
+}
+
+export async function getMapBoostStatus(): Promise<
+  BoostStatus & { mapBoostCreditsRemaining?: number }
+> {
+  return await request("/map-boost/status");
+}
+
+export async function claimMapBoostCredit(): Promise<{
+  daysAdded: number;
+  expiresAt: string;
+  mapBoostCreditsRemaining: number;
+}> {
+  return await request("/map-boost/claim-credit", { method: "POST" });
 }
 
 // ─── Contact form ───────────────────────────────────────────────────────────

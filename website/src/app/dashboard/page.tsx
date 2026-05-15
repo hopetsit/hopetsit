@@ -261,6 +261,22 @@ export default function DashboardPage() {
           subtitle="Conversations en temps réel"
         />
         <NavCard
+          href="/map"
+          emoji="🗺️"
+          title="PawMap"
+          subtitle="Vétos, parcs, plages pet-friendly"
+        />
+        <NavCard
+          href="/boutique"
+          emoji="🛍️"
+          title="Boutique"
+          subtitle={
+            user?.role === "owner"
+              ? "Premium PawFollow"
+              : "Premium + Boost annonce + PawSpot"
+          }
+        />
+        <NavCard
           href="/invoices"
           emoji="🧾"
           title="Mes factures"

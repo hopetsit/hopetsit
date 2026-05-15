@@ -92,6 +92,18 @@ export default function PawMapPage() {
       <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-ink-muted">{t("pawmap_sub")}</p>
       <p className="mt-3 text-center text-sm font-semibold text-walker-dark">{t("pawmap_categories")}</p>
 
+      {/* v23.1 part 146 — CTA vers la carte interactive (auth required). */}
+      <div className="mt-6 flex justify-center">
+        <Link
+          href="/map"
+          className="inline-flex items-center gap-2 rounded-full bg-walker px-6 py-3 text-sm font-semibold text-white shadow-cta hover:bg-walker-dark"
+        >
+          <span>🗺️</span>
+          <span>Ouvrir la PawMap interactive</span>
+          <span>→</span>
+        </Link>
+      </div>
+
       <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3">
         {cats.map((c) => (
           <div key={c.label} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
