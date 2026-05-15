@@ -148,6 +148,25 @@ class LoginScreen extends StatelessWidget {
                             ),
                           ),
                           SizedBox(height: 16.h),
+                          // v23.1 part 138 — header avec un badge "Se connecter"
+                          // bien visible pour distinguer clairement de la page
+                          // d'inscription. Daniel : "distinguer ou s'inscrire
+                          // ou se connecter avec compte".
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: PoppinsText(
+                              text: 'title_login'.tr.toUpperCase(),
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primaryColor,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          SizedBox(height: 12.h),
                           PoppinsText(
                             text: 'welcome_back'.tr,
                             fontSize: 26.sp,
@@ -307,38 +326,74 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 18.h),
 
-                    // ── Sign up link (footer) ──
-                    // v22.4 — Row au lieu de Wrap pour forcer "Vous n'avez
-                    // pas de compte ? S'inscrire" sur UNE SEULE ligne (plus
-                    // de retour a la ligne disgracieux). GestureDetector au
-                    // lieu de TextButton pour eliminer le padding/decalage
-                    // vertical interne (le S'inscrire etait pousse vers le
-                    // bas par rapport a la phrase a cause du tapTarget).
-                    // Spacing reduit (18.h + 10.h au lieu de 32.h + 20.h)
-                    // pour que le footer reste visible sans scroll.
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        InterText(
-                          text: 'dont_have_account'.tr,
-                          fontSize: 13.sp,
-                          color: AppColors.textSecondary(context),
+                    // v23.1 part 138 — Daniel : "interface de connexion
+                    // c mélanger pas clair distinguer ou s'inscrire ou
+                    // se connecter avec compte". On remplace le mini-link
+                    // en bas par UN VRAI BLOC bien visible "Pas encore
+                    // de compte ?" + un BOUTON OUTLINED large
+                    // "Créer un compte" (vs le bouton bleu plein
+                    // "Se connecter" en haut). Les 2 actions sont
+                    // maintenant nettement différenciées.
+                    SizedBox(height: 8.h),
+                    // Séparateur visuel "compte"
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 16.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(16.r),
+                        border: Border.all(
+                          color: AppColors.primaryColor.withValues(alpha: 0.18),
+                          width: 1,
                         ),
-                        SizedBox(width: 6.w),
-                        GestureDetector(
-                          onTap: () => Get.to(() => const SignUpAsScreen()),
-                          behavior: HitTestBehavior.opaque,
-                          child: PoppinsText(
-                            text: 'sign_up'.tr,
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primaryColor,
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.person_add_alt_1_rounded,
+                                size: 18.sp,
+                                color: AppColors.primaryColor,
+                              ),
+                              SizedBox(width: 8.w),
+                              PoppinsText(
+                                text: 'dont_have_account'.tr,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary(context),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 10.h),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44.h,
+                            child: OutlinedButton(
+                              onPressed: () => Get.to(() => const SignUpAsScreen()),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: AppColors.primaryColor,
+                                  width: 1.5,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14.r),
+                                ),
+                                foregroundColor: AppColors.primaryColor,
+                              ),
+                              child: PoppinsText(
+                                text: 'sign_up'.tr,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    SizedBox(height: 10.h),
+                    SizedBox(height: 16.h),
                   ],
                 ),
               ),

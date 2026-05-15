@@ -32,8 +32,11 @@ class PostRepository {
   }
 
   /// Fetches media posts from the API.
+  /// v23.1 part 138 — Phase 3 audit P3-28 a ajouté requireAuth sur cette
+  /// route côté backend (v127) ; le client doit donc envoyer son JWT.
+  /// Avant le fix : 401 silencieux → liste vide → 'rien ne charge'.
   Future<List<PostModel>> getMediaPosts() async {
-    final response = await _apiClient.get('/posts/media', requiresAuth: false);
+    final response = await _apiClient.get('/posts/media', requiresAuth: true);
 
     // Handle response with posts array and count
     if (response is Map<String, dynamic>) {
@@ -58,8 +61,10 @@ class PostRepository {
   }
 
   /// Fetches all posts from the API (including posts without media).
+  /// v23.1 part 138 — Phase 3 audit P3-28 a ajouté requireAuth sur /posts
+  /// côté backend (v127) ; on bascule requiresAuth: true.
   Future<List<PostModel>> getAllPosts() async {
-    final response = await _apiClient.get('/posts', requiresAuth: false);
+    final response = await _apiClient.get('/posts', requiresAuth: true);
 
     // Handle response with posts array and count
     if (response is Map<String, dynamic>) {

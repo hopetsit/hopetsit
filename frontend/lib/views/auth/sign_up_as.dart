@@ -32,25 +32,47 @@ class SignUpAsScreen extends StatelessWidget {
               children: [
                 SizedBox(height: 8.h),
                 BackButton(color: AppColors.textPrimary(context)),
-                SizedBox(height: 24.h),
+                SizedBox(height: 16.h),
+                // v23.1 part 138 — badge "Inscription" pour matcher le
+                // badge "Connexion" du LoginScreen et bien distinguer
+                // les 2 flows.
+                Center(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: PoppinsText(
+                      text: 'sign_up'.tr.toUpperCase(),
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryColor,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16.h),
                 Center(
                   child: PoppinsText(
-                    text: 'sign_up'.tr,
-                    fontSize: 28.sp,
+                    text: 'sign_up_as_subtitle'.tr,
+                    fontSize: 24.sp,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary(context),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 SizedBox(height: 8.h),
                 Center(
                   child: InterText(
-                    text: 'sign_up_as_subtitle'.tr,
-                    fontSize: 15.sp,
+                    text: 'Choisis ton type de compte pour commencer.',
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
                     color: AppColors.textSecondary(context),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                SizedBox(height: 32.h),
+                SizedBox(height: 28.h),
                 _RoleCard(
                   image: AppImages.petOwner,
                   titleKey: 'role_pet_owner',
@@ -77,7 +99,34 @@ class SignUpAsScreen extends StatelessWidget {
                   accentColor: AppColors.greenColor,
                   onTap: () => Get.off(() => SignUpScreen(userType: 'pet_walker')),
                 ),
-                SizedBox(height: 32.h),
+                SizedBox(height: 24.h),
+                // v23.1 part 138 — lien vers login si l'utilisateur arrive
+                // ici par erreur (avait déjà un compte).
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      InterText(
+                        text: 'Déjà un compte ?',
+                        fontSize: 13.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      SizedBox(width: 6.w),
+                      GestureDetector(
+                        onTap: () => Get.back(),
+                        behavior: HitTestBehavior.opaque,
+                        child: PoppinsText(
+                          text: 'title_login'.tr,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 24.h),
               ],
             ),
           ),
