@@ -342,31 +342,31 @@ class WalkerProfileScreen extends StatelessWidget {
   Widget _buildQuickActions(BuildContext context) {
     return Row(
       children: [
-        // v19.1.3 — "Mes revenus" replaced by "Mon portefeuille" (wallet).
+        // v23.1 part 143 — variants outlined uniformes (cf sitter_profile).
         _quickAction(
           context,
-          icon: Icons.account_balance_wallet_rounded,
+          icon: Icons.account_balance_wallet_outlined,
           label: 'wallet_menu_title'.tr,
           onTap: () => Get.to(() => const WalletScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
-          icon: Icons.calendar_month_rounded,
+          icon: Icons.calendar_today_outlined,
           label: 'profile_quick_calendar'.tr,
           onTap: () => Get.to(() => const AvailabilityCalendarScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
-          icon: Icons.rocket_launch_rounded,
+          icon: Icons.rocket_launch_outlined,
           label: 'profile_quick_boost_shop'.tr,
           onTap: () => Get.to(() => const CoinShopScreen()),
         ),
         SizedBox(width: 8.w),
         _quickAction(
           context,
-          icon: Icons.account_balance_rounded,
+          icon: Icons.account_balance_outlined,
           label: 'profile_quick_iban'.tr,
           onTap: () => Get.to(() => const IbanSetupScreen()),
         ),

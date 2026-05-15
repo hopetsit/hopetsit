@@ -738,44 +738,24 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       ...postsController.posts,
                     ];
 
+                    // v23.1 part 143 — Daniel : "je veux que on vois les
+                    // filtre pres de chez moi constament". Avant : quand
+                    // combinedPosts.isEmpty, on retournait juste un
+                    // bouton refresh, masquant TOUTE la barre de filtres
+                    // (incluant le slider distance "Près de chez moi").
+                    // Maintenant : on garde le spinner pendant le chargement,
+                    // mais quand vide on LAISSE LE FLOW continuer pour
+                    // que la barre de filtres + le slider distance restent
+                    // affichés. L'empty state s'affichera plus bas (icône
+                    // inbox + bouton refresh), juste sous les filtres.
                     if (postsController.isLoading.value &&
                         combinedPosts.isEmpty) {
                       return const Center(child: CircularProgressIndicator());
                     }
-
-                    if (combinedPosts.isEmpty) {
-                      // v19.1.3 — role-colored refresh button (green walker,
-                      // blue sitter, orange owner fallback).
-                      final resolvedRole = Get.isRegistered<AuthController>()
-                          ? (Get.find<AuthController>().userRole.value ?? 'sitter')
-                          : 'sitter';
-                      final accent = resolvedRole == 'walker'
-                          ? const Color(0xFF16A34A)
-                          : resolvedRole == 'sitter'
-                              ? const Color(0xFF2563EB)
-                              : AppColors.primaryColor;
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'posts_empty_title'.tr,
-                              style: TextStyle(
-                                fontSize: 16.sp,
-                                color: AppColors.greyText,
-                              ),
-                            ),
-                            SizedBox(height: 16.h),
-                            CustomButton(
-                              onTap: () => postsController.refreshPosts(),
-                              title: 'common_refresh'.tr,
-                              width: Get.size.width / 2,
-                              bgColor: accent,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                    // Note : pas de early-return empty ici. Le flow continue
+                    // avec uniquePosts/rolePrefiltered/feedPosts/sortedFeed
+                    // potentiellement vides → barre de filtres visible,
+                    // empty state plus bas.
 
                     // Deduplicate by post id and keep stable ordering.
                     final seenIds = <String>{};

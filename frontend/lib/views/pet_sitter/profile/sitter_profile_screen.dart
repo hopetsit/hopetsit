@@ -323,17 +323,22 @@ class SitterProfileScreen extends StatelessWidget {
   Widget _buildSitterQuickActions(SitterProfileController controller, Color accent, Color accentLight) {
     return Row(
       children: [
-        // v19.1.3 — "Mes revenus" replaced by "Mon portefeuille" (wallet).
-        _sitterQuickAction(Icons.account_balance_wallet_rounded, 'wallet_menu_title'.tr, accent, accentLight,
+        // v23.1 part 143 — Daniel : 'icone tjr diforme'. Le FittedBox v140
+        // ne suffit pas car les icônes Material "_rounded" ont des
+        // densités visuelles différentes (wallet est large/filled,
+        // rocket est étroit, etc.). Solution : passer aux variants
+        // "_outlined" qui sont TOUS line-based avec un poids de trait
+        // uniforme, donc visuellement consistents.
+        _sitterQuickAction(Icons.account_balance_wallet_outlined, 'wallet_menu_title'.tr, accent, accentLight,
             () => Get.to(() => const WalletScreen())),
         SizedBox(width: 8.w),
-        _sitterQuickAction(Icons.calendar_month_rounded, 'profile_my_availability'.tr, accent, accentLight,
+        _sitterQuickAction(Icons.calendar_today_outlined, 'profile_my_availability'.tr, accent, accentLight,
             () => Get.to(() => const AvailabilityCalendarScreen())),
         SizedBox(width: 8.w),
-        _sitterQuickAction(Icons.rocket_launch_rounded, 'boost_shop_title'.tr, accent, accentLight,
+        _sitterQuickAction(Icons.rocket_launch_outlined, 'boost_shop_title'.tr, accent, accentLight,
             () => Get.to(() => const CoinShopScreen())),
         SizedBox(width: 8.w),
-        _sitterQuickAction(Icons.account_balance_rounded, 'iban_title'.tr, accent, accentLight,
+        _sitterQuickAction(Icons.account_balance_outlined, 'iban_title'.tr, accent, accentLight,
             () => Get.to(() => const IbanSetupScreen())),
       ],
     );
