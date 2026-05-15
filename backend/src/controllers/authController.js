@@ -597,9 +597,13 @@ const googleAuth = async (req, res) => {
     }
 
     // New user creation requires a role so we know which collection to use.
+    // v23.1 part 137 — fix Daniel : le front catch ce 400 avec code
+    // ROLE_REQUIRED pour rediriger l'utilisateur vers SignUpAs (choix
+    // owner/sitter/walker) au lieu de créer un Sitter par défaut.
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({
         error: `Role is required for new Google users and must be one of: ${VALID_ROLES.map((r) => `"${r}"`).join(', ')}.`,
+        code: 'ROLE_REQUIRED',
       });
     }
 
@@ -891,9 +895,12 @@ const appleAuth = async (req, res) => {
     }
 
     // New user creation requires a role so we know which collection to use.
+    // v23.1 part 137 — code ROLE_REQUIRED pour que le front détecte et
+    // redirige vers SignUpAs.
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({
         error: `Role is required for new Apple users and must be one of: ${VALID_ROLES.map((r) => `"${r}"`).join(', ')}.`,
+        code: 'ROLE_REQUIRED',
       });
     }
 

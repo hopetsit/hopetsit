@@ -11,6 +11,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
+// v23.1 part 137 — import nécessaire pour rediriger les new users Google
+// vers la page SignUpAs quand le backend répond 400 ROLE_REQUIRED.
+import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -339,11 +342,39 @@ class AuthController extends GetxController {
         return;
       }
 
-      // Send Firebase ID token (and optional role for new users) to backend
-      final response = await _authRepository.googleSignInWithIdToken(
-        idToken: firebaseIdToken,
-        role: roleToSend ?? 'sitter',
-      );
+      // Send Firebase ID token (and optional role for new users) to backend.
+      // v23.1 part 137 — fix Daniel : "la page choisir owner/walker/sitter
+      // a disparu". Avant, role était hardcodé à 'sitter' si pas fourni
+      // → le backend créait directement un Sitter doc, sans demander à
+      // l'utilisateur. Maintenant on envoie null pour les new users → le
+      // backend renvoie 400 ROLE_REQUIRED → on ouvre SignUpAs juste après.
+      final Map<String, dynamic> response;
+      try {
+        response = await _authRepository.googleSignInWithIdToken(
+          idToken: firebaseIdToken,
+          role: (roleToSend != null && roleToSend.isNotEmpty) ? roleToSend : null,
+        );
+      } on ApiException catch (e) {
+        // v23.1 part 137 — 400 ROLE_REQUIRED → l'utilisateur est nouveau,
+        // on doit lui faire choisir owner/sitter/walker AVANT de créer le
+        // doc en base. On le redirige vers SignUpAs. Le idToken Firebase
+        // reste valide ; quand il re-tap "Continue with Google" depuis le
+        // SignUpScreen choisi, ça revient ici avec un role défini.
+        final isRoleRequired = e.statusCode == 400 &&
+            (e.details is Map &&
+                ((e.details as Map)['code'] == 'ROLE_REQUIRED'));
+        if (isRoleRequired) {
+          CustomSnackbar.showInfo(
+            title: 'auth_google_signin_title'.tr,
+            message: 'Choisis ton type de compte (owner / sitter / walker).',
+          );
+          // ignore: use_build_context_synchronously
+          Get.offAll(() => const SignUpAsScreen());
+          return;
+        }
+        // Autre erreur : on remonte au catch global
+        rethrow;
+      }
 
       // Backend may return success with token/role/user without a "success" key
       final backendToken = _extractToken(response);
@@ -548,10 +579,28 @@ class AuthController extends GetxController {
         return;
       }
 
-      final response = await _authRepository.appleSignInWithIdToken(
-        idToken: firebaseIdToken,
-        role: roleToSend ?? 'sitter',
-      );
+      // v23.1 part 137 — idem Google : ne pas default 'sitter' si pas de
+      // role. Si new user → backend renvoie 400 ROLE_REQUIRED → SignUpAs.
+      final Map<String, dynamic> response;
+      try {
+        response = await _authRepository.appleSignInWithIdToken(
+          idToken: firebaseIdToken,
+          role: (roleToSend != null && roleToSend.isNotEmpty) ? roleToSend : null,
+        );
+      } on ApiException catch (e) {
+        final isRoleRequired = e.statusCode == 400 &&
+            (e.details is Map &&
+                ((e.details as Map)['code'] == 'ROLE_REQUIRED'));
+        if (isRoleRequired) {
+          CustomSnackbar.showInfo(
+            title: 'auth_apple_signin_title'.tr,
+            message: 'Choisis ton type de compte (owner / sitter / walker).',
+          );
+          Get.offAll(() => const SignUpAsScreen());
+          return;
+        }
+        rethrow;
+      }
 
       final backendToken = _extractToken(response);
       final isSuccess =
