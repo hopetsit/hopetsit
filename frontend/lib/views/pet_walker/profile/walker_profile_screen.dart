@@ -392,15 +392,21 @@ class WalkerProfileScreen extends StatelessWidget {
           ),
           child: Column(
             children: [
-              // v23.1 part 139 — fix icône tordue (idem sitter_profile_screen).
+              // v23.1 part 140 — fix icône tordue : FittedBox uniformise
+              // les 4 icônes Material qui ont des largeurs intrinsèques
+              // différentes (cf sitter_profile_screen v140).
               Container(
-                width: 36.w,
-                height: 36.w,
+                width: 44.w,
+                height: 44.w,
+                padding: EdgeInsets.all(10.w),
                 decoration: BoxDecoration(
                   color: _accentLight,
-                  borderRadius: BorderRadius.circular(10.r),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
-                child: Icon(icon, size: 18.w, color: _accent),
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Icon(icon, size: 24, color: _accent),
+                ),
               ),
               SizedBox(height: 6.h),
               InterText(

@@ -380,7 +380,24 @@ const signup = async (req, res) => {
     if (error.message && error.message.includes('currency must be either USD or EUR.')) {
       return res.status(400).json({ error: error.message });
     }
-    res.status(500).json({ error: 'Unable to create account. Please try again later.' });
+    // v23.1 part 140 — Daniel : "Échec de l'inscription unable to create
+    // account" sans détail → débugage impossible. On expose maintenant
+    // error.name + error.message côté client (Mongoose ValidationError
+    // messages sont safes : ils disent juste "Path `X` is required" ou
+    // "X must be ..."). Si c'est une erreur DB / système → fallback générique.
+    const safeName = error?.name || 'Error';
+    let detail = error?.message || 'Unable to create account.';
+    // Limit length to avoid leaking long stacks
+    detail = String(detail).slice(0, 500);
+    // Si Mongoose validation error, on liste les champs problématiques
+    if (error?.name === 'ValidationError' && error?.errors) {
+      const fields = Object.keys(error.errors).join(', ');
+      detail = `Validation failed on: ${fields}. ${detail}`;
+    }
+    res.status(500).json({
+      error: 'Unable to create account. Please try again later.',
+      details: `[${safeName}] ${detail}`,
+    });
   }
 };
 

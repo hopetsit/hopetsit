@@ -353,23 +353,27 @@ class SitterProfileScreen extends StatelessWidget {
             ),
           child: Column(
             children: [
-              // v23.1 part 139 — Daniel : "icone tordu page sitter mon
-              // portefeuille mon calendrier boutique et iban". Cause :
-              // l'icône était sized en .sp (sensible au textScaleFactor
-              // système — Samsung "Bold text" ou accessibilité grosse
-              // police), tandis que son container parent est en .w
-              // (fixe). Quand textScale > 1.0 l'icône grossit mais le
-              // container reste pareil → débordement → rendu écrasé.
-              // Fix : .w au lieu de .sp pour les icônes. Règle d'or
-              // ScreenUtil : .sp uniquement pour les textes.
+              // v23.1 part 140 — Daniel : "tjr difforme, 2 petites 2 plus
+              // grandes". Les 4 Material Icons (wallet / calendar / rocket
+              // / iban) ont des largeurs visuelles intrinsèquement
+              // différentes (wallet est large, rocket est étroit). À
+              // 18.w dans 36.w, les différences ressortent.
+              // Fix : container plus grand (44.w) + icône 24.w +
+              // FittedBox.contain qui force chaque icône à remplir
+              // proportionnellement le même espace visuel. Le résultat
+              // est uniforme quelle que soit l'icône.
               Container(
-                width: 36.w,
-                height: 36.w,
+                width: 44.w,
+                height: 44.w,
+                padding: EdgeInsets.all(10.w),
                 decoration: BoxDecoration(
                   color: accentLight,
-                  borderRadius: BorderRadius.circular(10.r),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
-                child: Icon(icon, size: 18.w, color: accent),
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Icon(icon, size: 24, color: accent),
+                ),
               ),
               SizedBox(height: 6.h),
               InterText(
