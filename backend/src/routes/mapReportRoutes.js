@@ -101,8 +101,26 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
     if (lat === null || lng === null) {
       return res.status(400).json({ error: 'Missing lat/lng.' });
     }
-    const maxDistance = Math.min(parseFloatOr(req.query.maxDistance, 3000), 30000);
-    const type = req.query.type;
+    // v23.1 part 211 — Daniel "ameliore et connecte aussi toute cette page"
+    // (Alertes). Le frontend Alertes envoyait radiusKm sans lat/lng → 400.
+    // On accepte maintenant 3 formats de radius pour back-compat :
+    //   - maxDistance : metres (legacy)
+    //   - radiusKm    : kilometres (nouveau)
+    //   - radiusMeters : metres (alias explicite)
+    // Plus un nouveau filtre temporel sinceHours (defaut illimite =
+    // expiresAt > now). Le frontend Alertes envoie sinceHours=48 par defaut.
+    let radiusMeters = parseFloatOr(req.query.maxDistance, null);
+    if (radiusMeters === null) {
+      const km = parseFloatOr(req.query.radiusKm, null);
+      if (km !== null) radiusMeters = km * 1000;
+    }
+    if (radiusMeters === null) radiusMeters = 3000;
+    const maxDistance = Math.min(radiusMeters, 100000); // cap 100km
+
+    const sinceHours = parseFloatOr(req.query.sinceHours, null);
+    // Accept type as comma-separated list (multi-type filter from /alerts).
+    const rawType = (req.query.type || '').toString();
+    const typeList = rawType.split(',').map((t) => t.trim()).filter(Boolean);
 
     const filter = {
       hidden: false,
@@ -115,16 +133,24 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
       },
     };
 
-    if (type && REPORT_TYPES.includes(type)) {
-      // Explicit type filter — free users may only request free types.
-      if (!req.isPremium && !FREE_REPORT_TYPES.includes(type)) {
+    if (sinceHours !== null && sinceHours > 0) {
+      filter.createdAt = { $gt: new Date(Date.now() - sinceHours * 3_600_000) };
+    }
+
+    if (typeList.length > 0 && typeList.every((t) => REPORT_TYPES.includes(t))) {
+      // v23.1 part 211 — multi-type filter (avant single-type seulement).
+      // Free users peuvent filtrer mais on intersect avec FREE_REPORT_TYPES.
+      const allowed = req.isPremium
+        ? typeList
+        : typeList.filter((t) => FREE_REPORT_TYPES.includes(t));
+      if (allowed.length === 0) {
         return res.status(402).json({
-          error: 'This report category is Premium-only.',
+          error: 'These report categories are Premium-only.',
           code: 'PREMIUM_REQUIRED',
           upgradeUrl: '/subscriptions/plans',
         });
       }
-      filter.type = type;
+      filter.type = { $in: allowed };
     } else if (!req.isPremium) {
       // No type filter + free user → restrict to free types.
       filter.type = { $in: FREE_REPORT_TYPES };
