@@ -98,6 +98,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       // duplicata supprimé ici (sinon le build Flutter throw a const-map
       // error → tous les APK v205-v208 livrés étaient en fait v204).
       'friends_tab_live': 'Live',
+      // v23.1 part 210 — nouveaux libelles onglet split Famille / Personnes en live
+      'friends_tab_people_live': 'Personnes en live',
+      'friends_people_live_empty_title': 'Personne en live',
+      'friends_people_live_empty_msg': 'Tes amis ou famille n\'ont pas activé le partage de position. Tu les verras ici dès qu\'ils activeront.',
+      'friends_people_live_subtitle': 'Position partagée en direct',
       'friends_tab_pets': 'Animaux',
       'friends_tab_messages': 'Messages',
       'friends_add_share_link': 'Partager mon lien d\'invitation',

@@ -118,12 +118,64 @@ class FriendController extends GetxController {
       // ex. ApiException: Already in state "pending". (id: 671abc)
       final match = RegExp(r'Already in state "(\w+)"').firstMatch(raw);
       if (match != null) {
+        // v23.1 part 210 — Daniel : "le bug amis persiste il me dis deja
+        // amis et jai personne ds la liste". AUTO-HEAL : si on detecte
+        // un ALREADY_* mais que la liste accepted est vide, c'est un
+        // friendship zombie. On purge automatiquement via reset-with
+        // puis on retente une fois. Si la 2eme demande passe, l'UX est
+        // seamless pour le user.
         final state = match.group(1);
+        await loadFriends();
+        if (friends.isEmpty) {
+          debugPrint(
+            '[Friends] ALREADY_$state but friends list EMPTY → auto-heal + retry',
+          );
+          final healed = await resetWith(targetId, targetRole);
+          if (healed) {
+            try {
+              final api = Get.find<ApiClient>();
+              await api.post(
+                '/friends/request',
+                body: {'targetId': targetId, 'targetRole': targetRole},
+                requiresAuth: true,
+              );
+              await loadRequests();
+              return '';
+            } catch (retryErr) {
+              debugPrint('[Friends] retry after reset failed: $retryErr');
+            }
+          }
+        }
         return state == 'accepted' ? 'ALREADY_ACCEPTED' : 'ALREADY_PENDING';
       }
       if (raw.contains('Cannot befriend yourself')) return 'SELF';
       // Sinon on renvoie le message brut (sans le préfixe ApiException:).
       return raw.replaceAll('ApiException:', '').trim();
+    }
+  }
+
+  /// v23.1 part 210 — Escape hatch pour le bug "deja amis + liste vide".
+  /// Supprime cote backend TOUS les docs Friendship entre user courant
+  /// et target, peu importe leur status. Permet de repartir d'une feuille
+  /// blanche apres un etat zombie.
+  /// targetRole doit etre 'owner' | 'sitter' | 'walker' (la route convertit
+  /// en PascalCase pour le model).
+  Future<bool> resetWith(String targetId, String targetRole) async {
+    try {
+      final api = Get.find<ApiClient>();
+      final targetModel = targetRole.isEmpty
+          ? 'Owner'
+          : (targetRole[0].toUpperCase() + targetRole.substring(1).toLowerCase());
+      await api.post(
+        '/friends/reset-with/$targetId/$targetModel',
+        body: {},
+        requiresAuth: true,
+      );
+      debugPrint('[Friends] resetWith $targetModel:$targetId — done');
+      return true;
+    } catch (e) {
+      debugPrint('[Friends] resetWith error: $e');
+      return false;
     }
   }
 

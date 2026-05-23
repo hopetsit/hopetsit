@@ -404,6 +404,11 @@ const Map<String, String> esESTranslations = <String, String>{
       'friends_tab_friends': 'Amigos',
       'friends_tab_requests': 'Solicitudes',
       'friends_tab_family': 'Familia',
+      // v23.1 part 210 — nueva pestaña "Personas en directo"
+      'friends_tab_people_live': 'En directo',
+      'friends_people_live_empty_title': 'Nadie en directo',
+      'friends_people_live_empty_msg': 'Tus amigos o familia no han activado el compartir posición. Los verás aquí en cuanto lo hagan.',
+      'friends_people_live_subtitle': 'Posición compartida en directo',
       'friends_invite_sent_title': 'Solicitud enviada',
       'friends_invite_sent_msg': 'Avisaremos a @name en cuanto acepte.',
       'friends_invite_err_already_pending': 'Ya hay una solicitud pendiente con esta persona.',

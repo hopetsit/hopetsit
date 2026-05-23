@@ -44,9 +44,12 @@ class FriendsScreen extends StatelessWidget {
     // demandes d'amis". On ajoute un onglet "Demandes" dédié (le widget
     // _RequestsTab existait déjà mais n'était jamais câblé). Le badge
     // rouge avec le count d'incomingRequests bouge de "Ajouter" vers
-    // "Demandes" (plus sémantique). Total : 6 onglets maintenant.
+    // "Demandes".
+    // v23.1 part 210 — Daniel mockup : "reorganise comme sur la photo".
+    // Famille et "Personnes en live" sont maintenant 2 onglets distincts
+    // (avant fusionnes dans "Live"). Total : 7 onglets.
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -167,17 +170,26 @@ class FriendsScreen extends StatelessWidget {
                 icon: const Icon(Icons.person_add_alt_1_rounded),
                 text: 'friends_tab_add'.tr,
               ),
-              // 3. Live — famille PawFollow + amis broadcastant en direct.
+              // v23.1 part 210 — Daniel mockup nouvelle organisation :
+              // 7 onglets au lieu de 6, avec Famille et "Personnes en live"
+              // SEPARES (au lieu de fusionnes dans l'ancien onglet "Live").
+              // 4. Famille — membres PawFollow Famille (jusqu'a 5).
+              Tab(
+                icon: const Icon(Icons.people_alt_rounded),
+                text: 'friends_tab_family'.tr,
+              ),
+              // 5. Personnes en live — amis/famille qui partagent leur
+              // position en temps reel (theirSharePosition == true).
               Tab(
                 icon: const Icon(Icons.gps_fixed_rounded),
-                text: 'friends_tab_live'.tr,
+                text: 'friends_tab_people_live'.tr,
               ),
-              // 4. Animaux — pets des amis/famille (sub-screen, fetch by friendsIds).
+              // 6. Animaux — pets des amis/famille (sub-screen, fetch by friendsIds).
               Tab(
                 icon: const Icon(Icons.pets_rounded),
                 text: 'friends_tab_pets'.tr,
               ),
-              // 5. Messages — chats avec mes amis (filtre client-side).
+              // 7. Messages — chats avec mes amis (filtre client-side).
               Tab(
                 icon: const Icon(Icons.chat_bubble_outline_rounded),
                 text: 'friends_tab_messages'.tr,
@@ -202,6 +214,9 @@ class FriendsScreen extends StatelessWidget {
                   _RequestsTab(controller: controller),
                   _AddFriendTab(controller: controller),
                   _FamilyTab(controller: controller),
+                  // v23.1 part 210 — nouvel onglet "Personnes en live"
+                  // (separe de Famille comme demande par Daniel mockup).
+                  _PeopleLiveTab(controller: controller),
                   _PetsTab(controller: controller),
                   _MessagesTab(controller: controller),
                 ],
@@ -1691,6 +1706,162 @@ class _AddFriendTabState extends State<_AddFriendTab> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// _PeopleLiveTab — v23.1 part 210. Onglet "Personnes en live" séparé de
+// "Famille" comme Daniel l'a demandé sur son mockup. Affiche les amis et
+// membres famille qui partagent leur position EN CE MOMENT
+// (theirSharePosition == true). Tap sur tile → PawMap centrée sur eux.
+// ─────────────────────────────────────────────────────────────────────────
+class _PeopleLiveTab extends StatelessWidget {
+  const _PeopleLiveTab({required this.controller});
+  final FriendController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: controller.refresh,
+      child: Obx(() {
+        // Filtre : amis acceptés qui partagent leur position avec moi.
+        final livePeople = controller.friends
+            .where((f) => f.status == 'accepted' && f.theirSharePosition)
+            .toList();
+        if (livePeople.isEmpty) {
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(24.w),
+            children: [
+              SizedBox(height: 40.h),
+              Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.gps_off_rounded,
+                        size: 56.sp, color: AppColors.greyText),
+                    SizedBox(height: 12.h),
+                    InterText(
+                      text: 'friends_people_live_empty_title'.tr,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                    ),
+                    SizedBox(height: 4.h),
+                    InterText(
+                      text: 'friends_people_live_empty_msg'.tr,
+                      fontSize: 13.sp,
+                      color: AppColors.greyText,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+        return ListView.separated(
+          padding: EdgeInsets.all(12.w),
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: livePeople.length,
+          separatorBuilder: (_, __) => SizedBox(height: 10.h),
+          itemBuilder: (_, i) {
+            final f = livePeople[i];
+            final other = f.other;
+            if (other == null) return const SizedBox.shrink();
+            // v23.1.190 — code couleur role (Owner=violet, Walker=vert,
+            // Sitter=bleu) pour le halo + accent.
+            final roleColor = {
+              'Owner': const Color(0xFF8B5CF6),
+              'Sitter': AppColors.sitterAccent,
+              'Walker': AppColors.greenColor,
+            }[other.model] ?? const Color(0xFF8B5CF6);
+            return InkWell(
+              borderRadius: BorderRadius.circular(16.r),
+              onTap: () => Get.to(() => const PawMapScreen()),
+              child: Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: AppColors.card(context),
+                  borderRadius: BorderRadius.circular(16.r),
+                  border: Border.all(
+                    color: roleColor.withValues(alpha: 0.30),
+                    width: 1.2,
+                  ),
+                  boxShadow: AppColors.cardShadow(context),
+                ),
+                child: Row(
+                  children: [
+                    Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 24.r,
+                          backgroundColor: roleColor.withValues(alpha: 0.18),
+                          backgroundImage:
+                              (other.avatar.isNotEmpty &&
+                                      other.avatar.startsWith('http'))
+                                  ? NetworkImage(other.avatar)
+                                  : null,
+                          child: other.avatar.isEmpty
+                              ? Icon(Icons.person,
+                                  color: roleColor, size: 24.sp)
+                              : null,
+                        ),
+                        // Petit dot vert pulsant indique "live now"
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 14.w,
+                            height: 14.w,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.card(context),
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InterText(
+                            text: other.name.isEmpty ? '—' : other.name,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary(context),
+                          ),
+                          SizedBox(height: 2.h),
+                          Row(
+                            children: [
+                              Icon(Icons.gps_fixed_rounded,
+                                  color: Colors.green, size: 12.sp),
+                              SizedBox(width: 4.w),
+                              InterText(
+                                text: 'friends_people_live_subtitle'.tr,
+                                fontSize: 11.sp,
+                                color: AppColors.textSecondary(context),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: AppColors.greyText, size: 22.sp),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }

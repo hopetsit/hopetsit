@@ -459,6 +459,11 @@ const Map<String, String> deDETranslations = <String, String>{
       'friends_tab_friends': 'Freunde',
       'friends_tab_requests': 'Anfragen',
       'friends_tab_family': 'Familie',
+      // v23.1 part 210 — neuer Tab "Personen live"
+      'friends_tab_people_live': 'Personen live',
+      'friends_people_live_empty_title': 'Niemand live',
+      'friends_people_live_empty_msg': 'Deine Freunde oder Familie haben die Positionsfreigabe nicht aktiviert. Du siehst sie hier, sobald sie es tun.',
+      'friends_people_live_subtitle': 'Position live geteilt',
       'friends_invite_sent_title': 'Anfrage gesendet',
       'friends_invite_sent_msg': 'Wir benachrichtigen @name, sobald die Anfrage angenommen wird.',
       'friends_invite_err_already_pending': 'Eine Anfrage ist bereits ausstehend bei dieser Person.',

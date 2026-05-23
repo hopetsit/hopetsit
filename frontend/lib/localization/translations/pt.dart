@@ -79,6 +79,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'friends_tab_friends': 'Amigos',
       'friends_tab_requests': 'Pedidos',
       'friends_tab_family': 'Família',
+      // v23.1 part 210 — nova aba "Pessoas em direto"
+      'friends_tab_people_live': 'Em direto',
+      'friends_people_live_empty_title': 'Ninguém em direto',
+      'friends_people_live_empty_msg': 'Os teus amigos ou família não ativaram a partilha de posição. Vê-los-ás aqui assim que o fizerem.',
+      'friends_people_live_subtitle': 'Posição partilhada em direto',
       'friends_invite_sent_title': 'Pedido enviado',
       'friends_invite_sent_msg': 'Avisaremos @name assim que aceitar.',
       'friends_invite_err_already_pending': 'Já existe um pedido pendente com esta pessoa.',

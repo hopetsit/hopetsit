@@ -469,6 +469,11 @@ const Map<String, String> itITTranslations = <String, String>{
       'friends_tab_friends': 'Amici',
       'friends_tab_requests': 'Richieste',
       'friends_tab_family': 'Famiglia',
+      // v23.1 part 210 — nuova scheda "Persone in diretta"
+      'friends_tab_people_live': 'In diretta',
+      'friends_people_live_empty_title': 'Nessuno in diretta',
+      'friends_people_live_empty_msg': 'I tuoi amici o la tua famiglia non hanno attivato la condivisione della posizione. Li vedrai qui appena la attiveranno.',
+      'friends_people_live_subtitle': 'Posizione condivisa in diretta',
       'friends_invite_sent_title': 'Richiesta inviata',
       'friends_invite_sent_msg': 'Avviseremo @name appena accetta.',
       'friends_invite_err_already_pending': 'C\'è già una richiesta in attesa con questa persona.',

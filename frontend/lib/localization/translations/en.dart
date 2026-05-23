@@ -97,6 +97,11 @@ const Map<String, String> enUSTranslations = <String, String>{
       // duplicata supprimé ici (sinon le build Flutter throw a const-map
       // error → tous les APK v205-v208 livrés étaient en fait v204).
       'friends_tab_live': 'Live',
+      // v23.1 part 210 — split Family / People live tabs
+      'friends_tab_people_live': 'People live',
+      'friends_people_live_empty_title': 'Nobody is live',
+      'friends_people_live_empty_msg': 'Your friends or family haven\'t enabled position sharing. You\'ll see them here as soon as they do.',
+      'friends_people_live_subtitle': 'Position shared live',
       'friends_tab_pets': 'Pets',
       'friends_tab_messages': 'Messages',
       'friends_add_share_link': 'Share my invite link',

@@ -154,6 +154,10 @@ router.get('/search', requireAuth, async (req, res) => {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const user = me(req);
+    // v23.1 part 210 — Daniel : "le bug amis persiste il me dis deja
+    // amis et jai personne ds la liste". On log la query + le nombre
+    // brut de friendships avant enrichment pour pouvoir DIAGNOSTIQUER
+    // exactement ce qui se passe en prod.
     const friendships = await Friendship.find({
       status: 'accepted',
       $or: [
@@ -163,6 +167,33 @@ router.get('/', requireAuth, async (req, res) => {
     })
       .sort({ acceptedAt: -1 })
       .lean();
+    // v23.1 part 210 — diagnostic log
+    logger.info(
+      `[friends/list] user=${user.model}:${user.id} accepted_count=${friendships.length}`,
+    );
+    if (friendships.length === 0) {
+      // Defensive : on vérifie aussi pending pour voir s'il y a une
+      // demande zombie en attente que le user n'a jamais accepté de
+      // son côté (cas Daniel : friendship en 'pending' ne remonte pas
+      // dans /friends mais POST /request retourne 409 "déjà").
+      const pendingCount = await Friendship.countDocuments({
+        status: 'pending',
+        $or: [
+          { requesterId: user.id, requesterModel: user.model },
+          { addresseeId: user.id, addresseeModel: user.model },
+        ],
+      });
+      const declinedCount = await Friendship.countDocuments({
+        status: 'declined',
+        $or: [
+          { requesterId: user.id, requesterModel: user.model },
+          { addresseeId: user.id, addresseeModel: user.model },
+        ],
+      });
+      logger.warn(
+        `[friends/list] EMPTY accepted but user has pending=${pendingCount} declined=${declinedCount} — possible zombie state`,
+      );
+    }
 
     const enriched = await Promise.all(
       friendships.map((f) => enrichFriendship(f, user.id)),
@@ -172,6 +203,43 @@ router.get('/', requireAuth, async (req, res) => {
     res.json({ friends: enriched });
   } catch (e) {
     logger.error('[friends/list]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /friends/reset-with/:targetId/:targetModel ────────────────────────
+// v23.1 part 210 — Daniel : "le bug amis persiste il me dis deja amis
+// et jai personne ds la liste, donc corrige ce putain de pb". Escape
+// hatch : supprime TOUTES les Friendships entre user courant et target,
+// peu importe leur status. Daniel peut ensuite recreer fresh.
+// Le frontend appelle cet endpoint quand l'utilisateur recoit "deja
+// amis" mais ne voit personne dans sa liste.
+router.post('/reset-with/:targetId/:targetModel', requireAuth, async (req, res) => {
+  try {
+    const user = me(req);
+    const targetId = req.params.targetId;
+    const targetModel = req.params.targetModel; // 'Owner' | 'Sitter' | 'Walker'
+    if (!['Owner', 'Sitter', 'Walker'].includes(targetModel)) {
+      return res.status(400).json({ error: 'Invalid target model.' });
+    }
+    const result = await Friendship.deleteMany({
+      $or: [
+        {
+          requesterId: user.id, requesterModel: user.model,
+          addresseeId: targetId, addresseeModel: targetModel,
+        },
+        {
+          requesterId: targetId, requesterModel: targetModel,
+          addresseeId: user.id, addresseeModel: user.model,
+        },
+      ],
+    });
+    logger.info(
+      `[friends/reset-with] user=${user.model}:${user.id} target=${targetModel}:${targetId} deleted=${result.deletedCount}`,
+    );
+    res.json({ deleted: result.deletedCount });
+  } catch (e) {
+    logger.error('[friends/reset-with]', e);
     res.status(500).json({ error: e.message });
   }
 });
