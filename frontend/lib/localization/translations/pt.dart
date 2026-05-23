@@ -169,6 +169,13 @@ const Map<String, String> ptPTTranslations = <String, String>{
       // Auto-filled from en.dart
       'common_no': 'No',
       'common_cancel': 'Cancelar',
+      // v23.1 part 209 — botão apagar conversa no separador Mensagens
+      'chat_delete_conv': 'Apagar conversa',
+      'chat_delete_conv_title': 'Apagar a conversa?',
+      'chat_delete_conv_msg': 'A conversa com @name e todas as suas mensagens serão eliminadas para ambas as partes. Esta ação é definitiva.',
+      'chat_delete_conv_confirm': 'Apagar',
+      'chat_delete_conv_done_title': 'Conversa apagada',
+      'chat_delete_conv_done_msg': 'A conversa e as suas mensagens foram eliminadas.',
       'common_delete': 'Excluir',
       'common_retry': 'Tentar novamente',
       'common_reject': 'Recusar',
@@ -1986,6 +1993,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'invoice_viewer_title': 'Fatura HoPetSit',
       'live_walk_title': 'Passeio em direto',
       'live_walk_no_active': 'Sem passeio ativo',
+      'live_walk_last_known': 'Última posição partilhada',
       'live_walk_loading': 'A procurar posição...',
       'live_walk_error': 'Não foi possível carregar o passeio',
     'walker_rate_invalid': 'Tarifa inválida',

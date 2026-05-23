@@ -290,6 +290,49 @@ router.post('/request', requireAuth, async (req, res) => {
         logger.info(
           `[friends/request] cleaned declined ${existing._id} — recreating fresh request`,
         );
+      } else if (existing.status === 'accepted') {
+        // v23.1 part 209 — Daniel re-rapporte le bug en v208 : "deja amis
+        // et ma liste damis et vide". Cas non couvert par v207 : la
+        // friendship est en status='accepted' mais l'addressee user a
+        // été supprimé (orphan). v201 a un placeholder "Utilisateur
+        // supprimé" qui DEVRAIT apparaitre côté UI, mais si le user est
+        // référencé par un id dont le doc est sous une autre collection
+        // ou simplement disparu sans trace, le placeholder lui-même
+        // peut foirer côté rendu (id vide → tile filtrée silencieusement
+        // par d'autres branches du widget).
+        //   Fix : on vérifie l'EXISTENCE du user en face. S'il existe
+        //   réellement → 409 "déjà amis" normal. Sinon → on cleanup le
+        //   doc orphan pour débloquer Daniel.
+        try {
+          const otherId = String(existing.requesterId) === String(user.id)
+            ? existing.addresseeId
+            : existing.requesterId;
+          const otherModel = String(existing.requesterId) === String(user.id)
+            ? existing.addresseeModel
+            : existing.requesterModel;
+          const OtherModel = otherModel === 'Walker' ? Walker
+            : otherModel === 'Sitter' ? Sitter
+            : Owner;
+          const otherUser = await OtherModel.findById(otherId)
+            .select('_id').lean();
+          if (!otherUser) {
+            await Friendship.findByIdAndDelete(existing._id);
+            logger.info(
+              `[friends/request] cleaned orphan accepted ${existing._id} (other ${otherModel}:${otherId} deleted) — recreating`,
+            );
+            // Tomber dans le flux normal de création ci-dessous.
+          } else {
+            return res
+              .status(409)
+              .json({ error: `Already in state "${existing.status}".`, id: existing._id });
+          }
+        } catch (orphanCheckErr) {
+          logger.warn('[friends/request] orphan check failed', orphanCheckErr);
+          // Defensive : on tombe sur le 409 classique si le check plante.
+          return res
+            .status(409)
+            .json({ error: `Already in state "${existing.status}".`, id: existing._id });
+        }
       } else if (existing.status === 'pending' && !iAmRequester) {
         // v23.1.191 — Daniel : "je ne peux pas ajouter demande amis sa
         // me dis jai deja une demande en attente ds amis je nai

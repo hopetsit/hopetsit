@@ -2058,11 +2058,71 @@ class _MessagesTabState extends State<_MessagesTab> {
                 ),
               ),
             ),
+          // v23.1 part 209 — Daniel : "rajoute un bouton ds message pour
+          // effacer la conversation". Bouton poubelle rouge à droite de
+          // chaque tile, ouvre une AlertDialog de confirmation, puis
+          // appelle DELETE /conversations/:id (hard delete messages +
+          // conversation).
+          if (convId.isNotEmpty) ...[
+            SizedBox(width: 6.w),
+            IconButton(
+              icon: Icon(Icons.delete_outline_rounded,
+                  color: Colors.red.shade400, size: 20.sp),
+              tooltip: 'chat_delete_conv'.tr,
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints(minWidth: 28.w, minHeight: 28.w),
+              onPressed: () => _confirmDeleteConv(context, convId, name),
+            ),
+          ],
         ],
       ),
         ), // Container
       ), // InkWell
     ); // Material
+  }
+
+  Future<void> _confirmDeleteConv(
+      BuildContext context, String convId, String contactName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('chat_delete_conv_title'.tr),
+        // v23.1 part 209 — utilise les cles existantes :
+        //   chat_delete_conv_title  (titre)
+        //   chat_delete_conv_msg    (corps avec @name placeholder)
+        //   chat_delete_conv_confirm (label bouton "Supprimer")
+        //   common_cancel           (label bouton "Annuler")
+        content: Text('chat_delete_conv_msg'.tr
+            .replaceAll('@name', contactName.isEmpty ? '—' : contactName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('common_cancel'.tr),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('chat_delete_conv_confirm'.tr),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final api = Get.find<ApiClient>();
+      await api.delete('/conversations/$convId', requiresAuth: true);
+      _chats.removeWhere((c) =>
+          (c['id'] ?? c['_id'] ?? '').toString() == convId);
+      CustomSnackbar.showSuccess(
+        title: 'chat_delete_conv_done_title'.tr,
+        message: 'chat_delete_conv_done_msg'.tr,
+      );
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
   }
 }
 

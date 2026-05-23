@@ -183,6 +183,10 @@ const Map<String, String> enUSTranslations = <String, String>{
       'chat_delete_conv_title': 'Delete conversation?',
       'chat_delete_conv_msg': 'The conversation with @name and all its messages will be deleted for both parties. This action is final.',
       'chat_delete_conv_confirm': 'Delete',
+      // v23.1 part 209 — tooltip + snackbar for the new "Delete chat" button
+      'chat_delete_conv': 'Delete conversation',
+      'chat_delete_conv_done_title': 'Conversation deleted',
+      'chat_delete_conv_done_msg': 'The conversation and its messages were deleted.',
       // v23.1.187 — "Around you" floating card.
       'pawmap_around_you': 'Around you',
       'pawmap_around_you_see_all': 'See all',
@@ -2356,6 +2360,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'invoice_viewer_title': 'HoPetSit Invoice',
       'live_walk_title': 'Live walk',
       'live_walk_no_active': 'No active walk',
+      // v23.1 part 209 — fallback when no active walk but last-known position is available
+      'live_walk_last_known': 'Last shared position',
       'live_walk_loading': 'Searching position...',
       'live_walk_error': 'Could not load walk',
     'walker_rate_invalid': 'Invalid rate',

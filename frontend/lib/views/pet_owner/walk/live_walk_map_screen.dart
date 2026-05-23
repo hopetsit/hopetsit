@@ -13,7 +13,29 @@ import 'package:hopetsit/widgets/app_text.dart';
 /// Sprint 6 step 2 — owner watches a live walk on a map.
 class LiveWalkMapScreen extends StatefulWidget {
   final String bookingId;
-  const LiveWalkMapScreen({super.key, required this.bookingId});
+  // v23.1 part 209 — Daniel : "le bouton suivre mon animal apparait mais
+  // jappuis dessus y me montre pas la map et le walker, ya une page
+  // blanche pas de balade". Cause : `_loadActive` interroge /walks/active
+  // qui ne retourne quelque chose QUE quand un walker a explicitement
+  // pressé "Démarrer la balade". Or, accepter une demande PawFollow ne
+  // crée PAS d'active walk → page vide.
+  // Fix : on accepte un fallback lat/lng (snapshot pris par le backend au
+  // moment de la création du message pawfollow_request — cf metadata
+  // lastLat/lastLng). Si pas d'active walk, on affiche QUAND MEME la map
+  // centrée sur cette position avec un pin "Dernière position connue".
+  // Le subscribe socket reste actif → si le walker démarre à broadcast,
+  // le pin se met à jour en temps réel.
+  final double? fallbackLat;
+  final double? fallbackLng;
+  final String? contactName;
+
+  const LiveWalkMapScreen({
+    super.key,
+    required this.bookingId,
+    this.fallbackLat,
+    this.fallbackLng,
+    this.contactName,
+  });
 
   @override
   State<LiveWalkMapScreen> createState() => _LiveWalkMapScreenState();
@@ -73,6 +95,20 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
         if (!mounted) return;
         setState(() => _status = 'live');
       } else {
+        // v23.1 part 209 — Daniel : "page blanche pas de balade" quand
+        // la demande PawFollow est acceptée mais que le walker n'a pas
+        // explicitement démarré une "balade". On bascule sur le fallback
+        // lat/lng snapshotté dans le metadata du message au lieu de
+        // montrer un écran vide.
+        if (widget.fallbackLat != null && widget.fallbackLng != null) {
+          _current = LatLng(widget.fallbackLat!, widget.fallbackLng!);
+          // On subscribe quand même au socket pour recevoir d'éventuelles
+          // updates si le walker démarre à broadcast après-coup.
+          _subscribeProviderBroadcastSocket();
+          if (!mounted) return;
+          setState(() => _status = 'live_walk_last_known'.tr);
+          return;
+        }
         // v23.1.162 — Daniel : 'no-active-walk' apparaissait brut. Cle i18n
         // 'live_walk_no_active' resolue via .tr (FR: 'Aucune balade en cours',
         // ES: 'Sin paseo activo', etc.).
@@ -83,6 +119,30 @@ class _LiveWalkMapScreenState extends State<LiveWalkMapScreen> {
       if (!mounted) return;
       setState(() => _status = '${'live_walk_error'.tr}: $e');
     }
+  }
+
+  // v23.1 part 209 — Subscribe à l'event socket que le walker/sitter émet
+  // quand il broadcaste sa position en mode PawFollow (hors active walk).
+  // Backend : voir live_map_service côté provider qui émet
+  // `provider.position` sur le canal user_<ownerId>.
+  void _subscribeProviderBroadcastSocket() {
+    final sock = Get.isRegistered<SocketService>()
+        ? Get.find<SocketService>()
+        : null;
+    final s = sock?.socket;
+    if (s == null) return;
+    s.off('provider.position');
+    s.on('provider.position', (data) {
+      if (data is Map && data['lat'] is num && data['lng'] is num) {
+        final next = LatLng(
+          (data['lat'] as num).toDouble(),
+          (data['lng'] as num).toDouble(),
+        );
+        if (!mounted) return;
+        setState(() => _current = next);
+        _mapController?.animateCamera(CameraUpdate.newLatLng(next));
+      }
+    });
   }
 
   void _subscribeSocket() {

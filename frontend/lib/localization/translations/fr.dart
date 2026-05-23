@@ -187,6 +187,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'chat_delete_conv_title': 'Supprimer la conversation ?',
       'chat_delete_conv_msg': 'La conversation avec @name et tous ses messages seront supprimés pour les deux parties. Cette action est définitive.',
       'chat_delete_conv_confirm': 'Supprimer',
+      // v23.1 part 209 — tooltip + snackbar pour le nouveau bouton
+      // "Effacer la conversation" dans l'onglet Messages.
+      'chat_delete_conv': 'Effacer la conversation',
+      'chat_delete_conv_done_title': 'Conversation supprimée',
+      'chat_delete_conv_done_msg': 'La conversation et ses messages ont été supprimés.',
       // v23.1.187 — "Autour de vous" floating card.
       'pawmap_around_you': 'Autour de vous',
       'pawmap_around_you_see_all': 'Voir tout',
@@ -2300,6 +2305,9 @@ const Map<String, String> frFRTranslations = <String, String>{
       'invoice_viewer_title': 'Facture HoPetSit',
       'live_walk_title': 'Balade en direct',
       'live_walk_no_active': 'Aucune balade en cours',
+      // v23.1 part 209 — fallback affichage quand pas d'active walk mais
+      // qu'on a une dernière position connue (snapshot pawfollow_request)
+      'live_walk_last_known': 'Dernière position partagée',
       'live_walk_loading': 'Recherche de la position...',
       'live_walk_error': 'Impossible de récupérer la balade',
       'post_incomplete_for_request': 'Cette publication n\'a pas toutes les informations nécessaires pour envoyer une demande directe.',

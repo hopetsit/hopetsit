@@ -195,12 +195,25 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     //   - Sinon → on resolve le booking via _onSuivreTap (fuzzy match
     //     sur le nom du contact, déjà utilisé pour le bouton "Suivre"
     //     du header). Au pire on ouvre la PawMap globale.
+    // v23.1 part 209 — Daniel : "page blanche pas de balade" quand on tap
+    // le bouton "Voir sur la carte". Cause : LiveWalkMapScreen ne montre
+    // rien si /walks/active retourne null (le walker n'a pas démarré de
+    // balade explicite). Fix : on passe AUSSI le snapshot lat/lng du
+    // metadata du message → LiveWalkMapScreen fait du fallback (cf v209
+    // dans live_walk_map_screen.dart).
     final bookingId = message.pawfollowBookingId;
+    final fallbackLat = message.pawfollowLastLat;
+    final fallbackLng = message.pawfollowLastLng;
     VoidCallback? openMap;
     if (message.pawfollowStatus == 'accepted') {
       openMap = () async {
         if (bookingId.isNotEmpty) {
-          Get.to(() => LiveWalkMapScreen(bookingId: bookingId));
+          Get.to(() => LiveWalkMapScreen(
+                bookingId: bookingId,
+                fallbackLat: fallbackLat,
+                fallbackLng: fallbackLng,
+                contactName: widget.contactName,
+              ));
         } else {
           // Fallback : on tente de retrouver le booking actif depuis le
           // contact name (même logique que _onSuivreTap header).
@@ -218,7 +231,12 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                   wantedName.contains(norm(b.sitter.name));
             });
             if (candidate != null) {
-              Get.to(() => LiveWalkMapScreen(bookingId: candidate.id));
+              Get.to(() => LiveWalkMapScreen(
+                    bookingId: candidate.id,
+                    fallbackLat: fallbackLat,
+                    fallbackLng: fallbackLng,
+                    contactName: widget.contactName,
+                  ));
             } else {
               // Ultime fallback : PawMap globale (l'owner verra ses
               // bookings actifs depuis la carte).
