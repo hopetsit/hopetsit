@@ -370,6 +370,36 @@ class FriendController extends GetxController {
     }
   }
 
+  /// v23.1.200 — Daniel : "bouton 💬 sur friend + family member" qui
+  /// ouvre un chat 1-to-1. POST /api/v1/conversations/friend crée ou
+  /// retourne la conversation friendChat existante. Backend autorise
+  /// si friendship 'accepted' OU même famille PawFollow.
+  /// Retourne le conversationId ou null en cas d'echec.
+  Future<String?> startFriendChat({
+    required String targetUserId,
+    required String targetUserRole,
+  }) async {
+    try {
+      final api = Get.find<ApiClient>();
+      final r = await api.post(
+        '/conversations/friend',
+        body: {
+          'targetUserId': targetUserId,
+          'targetUserRole': targetUserRole,
+        },
+        requiresAuth: true,
+      );
+      if (r is Map && r['conversation'] is Map) {
+        final c = Map<String, dynamic>.from(r['conversation'] as Map);
+        return (c['id'] ?? c['_id'])?.toString();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[Friends] startFriendChat error: $e');
+      return null;
+    }
+  }
+
   Future<bool> accept(String friendshipId) async {
     try {
       final api = Get.find<ApiClient>();

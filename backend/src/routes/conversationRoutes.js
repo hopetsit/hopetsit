@@ -11,6 +11,7 @@ const {
   startConversation,
   startConversationBySitter,
   startConversationByWalker,
+  startFriendConversation,
 } = require('../controllers/conversationController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { requirePaidBooking } = require('../middleware/chatAccess');
@@ -79,6 +80,16 @@ const upload = multer({
  *         description: Sitter not found
  */
 router.post('/start', requireAuth, requireRole('owner'), startConversation);
+
+// v23.1.200 — Daniel : "bouton 💬 sur friend + family member" pour ouvrir
+// un chat 1-to-1 ami/famille (any-role ↔ any-role, owner↔owner inclus).
+// POST /api/v1/conversations/friend body: { targetUserId, targetUserRole }
+router.post(
+  '/friend',
+  requireAuth,
+  requireRole('owner', 'sitter', 'walker'),
+  startFriendConversation,
+);
 
 /**
  * @swagger

@@ -54,9 +54,25 @@ async function fetchUserMini(id, modelName) {
 
 async function enrichFriendship(friendship, viewerId) {
   const isRequester = String(friendship.requesterId) === String(viewerId);
-  const other = isRequester
+  let other = isRequester
     ? await fetchUserMini(friendship.addresseeId, friendship.addresseeModel)
     : await fetchUserMini(friendship.requesterId, friendship.requesterModel);
+  // v23.1.201 — Daniel : "user voyait 'deja amis' mais liste vide".
+  // Cause : amitie pointait vers un compte supprime → other = null →
+  // filter le supprimait → friendship existait en DB mais fantome cote
+  // UI. Fix : on retourne un placeholder "Utilisateur supprimé" plutot
+  // que null pour que le frontend voie l'entree et puisse l'unfriend.
+  if (!other) {
+    other = {
+      id: '',
+      model: isRequester ? friendship.addresseeModel : friendship.requesterModel,
+      name: 'Utilisateur supprimé',
+      email: '',
+      avatar: '',
+      city: '',
+      deleted: true,
+    };
+  }
   const mySharePosition = isRequester
     ? friendship.requesterSharesPosition
     : friendship.addresseeSharesPosition;
@@ -151,7 +167,9 @@ router.get('/', requireAuth, async (req, res) => {
     const enriched = await Promise.all(
       friendships.map((f) => enrichFriendship(f, user.id)),
     );
-    res.json({ friends: enriched.filter((f) => f.other !== null) });
+    // v23.1.201 — on garde les orphelins (other.deleted) pour permettre
+    // l'unfriend depuis l'UI. Frontend les affiche en "Utilisateur supprimé".
+    res.json({ friends: enriched });
   } catch (e) {
     logger.error('[friends/list]', e);
     res.status(500).json({ error: e.message });
@@ -181,8 +199,10 @@ router.get('/requests', requireAuth, async (req, res) => {
     ]);
 
     res.json({
-      incoming: incomingEnriched.filter((f) => f.other !== null),
-      outgoing: outgoingEnriched.filter((f) => f.other !== null),
+      // v23.1.201 — on garde les orphelins pour qu'ils soient visibles
+      // et actionnables (refuse/annuler) cote frontend.
+      incoming: incomingEnriched,
+      outgoing: outgoingEnriched,
     });
   } catch (e) {
     logger.error('[friends/requests]', e);

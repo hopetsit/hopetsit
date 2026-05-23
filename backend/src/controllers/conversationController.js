@@ -84,13 +84,32 @@ const getChatList = async (req, res) => {
     // v18.7 — walker chat activé. La Conversation schema supporte XOR
     // sitter/walker depuis v18.6. On query sur le champ correspondant au
     // rôle courant.
+    // v23.1.200 — Daniel : "bouton 💬 sur friend + family member".
+    // On retourne maintenant 2 types de conversations dans la chat list :
+    //   1. Bookings (owner ↔ sitter/walker) — filtrage role classique
+    //   2. friendChats — toute conv friendChat où l'user est participant
     let query;
     if (normalizedRole === 'owner') {
-      query = { ownerId: userId };
+      query = {
+        $or: [
+          { ownerId: userId, friendChat: { $ne: true } },
+          { friendChat: true, 'participants.userId': userId },
+        ],
+      };
     } else if (normalizedRole === 'walker') {
-      query = { walkerId: userId };
+      query = {
+        $or: [
+          { walkerId: userId, friendChat: { $ne: true } },
+          { friendChat: true, 'participants.userId': userId },
+        ],
+      };
     } else {
-      query = { sitterId: userId };
+      query = {
+        $or: [
+          { sitterId: userId, friendChat: { $ne: true } },
+          { friendChat: true, 'participants.userId': userId },
+        ],
+      };
     }
 
     const conversations = await Conversation.find(query)
@@ -100,45 +119,80 @@ const getChatList = async (req, res) => {
       .populate('walkerId', 'name email avatar');
 
     // Enhance conversations with user details
-    const enhancedConversations = conversations.map((conversation) => {
-      const sanitized = sanitizeConversation(conversation);
+    const enhancedConversations = await Promise.all(
+      conversations.map(async (conversation) => {
+        const sanitized = sanitizeConversation(conversation);
+        let otherParty = null;
+        let unread = 0;
 
-      // Get the other party's information (not the current user)
-      let otherParty = null;
-      if (normalizedRole === 'owner') {
-        // Owner's other party = sitter or walker (whichever is set)
-        const provider = conversation.sitterId || conversation.walkerId;
-        if (provider) {
-          otherParty = {
-            id: provider._id?.toString() || '',
-            name: provider.name || '',
-            email: provider.email || '',
-            avatar: provider.avatar?.url || '',
-            role: conversation.sitterId ? 'sitter' : 'walker',
-          };
+        // v23.1.200 — friendChat : autre participant = celui qui n'est pas moi.
+        if (conversation.friendChat === true) {
+          const others = (conversation.participants || []).filter(
+            (p) => String(p.userId) !== String(userId),
+          );
+          const me = (conversation.participants || []).find(
+            (p) => String(p.userId) === String(userId),
+          );
+          unread = me?.unreadCount || 0;
+          const o = others[0];
+          if (o) {
+            const ROLE_MODELS = { Owner: 'owner', Sitter: 'sitter', Walker: 'walker' };
+            try {
+              const Model = require('../models/' + o.userModel);
+              const otherDoc = await Model.findById(o.userId)
+                .select('name email avatar').lean();
+              if (otherDoc) {
+                otherParty = {
+                  id: otherDoc._id?.toString() || '',
+                  name: otherDoc.name || '',
+                  email: otherDoc.email || '',
+                  avatar: otherDoc.avatar?.url || '',
+                  role: ROLE_MODELS[o.userModel] || 'owner',
+                };
+              } else {
+                otherParty = {
+                  id: '', name: 'Utilisateur supprimé',
+                  email: '', avatar: '', role: 'owner',
+                };
+              }
+            } catch (_) {/* defensive */}
+          }
+          return { ...sanitized, otherParty, unreadCount: unread };
         }
-      } else {
-        // Sitter/walker's other party = owner
-        const owner = conversation.ownerId;
-        if (owner) {
-          otherParty = {
-            id: owner._id?.toString() || '',
-            name: owner.name || '',
-            email: owner.email || '',
-            avatar: owner.avatar?.url || '',
-            role: 'owner',
-          };
-        }
-      }
 
-      return {
-        ...sanitized,
-        otherParty,
-        unreadCount: normalizedRole === 'owner'
-          ? conversation.ownerUnreadCount || 0
-          : conversation.sitterUnreadCount || 0,
-      };
-    });
+        // Branch booking classique (legacy).
+        if (normalizedRole === 'owner') {
+          const provider = conversation.sitterId || conversation.walkerId;
+          if (provider) {
+            otherParty = {
+              id: provider._id?.toString() || '',
+              name: provider.name || '',
+              email: provider.email || '',
+              avatar: provider.avatar?.url || '',
+              role: conversation.sitterId ? 'sitter' : 'walker',
+            };
+          }
+        } else {
+          const owner = conversation.ownerId;
+          if (owner) {
+            otherParty = {
+              id: owner._id?.toString() || '',
+              name: owner.name || '',
+              email: owner.email || '',
+              avatar: owner.avatar?.url || '',
+              role: 'owner',
+            };
+          }
+        }
+        return {
+          ...sanitized,
+          otherParty,
+          unreadCount: normalizedRole === 'owner'
+            ? conversation.ownerUnreadCount || 0
+            : conversation.sitterUnreadCount || 0,
+        };
+      })
+    );
 
     res.json({ 
       conversations: enhancedConversations,
@@ -198,10 +252,97 @@ const getConversationMessages = async (req, res) => {
   }
 };
 
+/**
+ * v23.1.200 — pipeline simplifie pour les chats friendChat (ami/famille).
+ * Pas de check booking-paye, pas de logique owner-sitter, juste :
+ *   1. Verifier sender est participant
+ *   2. Persister le message (Message model)
+ *   3. Update conversation.lastMessage + unreadCount du destinataire
+ *   4. Notif push au destinataire
+ *   5. Renvoyer la card sanitized
+ */
+const sendFriendMessage = async ({
+  conversation, senderId, senderRole, body, attachments,
+}) => {
+  const Message = require('../models/Message');
+  const isParticipant = (conversation.participants || []).some(
+    (p) => String(p.userId) === String(senderId),
+  );
+  if (!isParticipant) {
+    const err = new Error('Not a chat participant.');
+    err.status = 403;
+    throw err;
+  }
+  const msg = await Message.create({
+    conversationId: conversation._id,
+    senderId,
+    senderRole,
+    body: typeof body === 'string' ? body : '',
+    attachments: Array.isArray(attachments) ? attachments : [],
+    type: 'text',
+  });
+  // Update conversation : lastMessage + unreadCount du destinataire +1.
+  const preview = typeof body === 'string' && body.length > 0
+    ? body.slice(0, 120)
+    : (Array.isArray(attachments) && attachments.length > 0
+        ? '📎 Pièce jointe' : '');
+  const update = {
+    lastMessage: preview,
+    lastMessageAt: new Date(),
+  };
+  await Conversation.findByIdAndUpdate(conversation._id, update);
+  // Increment unreadCount du destinataire (chaque participant != sender).
+  await Conversation.updateOne(
+    { _id: conversation._id, 'participants.userId': { $ne: senderId } },
+    { $inc: { 'participants.$[other].unreadCount': 1 } },
+    { arrayFilters: [{ 'other.userId': { $ne: senderId } }] },
+  );
+  // Notif push au(x) destinataire(s).
+  try {
+    const { sendNotification } = require('../services/notificationSender');
+    for (const p of (conversation.participants || [])) {
+      if (String(p.userId) === String(senderId)) continue;
+      const roleLower = String(p.userModel || 'Owner').toLowerCase();
+      sendNotification({
+        userId: String(p.userId),
+        role: roleLower,
+        type: 'NEW_MESSAGE',
+        data: {
+          conversationId: String(conversation._id),
+          messageId: String(msg._id),
+          preview,
+        },
+      }).catch(() => {});
+    }
+  } catch (_) {/* defensive */}
+  return { sentMessage: { ...msg.toObject(), id: String(msg._id) } };
+};
+
 const createConversationMessage = async (req, res) => {
   try {
     const { id } = req.params;
     const { senderRole, senderId, body, attachments } = req.body;
+
+    // v23.1.200 — branch friendChat : pipeline simplifie (pas de check
+    // booking-paye, pas de owner-sitter logic). Verifie juste que le
+    // sender est participant + save + notif l'autre participant.
+    const convPre = await Conversation.findById(id)
+      .select('friendChat participants').lean();
+    if (convPre?.friendChat === true) {
+      const result = await sendFriendMessage({
+        conversation: convPre,
+        senderId,
+        senderRole,
+        body,
+        attachments,
+      });
+      emitToConversation(id, 'message:new', {
+        conversationId: id,
+        triggeredBy: { role: senderRole, userId: senderId },
+        ...result,
+      });
+      return res.status(201).json(result);
+    }
 
     const result = await sendMessage({
       conversationId: id,
@@ -827,6 +968,102 @@ const startConversationByWalker = async (req, res) => {
   }
 };
 
+/**
+ * v23.1.200 — Daniel : "bouton 💬 sur friend + family member pour
+ * ouvrir un chat 1-to-1 avec un ami". POST /api/v1/conversations/friend
+ *
+ * Body : { targetUserId, targetUserRole }
+ * Permission : friendship 'accepted' OU meme famille PawFollow.
+ * Behavior : cree ou retourne la conversation friendChat existante
+ * entre les 2 users (idempotent).
+ */
+const startFriendConversation = async (req, res) => {
+  try {
+    const myId = req.user?.id;
+    const myRole = req.user?.role;
+    if (!myId || !myRole) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    const { targetUserId, targetUserRole } = req.body || {};
+    if (!targetUserId || !targetUserRole) {
+      return res.status(400).json({
+        error: 'targetUserId and targetUserRole are required.',
+      });
+    }
+    if (String(targetUserId) === String(myId)) {
+      return res.status(400).json({ error: 'Cannot chat with yourself.' });
+    }
+
+    const ROLE_TO_MODEL = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' };
+    const myModel = ROLE_TO_MODEL[String(myRole).toLowerCase()];
+    const targetModel = ROLE_TO_MODEL[String(targetUserRole).toLowerCase()];
+    if (!myModel || !targetModel) {
+      return res.status(400).json({ error: 'Invalid role.' });
+    }
+
+    // Permission : friendship 'accepted' OU meme famille PawFollow.
+    const Friendship = require('../models/Friendship');
+    const friendship = await Friendship.findOne({
+      $or: [
+        {
+          requesterId: myId, requesterModel: myModel,
+          addresseeId: targetUserId, addresseeModel: targetModel,
+        },
+        {
+          requesterId: targetUserId, requesterModel: targetModel,
+          addresseeId: myId, addresseeModel: myModel,
+        },
+      ],
+      status: 'accepted',
+    }).lean();
+    let allowed = !!friendship;
+    if (!allowed) {
+      try {
+        const { isInSameFamily } = require('../models/UserSubscription');
+        allowed = await isInSameFamily(myId, targetUserId);
+      } catch (_) {/* defensive */}
+    }
+    if (!allowed) {
+      return res.status(403).json({
+        error: 'You must be friends or in the same PawFollow Family to chat.',
+        code: 'NOT_FRIENDS',
+      });
+    }
+
+    // Idempotent : cherche une conv friendChat existante avec ces 2
+    // participants (ordre indifferent).
+    const existing = await Conversation.findOne({
+      friendChat: true,
+      'participants.userId': { $all: [myId, targetUserId] },
+    });
+    if (existing) {
+      return res.status(200).json({
+        conversation: sanitizeConversation(existing),
+        existed: true,
+      });
+    }
+
+    const conv = new Conversation({
+      friendChat: true,
+      participants: [
+        { userId: myId, userModel: myModel, unreadCount: 0 },
+        { userId: targetUserId, userModel: targetModel, unreadCount: 0 },
+      ],
+      lastMessage: '',
+      lastMessageAt: new Date(),
+    });
+    await conv.save();
+
+    return res.status(201).json({
+      conversation: sanitizeConversation(conv),
+      existed: false,
+    });
+  } catch (e) {
+    logger.error('startFriendConversation error', e);
+    return res.status(500).json({ error: 'Unable to start chat.' });
+  }
+};
+
 module.exports = {
   listConversations,
   getChatList,
@@ -837,5 +1074,6 @@ module.exports = {
   startConversation,
   startConversationBySitter,
   startConversationByWalker,
+  startFriendConversation,
 };
 

@@ -173,6 +173,12 @@ const Map<String, String> frFRTranslations = <String, String>{
       'friends_pending_banner_title': 'Demandes en attente',
       'friends_pending_banner_friend_msg': 'veut être ton ami',
       'friends_pending_banner_family_msg': 'veut t\'ajouter à sa Famille PawFollow',
+      // v23.1.199 — Banner outgoing requests + bouton chat friend/family.
+      'friends_pending_banner_outgoing_msg': 'Demande en attente',
+      'friends_pending_banner_cancel': 'Annuler',
+      'friends_pending_banner_cancelled_title': 'Demande annulée',
+      'friends_pending_banner_cancelled_msg': 'La demande d\'amitié a été retirée.',
+      'friends_chat_failed': 'Impossible d\'ouvrir le chat. Vérifie que vous êtes amis ou dans la même Famille.',
       // v23.1.195 — Delete conversation entière (long-press chat list).
       'chat_delete_conv_title': 'Supprimer la conversation ?',
       'chat_delete_conv_msg': 'La conversation avec @name et tous ses messages seront supprimés pour les deux parties. Cette action est définitive.',
