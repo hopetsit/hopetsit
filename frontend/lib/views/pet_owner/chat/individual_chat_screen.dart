@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/tracking_request_sheet.dart';
 import 'package:hopetsit/views/pet_owner/walk/live_walk_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -186,13 +187,48 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
             .toLowerCase();
     // v23.1 part 206 — Daniel : "qd la demande accepte japuis sur le
     // bouton ds le chat et sa menvoi sur la geoloc du walker/sitter sur
-    // mon animal". Si la demande est accepted ET qu'on a un bookingId
-    // dans metadata, on passe un onOpenMap qui ouvre LiveWalkMapScreen
-    // → la carte affiche la position broadcastée par le provider.
+    // mon animal". Si la demande est accepted, on expose un onOpenMap.
+    // v23.1 part 207 — Daniel screenshot : le bouton n'apparaissait pas
+    // sur ses vieux messages accepted car bookingId vide dans metadata
+    // (messages créés AVANT le snapshot backend v200). Fallback :
+    //   - Si bookingId présent → LiveWalkMapScreen(bookingId)
+    //   - Sinon → on resolve le booking via _onSuivreTap (fuzzy match
+    //     sur le nom du contact, déjà utilisé pour le bouton "Suivre"
+    //     du header). Au pire on ouvre la PawMap globale.
     final bookingId = message.pawfollowBookingId;
     VoidCallback? openMap;
-    if (message.pawfollowStatus == 'accepted' && bookingId.isNotEmpty) {
-      openMap = () => Get.to(() => LiveWalkMapScreen(bookingId: bookingId));
+    if (message.pawfollowStatus == 'accepted') {
+      openMap = () async {
+        if (bookingId.isNotEmpty) {
+          Get.to(() => LiveWalkMapScreen(bookingId: bookingId));
+        } else {
+          // Fallback : on tente de retrouver le booking actif depuis le
+          // contact name (même logique que _onSuivreTap header).
+          try {
+            final repo = Get.find<OwnerRepository>();
+            final bookings = await repo.getMyBookings();
+            String norm(String s) =>
+                s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+            final wantedName = norm(widget.contactName);
+            final candidate = bookings.firstWhereOrNull((b) {
+              final pay = (b.paymentStatus ?? '').toLowerCase();
+              if (pay != 'paid') return false;
+              return norm(b.sitter.name) == wantedName ||
+                  norm(b.sitter.name).contains(wantedName) ||
+                  wantedName.contains(norm(b.sitter.name));
+            });
+            if (candidate != null) {
+              Get.to(() => LiveWalkMapScreen(bookingId: candidate.id));
+            } else {
+              // Ultime fallback : PawMap globale (l'owner verra ses
+              // bookings actifs depuis la carte).
+              Get.to(() => const PawMapScreen());
+            }
+          } catch (_) {
+            Get.to(() => const PawMapScreen());
+          }
+        }
+      };
     }
     return PawfollowRequestCard(
       messageId: message.id,

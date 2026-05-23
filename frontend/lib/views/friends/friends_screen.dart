@@ -1962,7 +1962,39 @@ class _MessagesTabState extends State<_MessagesTab> {
     final unread = (c['unreadCount'] ?? 0) is int
         ? (c['unreadCount'] as int)
         : 0;
-    return Container(
+    final convId = (c['id'] ?? c['_id'] ?? '').toString();
+    // v23.1 part 207 — Daniel : "debloque le chat dans l'onglet famille
+    // amis qu'on puisse lire ecrire effacer message entre amis". Avant :
+    // les tuiles étaient un Container sans onTap, on ne pouvait pas
+    // ouvrir la conversation. Maintenant : wrap dans Material+InkWell qui
+    // ouvre l'écran chat role-aware (owner → IndividualChatScreen, sinon
+    // SitterIndividualChatScreen).
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14.r),
+        onTap: () {
+          if (convId.isEmpty) return;
+          final myRole = (Get.find<GetStorage>()
+                  .read<String>(StorageKeys.userRole) ??
+              'owner')
+              .toLowerCase();
+          final contactName = name.isEmpty ? 'Utilisateur' : name;
+          if (myRole == 'sitter' || myRole == 'walker') {
+            Get.to(() => SitterIndividualChatScreen(
+                  conversationId: convId,
+                  contactName: contactName,
+                  contactImage: avatar,
+                ));
+          } else {
+            Get.to(() => IndividualChatScreen(
+                  conversationId: convId,
+                  contactName: contactName,
+                  contactImage: avatar,
+                ));
+          }
+        },
+        child: Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
@@ -2028,7 +2060,9 @@ class _MessagesTabState extends State<_MessagesTab> {
             ),
         ],
       ),
-    );
+        ), // Container
+      ), // InkWell
+    ); // Material
   }
 }
 

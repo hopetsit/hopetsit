@@ -275,6 +275,21 @@ router.post('/request', requireAuth, async (req, res) => {
         logger.info(
           `[friends/request] cleaned pending ${existing._id} (age=${ageDays.toFixed(1)}d, iAmRequester=${iAmRequester}) — will recreate`,
         );
+      } else if (existing.status === 'declined' || existing.status === 'blocked_pending_cleanup') {
+        // v23.1 part 207 — Daniel : "je nais tjr aucune demande damis ni
+        // damis et losque je demande sa me met erreur deja amis mais
+        // regarde les photos" + screen "Pas encore d'amis".
+        //   Cause racine : un doc Friendship reste en status='declined'
+        //   dans Mongo, le duplicate detector match TOUS les status →
+        //   "Déjà amis", mais GET /friends filtre status='accepted' →
+        //   liste vide. L'utilisateur est piégé dans un état zombie.
+        //   Fix : on supprime le doc declined pour permettre une fresh
+        //   re-demande qui passera dans le flux normal (pending →
+        //   accept ou auto-accept).
+        await Friendship.findByIdAndDelete(existing._id);
+        logger.info(
+          `[friends/request] cleaned declined ${existing._id} — recreating fresh request`,
+        );
       } else if (existing.status === 'pending' && !iAmRequester) {
         // v23.1.191 — Daniel : "je ne peux pas ajouter demande amis sa
         // me dis jai deja une demande en attente ds amis je nai
