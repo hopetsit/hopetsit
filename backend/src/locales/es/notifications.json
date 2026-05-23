@@ -143,6 +143,12 @@
     "emailSubject": "Solicitud de amistad — HoPetSit",
     "emailBody": "<p>Recibiste una nueva solicitud de amistad en HoPetSit. Abre la app para responder.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver solicitud</a></p>"
   },
+  "friend_request_accepted": {
+    "title": "Solicitud de amistad aceptada",
+    "body": "Tu solicitud de amistad ha sido aceptada. Ahora podéis chatear y compartir vuestra posición.",
+    "emailSubject": "Solicitud de amistad aceptada — HoPetSit",
+    "emailBody": "<p>¡Buenas noticias! Tu solicitud de amistad ha sido aceptada.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver mis amigos</a></p>"
+  },
   "live_tracking_request_received": {
     "title": "Solicitud de seguimiento en vivo",
     "body": "Una solicitud de seguimiento de posición en vivo acaba de llegar a tu chat.",
