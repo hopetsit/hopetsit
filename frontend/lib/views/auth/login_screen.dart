@@ -297,15 +297,25 @@ class LoginScreen extends StatelessWidget {
                     // ── Social buttons (Google + Apple on iOS) ──
                     Row(
                       children: [
+                        // v23.1 part 200 — Daniel : "le bouton Google et
+                        // Apple chargent en même temps quand on clique sur
+                        // un seul". Chaque bouton lit MAINTENANT son propre
+                        // flag (isGoogleLoginLoading / isAppleLoginLoading),
+                        // donc le spinner ne s'affiche que sur le bouton
+                        // pressé. Les deux désactivent quand même l'autre
+                        // pendant la requête (sécurité : évite un double
+                        // sign-in concurrent).
                         Expanded(
                           child: _SocialLoginButton(
                             onTap: controller.isLoading.value ||
-                                    controller.isSocialLoginLoading.value
+                                    controller.isGoogleLoginLoading.value ||
+                                    controller.isAppleLoginLoading.value
                                 ? null
                                 : () => controller.loginWithGoogle(),
                             imagePath: AppImages.googleIcon,
                             label: 'button_google'.tr,
                             isDark: isDark,
+                            isLoading: controller.isGoogleLoginLoading.value,
                           ),
                         ),
                         if (Platform.isIOS) ...[
@@ -313,12 +323,14 @@ class LoginScreen extends StatelessWidget {
                           Expanded(
                             child: _SocialLoginButton(
                               onTap: controller.isLoading.value ||
-                                      controller.isSocialLoginLoading.value
+                                      controller.isGoogleLoginLoading.value ||
+                                      controller.isAppleLoginLoading.value
                                   ? null
                                   : () => controller.loginWithApple(),
                               icon: Icons.apple,
                               label: 'button_apple'.tr,
                               isDark: isDark,
+                              isLoading: controller.isAppleLoginLoading.value,
                             ),
                           ),
                         ],
@@ -400,23 +412,10 @@ class LoginScreen extends StatelessWidget {
             ),
           ),
 
-          // ── Loading overlay ──
-          Obx(
-            () => controller.isSocialLoginLoading.value
-                ? Positioned.fill(
-                    child: Container(
-                      color: AppColors.blackColor.withValues(alpha: 0.3),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primaryColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
+          // v23.1 part 200 — overlay full-screen supprimé. Le spinner est
+          // maintenant inline dans le bouton pressé (Google OU Apple,
+          // indépendant). Plus de masque noir qui bloque toute l'UI.
+          const SizedBox.shrink(),
         ],
       ),
     );
@@ -487,6 +486,8 @@ class _SocialLoginButton extends StatelessWidget {
   final IconData? icon;
   final String label;
   final bool isDark;
+  // v23.1 part 200 — spinner par-bouton (Google ou Apple indépendant)
+  final bool isLoading;
 
   const _SocialLoginButton({
     this.onTap,
@@ -494,6 +495,7 @@ class _SocialLoginButton extends StatelessWidget {
     this.icon,
     required this.label,
     required this.isDark,
+    this.isLoading = false,
   });
 
   bool get _isApple => icon == Icons.apple;
@@ -529,31 +531,44 @@ class _SocialLoginButton extends StatelessWidget {
                 ],
         ),
         child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (imagePath != null)
-                Image.asset(
-                  imagePath!,
-                  height: 20.sp,
+          child: isLoading
+              // v23.1 part 200 — spinner inline (remplace icon+label) sur
+              // CE bouton uniquement quand son provider est en cours
+              ? SizedBox(
                   width: 20.sp,
-                  fit: BoxFit.cover,
+                  height: 20.sp,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isAppleButton ? Colors.white : AppColors.primaryColor,
+                    ),
+                  ),
                 )
-              else if (icon != null)
-                Icon(
-                  icon,
-                  size: 20.sp,
-                  color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (imagePath != null)
+                      Image.asset(
+                        imagePath!,
+                        height: 20.sp,
+                        width: 20.sp,
+                        fit: BoxFit.cover,
+                      )
+                    else if (icon != null)
+                      Icon(
+                        icon,
+                        size: 20.sp,
+                        color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
+                      ),
+                    SizedBox(width: 8.w),
+                    InterText(
+                      text: label,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
+                    ),
+                  ],
                 ),
-              SizedBox(width: 8.w),
-              InterText(
-                text: label,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-                color: isAppleButton ? Colors.white : AppColors.textPrimary(context),
-              ),
-            ],
-          ),
         ),
       ),
     );

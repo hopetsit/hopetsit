@@ -416,6 +416,14 @@ class _SitterIndividualChatScreenState
         myRole: myRole.toLowerCase(),
         onAccept: () => _respondPawfollow(message, 'accept'),
         onRefuse: () => _respondPawfollow(message, 'refuse'),
+        // v23.1 part 200 — snapshot booking pour la refonte mockup
+        petName: message.pawfollowPetName,
+        petPhoto: message.pawfollowPetPhoto,
+        startAt: message.pawfollowStartAt,
+        endAt: message.pawfollowEndAt,
+        lastLat: message.pawfollowLastLat,
+        lastLng: message.pawfollowLastLng,
+        serviceType: message.pawfollowServiceType,
       );
     }
     if (message.isSystem) {

@@ -53,6 +53,37 @@ class SitterChatMessage {
       (metadata['responderRole'] ?? '').toString();
   String get pawfollowRequesterRole =>
       (metadata['requesterRole'] ?? '').toString();
+  // v23.1 part 200 — snapshot booking pour la refonte mockup (parité avec
+  // ChatMessage côté owner). Le backend pousse ces champs dans le metadata
+  // du message pawfollow_request.
+  String get pawfollowPetName =>
+      (metadata['petName'] ?? '').toString();
+  String get pawfollowPetPhoto =>
+      (metadata['petPhoto'] ?? '').toString();
+  DateTime? get pawfollowStartAt {
+    final raw = metadata['startAt'];
+    if (raw == null || raw == '') return null;
+    return DateTime.tryParse(raw.toString());
+  }
+  DateTime? get pawfollowEndAt {
+    final raw = metadata['endAt'];
+    if (raw == null || raw == '') return null;
+    return DateTime.tryParse(raw.toString());
+  }
+  double? get pawfollowLastLat {
+    final raw = metadata['lastLat'];
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
+  }
+  double? get pawfollowLastLng {
+    final raw = metadata['lastLng'];
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
+  }
+  String get pawfollowServiceType =>
+      (metadata['serviceType'] ?? '').toString();
 }
 
 class SitterChatConversation {

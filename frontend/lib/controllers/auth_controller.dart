@@ -59,6 +59,20 @@ class AuthController extends GetxController {
   final UserRepository? _userRepository;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  // v23.1 part 200 — Daniel : "le bouton Google et Apple chargent en même
+  // temps quand on clique sur un seul". Avant : un seul flag partagé
+  // isSocialLoginLoading mettait le spinner sur LES DEUX boutons quand
+  // l'utilisateur cliquait sur Google (ou Apple). Maintenant : 2 flags
+  // indépendants. Le getter isSocialLoginLoading reste pour la rétrocompat
+  // avec sign_up_screen.dart + onboarding_screen.dart (qui veulent juste
+  // savoir si UN des deux est en cours, pour bloquer toute interaction).
+  final RxBool isGoogleLoginLoading = false.obs;
+  final RxBool isAppleLoginLoading = false.obs;
+  bool get isSocialLoginLoadingValue =>
+      isGoogleLoginLoading.value || isAppleLoginLoading.value;
+  // Backward-compat shim : sign_up_screen + onboarding_screen lisent
+  // `.isSocialLoginLoading.value`. On expose un RxBool qui reflète le OU
+  // des 2 flags. Il faut le mettre à jour à chaque changement.
   final RxBool isSocialLoginLoading = false.obs;
 
   GoogleSignInAccount? _user;
@@ -288,6 +302,8 @@ class AuthController extends GetxController {
   /// for new user creation. Use 'owner' or 'sitter'. If null, uses stored userRole.
   Future<void> loginWithGoogle({String? role}) async {
     try {
+      // v23.1 part 200 — flag indépendant Google (cf. déclaration plus haut)
+      isGoogleLoginLoading.value = true;
       isSocialLoginLoading.value = true;
       // v23.1 part 142 — Daniel : 'verifie pkoi sitter creer un compte
       // seul'. Avant : roleToSend = role ?? userRole.value → si un user
@@ -539,7 +555,9 @@ class AuthController extends GetxController {
         message: e.toString(),
       );
     } finally {
-      isSocialLoginLoading.value = false;
+      // v23.1 part 200 — clear Google flag + sync shim
+      isGoogleLoginLoading.value = false;
+      isSocialLoginLoading.value = isAppleLoginLoading.value;
     }
   }
 
@@ -548,6 +566,8 @@ class AuthController extends GetxController {
   /// Implemented exactly like loginWithGoogle.
   Future<void> loginWithApple({String? role}) async {
     try {
+      // v23.1 part 200 — flag indépendant Apple
+      isAppleLoginLoading.value = true;
       isSocialLoginLoading.value = true;
       // v23.1 part 142 — idem Google : pas de fallback userRole.value,
       // sinon un Sitter stocké d'une session précédente force la
@@ -715,7 +735,9 @@ class AuthController extends GetxController {
         message: 'common_error_generic',
       );
     } finally {
-      isSocialLoginLoading.value = false;
+      // v23.1 part 200 — clear Apple flag + sync shim
+      isAppleLoginLoading.value = false;
+      isSocialLoginLoading.value = isGoogleLoginLoading.value;
     }
   }
 

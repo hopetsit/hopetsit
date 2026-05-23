@@ -15,6 +15,7 @@ import 'package:hopetsit/views/pet_owner/chat/tracking_request_sheet.dart';
 import 'package:hopetsit/views/pet_owner/walk/live_walk_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:hopetsit/widgets/translate_message_button.dart';
 
@@ -169,134 +170,36 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   //  - Icône + texte explicatif
   //  - Statut courant (pending / accepted / refused)
   //  - Si pending ET je suis le responder → boutons Accepter / Refuser
+  // v23.1 part 200 — Daniel : "refonte carte chat pawfollow_request"
+  // (mockup avec pet card top + dates orange + section GPS + badge statut +
+  // boutons accept/refuse). Avant : on rendait une carte interne minimale
+  // ici. Maintenant : on délègue au widget partagé `PawfollowRequestCard`
+  // (qui est déjà utilisé côté sitter) — UI cohérente sur les 2 profils.
+  // Le widget consomme directement le snapshot enrichi par le backend
+  // (petName, petPhoto, startAt, endAt, lastLat/Lng, serviceType).
   Widget _buildPawfollowRequestCard(
     ChatMessage message,
     ChatController controller,
   ) {
-    final status = message.pawfollowStatus;
-    final myRole = (Get.find<GetStorage>().read<String>(StorageKeys.userRole) ??
-            'owner')
-        .toLowerCase();
-    final isResponder = message.pawfollowResponderRole == myRole;
-    final isRequester = message.pawfollowRequesterRole == myRole;
-
-    // Couleur selon rôle responder (rappel halo : vert walker, bleu sitter,
-    // orange owner).
-    Color accent;
-    final responderRole = message.pawfollowResponderRole;
-    if (responderRole == 'walker') {
-      accent = const Color(0xFF16A34A);
-    } else if (responderRole == 'sitter') {
-      accent = const Color(0xFF2563EB);
-    } else {
-      accent = AppColors.primaryColor;
-    }
-
-    String headerText;
-    if (isRequester) {
-      headerText = 'pawfollow_request_sent_header'.tr;
-    } else if (isResponder) {
-      headerText = message.pawfollowRequesterRole == 'owner'
-          ? 'pawfollow_request_owner_wants_to_follow'.tr
-          : 'pawfollow_request_provider_wants_to_share'.tr;
-    } else {
-      headerText = 'pawfollow_request_generic'.tr;
-    }
-
-    String statusBadge;
-    Color statusColor;
-    if (status == 'accepted') {
-      statusBadge = 'pawfollow_status_accepted'.tr;
-      statusColor = const Color(0xFF16A34A);
-    } else if (status == 'refused') {
-      statusBadge = 'pawfollow_status_refused'.tr;
-      statusColor = AppColors.errorColor;
-    } else {
-      statusBadge = 'pawfollow_status_pending'.tr;
-      statusColor = const Color(0xFFF59E0B);
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 16.w),
-      child: Container(
-        padding: EdgeInsets.all(14.w),
-        decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: accent.withValues(alpha: 0.35), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.location_on_rounded, color: accent, size: 22.sp),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: InterText(
-                    text: headerText,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 8.w, vertical: 3.h),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: InterText(
-                    text: statusBadge,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-              ],
-            ),
-            if (status == 'pending' && isResponder) ...[
-              SizedBox(height: 12.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.errorColor,
-                        side: BorderSide(color: AppColors.errorColor),
-                        padding: EdgeInsets.symmetric(vertical: 10.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      onPressed: () =>
-                          _respondPawfollow(message, 'refuse'),
-                      child: Text('pawfollow_refuse'.tr),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 10.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                      ),
-                      onPressed: () =>
-                          _respondPawfollow(message, 'accept'),
-                      child: Text('pawfollow_accept'.tr),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
+    final myRole =
+        (Get.find<GetStorage>().read<String>(StorageKeys.userRole) ?? 'owner')
+            .toLowerCase();
+    return PawfollowRequestCard(
+      messageId: message.id,
+      requesterRole: message.pawfollowRequesterRole,
+      responderRole: message.pawfollowResponderRole,
+      status: message.pawfollowStatus,
+      myRole: myRole,
+      onAccept: () => _respondPawfollow(message, 'accept'),
+      onRefuse: () => _respondPawfollow(message, 'refuse'),
+      // v23.1 part 200 — snapshot booking
+      petName: message.pawfollowPetName,
+      petPhoto: message.pawfollowPetPhoto,
+      startAt: message.pawfollowStartAt,
+      endAt: message.pawfollowEndAt,
+      lastLat: message.pawfollowLastLat,
+      lastLng: message.pawfollowLastLng,
+      serviceType: message.pawfollowServiceType,
     );
   }
 

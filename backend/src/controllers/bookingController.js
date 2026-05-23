@@ -4406,6 +4406,54 @@ const requestLiveTracking = async (req, res) => {
             direction = 'sitter_to_owner';
             responderRole = 'owner';
           }
+          // v23.1 part 200 — Daniel : "refonte carte chat pawfollow_request"
+          // (mockup avec pet card top + dates orange + section GPS + badge
+          // statut + boutons accept/refuse). Pour que la carte ait toutes
+          // les infos sans devoir refetch, on snapshot ici :
+          //   - petName / petPhoto    (carte pet en haut)
+          //   - startAt / endAt       (dates booking en orange)
+          //   - lastLat / lastLng     (dernière position GPS connue du
+          //                            provider, pour la mini-section GPS)
+          //   - serviceType           (label "Walk" / "Sitting" / etc.)
+          let petName = '';
+          let petPhoto = '';
+          let startAt = null;
+          let endAt = null;
+          let lastLat = null;
+          let lastLng = null;
+          let serviceType = '';
+          try {
+            const Pet = require('../models/Pet');
+            const petDoc = booking.petId
+              ? await Pet.findById(booking.petId).lean()
+              : null;
+            if (petDoc) {
+              petName = petDoc.name || '';
+              petPhoto = petDoc.image || petDoc.photo || petDoc.avatar || '';
+            }
+            startAt = booking.startDate || booking.dateStart || booking.from || null;
+            endAt = booking.endDate || booking.dateEnd || booking.to || null;
+            serviceType = booking.serviceType || booking.service || (booking.walkerId ? 'walk' : 'sitting');
+            // dernière position GPS broadcastée par le provider (champ
+            // standard updates plus haut dans la même fonction)
+            if (booking.walkerId) {
+              const Walker = require('../models/Walker');
+              const w = await Walker.findById(booking.walkerId).lean();
+              lastLat = w?.lastKnownLat ?? w?.location?.coordinates?.[1] ?? null;
+              lastLng = w?.lastKnownLng ?? w?.location?.coordinates?.[0] ?? null;
+            } else if (booking.sitterId) {
+              const Sitter = require('../models/Sitter');
+              const s = await Sitter.findById(booking.sitterId).lean();
+              lastLat = s?.lastKnownLat ?? s?.location?.coordinates?.[1] ?? null;
+              lastLng = s?.lastKnownLng ?? s?.location?.coordinates?.[0] ?? null;
+            }
+          } catch (snapshotErr) {
+            logger.warn(
+              '[booking.requestLiveTracking] snapshot enrichment failed',
+              snapshotErr,
+            );
+            // Defensive : on continue, la carte se contente du minimum.
+          }
           const msg = await Message.create({
             conversationId: conversation._id,
             senderId: userId,
@@ -4420,6 +4468,14 @@ const requestLiveTracking = async (req, res) => {
               requesterRole: userRole,
               responderRole,
               expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              // v23.1 part 200 — snapshot données pour le rendu de la carte
+              petName,
+              petPhoto,
+              startAt,
+              endAt,
+              lastLat,
+              lastLng,
+              serviceType,
             },
           });
           pawfollowMessageId = msg._id;

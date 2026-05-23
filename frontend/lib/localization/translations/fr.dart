@@ -474,6 +474,11 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawfollow_accepted_msg': 'Le suivi en direct est désormais actif.',
       'pawfollow_refused_title': 'Demande refusée',
       'pawfollow_refused_msg': 'La personne ne souhaite pas activer le suivi en direct.',
+      // v23.1 part 200 — refonte carte chat (mockup Daniel)
+      'pawfollow_service_walk': 'Promenade',
+      'pawfollow_service_sitting': 'Garde',
+      'pawfollow_gps_section_title': 'Position GPS partagée',
+      'pawfollow_gps_section_subtitle': 'Vous verrez sa position en temps réel dès l\'acceptation.',
       'friend_block': 'Bloquer',
       'friend_remove': 'Supprimer',
       'friend_block_confirm': 'Bloquer cet ami ?',

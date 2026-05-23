@@ -455,6 +455,11 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawfollow_accepted_msg': 'Live tracking is now active.',
       'pawfollow_refused_title': 'Request refused',
       'pawfollow_refused_msg': 'The person does not want to enable live tracking.',
+      // v23.1 part 200 — redesign of chat card (mockup Daniel)
+      'pawfollow_service_walk': 'Walk',
+      'pawfollow_service_sitting': 'Sitting',
+      'pawfollow_gps_section_title': 'GPS position shared',
+      'pawfollow_gps_section_subtitle': 'You will see their position in real time once accepted.',
       'friend_block': 'Block',
       'friend_remove': 'Remove',
       'friend_block_confirm': 'Block this friend?',

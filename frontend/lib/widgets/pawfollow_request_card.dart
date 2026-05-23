@@ -17,11 +17,13 @@
 //   - Footer "Transparence & confiance" (bandeau orange clair) qui apparait
 //     quand status='accepted' pour rappeler la sécurité.
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:intl/intl.dart';
 
 class PawfollowRequestCard extends StatelessWidget {
   const PawfollowRequestCard({
@@ -33,6 +35,15 @@ class PawfollowRequestCard extends StatelessWidget {
     required this.myRole,
     required this.onAccept,
     required this.onRefuse,
+    // v23.1 part 200 — snapshot booking pour le redesign mockup Daniel
+    // (carte pet + dates orange + section GPS).
+    this.petName,
+    this.petPhoto,
+    this.startAt,
+    this.endAt,
+    this.lastLat,
+    this.lastLng,
+    this.serviceType,
   });
 
   final String messageId;
@@ -42,6 +53,14 @@ class PawfollowRequestCard extends StatelessWidget {
   final String myRole; // current user role
   final VoidCallback onAccept;
   final VoidCallback onRefuse;
+  // v23.1 part 200 — données snapshot
+  final String? petName;
+  final String? petPhoto;
+  final DateTime? startAt;
+  final DateTime? endAt;
+  final double? lastLat;
+  final double? lastLng;
+  final String? serviceType;
 
   static const _orangeBrand = Color(0xFFEF4324);
   static const _orangeLight = Color(0xFFFFF1ED);
@@ -179,6 +198,149 @@ class PawfollowRequestCard extends StatelessWidget {
               ),
             ),
 
+            // ── v23.1 part 200 — Pet card (mockup top) ─────────────────
+            // Affichée si on a au moins le nom de l'animal. Tape du chat
+            // typique : avatar circulaire + nom + service ("Walk" /
+            // "Sitting" / etc.).
+            if ((petName ?? '').isNotEmpty) ...[
+              const Divider(height: 1, thickness: 0.6, color: Color(0xFFE5E7EB)),
+              Padding(
+                padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44.w,
+                      height: 44.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _orangeLight,
+                        border: Border.all(color: _orangeBrand, width: 1.5),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: (petPhoto ?? '').startsWith('http')
+                          ? CachedNetworkImage(
+                              imageUrl: petPhoto!,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Icon(
+                                Icons.pets_rounded,
+                                size: 22.sp,
+                                color: _orangeBrand,
+                              ),
+                            )
+                          : Icon(Icons.pets_rounded,
+                              size: 22.sp, color: _orangeBrand),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InterText(
+                            text: petName!,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary(context),
+                          ),
+                          if ((serviceType ?? '').isNotEmpty) ...[
+                            SizedBox(height: 2.h),
+                            InterText(
+                              text: _serviceLabel(serviceType!),
+                              fontSize: 11.sp,
+                              color: AppColors.textSecondary(context),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // ── v23.1 part 200 — Dates orange (mockup) ─────────────────
+            if (startAt != null || endAt != null) ...[
+              Padding(
+                padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 10.h),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 12.w, vertical: 10.h),
+                  decoration: BoxDecoration(
+                    color: _orangeLight,
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color: _orangeBrand.withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded,
+                          color: _orangeBrand, size: 16.sp),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: InterText(
+                          text: _formatDateRange(),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w700,
+                          color: _orangeBrand,
+                          maxLines: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            // ── v23.1 part 200 — Section GPS (mockup) ──────────────────
+            if (lastLat != null && lastLng != null) ...[
+              Padding(
+                padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 12.h),
+                child: Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36.w,
+                        height: 36.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _orangeBrand.withValues(alpha: 0.12),
+                        ),
+                        child: Icon(Icons.gps_fixed_rounded,
+                            color: _orangeBrand, size: 18.sp),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InterText(
+                              text: 'pawfollow_gps_section_title'.tr,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary(context),
+                            ),
+                            SizedBox(height: 2.h),
+                            InterText(
+                              text: 'pawfollow_gps_section_subtitle'.tr,
+                              fontSize: 10.sp,
+                              color: AppColors.textSecondary(context),
+                              maxLines: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
             // ── Bullets de rassurance (mockup : 3 cases avec check) ───
             if (status == 'pending' && isResponder) ...[
               const Divider(height: 1, thickness: 0.6, color: Color(0xFFE5E7EB)),
@@ -303,6 +465,33 @@ class PawfollowRequestCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // v23.1 part 200 — i18n service label depuis le snapshot backend
+  String _serviceLabel(String type) {
+    switch (type.toLowerCase()) {
+      case 'walk':
+      case 'walking':
+        return 'pawfollow_service_walk'.tr;
+      case 'sit':
+      case 'sitting':
+        return 'pawfollow_service_sitting'.tr;
+      default:
+        return type;
+    }
+  }
+
+  // v23.1 part 200 — formate startAt → endAt en localisant. Fallback
+  // intelligent : si juste startAt, on n'affiche que la date de début.
+  String _formatDateRange() {
+    final locale = Get.locale?.languageCode ?? 'fr';
+    final df = DateFormat('d MMM, HH:mm', locale);
+    if (startAt != null && endAt != null) {
+      return '${df.format(startAt!)}  →  ${df.format(endAt!)}';
+    }
+    if (startAt != null) return df.format(startAt!);
+    if (endAt != null) return df.format(endAt!);
+    return '';
   }
 
   Widget _bullet(BuildContext context, String text) {
