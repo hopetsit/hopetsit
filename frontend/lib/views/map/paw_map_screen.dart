@@ -33,7 +33,16 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 /// - FAB "Signaler" is Premium-gated: tapping when free opens the upsell
 ///   snackbar, tapping when Premium opens the CreateReportSheet.
 class PawMapScreen extends StatefulWidget {
-  const PawMapScreen({super.key});
+  // v23.1 part 213 — Daniel : "si tu clic dessus sa te montre sur la map"
+  // (alertes). On accepte un center initial pour atterrir centré sur un
+  // report précis. Null → comportement par défaut (centrer sur le user).
+  const PawMapScreen({
+    super.key,
+    this.initialLat,
+    this.initialLng,
+  });
+  final double? initialLat;
+  final double? initialLng;
 
   @override
   State<PawMapScreen> createState() => _PawMapScreenState();
@@ -1329,6 +1338,18 @@ class _PawMapScreenState extends State<PawMapScreen> {
                       ),
                       onMapCreated: (c) {
                         if (!_mapCtl.isCompleted) _mapCtl.complete(c);
+                        // v23.1 part 213 — Si initialLat/Lng passés (clic
+                        // sur une alerte), on anime la camera dessus
+                        // immediatement (avant le _recenterOnUser auto).
+                        final lat = widget.initialLat;
+                        final lng = widget.initialLng;
+                        if (lat != null && lng != null) {
+                          c.animateCamera(
+                            CameraUpdate.newCameraPosition(
+                              CameraPosition(target: LatLng(lat, lng), zoom: 16),
+                            ),
+                          );
+                        }
                       },
                       onCameraMove: _onCameraMove,
                       onCameraIdle: _scheduleReload,

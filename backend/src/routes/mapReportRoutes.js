@@ -122,9 +122,15 @@ router.get('/nearby', requireAuth, attachPremium, async (req, res) => {
     const rawType = (req.query.type || '').toString();
     const typeList = rawType.split(',').map((t) => t.trim()).filter(Boolean);
 
+    // v23.1 part 213 — Daniel : "j'ai signaler et ya ecrit aucune alerte".
+    // Bug racine : si un report a ete cree sans GPS dispo, l'ancien code
+    // fallback a coordinates=[0,0] (off cote Afrique). Daniel a Paris,
+    // radius=25km → distance ~5000 km → report invisible.
+    // Fix : on exclut explicitement les reports a (0,0) dans /nearby.
     const filter = {
       hidden: false,
       expiresAt: { $gt: new Date() },
+      'location.coordinates': { $ne: [0, 0] },
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [lng, lat] },
@@ -207,6 +213,15 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
     const lngNum = parseFloatOr(lng, null);
     if (latNum === null || lngNum === null) {
       return res.status(400).json({ error: 'lat and lng are required.' });
+    }
+    // v23.1 part 213 — Daniel : "j'ai signaler et ya ecrit aucune alerte".
+    // Refus a la source : on ne stocke PAS un report a (0,0) qui sera
+    // ensuite invisible dans le radius de l'utilisateur.
+    if (latNum === 0 && lngNum === 0) {
+      return res.status(400).json({
+        error: 'Invalid coordinates (0, 0). Please enable GPS or pick a location on the map.',
+        code: 'INVALID_LOCATION',
+      });
     }
 
     // Session v3.3 — moderate the attached photo before persisting. Vision

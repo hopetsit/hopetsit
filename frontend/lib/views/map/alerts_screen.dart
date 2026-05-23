@@ -21,6 +21,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -233,18 +234,30 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Future<void> _signalLostPet() async {
-    LatLng point = _myPos.value ?? const LatLng(0, 0);
-    if (_myPos.value == null) {
+    // v23.1 part 213 — Daniel : "j'ai signaler et ya ecrit aucune alerte".
+    // Cause : ancien code fallback a LatLng(0,0) si pas de GPS → report
+    // stocke off-Afrique → invisible dans le radius user. Maintenant :
+    // si pas de GPS valide, on AFFICHE UNE ERREUR au lieu de creer
+    // un report fantome.
+    LatLng? point = _myPos.value;
+    if (point == null) {
       try {
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.high,
-            timeLimit: Duration(seconds: 6),
+            timeLimit: Duration(seconds: 8),
           ),
         );
         point = LatLng(pos.latitude, pos.longitude);
         _myPos.value = point;
-      } catch (_) {/* fallback (0,0) */}
+      } catch (_) {/* on tombera sur le check ci-dessous */}
+    }
+    if (point == null || (point.latitude == 0 && point.longitude == 0)) {
+      CustomSnackbar.showError(
+        title: 'alerts_no_gps_title'.tr,
+        message: 'alerts_no_gps_msg'.tr,
+      );
+      return;
     }
     if (!mounted) return;
     await CreateReportSheet.show(
@@ -946,7 +959,26 @@ class _ReportCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sev = _severity();
     final emoji = ReportTypes.emoji(report.type);
-    return Container(
+    // v23.1 part 213 — Daniel : "si tu clic dessus sa te montre sur la
+    // map". Wrap dans Material + InkWell qui navigue vers PawMap centree
+    // sur les coordonnees du report.
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14.r),
+        onTap: () {
+          if (report.latitude == 0 && report.longitude == 0) {
+            // Defensive : un report a (0,0) est invalide → on n'ouvre
+            // pas la map (eviterait de zoomer au large de l'Afrique).
+            Get.to(() => const PawMapScreen());
+            return;
+          }
+          Get.to(() => PawMapScreen(
+                initialLat: report.latitude,
+                initialLng: report.longitude,
+              ));
+        },
+        child: Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
@@ -1040,6 +1072,8 @@ class _ReportCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+        ), // Container
+      ), // InkWell
+    ); // Material
   }
 }

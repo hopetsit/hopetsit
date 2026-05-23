@@ -27,6 +27,8 @@ const Map<String, String> esESTranslations = <String, String>{
       'alerts_info_nearby_msg': 'Reportes a tu alrededor en tiempo real',
       'alerts_info_smart_title': 'Notificaciones inteligentes',
       'alerts_info_smart_msg': 'Recibe avisos de nuevas alertas',
+      'alerts_no_gps_title': 'Posicion GPS requerida',
+      'alerts_no_gps_msg': 'Activa la localizacion para reportar una alerta. Sin GPS valido, tu reporte no podria verse por los demas.',
       // v23.1 part 209 — bouton effacer conversation dans onglet Messages
       'chat_delete_conv': 'Borrar conversación',
       'chat_delete_conv_title': '¿Borrar la conversación?',

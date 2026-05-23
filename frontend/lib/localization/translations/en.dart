@@ -153,6 +153,9 @@ const Map<String, String> enUSTranslations = <String, String>{
       'alerts_info_nearby_msg': 'Reports around you in real time',
       'alerts_info_smart_title': 'Smart notifications',
       'alerts_info_smart_msg': 'Get notified of new alerts',
+      // v23.1 part 213 — refuse to create a report without valid GPS
+      'alerts_no_gps_title': 'GPS position required',
+      'alerts_no_gps_msg': 'Enable location to report an alert. Without a valid GPS, your report would be invisible to others.',
       'common_clear': 'Clear',
       'report_screen_title': 'Report',
       'report_what_to_report': 'What do you want to report?',
