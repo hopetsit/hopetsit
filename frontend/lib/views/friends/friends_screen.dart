@@ -12,6 +12,7 @@ import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/blocked_users_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:get_storage/get_storage.dart';
@@ -39,8 +40,13 @@ class FriendsScreen extends StatelessWidget {
     // Animaux / Messages (au lieu des anciens 3 Mes amis / Demandes /
     // Famille). Les demandes pending sont desormais gerees inline dans
     // la cloche notif (v183 : NotificationCard accept/refuse buttons).
+    // v23.1 part 205 — Daniel : "peut-etre rajouter Demande pour voir les
+    // demandes d'amis". On ajoute un onglet "Demandes" dédié (le widget
+    // _RequestsTab existait déjà mais n'était jamais câblé). Le badge
+    // rouge avec le count d'incomingRequests bouge de "Ajouter" vers
+    // "Demandes" (plus sémantique). Total : 6 onglets maintenant.
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -118,16 +124,16 @@ class FriendsScreen extends StatelessWidget {
               // 1. Mes amis — accepted friendships + status + distance.
               Tab(icon: const Icon(Icons.people_rounded),
                   text: 'friends_tab_friends'.tr),
-              // 2. Ajouter — search by name/email + invite link (avec
-              // un badge si demandes pending pour ne pas perdre le
-              // count visible).
+              // v23.1 part 205 — Tab 2 : Demandes (dedie). Le badge rouge
+              // count d'incoming requests vit ici (plus semantique que
+              // sur Ajouter). _RequestsTab cable plus bas dans TabBarView.
               Tab(
                 icon: Obx(() {
                   final n = controller.incomingRequests.length;
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      const Icon(Icons.person_add_alt_1_rounded),
+                      const Icon(Icons.mark_email_unread_rounded),
                       if (n > 0)
                         Positioned(
                           right: -6,
@@ -154,6 +160,11 @@ class FriendsScreen extends StatelessWidget {
                     ],
                   );
                 }),
+                text: 'friends_tab_requests'.tr,
+              ),
+              // 3. Ajouter — search by name/email + invite link.
+              Tab(
+                icon: const Icon(Icons.person_add_alt_1_rounded),
                 text: 'friends_tab_add'.tr,
               ),
               // 3. Live — famille PawFollow + amis broadcastant en direct.
@@ -186,6 +197,9 @@ class FriendsScreen extends StatelessWidget {
               child: TabBarView(
                 children: [
                   _FriendsTab(controller: controller),
+                  // v23.1 part 205 — onglet Demandes cable (Daniel
+                  // "peut-etre rajouter Demande pour voir les demandes")
+                  _RequestsTab(controller: controller),
                   _AddFriendTab(controller: controller),
                   _FamilyTab(controller: controller),
                   _PetsTab(controller: controller),
@@ -426,7 +440,21 @@ class _FriendTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final other = friendship.other!;
+    // v23.1 part 205 — Daniel : "amis ajouter ma liste est vide". Root
+    // cause : `friendship.other!` crashait silencieusement la tile entière
+    // dès qu'un orphelin (utilisateur supprimé) remontait sans `other`,
+    // ce qui pouvait planter la liste complète à l'affichage. On rend la
+    // chose null-safe : si other manque, on synthétise un FriendProfile
+    // placeholder "Utilisateur supprimé" (id vide → désactive le tap
+    // suivi + le chat 💬 plus bas).
+    final other = friendship.other ??
+        const FriendProfile(
+          id: '',
+          model: 'Owner',
+          name: 'Utilisateur supprimé',
+          avatar: '',
+          city: '',
+        );
     // v23.1.190 — Daniel : "le plus facile pour le code couleur famille
     // et amis en violet walker en vert sitter en bleu". Owner = friend /
     // famille → violet (cohérent avec la carte "Famille & Amis" du
@@ -531,30 +559,20 @@ class _FriendTile extends StatelessWidget {
           // v23.1.200 — Daniel : "bouton 💬 sur friend" qui ouvre un
           // chat 1-to-1 avec cet ami. Cache si other.deleted (compte
           // supprime) ou other.id vide (defensive v201).
+          // v23.1 part 205 — Daniel : "le chat dans l'onglet marche pas".
+          // Root cause : on naviguait TOUJOURS vers IndividualChatScreen
+          // (owner chat), même si le user courant est sitter/walker.
+          // Maintenant : on délègue à _openFriendChatRoleAware qui lit le
+          // rôle du user courant et navigue vers le bon écran.
           if (other.id.isNotEmpty)
             Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(20.r),
-                onTap: () async {
-                  final convId = await controller.startFriendChat(
-                    targetUserId: other.id,
-                    targetUserRole: other.model.toLowerCase(),
-                  );
-                  if (convId != null && convId.isNotEmpty) {
-                    Get.to(() => IndividualChatScreen(
-                          conversationId: convId,
-                          contactName: other.name.isEmpty
-                              ? 'Utilisateur' : other.name,
-                          contactImage: other.avatar,
-                        ));
-                  } else {
-                    CustomSnackbar.showError(
-                      title: 'common_error'.tr,
-                      message: 'friends_chat_failed'.tr,
-                    );
-                  }
-                },
+                onTap: () => _openFriendChatRoleAware(
+                  controller: controller,
+                  other: other,
+                ),
                 child: Container(
                   width: 36.w, height: 36.w,
                   decoration: BoxDecoration(
@@ -1351,29 +1369,21 @@ class _FamilyMemberTile extends StatelessWidget {
           // v23.1.200 — Daniel : "bouton 💬 sur family member" pour ouvrir
           // un chat 1-to-1 avec ce membre famille. Cache si id vide
           // (defensive : compte supprime ou pending).
+          // v23.1 part 205 — délègue à _openFriendChatRoleAware (cf. note
+          // dans _FriendTile pour la fix nav role-aware).
           if (id.isNotEmpty)
             Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(20.r),
-                onTap: () async {
-                  final convId = await controller.startFriendChat(
-                    targetUserId: id,
-                    targetUserRole: role.toLowerCase(),
-                  );
-                  if (convId != null && convId.isNotEmpty) {
-                    Get.to(() => IndividualChatScreen(
-                          conversationId: convId,
-                          contactName: name.isEmpty ? 'Membre famille' : name,
-                          contactImage: '',
-                        ));
-                  } else {
-                    CustomSnackbar.showError(
-                      title: 'common_error'.tr,
-                      message: 'friends_chat_failed'.tr,
-                    );
-                  }
-                },
+                onTap: () => _openFriendChatRoleAware(
+                  controller: controller,
+                  other: FriendProfile(
+                    id: id,
+                    model: role,
+                    name: name.isEmpty ? 'Membre famille' : name,
+                  ),
+                ),
                 child: Container(
                   width: 36.w, height: 36.w,
                   decoration: BoxDecoration(
@@ -2302,6 +2312,59 @@ class _PendingRequestsBanner extends StatelessWidget {
           child: Icon(icon, color: outlined ? color : Colors.white, size: 16.sp),
         ),
       ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// v23.1 part 205 — Helper top-level pour ouvrir un chat 1-to-1 entre un
+// utilisateur courant (de n'importe quel rôle) et un ami. Navigation
+// role-aware :
+//   - owner  → IndividualChatScreen
+//   - sitter | walker → SitterIndividualChatScreen
+// Avant : on naviguait TOUJOURS vers IndividualChatScreen (owner) — un
+// sitter/walker qui tappait 💬 sur un ami ne voyait rien s'ouvrir car
+// la screen owner attendait OwnerRepository qui n'est pas bind pour
+// les autres rôles. Daniel : "le chat dans l'onglet marche pas".
+// ────────────────────────────────────────────────────────────────────────
+Future<void> _openFriendChatRoleAware({
+  required FriendController controller,
+  required FriendProfile other,
+}) async {
+  try {
+    final convId = await controller.startFriendChat(
+      targetUserId: other.id,
+      targetUserRole: other.model.toLowerCase(),
+    );
+    if (convId == null || convId.isEmpty) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'friends_chat_failed'.tr,
+      );
+      return;
+    }
+    final myRole = (Get.find<GetStorage>().read<String>(StorageKeys.userRole) ??
+            'owner')
+        .toLowerCase();
+    final contactName = other.name.isEmpty ? 'Utilisateur' : other.name;
+    final contactImage = other.avatar;
+    if (myRole == 'sitter' || myRole == 'walker') {
+      Get.to(() => SitterIndividualChatScreen(
+            conversationId: convId,
+            contactName: contactName,
+            contactImage: contactImage,
+          ));
+    } else {
+      Get.to(() => IndividualChatScreen(
+            conversationId: convId,
+            contactName: contactName,
+            contactImage: contactImage,
+          ));
+    }
+  } catch (e) {
+    CustomSnackbar.showError(
+      title: 'common_error'.tr,
+      message: 'friends_chat_failed'.tr,
     );
   }
 }

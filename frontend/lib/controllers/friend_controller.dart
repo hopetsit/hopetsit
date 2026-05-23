@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/friendship_model.dart';
+import 'package:hopetsit/services/socket_service.dart';
 
 /// Friends + requests state + actions.
 class FriendController extends GetxController {
@@ -14,6 +15,36 @@ class FriendController extends GetxController {
   void onInit() {
     super.onInit();
     refresh();
+    // v23.1 part 205 — Daniel : "je ne vois pas où les demandes d'amis
+    // arrivent" + "amis ajouter ma liste est vide". Avant, le frontend ne
+    // recevait AUCUN event temps réel pour les demandes/acceptations →
+    // il fallait kill l'app pour les voir. Maintenant on s'abonne aux
+    // events socket émis par le backend (`friend_request:accepted` côté
+    // accept route, + on refresh aussi sur `notification.new` du type
+    // friend_request_*).
+    _attachFriendSocketListeners();
+  }
+
+  void _attachFriendSocketListeners() {
+    try {
+      final s = Get.find<SocketService>();
+      // Le pattern .off avant .on évite le leak listeners au reconnect
+      // (cf. fix v205 dans socket_service.dart).
+      s.socket?.off('friend_request:accepted');
+      s.socket?.on('friend_request:accepted', (_) {
+        debugPrint('[Friends] socket friend_request:accepted → refresh');
+        refresh();
+      });
+      // notification.new couvre les 2 directions (received + accepted)
+      // si les events directs sont manqués (offline → push notif).
+      s.socket?.off('friend_request:received');
+      s.socket?.on('friend_request:received', (_) {
+        debugPrint('[Friends] socket friend_request:received → refresh');
+        loadRequests();
+      });
+    } catch (e) {
+      debugPrint('[Friends] could not attach socket listeners: $e');
+    }
   }
 
   @override

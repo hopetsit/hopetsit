@@ -354,6 +354,27 @@ router.post('/request', requireAuth, async (req, res) => {
       logger.warn('[friends/request] notif failed', notifErr);
     }
 
+    // v23.1 part 205 — emit socket pour refresh temps réel des 2 cotés.
+    // Avant : seule la notif push remontait, donc si l'app était ouverte
+    // (pas en background) le destinataire ne voyait rien jusqu'à un kill.
+    try {
+      const { getIo } = require('../sockets/io');
+      const io = getIo && getIo();
+      if (io) {
+        const payload = {
+          friendshipId: String(friendship._id),
+          from: {
+            userId: String(user.id),
+            role: (user.model || '').toLowerCase(),
+          },
+        };
+        io.to(`user_${targetId}`).emit('friend_request:received', payload);
+        io.to(`user_${user.id}`).emit('friend_request:received', payload);
+      }
+    } catch (socketErr) {
+      logger.warn('[friends/request] socket emit failed', socketErr);
+    }
+
     res.status(201).json({ friendship: await enrichFriendship(friendship, user.id) });
   } catch (e) {
     logger.error('[friends/request]', e);
@@ -377,6 +398,50 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     f.acceptedAt = new Date();
     await f.save();
     logger.info(`[friends] ${user.id} accepted ${f._id}`);
+
+    // v23.1 part 205 — Daniel : "amis ajouter ma liste est vide". Root
+    // cause partiel : quand l'addressee accepte, le requester n'était
+    // JAMAIS notifié ni rafraîchi → il pensait sa demande encore pending
+    // et ne voyait pas l'ami dans la liste tant qu'il ne tuait pas l'app.
+    // Maintenant :
+    //   - sendNotification push au requester (type=friend_request_accepted)
+    //   - emit socket `friend_request:accepted` aux 2 user-rooms pour que
+    //     les 2 frontends puissent appeler refresh() en temps réel.
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      await sendNotification({
+        userId: f.requesterId,
+        role: (f.requesterModel || '').toLowerCase(),
+        type: 'friend_request_accepted',
+        title: 'friend_request_accepted_title',
+        body: 'friend_request_accepted_body',
+        data: {
+          friendshipId: String(f._id),
+          byUserId: String(user.id),
+          byUserRole: (user.model || '').toLowerCase(),
+          emailLink: buildEmailLink('friends'),
+        },
+      });
+    } catch (notifErr) {
+      logger.warn('[friends/accept] notif failed', notifErr);
+    }
+    try {
+      const { getIo } = require('../sockets/io');
+      const io = getIo && getIo();
+      if (io) {
+        const payload = {
+          friendshipId: String(f._id),
+          by: { userId: String(user.id), role: (user.model || '').toLowerCase() },
+        };
+        // Convention HopeTSIT : room par user = `user_${userId}`.
+        io.to(`user_${f.requesterId}`).emit('friend_request:accepted', payload);
+        io.to(`user_${f.addresseeId}`).emit('friend_request:accepted', payload);
+      }
+    } catch (socketErr) {
+      logger.warn('[friends/accept] socket emit failed', socketErr);
+    }
+
     res.json({ friendship: await enrichFriendship(f, user.id) });
   } catch (e) {
     logger.error('[friends/accept]', e);

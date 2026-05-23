@@ -196,8 +196,16 @@ class SocketService {
   ///   - chatSocket.js line 122 (socket-driven `message:send`)
   ///   - conversationController.js (REST POST /messages and booking events)
   ///   - stripeWebhookController.js (post-payment system message)
+  // v23.1 part 205 — Daniel : "lorsque je suis longtemps sur l'app ouverte
+  // elle auto crash". Root cause : `_socket!.on(event, cb)` APPENDS un
+  // nouveau listener à chaque appel sans retirer l'ancien. Quand la socket
+  // se reconnecte (network hiccup, app foreground), les hooks fire de
+  // nouveau les .on(...) → après 8h ça fait des centaines de doublons qui
+  // tirent tous sur chaque message → callback explosion → OOM.
+  // Fix : appeler `off(event)` AVANT chaque `.on(event, ...)`.
   void onNewMessage(Function(Map<String, dynamic>) callback) {
     if (_socket != null) {
+      _socket!.off('message:new');
       _socket!.on('message:new', (data) {
         try {
           final messageData = data as Map<String, dynamic>;
@@ -218,15 +226,19 @@ class SocketService {
   /// here too and let the caller de-duplicate by message id.
   void onMessageSent(Function(Map<String, dynamic>) callback) {
     if (_socket != null) {
-      _socket!.on('message:new', (data) {
-        try {
-          final messageData = data as Map<String, dynamic>;
-          AppLogger.logInfo('Message sent confirmation: $messageData');
-          callback(messageData);
-        } catch (e) {
-          AppLogger.logError('Error handling message sent', error: e);
-        }
-      });
+      // v23.1 part 205 — idem onNewMessage (cf. note plus haut). Mais
+      // attention : onNewMessage ET onMessageSent visent TOUS LES DEUX
+      // l'event 'message:new'. Si on .off() ici on coupe aussi le hook
+      // de onNewMessage. Solution : on n'utilise PLUS .on() sur le même
+      // event partagé — onMessageSent est devenu inutilisé en pratique
+      // (la dedup se fait par id côté ChatController). On garde la
+      // méthode pour API stability mais on ne register PLUS de listener.
+      AppLogger.logInfo(
+        '[v205] onMessageSent: skipped duplicate listener (handled by onNewMessage + id dedup)',
+      );
+      // Hint pour ne pas confondre : la callback est ignorée volontairement.
+      // ignore: unused_local_variable
+      final _ignored = callback;
     }
   }
 
@@ -238,6 +250,7 @@ class SocketService {
   /// Payload contains `{ conversationId, messageId, ... }`.
   void onMessageDeleted(Function(Map<String, dynamic>) callback) {
     if (_socket != null) {
+      _socket!.off('message:deleted');
       _socket!.on('message:deleted', (data) {
         try {
           final payload = data as Map<String, dynamic>;
@@ -257,6 +270,7 @@ class SocketService {
   /// `{ conversationId, conversation, triggeredBy: { role, userId } }`.
   void onConversationRead(Function(Map<String, dynamic>) callback) {
     if (_socket != null) {
+      _socket!.off('conversation:read');
       _socket!.on('conversation:read', (data) {
         try {
           final payload = data as Map<String, dynamic>;

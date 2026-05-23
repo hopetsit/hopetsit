@@ -185,6 +185,12 @@
     "emailSubject": "Friend request — HoPetSit",
     "emailBody": "<p>You received a new friend request on HoPetSit. Open the app to respond.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View request</a></p>"
   },
+  "friend_request_accepted": {
+    "title": "Friend request accepted",
+    "body": "Your friend request has been accepted. You can now chat and share your position.",
+    "emailSubject": "Friend request accepted — HoPetSit",
+    "emailBody": "<p>Good news — your friend request was accepted.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my friends</a></p>"
+  },
   "live_tracking_request_received": {
     "title": "Live tracking request",
     "body": "A live position tracking request just landed in your chat.",

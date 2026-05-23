@@ -92,6 +92,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_quick_report_sub': 'Fast',
       // v23.1.185 — Family & Friends 5 tabs (Daniel mockup).
       'friends_tab_add': 'Add',
+      // v23.1 part 205 — new "Requests" tab in Friends screen
+      'friends_tab_requests': 'Requests',
       'friends_tab_live': 'Live',
       'friends_tab_pets': 'Pets',
       'friends_tab_messages': 'Messages',

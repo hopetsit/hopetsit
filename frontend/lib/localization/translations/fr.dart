@@ -93,6 +93,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_quick_report_sub': 'Rapide',
       // v23.1.185 — Famille & Amis 5 tabs (mockup Daniel).
       'friends_tab_add': 'Ajouter',
+      // v23.1 part 205 — nouvel onglet "Demandes" dans Friends screen
+      'friends_tab_requests': 'Demandes',
       'friends_tab_live': 'Live',
       'friends_tab_pets': 'Animaux',
       'friends_tab_messages': 'Messages',
