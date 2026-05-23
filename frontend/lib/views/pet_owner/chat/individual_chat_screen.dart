@@ -184,6 +184,16 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     final myRole =
         (Get.find<GetStorage>().read<String>(StorageKeys.userRole) ?? 'owner')
             .toLowerCase();
+    // v23.1 part 206 — Daniel : "qd la demande accepte japuis sur le
+    // bouton ds le chat et sa menvoi sur la geoloc du walker/sitter sur
+    // mon animal". Si la demande est accepted ET qu'on a un bookingId
+    // dans metadata, on passe un onOpenMap qui ouvre LiveWalkMapScreen
+    // → la carte affiche la position broadcastée par le provider.
+    final bookingId = message.pawfollowBookingId;
+    VoidCallback? openMap;
+    if (message.pawfollowStatus == 'accepted' && bookingId.isNotEmpty) {
+      openMap = () => Get.to(() => LiveWalkMapScreen(bookingId: bookingId));
+    }
     return PawfollowRequestCard(
       messageId: message.id,
       requesterRole: message.pawfollowRequesterRole,
@@ -192,6 +202,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       myRole: myRole,
       onAccept: () => _respondPawfollow(message, 'accept'),
       onRefuse: () => _respondPawfollow(message, 'refuse'),
+      onOpenMap: openMap,
       // v23.1 part 200 — snapshot booking
       petName: message.pawfollowPetName,
       petPhoto: message.pawfollowPetPhoto,

@@ -462,6 +462,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawfollow_service_sitting': 'Sitting',
       'pawfollow_gps_section_title': 'GPS position shared',
       'pawfollow_gps_section_subtitle': 'You will see their position in real time once accepted.',
+      // v23.1 part 206 — CTA on chat card when request accepted
+      'pawfollow_open_map': 'View on the map',
       'friend_block': 'Block',
       'friend_remove': 'Remove',
       'friend_block_confirm': 'Block this friend?',

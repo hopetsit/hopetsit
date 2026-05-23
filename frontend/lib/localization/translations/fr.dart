@@ -481,6 +481,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawfollow_service_sitting': 'Garde',
       'pawfollow_gps_section_title': 'Position GPS partagée',
       'pawfollow_gps_section_subtitle': 'Vous verrez sa position en temps réel dès l\'acceptation.',
+      // v23.1 part 206 — bouton CTA sur carte chat quand demande acceptée
+      'pawfollow_open_map': 'Voir sur la carte',
       'friend_block': 'Bloquer',
       'friend_remove': 'Supprimer',
       'friend_block_confirm': 'Bloquer cet ami ?',

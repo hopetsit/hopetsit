@@ -44,6 +44,12 @@ class PawfollowRequestCard extends StatelessWidget {
     this.lastLat,
     this.lastLng,
     this.serviceType,
+    // v23.1 part 206 — Daniel : "qd la demande accepte japuis sur le
+    // bouton ds le chat et sa menvoi sur le map sur la geoloc du
+    // walker/sitter". Callback déclenché par le bouton "Voir sur la
+    // carte" affiché sur la carte quand status=='accepted' et que je
+    // suis du côté receveur de la position (typiquement owner).
+    this.onOpenMap,
   });
 
   final String messageId;
@@ -61,6 +67,8 @@ class PawfollowRequestCard extends StatelessWidget {
   final double? lastLat;
   final double? lastLng;
   final String? serviceType;
+  // v23.1 part 206 — callback "Voir sur la carte" (cf. note plus haut)
+  final VoidCallback? onOpenMap;
 
   static const _orangeBrand = Color(0xFFEF4324);
   static const _orangeLight = Color(0xFFFFF1ED);
@@ -418,6 +426,45 @@ class PawfollowRequestCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+
+            // v23.1 part 206 — CTA "Voir sur la carte" quand accepted.
+            // Daniel : "qd la demande accepte japuis sur le bouton ds le
+            // chat et sa menvoi sur la geoloc du walker/sitter sur mon
+            // animal". Le bouton n'apparait que si l'écran parent a passé
+            // un callback onOpenMap (typiquement le owner side qui sait
+            // récupérer bookingId via metadata et naviguer vers
+            // LiveWalkMapScreen).
+            if (status == 'accepted' && onOpenMap != null) ...[
+              Padding(
+                padding: EdgeInsets.fromLTRB(14.w, 4.h, 14.w, 4.h),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.map_rounded, color: Colors.white),
+                    label: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2.h),
+                      child: InterText(
+                        text: 'pawfollow_open_map'.tr,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _orangeBrand,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      elevation: 3,
+                      shadowColor: _orangeBrand.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                    ),
+                    onPressed: onOpenMap,
+                  ),
                 ),
               ),
             ],
