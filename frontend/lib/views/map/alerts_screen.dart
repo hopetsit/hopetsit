@@ -451,17 +451,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: const Color(0xFFDC2626),
-          icon: const Icon(Icons.add_alert_rounded, color: Colors.white),
-          label: InterText(
-            text: 'alerts_report_lost_btn'.tr,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-          ),
-          onPressed: _signalLostPet,
-        ),
+        // v23.1 part 212 — Daniel : "sur la page alerte enleve le bouton
+        // signaler en bas a droite". Le FAB faisait doublon avec le gros
+        // CTA inline rouge "Signaler un animal perdu" deja present dans
+        // l'empty state. On le supprime pour eviter la duplication.
       ),
     );
   }

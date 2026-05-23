@@ -107,42 +107,62 @@ router.get('/search', requireAuth, async (req, res) => {
     const meId = req.user.id;
     const escape = q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
     const re = new RegExp(escape, 'i');
-    const projection = 'name email avatar';
+    // v23.1 part 212 — Daniel : "jme co sur allomoteur, je mets ajouter
+    // je cherche daniel sa marche pas personne trouver". Cause racine :
+    //   - Le SEARCH cherchait sur le champ `name` qui n'EXISTE PAS sur
+    //     les docs Owner/Sitter/Walker (ils ont firstName + lastName
+    //     SEPARES, et profilePicture pas avatar).
+    //   - Donc le regex matchait jamais → 0 resultat.
+    // Fix : on cherche sur firstName ET lastName (OR email) et on
+    // projete les bons champs. La synthese name = firstName + lastName
+    // se fait apres au moment du mapping.
+    const projection = 'firstName lastName email profilePicture avatar';
 
     const [owners, sitters, walkers] = await Promise.all([
-      Owner.find({ $or: [{ email: re }, { name: re }] })
-        .select(projection).limit(10).lean(),
-      Sitter.find({ $or: [{ email: re }, { name: re }] })
-        .select(projection).limit(10).lean(),
-      Walker.find({ $or: [{ email: re }, { name: re }] })
-        .select(projection).limit(10).lean(),
+      Owner.find({
+        $or: [{ email: re }, { firstName: re }, { lastName: re }],
+      }).select(projection).limit(10).lean(),
+      Sitter.find({
+        $or: [{ email: re }, { firstName: re }, { lastName: re }],
+      }).select(projection).limit(10).lean(),
+      Walker.find({
+        $or: [{ email: re }, { firstName: re }, { lastName: re }],
+      }).select(projection).limit(10).lean(),
     ]);
 
     const _avatarUrl = (a) => (a && (a.url || a)) || '';
+    // v23.1 part 212 — name synthetise depuis firstName + lastName
+    // (comme dans fetchUserMini). Email partiellement decrypte via le
+    // hook automatique du model (cf Owner.js).
+    const buildName = (u) =>
+      [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
     const merged = [
       ...owners.map((u) => ({
         id: u._id.toString(),
         role: 'owner',
-        name: u.name || '',
+        name: buildName(u),
         email: u.email || '',
-        avatar: _avatarUrl(u.avatar),
+        avatar: _avatarUrl(u.profilePicture || u.avatar),
       })),
       ...sitters.map((u) => ({
         id: u._id.toString(),
         role: 'sitter',
-        name: u.name || '',
+        name: buildName(u),
         email: u.email || '',
-        avatar: _avatarUrl(u.avatar),
+        avatar: _avatarUrl(u.profilePicture || u.avatar),
       })),
       ...walkers.map((u) => ({
         id: u._id.toString(),
         role: 'walker',
-        name: u.name || '',
+        name: buildName(u),
         email: u.email || '',
-        avatar: _avatarUrl(u.avatar),
+        avatar: _avatarUrl(u.profilePicture || u.avatar),
       })),
     ].filter((u) => u.id !== meId).slice(0, 10);
 
+    logger.info(
+      `[friends/search] q="${q}" meId=${meId} found=${merged.length}`,
+    );
     res.json({ users: merged });
   } catch (e) {
     logger.error('[friends/search]', e);
@@ -158,11 +178,15 @@ router.get('/', requireAuth, async (req, res) => {
     // amis et jai personne ds la liste". On log la query + le nombre
     // brut de friendships avant enrichment pour pouvoir DIAGNOSTIQUER
     // exactement ce qui se passe en prod.
+    // v23.1 part 212 — query case-insensitive sur model pour matcher
+    // les vieux docs lowercase (cf note dans GET /requests).
+    const modelLower = (user.model || '').toLowerCase();
+    const modelVariants = [user.model, modelLower];
     const friendships = await Friendship.find({
       status: 'accepted',
       $or: [
-        { requesterId: user.id, requesterModel: user.model },
-        { addresseeId: user.id, addresseeModel: user.model },
+        { requesterId: user.id, requesterModel: { $in: modelVariants } },
+        { addresseeId: user.id, addresseeModel: { $in: modelVariants } },
       ],
     })
       .sort({ acceptedAt: -1 })
@@ -248,18 +272,50 @@ router.post('/reset-with/:targetId/:targetModel', requireAuth, async (req, res) 
 router.get('/requests', requireAuth, async (req, res) => {
   try {
     const user = me(req);
+    // v23.1 part 212 — Daniel : "jme co sur allomoteur aucune demande
+    // recu". L'audit code montre que ROLE_TO_MODEL_NAME mappe correctement
+    // 'walker' → 'Walker'. Mais des friendships peuvent avoir ete stockes
+    // historiquement avec model en lowercase (anciennes versions du code).
+    // On fait une query DEFENSIVE avec $in qui matche PascalCase ET
+    // lowercase pour pas rater les vieux docs.
+    const modelLower = (user.model || '').toLowerCase();
+    const modelVariants = [user.model, modelLower];
     const [incoming, outgoing] = await Promise.all([
       Friendship.find({
         status: 'pending',
         addresseeId: user.id,
-        addresseeModel: user.model,
+        addresseeModel: { $in: modelVariants },
       }).lean(),
       Friendship.find({
         status: 'pending',
         requesterId: user.id,
-        requesterModel: user.model,
+        requesterModel: { $in: modelVariants },
       }).lean(),
     ]);
+    logger.info(
+      `[friends/requests] user=${user.model}:${user.id} incoming=${incoming.length} outgoing=${outgoing.length}`,
+    );
+    // v23.1 part 212 — backfill on the fly : si on trouve un doc avec
+    // model en lowercase, on le normalise en PascalCase pour les
+    // prochaines queries (one-shot auto-heal).
+    for (const f of [...incoming, ...outgoing]) {
+      let needsUpdate = false;
+      const update = {};
+      if (f.addresseeModel && f.addresseeModel !== f.addresseeModel[0].toUpperCase() + f.addresseeModel.slice(1)) {
+        update.addresseeModel = f.addresseeModel[0].toUpperCase() + f.addresseeModel.slice(1);
+        needsUpdate = true;
+      }
+      if (f.requesterModel && f.requesterModel !== f.requesterModel[0].toUpperCase() + f.requesterModel.slice(1)) {
+        update.requesterModel = f.requesterModel[0].toUpperCase() + f.requesterModel.slice(1);
+        needsUpdate = true;
+      }
+      if (needsUpdate) {
+        try {
+          await Friendship.updateOne({ _id: f._id }, { $set: update });
+          logger.info(`[friends/requests] normalized model casing on ${f._id}`);
+        } catch (e) {/* defensive */}
+      }
+    }
 
     const [incomingEnriched, outgoingEnriched] = await Promise.all([
       Promise.all(incoming.map((f) => enrichFriendship(f, user.id))),
@@ -300,19 +356,25 @@ router.post('/request', requireAuth, async (req, res) => {
     // pending (>7 jours) bloque toute nouvelle demande. On considère
     // expirée une demande pending de >7 jours et on la supprime avant
     // de créer la nouvelle.
+    // v23.1 part 212 — Daniel : "jme co sur allomoteur aucune demande
+    // recu". On rend la detection de doublon case-insensitive sur model
+    // pour matcher les vieux docs en lowercase qui sinon createraient
+    // des doublons + creent l'illusion "deja amis".
+    const userModelVariants = [user.model, user.model.toLowerCase()];
+    const targetModelVariants = [targetModel, targetModel.toLowerCase()];
     const existing = await Friendship.findOne({
       $or: [
         {
           requesterId: user.id,
-          requesterModel: user.model,
+          requesterModel: { $in: userModelVariants },
           addresseeId: targetId,
-          addresseeModel: targetModel,
+          addresseeModel: { $in: targetModelVariants },
         },
         {
           requesterId: targetId,
-          requesterModel: targetModel,
+          requesterModel: { $in: targetModelVariants },
           addresseeId: user.id,
-          addresseeModel: user.model,
+          addresseeModel: { $in: userModelVariants },
         },
       ],
     });

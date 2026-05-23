@@ -120,6 +120,12 @@ class FriendsScreen extends StatelessWidget {
           ],
           bottom: TabBar(
             isScrollable: true,
+            // v23.1 part 212 — Daniel : "le menu est decaler recentre le".
+            // Avant : tabAlignment default = start → tabs slammed a gauche.
+            // Maintenant : center → l'onglet selectionne se centre dans
+            // la viewport quand on swipe, et les tabs ont du padding
+            // symetrique.
+            tabAlignment: TabAlignment.center,
             labelColor: AppColors.primaryColor,
             unselectedLabelColor: AppColors.greyText,
             indicatorColor: AppColors.primaryColor,
