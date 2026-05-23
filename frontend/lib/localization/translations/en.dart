@@ -92,8 +92,10 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_quick_report_sub': 'Fast',
       // v23.1.185 — Family & Friends 5 tabs (Daniel mockup).
       'friends_tab_add': 'Add',
-      // v23.1 part 205 — new "Requests" tab in Friends screen
-      'friends_tab_requests': 'Requests',
+      // v23.1 part 205 — new "Requests" tab in Friends screen.
+      // v208 fix : clé 'friends_tab_requests' existait déjà ligne 496,
+      // duplicata supprimé ici (sinon le build Flutter throw a const-map
+      // error → tous les APK v205-v208 livrés étaient en fait v204).
       'friends_tab_live': 'Live',
       'friends_tab_pets': 'Pets',
       'friends_tab_messages': 'Messages',
