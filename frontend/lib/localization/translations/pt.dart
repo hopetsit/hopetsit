@@ -211,6 +211,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'alerts_info_smart_msg': 'Sê alertado para novas situacoes',
       'alerts_no_gps_title': 'Posicao GPS necessaria',
       'alerts_no_gps_msg': 'Ativa a localizacao para reportar um alerta. Sem GPS valido, o teu alerta seria invisivel para os outros.',
+      'alerts_gps_open_settings': 'Abrir definicoes de localizacao',
       // v23.1 part 209 — botão apagar conversa no separador Mensagens
       'chat_delete_conv': 'Apagar conversa',
       'chat_delete_conv_title': 'Apagar a conversa?',

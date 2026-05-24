@@ -789,6 +789,30 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div style="margin-top:16px">
           <button class="action-btn" onclick="loadPawmapStats()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Refresh stats</button>
         </div>
+
+        <!-- v23.1 part 217 — Daniel : "j'ai signaler un abus de signalement
+             et ne s'affiche pas dans l'admin navigateur". Section dediee a
+             la moderation des map reports flagges. Endpoint backend
+             GET /admin/map-reports existe deja (adminRoutes.js:1462) mais
+             aucune UI ne l'exposait. -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-top:24px">
+          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px">🚩 Signalements abusifs (flags)</div>
+          <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;max-width:720px">
+            Liste des signalements communautaires qui ont reçu des "flag abuse" de la part d'utilisateurs.
+            Un report est auto-masqué après 3 flags (hidden=true). Restaure ou supprime définitivement selon le contexte.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <select id="map-mod-filter" class="filter-select" style="min-width:160px" onchange="loadFlaggedReports()">
+              <option value="true">🔒 Masqués (3+ flags)</option>
+              <option value="false">👁️ Visibles (avec flags)</option>
+              <option value="">📋 Tous</option>
+            </select>
+            <button class="action-btn" onclick="loadFlaggedReports()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↻ Rafraîchir</button>
+          </div>
+          <div id="flagged-reports-list">
+            <div class="loading"><div class="spinner"></div> Loading…</div>
+          </div>
+        </div>
       </div>
 
       <!-- SERVICES -->
@@ -1224,7 +1248,7 @@ function showPage(name) {
   if (name === 'boosts') loadBoosts();
   if (name === 'pricing') loadPricing();
   if (name === 'services') loadServices();
-  if (name === 'pawmap') loadPawmapStats();
+  if (name === 'pawmap') { loadPawmapStats(); loadFlaggedReports(); }
   if (name === 'annonces') loadAnnonces();
 }
 
@@ -1382,6 +1406,86 @@ const POI_CATEGORY_LABELS = {
   restaurant: '🍽️ Restaurants',
   other: '📍 Autre',
 };
+
+// v23.1 part 217 — Daniel : "j'ai signaler un abus de signalement et
+// ne s'affiche pas dans l'admin navigateur". Liste les map reports
+// flagges via GET /admin/map-reports?hidden=<bool> et permet restore
+// ou delete. Le filtre par defaut affiche les reports masques (3+ flags).
+async function loadFlaggedReports() {
+  const wrap = document.getElementById('flagged-reports-list');
+  if (!wrap) return;
+  const sel = document.getElementById('map-mod-filter');
+  const hidden = sel ? sel.value : 'true';
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try {
+    const q = hidden ? `?hidden=${hidden}&limit=50` : '?limit=50';
+    const d = await api(`/admin/map-reports${q}`);
+    const items = (d && d.items) || [];
+    if (items.length === 0) {
+      wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Aucun signalement à modérer.</div>';
+      return;
+    }
+    const rows = items.map(r => {
+      const id = r._id || r.id;
+      const flags = Array.isArray(r.flags) ? r.flags.length : 0;
+      const flagsList = (r.flags || []).map(f =>
+        `<li>${f.reason || '(no reason)'} — ${f.userModel || '?'}:${(f.userId || '').toString().slice(-6)} — ${new Date(f.at).toLocaleString()}</li>`,
+      ).join('');
+      const lat = r.location?.coordinates?.[1];
+      const lng = r.location?.coordinates?.[0];
+      const city = r.location?.city || '—';
+      const photo = r.photoUrl
+        ? `<img src="${r.photoUrl}" style="width:60px;height:60px;border-radius:8px;object-fit:cover" />`
+        : '<div style="width:60px;height:60px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px">📍</div>';
+      return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            ${photo}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px">
+                ${r.type || 'unknown'} ${r.hidden ? '<span style="color:var(--red);font-size:11px">🔒 MASQUÉ</span>' : ''}
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+                📍 ${city} · ${lat?.toFixed?.(4)},${lng?.toFixed?.(4)} · ${new Date(r.createdAt).toLocaleString()}
+              </div>
+              <div style="font-size:12px;margin-bottom:6px">${(r.note || '(no note)').slice(0, 200)}</div>
+              <div style="font-size:11px;color:var(--orange);font-weight:600;margin-bottom:6px">
+                🚩 ${flags} flag${flags > 1 ? 's' : ''} · Reporter: ${r.reporterModel}:${(r.reporterId || '').toString().slice(-6)}
+              </div>
+              ${flags > 0 ? `<details style="margin-bottom:8px"><summary style="cursor:pointer;font-size:11px;color:var(--text-muted)">Voir les flags</summary><ul style="margin:6px 0 0 16px;font-size:11px;color:var(--text-muted)">${flagsList}</ul></details>` : ''}
+              <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+                ${r.hidden ? `<button class="action-btn" onclick="restoreMapReport('${id}')" style="background:var(--green);color:#fff;border:none;font-size:12px;padding:6px 12px">✓ Restaurer</button>` : ''}
+                <button class="action-btn" onclick="deleteMapReport('${id}')" style="background:var(--red);color:#fff;border:none;font-size:12px;padding:6px 12px">🗑️ Supprimer définitivement</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+    wrap.innerHTML = rows;
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:20px;color:var(--red)">Erreur : ${e.message || e}</div>`;
+  }
+}
+
+async function restoreMapReport(id) {
+  if (!confirm('Restaurer ce signalement (le rendre visible) ?')) return;
+  try {
+    await api(`/admin/map-reports/${id}/restore`, 'POST');
+    await loadFlaggedReports();
+  } catch (e) {
+    alert('Erreur restore : ' + (e.message || e));
+  }
+}
+
+async function deleteMapReport(id) {
+  if (!confirm('Supprimer DÉFINITIVEMENT ce signalement de la base de données ? Cette action est irréversible.')) return;
+  try {
+    await api(`/admin/map-reports/${id}`, 'DELETE');
+    await loadFlaggedReports();
+  } catch (e) {
+    alert('Erreur delete : ' + (e.message || e));
+  }
+}
 
 async function loadPawmapStats() {
   const wrap = document.getElementById('pawmap-stats');

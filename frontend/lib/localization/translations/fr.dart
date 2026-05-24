@@ -157,6 +157,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       // v23.1 part 213 — refus de creer un report sans GPS valide
       'alerts_no_gps_title': 'Position GPS requise',
       'alerts_no_gps_msg': 'Active la localisation pour signaler une alerte. Sans GPS valide, ton signalement ne pourrait pas etre vu par les autres.',
+      'alerts_gps_open_settings': 'Ouvrir les parametres de localisation',
       'common_clear': 'Effacer',
       'report_screen_title': 'Signaler',
       'report_what_to_report': 'Que souhaitez-vous signaler ?',

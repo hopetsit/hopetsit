@@ -29,6 +29,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'alerts_info_smart_msg': 'Ricevi avvisi sulle nuove allerte',
       'alerts_no_gps_title': 'Posizione GPS richiesta',
       'alerts_no_gps_msg': 'Attiva la localizzazione per segnalare un\'allerta. Senza un GPS valido, la tua segnalazione non sarebbe visibile agli altri.',
+      'alerts_gps_open_settings': 'Apri impostazioni localizzazione',
       // v23.1 part 209 — pulsante elimina conversazione nella scheda Messaggi
       'chat_delete_conv': 'Elimina conversazione',
       'chat_delete_conv_title': 'Eliminare la conversazione?',

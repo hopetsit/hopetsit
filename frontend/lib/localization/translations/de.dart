@@ -29,6 +29,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'alerts_info_smart_msg': 'Bleib uber neue Meldungen informiert',
       'alerts_no_gps_title': 'GPS-Position benotigt',
       'alerts_no_gps_msg': 'Aktiviere die Ortung, um eine Meldung zu erstellen. Ohne gultiges GPS ware deine Meldung fur andere unsichtbar.',
+      'alerts_gps_open_settings': 'Standorteinstellungen oeffnen',
       // v23.1 part 209 — Chat-Konversation löschen Button im Messages-Tab
       'chat_delete_conv': 'Konversation löschen',
       'chat_delete_conv_title': 'Konversation löschen?',

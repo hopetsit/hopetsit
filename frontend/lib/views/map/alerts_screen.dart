@@ -593,6 +593,42 @@ class _AlertsListState extends State<_AlertsList>
     return RefreshIndicator(
       onRefresh: _load,
       child: Obx(() {
+        // v23.1 part 217 — Daniel : "aucune alerte ne s'affiche". Cause
+        // possible : GPS denied/not resolved. Avant : empty state generique
+        // sans info. Maintenant : si pas de pos ET pas en cours de
+        // resolution → message GPS-denied explicite avec CTA pour re-tenter.
+        if (widget.myPos.value == null) {
+          if (widget.resolvingPos.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return _GpsRequiredState(
+            onRetry: () async {
+              widget.resolvingPos.value = true;
+              try {
+                final pos = await Geolocator.getCurrentPosition(
+                  locationSettings: const LocationSettings(
+                    accuracy: LocationAccuracy.high,
+                    timeLimit: Duration(seconds: 10),
+                  ),
+                );
+                widget.myPos.value = LatLng(pos.latitude, pos.longitude);
+              } catch (_) {
+                widget.myPos.value = null;
+                if (mounted) {
+                  CustomSnackbar.showError(
+                    title: 'alerts_no_gps_title'.tr,
+                    message: 'alerts_no_gps_msg'.tr,
+                  );
+                }
+              } finally {
+                widget.resolvingPos.value = false;
+              }
+            },
+            onOpenSettings: () async {
+              await Geolocator.openLocationSettings();
+            },
+          );
+        }
         if (_loading.value && _reports.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -917,6 +953,102 @@ class _InfoCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// v23.1 part 217 — Daniel : "aucune alerte ne s'affiche dans la page".
+// Si GPS denied, on affichait l'empty state generique (3 actions + CTA
+// signaler). Probleme : Daniel ne sait pas si c'est 0 alerte OU GPS
+// cassé. Nouveau widget dedie qui dit "active la localisation" + 2
+// boutons : "Reessayer" + "Ouvrir parametres systeme".
+class _GpsRequiredState extends StatelessWidget {
+  const _GpsRequiredState({
+    required this.onRetry,
+    required this.onOpenSettings,
+  });
+  final VoidCallback onRetry;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 60.h),
+      children: [
+        SizedBox(height: 40.h),
+        Center(
+          child: Container(
+            width: 100.w,
+            height: 100.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+            ),
+            child: Icon(Icons.location_off_rounded,
+                size: 56.sp, color: const Color(0xFFF59E0B)),
+          ),
+        ),
+        SizedBox(height: 16.h),
+        InterText(
+          text: 'alerts_no_gps_title'.tr,
+          fontSize: 18.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(context),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 6.h),
+        InterText(
+          text: 'alerts_no_gps_msg'.tr,
+          fontSize: 13.sp,
+          color: AppColors.greyText,
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 18.h),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4324),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(vertical: 14.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+            ),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            label: InterText(
+              text: 'common_retry'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+            onPressed: onRetry,
+          ),
+        ),
+        SizedBox(height: 10.h),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppColors.divider(context)),
+              padding: EdgeInsets.symmetric(vertical: 14.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+            ),
+            icon: Icon(Icons.settings_rounded,
+                color: AppColors.textPrimary(context)),
+            label: InterText(
+              text: 'alerts_gps_open_settings'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+            ),
+            onPressed: onOpenSettings,
+          ),
+        ),
+      ],
     );
   }
 }
