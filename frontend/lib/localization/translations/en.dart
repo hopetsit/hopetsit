@@ -484,6 +484,16 @@ const Map<String, String> enUSTranslations = <String, String>{
       'friend_diagnose_tooltip': 'Friend diagnostic',
       'friend_diagnose_title': 'Friend diagnostic',
       'friend_diagnose_failed': 'Could not retrieve diagnostic.',
+      // v23.1 part 216 — hide email + KYC granular errors
+      'friends_search_no_name': 'Unnamed user',
+      // v216 fix : kyc_link_unavailable already exists below, dup removed
+      'kyc_unavailable_title': 'Verification temporarily unavailable',
+      'kyc_unavailable_msg': 'Identity verification is disabled right now. Your payment is preserved — we will enable it very soon.',
+      'kyc_payment_required_title': 'Payment required',
+      'kyc_payment_required_msg': 'You must pay the 3 EUR verification fee before starting the ID + selfie scan.',
+      'kyc_already_verified_title': 'Already verified',
+      'kyc_already_verified_msg': 'Your identity is already verified — the "Verified" badge is active on your profile.',
+      'kyc_only_provider_msg': 'Persona verification is reserved for sitters and walkers.',
       'pawfollow_request_sent_header': 'Live tracking request sent',
       'pawfollow_request_owner_wants_to_follow': 'The owner wants to track your position live',
       'pawfollow_request_provider_wants_to_share': 'The walker / sitter wants to share their position with you',

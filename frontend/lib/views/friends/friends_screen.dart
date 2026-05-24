@@ -394,8 +394,15 @@ class FriendsScreen extends StatelessWidget {
                       final id = (u['id'] ?? '').toString();
                       final role = (u['role'] ?? '').toString();
                       final name = (u['name'] ?? '').toString();
-                      final email = (u['email'] ?? '').toString();
                       final avatar = (u['avatar'] ?? '').toString();
+                      // v23.1 part 216 — Daniel : "masquer l'email c'est
+                      // privee a l'utilisateur". On affiche le nom (ou un
+                      // fallback "Utilisateur sans nom") + UNIQUEMENT le
+                      // role en subtitle. L'email n'est plus jamais
+                      // expose dans la liste de recherche.
+                      final displayName = name.isNotEmpty
+                          ? name
+                          : 'friends_search_no_name'.tr;
                       return ListTile(
                         leading: CircleAvatar(
                           radius: 18.r,
@@ -408,8 +415,8 @@ class FriendsScreen extends StatelessWidget {
                                   size: 18.sp, color: AppColors.primaryColor)
                               : null,
                         ),
-                        title: Text(name.isNotEmpty ? name : email),
-                        subtitle: Text('$role · $email'),
+                        title: Text(displayName),
+                        subtitle: Text(role),
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryColor,

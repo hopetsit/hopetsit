@@ -145,7 +145,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       if (url == null || url.isEmpty) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
-          message: 'Lien de vérification indisponible.',
+          message: 'kyc_link_unavailable'.tr,
         );
         return;
       }
@@ -155,20 +155,46 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       await _refresh();
     } catch (e) {
       AppLogger.logError('kyc.start failed', error: e);
-      // v23.1 part 70 — Bug 14 : if backend is missing PERSONA env vars
-      // it returns 503 with code='KYC_NOT_CONFIGURED'. Show a clear
-      // message instead of the raw exception. Owner needs to set
-      // PERSONA_API_KEY + PERSONA_TEMPLATE_ID on Render.
+      // v23.1 part 216 — Daniel : "Persona est configure dans render et
+      // sa ne marche que dal". Les env vars sont OK mais le backend
+      // renvoie 400 avec un message specifique (paiement requis, deja
+      // verifie, etc.). Avant on affichait "indisponible" generique.
+      // Maintenant on PARSE le message du backend et on surface la
+      // vraie raison.
       final s = e.toString();
-      if (s.contains('KYC_NOT_CONFIGURED') || s.contains('temporarily unavailable')) {
+      if (s.contains('KYC_NOT_CONFIGURED') ||
+          s.contains('temporarily unavailable')) {
         CustomSnackbar.showWarning(
-          title: 'Vérification temporairement indisponible',
-          message:
-              'La vérification d\'identité est désactivée pour le moment. '
-              'Ton paiement est conservé, on activera la vérification très bientôt.',
+          title: 'kyc_unavailable_title'.tr,
+          message: 'kyc_unavailable_msg'.tr,
+        );
+      } else if (s.contains('Payment required first') ||
+          s.contains('initiate-payment')) {
+        CustomSnackbar.showWarning(
+          title: 'kyc_payment_required_title'.tr,
+          message: 'kyc_payment_required_msg'.tr,
+        );
+      } else if (s.contains('Already verified')) {
+        CustomSnackbar.showSuccess(
+          title: 'kyc_already_verified_title'.tr,
+          message: 'kyc_already_verified_msg'.tr,
+        );
+      } else if (s.contains('Only sitter or walker')) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'kyc_only_provider_msg'.tr,
         );
       } else {
-        CustomSnackbar.showError(title: 'common_error'.tr, message: s);
+        // Defaut : on essaie d'extraire le message backend brut au lieu
+        // du stacktrace complet. ApiException expose le body en string.
+        final clean = s
+            .replaceAll('ApiException:', '')
+            .replaceAll('Exception:', '')
+            .trim();
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: clean.isEmpty ? 'kyc_link_unavailable'.tr : clean,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

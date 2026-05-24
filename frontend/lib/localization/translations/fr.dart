@@ -504,6 +504,17 @@ const Map<String, String> frFRTranslations = <String, String>{
       'friend_diagnose_tooltip': 'Diagnostic amis',
       'friend_diagnose_title': 'Diagnostic amis',
       'friend_diagnose_failed': 'Impossible de recuperer le diagnostic.',
+      // v23.1 part 216 — masquage email + meilleurs messages KYC
+      'friends_search_no_name': 'Utilisateur sans nom',
+      // v216 fix : kyc_link_unavailable existe deja ligne 2497, doublon
+      // supprime ici (sinon Flutter const-map error)
+      'kyc_unavailable_title': 'Verification temporairement indisponible',
+      'kyc_unavailable_msg': 'La verification d\'identite est desactivee pour le moment. Ton paiement est conserve, on activera bientot.',
+      'kyc_payment_required_title': 'Paiement requis',
+      'kyc_payment_required_msg': 'Tu dois payer les 3 EUR de frais de verification avant de lancer le scan ID + selfie.',
+      'kyc_already_verified_title': 'Deja verifie',
+      'kyc_already_verified_msg': 'Ton identite est deja verifiee — le badge "Verifie" est actif sur ton profil.',
+      'kyc_only_provider_msg': 'La verification Persona est reservee aux sitters et walkers.',
       'pawfollow_request_sent_header': 'Demande de suivi en direct envoyée',
       'pawfollow_request_owner_wants_to_follow': 'Le propriétaire souhaite suivre ta position en direct',
       'pawfollow_request_provider_wants_to_share': 'Le walker / sitter veut partager sa position avec toi',
