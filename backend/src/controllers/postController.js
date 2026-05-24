@@ -656,10 +656,14 @@ const getNearbyRequestPosts = async (req, res) => {
       filter.serviceTypes = 'dog_walking';
     }
 
-    // Discard posts without coordinates — they can't appear on a map.
-    filter['location.lat'] = { $ne: null };
-    filter['location.lng'] = { $ne: null };
-
+    // v23.1 part 220 — Daniel : "sitter ne voit pas publication dans la
+    // meme ville". Cause : Owner creait des posts avec juste city='Pego'
+    // sans lat/lng → filter location.lat:{$ne:null} les ratait
+    // silencieusement.
+    // Fix : on ne filtre PLUS sur lat/lng au niveau Mongo. On laisse tout
+    // passer et on filtre/match en JS plus bas en utilisant fallback
+    // city-match si pas de coordonnees valides. Le viewer reçoit ainsi
+    // tous les posts pertinents (haversine OU meme ville).
     const raw = await Post.find(filter)
       .sort({ createdAt: -1 })
       .populate('ownerId')
@@ -679,19 +683,45 @@ const getNearbyRequestPosts = async (req, res) => {
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     };
 
+    // v23.1 part 220 — fallback city-match si pas de coordonnees valides.
+    // Recupere la city du viewer pour le match string.
+    let viewerCity = '';
+    try {
+      const ModelByRole = {
+        owner: require('../models/Owner'),
+        sitter: require('../models/Sitter'),
+        walker: require('../models/Walker'),
+      };
+      const VM = ModelByRole[req.user?.role];
+      if (VM) {
+        const me = await VM.findById(req.user?.id)
+          .select('city location.city')
+          .lean();
+        viewerCity = String(
+          me?.location?.city || me?.city || '',
+        ).trim().toLowerCase();
+      }
+    } catch (_) {/* ignore */}
+
     const withDistance = raw
-      .filter(
-        (p) =>
-          p.ownerId &&
+      .filter((p) => p.ownerId)
+      .map((p) => {
+        const hasCoords =
           p.location &&
           Number.isFinite(p.location.lat) &&
-          Number.isFinite(p.location.lng),
-      )
-      .map((p) => ({
-        post: p,
-        distanceKm: haversine(lat, lng, p.location.lat, p.location.lng),
-      }))
-      .filter((x) => x.distanceKm <= maxDistanceKm)
+          Number.isFinite(p.location.lng);
+        const distanceKm = hasCoords
+          ? haversine(lat, lng, p.location.lat, p.location.lng)
+          : null;
+        const postCity = String(p.location?.city || '').trim().toLowerCase();
+        // Match : soit dans le radius haversine, soit meme city que
+        // viewer (pour les posts cree sans lat/lng).
+        const sameCity = viewerCity && postCity && viewerCity === postCity;
+        const isNearby =
+          (distanceKm !== null && distanceKm <= maxDistanceKm) || sameCity;
+        return { post: p, distanceKm: distanceKm ?? 0, isNearby };
+      })
+      .filter((x) => x.isNearby)
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 200); // hard cap for the map payload
 

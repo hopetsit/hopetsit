@@ -101,9 +101,16 @@ const findNearbySitters = async (req, res) => {
       'location.coordinates': { $exists: true, $type: 'array' },
     };
 
-    // Only filter by verified status if includeUnverified is not true
-    // Default behavior: show only verified sitters
-    if (includeUnverified !== 'true' && includeUnverified !== true) {
+    // v23.1 part 220 — Daniel : "owner ne voit pas sitter dans la meme
+    // ville". Cause : filter verified:true par defaut, mais le sitter
+    // Daniel n'a pas complete KYC Persona (env vars manquantes pendant
+    // setup). Resultat : sitter cree mais invisible.
+    // Nouveau default : on N'EXCLUT PAS les non-verified, on retourne
+    // tout. Le frontend peut afficher un badge "Non verifie" sur les
+    // sitters sans KYC, mais ils restent decouvrables. Owner garde le
+    // choix.
+    // Mode strict si onlyVerified=true (opt-in explicite).
+    if (req.query.onlyVerified === 'true' || req.query.onlyVerified === true) {
       filter.verified = true;
     }
 
@@ -174,10 +181,36 @@ const findNearbySitters = async (req, res) => {
       },
     };
     if (radiusInMeters !== null) mbStage.$geoNear.maxDistance = radiusInMeters;
-    const [primary, viaPawSpot] = await Promise.all([
+    // v23.1 part 220 — Daniel : "owner ne voit pas sitter dans la meme
+    // ville". 3eme passe : sitters qui n'ont PAS de location.coordinates
+    // (donc rates par $geoNear) mais qui ont la meme city que le viewer.
+    // On essaie de detecter la city du owner depuis ses query params
+    // (lat/lng inversement geocode pas dispo ici) OU depuis son user.city.
+    let viewerCity = '';
+    try {
+      const Owner = require('../models/Owner');
+      const me = await Owner.findById(req.user?.id)
+        .select('city location.city')
+        .lean();
+      viewerCity = String(
+        me?.location?.city || me?.city || '',
+      ).trim().toLowerCase();
+    } catch (_) {/* ignore */}
+
+    const [primary, viaPawSpot, viaCity] = await Promise.all([
       Sitter.aggregate(aggregationPipeline),
       Sitter.aggregate([mbStage, { $sort: { distance: 1 } }, { $limit: 500 }])
         .catch(() => []),
+      // Sitters meme city, peu importe leurs coordonnees.
+      viewerCity
+        ? Sitter.find({
+            ...(req.query.onlyVerified === 'true' ? { verified: true } : {}),
+            $or: [
+              { 'location.city': { $regex: `^${viewerCity}$`, $options: 'i' } },
+              { city: { $regex: `^${viewerCity}$`, $options: 'i' } },
+            ],
+          }).limit(100).lean().catch(() => [])
+        : Promise.resolve([]),
     ]);
     const sittersById = new Map();
     for (const s of primary) sittersById.set(String(s._id), s);
@@ -185,6 +218,15 @@ const findNearbySitters = async (req, res) => {
       const id = String(s._id);
       if (!sittersById.has(id) || s.distance < (sittersById.get(id).distance || Infinity)) {
         sittersById.set(id, { ...s, _matchedBy: 'mapBoostLocation' });
+      }
+    }
+    // Sitters par city : on les ajoute s'ils ne sont pas deja la, avec
+    // distance=0 (puisqu'ils sont meme ville, on les met en tete de
+    // liste apres le geo proche).
+    for (const s of viaCity) {
+      const id = String(s._id);
+      if (!sittersById.has(id)) {
+        sittersById.set(id, { ...s, distance: 0, _matchedBy: 'cityMatch' });
       }
     }
     const sitters = Array.from(sittersById.values());

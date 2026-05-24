@@ -39,17 +39,29 @@ async function fetchUserMini(id, modelName) {
   const Model = MODEL_BY_NAME[modelName];
   if (!Model) return null;
   const u = await Model.findById(id)
-    .select('firstName lastName profilePicture location city avatar')
+    .select('firstName lastName profilePicture location city avatar email')
     .lean();
-  return u
-    ? {
-        id: u._id,
-        model: modelName,
-        name: [u.firstName, u.lastName].filter(Boolean).join(' ').trim(),
-        avatar: u.profilePicture || u.avatar || '',
-        city: u.location?.city || u.city || '',
-      }
-    : null;
+  if (!u) return null;
+  // v23.1 part 220 — Daniel : "juste le nom de l'utilisateur s'affiche
+  // pas". Les users n'ont pas leur firstName/lastName populates dans
+  // la DB (signup ne forcait pas le remplissage). Resultat : name vide
+  // → frontend affichait "Utilisateur" (fallback v218).
+  // Fix : fallback intelligent → si firstName/lastName vides, on prend
+  // la partie email avant le @ comme handle (Daniel = "dadaciao84",
+  // ALLO MOTEUR = "contact"). C'est privacy-safe (l'email complet reste
+  // masque) tout en donnant un nom identifiable.
+  let name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+  if (!name && u.email) {
+    const at = String(u.email).indexOf('@');
+    if (at > 0) name = String(u.email).slice(0, at);
+  }
+  return {
+    id: u._id,
+    model: modelName,
+    name,
+    avatar: u.profilePicture || u.avatar || '',
+    city: u.location?.city || u.city || '',
+  };
 }
 
 async function enrichFriendship(friendship, viewerId) {
@@ -164,6 +176,17 @@ router.get('/diagnose', requireAuth, async (req, res) => {
               .select('firstName lastName email')
               .lean()
           : null;
+        // v23.1 part 220 — name fallback : firstName+lastName, sinon
+        // email-handle avant @ (privacy preservee).
+        let otherName = null;
+        if (otherDoc) {
+          otherName = [otherDoc.firstName, otherDoc.lastName]
+              .filter(Boolean).join(' ').trim();
+          if (!otherName && otherDoc.email) {
+            const at = String(otherDoc.email).indexOf('@');
+            if (at > 0) otherName = String(otherDoc.email).slice(0, at);
+          }
+        }
         return {
           friendshipId: String(f._id),
           status: f.status,
@@ -175,9 +198,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           otherId: String(otherId),
           otherModel,
           otherExists: !!otherDoc,
-          otherName: otherDoc
-            ? [otherDoc.firstName, otherDoc.lastName].filter(Boolean).join(' ').trim()
-            : null,
+          otherName,
           createdAt: f.createdAt,
           acceptedAt: f.acceptedAt,
         };
@@ -234,11 +255,17 @@ router.get('/search', requireAuth, async (req, res) => {
     ]);
 
     const _avatarUrl = (a) => (a && (a.url || a)) || '';
-    // v23.1 part 212 — name synthetise depuis firstName + lastName
-    // (comme dans fetchUserMini). Email partiellement decrypte via le
-    // hook automatique du model (cf Owner.js).
-    const buildName = (u) =>
-      [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+    // v23.1 part 220 — name fallback intelligent : firstName + lastName,
+    // sinon partie email avant @ (privacy : on cache l'email complet
+    // mais on garde un handle identifiable).
+    const buildName = (u) => {
+      let n = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+      if (!n && u.email) {
+        const at = String(u.email).indexOf('@');
+        if (at > 0) n = String(u.email).slice(0, at);
+      }
+      return n;
+    };
     const merged = [
       ...owners.map((u) => ({
         id: u._id.toString(),
