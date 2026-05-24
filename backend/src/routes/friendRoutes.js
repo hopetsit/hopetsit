@@ -277,23 +277,24 @@ router.get('/search', requireAuth, async (req, res) => {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const user = me(req);
-    // v23.1 part 210 — Daniel : "le bug amis persiste il me dis deja
-    // amis et jai personne ds la liste". On log la query + le nombre
-    // brut de friendships avant enrichment pour pouvoir DIAGNOSTIQUER
-    // exactement ce qui se passe en prod.
-    // v23.1 part 212 — query case-insensitive sur model pour matcher
-    // les vieux docs lowercase (cf note dans GET /requests).
-    const modelLower = (user.model || '').toLowerCase();
-    const modelVariants = [user.model, modelLower];
-    const friendships = await Friendship.find({
+    // v23.1 part 215 — REWRITE en mode fetch-all + filter-in-JS (comme
+    // /requests v215). Le diagnostic Daniel a prouve que la query avec
+    // filtre sur model rate des docs valides. On supprime ce filtre :
+    // si f.addresseeId OR f.requesterId === user.id, c'est ma friendship
+    // peu importe le model.
+    const friendships = (await Friendship.find({
       status: 'accepted',
       $or: [
-        { requesterId: user.id, requesterModel: { $in: modelVariants } },
-        { addresseeId: user.id, addresseeModel: { $in: modelVariants } },
+        { requesterId: user.id },
+        { addresseeId: user.id },
       ],
     })
       .sort({ acceptedAt: -1 })
-      .lean();
+      .lean()).filter(
+        (f) =>
+          String(f.requesterId) === String(user.id) ||
+          String(f.addresseeId) === String(user.id),
+      );
     // v23.1 part 210 — diagnostic log
     logger.info(
       `[friends/list] user=${user.model}:${user.id} accepted_count=${friendships.length}`,
@@ -375,41 +376,55 @@ router.post('/reset-with/:targetId/:targetModel', requireAuth, async (req, res) 
 router.get('/requests', requireAuth, async (req, res) => {
   try {
     const user = me(req);
-    // v23.1 part 212 — Daniel : "jme co sur allomoteur aucune demande
-    // recu". L'audit code montre que ROLE_TO_MODEL_NAME mappe correctement
-    // 'walker' → 'Walker'. Mais des friendships peuvent avoir ete stockes
-    // historiquement avec model en lowercase (anciennes versions du code).
-    // On fait une query DEFENSIVE avec $in qui matche PascalCase ET
-    // lowercase pour pas rater les vieux docs.
-    const modelLower = (user.model || '').toLowerCase();
-    const modelVariants = [user.model, modelLower];
-    const [incoming, outgoing] = await Promise.all([
-      Friendship.find({
-        status: 'pending',
-        addresseeId: user.id,
-        addresseeModel: { $in: modelVariants },
-      }).lean(),
-      Friendship.find({
-        status: 'pending',
-        requesterId: user.id,
-        requesterModel: { $in: modelVariants },
-      }).lean(),
-    ]);
-    logger.info(
-      `[friends/requests] user=${user.model}:${user.id} incoming=${incoming.length} outgoing=${outgoing.length}`,
+    // v23.1 part 215 — Daniel diagnostic a revele : ALLO MOTEUR.id ===
+    // friendship.addresseeId, friendship.addresseeModel === 'Walker',
+    // status === 'pending'. /diagnose retournait correctement le doc
+    // mais /requests retournait empty. L'unique difference : /diagnose
+    // n'a PAS de filtre addresseeModel.
+    //
+    // Conclusion : la query Mongo $in: ['Walker', 'walker'] ne matche
+    // pas pour une raison subtile (peut-etre trim, encodage, ou bug
+    // Mongoose). On REWRITE en mode "fetch all + filter in JS" exactement
+    // comme /diagnose pour garantir la coherence.
+    const all = await Friendship.find({
+      status: 'pending',
+      $or: [
+        { addresseeId: user.id },
+        { requesterId: user.id },
+      ],
+    }).lean();
+    const incoming = all.filter(
+      (f) => String(f.addresseeId) === String(user.id),
     );
-    // v23.1 part 212 — backfill on the fly : si on trouve un doc avec
-    // model en lowercase, on le normalise en PascalCase pour les
-    // prochaines queries (one-shot auto-heal).
+    const outgoing = all.filter(
+      (f) => String(f.requesterId) === String(user.id),
+    );
+    logger.info(
+      `[friends/requests] user=${user.model}:${user.id} ` +
+      `total=${all.length} incoming=${incoming.length} outgoing=${outgoing.length}`,
+    );
+    if (all.length > 0 && incoming.length === 0 && outgoing.length === 0) {
+      // Diagnostic : on a trouve des docs avec mon id quelque part mais
+      // ni en incoming ni en outgoing → impossible logique → log raw.
+      logger.warn(
+        `[friends/requests] ZOMBIE STATE user=${user.id} raw=${JSON.stringify(all.map(f => ({
+          _id: String(f._id),
+          status: f.status,
+          requesterId: String(f.requesterId),
+          addresseeId: String(f.addresseeId),
+        })))}`,
+      );
+    }
+    // Backfill on the fly : normalise model casing (anti-zombie)
     for (const f of [...incoming, ...outgoing]) {
       let needsUpdate = false;
       const update = {};
-      if (f.addresseeModel && f.addresseeModel !== f.addresseeModel[0].toUpperCase() + f.addresseeModel.slice(1)) {
-        update.addresseeModel = f.addresseeModel[0].toUpperCase() + f.addresseeModel.slice(1);
+      if (f.addresseeModel && f.addresseeModel !== f.addresseeModel[0].toUpperCase() + f.addresseeModel.slice(1).toLowerCase()) {
+        update.addresseeModel = f.addresseeModel[0].toUpperCase() + f.addresseeModel.slice(1).toLowerCase();
         needsUpdate = true;
       }
-      if (f.requesterModel && f.requesterModel !== f.requesterModel[0].toUpperCase() + f.requesterModel.slice(1)) {
-        update.requesterModel = f.requesterModel[0].toUpperCase() + f.requesterModel.slice(1);
+      if (f.requesterModel && f.requesterModel !== f.requesterModel[0].toUpperCase() + f.requesterModel.slice(1).toLowerCase()) {
+        update.requesterModel = f.requesterModel[0].toUpperCase() + f.requesterModel.slice(1).toLowerCase();
         needsUpdate = true;
       }
       if (needsUpdate) {
