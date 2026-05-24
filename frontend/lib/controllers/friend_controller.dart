@@ -64,33 +64,121 @@ class FriendController extends GetxController {
   }
 
   Future<void> loadFriends() async {
+    // v23.1 part 218 — meme strategie que loadRequests : on appelle
+    // /friends/diagnose (qui marche prouve) et on filtre les accepted
+    // en Dart pour bypasser tout bug potentiel dans /friends GET.
     try {
       final api = Get.find<ApiClient>();
-      final data = await api.get('/friends', requiresAuth: true);
-      final list = (data['friends'] as List?) ?? const [];
-      friends.value = list
-          .map((f) => Friendship.fromJson((f as Map).cast<String, dynamic>()))
-          .toList();
+      final diag = await api.get('/friends/diagnose', requiresAuth: true);
+      final all = (diag is Map ? diag['friendships'] : null);
+      if (all is! List) {
+        friends.value = [];
+        return;
+      }
+      final acceptedRaw = <Map<String, dynamic>>[];
+      for (final f in all) {
+        if (f is! Map) continue;
+        if ((f['status'] ?? '').toString() == 'accepted') {
+          acceptedRaw.add(_diagToFriendshipPayload(f));
+        }
+      }
+      debugPrint(
+        '[Friends] loadFriends (diag) total=${all.length} accepted=${acceptedRaw.length}',
+      );
+      friends.value =
+          acceptedRaw.map((f) => Friendship.fromJson(f)).toList();
     } catch (e) {
       debugPrint('[Friends] loadFriends error: $e');
     }
   }
 
   Future<void> loadRequests() async {
+    // v23.1 part 218 — Daniel a vu via le diagnostic v214 que
+    // /friends/diagnose retourne correctement la friendship pending
+    // pour ALLO MOTEUR, mais /friends/requests retournait EMPTY (UI :
+    // "Pas de demande en attente"). On a tente v215 (fetch all + filter
+    // in JS) mais ca ne resout toujours pas.
+    //
+    // Solution finale : on appelle DIRECTEMENT /friends/diagnose (qui
+    // marche prouve) et on filtre en DART pour les statuts pending +
+    // direction. Plus aucun bug Mongo possible — on dedupe la logique.
     try {
       final api = Get.find<ApiClient>();
-      final data = await api.get('/friends/requests', requiresAuth: true);
-      final incoming = (data['incoming'] as List?) ?? const [];
-      final outgoing = (data['outgoing'] as List?) ?? const [];
-      incomingRequests.value = incoming
-          .map((f) => Friendship.fromJson((f as Map).cast<String, dynamic>()))
+      // 1) Get my id+model via /whoami
+      final whoami = await api.get('/friends/whoami', requiresAuth: true);
+      final myId = (whoami is Map ? whoami['id'] : null)?.toString() ?? '';
+      // 2) Get all friendships via /diagnose (which works)
+      final diag = await api.get('/friends/diagnose', requiresAuth: true);
+      final all = (diag is Map ? diag['friendships'] : null);
+      if (all is! List) {
+        incomingRequests.value = [];
+        outgoingRequests.value = [];
+        return;
+      }
+      // 3) Filter in Dart : status='pending' + direction
+      final incomingRaw = <Map<String, dynamic>>[];
+      final outgoingRaw = <Map<String, dynamic>>[];
+      for (final f in all) {
+        if (f is! Map) continue;
+        if ((f['status'] ?? '').toString() != 'pending') continue;
+        final iAmRequester = f['iAmRequester'] == true;
+        final iAmAddressee = !iAmRequester &&
+            (f['addresseeId'] ?? '').toString() == myId;
+        if (iAmAddressee) {
+          incomingRaw.add(_diagToFriendshipPayload(f));
+        } else if (iAmRequester) {
+          outgoingRaw.add(_diagToFriendshipPayload(f));
+        }
+      }
+      debugPrint(
+        '[Friends] loadRequests (diag) myId=$myId total=${all.length} '
+        'incoming=${incomingRaw.length} outgoing=${outgoingRaw.length}',
+      );
+      incomingRequests.value = incomingRaw
+          .map((f) => Friendship.fromJson(f))
           .toList();
-      outgoingRequests.value = outgoing
-          .map((f) => Friendship.fromJson((f as Map).cast<String, dynamic>()))
+      outgoingRequests.value = outgoingRaw
+          .map((f) => Friendship.fromJson(f))
           .toList();
     } catch (e) {
       debugPrint('[Friends] loadRequests error: $e');
     }
+  }
+
+  /// v23.1 part 218 — convertit un doc de /friends/diagnose (qui a
+  /// otherModel/otherId/otherName/otherExists au lieu de other:{...})
+  /// vers le format attendu par Friendship.fromJson.
+  Map<String, dynamic> _diagToFriendshipPayload(Map f) {
+    final otherId = (f['otherId'] ?? '').toString();
+    final otherModel = (f['otherModel'] ?? '').toString();
+    final otherName = (f['otherName'] ?? '').toString();
+    final otherExists = f['otherExists'] == true;
+    return {
+      'id': f['friendshipId'],
+      'status': f['status'],
+      'initiatedByMe': f['iAmRequester'] == true,
+      'other': otherExists
+          ? {
+              'id': otherId,
+              'model': otherModel,
+              'name': otherName.isEmpty
+                  ? (otherExists ? 'Utilisateur' : 'Utilisateur supprimé')
+                  : otherName,
+              'avatar': '',
+              'city': '',
+            }
+          : {
+              'id': '',
+              'model': otherModel.isEmpty ? 'Owner' : otherModel,
+              'name': 'Utilisateur supprimé',
+              'avatar': '',
+              'city': '',
+            },
+      'mySharePosition': false,
+      'theirSharePosition': false,
+      'createdAt': f['createdAt'],
+      'acceptedAt': f['acceptedAt'],
+    };
   }
 
   /// v23.1.172 — Daniel : "quand je demande invitation amis sa met met

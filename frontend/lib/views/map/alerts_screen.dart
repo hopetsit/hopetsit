@@ -57,8 +57,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
   // v23.1 part 211 — state partage entre tous les tabs : radius (km),
   // periode (heures), recherche libre. Modifies via les chips ou bottom
   // sheet du filter icon → declenche reload de chaque _AlertsList.
-  final RxDouble _radiusKm = 25.0.obs;
-  final RxInt _sinceHours = 48.obs;
+  // v23.1 part 218 — Daniel : sa PawMap montre 2 alertes "Autour de vous"
+  // mais Alertes screen dit "Aucune alerte". PawMap utilise un radius
+  // plus large + pas de filtre temporel. On align : defaults 50km/7j
+  // (au lieu de 25km/48h) pour eviter le faux negatif. L'user peut
+  // toujours reduire via les chips.
+  final RxDouble _radiusKm = 50.0.obs;
+  final RxInt _sinceHours = 168.obs;
   final RxString _searchQuery = ''.obs;
   // Position GPS resolue UNE fois au mount, partagee.
   final Rx<LatLng?> _myPos = Rx<LatLng?>(null);

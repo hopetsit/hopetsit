@@ -272,6 +272,25 @@ const startVerification = async (req, res) => {
     const linkResp = await persona.generateOneTimeLink(inquiryId);
     const oneTimeLink = linkResp?.meta?.['one-time-link'] || linkResp?.data?.attributes?.url;
 
+    // v23.1 part 218 — Daniel : "personna marche pas" malgre env vars OK.
+    // Avant : si Persona renvoyait un format inattendu, oneTimeLink = null
+    // et le backend renvoyait 200 avec null → frontend affichait "Lien
+    // indisponible" sans savoir pourquoi. Maintenant : on log la reponse
+    // brute + on renvoie 502 avec details pour que Daniel voie la VRAIE
+    // raison dans Render logs et que le frontend puisse afficher un
+    // message utile.
+    if (!oneTimeLink) {
+      logger.error(
+        `[kyc.start] Persona did NOT return a one-time link. ` +
+        `inquiryId=${inquiryId} rawResponse=${JSON.stringify(linkResp).slice(0, 500)}`,
+      );
+      return res.status(502).json({
+        error: 'Persona did not return a verification link. The Persona inquiry was created but the link generation failed. Check Render logs for the raw Persona response.',
+        code: 'PERSONA_LINK_EMPTY',
+        inquiryId,
+      });
+    }
+
     return res.json({
       inquiryId,
       oneTimeLink,
