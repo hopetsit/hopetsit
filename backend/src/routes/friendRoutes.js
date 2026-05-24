@@ -91,6 +91,109 @@ async function enrichFriendship(friendship, viewerId) {
   };
 }
 
+// v23.1 part 214 — Daniel : "je ne recois toujours pas la demande d'amis
+// sa me met envoyer mais je ne recois rien". Apres 6 tentatives de fix
+// blind, on construit un OUTIL DE DIAGNOSTIC pour surfacer la vraie
+// cause une fois pour toutes. Ces 2 endpoints exposent ENTIEREMENT l'etat
+// des friendships du user courant, ce qui permet de comparer cote sender
+// vs cote receiver et trouver l'incompatibilite.
+//
+// GET /friends/whoami — retourne l'identite EXACTE du user authentifie
+//   (id, model, name, email tronque). Daniel peut comparer cet id avec
+//   l'addresseeId stocke dans la friendship cree.
+router.get('/whoami', requireAuth, async (req, res) => {
+  try {
+    const user = me(req);
+    const Model = MODEL_BY_NAME[user.model];
+    const doc = Model
+      ? await Model.findById(user.id)
+          .select('firstName lastName email')
+          .lean()
+      : null;
+    res.json({
+      id: String(user.id),
+      role: user.role,
+      model: user.model,
+      jwtRole: req.user?.role,
+      name: doc
+        ? [doc.firstName, doc.lastName].filter(Boolean).join(' ').trim()
+        : null,
+      emailHint: doc?.email
+        ? `${String(doc.email).slice(0, 3)}***${String(doc.email).slice(-6)}`
+        : null,
+      docExists: !!doc,
+    });
+  } catch (e) {
+    logger.error('[friends/whoami]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /friends/diagnose — retourne TOUTES les friendships ou je suis
+// impliqué (requesterId=moi OR addresseeId=moi), peu importe le status.
+// Pour chaque doc on enrichit avec l'existence reelle de l'autre user
+// dans sa collection. Daniel peut comparer cote sender + cote receiver
+// et voir si les ids matchent vraiment.
+router.get('/diagnose', requireAuth, async (req, res) => {
+  try {
+    const user = me(req);
+    const all = await Friendship.find({
+      $or: [
+        { requesterId: user.id },
+        { addresseeId: user.id },
+      ],
+    }).lean();
+    const enriched = await Promise.all(
+      all.map(async (f) => {
+        const otherId =
+          String(f.requesterId) === String(user.id)
+            ? f.addresseeId
+            : f.requesterId;
+        const otherModel =
+          String(f.requesterId) === String(user.id)
+            ? f.addresseeModel
+            : f.requesterModel;
+        const OtherModel =
+          MODEL_BY_NAME[otherModel] || MODEL_BY_NAME[
+            otherModel
+              ? otherModel[0].toUpperCase() + otherModel.slice(1).toLowerCase()
+              : ''
+          ];
+        const otherDoc = OtherModel
+          ? await OtherModel.findById(otherId)
+              .select('firstName lastName email')
+              .lean()
+          : null;
+        return {
+          friendshipId: String(f._id),
+          status: f.status,
+          iAmRequester: String(f.requesterId) === String(user.id),
+          requesterId: String(f.requesterId),
+          requesterModel: f.requesterModel,
+          addresseeId: String(f.addresseeId),
+          addresseeModel: f.addresseeModel,
+          otherId: String(otherId),
+          otherModel,
+          otherExists: !!otherDoc,
+          otherName: otherDoc
+            ? [otherDoc.firstName, otherDoc.lastName].filter(Boolean).join(' ').trim()
+            : null,
+          createdAt: f.createdAt,
+          acceptedAt: f.acceptedAt,
+        };
+      }),
+    );
+    res.json({
+      me: { id: String(user.id), model: user.model },
+      total: enriched.length,
+      friendships: enriched,
+    });
+  } catch (e) {
+    logger.error('[friends/diagnose]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // v23.1 part 69 — Bug 9 : "Comment sajoute les amis ?". Daniel didn't
 // know how to add friends. Added a search-by-email endpoint that the
 // frontend's "+ Ajouter un ami" dialog calls.

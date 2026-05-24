@@ -179,6 +179,25 @@ class FriendController extends GetxController {
     }
   }
 
+  /// v23.1 part 214 — Diagnostic friend bug. Appelle GET /friends/whoami
+  /// + GET /friends/diagnose et retourne un Map combine. Le frontend
+  /// affiche ca dans un AlertDialog pour que Daniel puisse comparer
+  /// son cote vs cote ALLO MOTEUR et trouver l'incompatibilite.
+  Future<Map<String, dynamic>?> diagnose() async {
+    try {
+      final api = Get.find<ApiClient>();
+      final whoami = await api.get('/friends/whoami', requiresAuth: true);
+      final diag = await api.get('/friends/diagnose', requiresAuth: true);
+      return {
+        'whoami': whoami is Map ? whoami : {},
+        'diagnose': diag is Map ? diag : {},
+      };
+    } catch (e) {
+      debugPrint('[Friends] diagnose error: $e');
+      return null;
+    }
+  }
+
   /// v23.1 part 69 — Bug 9 : search users by email or name to send a
   /// friend request. Backend returns up to 10 owners/sitters/walkers
   /// whose email or name match the query.

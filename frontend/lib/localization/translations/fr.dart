@@ -500,6 +500,10 @@ const Map<String, String> frFRTranslations = <String, String>{
       'theme_dark': 'Sombre',
       'theme_system': 'Suivre le système',
       'common_close': 'Fermer',
+      // v23.1 part 214 — outil diagnostic bug demandes d'amis
+      'friend_diagnose_tooltip': 'Diagnostic amis',
+      'friend_diagnose_title': 'Diagnostic amis',
+      'friend_diagnose_failed': 'Impossible de recuperer le diagnostic.',
       'pawfollow_request_sent_header': 'Demande de suivi en direct envoyée',
       'pawfollow_request_owner_wants_to_follow': 'Le propriétaire souhaite suivre ta position en direct',
       'pawfollow_request_provider_wants_to_share': 'Le walker / sitter veut partager sa position avec toi',

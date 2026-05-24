@@ -73,6 +73,74 @@ class FriendsScreen extends StatelessWidget {
           // + lien deep-link via SharePlus (le destinataire peut le coller
           // dans WhatsApp/email/sms etc.).
           actions: [
+            // v23.1 part 214 — Daniel : "je ne recois toujours pas la
+            // demande d'amis sa me met envoyer mais je ne recois rien".
+            // Bouton diagnostic qui appelle /friends/whoami + /diagnose
+            // et affiche TOUTE l'etat des friendships du user courant
+            // dans un AlertDialog. Daniel peut ouvrir sur ses 2 phones
+            // et comparer pour identifier ce qui cloche reellement.
+            IconButton(
+              icon: Icon(Icons.bug_report_rounded,
+                  color: AppColors.primaryColor, size: 22.sp),
+              tooltip: 'friend_diagnose_tooltip'.tr,
+              onPressed: () async {
+                final result = await controller.diagnose();
+                if (!context.mounted) return;
+                if (result == null) {
+                  CustomSnackbar.showError(
+                    title: 'common_error'.tr,
+                    message: 'friend_diagnose_failed'.tr,
+                  );
+                  return;
+                }
+                final whoami = (result['whoami'] as Map?) ?? {};
+                final diag = (result['diagnose'] as Map?) ?? {};
+                final friendships = (diag['friendships'] as List?) ?? [];
+                final buf = StringBuffer();
+                buf.writeln('━━━ MOI ━━━');
+                buf.writeln('id    : ${whoami['id']}');
+                buf.writeln('model : ${whoami['model']}  (jwtRole=${whoami['jwtRole']})');
+                buf.writeln('name  : ${whoami['name'] ?? '(vide)'}');
+                buf.writeln('email : ${whoami['emailHint'] ?? '(vide)'}');
+                buf.writeln('doc OK: ${whoami['docExists']}');
+                buf.writeln('');
+                buf.writeln('━━━ FRIENDSHIPS (${friendships.length}) ━━━');
+                if (friendships.isEmpty) {
+                  buf.writeln('Aucune amitie en DB de mon cote.');
+                }
+                for (final f in friendships) {
+                  if (f is! Map) continue;
+                  buf.writeln('• id=${f['friendshipId']}');
+                  buf.writeln('  status=${f['status']}  iAmReq=${f['iAmRequester']}');
+                  buf.writeln('  req ${f['requesterModel']}:${f['requesterId']}');
+                  buf.writeln('  add ${f['addresseeModel']}:${f['addresseeId']}');
+                  buf.writeln('  other ${f['otherModel']}:${f['otherId']}');
+                  buf.writeln('  otherExists=${f['otherExists']}  name="${f['otherName'] ?? ''}"');
+                  buf.writeln('');
+                }
+                showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text('friend_diagnose_title'.tr),
+                    content: SingleChildScrollView(
+                      child: SelectableText(
+                        buf.toString(),
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: Text('common_close'.tr),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             // v23.1.174 — Accès à la liste des bloqués depuis la barre d'app.
             IconButton(
               icon: Icon(Icons.block_rounded,

@@ -480,6 +480,10 @@ const Map<String, String> enUSTranslations = <String, String>{
       'theme_dark': 'Dark',
       'theme_system': 'Follow system',
       'common_close': 'Close',
+      // v23.1 part 214 — friend bug diagnostic tool
+      'friend_diagnose_tooltip': 'Friend diagnostic',
+      'friend_diagnose_title': 'Friend diagnostic',
+      'friend_diagnose_failed': 'Could not retrieve diagnostic.',
       'pawfollow_request_sent_header': 'Live tracking request sent',
       'pawfollow_request_owner_wants_to_follow': 'The owner wants to track your position live',
       'pawfollow_request_provider_wants_to_share': 'The walker / sitter wants to share their position with you',

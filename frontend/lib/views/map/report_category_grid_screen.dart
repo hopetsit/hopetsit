@@ -20,6 +20,7 @@ import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 class ReportCategoryGridScreen extends StatelessWidget {
   const ReportCategoryGridScreen({super.key});
@@ -281,16 +282,29 @@ class ReportCategoryGridScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12.r),
         onTap: () async {
-          LatLng point = const LatLng(0, 0);
+          // v23.1 part 214 — Daniel : "j'ai fais un signalement et c
+          // toujours ecris aucune alerte". MEME BUG QUE v213 (alerts_screen)
+          // appliquait deja le fix, mais cette grid avait son propre
+          // fallback (0,0) toxique. Si pas de GPS, on refuse la creation
+          // au lieu de stocker un fantome.
+          LatLng? point;
           try {
             final pos = await Geolocator.getCurrentPosition(
               locationSettings: const LocationSettings(
                 accuracy: LocationAccuracy.high,
-                timeLimit: Duration(seconds: 6),
+                timeLimit: Duration(seconds: 8),
               ),
             );
             point = LatLng(pos.latitude, pos.longitude);
-          } catch (_) {/* fallback */}
+          } catch (_) {/* point reste null */}
+          if (point == null || (point.latitude == 0 && point.longitude == 0)) {
+            if (!context.mounted) return;
+            CustomSnackbar.showError(
+              title: 'alerts_no_gps_title'.tr,
+              message: 'alerts_no_gps_msg'.tr,
+            );
+            return;
+          }
           if (!context.mounted) return;
           final created = await CreateReportSheet.show(
             context,
