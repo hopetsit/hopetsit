@@ -1696,8 +1696,14 @@ class _AddFriendTabState extends State<_AddFriendTab> {
     final id = (u['id'] ?? '').toString();
     final role = (u['role'] ?? '').toString();
     final name = (u['name'] ?? '').toString();
-    final email = (u['email'] ?? '').toString();
     final avatar = (u['avatar'] ?? '').toString();
+    // v23.1 part 219 — Daniel : "qd je demande amis l'email s'affiche
+    // encore". J'avais fix la tile du dialog popup en v216, mais cette
+    // tile-ci dans l'onglet "Ajouter" principal etait restee avec
+    // l'email visible. Meme fix : name (ou fallback) en titre + juste
+    // le role en subtitle. Plus jamais d'email expose dans l'UI search.
+    final displayName =
+        name.isNotEmpty ? name : 'friends_search_no_name'.tr;
     // v23.1.190 — owner = violet (Famille & Amis), walker = vert, sitter = bleu.
     final accent = role == 'walker'
         ? AppColors.greenColor
@@ -1728,7 +1734,7 @@ class _AddFriendTabState extends State<_AddFriendTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InterText(
-                  text: name.isNotEmpty ? name : email,
+                  text: displayName,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary(context),
@@ -1736,7 +1742,7 @@ class _AddFriendTabState extends State<_AddFriendTab> {
                 ),
                 SizedBox(height: 2.h),
                 InterText(
-                  text: '$role · $email',
+                  text: role,
                   fontSize: 10.sp,
                   color: AppColors.greyText,
                   maxLines: 1,
