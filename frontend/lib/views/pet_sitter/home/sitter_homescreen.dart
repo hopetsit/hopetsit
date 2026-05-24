@@ -665,26 +665,22 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         // v23.1 — bg blanc (au lieu de scaffold lightGrey) pour éliminer
         // tout grey leak derrière la nav bar (cas Accueil tab).
         backgroundColor: AppColors.appBar(context),
-        // v23.1 — HomeHeader Container-based : fix le grey rectangle persistant.
-        appBar: HomeHeader(
-          userName: profileController.userName.value.isNotEmpty
-              ? profileController.userName.value
-              : 'common_user'.tr,
-          userImage: profileController.profileImageUrl.value.isNotEmpty
-              ? profileController.profileImageUrl.value
-              : '',
-          notificationUnreadRx: notificationsController.unreadCount,
-          role: Get.isRegistered<AuthController>()
-              ? (Get.find<AuthController>().userRole.value ?? 'sitter')
-              : 'sitter',
-          onNotificationTap: () {
-            Get.to(() => const SitterNotificationsScreen())?.then((_) {
-              notificationsController.refreshUnreadCount();
-            });
-          },
-          onProfileTap: () {
-            AppLogger.logDebug('SitterHomescreen: profile tapped');
-          },
+        // v23.1 part 221 — Daniel : "sur la page acceuil owner et sitter
+        // je veux que se soit comme la page de walker". Remplacement du
+        // HomeHeader custom 70h par un AppBar standard leger (cf note
+        // dans home_screen.dart owner).
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: AppColors.appBar(context),
+          surfaceTintColor: Colors.transparent,
+          title: PoppinsText(
+            text: profileController.userName.value.isNotEmpty
+                ? profileController.userName.value
+                : 'common_user'.tr,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
           actions: [
             Obx(() {
               final role = Get.isRegistered<AuthController>()
@@ -693,6 +689,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               return BoostQuickAction(role: role);
             }),
             SizedBox(width: 4.w),
+            IconButton(
+              icon: Icon(Icons.notifications_rounded,
+                  color: AppColors.primaryColor, size: 22.sp),
+              onPressed: () {
+                Get.to(() => const SitterNotificationsScreen())?.then((_) {
+                  notificationsController.refreshUnreadCount();
+                });
+              },
+            ),
+            SizedBox(width: 8.w),
           ],
         ),
         body: SafeArea(

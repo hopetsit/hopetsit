@@ -828,32 +828,38 @@ class _HomeScreenState extends State<HomeScreen> {
         // the inner Material widget. We compensate by wrapping body inline.
         extendBody: false,
         extendBodyBehindAppBar: false,
-        // v23.1 — HomeHeader : Container custom 100% blanc, fix le grey
-        // rectangle persistant qui apparaissait sur l'AppBar Material 3.
-        appBar: HomeHeader(
-          userName: _profileController.userName.value.isNotEmpty
-              ? _profileController.userName.value
-              : 'home_default_user_name'.tr,
-          userImage: _profileController.profileImageUrl.value.isNotEmpty
-              ? _profileController.profileImageUrl.value
-              : '',
-          notificationUnreadRx: _notificationsController.unreadCount,
-          onNotificationTap: () {
-            Get.to(() => const NotificationsScreen())?.then((_) {
-              _notificationsController.refreshUnreadCount();
-            });
-          },
-          onProfileTap: () {},
-          role: 'owner',
+        // v23.1 part 221 — Daniel : "sur la page acceuil owner et sitter
+        // je veux que se soit comme la page de walker quand tu scroll tu
+        // scrolle tte la page pas avec le fix en haut bloquer". Avant :
+        // HomeHeader custom 70h en appBar (avec avatar + nom + notif +
+        // boost) qui prenait beaucoup d'espace fixe en haut. Maintenant :
+        // AppBar standard leger (comme walker) avec juste le titre + les
+        // actions essentielles. Le body a plus de place et scroll mieux.
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: AppColors.appBar(context),
+          surfaceTintColor: Colors.transparent,
+          title: PoppinsText(
+            text: _profileController.userName.value.isNotEmpty
+                ? _profileController.userName.value
+                : 'home_default_user_name'.tr,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
           actions: [
-            // v23.1 part 65 — Bug 8 : the map shortcut icon (white on the
-            // orange gradient) was removed from the AppBar. Daniel found
-            // it visually noisy and redundant since the PawMap is always
-            // one tap away via the central round button on the bottom
-            // nav bar. Keeping only the Boost mini-button + the system
-            // notification bell rendered by CustomAppBar.
             const BoostQuickAction(role: 'owner'),
             SizedBox(width: 4.w),
+            IconButton(
+              icon: Icon(Icons.notifications_rounded,
+                  color: AppColors.primaryColor, size: 22.sp),
+              onPressed: () {
+                Get.to(() => const NotificationsScreen())?.then((_) {
+                  _notificationsController.refreshUnreadCount();
+                });
+              },
+            ),
+            SizedBox(width: 8.w),
           ],
         ),
         // v23.1 part 27 — REVERT default SafeArea (bottom: true). Avec la pill
