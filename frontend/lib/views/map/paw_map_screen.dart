@@ -20,6 +20,7 @@ import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
+import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
 import 'package:hopetsit/views/map/report_category_grid_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
@@ -829,9 +830,15 @@ class _PawMapScreenState extends State<PawMapScreen> {
     // v23.1.174 — Daniel : "halo argent sur les amis, halo rose sur les
     // membres famille PawFollow". On lit la liste des family members du
     // FriendController + les friend positions broadcastées via mapSocket.
-    // Argent (#C0C0C0) = ami accepté qui partage sa position.
-    // Rose (#EC4899) = membre famille PawFollow (override l'argent si les
-    //                   deux s'appliquent, la famille prime visuellement).
+    //
+    // v23.1 part 225 — Daniel : "pour le suivi walker en vert et sitter
+    // en bleu, quand je suive animal sa me mette sur la map et halo vert
+    // ou bleu selon service". On override desormais la priorite couleur :
+    //   1. Walker actif (model=Walker) → VERT (greenColor) — il promene
+    //      mon animal, je le suis pour voir ou il est avec mon chien.
+    //   2. Sitter actif (model=Sitter) → BLEU (sitterAccent) — il garde
+    //      mon animal, meme logique.
+    //   3. Sinon, fallback historique : family ROSE / friend ARGENT.
     try {
       final friendCtl = Get.isRegistered<FriendController>()
           ? Get.find<FriendController>()
@@ -841,16 +848,45 @@ class _PawMapScreenState extends State<PawMapScreen> {
               .where((id) => id.isNotEmpty)
               .toSet() ??
           <String>{};
+      // v23.1 part 225 — Index userId → role (lowercase) tire de la
+      // liste d'amis acceptes pour pouvoir override la couleur halo
+      // selon le metier de l'ami qui broadcast.
+      final Map<String, String> friendIdToRole = {};
+      try {
+        for (final f in friendCtl?.friends ?? []) {
+          final id = f.other?.id ?? '';
+          final model = f.other?.model ?? '';
+          if (id.isNotEmpty && model.isNotEmpty) {
+            friendIdToRole[id] = model.toLowerCase();
+          }
+        }
+      } catch (_) {/* defensive */}
 
       const silver = Color(0xFFC0C0C0);
       const familyPink = Color(0xFFEC4899);
 
       for (final pos in _liveMap.friendPositions.values) {
+        final role = friendIdToRole[pos.userId] ?? '';
         final isFamily = familyMemberIds.contains(pos.userId);
-        final color = isFamily ? familyPink : silver;
+        // Priorite v225 : walker/sitter override family/friend.
+        Color color;
+        String tag;
+        if (role == 'walker') {
+          color = AppColors.greenColor;
+          tag = 'walker';
+        } else if (role == 'sitter') {
+          color = AppColors.sitterAccent;
+          tag = 'sitter';
+        } else if (isFamily) {
+          color = familyPink;
+          tag = 'family';
+        } else {
+          color = silver;
+          tag = 'friend';
+        }
         circles.add(
           Circle(
-            circleId: CircleId('${isFamily ? "family" : "friend"}_halo_${pos.userId}'),
+            circleId: CircleId('${tag}_halo_${pos.userId}'),
             center: LatLng(pos.latitude, pos.longitude),
             radius: 60,
             fillColor: color.withValues(alpha: 0.18),
@@ -1851,18 +1887,19 @@ class _PawMapScreenState extends State<PawMapScreen> {
             ),
           ),
           SizedBox(width: 8.w),
-          // 3. Personnes en live — v23.1 part 223 — Daniel "personne en
-          // live met le bouton a coter de famille et amis et alertes
-          // c plus pratique". Ouvre directement FriendsScreen sur le
-          // tab index 4 (Personnes en live). Couleur verte pour
-          // distinguer du violet Famille et du jaune Alertes.
+          // 3. Personnes live position — v23.1 part 225 — Daniel : "vire
+          // personne en live de l'onglet famille amis". L'onglet a ete
+          // supprime, mais la card ici reste : elle ouvre maintenant la
+          // screen autonome PeopleLiveScreen (memo logique, propre AppBar).
+          // Couleur verte pour distinguer du violet Famille et du jaune
+          // Alertes.
           Expanded(
             child: _quickActionCard(
               icon: Icons.gps_fixed_rounded,
               label: 'pawmap_quick_people_live'.tr,
               sublabel: 'pawmap_quick_people_live_sub'.tr,
               color: const Color(0xFF10B981),
-              onTap: () => Get.to(() => const FriendsScreen(initialIndex: 4)),
+              onTap: () => Get.to(() => const PeopleLiveScreen()),
             ),
           ),
           SizedBox(width: 8.w),

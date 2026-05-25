@@ -743,11 +743,28 @@ class _AlertsListState extends State<_AlertsList>
             onSignalLost: widget.onSignalLost,
           );
         }
-        return ListView.separated(
+        // v23.1 part 225 — Daniel : "dans longlet alerte sur tous tu peux
+        // laisser le bouton orange signaler un animal perdu". On garde le
+        // CTA visible en TETE de liste sur l'onglet Tous (filterTypes ==
+        // null) meme quand la liste a des alertes. Sur les autres tabs
+        // (Perdus/Danger/Autres) on ne le repete pas pour pas surcharger.
+        final showSignalBanner = widget.filterTypes == null;
+        return ListView.builder(
           padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 90.h),
-          itemCount: filtered.length,
-          separatorBuilder: (_, __) => SizedBox(height: 8.h),
-          itemBuilder: (_, i) => _ReportCard(report: filtered[i]),
+          itemCount: filtered.length + (showSignalBanner ? 1 : 0),
+          itemBuilder: (_, i) {
+            if (showSignalBanner && i == 0) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: 12.h),
+                child: _SignalLostBanner(onTap: widget.onSignalLost),
+              );
+            }
+            final reportIndex = showSignalBanner ? i - 1 : i;
+            return Padding(
+              padding: EdgeInsets.only(bottom: 8.h),
+              child: _ReportCard(report: filtered[reportIndex]),
+            );
+          },
         );
       }),
     );
@@ -967,6 +984,71 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// v23.1 part 225 — Daniel : "sur tous tu peux laisser le bouton orange
+// signaler un animal perdu". Banner compact reutilise comme header de
+// liste sur l'onglet "Tous" quand des alertes sont presentes (sinon
+// l'empty state contient deja le gros CTA full-width).
+class _SignalLostBanner extends StatelessWidget {
+  const _SignalLostBanner({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14.r),
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFDC2626), Color(0xFFEF4324)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14.r),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.30),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.campaign_rounded, color: Colors.white, size: 22.sp),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: 'alerts_signal_lost_title'.tr,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                    SizedBox(height: 1.h),
+                    InterText(
+                      text: 'alerts_signal_lost_subtitle'.tr,
+                      fontSize: 10.sp,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  color: Colors.white, size: 14.sp),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

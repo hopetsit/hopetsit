@@ -1528,6 +1528,7 @@ const Map<String, String> itITTranslations = <String, String>{
       // Chat screens
       'chat_error_loading_conversations':
           'Errore durante il caricamento delle conversazioni',
+      'chat_error_403_title': 'Accesso alla chat negato',
       'chat_retry': 'Riprova',
       'chat_no_conversations': 'Nessuna conversazione ancora',
       'chat_error_loading_messages':

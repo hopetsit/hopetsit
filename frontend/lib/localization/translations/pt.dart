@@ -2267,6 +2267,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'change_password_title': 'Alterar palavra-passe',
     'change_password_validation_error': 'Palavra-passe demasiado curta.',
     'chat_error_loading_conversations': 'Falha ao carregar conversas.',
+    'chat_error_403_title': 'Acesso ao chat negado',
     'choose_service_title': 'Escolhe um serviço',
     'common_select': 'Selecionar',
     'common_yes': 'Sim',

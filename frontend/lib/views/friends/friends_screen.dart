@@ -53,9 +53,14 @@ class FriendsScreen extends StatelessWidget {
     // v23.1 part 210 — Daniel mockup : "reorganise comme sur la photo".
     // Famille et "Personnes en live" sont maintenant 2 onglets distincts
     // (avant fusionnes dans "Live"). Total : 7 onglets.
+    // v23.1 part 225 — Daniel : "vire personne en live, je sais pas si on
+    // vire pas aussi animeaux". Reponse : on vire les 2. Personnes en live
+    // est desormais une screen autonome (PeopleLiveScreen) ouverte depuis
+    // la card quick-action de PawMap. Animaux faisait doublon avec le
+    // halo vert/bleu auto sur la map quand on suit un animal. Total : 5.
     return DefaultTabController(
-      length: 7,
-      initialIndex: initialIndex.clamp(0, 6),
+      length: 5,
+      initialIndex: initialIndex.clamp(0, 4),
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -250,26 +255,14 @@ class FriendsScreen extends StatelessWidget {
                 icon: const Icon(Icons.person_add_alt_1_rounded),
                 text: 'friends_tab_add'.tr,
               ),
-              // v23.1 part 210 — Daniel mockup nouvelle organisation :
-              // 7 onglets au lieu de 6, avec Famille et "Personnes en live"
-              // SEPARES (au lieu de fusionnes dans l'ancien onglet "Live").
+              // v23.1 part 225 — Daniel : "vire personne en live et je sais
+              // pas si on vire pas aussi animeaux". Reponse : on vire les 2.
               // 4. Famille — membres PawFollow Famille (jusqu'a 5).
               Tab(
                 icon: const Icon(Icons.people_alt_rounded),
                 text: 'friends_tab_family'.tr,
               ),
-              // 5. Personnes en live — amis/famille qui partagent leur
-              // position en temps reel (theirSharePosition == true).
-              Tab(
-                icon: const Icon(Icons.gps_fixed_rounded),
-                text: 'friends_tab_people_live'.tr,
-              ),
-              // 6. Animaux — pets des amis/famille (sub-screen, fetch by friendsIds).
-              Tab(
-                icon: const Icon(Icons.pets_rounded),
-                text: 'friends_tab_pets'.tr,
-              ),
-              // 7. Messages — chats avec mes amis (filtre client-side).
+              // 5. Messages — chats avec mes amis (filtre client-side).
               Tab(
                 icon: const Icon(Icons.chat_bubble_outline_rounded),
                 text: 'friends_tab_messages'.tr,
@@ -294,10 +287,8 @@ class FriendsScreen extends StatelessWidget {
                   _RequestsTab(controller: controller),
                   _AddFriendTab(controller: controller),
                   _FamilyTab(controller: controller),
-                  // v23.1 part 210 — nouvel onglet "Personnes en live"
-                  // (separe de Famille comme demande par Daniel mockup).
-                  _PeopleLiveTab(controller: controller),
-                  _PetsTab(controller: controller),
+                  // v23.1 part 225 — Personnes en live + Animaux supprimes
+                  // (deplaces vers PeopleLiveScreen autonome / halo map auto).
                   _MessagesTab(controller: controller),
                 ],
               ),

@@ -1490,6 +1490,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'house_sitting_venue_sitters_home': 'En casa del cuidador',
       // Chat screens
       'chat_error_loading_conversations': 'Error al cargar las conversaciones',
+      'chat_error_403_title': 'Acceso al chat denegado',
       'chat_retry': 'Reintentar',
       'chat_no_conversations': 'No hay conversaciones todavía',
       'chat_error_loading_messages': 'Error al cargar los mensajes',

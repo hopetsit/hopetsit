@@ -59,23 +59,56 @@ class ChatScreen extends StatelessWidget {
                 // "ApiException(statusCode 500)" etc.). Si la liste est
                 // déjà peuplée, on n'interrompt même pas l'UI : on laisse
                 // l'ancien état.
+                // v23.1 part 225 — Daniel : "dans l'onglet chat erreur api
+                // 403". On surface desormais le message backend brut sous
+                // le generic (en petit, gris) pour pouvoir diagnostiquer.
+                // requireRole backend renvoie deja path + role attendu vs
+                // role courant dans `details` (ex: "GET /conversations/X
+                // requires role(s): sitter (you are: owner)"). _extractError
+                // ApiClient prend en charge ce champ donc errorMessage.value
+                // contient deja le bon texte. On ajoute aussi un bouton
+                // "Reconnecter" qui force un re-login (cas du JWT stale).
                 if (controller.errorMessage.value.isNotEmpty &&
                     controller.conversations.isEmpty) {
+                  final raw = controller.errorMessage.value;
+                  final is403 = raw.toLowerCase().contains('403') ||
+                      raw.toLowerCase().contains('permission') ||
+                      raw.toLowerCase().contains('forbidden');
                   return Center(
                     child: Padding(
                       padding: EdgeInsets.all(24.w),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.wifi_off_rounded,
-                              size: 48.sp, color: AppColors.greyColor),
+                          Icon(
+                            is403
+                                ? Icons.lock_outline_rounded
+                                : Icons.wifi_off_rounded,
+                            size: 48.sp,
+                            color: is403 ? Colors.orange : AppColors.greyColor,
+                          ),
                           SizedBox(height: 12.h),
                           PoppinsText(
-                            text: 'chat_error_loading_conversations'.tr,
+                            text: is403
+                                ? 'chat_error_403_title'.tr
+                                : 'chat_error_loading_conversations'.tr,
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary(context),
                             textAlign: TextAlign.center,
+                          ),
+                          // Raw backend message (path + role mismatch quand
+                          // c'est un 403). Indispensable pour diagnostiquer.
+                          SizedBox(height: 8.h),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.w),
+                            child: PoppinsText(
+                              text: raw,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.greyText,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                           SizedBox(height: 16.h),
                           OutlinedButton(

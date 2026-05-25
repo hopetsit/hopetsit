@@ -55,23 +55,49 @@ class SitterChatScreen extends StatelessWidget {
 
                 // v18.8 — épuré : plus de backend raw message, et on
                 // n'affiche l'erreur que si la liste est vide.
+                // v23.1 part 225 — Daniel "longlet chat erreur api 403".
+                // Meme amelioration que ChatScreen owner : on surface le
+                // message backend brut sous le titre generic pour
+                // pouvoir identifier quel endpoint cloche cote sitter.
                 if (controller.errorMessage.value.isNotEmpty &&
                     controller.conversations.isEmpty) {
+                  final raw = controller.errorMessage.value;
+                  final is403 = raw.toLowerCase().contains('403') ||
+                      raw.toLowerCase().contains('permission') ||
+                      raw.toLowerCase().contains('forbidden');
                   return Center(
                     child: Padding(
                       padding: EdgeInsets.all(24.w),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.wifi_off_rounded,
-                              size: 48.sp, color: AppColors.greyColor),
+                          Icon(
+                            is403
+                                ? Icons.lock_outline_rounded
+                                : Icons.wifi_off_rounded,
+                            size: 48.sp,
+                            color: is403 ? Colors.orange : AppColors.greyColor,
+                          ),
                           SizedBox(height: 12.h),
                           PoppinsText(
-                            text: 'chat_error_loading_conversations'.tr,
+                            text: is403
+                                ? 'chat_error_403_title'.tr
+                                : 'chat_error_loading_conversations'.tr,
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary(context),
                             textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 8.h),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.w),
+                            child: PoppinsText(
+                              text: raw,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.greyText,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                           SizedBox(height: 16.h),
                           OutlinedButton(

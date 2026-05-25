@@ -1527,6 +1527,7 @@ const Map<String, String> deDETranslations = <String, String>{
       // Chat screens
       'chat_error_loading_conversations':
           'Fehler beim Laden der Unterhaltungen',
+      'chat_error_403_title': 'Chat-Zugriff verweigert',
       'chat_retry': 'Erneut versuchen',
       'chat_no_conversations': 'Noch keine Unterhaltungen',
       'chat_error_loading_messages': 'Fehler beim Laden der Nachrichten',

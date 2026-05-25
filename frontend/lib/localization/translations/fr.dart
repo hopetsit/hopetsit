@@ -82,14 +82,16 @@ const Map<String, String> frFRTranslations = <String, String>{
       // v23.1.184 — refonte PawMap avec 4 quick-action cards (mockup Daniel).
       // v23.1.191 — Daniel : "sous texte doit etre lisible aussi".
       // Sublabels raccourcis pour tenir sur 1 ligne sans troncature.
-      'pawmap_quick_follow': 'Suivre',
+      // v23.1 part 225 — Daniel : "le bouton suivre met me suivre psition,
+      // et personne en live met personnes live position qu'on puisse bien
+      // lire". Labels rallonges qui tiennent sur 2 lignes grace au
+      // IntrinsicHeight des quick-action cards (toutes meme hauteur).
+      'pawmap_quick_follow': 'Me suivre position',
       'pawmap_quick_follow_sub': 'Mes proches',
       'pawmap_quick_follow_on': 'Live actif',
       'pawmap_quick_family': 'Famille & Amis',
       'pawmap_quick_family_sub': 'Ajouter',
-      // v23.1 part 223 — Daniel : "personne en live met le bouton a coter
-      // de famille et amis et alertes"
-      'pawmap_quick_people_live': 'Personnes en live',
+      'pawmap_quick_people_live': 'Personnes live position',
       'pawmap_quick_people_live_sub': 'Position partagee',
       'pawmap_quick_alerts': 'Alertes',
       'pawmap_quick_alerts_sub': 'Signalements',
@@ -1644,6 +1646,10 @@ const Map<String, String> frFRTranslations = <String, String>{
       // Chat screens
       'chat_error_loading_conversations':
           'Erreur lors du chargement des conversations',
+      // v23.1 part 225 — message dedie quand le backend renvoie un 403
+      // (role/permission insuffisante). On affiche aussi le details du
+      // backend dessous pour diagnostiquer la cause exacte.
+      'chat_error_403_title': 'Accès refusé au chat',
       'chat_retry': 'Réessayer',
       'chat_no_conversations': 'Aucune conversation pour le moment',
       'chat_error_loading_messages': 'Erreur lors du chargement des messages',

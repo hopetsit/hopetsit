@@ -81,12 +81,13 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pending_requests_banner_action': 'View',
       // v23.1.184 — PawMap redesign with 4 quick-action cards.
       // v23.1.191 — shorter sublabels to fit on one line.
-      'pawmap_quick_follow': 'Follow',
+      // v23.1 part 225 — Daniel rename for readability (2 lines).
+      'pawmap_quick_follow': 'Track my position',
       'pawmap_quick_follow_sub': 'Loved ones',
       'pawmap_quick_follow_on': 'Live on',
       'pawmap_quick_family': 'Family & Friends',
       'pawmap_quick_family_sub': 'Add',
-      'pawmap_quick_people_live': 'People live',
+      'pawmap_quick_people_live': 'Live positions',
       'pawmap_quick_people_live_sub': 'Position shared',
       'pawmap_quick_alerts': 'Alerts',
       'pawmap_quick_alerts_sub': 'Reports',
@@ -1573,6 +1574,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'house_sitting_venue_sitters_home': "At sitter's home",
       // Chat screens
       'chat_error_loading_conversations': 'Error loading conversations',
+      'chat_error_403_title': 'Chat access denied',
       'chat_retry': 'Retry',
       'chat_no_conversations': 'No conversations yet',
       'chat_error_loading_messages': 'Error loading messages',
