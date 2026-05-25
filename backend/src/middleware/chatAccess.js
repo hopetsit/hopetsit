@@ -82,6 +82,7 @@ const requirePaidBooking = async (req, res, next) => {
       const Sitter = require('../models/Sitter');
       const Walker = require('../models/Walker');
       const UserSubscription = require('../models/UserSubscription');
+      const { hasActivePawFollow } = require('../models/UserSubscription');
 
       const role = req.user?.role;
       const userId = req.user?.id;
@@ -89,6 +90,17 @@ const requirePaidBooking = async (req, res, next) => {
         const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
         const me = await Model.findById(userId).select('isStaff').lean();
         if (me && me.isStaff === true) return next();
+
+        // v23.1 part 227 — Daniel : "erreur api 403 ds longlet chat".
+        // Le check legacy filtrait par userModel (case-sensitive) → si la
+        // sub n'avait pas ce champ (ancien doc) le bypass ratait. On
+        // utilise maintenant hasActivePawFollow() qui ne filtre QUE par
+        // userId + status='active' + currentPeriodEnd > now → identique
+        // a la logique mapSocket v226 (coherence garantie).
+        try {
+          const iHavePawFollow = await hasActivePawFollow(userId);
+          if (iHavePawFollow) return next();
+        } catch (_) {/* defensive — on fall back sur le check legacy */}
 
         const userModel =
           role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';

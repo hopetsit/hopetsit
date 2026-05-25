@@ -202,12 +202,16 @@ const findNearbySitters = async (req, res) => {
       Sitter.aggregate([mbStage, { $sort: { distance: 1 } }, { $limit: 500 }])
         .catch(() => []),
       // Sitters meme city, peu importe leurs coordonnees.
+      // v23.1 part 227 — Daniel : "petsitter cree dans la meme ville ne
+      // s'affiche pas". On rend le match city PLUS permissif : substring
+      // case-insensitive au lieu de equality stricte. Permet de matcher
+      // "Pego" avec "Pego (Alicante)", "Pego, Espagne", etc.
       viewerCity
         ? Sitter.find({
             ...(req.query.onlyVerified === 'true' ? { verified: true } : {}),
             $or: [
-              { 'location.city': { $regex: `^${viewerCity}$`, $options: 'i' } },
-              { city: { $regex: `^${viewerCity}$`, $options: 'i' } },
+              { 'location.city': { $regex: viewerCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+              { city: { $regex: viewerCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
             ],
           }).limit(100).lean().catch(() => [])
         : Promise.resolve([]),

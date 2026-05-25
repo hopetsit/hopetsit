@@ -4,7 +4,7 @@ const {
   assertAccessAndFetch,
 } = require('../services/conversationService');
 const { HttpError } = require('../utils/errors');
-const { emitToConversation, userRoom, walkRoom } = require('./emitter');
+const { emitToConversation, emitChatMessage, userRoom, walkRoom } = require('./emitter');
 const WalkSession = require('../models/WalkSession');
 const { evaluateChatAccess } = require('../middleware/chatAccess');
 
@@ -185,7 +185,11 @@ const registerChatHandlers = (io, socket) => {
         body,
       });
 
-      emitToConversation(conversationId, 'message:new', {
+      // v23.1 part 227 — Daniel : "badge 1 dans le menu a coter de l'icone
+      // qd message recu". On emit aussi aux user-rooms via emitChatMessage,
+      // pas seulement au conversation-room. La conversation est deja
+      // chargee par assertAccessAndFetch ci-dessus.
+      emitChatMessage(conversation, 'message:new', {
         conversationId,
         triggeredBy: { role: senderRole, userId: senderId },
         ...result,

@@ -22,7 +22,7 @@ const {
 const { getChatAccess } = require('../services/chatAccessService');
 const { uploadMedia } = require('../services/cloudinary');
 const { HttpError } = require('../utils/errors');
-const { emitToConversation } = require('../sockets/emitter');
+const { emitToConversation, emitChatMessage } = require('../sockets/emitter');
 const logger = require('../utils/logger');
 
 const bufferToDataUri = (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
@@ -326,8 +326,10 @@ const createConversationMessage = async (req, res) => {
     // v23.1.200 — branch friendChat : pipeline simplifie (pas de check
     // booking-paye, pas de owner-sitter logic). Verifie juste que le
     // sender est participant + save + notif l'autre participant.
+    // v23.1 part 227 — on select aussi ownerId/sitterId/walkerId pour que
+    // emitChatMessage puisse emit aux user-rooms des 2 participants.
     const convPre = await Conversation.findById(id)
-      .select('friendChat participants').lean();
+      .select('friendChat participants ownerId sitterId walkerId').lean();
     if (convPre?.friendChat === true) {
       const result = await sendFriendMessage({
         conversation: convPre,
@@ -336,7 +338,8 @@ const createConversationMessage = async (req, res) => {
         body,
         attachments,
       });
-      emitToConversation(id, 'message:new', {
+      // v23.1 part 227 — emit aux user-rooms aussi (badge unread).
+      emitChatMessage(convPre, 'message:new', {
         conversationId: id,
         triggeredBy: { role: senderRole, userId: senderId },
         ...result,
@@ -352,7 +355,10 @@ const createConversationMessage = async (req, res) => {
       attachments,
     });
 
-    emitToConversation(id, 'message:new', {
+    // v23.1 part 227 — emit aux user-rooms aussi (Daniel : badge unread
+    // qui n'apparaissait pas car les users hors-chat-room ne recevaient
+    // pas le message:new).
+    emitChatMessage(convPre, 'message:new', {
       conversationId: id,
       triggeredBy: { role: senderRole, userId: senderId },
       ...result,
@@ -434,7 +440,10 @@ const createConversationAttachmentMessage = async (req, res) => {
       attachments: attachmentPayload,
     });
 
-    emitToConversation(id, 'message:new', {
+    // v23.1 part 227 — fetch conv pour emit user-rooms + conv-room.
+    const convForEmit = await Conversation.findById(id)
+      .select('friendChat participants ownerId sitterId walkerId').lean();
+    emitChatMessage(convForEmit, 'message:new', {
       conversationId: id,
       triggeredBy: { role: senderRole, userId: senderId },
       ...result,
@@ -679,7 +688,8 @@ const startConversation = async (req, res) => {
       conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
       await conversation.save();
       await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
-      emitToConversation(conversation._id.toString(), 'message:new', {
+      // v23.1 part 227 — emit aux user-rooms (badge unread).
+      emitChatMessage(conversation, 'message:new', {
         conversationId: conversation._id.toString(),
         triggeredBy: { role: 'owner', userId: ownerId },
         message: sanitizeMessage(newMessage),
@@ -822,7 +832,8 @@ const startConversationBySitter = async (req, res) => {
       conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
       await conversation.save();
       await conversation.populate(['ownerId', 'sitterId']);
-      emitToConversation(conversation._id.toString(), 'message:new', {
+      // v23.1 part 227 — emit aux user-rooms (badge unread).
+      emitChatMessage(conversation, 'message:new', {
         conversationId: conversation._id.toString(),
         triggeredBy: { role: 'sitter', userId: sitterId },
         message: sanitizeMessage(newMessage),
@@ -943,7 +954,8 @@ const startConversationByWalker = async (req, res) => {
       conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
       await conversation.save();
       await conversation.populate(['ownerId', 'walkerId']);
-      emitToConversation(conversation._id.toString(), 'message:new', {
+      // v23.1 part 227 — emit aux user-rooms (badge unread).
+      emitChatMessage(conversation, 'message:new', {
         conversationId: conversation._id.toString(),
         triggeredBy: { role: 'walker', userId: walkerId },
         message: sanitizeMessage(newMessage),

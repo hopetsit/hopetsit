@@ -77,12 +77,64 @@ const emitToWalk = (walkId, event, payload) => {
   ioInstance.to(walkRoom(walkId)).emit(event, payload);
 };
 
+// v23.1 part 227 — Daniel : "lorsque un message chat est recu tjt
+// afficher badge 1 dans le menu a coter de l'icone". Root cause :
+// emitToConversation cible UNIQUEMENT le room `conversation_<id>`. Or
+// les users qui ne sont PAS actuellement dans l'ecran chat (ex : Daniel
+// sur Home) ne sont PAS membres de ce room → le message:new ne leur
+// arrive jamais → NotificationsController ne bumpe jamais unreadChat
+// → badge invisible.
+//
+// Fix : helper `emitChatMessage(conversation, event, payload)` qui emit
+// (a) au conversation-room pour les users actifs dans le chat
+// (b) AUSSI a chaque user-room des participants (independamment du tab
+//     ouvert dans l'app cote frontend). La dedup cote frontend est
+//     basee sur message.id donc pas de risque de double ajout en UI.
+//
+// Conversation participants resolves :
+//   - friendChat=true → conversation.participants[].userModel/userId
+//   - sinon (booking conv classique) → ownerId / sitterId / walkerId
+const emitChatMessage = (conversation, event, payload) => {
+  if (!ioInstance || !conversation) return;
+  const convIdRaw = conversation._id || conversation.id;
+  if (!convIdRaw) return;
+  const convId = String(convIdRaw);
+  // 1) Conversation room (active chat users).
+  ioInstance.to(convId).emit(event, payload);
+  // 2) Per-participant user rooms (so badge bumps even when on Home).
+  const participants = [];
+  if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
+    for (const p of conversation.participants) {
+      if (p?.userId && p?.userModel) {
+        participants.push({
+          role: String(p.userModel).toLowerCase(),
+          userId: String(p.userId._id || p.userId),
+        });
+      }
+    }
+  } else {
+    if (conversation.ownerId) {
+      participants.push({ role: 'owner', userId: String(conversation.ownerId._id || conversation.ownerId) });
+    }
+    if (conversation.sitterId) {
+      participants.push({ role: 'sitter', userId: String(conversation.sitterId._id || conversation.sitterId) });
+    }
+    if (conversation.walkerId) {
+      participants.push({ role: 'walker', userId: String(conversation.walkerId._id || conversation.walkerId) });
+    }
+  }
+  for (const p of participants) {
+    ioInstance.to(userRoom(p.role, p.userId)).emit(event, payload);
+  }
+};
+
 module.exports = {
   setSocketServer,
   getSocketServer,
   emitToConversation,
   emitToUser,
   emitToWalk,
+  emitChatMessage,
   userRoom,
   walkRoom,
 };

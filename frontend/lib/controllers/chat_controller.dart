@@ -504,8 +504,16 @@ class ChatController extends GetxController {
       }
 
       // Payment-required gate (sprint 3 step 4)
+      // v23.1 part 227 — Daniel : "erreur api 403 ds longlet chat".
+      // On loggue desormais le detail brut backend pour diagnostiquer
+      // POURQUOI le 403 (PAYMENT_REQUIRED vs Not participant vs autre).
+      // Et on affiche le message backend lisible dans errorMessage
+      // au lieu d'un raw "ApiException(statusCode: 403 ...)".
       if (e is ApiException && e.statusCode == 403) {
         final details = e.details;
+        AppLogger.logError(
+          '[Chat 403] message="${e.message}" details=$details',
+        );
         final code = details is Map ? details['code']?.toString() : null;
         if (code == 'PAYMENT_REQUIRED') {
           isPaymentRequired.value = true;
@@ -514,9 +522,22 @@ class ChatController extends GetxController {
           currentChatMessages.value = [];
           return;
         }
+        // 403 sans code PAYMENT_REQUIRED → surface le message backend
+        // (path + role mismatch si requireRole, ou autre cause).
+        errorMessage.value = e.message.isNotEmpty
+            ? e.message
+            : 'chat_error_403_title'.tr;
+        currentChatMessages.value = [];
+        return;
       }
 
-      errorMessage.value = errorMessageStr;
+      // v23.1 part 227 — Daniel : "erreur api 403". Pour eviter le
+      // generique "wifi-off Erreur lors du chargement" quand c'est en
+      // realite un message backend lisible, on extrait le message
+      // ApiException si disponible.
+      errorMessage.value = e is ApiException && e.message.isNotEmpty
+          ? e.message
+          : errorMessageStr;
       // Fallback to empty list on error
       currentChatMessages.value = [];
     } finally {

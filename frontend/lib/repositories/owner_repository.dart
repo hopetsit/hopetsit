@@ -169,28 +169,22 @@ class OwnerRepository {
       requiresAuth: true,
     );
 
-    if (response is Map<String, dynamic>) {
+    // v23.1 part 227 — meme fix que getSitters : on retire le filtre
+    // hasConfiguredRates qui masquait les sitters fraichement crees.
+    List<SitterModel>? parseFrom(Map response) {
       final sittersList = response['sitters'] as List<dynamic>?;
-      if (sittersList != null) {
-        final parsed = sittersList
-            .map(
-              (sitter) => SitterModel.fromJson(sitter as Map<String, dynamic>),
-            )
-            .toList();
-        return parsed.where((s) => s.hasConfiguredRates).toList();
-      }
+      if (sittersList == null) return null;
+      return sittersList
+          .map((sitter) => SitterModel.fromJson(sitter as Map<String, dynamic>))
+          .toList();
     }
-
+    if (response is Map<String, dynamic>) {
+      final parsed = parseFrom(response);
+      if (parsed != null) return parsed;
+    }
     if (response is Map) {
-      final sittersList = response['sitters'] as List<dynamic>?;
-      if (sittersList != null) {
-        final parsed = sittersList
-            .map(
-              (sitter) => SitterModel.fromJson(sitter as Map<String, dynamic>),
-            )
-            .toList();
-        return parsed.where((s) => s.hasConfiguredRates).toList();
-      }
+      final parsed = parseFrom(response);
+      if (parsed != null) return parsed;
     }
 
     throw ApiException(
@@ -200,34 +194,36 @@ class OwnerRepository {
   }
 
   /// Fetches list of available sitters.
+  ///
+  /// v23.1 part 227 — Daniel : "le petsitter cree dans la meme ville ne
+  /// s'affiche pas". Root cause : le filtre `.where((s) => s.hasConfiguredRates)`
+  /// excluait silencieusement tout sitter qui n'avait pas encore configure
+  /// ses tarifs (hourlyRate/dailyRate/weeklyRate/monthlyRate tous a 0).
+  /// Or un sitter fraichement cree n'a JAMAIS de tarifs → toujours invisible
+  /// cote owner home. On retire ce filtre : l'UI sitter card affichera
+  /// "Tarifs non configures" si besoin, mais le sitter est visible.
   Future<List<SitterModel>> getSitters() async {
     final response = await _apiClient.get(
       ApiEndpoints.sitters,
       requiresAuth: true,
     );
 
-    if (response is Map<String, dynamic>) {
+    List<SitterModel>? parseFrom(Map response) {
       final sittersList = response['sitters'] as List<dynamic>?;
-      if (sittersList != null) {
-        final parsed = sittersList
-            .map(
-              (sitter) => SitterModel.fromJson(sitter as Map<String, dynamic>),
-            )
-            .toList();
-        return parsed.where((s) => s.hasConfiguredRates).toList();
-      }
+      if (sittersList == null) return null;
+      return sittersList
+          .map((sitter) => SitterModel.fromJson(sitter as Map<String, dynamic>))
+          .toList();
+    }
+
+    if (response is Map<String, dynamic>) {
+      final parsed = parseFrom(response);
+      if (parsed != null) return parsed;
     }
 
     if (response is Map) {
-      final sittersList = response['sitters'] as List<dynamic>?;
-      if (sittersList != null) {
-        final parsed = sittersList
-            .map(
-              (sitter) => SitterModel.fromJson(sitter as Map<String, dynamic>),
-            )
-            .toList();
-        return parsed.where((s) => s.hasConfiguredRates).toList();
-      }
+      final parsed = parseFrom(response);
+      if (parsed != null) return parsed;
     }
 
     throw ApiException('Unexpected get sitters response.', details: response);

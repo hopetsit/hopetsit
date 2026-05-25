@@ -714,9 +714,15 @@ const getNearbyRequestPosts = async (req, res) => {
           ? haversine(lat, lng, p.location.lat, p.location.lng)
           : null;
         const postCity = String(p.location?.city || '').trim().toLowerCase();
-        // Match : soit dans le radius haversine, soit meme city que
-        // viewer (pour les posts cree sans lat/lng).
-        const sameCity = viewerCity && postCity && viewerCity === postCity;
+        // v23.1 part 227 — match city plus tolerant : substring soit
+        // dans un sens soit dans l'autre (ex : "Pego" matches "Pego
+        // (Alicante)" ou inversement). Daniel : "publication dans la
+        // meme ville ne s'affiche pas".
+        const sameCity =
+          viewerCity && postCity &&
+          (viewerCity === postCity ||
+            postCity.includes(viewerCity) ||
+            viewerCity.includes(postCity));
         const isNearby =
           (distanceKm !== null && distanceKm <= maxDistanceKm) || sameCity;
         return { post: p, distanceKm: distanceKm ?? 0, isNearby };

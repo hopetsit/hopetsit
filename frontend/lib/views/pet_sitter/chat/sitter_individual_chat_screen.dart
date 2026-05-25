@@ -329,23 +329,58 @@ class _SitterIndividualChatScreenState
 
         // v18.8 — épuré : pas de raw message, et affichage uniquement si
         // la conversation n'a pas encore de messages en cache.
+        // v23.1 part 227 — mirroir IndividualChatScreen owner : distinguer
+        // 403 (cadenas) du wifi-off, afficher detail backend, retry.
         if (chatController.errorMessage.value.isNotEmpty &&
             chatController.currentChatMessages.isEmpty) {
+          final raw = chatController.errorMessage.value;
+          final is403 = raw.toLowerCase().contains('403') ||
+              raw.toLowerCase().contains('permission') ||
+              raw.toLowerCase().contains('forbidden') ||
+              raw.toLowerCase().contains('not a chat participant') ||
+              raw.toLowerCase().contains('payment required');
           return Center(
             child: Padding(
               padding: EdgeInsets.all(24.w),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.wifi_off_rounded,
-                      size: 42.sp, color: AppColors.greyColor),
+                  Icon(
+                    is403
+                        ? Icons.lock_outline_rounded
+                        : Icons.wifi_off_rounded,
+                    size: 42.sp,
+                    color: is403 ? Colors.orange : AppColors.greyColor,
+                  ),
                   SizedBox(height: 10.h),
                   InterText(
-                    text: 'chat_error_loading_messages'.tr,
+                    text: is403
+                        ? 'chat_error_403_title'.tr
+                        : 'chat_error_loading_messages'.tr,
                     fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary(context),
                     textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 6.h),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w),
+                    child: InterText(
+                      text: raw,
+                      fontSize: 11.sp,
+                      color: AppColors.greyText,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  SizedBox(height: 14.h),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      chatController.errorMessage.value = '';
+                      chatController
+                          .loadChatMessages(chatController.currentChatId.value);
+                    },
+                    icon: Icon(Icons.refresh_rounded, size: 18.sp),
+                    label: Text('chat_retry'.tr),
                   ),
                 ],
               ),
