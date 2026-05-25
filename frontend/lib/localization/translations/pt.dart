@@ -1904,6 +1904,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'boost_duration_weeks': '@count semanas',
     'boost_duration_one_month': '1 mês',
     'friends_share_position_label': 'Partilhar',
+    'friends_share_auto_pawfollow': 'Auto',
     'pawmap_search_placeholder': 'Procurar uma cidade…',
     'pawmap_report_button': 'Reportar',
     'pawmap_premium_title': 'Passar a PawFollow',

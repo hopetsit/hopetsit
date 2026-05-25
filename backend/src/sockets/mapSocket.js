@@ -50,7 +50,16 @@ async function listPositionListeners(userId, role) {
   // qui n'avait pas activé son share-flag ne recevait jamais les positions
   // des autres membres. On charge isInSameFamily UNE fois par appel et
   // on l'utilise dans la boucle.
-  const { isInSameFamily } = require('../models/UserSubscription');
+  // v23.1 part 226 — Daniel : "debloque le partage de position a mes
+  // amis et famille si jai un abonnement paw follow". Si JE possede un
+  // PawFollow ACTIF (n'importe quel tier), je broadcast ma position a
+  // TOUS mes amis acceptes sans avoir besoin de toggler chaque switch.
+  // C'est l'un des perks payants du plan : "je m'abonne pour partager".
+  const { isInSameFamily, hasActivePawFollow } = require('../models/UserSubscription');
+  let iHavePawFollow = false;
+  try {
+    iHavePawFollow = await hasActivePawFollow(userId);
+  } catch (_) {/* defensive */}
 
   const listeners = [];
   for (const f of friendships) {
@@ -67,6 +76,11 @@ async function listPositionListeners(userId, role) {
     try {
       familyBypass = await isInSameFamily(userId, otherId);
     } catch (_) {/* defensive */}
+
+    // v23.1 part 226 — Bypass PawFollow : si je suis abonne, je
+    // broadcast a tous mes amis acceptes (Daniel : "debloque le
+    // partage si j'ai un abonnement").
+    if (iHavePawFollow) familyBypass = true;
 
     if (!familyBypass) {
       // My own share flag must be on for me to broadcast.

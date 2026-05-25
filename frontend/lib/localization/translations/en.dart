@@ -118,8 +118,11 @@ const Map<String, String> enUSTranslations = <String, String>{
       'friends_pets_empty_title': 'No pets to show',
       'friends_pets_empty_msg': 'Add friends to see their pets here.',
       'friends_pets_owned_by': '@name\'s pet',
-      'friends_messages_empty_title': 'No messages',
-      'friends_messages_empty_msg': 'Your conversations with friends and family will appear here.',
+      'friends_messages_empty_title': 'No messages yet',
+      'friends_messages_empty_msg': 'Your conversations with friends and family will appear here once started.',
+      'friends_messages_empty_cta':
+          'Go to the "Friends" tab and tap 💬 next to a friend to start a conversation.',
+      'friends_messages_error_title': 'Failed to load conversations',
       // v23.1.186 — AlertsScreen + ReportCategoryGridScreen (Daniel mockup).
       'alerts_screen_title': 'Alerts',
       'alerts_tab_all': 'All',
@@ -564,6 +567,16 @@ const Map<String, String> enUSTranslations = <String, String>{
       'family_no_plan_cta': 'Subscribe to PawFollow Family',
       'family_header_title': 'PawFollow Family active',
       'family_slots': '@used / @total members added',
+      'family_active_title': 'PawFollow Family active',
+      'family_members_added': 'members added',
+      'family_active_desc':
+          'Add your family so you can safely share your pets, places and alerts together.',
+      'family_invite_section_title': 'Invite a member to my family',
+      'family_invite_section_desc':
+          'Choose how you want to invite a friend or relative.',
+      'family_invite_by_name_sub': 'Pick a friend from your contacts',
+      'family_invite_by_email_sub': 'Send an invitation by email',
+      'family_members_list_title': 'Family members',
       'family_empty_msg': 'You haven\'t added any member yet. Tap « Add a friend » below.',
       'family_full_msg': 'Family full (5 members + you).',
       'family_add_member_btn': '+ Add a friend to my family',
@@ -2279,6 +2292,7 @@ const Map<String, String> enUSTranslations = <String, String>{
     'boost_duration_weeks': '@count weeks',
     'boost_duration_one_month': '1 month',
     'friends_share_position_label': 'Share',
+    'friends_share_auto_pawfollow': 'Auto',
     'pawmap_search_placeholder': 'Search a city…',
     'pawmap_report_button': 'Report',
     'pawmap_premium_title': 'Go PawFollow',

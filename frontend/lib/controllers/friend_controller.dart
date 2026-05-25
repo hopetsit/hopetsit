@@ -10,6 +10,10 @@ class FriendController extends GetxController {
   final RxList<Friendship> friends = <Friendship>[].obs;
   final RxList<Friendship> incomingRequests = <Friendship>[].obs;
   final RxList<Friendship> outgoingRequests = <Friendship>[].obs;
+  // v23.1 part 226 — Daniel : "debloque le partage de position si jai
+  // un abo paw follow". Mirroir client-side du flag /diagnose backend.
+  // Lu par _FriendTile pour rendre la switch read-only-ON + badge.
+  final RxBool viewerHasPawFollow = false.obs;
 
   @override
   void onInit() {
@@ -71,6 +75,11 @@ class FriendController extends GetxController {
       final api = Get.find<ApiClient>();
       final diag = await api.get('/friends/diagnose', requiresAuth: true);
       final all = (diag is Map ? diag['friendships'] : null);
+      // v23.1 part 226 — read viewerHasPawFollow root flag from backend
+      // pour debloquer le partage automatique de ma position.
+      if (diag is Map) {
+        viewerHasPawFollow.value = diag['viewerHasPawFollow'] == true;
+      }
       if (all is! List) {
         friends.value = [];
         return;
@@ -180,7 +189,12 @@ class FriendController extends GetxController {
               'city': '',
               'hasPawFollow': false,
             },
-      'mySharePosition': false,
+      // v23.1 part 226 — Daniel : "debloque le partage si jai un abo
+      // paw follow". Si MOI j'ai PawFollow actif (mirroir de la valeur
+      // root de /diagnose), mySharePosition est force a true cote UI :
+      // ma position est partagee a tous mes amis automatiquement.
+      'mySharePosition': viewerHasPawFollow.value,
+      'myShareAutoByPawFollow': viewerHasPawFollow.value,
       // v23.1 part 222 — si l'ami a PawFollow actif, on considere qu'il
       // partage sa position avec moi (logique PawFollow Family).
       'theirSharePosition': otherHasPawFollow,

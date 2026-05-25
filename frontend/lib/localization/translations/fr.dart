@@ -122,8 +122,12 @@ const Map<String, String> frFRTranslations = <String, String>{
       'friends_pets_empty_title': 'Aucun animal a afficher',
       'friends_pets_empty_msg': 'Ajoute des amis pour voir leurs animaux ici.',
       'friends_pets_owned_by': 'Animal de @name',
-      'friends_messages_empty_title': 'Aucun message',
-      'friends_messages_empty_msg': 'Tes conversations avec amis et famille apparaitront ici.',
+      'friends_messages_empty_title': 'Aucun message pour le moment',
+      'friends_messages_empty_msg': 'Tes conversations avec amis et famille apparaitront ici une fois demarrees.',
+      // v23.1 part 226 — Daniel : "message marche pa page blanche".
+      'friends_messages_empty_cta':
+          'Va dans l\'onglet « Amis » et appuie sur 💬 a cote d\'un ami pour demarrer une conversation.',
+      'friends_messages_error_title': 'Impossible de charger les conversations',
       // v23.1.186 — AlertsScreen + ReportCategoryGridScreen (mockup Daniel).
       'alerts_screen_title': 'Alertes',
       'alerts_tab_all': 'Tous',
@@ -589,6 +593,17 @@ const Map<String, String> frFRTranslations = <String, String>{
       'family_no_plan_cta': 'Souscrire PawFollow Famille',
       'family_header_title': 'PawFollow Famille actif',
       'family_slots': '@used / @total membres ajoutés',
+      // v23.1 part 226 — Daniel mockup redesign onglet Famille.
+      'family_active_title': 'PawFollow Famille actif',
+      'family_members_added': 'membres ajoutés',
+      'family_active_desc':
+          'Ajoutez votre famille pour pouvoir partager vos animaux, lieux et alertes en toute sécurité.',
+      'family_invite_section_title': 'Inviter un membre à ma famille',
+      'family_invite_section_desc':
+          'Choisissez comment vous souhaitez inviter un ami ou un proche.',
+      'family_invite_by_name_sub': 'Choisissez un ami parmi vos contacts',
+      'family_invite_by_email_sub': 'Envoyez une invitation par email',
+      'family_members_list_title': 'Membres de ma famille',
       'family_empty_msg': 'Tu n\'as pas encore ajouté de membre. Tape « Inviter un ami » ci-dessous.',
       'family_full_msg': 'Famille pleine (5 membres + toi).',
       'family_add_member_btn': '+ Inviter un ami à ma famille',
@@ -2224,6 +2239,9 @@ const Map<String, String> frFRTranslations = <String, String>{
     'boost_duration_one_month': '1 mois',
     // v18.9.8 — amis / partage position
     'friends_share_position_label': 'Partager',
+    // v23.1 part 226 — badge sous la Switch read-only quand le user a
+    // un PawFollow actif (partage auto debloquer par l'abonnement).
+    'friends_share_auto_pawfollow': 'Auto',
     // v18.9.8 — CTA cards PawMap (Premium vert + Booster pin bleu)
     'pawmap_search_placeholder': 'Chercher une ville…',
     'pawmap_report_button': 'Signaler',

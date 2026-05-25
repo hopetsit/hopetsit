@@ -90,7 +90,19 @@ async function fetchUserMini(id, modelName) {
   };
 }
 
-async function enrichFriendship(friendship, viewerId) {
+async function enrichFriendship(friendship, viewerId, viewerHasPawFollow) {
+  // v23.1 part 226 — quand viewerHasPawFollow n'est pas explicitement
+  // passe (cas des single-call sites apres mutation accept/share/etc),
+  // on lookup soi-meme. Pour les bulk-call sites (/friends + /requests),
+  // les handlers passent la valeur deja calculee pour eviter N queries.
+  if (viewerHasPawFollow === undefined) {
+    try {
+      const { hasActivePawFollow } = require('../models/UserSubscription');
+      viewerHasPawFollow = await hasActivePawFollow(viewerId);
+    } catch (_) {
+      viewerHasPawFollow = false;
+    }
+  }
   const isRequester = String(friendship.requesterId) === String(viewerId);
   let other = isRequester
     ? await fetchUserMini(friendship.addresseeId, friendship.addresseeModel)
@@ -111,12 +123,22 @@ async function enrichFriendship(friendship, viewerId) {
       deleted: true,
     };
   }
-  const mySharePosition = isRequester
+  const dbMyShare = isRequester
     ? friendship.requesterSharesPosition
     : friendship.addresseeSharesPosition;
-  const theirSharePosition = isRequester
+  const dbTheirShare = isRequester
     ? friendship.addresseeSharesPosition
     : friendship.requesterSharesPosition;
+  // v23.1 part 226 — Daniel : "debloque le partage de position a mes
+  // amis et famille si jai un abonnement paw follow". Si JE possede un
+  // PawFollow actif, mySharePosition est force a true cote API (le DB
+  // garde son etat reel, mais l'UI affiche le toggle ON + auto-share).
+  // Symetriquement, si l'AMI possede un PawFollow, theirSharePosition
+  // est force true (deja gere en partie par v222 cote frontend mais
+  // mieux ici cote backend pour la coherence).
+  const mySharePosition = viewerHasPawFollow ? true : !!dbMyShare;
+  const theirSharePosition =
+    (other && other.hasPawFollow) ? true : !!dbTheirShare;
   return {
     id: friendship._id,
     status: friendship.status,
@@ -124,6 +146,10 @@ async function enrichFriendship(friendship, viewerId) {
     other,
     mySharePosition,
     theirSharePosition,
+    // v23.1 part 226 — expose le flag pour que l'UI puisse :
+    //  - afficher un badge "Auto (PawFollow)" sur la switch
+    //  - desactiver le toggle (read-only) tant que la sub est active
+    myShareAutoByPawFollow: !!viewerHasPawFollow,
     createdAt: friendship.createdAt,
     acceptedAt: friendship.acceptedAt,
   };
@@ -251,10 +277,21 @@ router.get('/diagnose', requireAuth, async (req, res) => {
         };
       }),
     );
+    // v23.1 part 226 — Daniel : "debloque le partage si j'ai un abo
+    // paw follow". On expose le statut PawFollow du viewer dans la
+    // racine du response pour que le frontend (qui utilise /diagnose
+    // comme source de verite v218) force mySharePosition=true et
+    // myShareAutoByPawFollow=true sur toutes les friendships.
+    let viewerHasPawFollow = false;
+    try {
+      const { hasActivePawFollow } = require('../models/UserSubscription');
+      viewerHasPawFollow = await hasActivePawFollow(user.id);
+    } catch (_) {/* defensive */}
     res.json({
       me: { id: String(user.id), model: user.model },
       total: enriched.length,
       friendships: enriched,
+      viewerHasPawFollow,
     });
   } catch (e) {
     logger.error('[friends/diagnose]', e);
@@ -397,8 +434,13 @@ router.get('/', requireAuth, async (req, res) => {
       );
     }
 
+    // v23.1 part 226 — compute viewerHasPawFollow ONCE pour ne pas
+    // hammer Mongo dans la boucle map(). Si true, enrichFriendship
+    // force mySharePosition=true sur toutes les friendships retournees.
+    const { hasActivePawFollow } = require('../models/UserSubscription');
+    const viewerHasPawFollow = await hasActivePawFollow(user.id).catch(() => false);
     const enriched = await Promise.all(
-      friendships.map((f) => enrichFriendship(f, user.id)),
+      friendships.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow)),
     );
     // v23.1.201 — on garde les orphelins (other.deleted) pour permettre
     // l'unfriend depuis l'UI. Frontend les affiche en "Utilisateur supprimé".
@@ -509,9 +551,12 @@ router.get('/requests', requireAuth, async (req, res) => {
       }
     }
 
+    // v23.1 part 226 — viewerHasPawFollow calcule once pour les 2 listes.
+    const { hasActivePawFollow } = require('../models/UserSubscription');
+    const viewerHasPawFollow = await hasActivePawFollow(user.id).catch(() => false);
     const [incomingEnriched, outgoingEnriched] = await Promise.all([
-      Promise.all(incoming.map((f) => enrichFriendship(f, user.id))),
-      Promise.all(outgoing.map((f) => enrichFriendship(f, user.id))),
+      Promise.all(incoming.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow))),
+      Promise.all(outgoing.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow))),
     ]);
 
     res.json({
@@ -937,6 +982,23 @@ router.get('/:id/track-access', requireAuth, async (req, res) => {
     if (await isInSameFamily(user.id, otherId)) {
       return res.json({ canTrack: true, reason: 'family' });
     }
+
+    // v23.1 part 226 — Daniel : "debloque le partage de position a mes
+    // amis et famille si jai un abonnement paw follow". Si l'AMI a un
+    // PawFollow actif, il broadcast a tous ses amis (v226 mapSocket) →
+    // donc je peux le tracker. Symetriquement, on autorise aussi le tap
+    // si MOI j'ai PawFollow (mon abo me debloque la fonctionnalite
+    // "tracker mes amis").
+    try {
+      const { hasActivePawFollow } = require('../models/UserSubscription');
+      const [iHavePawFollow, otherHasPawFollow] = await Promise.all([
+        hasActivePawFollow(user.id),
+        hasActivePawFollow(otherId),
+      ]);
+      if (iHavePawFollow || otherHasPawFollow) {
+        return res.json({ canTrack: true, reason: 'pawfollow' });
+      }
+    } catch (_) {/* defensive */}
 
     // Per-friendship share flag (the OTHER must share with me).
     // v23.1.175 — Daniel : "reverifie que tte marche les suivis amis".

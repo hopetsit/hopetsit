@@ -2048,6 +2048,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'boost_duration_weeks': '@count settimane',
     'boost_duration_one_month': '1 mese',
     'friends_share_position_label': 'Condividi',
+    'friends_share_auto_pawfollow': 'Auto',
     'pawmap_search_placeholder': 'Cerca una città…',
     'pawmap_report_button': 'Segnala',
     'pawmap_premium_title': 'Passa a PawFollow',

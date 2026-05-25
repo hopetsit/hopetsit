@@ -397,12 +397,33 @@ async function isInSameFamily(userAId, userBId) {
   return false;
 }
 
+// v23.1 part 226 — Daniel : "debloque le partage de position a mes amis
+// et famille si jai un abonnement paw follow". Helper qui dit si un user
+// a un PawFollow ACTIF (n'importe quel tier : monthly / yearly / family).
+// Utilise par mapSocket (broadcast position auto a tous les amis sans
+// avoir besoin de toggler la switch ami par ami) et par friendRoutes
+// /track-access (autorisation de tracker un ami).
+async function hasActivePawFollow(userId) {
+  if (!userId) return false;
+  const Model = mongoose.model('UserSubscription');
+  const now = new Date();
+  const sub = await Model.findOne({
+    userId: String(userId),
+    status: 'active',
+    currentPeriodEnd: { $gt: now },
+  })
+    .select('plan status currentPeriodEnd')
+    .lean();
+  return !!sub;
+}
+
 module.exports = mongoose.model('UserSubscription', userSubscriptionSchema);
 module.exports.PREMIUM_PLANS = PREMIUM_PLANS;
 module.exports.PREMIUM_PLAN_INTERVALS = PREMIUM_PLAN_INTERVALS;
 module.exports.PREMIUM_PRICING = PREMIUM_PRICING;
 module.exports.PREMIUM_FEATURES_DEFAULT = PREMIUM_FEATURES_DEFAULT;
 module.exports.isInSameFamily = isInSameFamily;
+module.exports.hasActivePawFollow = hasActivePawFollow;
 module.exports.getPlanPricing = getPlanPricing;
 module.exports.PAWFOLLOW_PLAN_INTERVALS = PAWFOLLOW_PLAN_INTERVALS;
 module.exports.PAWFOLLOW_PRICING = PAWFOLLOW_PRICING;

@@ -2071,6 +2071,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'boost_duration_weeks': '@count Wochen',
     'boost_duration_one_month': '1 Monat',
     'friends_share_position_label': 'Teilen',
+    'friends_share_auto_pawfollow': 'Auto',
     'pawmap_search_placeholder': 'Stadt durchsuchen…',
     'pawmap_report_button': 'Melden',
     'pawmap_premium_title': 'PawFollow werden',

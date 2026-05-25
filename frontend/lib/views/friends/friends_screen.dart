@@ -681,6 +681,12 @@ class _FriendTile extends StatelessWidget {
           // v18.9.8 — Share position toggle : couleur selon rôle actif
           // (orange owner / bleu sitter / vert walker) au lieu de toujours
           // orange hardcodé.
+          // v23.1 part 226 — Daniel : "debloque le partage si jai un
+          // abo paw follow car le bouton est verrouille". Quand l'user
+          // a PawFollow actif (myShareAutoByPawFollow=true exposed par
+          // backend v226 + propage via FriendController.viewerHasPawFollow),
+          // la Switch est forcee ON, read-only, et un mini badge
+          // "Auto · PawFollow" remplace le label "Partager".
           Column(
             children: [
               Transform.scale(
@@ -690,14 +696,39 @@ class _FriendTile extends StatelessWidget {
                   activeThumbColor: AppColors.roleAccent(
                     Get.find<AuthController>().userRole.value,
                   ),
-                  onChanged: (v) => controller.setSharePosition(friendship.id, v),
+                  onChanged: friendship.myShareAutoByPawFollow
+                      ? null // read-only quand auto par PawFollow
+                      : (v) => controller.setSharePosition(friendship.id, v),
                 ),
               ),
-              InterText(
-                text: 'friends_share_position_label'.tr,
-                fontSize: 9.sp,
-                color: AppColors.greyText,
-              ),
+              if (friendship.myShareAutoByPawFollow)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_open_rounded,
+                          size: 9.sp, color: AppColors.primaryColor),
+                      SizedBox(width: 2.w),
+                      InterText(
+                        text: 'friends_share_auto_pawfollow'.tr,
+                        fontSize: 8.sp,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryColor,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                InterText(
+                  text: 'friends_share_position_label'.tr,
+                  fontSize: 9.sp,
+                  color: AppColors.greyText,
+                ),
             ],
           ),
           SizedBox(width: 4.w),
@@ -1052,83 +1083,160 @@ class _FamilyTab extends StatelessWidget {
           );
         }
         final members = controller.familyMembers;
+        // v23.1 part 226 — Daniel screenshot mockup : "longlet famille
+        // je le veux comme sa". Redesign :
+        //   1. Top card "PawFollow Famille actif" avec shield+paw orange
+        //      sur fond rose + illustration famille a droite + count
+        //      "X / 5 membres ajoutes" + sous-texte explicatif.
+        //   2. Section "Inviter un membre a ma famille" avec 2 grosses
+        //      cards inline "Par nom" / "Par email" (icone rond orange
+        //      + label + sous-texte + chevron) au lieu d'un bouton qui
+        //      ouvre un bottom sheet 2-onglets.
+        //   3. Liste des membres dessous (ou message si vide).
         return ListView(
           padding: EdgeInsets.all(12.w),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            // ── 1. Top hero card "PawFollow Famille actif" ──────────────
             Container(
-              padding: EdgeInsets.all(14.w),
+              padding: EdgeInsets.fromLTRB(16.w, 16.h, 12.w, 16.h),
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(color: accent.withValues(alpha: 0.25)),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFF1ED), Color(0xFFFFE4D6)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16.r),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(Icons.verified_user_rounded, color: accent, size: 24.sp),
-                  SizedBox(width: 10.w),
+                  // Shield+paw orange ring icon (left)
+                  Container(
+                    width: 52.w,
+                    height: 52.w,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEF4324), Color(0xFFDC2626)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFEF4324).withValues(alpha: 0.30),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(Icons.shield_rounded,
+                        color: Colors.white, size: 28.sp),
+                  ),
+                  SizedBox(width: 12.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         InterText(
-                          text: 'family_header_title'.tr,
-                          fontSize: 13.sp,
+                          text: 'family_active_title'.tr,
+                          fontSize: 15.sp,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary(context),
                         ),
-                        SizedBox(height: 2.h),
+                        SizedBox(height: 4.h),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '${members.length} / 5 ',
+                                style: TextStyle(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFFEF4324),
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'family_members_added'.tr,
+                                style: TextStyle(
+                                  fontSize: 13.sp,
+                                  color: AppColors.textPrimary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 6.h),
                         InterText(
-                          // v23.1.179 — Daniel : "c 5 membres" (pas 4).
-                          text: 'family_slots'.trParams({
-                            'used': members.length.toString(),
-                            'total': '5',
-                          }),
+                          text: 'family_active_desc'.tr,
                           fontSize: 11.sp,
                           color: AppColors.textSecondary(context),
                         ),
                       ],
                     ),
                   ),
+                  // Family illustration (emoji stack) — visible only on
+                  // larger screens (right of the text).
+                  SizedBox(width: 4.w),
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Text('👨', style: TextStyle(fontSize: 18.sp)),
+                          Text('👩', style: TextStyle(fontSize: 18.sp)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text('🧒', style: TextStyle(fontSize: 16.sp)),
+                          Text('🐕', style: TextStyle(fontSize: 16.sp)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
             SizedBox(height: 16.h),
-            if (members.isEmpty)
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 24.h),
-                child: Center(
-                  child: InterText(
-                    text: 'family_empty_msg'.tr,
-                    fontSize: 13.sp,
-                    color: AppColors.greyText,
-                  ),
-                ),
-              )
-            else
-              ...members.map((m) => _FamilyMemberTile(
-                    member: m,
-                    controller: controller,
-                  )),
-            SizedBox(height: 12.h),
-            if (controller.familyRemainingSlots.value > 0)
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.person_add_alt_1_rounded),
-                  label: Text('family_add_member_btn'.tr),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: accent,
-                    side: BorderSide(color: accent),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
+            // ── 2. "Inviter un membre" section header ──────────────────
+            if (controller.familyRemainingSlots.value > 0) ...[
+              InterText(
+                text: 'family_invite_section_title'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(context),
+              ),
+              SizedBox(height: 4.h),
+              InterText(
+                text: 'family_invite_section_desc'.tr,
+                fontSize: 11.sp,
+                color: AppColors.greyText,
+              ),
+              SizedBox(height: 10.h),
+              // 2 cards inline "Par nom" / "Par email"
+              Row(
+                children: [
+                  Expanded(
+                    child: _FamilyInviteOptionCard(
+                      icon: Icons.person_rounded,
+                      title: 'family_add_by_name'.tr,
+                      subtitle: 'family_invite_by_name_sub'.tr,
+                      onTap: () => _showAddByNameSheet(context, controller),
                     ),
                   ),
-                  onPressed: () => _showAddMemberSheet(context, controller),
-                ),
-              )
-            else
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: _FamilyInviteOptionCard(
+                      icon: Icons.mail_outline_rounded,
+                      title: 'family_add_by_email'.tr,
+                      subtitle: 'family_invite_by_email_sub'.tr,
+                      onTap: () => _showAddByEmailSheet(context, controller),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 18.h),
+            ] else
               Padding(
                 padding: EdgeInsets.symmetric(vertical: 8.h),
                 child: Center(
@@ -1139,9 +1247,113 @@ class _FamilyTab extends StatelessWidget {
                   ),
                 ),
               ),
+            // ── 3. Liste des membres (ou message vide) ─────────────────
+            if (members.isNotEmpty) ...[
+              InterText(
+                text: 'family_members_list_title'.tr,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(context),
+              ),
+              SizedBox(height: 8.h),
+              ...members.map((m) => _FamilyMemberTile(
+                    member: m,
+                    controller: controller,
+                  )),
+            ] else
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 18.h),
+                child: Center(
+                  child: InterText(
+                    text: 'family_empty_msg'.tr,
+                    fontSize: 13.sp,
+                    color: AppColors.greyText,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
           ],
         );
       }),
+    );
+  }
+
+  // v23.1 part 226 — bottom sheet dedie a "Par nom" (sans le TabController
+  // 2-onglets). On garde le _FamilyAddByName existant.
+  void _showAddByNameSheet(BuildContext context, FriendController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.all(16.w),
+        constraints: BoxConstraints(maxHeight: 480.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person_rounded,
+                    color: AppColors.primaryColor, size: 24.sp),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: InterText(
+                    text: 'family_add_by_name'.tr,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            Expanded(child: _FamilyAddByName(ctx: ctx, controller: controller)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // v23.1 part 226 — bottom sheet dedie "Par email".
+  void _showAddByEmailSheet(BuildContext context, FriendController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: EdgeInsets.all(16.w),
+          constraints: BoxConstraints(maxHeight: 480.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.mail_outline_rounded,
+                      color: AppColors.primaryColor, size: 24.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: InterText(
+                      text: 'family_add_by_email'.tr,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              _FamilyAddByEmail(ctx: ctx, controller: controller),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1198,6 +1410,79 @@ class _FamilyTab extends StatelessWidget {
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// v23.1 part 226 — Daniel mockup : "longlet famille je le veux comme sa".
+// Card inline "Par nom" / "Par email" avec icone rond orange + label
+// + sous-texte + chevron, qui ouvre le bottom sheet correspondant.
+class _FamilyInviteOptionCard extends StatelessWidget {
+  const _FamilyInviteOptionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14.r),
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(color: AppColors.divider(context)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40.w,
+                height: 40.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon,
+                    color: const Color(0xFFEF4324), size: 22.sp),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InterText(
+                      text: title,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFEF4324),
+                      maxLines: 1,
+                    ),
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: subtitle,
+                      fontSize: 10.sp,
+                      color: AppColors.greyText,
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: AppColors.greyText, size: 18.sp),
             ],
           ),
         ),
@@ -2133,6 +2418,12 @@ class _MessagesTab extends StatefulWidget {
 class _MessagesTabState extends State<_MessagesTab> {
   final RxBool _loading = true.obs;
   final RxList<Map<String, dynamic>> _chats = <Map<String, dynamic>>[].obs;
+  // v23.1 part 226 — Daniel : "message aussi marche pa page blanche".
+  // L'erreur etait avalee silencieusement (catch + _chats.clear()) donc
+  // l'utilisateur voyait une fausse "empty state" qui ressemble a une
+  // page blanche. On expose maintenant l'erreur + on rend la empty
+  // state actionnable (CTA "Demarrer une conv depuis l'onglet Amis").
+  final RxnString _error = RxnString();
 
   @override
   void initState() {
@@ -2142,6 +2433,7 @@ class _MessagesTabState extends State<_MessagesTab> {
 
   Future<void> _load() async {
     _loading.value = true;
+    _error.value = null;
     try {
       final api = Get.find<ApiClient>();
       final r = await api.get('/conversations/list', requiresAuth: true);
@@ -2160,6 +2452,7 @@ class _MessagesTabState extends State<_MessagesTab> {
         _chats.clear();
       }
     } catch (e) {
+      _error.value = e.toString().replaceAll('ApiException:', '').trim();
       _chats.clear();
     } finally {
       _loading.value = false;
@@ -2174,7 +2467,65 @@ class _MessagesTabState extends State<_MessagesTab> {
         if (_loading.value && _chats.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
+        // v23.1 part 226 — affichage erreur explicite si l'API a renvoye
+        // une exception (vs juste empty). Daniel pourra capturer le path
+        // exact en cas de 403/500.
+        if (_error.value != null && _chats.isEmpty) {
+          final err = _error.value!;
+          final is403 = err.toLowerCase().contains('403') ||
+              err.toLowerCase().contains('permission') ||
+              err.toLowerCase().contains('forbidden');
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(24.w),
+            children: [
+              SizedBox(height: 60.h),
+              Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      is403
+                          ? Icons.lock_outline_rounded
+                          : Icons.wifi_off_rounded,
+                      size: 48.sp,
+                      color: is403 ? Colors.orange : AppColors.greyText,
+                    ),
+                    SizedBox(height: 12.h),
+                    InterText(
+                      text: is403
+                          ? 'chat_error_403_title'.tr
+                          : 'friends_messages_error_title'.tr,
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 8.h),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.w),
+                      child: InterText(
+                        text: err,
+                        fontSize: 11.sp,
+                        color: AppColors.greyText,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+                    OutlinedButton.icon(
+                      onPressed: _load,
+                      icon: Icon(Icons.refresh_rounded, size: 18.sp),
+                      label: Text('chat_retry'.tr),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
         if (_chats.isEmpty) {
+          // v23.1 part 226 — empty state beefed up : grosse illustration
+          // chat + titre clair + sous-texte explicatif + CTA visible
+          // qui guide vers l'onglet Amis pour demarrer une conv.
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.all(24.w),
@@ -2183,22 +2534,75 @@ class _MessagesTabState extends State<_MessagesTab> {
               Center(
                 child: Column(
                   children: [
-                    Icon(Icons.chat_bubble_outline_rounded,
-                        color: AppColors.greyText.withValues(alpha: 0.5),
-                        size: 50.sp),
-                    SizedBox(height: 12.h),
+                    Container(
+                      width: 110.w,
+                      height: 110.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFFFFF1ED),
+                            const Color(0xFFFFE4D6),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Icon(Icons.chat_bubble_outline_rounded,
+                          color: const Color(0xFFEF4324), size: 56.sp),
+                    ),
+                    SizedBox(height: 16.h),
                     InterText(
                       text: 'friends_messages_empty_title'.tr,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary(context),
                     ),
-                    SizedBox(height: 6.h),
-                    InterText(
-                      text: 'friends_messages_empty_msg'.tr,
-                      fontSize: 12.sp,
-                      color: AppColors.greyText,
-                      textAlign: TextAlign.center,
+                    SizedBox(height: 8.h),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      child: InterText(
+                        text: 'friends_messages_empty_msg'.tr,
+                        fontSize: 13.sp,
+                        color: AppColors.greyText,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(height: 20.h),
+                    // CTA : guide vers l'onglet Amis pour demarrer une conv.
+                    Container(
+                      padding: EdgeInsets.all(14.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.card(context),
+                        borderRadius: BorderRadius.circular(14.r),
+                        border: Border.all(
+                          color: const Color(0xFFEF4324)
+                              .withValues(alpha: 0.30),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.touch_app_rounded,
+                              color: const Color(0xFFEF4324), size: 20.sp),
+                          SizedBox(width: 10.w),
+                          Expanded(
+                            child: InterText(
+                              text: 'friends_messages_empty_cta'.tr,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    TextButton.icon(
+                      onPressed: _load,
+                      icon: Icon(Icons.refresh_rounded, size: 16.sp),
+                      label: Text('chat_retry'.tr,
+                          style: TextStyle(fontSize: 12.sp)),
                     ),
                   ],
                 ),

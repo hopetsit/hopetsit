@@ -2044,6 +2044,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'boost_duration_weeks': '@count semanas',
     'boost_duration_one_month': '1 mes',
     'friends_share_position_label': 'Compartir',
+    'friends_share_auto_pawfollow': 'Auto',
     'pawmap_search_placeholder': 'Buscar una ciudad…',
     'pawmap_report_button': 'Reportar',
     'pawmap_premium_title': 'Hazte PawFollow',

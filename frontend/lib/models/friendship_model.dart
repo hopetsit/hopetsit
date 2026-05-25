@@ -40,6 +40,12 @@ class Friendship {
   final FriendProfile? other;
   final bool mySharePosition;
   final bool theirSharePosition;
+  // v23.1 part 226 — Daniel : "debloque le partage de position si jai
+  // un abonnement paw follow". Le backend force mySharePosition=true
+  // ET expose ce flag separe pour que l'UI puisse :
+  //   - rendre la Switch read-only (toggle desactive, vert plein)
+  //   - afficher un badge "Auto · PawFollow" sous la switch
+  final bool myShareAutoByPawFollow;
   final DateTime? createdAt;
   final DateTime? acceptedAt;
 
@@ -50,6 +56,7 @@ class Friendship {
     required this.other,
     this.mySharePosition = true,
     this.theirSharePosition = true,
+    this.myShareAutoByPawFollow = false,
     this.createdAt,
     this.acceptedAt,
   });
@@ -63,6 +70,7 @@ class Friendship {
             : FriendProfile.fromJson((j['other'] as Map).cast<String, dynamic>()),
         mySharePosition: j['mySharePosition'] == true,
         theirSharePosition: j['theirSharePosition'] == true,
+        myShareAutoByPawFollow: j['myShareAutoByPawFollow'] == true,
         createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? ''),
         acceptedAt: DateTime.tryParse(j['acceptedAt']?.toString() ?? ''),
       );
