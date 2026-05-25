@@ -5,6 +5,11 @@ class FriendProfile {
   final String name;
   final String avatar;
   final String city;
+  // v23.1 part 222 — Daniel : "si ils ont un plan PawFollow le chat se
+  // debloque et on peux se partager la position, de plus je dois les
+  // voir ds les personnes en live". Backend ajoute ce flag dans
+  // fetchUserMini en regardant UserSubscription active.
+  final bool hasPawFollow;
 
   const FriendProfile({
     required this.id,
@@ -12,6 +17,7 @@ class FriendProfile {
     required this.name,
     this.avatar = '',
     this.city = '',
+    this.hasPawFollow = false,
   });
 
   factory FriendProfile.fromJson(Map<String, dynamic> j) => FriendProfile(
@@ -20,6 +26,7 @@ class FriendProfile {
         name: (j['name'] as String?) ?? '',
         avatar: (j['avatar'] as String?) ?? '',
         city: (j['city'] as String?) ?? '',
+        hasPawFollow: j['hasPawFollow'] == true,
       );
 
   String get roleLowercase => model.toLowerCase();

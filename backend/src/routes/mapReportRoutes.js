@@ -82,6 +82,83 @@ async function attachPremium(req, res, next) {
 }
 
 // ── GET /types (public) ─────────────────────────────────────────────────────
+// v23.1 part 222 — Daniel : "dans la page alerte rien ne fonctionne
+// jai mis des alertes elle ne saffiche tjr pas". Apres v211/v213/v218
+// qui ont fix lat/lng, (0,0) filter, defaults 50km/7j — toujours vide.
+// On construit un endpoint diagnostic qui retourne TOUS les reports
+// SANS filtre, plus l'analyse de ce qui les ferait disparaitre dans
+// /nearby (free user filter, distance, expired, hidden, (0,0)).
+router.get('/diagnose-mine', requireAuth, attachPremium, async (req, res) => {
+  try {
+    const meId = req.user.id;
+    const meLat = parseFloatOr(req.query.lat, null);
+    const meLng = parseFloatOr(req.query.lng, null);
+    const allMine = await MapReport.find({ reporterId: meId })
+      .sort({ createdAt: -1 })
+      .lean();
+    const allWithinDay = await MapReport.find({
+      createdAt: { $gt: new Date(Date.now() - 7 * 24 * 3_600_000) },
+    })
+      .limit(500)
+      .lean();
+    // Pour chaque report mien, on calcule pourquoi il serait exclu de /nearby.
+    const analyzeReport = (r) => {
+      const issues = [];
+      const coords = r.location?.coordinates;
+      if (!coords || !Array.isArray(coords) || coords.length !== 2) {
+        issues.push('NO_COORDS');
+      } else if (coords[0] === 0 && coords[1] === 0) {
+        issues.push('ZOMBIE_0_0');
+      }
+      if (r.hidden) issues.push('HIDDEN');
+      if (r.expiresAt && new Date(r.expiresAt) < new Date()) {
+        issues.push('EXPIRED');
+      }
+      if (!req.isPremium && !FREE_REPORT_TYPES.includes(r.type)) {
+        issues.push('PREMIUM_ONLY_FOR_FREE_USER');
+      }
+      if (meLat !== null && meLng !== null && coords && coords.length === 2 &&
+          !(coords[0] === 0 && coords[1] === 0)) {
+        // Distance haversine en km
+        const toRad = (x) => (x * Math.PI) / 180;
+        const R = 6371;
+        const dLat = toRad(coords[1] - meLat);
+        const dLng = toRad(coords[0] - meLng);
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(meLat)) * Math.cos(toRad(coords[1])) *
+          Math.sin(dLng / 2) ** 2;
+        const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        if (distKm > 50) issues.push(`TOO_FAR_${distKm.toFixed(1)}km`);
+      }
+      return {
+        id: String(r._id),
+        type: r.type,
+        note: (r.note || '').slice(0, 60),
+        coords: coords || null,
+        city: r.location?.city || '',
+        hidden: !!r.hidden,
+        createdAt: r.createdAt,
+        expiresAt: r.expiresAt,
+        ageHours: r.createdAt
+          ? ((Date.now() - new Date(r.createdAt).getTime()) / 3_600_000)
+              .toFixed(1)
+          : null,
+        wouldShowInNearby: issues.length === 0,
+        excludedBy: issues,
+      };
+    };
+    res.json({
+      me: { id: meId, isPremium: req.isPremium, lat: meLat, lng: meLng },
+      myReports: allMine.map(analyzeReport),
+      allReportsLast7d: allWithinDay.map(analyzeReport),
+      tip: 'Si wouldShowInNearby=false, regarder excludedBy pour la raison. ZOMBIE_0_0 = report cree sans GPS, NO_COORDS = pas de coordonnees, EXPIRED = vieux de >TTL, PREMIUM_ONLY = type reserve aux Premium pour les free users, TOO_FAR_X = au-dela du radius default 50km.',
+    });
+  } catch (e) {
+    logger.error('[mapReport/diagnose-mine]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/types', (req, res) => {
   res.json({
     types: REPORT_TYPES,

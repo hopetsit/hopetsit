@@ -153,6 +153,10 @@ class FriendController extends GetxController {
     final otherModel = (f['otherModel'] ?? '').toString();
     final otherName = (f['otherName'] ?? '').toString();
     final otherExists = f['otherExists'] == true;
+    // v23.1 part 222 — propage hasPawFollow depuis le payload diagnose
+    // backend. Si vrai, ce contact apparait dans "Personnes en live"
+    // meme sans theirSharePosition=true (partage auto entre amis PawFollow).
+    final otherHasPawFollow = f['otherHasPawFollow'] == true;
     return {
       'id': f['friendshipId'],
       'status': f['status'],
@@ -166,6 +170,7 @@ class FriendController extends GetxController {
                   : otherName,
               'avatar': '',
               'city': '',
+              'hasPawFollow': otherHasPawFollow,
             }
           : {
               'id': '',
@@ -173,9 +178,12 @@ class FriendController extends GetxController {
               'name': 'Utilisateur supprimé',
               'avatar': '',
               'city': '',
+              'hasPawFollow': false,
             },
       'mySharePosition': false,
-      'theirSharePosition': false,
+      // v23.1 part 222 — si l'ami a PawFollow actif, on considere qu'il
+      // partage sa position avec moi (logique PawFollow Family).
+      'theirSharePosition': otherHasPawFollow,
       'createdAt': f['createdAt'],
       'acceptedAt': f['acceptedAt'],
     };

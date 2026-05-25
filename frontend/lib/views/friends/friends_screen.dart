@@ -1812,9 +1812,15 @@ class _PeopleLiveTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: controller.refresh,
       child: Obx(() {
-        // Filtre : amis acceptés qui partagent leur position avec moi.
+        // v23.1 part 222 — Daniel : "si ils ont un plan PawFollow, je
+        // dois les voir ds les personnes en live". Filtre etendu :
+        // (a) amis acceptes qui partagent explicitement leur position
+        // OU (b) amis acceptes avec PawFollow plan actif (partage auto
+        // via la mecanique PawFollow Family).
         final livePeople = controller.friends
-            .where((f) => f.status == 'accepted' && f.theirSharePosition)
+            .where((f) =>
+                f.status == 'accepted' &&
+                (f.theirSharePosition || (f.other?.hasPawFollow ?? false)))
             .toList();
         if (livePeople.isEmpty) {
           return ListView(

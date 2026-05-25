@@ -158,6 +158,10 @@ const Map<String, String> frFRTranslations = <String, String>{
       'alerts_no_gps_title': 'Position GPS requise',
       'alerts_no_gps_msg': 'Active la localisation pour signaler une alerte. Sans GPS valide, ton signalement ne pourrait pas etre vu par les autres.',
       'alerts_gps_open_settings': 'Ouvrir les parametres de localisation',
+      // v23.1 part 222 — bouton diagnostic alertes
+      'alerts_diagnose_tooltip': 'Diagnostic alertes',
+      'alerts_diagnose_title': 'Diagnostic alertes',
+      'alerts_diagnose_failed': 'Impossible de recuperer le diagnostic.',
       'common_clear': 'Effacer',
       'report_screen_title': 'Signaler',
       'report_what_to_report': 'Que souhaitez-vous signaler ?',

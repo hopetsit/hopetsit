@@ -238,6 +238,85 @@ class _AlertsScreenState extends State<AlertsScreen> {
     }
   }
 
+  // v23.1 part 222 — Daniel : "dans la page alerte rien ne fonctionne
+  // jai mis des alertes elle ne saffiche tjr pas". Appelle l'endpoint
+  // diagnose qui retourne TOUS mes reports + la raison d'exclusion
+  // de /nearby. Permet de voir si c'est un report (0,0), expired,
+  // premium-only, trop loin, etc.
+  Future<void> _runAlertsDiagnose() async {
+    final pos = _myPos.value;
+    try {
+      final api = Get.find<ApiClient>();
+      final path = pos != null
+          ? '/map/reports/diagnose-mine?lat=${pos.latitude}&lng=${pos.longitude}'
+          : '/map/reports/diagnose-mine';
+      final r = await api.get(path, requiresAuth: true);
+      if (!mounted) return;
+      if (r is! Map) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'alerts_diagnose_failed'.tr,
+        );
+        return;
+      }
+      final me = (r['me'] as Map?) ?? {};
+      final mine = (r['myReports'] as List?) ?? [];
+      final all = (r['allReportsLast7d'] as List?) ?? [];
+      final buf = StringBuffer();
+      buf.writeln('━━━ MOI ━━━');
+      buf.writeln('id      : ${me['id']}');
+      buf.writeln('Premium : ${me['isPremium']}');
+      buf.writeln('lat/lng : ${me['lat']}, ${me['lng']}');
+      buf.writeln('');
+      buf.writeln('━━━ MES REPORTS (${mine.length}) ━━━');
+      if (mine.isEmpty) {
+        buf.writeln('Aucun report cree par moi.');
+      }
+      for (final f in mine) {
+        if (f is! Map) continue;
+        buf.writeln('• ${f['type']}  age=${f['ageHours']}h');
+        buf.writeln('  coords=${f['coords']}  city="${f['city']}"');
+        buf.writeln('  hidden=${f['hidden']}  show=${f['wouldShowInNearby']}');
+        if (f['excludedBy'] is List && (f['excludedBy'] as List).isNotEmpty) {
+          buf.writeln('  excludedBy=${f['excludedBy']}');
+        }
+        buf.writeln('');
+      }
+      buf.writeln('━━━ TOUS LES REPORTS 7J (${all.length}) ━━━');
+      int wouldShow = 0;
+      for (final f in all) {
+        if (f is Map && f['wouldShowInNearby'] == true) wouldShow++;
+      }
+      buf.writeln('Visibles pour moi dans /nearby : $wouldShow / ${all.length}');
+      buf.writeln('');
+      buf.writeln('TIP: ${r['tip'] ?? ''}');
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('alerts_diagnose_title'.tr),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              buf.toString(),
+              style: TextStyle(fontFamily: 'monospace', fontSize: 10.sp),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('common_close'.tr),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
+  }
+
   Future<void> _signalLostPet() async {
     // v23.1 part 213 — Daniel : "j'ai signaler et ya ecrit aucune alerte".
     // Cause : ancien code fallback a LatLng(0,0) si pas de GPS → report
@@ -295,6 +374,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ],
           ),
           actions: [
+            // v23.1 part 222 — bouton diagnostic alertes. Appelle
+            // /map/reports/diagnose-mine et affiche TOUS mes reports
+            // + raison d'exclusion de /nearby (zombie 0,0, expired,
+            // premium-only, distance, etc.).
+            IconButton(
+              icon: Icon(Icons.bug_report_rounded,
+                  color: AppColors.primaryColor, size: 22.sp),
+              tooltip: 'alerts_diagnose_tooltip'.tr,
+              onPressed: _runAlertsDiagnose,
+            ),
             IconButton(
               icon: Icon(Icons.search_rounded,
                   color: AppColors.primaryColor, size: 22.sp),

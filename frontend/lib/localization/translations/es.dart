@@ -30,6 +30,9 @@ const Map<String, String> esESTranslations = <String, String>{
       'alerts_no_gps_title': 'Posicion GPS requerida',
       'alerts_no_gps_msg': 'Activa la localizacion para reportar una alerta. Sin GPS valido, tu reporte no podria verse por los demas.',
       'alerts_gps_open_settings': 'Abrir ajustes de localizacion',
+      'alerts_diagnose_tooltip': 'Diagnostico alertas',
+      'alerts_diagnose_title': 'Diagnostico alertas',
+      'alerts_diagnose_failed': 'No se pudo obtener el diagnostico.',
       // v23.1 part 209 — bouton effacer conversation dans onglet Messages
       'chat_delete_conv': 'Borrar conversación',
       'chat_delete_conv_title': '¿Borrar la conversación?',

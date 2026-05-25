@@ -42,6 +42,29 @@ async function fetchUserMini(id, modelName) {
     .select('firstName lastName profilePicture location city avatar email')
     .lean();
   if (!u) return null;
+  // v23.1 part 222 — Daniel : "lorsque mes amis sont ajoutes si ils ont
+  // un plan PawFollow le chat se debloque et on peux se partager la
+  // position, de plus je dois les voir ds les personnes en live qd y
+  // sont co et partagent leur position".
+  // On enrichit avec hasPawFollow : true si l'autre user a une
+  // subscription active. Frontend l'utilise pour 2 choses :
+  //   1) Forcer affichage dans "Personnes en live" tab meme si
+  //      theirSharePosition n'est pas explicitement set.
+  //   2) Indiquer cote UI que ce contact est PawFollow-actif.
+  let hasPawFollow = false;
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const sub = await UserSubscription.findOne({
+      userId: u._id,
+      userModel: modelName,
+      status: 'active',
+    })
+      .select('status currentPeriodEnd')
+      .lean();
+    const now = new Date();
+    hasPawFollow =
+      !!sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now;
+  } catch (_) {/* defensive — on continue sans le flag */}
   // v23.1 part 220 — Daniel : "juste le nom de l'utilisateur s'affiche
   // pas". Les users n'ont pas leur firstName/lastName populates dans
   // la DB (signup ne forcait pas le remplissage). Resultat : name vide
@@ -61,6 +84,9 @@ async function fetchUserMini(id, modelName) {
     name,
     avatar: u.profilePicture || u.avatar || '',
     city: u.location?.city || u.city || '',
+    // v23.1 part 222 — expose PawFollow status pour que le frontend
+    // puisse forcer "Personnes en live" + unlock auto chat + share.
+    hasPawFollow,
   };
 }
 
@@ -187,6 +213,26 @@ router.get('/diagnose', requireAuth, async (req, res) => {
             if (at > 0) otherName = String(otherDoc.email).slice(0, at);
           }
         }
+        // v23.1 part 222 — flag PawFollow actif sur l'ami pour que le
+        // frontend l'affiche dans "Personnes en live" + unlock chat auto.
+        let otherHasPawFollow = false;
+        if (otherDoc && otherModel) {
+          try {
+            const UserSubscription = require('../models/UserSubscription');
+            const otherModelPascal = otherModel[0].toUpperCase()
+                + otherModel.slice(1).toLowerCase();
+            const sub = await UserSubscription.findOne({
+              userId: otherId,
+              userModel: otherModelPascal,
+              status: 'active',
+            })
+              .select('currentPeriodEnd')
+              .lean();
+            const now = new Date();
+            otherHasPawFollow = !!sub && sub.currentPeriodEnd
+                && new Date(sub.currentPeriodEnd) > now;
+          } catch (_) {/* defensive */}
+        }
         return {
           friendshipId: String(f._id),
           status: f.status,
@@ -199,6 +245,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           otherModel,
           otherExists: !!otherDoc,
           otherName,
+          otherHasPawFollow,
           createdAt: f.createdAt,
           acceptedAt: f.acceptedAt,
         };
