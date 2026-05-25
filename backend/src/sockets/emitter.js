@@ -63,7 +63,13 @@ const emitToConversation = (conversationId, event, payload, options = {}) => {
   });
 };
 
-const userRoom = (role, userId) => `user:${role}:${userId}`;
+// v23.1 part 229 — Daniel : badge unread invisible. Audit room format
+// match : on force lowercase role + String userId pour garantir que
+// socket.join(userRoom('owner', '...')) et emit ioInstance.to(userRoom('Owner', '...'))
+// touchent le MEME room. Avant : si JWT stockait 'Owner' (capital) mais
+// emit utilisait 'owner', les 2 rooms etaient differents → badge muet.
+const userRoom = (role, userId) =>
+  `user:${String(role || '').toLowerCase()}:${String(userId || '')}`;
 
 const emitToUser = (role, userId, event, payload) => {
   if (!ioInstance || !role || !userId) return;

@@ -260,7 +260,11 @@ class _HomeScreenState extends State<HomeScreen> {
         color: AppColors.primaryColor,
         onRefresh: _homeController.loadWalkers,
         child: ListView.builder(
-          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+          // v23.1 part 229 — home scrollable totale via SingleChildScrollView
+          // parent. ListView interne doit etre shrinkWrap + non-scrollable.
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 0),
           itemCount: _homeController.walkers.length,
           itemBuilder: (context, index) {
             final walker = _homeController.walkers[index];
@@ -451,12 +455,17 @@ class _HomeScreenState extends State<HomeScreen> {
       return Column(
         children: [
           _buildMyPostsSortBar(),
-          Expanded(
-            child: RefreshIndicator(
+          // v23.1 part 229 — ListView.builder shrinkWrap pour s'integrer
+          // dans le SingleChildScrollView parent (home scrollable totale).
+          // RefreshIndicator garde, et le ListView ne scroll plus
+          // independamment (physics NeverScrollable).
+          RefreshIndicator(
               color: AppColors.primaryColor,
               onRefresh: _postsController.refreshPosts,
               child: ListView.builder(
-                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 0),
                 itemCount: sortedMine.length,
                 itemBuilder: (context, index) {
                   final post = sortedMine[index];
@@ -560,7 +569,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-          ),
         ],
       );
     });
@@ -695,29 +703,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // v23.1 part 229 — home scrollable totale : on retire les
+          // Expanded incompatibles avec le SingleChildScrollView parent.
           if (isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 40.h),
+              child: const Center(child: CircularProgressIndicator()),
+            )
           else if (_homeController.sitters.isEmpty)
-            Expanded(
+            Padding(
+              padding: EdgeInsets.all(40.w),
               child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20.w),
-                  child: InterText(
-                    text: 'home_no_sitters_message'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.greyColor,
-                  ),
+                child: InterText(
+                  text: 'home_no_sitters_message'.tr,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.greyColor,
                 ),
               ),
             )
           else
-            Expanded(
-              child: RefreshIndicator(
+            RefreshIndicator(
                 color: AppColors.primaryColor,
                 onRefresh: _homeController.loadSitters,
                 child: ListView.builder(
-                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 0),
                   itemCount: _homeController.sitters.length,
                   itemBuilder: (context, index) {
                     final sitter = _homeController.sitters[index];
@@ -809,7 +821,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
-            ),
         ],
       );
     });
@@ -865,13 +876,22 @@ class _HomeScreenState extends State<HomeScreen> {
         // v23.1 part 27 — REVERT default SafeArea (bottom: true). Avec la pill
         // flottante + extendBody: true, le body étend derrière la pill. SafeArea
         // bottom protège le contenu pour qu'il ne soit pas caché.
+        // v23.1 part 229 — Daniel : "fais que la page acceuiel soit
+        // scrolable entierement pas le haut fix". On remplace Column par
+        // SingleChildScrollView : TOUT scroll incluant le QuickActionBar,
+        // ExpandablePostInput, SegmentedControl, DistanceSlider. Les
+        // tab content (_buildXxx) ont leur ListView avec shrinkWrap=true
+        // + physics: NeverScrollable pour s'integrer dans le scroll
+        // parent.
         body: SafeArea(
-          child: Column(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
             children: [
               // v21 — Quick action bar (only renders when an urgent action
               // is pending : payment due, booking accepted, etc.).
               const HomeQuickActionBar(role: 'owner'),
-              Flexible(flex: 0, child: const ExpandablePostInput()),
+              const ExpandablePostInput(),
               SizedBox(height: 12.h),
 
               Padding(
@@ -921,17 +941,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(height: 10.h),
               ],
 
-              Expanded(
-                child: _selectedTabIndex == 0
-                    ? _buildMyPostsTab()
-                    : _selectedTabIndex == 1
-                        ? _buildSittersTab()
-                        : _buildWalkersTab(),
-              ),
-              // v23.1 part 23 — SizedBox(20.h) supprimé : créait une bande
-              // blanche superflue entre le contenu et la nav bar (highlight
-              // Daniel screenshot). Le ListView a déjà un padding bottom 100.h.
+              // v23.1 part 229 — Daniel : "scrolable entierement". On
+              // retire Expanded ici (incompatible avec SingleChildScrollView
+              // parent), les tabs renvoient maintenant directement leur
+              // contenu avec shrinkWrap=true.
+              _selectedTabIndex == 0
+                  ? _buildMyPostsTab()
+                  : _selectedTabIndex == 1
+                      ? _buildSittersTab()
+                      : _buildWalkersTab(),
+              SizedBox(height: 100.h), // bottom-nav clearance
             ],
+          ),
           ),
         ),
         // v23.1 — FAB compact bottom-right : icône + uniquement, gradient,

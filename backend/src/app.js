@@ -191,6 +191,11 @@ app.use(
 // it needs raw body processing.
 const versionedRoutes = [
   { path: '/health', mw: [], router: healthRoutes },
+  // v23.1 part 229 — Daniel : "chat revient erreur 403 cherche en
+  // profondeur". Endpoint diagnostic qui retourne JSON exhaustif sur
+  // POURQUOI un user est bloque (chaque step du bypass + verdict final).
+  // Aussi /diagnostic/version pour confirmer quel commit est deploye.
+  { path: '/diagnostic', mw: [], router: require('./routes/diagnosticRoutes') },
   { path: '/auth', mw: [authLimiter], router: authRoutes },
   { path: '/users', mw: [], router: userRoutes },
   { path: '/pets', mw: [], router: petRoutes },

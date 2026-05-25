@@ -32,8 +32,13 @@ class WalkerHomescreen extends StatelessWidget {
           SizedBox(width: 12),
         ],
       ),
+      // v23.1 part 229 — Daniel : "page acceuiel scrolable entierement
+      // pas le haut fix sa sur les 3 profile". Walker home wrapper en
+      // SingleChildScrollView : la welcome card + boost row + tous les
+      // elements scrollent ensemble.
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
