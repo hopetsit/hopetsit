@@ -247,9 +247,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
     final pos = _myPos.value;
     try {
       final api = Get.find<ApiClient>();
+      // v23.1 part 224 — Daniel : "alerte page erreur 404 api exception".
+      // Cause : le backend monte les routes map sur /map-reports (avec
+      // TIRET) mais alerts_screen utilisait /map/reports (avec slash)
+      // depuis v211. PawMap utilisait deja le bon path via
+      // map_report_controller.dart. Ce bug existait silencieusement
+      // depuis v211 — la page Alertes n'a JAMAIS fonctionne, le catch
+      // swallowait l'erreur 404 et affichait l'empty state.
       final path = pos != null
-          ? '/map/reports/diagnose-mine?lat=${pos.latitude}&lng=${pos.longitude}'
-          : '/map/reports/diagnose-mine';
+          ? '/map-reports/diagnose-mine?lat=${pos.latitude}&lng=${pos.longitude}'
+          : '/map-reports/diagnose-mine';
       final r = await api.get(path, requiresAuth: true);
       if (!mounted) return;
       if (r is! Map) {
@@ -647,7 +654,8 @@ class _AlertsListState extends State<_AlertsList>
       final api = Get.find<ApiClient>();
       // v23.1 part 211 — FIX critique : envoie lat/lng + radiusKm +
       // sinceHours au backend (avant : 400 systematique).
-      String path = '/map/reports/nearby?lat=${pos.latitude}&lng=${pos.longitude}'
+      // v23.1 part 224 — fix path : /map-reports avec tiret (pas /map/reports)
+      String path = '/map-reports/nearby?lat=${pos.latitude}&lng=${pos.longitude}'
           '&radiusKm=${widget.radiusKm.value.toInt()}'
           '&sinceHours=${widget.sinceHours.value}';
       if (widget.filterTypes != null && widget.filterTypes!.isNotEmpty) {
