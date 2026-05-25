@@ -73,6 +73,16 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       // App returned to foreground — pull latest notifs so the bell badge
       // is up to date (covers both push-arrived-while-bg and missed pushes).
       refreshAll();
+      // v23.1 part 228 — Daniel : "fais que en background l'app reste
+      // connecter". L'OS suspend les sockets en background ; au resume
+      // on force la reconnexion + on re-fetch les conversations pour
+      // recuperer les messages recus pendant la pause. Le badge unreadChat
+      // sera re-sync via /conversations/list + notifs FCM push.
+      try {
+        if (Get.isRegistered<SocketService>()) {
+          Get.find<SocketService>().reconnectIfNeeded();
+        }
+      } catch (_) {/* defensive */}
     }
   }
 

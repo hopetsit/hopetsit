@@ -241,22 +241,62 @@ const startVerification = async (req, res) => {
       });
     }
 
-    // Crée Persona inquiry si pas déjà fait
+    // Crée Persona inquiry si pas déjà fait.
+    // v23.1 part 228 — Daniel screenshot : "ApiException 500 Persona 409
+    // Conflict". Cas : kycApplicantId absent en DB MAIS Persona a deja
+    // une inquiry avec cette reference-id (cree avant + DB jamais
+    // mise a jour OU compte recree). createInquiry renvoie 409.
+    // Fix : on essaie d'abord findInquiryByReferenceId pour reutiliser
+    // l'inquiry existante, sinon on cree, et si createInquiry plante en
+    // 409 on retry le find puis reutilise.
     let inquiryId = user.kycApplicantId;
     if (!inquiryId) {
       const fullName = (user.name || '').trim();
       const firstName = fullName.split(' ')[0] || '';
       const lastName = fullName.split(' ').slice(1).join(' ') || '';
-      const inquiry = await persona.createInquiry({
-        userId: user._id.toString(),
-        firstName,
-        lastName,
-        email: user.email,
-        role,
-      });
-      inquiryId = inquiry?.data?.id;
+      const referenceId = `${role}_${user._id.toString()}`;
+
+      // Step 1 : look for an existing inquiry under this reference-id.
+      let existing = null;
+      try {
+        existing = await persona.findInquiryByReferenceId(referenceId);
+      } catch (_) {/* defensive */}
+      if (existing?.id) {
+        inquiryId = existing.id;
+        logger.info(`[kyc.start] Reused existing Persona inquiry ${inquiryId} for ${referenceId}`);
+      } else {
+        // Step 2 : create new.
+        try {
+          const inquiry = await persona.createInquiry({
+            userId: user._id.toString(),
+            firstName, lastName, email: user.email, role,
+          });
+          inquiryId = inquiry?.data?.id;
+        } catch (createErr) {
+          // Step 3 : if 409, retry find. Persona may have race conditions.
+          if (createErr?.status === 409) {
+            logger.warn(`[kyc.start] Persona 409 on createInquiry for ${referenceId}, retry find...`);
+            try {
+              const retry = await persona.findInquiryByReferenceId(referenceId);
+              if (retry?.id) {
+                inquiryId = retry.id;
+                logger.info(`[kyc.start] Recovered inquiry ${inquiryId} after 409`);
+              }
+            } catch (_) {/* defensive */}
+          }
+          if (!inquiryId) {
+            logger.error(`[kyc.start] Persona createInquiry failed: ${createErr?.message}`);
+            return res.status(502).json({
+              error: 'Persona inquiry creation failed. Please contact support.',
+              code: 'PERSONA_INQUIRY_FAILED',
+              details: createErr?.data || createErr?.message,
+            });
+          }
+        }
+      }
+
       if (!inquiryId) {
-        return res.status(502).json({ error: 'Persona inquiry creation failed.', details: inquiry });
+        return res.status(502).json({ error: 'Persona inquiry creation failed.' });
       }
       // v23.1 part 127 — Phase 3 audit P3-10 : updateOne pour bypass la
       // revalidation 2dsphere (cf bloc wallet/PI ci-dessus).
@@ -265,7 +305,7 @@ const startVerification = async (req, res) => {
         { $set: { kycApplicantId: inquiryId } },
       );
       user.kycApplicantId = inquiryId;
-      logger.info(`[kyc.start] Persona inquiry ${inquiryId} created for ${role} ${user._id}`);
+      logger.info(`[kyc.start] Persona inquiry ${inquiryId} stored for ${role} ${user._id}`);
     }
 
     // Generate one-time hosted URL

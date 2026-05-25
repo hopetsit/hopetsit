@@ -105,6 +105,36 @@ async function getInquiry(inquiryId) {
 }
 
 /**
+ * v23.1 part 228 — Daniel screenshot : "ApiException 500 Persona 409
+ * Conflict". Quand on essaie de createInquiry avec une reference-id qui
+ * existe deja, Persona renvoie 409. Pour eviter ce dead-end, on cherche
+ * une inquiry existante par reference-id avant de creer.
+ *
+ * GET /inquiries?filter[reference-id]=xxx → liste les inquiries de ce
+ * reference-id (1 par user attendu). Retourne le premier match ou null.
+ */
+async function findInquiryByReferenceId(referenceId) {
+  if (!referenceId) return null;
+  try {
+    const result = await _fetch(
+      `/inquiries?filter[reference-id]=${encodeURIComponent(referenceId)}`,
+    );
+    const arr = Array.isArray(result?.data) ? result.data : [];
+    if (arr.length === 0) return null;
+    // Si plusieurs (cas pathologique), on prend le plus recent.
+    arr.sort((a, b) => {
+      const aT = new Date(a?.attributes?.['created-at'] || 0).getTime();
+      const bT = new Date(b?.attributes?.['created-at'] || 0).getTime();
+      return bT - aT;
+    });
+    return arr[0];
+  } catch (e) {
+    // Persona peut renvoyer 404 ou autre — on retourne null pour fallback.
+    return null;
+  }
+}
+
+/**
  * Verify a Persona webhook signature. Persona signs every webhook with
  * HMAC-SHA256 using the webhook secret. Signature is sent as a header
  * `Persona-Signature: t=<timestamp>,v1=<signature>`.
@@ -189,6 +219,7 @@ module.exports = {
   createInquiry,
   generateOneTimeLink,
   getInquiry,
+  findInquiryByReferenceId,
   verifyWebhookSignature,
   deleteInquiry,
 };

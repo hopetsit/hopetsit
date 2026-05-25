@@ -17,15 +17,47 @@ const { evaluateChatAccess } = require('../middleware/chatAccess');
 // sitterId:null/undefined → Booking.findOne returned a stale unrelated doc.
 const assertChatPaid = async (conversation, actorRole, actorId) => {
   // Staff / Premium / Chat add-on bypass.
+  // v23.1 part 228 — Daniel : "chat revient erreur 403". Memes bypass
+  // que requirePaidBooking middleware REST (chatAccess.js v228) :
+  //   - isStaff DB flag
+  //   - email dans HARDCODED_STAFF_EMAILS / STAFF_EMAILS env
+  //   - hasActivePawFollow (sans filtre userModel)
+  //   - ANY UserSubscription active (peu importe userModel/plan)
+  //   - legacy premiumActive / chatAddonActive
   try {
     if (actorRole && actorId) {
       const Owner = require('../models/Owner');
       const Sitter = require('../models/Sitter');
       const Walker = require('../models/Walker');
       const UserSubscription = require('../models/UserSubscription');
+      const { hasActivePawFollow } = require('../models/UserSubscription');
       const Model = actorRole === 'walker' ? Walker : actorRole === 'sitter' ? Sitter : Owner;
-      const me = await Model.findById(actorId).select('isStaff').lean();
+      const me = await Model.findById(actorId).select('isStaff email').lean();
       if (me && me.isStaff === true) return;
+
+      // Hardcoded staff email + env var.
+      const HARDCODED_STAFF_EMAILS = new Set(['dadaciao84@gmail.com']);
+      const envStaffEmails = String(process.env.STAFF_EMAILS || '')
+        .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      if (me && me.email && (
+        HARDCODED_STAFF_EMAILS.has(String(me.email).toLowerCase()) ||
+        envStaffEmails.includes(String(me.email).toLowerCase())
+      )) return;
+
+      // hasActivePawFollow check.
+      try {
+        if (await hasActivePawFollow(actorId)) return;
+      } catch (_) {/* defensive */}
+
+      // ANY active sub fallback.
+      try {
+        const anyActiveSub = await UserSubscription.findOne({
+          userId: actorId,
+          status: 'active',
+          currentPeriodEnd: { $gt: new Date() },
+        }).select('status').lean();
+        if (anyActiveSub) return;
+      } catch (_) {/* defensive */}
 
       const userModel =
         actorRole === 'walker' ? 'Walker' : actorRole === 'sitter' ? 'Sitter' : 'Owner';

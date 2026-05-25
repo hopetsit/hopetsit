@@ -86,7 +86,13 @@ class SocketService {
             .enableReconnection()
             .setReconnectionDelay(1000)
             .setReconnectionDelayMax(5000)
-            .setReconnectionAttempts(5)
+            // v23.1 part 228 — Daniel : "fais que en background l'app
+            // reste connecter". Avant : 5 essais (~25s max) puis socket
+            // mort definitif. Si l'app est en background plus longtemps,
+            // au resume on doit force-reconnect. Maintenant on tente 999
+            // fois (effectivement infini), donc des qu'OS re-permet le
+            // network le socket se rebranche tout seul.
+            .setReconnectionAttempts(999)
             .build(),
       );
 
@@ -136,6 +142,25 @@ class SocketService {
       _socket = null;
       _isConnected = false;
       AppLogger.logInfo('Socket disconnected and disposed');
+    }
+  }
+
+  /// v23.1 part 228 — Daniel : "fais que en background l'app reste
+  /// connecter". Appele au resume du lifecycle Flutter. Si le socket
+  /// est dispose ou disconnected, on re-connecte. Sinon best-effort
+  /// le force-reconnect via socket.connect() (idempotent si deja up).
+  Future<void> reconnectIfNeeded() async {
+    try {
+      if (_socket == null) {
+        await connect();
+        return;
+      }
+      if (!_isConnected) {
+        // Tentative explicite de reconnect.
+        _socket!.connect();
+      }
+    } catch (e) {
+      AppLogger.logError('reconnectIfNeeded failed', error: e);
     }
   }
 

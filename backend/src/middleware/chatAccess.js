@@ -86,10 +86,48 @@ const requirePaidBooking = async (req, res, next) => {
 
       const role = req.user?.role;
       const userId = req.user?.id;
+      // v23.1 part 228 — Daniel : "chat revient erreur 403". On loggue
+      // exhaustivement la decision d'acces pour debugger en prod via
+      // Render. Le log apparait dans les logs Render quand un user hit
+      // une conv. Chaque bypass-check ecrit son verdict.
+      const diag = { convId: String(conversation._id), role, userId };
+      const log403Decision = (verdict, extra = {}) => {
+        try {
+          logger.info(
+            `[requirePaidBooking] decision=${verdict} ${JSON.stringify({ ...diag, ...extra })}`,
+          );
+        } catch (_) {/* defensive */}
+      };
+
       if (role && userId) {
         const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
-        const me = await Model.findById(userId).select('isStaff').lean();
-        if (me && me.isStaff === true) return next();
+        const me = await Model.findById(userId).select('isStaff email').lean();
+        if (me && me.isStaff === true) {
+          log403Decision('BYPASS_STAFF');
+          return next();
+        }
+
+        // v23.1 part 228 — Daniel : "chat revient erreur 403". Whitelist
+        // hardcodee pour le compte staff principal du projet. Permet
+        // d'eviter d'avoir a toggle isStaff manuellement en DB ou de
+        // setup une env var. Idempotent : si tu changes d'email tu peux
+        // ajouter ici ou via STAFF_EMAILS env var.
+        const HARDCODED_STAFF_EMAILS = new Set([
+          'dadaciao84@gmail.com',
+        ]);
+        const envStaffEmails = String(process.env.STAFF_EMAILS || '')
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        const isStaffByEmail =
+          me && me.email && (
+            HARDCODED_STAFF_EMAILS.has(String(me.email).toLowerCase()) ||
+            envStaffEmails.includes(String(me.email).toLowerCase())
+          );
+        if (isStaffByEmail) {
+          log403Decision('BYPASS_STAFF_EMAIL', { email: me.email });
+          return next();
+        }
 
         // v23.1 part 227 — Daniel : "erreur api 403 ds longlet chat".
         // Le check legacy filtrait par userModel (case-sensitive) → si la
@@ -99,8 +137,31 @@ const requirePaidBooking = async (req, res, next) => {
         // a la logique mapSocket v226 (coherence garantie).
         try {
           const iHavePawFollow = await hasActivePawFollow(userId);
-          if (iHavePawFollow) return next();
-        } catch (_) {/* defensive — on fall back sur le check legacy */}
+          if (iHavePawFollow) {
+            log403Decision('BYPASS_PAWFOLLOW');
+            return next();
+          }
+        } catch (e) {
+          log403Decision('PAWFOLLOW_CHECK_FAILED', { error: e?.message });
+        }
+
+        // v23.1 part 228 — fallback ultra-permissif : ANY UserSubscription
+        // doc active du user (peu importe userModel/plan) → bypass. Cas :
+        // sub doc ancien sans champ userModel correctement set, ou plan
+        // 'family'/'famille' enum mismatch v175.
+        try {
+          const anyActiveSub = await UserSubscription.findOne({
+            userId,
+            status: 'active',
+            currentPeriodEnd: { $gt: new Date() },
+          }).select('plan planType status currentPeriodEnd').lean();
+          if (anyActiveSub) {
+            log403Decision('BYPASS_ANY_SUB', { plan: anyActiveSub.plan });
+            return next();
+          }
+        } catch (e) {
+          log403Decision('ANY_SUB_CHECK_FAILED', { error: e?.message });
+        }
 
         const userModel =
           role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';
@@ -114,7 +175,10 @@ const requirePaidBooking = async (req, res, next) => {
         const chatAddonActive =
           sub && sub.chatAddonActive === true &&
           sub.chatAddonExpiresAt && new Date(sub.chatAddonExpiresAt) > now;
-        if (premiumActive || chatAddonActive) return next();
+        if (premiumActive || chatAddonActive) {
+          log403Decision('BYPASS_PREMIUM_OR_CHAT_ADDON');
+          return next();
+        }
 
         // v23.1.195 — Daniel : "si tu prend un abonnement follow le chat
         // amis famille se debloque". Cas : witoulek est ajoute a la
@@ -151,6 +215,22 @@ const requirePaidBooking = async (req, res, next) => {
       walkerId: conversation.walkerId,
     });
     if (access.blocked) {
+      // v23.1 part 228 — log final 403 verdict avec details Booking pour
+      // diagnostiquer (existence booking entre les 2 parties, son status,
+      // son paymentStatus, etc.). Indispensable Render-side.
+      try {
+        logger.warn(
+          `[requirePaidBooking] 403 PAYMENT_REQUIRED ${JSON.stringify({
+            convId: String(conversation._id),
+            ownerId: String(conversation.ownerId || ''),
+            sitterId: String(conversation.sitterId || ''),
+            walkerId: String(conversation.walkerId || ''),
+            latestBookingId: access.bookingId,
+            bookingStatus: access.status,
+            paymentStatus: access.paymentStatus,
+          })}`,
+        );
+      } catch (_) {/* defensive */}
       return res.status(403).json({
         error: 'Payment required',
         code: 'PAYMENT_REQUIRED',
