@@ -86,6 +86,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_quick_follow_on': 'Live on',
       'pawmap_quick_family': 'Family & Friends',
       'pawmap_quick_family_sub': 'Add',
+      'pawmap_quick_people_live': 'People live',
+      'pawmap_quick_people_live_sub': 'Position shared',
       'pawmap_quick_alerts': 'Alerts',
       'pawmap_quick_alerts_sub': 'Reports',
       'pawmap_quick_report': 'Report',

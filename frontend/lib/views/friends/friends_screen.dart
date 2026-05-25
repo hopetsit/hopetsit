@@ -23,7 +23,12 @@ import 'package:share_plus/share_plus.dart';
 ///      toggle and an "unfriend" option.
 ///   2. Demandes — incoming requests (accept/decline) + outgoing (pending).
 class FriendsScreen extends StatelessWidget {
-  const FriendsScreen({super.key});
+  // v23.1 part 223 — Daniel : "personne en live met le bouton a coter
+  // de famille et amis et alertes". On accepte un initialIndex pour
+  // ouvrir directement sur l'onglet "Personnes en live" (index 4) quand
+  // le user tape le nouveau bouton quick-action sur PawMap.
+  const FriendsScreen({super.key, this.initialIndex = 0});
+  final int initialIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +55,7 @@ class FriendsScreen extends StatelessWidget {
     // (avant fusionnes dans "Live"). Total : 7 onglets.
     return DefaultTabController(
       length: 7,
+      initialIndex: initialIndex.clamp(0, 6),
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(

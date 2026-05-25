@@ -1851,7 +1851,22 @@ class _PawMapScreenState extends State<PawMapScreen> {
             ),
           ),
           SizedBox(width: 8.w),
-          // 3. Alertes — ouvre l'ecran AlertsScreen dedie avec onglets
+          // 3. Personnes en live — v23.1 part 223 — Daniel "personne en
+          // live met le bouton a coter de famille et amis et alertes
+          // c plus pratique". Ouvre directement FriendsScreen sur le
+          // tab index 4 (Personnes en live). Couleur verte pour
+          // distinguer du violet Famille et du jaune Alertes.
+          Expanded(
+            child: _quickActionCard(
+              icon: Icons.gps_fixed_rounded,
+              label: 'pawmap_quick_people_live'.tr,
+              sublabel: 'pawmap_quick_people_live_sub'.tr,
+              color: const Color(0xFF10B981),
+              onTap: () => Get.to(() => const FriendsScreen(initialIndex: 4)),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          // 4. Alertes — ouvre l'ecran AlertsScreen dedie avec onglets
           // (Tous / Perdus / Danger / Accident / Autres) et badges de
           // severite. v23.1.186 (mockup Daniel).
           Expanded(

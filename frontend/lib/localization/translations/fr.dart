@@ -87,6 +87,10 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_quick_follow_on': 'Live actif',
       'pawmap_quick_family': 'Famille & Amis',
       'pawmap_quick_family_sub': 'Ajouter',
+      // v23.1 part 223 — Daniel : "personne en live met le bouton a coter
+      // de famille et amis et alertes"
+      'pawmap_quick_people_live': 'Personnes en live',
+      'pawmap_quick_people_live_sub': 'Position partagee',
       'pawmap_quick_alerts': 'Alertes',
       'pawmap_quick_alerts_sub': 'Signalements',
       'pawmap_quick_report': 'Signaler',
