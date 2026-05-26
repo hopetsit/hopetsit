@@ -251,6 +251,7 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                                 imageUrl: booking.sitter.avatar.url,
                                 width: 32.w,
                                 height: 32.h,
+                                memCacheWidth: 96, // v234.
                                 fit: BoxFit.cover,
                                 placeholder: (_, __) => _avatarPlaceholder(),
                                 errorWidget: (_, __, ___) =>

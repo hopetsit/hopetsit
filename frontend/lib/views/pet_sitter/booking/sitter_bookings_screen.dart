@@ -256,6 +256,7 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
                                 imageUrl: booking.owner.avatar.url,
                                 width: 32.w,
                                 height: 32.h,
+                                memCacheWidth: 96, // v234.
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   width: 32.w,

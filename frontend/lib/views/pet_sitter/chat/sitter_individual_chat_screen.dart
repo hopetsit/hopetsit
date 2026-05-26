@@ -259,6 +259,7 @@ class _SitterIndividualChatScreenState
                       imageUrl: widget.contactImage,
                       width: 42.w,
                       height: 42.h,
+                      memCacheWidth: 126, // v234.
                       fit: BoxFit.cover,
                       errorWidget: (context, url, error) => Icon(
                         Icons.person,
@@ -617,6 +618,7 @@ class _SitterIndividualChatScreenState
                         imageUrl: attachmentUrl,
                         width: 150.w,
                         height: 150.h,
+                        memCacheWidth: 450, // v234.
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           width: 150.w,

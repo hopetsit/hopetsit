@@ -216,6 +216,7 @@ class ChatScreen extends StatelessWidget {
                           imageUrl: conversation.contactImage,
                           width: 40.r,
                           height: 40.r,
+                          memCacheWidth: 120, // v23.1 part 234.
                           fit: BoxFit.cover,
                           placeholder: (context, url) => CircleAvatar(
                             radius: 20.r,
