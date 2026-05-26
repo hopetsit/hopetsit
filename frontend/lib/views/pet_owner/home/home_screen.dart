@@ -262,6 +262,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView.builder(
           // v23.1 part 230 — REVERT v229 shrinkWrap. ListView.builder
           // standard (lazy) pour perf low-end (Oppo / petits ecrans).
+          // v23.1 part 233 — cacheExtent 80 (default ~250) : Flutter
+          // pre-build seulement 80px above/below viewport au lieu de
+          // 250px. 3x moins de cards en RAM offscreen = scroll fluide.
+          cacheExtent: 80,
           padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
           itemCount: _homeController.walkers.length,
           itemBuilder: (context, index) {
@@ -460,6 +464,8 @@ class _HomeScreenState extends State<HomeScreen> {
               color: AppColors.primaryColor,
               onRefresh: _postsController.refreshPosts,
               child: ListView.builder(
+                // v23.1 part 233 — perf scroll : cacheExtent 80px.
+                cacheExtent: 80,
                 padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
                 itemCount: sortedMine.length,
                 itemBuilder: (context, index) {
@@ -723,6 +729,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.primaryColor,
                 onRefresh: _homeController.loadSitters,
                 child: ListView.builder(
+                  // v23.1 part 233 — perf scroll : cacheExtent 80px.
+                  cacheExtent: 80,
                   padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
                   itemCount: _homeController.sitters.length,
                   itemBuilder: (context, index) {

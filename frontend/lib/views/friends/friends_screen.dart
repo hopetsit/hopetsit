@@ -602,10 +602,12 @@ class _FriendTile extends StatelessWidget {
             backgroundColor: roleColor.withValues(alpha: 0.15),
             child: other.avatar.isNotEmpty
                 ? ClipOval(
+                    // v23.1 part 233 — perf memCacheWidth 150 (3x retina).
                     child: CachedNetworkImage(
                       imageUrl: other.avatar,
                       width: 48.r,
                       height: 48.r,
+                      memCacheWidth: 150,
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) =>
                           Icon(Icons.person, color: roleColor, size: 22.sp),
@@ -2375,6 +2377,7 @@ class _PetsTabState extends State<_PetsTab> {
               child: avatar.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: avatar,
+                      memCacheWidth: 150, // v23.1 part 233 — perf.
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) =>
                           Icon(Icons.pets, color: accent, size: 24.sp),

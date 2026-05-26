@@ -228,6 +228,9 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                 imageUrl: widget.profileImagePath!,
                                 width: 100.w,
                                 height: 100.h,
+                                // v23.1 part 233 — perf : decode 300px max
+                                // (3× display size pour retina).
+                                memCacheWidth: 300,
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   width: 100.w,
@@ -600,6 +603,9 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                 imageUrl: widget.profileImagePath!,
                                 width: 32.w,
                                 height: 32.h,
+                                // v23.1 part 233 — perf : decode 96px max
+                                // au lieu de la resolution originale.
+                                memCacheWidth: 96,
                                 fit: BoxFit.cover,
                                 placeholder: (_, __) =>
                                     _compactAvatarPlaceholder(accent),
@@ -749,6 +755,9 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                 imageUrl: widget.profileImagePath!,
                                 width: 32.w,
                                 height: 32.h,
+                                // v23.1 part 233 — perf : decode 96px max
+                                // au lieu de la resolution originale.
+                                memCacheWidth: 96,
                                 fit: BoxFit.cover,
                                 placeholder: (_, __) =>
                                     _compactAvatarPlaceholder(accent),
