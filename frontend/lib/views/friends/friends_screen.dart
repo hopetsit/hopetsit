@@ -405,8 +405,12 @@ class FriendsScreen extends StatelessWidget {
                           radius: 18.r,
                           backgroundColor:
                               AppColors.primaryColor.withValues(alpha: 0.15),
-                          backgroundImage:
-                              avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                          // v23.1 part 231 — perf Oppo : CachedNetworkImageProvider
+                          // au lieu de NetworkImage. Cache disk + memCache size
+                          // limite a 150px (avatar affiche en 36-50px).
+                          backgroundImage: avatar.isNotEmpty
+                              ? CachedNetworkImageProvider(avatar, maxWidth: 150)
+                              : null,
                           child: avatar.isEmpty
                               ? Icon(Icons.person,
                                   size: 18.sp, color: AppColors.primaryColor)
@@ -1527,8 +1531,9 @@ class _FamilyAddByName extends StatelessWidget {
                   radius: 18.r,
                   backgroundColor:
                       AppColors.primaryColor.withValues(alpha: 0.15),
+                  // v23.1 part 231 — perf : CachedNetworkImageProvider 150px.
                   backgroundImage: other.avatar.isNotEmpty
-                      ? NetworkImage(other.avatar)
+                      ? CachedNetworkImageProvider(other.avatar, maxWidth: 150)
                       : null,
                   child: other.avatar.isEmpty
                       ? Icon(Icons.person, size: 18.sp)
@@ -1720,7 +1725,10 @@ class _FamilyMemberTile extends StatelessWidget {
           CircleAvatar(
             radius: 22.r,
             backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
-            backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+            // v23.1 part 231 — perf : CachedNetworkImageProvider+maxWidth.
+            backgroundImage: avatar.isNotEmpty
+                ? CachedNetworkImageProvider(avatar, maxWidth: 150)
+                : null,
             child: avatar.isEmpty
                 ? Icon(Icons.person, color: AppColors.primaryColor, size: 20.sp)
                 : null,
@@ -2005,7 +2013,10 @@ class _AddFriendTabState extends State<_AddFriendTab> {
           CircleAvatar(
             radius: 22.r,
             backgroundColor: accent.withValues(alpha: 0.15),
-            backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+            // v23.1 part 231 — perf : CachedNetworkImageProvider+maxWidth.
+            backgroundImage: avatar.isNotEmpty
+                ? CachedNetworkImageProvider(avatar, maxWidth: 150)
+                : null,
             child: avatar.isEmpty
                 ? Icon(Icons.person, color: accent, size: 22.sp)
                 : null,
@@ -2172,10 +2183,11 @@ class _PeopleLiveTab extends StatelessWidget {
                         CircleAvatar(
                           radius: 24.r,
                           backgroundColor: roleColor.withValues(alpha: 0.18),
+                          // v23.1 part 231 — perf : CachedNetworkImageProvider 150px.
                           backgroundImage:
                               (other.avatar.isNotEmpty &&
                                       other.avatar.startsWith('http'))
-                                  ? NetworkImage(other.avatar)
+                                  ? CachedNetworkImageProvider(other.avatar, maxWidth: 150)
                                   : null,
                           child: other.avatar.isEmpty
                               ? Icon(Icons.person,
@@ -2671,9 +2683,10 @@ class _MessagesTabState extends State<_MessagesTab> {
           CircleAvatar(
             radius: 22.r,
             backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
+            // v23.1 part 231 — perf : CachedNetworkImageProvider 150px.
             backgroundImage:
                 (avatar.isNotEmpty && avatar.startsWith('http'))
-                    ? NetworkImage(avatar)
+                    ? CachedNetworkImageProvider(avatar, maxWidth: 150)
                     : null,
             child: avatar.isEmpty
                 ? Icon(Icons.person,

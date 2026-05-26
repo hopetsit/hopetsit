@@ -166,9 +166,14 @@ class _PawMapScreenState extends State<PawMapScreen> {
     Get.find<MapBoostController>().loadStatus();
 
     // v23.1 part 123 — halo pulse pour Platinum.
-    _haloTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+    // v23.1 part 231 — Daniel : "app lag sur Oppo / petits ecrans".
+    // Reduce frequency 200ms → 600ms (5x/sec → ~1.7x/sec). Le halo
+    // pulse reste visible mais le main thread est 3x moins solicite
+    // par les rebuilds Google Maps Circle. Aussi : 12 → 8 steps pour
+    // un cycle complet plus court (visuellement equivalent).
+    _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
       if (!mounted) return;
-      _haloPhase.value = (_haloPhase.value + 1.0 / 12.0) % 1.0;
+      _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
     });
 
     // Paris fallback is the initial value — the map renders immediately

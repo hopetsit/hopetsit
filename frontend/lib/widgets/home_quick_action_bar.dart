@@ -25,6 +25,7 @@
 
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -675,8 +676,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                   CircleAvatar(
                     radius: 22.r,
                     backgroundColor: accent.withValues(alpha: 0.15),
+                    // v23.1 part 231 — perf : CachedNetworkImageProvider 150.
                     backgroundImage: ownerAvatar.isNotEmpty
-                        ? NetworkImage(ownerAvatar) : null,
+                        ? CachedNetworkImageProvider(ownerAvatar, maxWidth: 150)
+                        : null,
                     child: ownerAvatar.isEmpty
                         ? Icon(Icons.person, color: accent, size: 22.sp)
                         : null,
@@ -789,8 +792,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                   CircleAvatar(
                     radius: 26.r,
                     backgroundColor: accent.withValues(alpha: 0.15),
-                    backgroundImage:
-                        ownerAvatar.isNotEmpty ? NetworkImage(ownerAvatar) : null,
+                    // v23.1 part 231 — perf cache + maxWidth.
+                    backgroundImage: ownerAvatar.isNotEmpty
+                        ? CachedNetworkImageProvider(ownerAvatar, maxWidth: 150)
+                        : null,
                     child: ownerAvatar.isEmpty
                         ? Icon(Icons.person, color: accent, size: 26.sp)
                         : null,
@@ -995,8 +1000,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                   CircleAvatar(
                     radius: 28.r,
                     backgroundColor: accent.withValues(alpha: 0.15),
+                    // v23.1 part 231 — perf.
                     backgroundImage: providerAvatar.isNotEmpty
-                        ? NetworkImage(providerAvatar)
+                        ? CachedNetworkImageProvider(providerAvatar, maxWidth: 200)
                         : null,
                     child: providerAvatar.isEmpty
                         ? Icon(Icons.person, color: accent, size: 28.sp)
@@ -1199,8 +1205,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                   CircleAvatar(
                     radius: 28.r,
                     backgroundColor: accent.withValues(alpha: 0.15),
+                    // v23.1 part 231 — perf.
                     backgroundImage: w.avatar.url.isNotEmpty
-                        ? NetworkImage(w.avatar.url)
+                        ? CachedNetworkImageProvider(w.avatar.url, maxWidth: 200)
                         : null,
                     child: w.avatar.url.isEmpty
                         ? Icon(Icons.person, color: accent, size: 28.sp)

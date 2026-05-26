@@ -30,6 +30,15 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // v23.1 part 231 — Daniel : "app lag sur Oppo / petits ecrans".
+  // FIX SYSTEM-WIDE n°1 : reduire le cache d'images Flutter.
+  // Default Flutter : 1000 images / 100MB. Sur Oppo A-series 4GB RAM
+  // (1.5GB dispo apps), 100MB de cache + decodage full-res = swap +
+  // lag global. On capte a 50MB / 100 images : permet de garder les
+  // avatars + cards visibles en cache, mais libere de la RAM.
+  PaintingBinding.instance.imageCache.maximumSize = 100;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50 MB
+
   // v23.1 part 125 — Phase 2 audit C1.
   // En release, `debugPrint` ne doit RIEN écrire. Flutter ne strip pas
   // debugPrint automatiquement, donc 194 sites du codebase loguaient PII

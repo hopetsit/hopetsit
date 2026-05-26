@@ -7,6 +7,7 @@
 // Affiche la liste des amis/membres famille qui partagent leur position
 // EN CE MOMENT (theirSharePosition == true) OU qui ont un plan PawFollow
 // actif (partage auto via la mecanique PawFollow Family).
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -126,9 +127,10 @@ class PeopleLiveScreen extends StatelessWidget {
                           CircleAvatar(
                             radius: 24.r,
                             backgroundColor: roleColor.withValues(alpha: 0.18),
+                            // v23.1 part 231 — perf cache + maxWidth.
                             backgroundImage: (other.avatar.isNotEmpty &&
                                     other.avatar.startsWith('http'))
-                                ? NetworkImage(other.avatar)
+                                ? CachedNetworkImageProvider(other.avatar, maxWidth: 150)
                                 : null,
                             child: other.avatar.isEmpty
                                 ? Icon(Icons.person,
