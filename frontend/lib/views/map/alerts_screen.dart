@@ -1314,6 +1314,7 @@ class _ReportCard extends StatelessWidget {
               child: report.photoUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: report.photoUrl,
+                      memCacheWidth: 400, // v235 perf.
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => Center(
                         child: Text(emoji, style: TextStyle(fontSize: 28.sp)),

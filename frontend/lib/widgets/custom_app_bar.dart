@@ -258,6 +258,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               imageUrl: userImage,
                               width: 42.w,
                               height: 42.h,
+                              memCacheWidth: 126, // v235.
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
                                 color: AppColors.lightGrey,

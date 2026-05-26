@@ -149,6 +149,22 @@ void main() async {
   }
 }
 
+/// v23.1 part 235 — Daniel : "sa lag encore legerement" sur Oppo.
+/// ScrollBehavior global qui force ClampingScrollPhysics (Android natif,
+/// scroll arrete net sans rebond) au lieu de BouncingScrollPhysics par
+/// defaut (iOS-style avec overscroll bounce animation = ~10% CPU drain
+/// par swipe). Aussi : on retire le glow effect Android pour eviter le
+/// rebuild du overscroll indicator pendant le scroll.
+class _PerfScrollBehavior extends ScrollBehavior {
+  const _PerfScrollBehavior();
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const ClampingScrollPhysics();
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) =>
+      child; // no glow
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -179,6 +195,12 @@ class MyApp extends StatelessWidget {
           onTap: () => FocusManager.instance.primaryFocus!.unfocus(),
           child: GetMaterialApp(
             debugShowCheckedModeBanner: false,
+            // v23.1 part 235 — Daniel : "sa lag encore legerement". Force
+            // ClampingScrollPhysics partout (Android natif) au lieu du
+            // default BouncingScrollPhysics (iOS-style avec overscroll
+            // animation = ~10% CPU drain par scroll). Sur Oppo low-end,
+            // ce gain compte.
+            scrollBehavior: const _PerfScrollBehavior(),
             translations: AppTranslations(),
             locale: LocalizationService.getInitialLocale(),
             fallbackLocale: LocalizationService.fallbackLocale,

@@ -82,6 +82,7 @@ class HomeHeader extends StatelessWidget implements PreferredSizeWidget {
                               imageUrl: userImage,
                               width: 42.w,
                               height: 42.w,
+                              memCacheWidth: 126, // v235.
                               fit: BoxFit.cover,
                               placeholder: (_, __) => Icon(
                                 Icons.person,

@@ -161,6 +161,7 @@ class MyPetsScreen extends StatelessWidget {
                           imageUrl: imageUrl,
                           width: double.infinity,
                           height: 200.h,
+                          memCacheWidth: 800, // v235.
                           fit: BoxFit.contain,
                           placeholder: (context, url) => Container(
                             color: AppColors.lightGreyColor,

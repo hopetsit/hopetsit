@@ -255,6 +255,7 @@ class ProfileScreen extends StatelessWidget {
                         imageUrl: imageUrl,
                         width: 100.w,
                         height: 100.w,
+                        memCacheWidth: 300, // v235.
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: AppColors.lightGrey,
