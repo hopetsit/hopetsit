@@ -260,11 +260,9 @@ class _HomeScreenState extends State<HomeScreen> {
         color: AppColors.primaryColor,
         onRefresh: _homeController.loadWalkers,
         child: ListView.builder(
-          // v23.1 part 229 — home scrollable totale via SingleChildScrollView
-          // parent. ListView interne doit etre shrinkWrap + non-scrollable.
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 0),
+          // v23.1 part 230 — REVERT v229 shrinkWrap. ListView.builder
+          // standard (lazy) pour perf low-end (Oppo / petits ecrans).
+          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
           itemCount: _homeController.walkers.length,
           itemBuilder: (context, index) {
             final walker = _homeController.walkers[index];
@@ -455,17 +453,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return Column(
         children: [
           _buildMyPostsSortBar(),
-          // v23.1 part 229 — ListView.builder shrinkWrap pour s'integrer
-          // dans le SingleChildScrollView parent (home scrollable totale).
-          // RefreshIndicator garde, et le ListView ne scroll plus
-          // independamment (physics NeverScrollable).
-          RefreshIndicator(
+          // v23.1 part 230 — REVERT v229 shrinkWrap. ListView.builder
+          // standard (lazy) wrap dans Expanded pour la perf low-end.
+          Expanded(
+            child: RefreshIndicator(
               color: AppColors.primaryColor,
               onRefresh: _postsController.refreshPosts,
               child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 0),
+                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
                 itemCount: sortedMine.length,
                 itemBuilder: (context, index) {
                   final post = sortedMine[index];
@@ -569,6 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
+          ),
         ],
       );
     });
@@ -703,33 +699,31 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // v23.1 part 229 — home scrollable totale : on retire les
-          // Expanded incompatibles avec le SingleChildScrollView parent.
+          // v23.1 part 230 — REVERT v229 shrinkWrap : Expanded standard
+          // pour laisser ListView.builder construire en lazy. Perf low-end.
           if (isLoading)
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: 40.h),
-              child: const Center(child: CircularProgressIndicator()),
-            )
+            const Expanded(child: Center(child: CircularProgressIndicator()))
           else if (_homeController.sitters.isEmpty)
-            Padding(
-              padding: EdgeInsets.all(40.w),
+            Expanded(
               child: Center(
-                child: InterText(
-                  text: 'home_no_sitters_message'.tr,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.greyColor,
+                child: Padding(
+                  padding: EdgeInsets.all(20.w),
+                  child: InterText(
+                    text: 'home_no_sitters_message'.tr,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.greyColor,
+                  ),
                 ),
               ),
             )
           else
-            RefreshIndicator(
+            Expanded(
+              child: RefreshIndicator(
                 color: AppColors.primaryColor,
                 onRefresh: _homeController.loadSitters,
                 child: ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 0),
+                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
                   itemCount: _homeController.sitters.length,
                   itemBuilder: (context, index) {
                     final sitter = _homeController.sitters[index];
@@ -821,6 +815,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
+            ),
         ],
       );
     });
@@ -876,17 +871,20 @@ class _HomeScreenState extends State<HomeScreen> {
         // v23.1 part 27 — REVERT default SafeArea (bottom: true). Avec la pill
         // flottante + extendBody: true, le body étend derrière la pill. SafeArea
         // bottom protège le contenu pour qu'il ne soit pas caché.
-        // v23.1 part 229 — Daniel : "fais que la page acceuiel soit
-        // scrolable entierement pas le haut fix". On remplace Column par
-        // SingleChildScrollView : TOUT scroll incluant le QuickActionBar,
-        // ExpandablePostInput, SegmentedControl, DistanceSlider. Les
-        // tab content (_buildXxx) ont leur ListView avec shrinkWrap=true
-        // + physics: NeverScrollable pour s'integrer dans le scroll
-        // parent.
+        // v23.1 part 230 — Daniel : "app lag sur Oppo + petit ecran".
+        // Root cause = v229 mit shrinkWrap:true + NeverScrollable sur les
+        // ListView.builder internes → Flutter doit construire TOUS les
+        // items d'un coup (50 sitters = 50 widgets cree + layout au boot
+        // de la page). Sur Oppo/low-end → lag impossible a scroller.
+        //
+        // REVERT v229 : on retire SingleChildScrollView et on revient
+        // au Column avec Expanded(ListView.builder) standard. Le ListView
+        // construit ses items paresseusement (seulement ce qui est
+        // visible) → fluide partout. Le QuickActionBar + Publication
+        // input + SegmentedControl restent fixes en haut, mais c'est
+        // un compromis necessaire pour la perf low-end.
         body: SafeArea(
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
+          child: Column(
             children: [
               // v21 — Quick action bar (only renders when an urgent action
               // is pending : payment due, booking accepted, etc.).
@@ -941,18 +939,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(height: 10.h),
               ],
 
-              // v23.1 part 229 — Daniel : "scrolable entierement". On
-              // retire Expanded ici (incompatible avec SingleChildScrollView
-              // parent), les tabs renvoient maintenant directement leur
-              // contenu avec shrinkWrap=true.
-              _selectedTabIndex == 0
-                  ? _buildMyPostsTab()
-                  : _selectedTabIndex == 1
-                      ? _buildSittersTab()
-                      : _buildWalkersTab(),
-              SizedBox(height: 100.h), // bottom-nav clearance
+              // v23.1 part 230 — REVERT v229. Expanded(ListView.builder)
+              // standard : items construits paresseusement (lazy), fluide
+              // sur Oppo / low-end devices.
+              Expanded(
+                child: _selectedTabIndex == 0
+                    ? _buildMyPostsTab()
+                    : _selectedTabIndex == 1
+                        ? _buildSittersTab()
+                        : _buildWalkersTab(),
+              ),
             ],
-          ),
           ),
         ),
         // v23.1 — FAB compact bottom-right : icône + uniquement, gradient,
