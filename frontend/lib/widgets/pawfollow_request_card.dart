@@ -228,6 +228,7 @@ class PawfollowRequestCard extends StatelessWidget {
                       child: (petPhoto ?? '').startsWith('http')
                           ? CachedNetworkImage(
                               imageUrl: petPhoto!,
+                              memCacheWidth: 200, // v235.5.
                               fit: BoxFit.cover,
                               errorWidget: (_, __, ___) => Icon(
                                 Icons.pets_rounded,

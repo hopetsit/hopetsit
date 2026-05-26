@@ -154,6 +154,7 @@ class TrackingRequestSheet extends StatelessWidget {
                   child: avatar.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: avatar,
+                          memCacheWidth: 150, // v235.5.
                           fit: BoxFit.cover,
                           errorWidget: (_, __, ___) =>
                               Icon(Icons.pets, color: _orange, size: 28.sp),
@@ -386,6 +387,7 @@ class TrackingRequestSheet extends StatelessWidget {
                 child: avatar.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: avatar,
+                        memCacheWidth: 150, // v235.5.
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) =>
                             Icon(Icons.person, color: _orange, size: 22.sp),

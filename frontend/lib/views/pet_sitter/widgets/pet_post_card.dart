@@ -1150,6 +1150,7 @@ class PetPostCard extends StatelessWidget {
               isNetworkImage
                   ? CachedNetworkImage(
                       imageUrl: imageUrl,
+                      memCacheWidth: 800, // v235.5 perf post image.
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         color: AppColors.lightGrey,
