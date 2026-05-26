@@ -107,15 +107,22 @@ class AppColors {
   static Color inputFill(BuildContext context) =>
       _isDark(context) ? const Color(0xFF2A2A2A) : scaffoldLight;
 
-  /// Subtle shadow that works in dark mode (invisible) and light mode
+  /// Subtle shadow that works in dark mode (invisible) and light mode.
+  ///
+  /// v23.1 part 232 — Daniel : "sa surrame le scroll est au ralenti".
+  /// blurRadius reduit de 10 → 3 : un shadow blur de 10 est tres
+  /// couteux GPU-side (chaque pixel doit echantilloner 10x10 voisins).
+  /// 3 reste visuellement subtle mais 11x moins de samples = scroll
+  /// fluide sur Oppo / low-end GPU. Aussi on retourne const list pour
+  /// permettre Flutter d'identifier les cards qui partagent ce shadow.
+  static const List<BoxShadow> _lightCardShadow = [
+    BoxShadow(
+      color: Color(0x0A000000), // alpha 0.04
+      blurRadius: 3,
+      offset: Offset(0, 1),
+    ),
+  ];
+  static const List<BoxShadow> _emptyCardShadow = [];
   static List<BoxShadow> cardShadow(BuildContext context) =>
-      _isDark(context)
-          ? []  // no shadow in dark mode — use border or elevation
-          : [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ];
+      _isDark(context) ? _emptyCardShadow : _lightCardShadow;
 }

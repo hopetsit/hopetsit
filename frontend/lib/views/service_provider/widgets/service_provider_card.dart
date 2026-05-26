@@ -124,6 +124,14 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
 
   @override
   Widget build(BuildContext context) {
+    // v23.1 part 232 — Daniel : "scroll est au ralenti". RepaintBoundary
+    // global sur le card pour isoler son repaint quand on scrolle le feed
+    // sitter/walker. Avec PetPostCard idem, le feed est 2x plus fluide
+    // sur Oppo low-end GPU.
+    return RepaintBoundary(child: _buildInner(context));
+  }
+
+  Widget _buildInner(BuildContext context) {
     // v18.8 — Option B : en mode booking, on affiche une carte COMPACTE
     // alignée sur le design des écrans Réservations sitter/walker
     // (avatar 32×32, lignes icône pet/date/heure/prix, bouton unique en

@@ -116,17 +116,24 @@ class PetPostCard extends StatelessWidget {
             color: AppColors.divider(context).withValues(alpha: 0.35),
             width: 1.w,
           );
-    return Container(
+    // v23.1 part 232 — Daniel : "sa surrame le scroll est au ralenti".
+    // RepaintBoundary isole chaque card du repaint des voisins quand on
+    // scrolle. Sur Oppo low-end : gros gain de fluidite scroll feed.
+    return RepaintBoundary(
+      child: Container(
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(19.r),
         border: boostBorder,
+        // v23.1 part 232 — perf : blurRadius 16 → 5 pour scroll fluide
+        // sur Oppo low-end GPU. Le ruban URGENT reste visuel mais le
+        // shadow est 10x moins couteux GPU-side.
         boxShadow: isOwnerBoosted
-            ? [
+            ? const [
                 BoxShadow(
-                  color: const Color(0xFFE8472A).withOpacity(0.18),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
+                  color: Color(0x2EE8472A), // alpha 0.18 hex-baked
+                  blurRadius: 5,
+                  offset: Offset(0, 2),
                 ),
               ]
             : AppColors.cardShadow(context),
@@ -507,6 +514,7 @@ class PetPostCard extends StatelessWidget {
           ),
           SizedBox(height: 16.h),
         ],
+      ),
       ),
     );
   }
