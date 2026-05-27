@@ -928,7 +928,7 @@ export const t: Bundle = {
     faq_q6:                 "Was ist PawFollow Familie?",
     faq_a6:                 "Füge bis zu 4 Angehörige zu deinem PawFollow-Plan hinzu. Alle verfolgen dein Tier, die Warnungen und die Live-Position auf derselben Karte — ideal für Partner, erwachsene Kinder oder vertraute Freunde.",
     faq_q7:                 "Wie funktioniert die Live-Standortfreigabe?",
-    faq_a7:                 "Sobald eine Buchung bezahlt ist, tippt der Halter „Mein Tier verfolgen" im Chat. Walker oder Sitter bestätigen mit einem Tipp und die Position erscheint auf der PawMap mit dem Rollen-Halo (grün / blau). Das Tracking endet automatisch nach der Buchung und kann jederzeit gestoppt werden.",
+    faq_a7:                 "Sobald eine Buchung bezahlt ist, tippt der Halter \"Mein Tier verfolgen\" im Chat. Walker oder Sitter bestätigen mit einem Tipp und die Position erscheint auf der PawMap mit dem Rollen-Halo (grün / blau). Das Tracking endet automatisch nach der Buchung und kann jederzeit gestoppt werden.",
   },
 
   it: {
