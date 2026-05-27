@@ -324,7 +324,8 @@ class FriendsScreen extends StatelessWidget {
                   SizedBox(width: 8.w),
                   Expanded(
                     child: InterText(
-                      text: 'Ajouter un ami',
+                      // v23.1 part 240 — i18n hardcoded FR string fix.
+                      text: 'friends_add_friend_title'.tr,
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w800,
                     ),

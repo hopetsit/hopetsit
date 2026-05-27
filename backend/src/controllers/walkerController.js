@@ -223,6 +223,17 @@ const findNearbyWalkers = async (req, res) => {
         isMapBoosted: Boolean(isMapBoosted),
         mapBoostTier: isMapBoosted ? (w.mapBoostTier || null) : null,
         pawSpotLabel: customCoords ? (w.mapBoostLocation?.label || '') : null,
+        // v23.1 part 240 — Daniel : "barre deconne ... sa met nimporte
+        // quoi". Le sitter endpoint exposait `distance` (km) + `distanceInMeters`
+        // mais le walker endpoint NE LES EXPOSAIT PAS → la WalkerCard tombait
+        // sur distanceKm=null et affichait juste la ville sans km. On
+        // expose maintenant les 2 champs pour parite avec sitter.
+        distance: typeof w.distanceInMeters === 'number'
+          ? (w.distanceInMeters / 1000).toFixed(2)
+          : null,
+        distanceInMeters: typeof w.distanceInMeters === 'number'
+          ? w.distanceInMeters
+          : null,
       };
     });
 

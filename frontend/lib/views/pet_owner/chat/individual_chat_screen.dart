@@ -14,9 +14,14 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/tracking_request_sheet.dart';
-import 'package:hopetsit/views/pet_owner/walk/live_walk_map_screen.dart';
+// v23.1 part 240 — LiveWalkMapScreen import retire : "Voir la carte" du
+// chat n'utilise plus l'ancienne carte "suivre balade" mais ouvre la
+// PawMap avec halo vert (walker) / bleu (sitter) automatique via
+// focusUserId. La LiveWalkMapScreen reste pour d'autres flows (notif
+// push -> deep link bookingId) mais le chat l'a abandonnee.
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/address_share_card.dart';
 import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:hopetsit/widgets/translate_message_button.dart';
@@ -212,7 +217,13 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     // ville). On refresh la position FRESH via /conversations/:id/
     // peer-position qui lit User.location.coordinates mise a jour par
     // mapSocket toutes les 10s. resolvedLat/Lng overrides fallback si dispo.
-    Future<({double? lat, double? lng})> resolveFresh() async {
+    // v23.1 part 240 — Daniel : "quand on met voir la carte pour quoi tu
+    // met suivre balade une nouvelle map au lieu dutiliser la paw map et
+    // je vois le halo vert si c un walker ou halo bleu si c un sitter".
+    // On abandonne LiveWalkMapScreen ici. resolveFresh() ne retourne plus
+    // juste lat/lng, mais aussi peerId + peerRole, pour que la PawMap
+    // injecte une FriendPosition synthetique et dessine le halo couleur.
+    Future<({double? lat, double? lng, String? peerId, String? peerRole})> resolveFresh() async {
       try {
         final api = Get.find<ApiClient>();
         final r = await api.get(
@@ -222,71 +233,40 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         if (r is Map) {
           final rLat = r['lat'];
           final rLng = r['lng'];
+          final pid = r['peerId']?.toString();
+          final prole = r['peerRole']?.toString();
           if (rLat is num && rLng is num) {
-            return (lat: rLat.toDouble(), lng: rLng.toDouble());
+            return (
+              lat: rLat.toDouble(),
+              lng: rLng.toDouble(),
+              peerId: pid,
+              peerRole: prole,
+            );
           }
+          // Pas de coords mais on a peerId/role → on retourne quand meme.
+          return (lat: null, lng: null, peerId: pid, peerRole: prole);
         }
       } catch (_) {/* defensive */}
-      return (lat: fallbackLat, lng: fallbackLng);
+      return (lat: fallbackLat, lng: fallbackLng, peerId: null, peerRole: null);
     }
 
     VoidCallback? openMap;
     if (message.pawfollowStatus == 'accepted') {
       openMap = () async {
-        // v23.1 part 239 — on resolve la position FRESH AVANT d'ouvrir
-        // la carte. Si l'API repond, on utilise sa position en priorite.
+        // v23.1 part 240 — on resolve fresh + on ouvre TOUJOURS la PawMap
+        // (plus de LiveWalkMapScreen). focusUserId/Role injecte une
+        // FriendPosition synthetique dans LiveMapService → halo vert
+        // (walker) / bleu (sitter) automatique.
         final fresh = await resolveFresh();
         final useLat = fresh.lat ?? fallbackLat;
         final useLng = fresh.lng ?? fallbackLng;
-        if (bookingId.isNotEmpty) {
-          Get.to(() => LiveWalkMapScreen(
-                bookingId: bookingId,
-                fallbackLat: useLat,
-                fallbackLng: useLng,
-                contactName: widget.contactName,
-              ));
-        } else {
-          // Fallback : on tente de retrouver le booking actif depuis le
-          // contact name (même logique que _onSuivreTap header).
-          try {
-            final repo = Get.find<OwnerRepository>();
-            final bookings = await repo.getMyBookings();
-            String norm(String s) =>
-                s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
-            final wantedName = norm(widget.contactName);
-            final candidate = bookings.firstWhereOrNull((b) {
-              final pay = (b.paymentStatus ?? '').toLowerCase();
-              if (pay != 'paid') return false;
-              return norm(b.sitter.name) == wantedName ||
-                  norm(b.sitter.name).contains(wantedName) ||
-                  wantedName.contains(norm(b.sitter.name));
-            });
-            if (candidate != null) {
-              Get.to(() => LiveWalkMapScreen(
-                    bookingId: candidate.id,
-                    // v23.1 part 239 — useLat/useLng = position FRESH (DB),
-                    // fallback metadata si l'API a echoue.
-                    fallbackLat: useLat,
-                    fallbackLng: useLng,
-                    contactName: widget.contactName,
-                  ));
-            } else {
-              // v23.1 part 239 — PawMap centree sur position FRESH du
-              // provider (recuperee via /friends/:id/last-position avant
-              // l'ouverture).
-              Get.to(() => PawMapScreen(
-                    initialLat: useLat,
-                    initialLng: useLng,
-                  ));
-            }
-          } catch (_) {
-            // v23.1 part 239 — meme fallback PawMap centree provider FRESH.
-            Get.to(() => PawMapScreen(
-                  initialLat: useLat,
-                  initialLng: useLng,
-                ));
-          }
-        }
+        Get.to(() => PawMapScreen(
+              initialLat: useLat,
+              initialLng: useLng,
+              focusUserId: fresh.peerId,
+              focusUserRole: fresh.peerRole,
+              focusUserName: widget.contactName,
+            ));
       };
     }
     return PawfollowRequestCard(
@@ -465,6 +445,39 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     }
   }
 
+  /// v23.1 part 240 — Daniel : "sur les 3 profile rajoute partager mon
+  /// adresse pour rdv fais un truc styler pour les 3 profile qduand y
+  /// font recuperer lanimal y senvoi ladresse directement dans le chat".
+  /// POST /conversations/:id/share-address → cree un message
+  /// type='address_share' visible cote owner + sitter/walker.
+  Future<void> _onShareAddressTap() async {
+    try {
+      final repo = Get.find<ChatRepository>();
+      await repo.shareAddress(conversationId: widget.conversationId);
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'address_share_sent_title'.tr,
+        message: 'address_share_sent_msg'.tr,
+      );
+      await chatController.loadChatMessages(
+        widget.conversationId,
+        contactName: widget.contactName,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString().replaceAll('ApiException:', '').trim();
+      final isMissingAddress = raw.toLowerCase().contains('no address');
+      CustomSnackbar.showError(
+        title: isMissingAddress
+            ? 'address_share_no_profile_title'.tr
+            : 'common_error'.tr,
+        message: isMissingAddress
+            ? 'address_share_no_profile_msg'.tr
+            : raw,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -529,6 +542,30 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         //   204 NO_LOCATION_YET → snackbar "Provider hasn't shared yet"
         //   404 / 409 → "no active booking" snackbar
         actions: [
+          // v23.1 part 240 — Daniel : "sur les 3 profile rajoute partager
+          // mon adresse pour rdv fais un truc styler". Icone home oranger
+          // en mini-pill a cote du bouton "Suivre" pour ne pas casser
+          // l'AppBar mais rester visible. Tap = POST share-address.
+          Padding(
+            padding: EdgeInsets.only(right: 4.w),
+            child: GestureDetector(
+              onTap: _onShareAddressTap,
+              child: Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFEF4324).withValues(alpha: 0.40),
+                    width: 1.2,
+                  ),
+                ),
+                child: Icon(Icons.home_rounded,
+                    size: 18.sp, color: const Color(0xFFEF4324)),
+              ),
+            ),
+          ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 8.w),
             child: GestureDetector(
@@ -688,6 +725,16 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     // à suivre ou inversement quand l'owner demande à suivre.
     if (message.isPawfollowRequest) {
       return _buildPawfollowRequestCard(message, controller);
+    }
+    // v23.1 part 240 — carte "Adresse pour RDV" partagee.
+    if (message.isAddressShare) {
+      return AddressShareCard(
+        address: message.addressShareAddress,
+        city: message.addressShareCity,
+        lat: message.addressShareLat,
+        lng: message.addressShareLng,
+        isFromCurrentUser: message.isFromCurrentUser,
+      );
     }
     if (message.isSystem) {
       return Padding(

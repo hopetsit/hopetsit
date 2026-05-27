@@ -102,8 +102,9 @@ class WalkerCard extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 26.r,
                     backgroundColor: AppColors.grey300Color,
+                    // v23.1 part 240 — maxWidth: 180 (HD avatar, low mem).
                     backgroundImage: avatarUrl.isNotEmpty
-                        ? CachedNetworkImageProvider(avatarUrl)
+                        ? CachedNetworkImageProvider(avatarUrl, maxWidth: 180)
                         : null,
                     child: avatarUrl.isEmpty
                         ? Icon(Icons.directions_walk_rounded,

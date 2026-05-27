@@ -239,17 +239,19 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         }
       }
 
-      if (_filterState.maxDistanceKm != null &&
-          _filterState.maxDistanceKm! > 0 &&
-          _userPosition != null) {
+      // v23.1 part 240 — slider toujours actif (min 50km enforced UI side).
+      // On applique le filtre meme si maxDistanceKm est null en lui
+      // assignant le minimum 50km par defaut. Plus de mode "0 = no filter".
+      final radiusKm = _filterState.maxDistanceKm ?? _kMinRadiusKm;
+      if (radiusKm > 0 && _userPosition != null) {
         final postLat = post.location?.lat;
         final postLng = post.location?.lng;
         // v23.1.147 — Daniel : "si on met 20 km le paseador disparaît".
         // Avant : un post sans coordonnées GPS était EXCLU dès qu'un filtre
         // distance était actif → frustrant pour les owners qui n'ont pas
-        // saisi leur adresse précise. Maintenant : on garde les posts sans
-        // coords visibles à toutes distances (= équivalent du fallback
-        // côté owner home_controller).
+        // saisi leur adresse précise. On garde la tolerance : posts sans
+        // coords restent visibles (sinon l'owner sans adresse precise est
+        // invisible).
         if (postLat == null || postLng == null) {
           return true;
         }
@@ -262,7 +264,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         );
         final distanceInKm = distanceInMeters / 1000;
 
-        if (distanceInKm > _filterState.maxDistanceKm!) {
+        if (distanceInKm > radiusKm) {
           return false;
         }
       }
@@ -570,7 +572,11 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   }
 
   void _showNearMeBottomSheet(BuildContext context) {
-    double tempDistance = _filterState.maxDistanceKm ?? 0;
+    // v23.1 part 240 — slider toujours actif avec min 50km (cf inline
+    // slider plus bas). Init au plus a 50km si pas de valeur stockee.
+    double tempDistance = (_filterState.maxDistanceKm ?? _kMinRadiusKm)
+        .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+        .toDouble();
 
     showModalBottomSheet<void>(
       context: context,
@@ -591,23 +597,22 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               SizedBox(height: 20.h),
               Slider(
                 value: tempDistance,
-                min: 0,
-                max: 500,
-                divisions: 50,
-                label: tempDistance == 0
-                    ? 'filter_all_distances'.tr
-                    : '${tempDistance.toInt()} km',
+                min: _kMinRadiusKm,
+                max: _kMaxRadiusKm,
+                divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
+                label: '${tempDistance.toInt()} km',
                 onChanged: (value) {
-                  setBottomSheetState(() => tempDistance = value);
+                  final v = value
+                      .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+                      .toDouble();
+                  setBottomSheetState(() => tempDistance = v);
                 },
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 18.w),
                 child: InterText(
-                  text: tempDistance == 0
-                      ? 'filter_all_distances'.tr
-                      : 'filter_distance_km'
-                          .trParams({'km': tempDistance.toInt().toString()}),
+                  text: 'filter_distance_km'
+                      .trParams({'km': tempDistance.toInt().toString()}),
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary(context),
@@ -628,8 +633,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                 onPressed: () {
                   setState(() {
                     _filterState = _filterState.copyWith(
-                      maxDistanceKm:
-                          tempDistance > 0 ? tempDistance : null,
+                      maxDistanceKm: tempDistance,
                     );
                   });
                   Navigator.of(context).pop();
@@ -1853,24 +1857,28 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     );
   }
 
-  /// Inline "Près de chez moi" slider shown above the feed. Drags from 0 km
-  /// (all distances, no filtering) up to 500 km. Reuses the same
-  /// `_filterState.maxDistanceKm` field as the Filters dialog so both stay
-  /// in sync.
+  /// v23.1 part 240 — Daniel : "deja quand la barre est a 0 sa dois
+  /// mafficher uniquement les profile de 0 a 50km de chez moi et apres
+  /// plus je monte plus sa safiche avec le bon kms, et sa verifie sur
+  /// chaque profile et chaque barre dans owner sitter et walker". Sitter
+  /// side : meme contrainte que owner home — slider min 50 km, plus de
+  /// mode "toutes les distances".
+  static const double _kMinRadiusKm = 50.0;
+  static const double _kMaxRadiusKm = 500.0;
+
   Widget _buildInlineDistanceSlider(BuildContext context) {
-    final current = _filterState.maxDistanceKm ?? 0;
-    final label = current <= 0
-        ? 'distance_slider_all'.tr
-        : 'distance_slider_km'.trParams({'km': current.toInt().toString()});
+    // Initialise le filtre a 50km si absent — toujours actif.
+    final raw = _filterState.maxDistanceKm ?? _kMinRadiusKm;
+    final current = raw.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
+    final label = 'distance_slider_km'
+        .trParams({'km': current.toInt().toString()});
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: current > 0
-              ? AppColors.primaryColor
-              : AppColors.divider(context),
+          color: AppColors.primaryColor,
           width: 1.2,
         ),
       ),
@@ -1882,9 +1890,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
               Icon(
                 Icons.near_me_rounded,
                 size: 18.sp,
-                color: current > 0
-                    ? AppColors.primaryColor
-                    : AppColors.textSecondary(context),
+                color: AppColors.primaryColor,
               ),
               SizedBox(width: 8.w),
               Expanded(
@@ -1895,20 +1901,6 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                   color: AppColors.textPrimary(context),
                 ),
               ),
-              if (current > 0)
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _filterState =
-                          _filterState.copyWith(maxDistanceKm: 0);
-                    });
-                  },
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 18.sp,
-                    color: AppColors.textSecondary(context),
-                  ),
-                ),
             ],
           ),
           SliderTheme(
@@ -1924,14 +1916,16 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                   const RoundSliderThumbShape(enabledThumbRadius: 9),
             ),
             child: Slider(
-              value: current.clamp(0, 500).toDouble(),
-              min: 0,
-              max: 500,
-              divisions: 50,
-              label: current <= 0 ? 'Toutes' : '${current.toInt()} km',
+              value: current,
+              min: _kMinRadiusKm,
+              max: _kMaxRadiusKm,
+              divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
+              label: '${current.toInt()} km',
               onChanged: (value) {
+                final v = value.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
                 setState(() {
-                  _filterState = _filterState.copyWith(maxDistanceKm: value);
+                  _filterState =
+                      _filterState.copyWith(maxDistanceKm: v);
                 });
               },
             ),
@@ -1940,12 +1934,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               InterText(
-                text: '0 km',
+                text: '${_kMinRadiusKm.toInt()} km',
                 fontSize: 10.sp,
                 color: AppColors.textSecondary(context),
               ),
               InterText(
-                text: '500 km',
+                text: '${_kMaxRadiusKm.toInt()} km',
                 fontSize: 10.sp,
                 color: AppColors.textSecondary(context),
               ),

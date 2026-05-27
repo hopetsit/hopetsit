@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 134</title>
+<title>HopeTSIT — Admin v23.1 part 240</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -197,6 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HopeTSIT</span>
       <span class="header-badge">ADMIN</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v240</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -279,6 +280,26 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div class="stats-grid" id="stats-grid">
           <div class="loading"><div class="spinner"></div> <span data-i18n="loading">Chargement...</span></div>
         </div>
+
+        <!-- v23.1 part 240 — "What's new" pour les admins. Récapitule les
+             grosses features ajoutées en v240 + les endpoints / models
+             côté backend qui ont été modifiés. Pas i18n (admin-only, FR). -->
+        <div style="margin:24px 0;border:1px solid #EF432255;background:linear-gradient(135deg,#FFF1ED 0%,#fff 100%);border-radius:14px;padding:18px 20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <span style="background:#EF4324;color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:12px">NOUVEAU · v240</span>
+            <span style="font-family:Syne,sans-serif;font-size:16px;font-weight:700;color:#0F172A">Fonctionnalités v240 livrées</span>
+          </div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7;color:#334155">
+            <li><strong>PawFollow Famille :</strong> jusqu'à 4 membres par plan, position partagée sur la même map (`UserSubscription.familyMembers`).</li>
+            <li><strong>Partage adresse RDV :</strong> nouveau type Message <code>address_share</code> — visible dans la section Chat ci-dessus.</li>
+            <li><strong>Suivi position en direct :</strong> halo vert (walker) / bleu (sitter) sur la PawMap. Endpoint <code>/conversations/:id/peer-position</code>.</li>
+            <li><strong>Slider "Près de chez moi" :</strong> 50km min, vraie distance Haversine pour les sitters cityMatch (fix bug `distance=0`).</li>
+            <li><strong>Persona KYC 409 fix :</strong> check du status + recovery automatique sur 409 conflict — voir la page Vérifications ID.</li>
+            <li><strong>Bug fix friendChat :</strong> DELETE conversation/message accepte maintenant les conversations <code>friendChat: true</code> (participants[]).</li>
+            <li><strong>i18n :</strong> 472 nouvelles traductions ES/DE/IT/PT + 9 strings hardcoded corrigées.</li>
+          </ul>
+        </div>
+
         <div class="section-title">💳 <span data-i18n="dash_recent_payments">Paiements récents</span></div>
         <div class="table-wrap" id="recent-payments-wrap">
           <div class="loading"><div class="spinner"></div></div>
@@ -629,12 +650,20 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div class="table-wrap" id="wallets-table-wrap" style="margin-top:16px"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
-      <!-- CHAT MODERATION (v19.1.3) -->
+      <!-- CHAT MODERATION (v19.1.3 ; v240 — surfaces address_share + pawfollow_request) -->
       <div id="page-chat" class="page">
         <div class="section-title">💬 Modération du chat</div>
-        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:8px;max-width:720px">
           Conversations récentes avec l'historique complet. Les admins peuvent supprimer un message abusif (soft-delete) ; le message reste visible ici pour l'audit, mais s'affiche comme « Message supprimé » dans l'app.
         </p>
+        <!-- v23.1 part 240 — légende des nouveaux types de messages que les admins voient
+             dans les conversations. Ces types ont un rendu spécial dans l'app mobile mais
+             apparaissent ici comme du JSON metadata pour audit. -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;font-size:11px">
+          <span style="background:#FFF1ED;color:#EF4324;padding:4px 10px;border-radius:12px;border:1px solid #EF432244" title="Carte d'invitation au suivi GPS en direct (PawFollow)">📍 pawfollow_request</span>
+          <span style="background:#FFF1ED;color:#EF4324;padding:4px 10px;border-radius:12px;border:1px solid #EF432244" title="v240 — Partage d'adresse pour le rendez-vous (owner/sitter/walker)">🏠 address_share <strong>(v240)</strong></span>
+          <span style="background:#E8F4FD;color:#2563EB;padding:4px 10px;border-radius:12px;border:1px solid #2563EB44" title="Partage de numéro de téléphone (sitter post-paiement)">📞 phone_share</span>
+        </div>
         <div style="display:grid;grid-template-columns:340px 1fr;gap:16px">
           <div>
             <button class="action-btn btn-primary" style="width:100%;margin-bottom:10px" onclick="loadChatConversations()">↻ Actualiser les conversations</button>

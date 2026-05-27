@@ -40,13 +40,14 @@ class ChatAccessUpsellHelper {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18.r),
         ),
+        // v23.1 part 240 — i18n full sweep, plus de strings hardcoded FR.
         title: Row(
           children: [
             Text('💬', style: TextStyle(fontSize: 22.sp)),
             SizedBox(width: 8.w),
             Expanded(
               child: PoppinsText(
-                text: 'Chat verrouillé',
+                text: 'chat_locked_dialog_title'.tr,
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary(dialogContext),
@@ -59,8 +60,7 @@ class ChatAccessUpsellHelper {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InterText(
-              text:
-                  'Pour chatter librement avec des amis et entre deux prestations, active un des deux forfaits :',
+              text: 'chat_locked_dialog_desc'.tr,
               fontSize: 13.sp,
               color: AppColors.textSecondary(dialogContext),
             ),
@@ -69,16 +69,16 @@ class ChatAccessUpsellHelper {
               dialogContext,
               icon: Icons.star_rounded,
               color: const Color(0xFFFF9500),
-              title: 'Premium',
-              subtitle: 'Chat avec tout le monde + toutes les features.',
+              title: 'chat_locked_dialog_premium_title'.tr,
+              subtitle: 'chat_locked_dialog_premium_sub'.tr,
             ),
             SizedBox(height: 8.h),
             _bullet(
               dialogContext,
               icon: Icons.chat_bubble_outline_rounded,
               color: AppColors.primaryColor,
-              title: 'Chat add-on (~0,99 €/mois)',
-              subtitle: 'Débloque juste le chat, renouvelé tous les 30 jours.',
+              title: 'chat_locked_dialog_addon_title'.tr,
+              subtitle: 'chat_locked_dialog_addon_sub'.tr,
             ),
           ],
         ),
@@ -87,7 +87,7 @@ class ChatAccessUpsellHelper {
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: InterText(
-              text: 'Plus tard',
+              text: 'chat_locked_dialog_later'.tr,
               fontSize: 14.sp,
               color: AppColors.textSecondary(dialogContext),
             ),
@@ -106,7 +106,7 @@ class ChatAccessUpsellHelper {
               Get.to(() => const CoinShopScreen());
             },
             child: InterText(
-              text: 'Voir la Boutique',
+              text: 'chat_locked_dialog_open_shop'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
               color: Colors.white,

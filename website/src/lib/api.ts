@@ -564,6 +564,47 @@ export async function getBookingDetail(id: string): Promise<Booking | null> {
   return raw.booking || raw.agreement?.booking || null;
 }
 
+// v23.1 part 240 — Daniel : "fix le sur le site web aussi". Sur mobile la
+// PawMap centrait sur la position de l'user au lieu de celle du sitter
+// quand on tapait "Voir la carte". Sur le site web, /walk/:bookingId
+// affichait une carte vide centree sur Paris jusqu'a recevoir un event
+// socket — donc si le walker n'avait pas encore broadcast, l'owner voyait
+// la France entiere au lieu de la derniere position connue.
+//
+// Cet helper appelle GET /bookings/:id/provider-location qui retourne :
+//   { providerRole, providerName, coordinates: { lat, lng }, updatedAt }
+// et qui exige : owner auth + PawFollow + booking paid. 204 => pas encore
+// de position partagee ; 402 => abonnement PawFollow manquant ; 409 =>
+// booking pas paye.
+export type ProviderLocation = {
+  providerRole: "sitter" | "walker";
+  providerName: string;
+  providerAvatar?: string;
+  coordinates: { lat: number; lng: number };
+  updatedAt?: string | null;
+};
+
+export async function getProviderLocation(
+  bookingId: string,
+): Promise<ProviderLocation | null> {
+  try {
+    const raw = await request<ProviderLocation & { error?: string; code?: string }>(
+      `/bookings/${bookingId}/provider-location`,
+    );
+    if (!raw || !raw.coordinates) return null;
+    return raw;
+  } catch (e) {
+    // 204 NO_LOCATION_YET / 402 PAWFOLLOW_REQUIRED / 409 not-paid : on
+    // ne crashe pas la carte, on retourne null et le composant gere.
+    if (e instanceof ApiError) {
+      if (e.status === 204 || e.status === 402 || e.status === 409 || e.status === 404) {
+        return null;
+      }
+    }
+    throw e;
+  }
+}
+
 export async function createBooking(input: {
   providerType: "sitter" | "walker";
   providerId: string;

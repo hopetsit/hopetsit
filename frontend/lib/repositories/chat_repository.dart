@@ -206,6 +206,27 @@ class ChatRepository {
     throw ApiException('Unexpected response when sharing phone.', details: response);
   }
 
+  /// v23.1 part 240 — Daniel : "sur les 3 profile rajoute partager mon
+  /// adresse pour rdv fais un truc styler pour les 3 profile qduand y font
+  /// recuperer lanimal y senvoi ladresse directement dans le chat".
+  /// Endpoint disponible pour les 3 roles. Backend lit l'adresse du
+  /// profil sender + cree un Message type 'address_share' avec metadata
+  /// { address, city, lat, lng }. Fan-out socket en realtime.
+  Future<Map<String, dynamic>> shareAddress({required String conversationId}) async {
+    final endpoint = '${ApiEndpoints.sendMessage}/$conversationId/share-address';
+    final response = await _apiClient.post(
+      endpoint,
+      body: const <String, dynamic>{},
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) {
+      return response['message'] is Map<String, dynamic>
+          ? response['message'] as Map<String, dynamic>
+          : response;
+    }
+    throw ApiException('Unexpected response when sharing address.', details: response);
+  }
+
   /// Sends a message with attachments (images/videos) in a conversation.
   /// POST /conversations/{conversationId}/messages/attachments
   Future<Map<String, dynamic>> sendMessageWithAttachments({

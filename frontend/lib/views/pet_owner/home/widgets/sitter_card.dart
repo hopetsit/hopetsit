@@ -153,8 +153,11 @@ class SitterCard extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 26.r,
                     backgroundColor: AppColors.grey300Color,
+                    // v23.1 part 240 — maxWidth: 180 (HD = 52dp × 3 ratio + buffer).
+                    // Sans maxWidth, Flutter decode l'image originale (3000px+)
+                    // alors qu'on l'affiche en 52dp → memoire gaspilllee + lag.
                     backgroundImage: avatarUrl.isNotEmpty
-                        ? CachedNetworkImageProvider(avatarUrl)
+                        ? CachedNetworkImageProvider(avatarUrl, maxWidth: 180)
                         : null,
                     child: avatarUrl.isEmpty
                         ? Icon(Icons.pets_rounded,

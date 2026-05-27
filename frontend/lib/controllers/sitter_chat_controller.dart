@@ -47,6 +47,25 @@ class SitterChatMessage {
 
   bool get isSystem => senderRole.toLowerCase() == 'system';
   bool get isPawfollowRequest => type == 'pawfollow_request';
+  // v23.1 part 240 — type 'address_share' (cf chat_controller.dart pour
+  // explication detaillee). Parite SitterChatMessage/ChatMessage.
+  bool get isAddressShare => type == 'address_share';
+  String get addressShareAddress =>
+      (metadata['address'] ?? '').toString();
+  String get addressShareCity =>
+      (metadata['city'] ?? '').toString();
+  double? get addressShareLat {
+    final raw = metadata['lat'];
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
+  }
+  double? get addressShareLng {
+    final raw = metadata['lng'];
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
+  }
   String get pawfollowStatus =>
       (metadata['status'] ?? 'pending').toString();
   String get pawfollowResponderRole =>

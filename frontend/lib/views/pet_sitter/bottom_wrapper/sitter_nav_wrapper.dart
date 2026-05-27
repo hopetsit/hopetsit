@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
+import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
@@ -29,6 +30,11 @@ class _SitterNavWrapperState extends State<SitterNavWrapper> {
     // une fois pour que le contrôleur s'enregistre).
     if (!Get.isRegistered<SitterBookingsController>()) {
       Get.put(SitterBookingsController(), permanent: true);
+    }
+    // v23.1 part 240 — root cause map:identify never sent cote sitter.
+    // Cf bottom_nav_wrapper.dart pour l'explication detaillee.
+    if (!Get.isRegistered<LiveMapService>()) {
+      Get.put(LiveMapService(), permanent: true);
     }
   }
 

@@ -67,6 +67,42 @@ class LiveMapService extends GetxService {
   // utilise par le ticker 10s + le _emitPosition immediate.
   StreamSubscription<Position>? _gpsSub;
   LatLng? _lastKnownGps;
+  bool _hookRegistered = false;
+
+  /// v23.1 part 240 — Daniel (3eme tentative) : "personne en live sa marche
+  /// toujour pas sa me donne ma geolocalisation au lieu de la geolocalisation
+  /// reel de la personne corrige sa sa fais deja 3 fois que je tele dis,
+  /// donc le bouton me suivre marcha pas car jai fais les test et apres qd
+  /// la personne met voir en live sa lui donne sa geolocalisation au lieu de
+  /// la mienne". ROOT CAUSE trouvee : attach() etait UNIQUEMENT appele dans
+  /// paw_map_screen.dart. Si user ne visite jamais PawMap → map:identify
+  /// jamais emis → backend rejette map:position-update (cf mapSocket.js
+  /// L122 `if (!identity) return;`) → broadcast silencieusement no-op.
+  ///
+  /// FIX : on enregistre attach() en hook onConnected du SocketService.
+  /// Comme ca des que la socket connect (boot, reconnect background→fg,
+  /// network hiccup), on emet map:identify automatiquement. Idempotent
+  /// grace aux .off() avant .on() dans attach().
+  @override
+  void onInit() {
+    super.onInit();
+    try {
+      final svc = Get.find<SocketService>();
+      if (!_hookRegistered) {
+        _hookRegistered = true;
+        svc.addOnConnectedHook(attach);
+      }
+      // Si la socket est deja connectee, addOnConnectedHook fire le
+      // callback immediatement (cf SocketService.addOnConnectedHook).
+      // Sinon, tentative defensive d'attach maintenant (no-op si pas
+      // de socket — attach() return early).
+      if (svc.isConnected) {
+        attach();
+      }
+    } catch (e) {
+      debugPrint('[LiveMap] onInit hook failed: $e');
+    }
+  }
 
   /// Register socket listeners — idempotent.
   void attach() {

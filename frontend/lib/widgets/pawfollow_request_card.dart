@@ -78,9 +78,20 @@ class PawfollowRequestCard extends StatelessWidget {
     final isResponder = responderRole == myRole;
     final isRequester = requesterRole == myRole;
 
+    // v23.1 part 240 — Daniel : "cotter sitter et walker quand jenvoi
+    // partager ma position il devrai avoir un message partage de position
+    // en attente que je sache". Quand un sitter/walker est requester ET
+    // que la demande est encore pending, on affiche un header dedie
+    // "Partage de position en attente" pour qu'il sache que sa demande
+    // est partie et attend l'acceptation owner.
     String headerText;
     if (isRequester) {
-      headerText = 'pawfollow_request_sent_header'.tr;
+      if ((requesterRole == 'sitter' || requesterRole == 'walker') &&
+          status == 'pending') {
+        headerText = 'pawfollow_share_position_pending'.tr;
+      } else {
+        headerText = 'pawfollow_request_sent_header'.tr;
+      }
     } else if (isResponder) {
       headerText = requesterRole == 'owner'
           ? 'pawfollow_request_owner_wants_to_follow'.tr

@@ -5,12 +5,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/address_share_card.dart';
 import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/translate_message_button.dart';
 
@@ -224,6 +226,38 @@ class _SitterIndividualChatScreenState
     }
   }
 
+  /// v23.1 part 240 — Daniel : "sur les 3 profile rajoute partager mon
+  /// adresse pour rdv". Endpoint POST /conversations/:id/share-address
+  /// est disponible pour les 3 roles ; ChatRepository.shareAddress en
+  /// fait le wiring (cf chat_repository.dart).
+  Future<void> _onShareAddressTap() async {
+    try {
+      final repo = Get.find<ChatRepository>();
+      await repo.shareAddress(conversationId: widget.conversationId);
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'address_share_sent_title'.tr,
+        message: 'address_share_sent_msg'.tr,
+      );
+      await chatController.loadChatMessages(
+        widget.conversationId,
+        contactName: widget.contactName,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString().replaceAll('ApiException:', '').trim();
+      final isMissingAddress = raw.toLowerCase().contains('no address');
+      CustomSnackbar.showError(
+        title: isMissingAddress
+            ? 'address_share_no_profile_title'.tr
+            : 'common_error'.tr,
+        message: isMissingAddress
+            ? 'address_share_no_profile_msg'.tr
+            : raw,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -287,6 +321,28 @@ class _SitterIndividualChatScreenState
         // un tap envoie POST /bookings/:id/follow-request → push notif à
         // l'owner avec deep-link vers la LiveWalkMapScreen.
         actions: [
+          // v23.1 part 240 — partager mon adresse pour RDV (cf
+          // address_share_card.dart + bottom_nav_wrapper note).
+          Padding(
+            padding: EdgeInsets.only(right: 4.w),
+            child: GestureDetector(
+              onTap: _onShareAddressTap,
+              child: Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFEF4324).withValues(alpha: 0.40),
+                    width: 1.2,
+                  ),
+                ),
+                child: Icon(Icons.home_rounded,
+                    size: 18.sp, color: const Color(0xFFEF4324)),
+              ),
+            ),
+          ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 8.w),
             child: GestureDetector(
@@ -440,6 +496,16 @@ class _SitterIndividualChatScreenState
   ) {
     // v23.1.176 — Daniel : carte avec boutons Accepter/Refuser quand
     // l'owner demande à suivre OU quand on a déjà demandé soi-même.
+    // v23.1 part 240 — carte "Adresse pour RDV" partagee.
+    if (message.isAddressShare) {
+      return AddressShareCard(
+        address: message.addressShareAddress,
+        city: message.addressShareCity,
+        lat: message.addressShareLat,
+        lng: message.addressShareLng,
+        isFromCurrentUser: message.isFromCurrentUser,
+      );
+    }
     if (message.isPawfollowRequest) {
       final myRole = Get.find<GetStorage>()
               .read<String>(StorageKeys.userRole) ??

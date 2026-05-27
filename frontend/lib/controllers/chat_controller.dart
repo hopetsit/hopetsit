@@ -48,6 +48,26 @@ class ChatMessage {
 
   bool get isSystem => senderRole.toLowerCase() == 'system';
   bool get isPawfollowRequest => type == 'pawfollow_request';
+  // v23.1 part 240 — type 'address_share' = card "Adresse pour RDV"
+  // envoyee via POST /conversations/:id/share-address. metadata contient
+  // { address, city, lat, lng } pour rendre une carte stylee dans le chat.
+  bool get isAddressShare => type == 'address_share';
+  String get addressShareAddress =>
+      (metadata['address'] ?? '').toString();
+  String get addressShareCity =>
+      (metadata['city'] ?? '').toString();
+  double? get addressShareLat {
+    final raw = metadata['lat'];
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
+  }
+  double? get addressShareLng {
+    final raw = metadata['lng'];
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
+  }
   String get pawfollowStatus =>
       (metadata['status'] ?? 'pending').toString();
   String get pawfollowResponderRole =>
@@ -966,35 +986,53 @@ class ChatController extends GetxController {
         );
       }
 
-      // Replace optimistic message with actual message from API
-      // Preserve sender name and image from optimistic message if API doesn't provide them
-      final actualMessage = _mapToChatMessage(response, userId);
-
-      // If API response doesn't have sender info, preserve from optimistic message
-      final finalMessage = ChatMessage(
-        id: actualMessage.id,
-        senderId: actualMessage.senderId,
-        senderName:
-            actualMessage.senderName == 'You' ||
-                actualMessage.senderName == 'Unknown'
-            ? optimisticMessage.senderName
-            : actualMessage.senderName,
-        senderImage: actualMessage.senderImage.isEmpty
-            ? optimisticMessage.senderImage
-            : actualMessage.senderImage,
-        message: actualMessage.message,
-        timestamp: actualMessage.timestamp,
-        isFromCurrentUser: actualMessage.isFromCurrentUser,
-        attachments: actualMessage.attachments,
-      );
-
-      final index = currentChatMessages.indexWhere((msg) => msg.id == tempId);
-      if (index != -1) {
-        currentChatMessages[index] = finalMessage;
-      } else {
-        // If not found, add it (shouldn't happen, but just in case)
-        currentChatMessages.add(finalMessage);
+      // v23.1 part 240 — Daniel : "lapp crash ecran noir" en envoyant un
+      // message apres paiement. Cause possible : _mapToChatMessage throw
+      // sur un payload backend malforme (ex: 201 vide, ou structure
+      // imprevue) → exception bulle dans le catch global → Obx voit un
+      // Rx en train d'etre modifie pendant un throw → black screen.
+      // Fix : on enveloppe le mapping dans un try, et si ca foire, on
+      // GARDE le message optimiste affiche (il a deja ete ajoute ligne
+      // 960) en mettant juste a jour son id avec celui du response s'il
+      // est lisible. Pas de crash visible cote user.
+      ChatMessage? actualMessage;
+      try {
+        actualMessage = _mapToChatMessage(response, userId);
+      } catch (mappingErr) {
+        AppLogger.logError(
+          'sendMessage : _mapToChatMessage failed, keeping optimistic',
+          error: mappingErr,
+        );
       }
+
+      if (actualMessage != null) {
+        // If API response doesn't have sender info, preserve from optimistic message
+        final finalMessage = ChatMessage(
+          id: actualMessage.id,
+          senderId: actualMessage.senderId,
+          senderName:
+              actualMessage.senderName == 'You' ||
+                  actualMessage.senderName == 'Unknown'
+              ? optimisticMessage.senderName
+              : actualMessage.senderName,
+          senderImage: actualMessage.senderImage.isEmpty
+              ? optimisticMessage.senderImage
+              : actualMessage.senderImage,
+          message: actualMessage.message,
+          timestamp: actualMessage.timestamp,
+          isFromCurrentUser: actualMessage.isFromCurrentUser,
+          attachments: actualMessage.attachments,
+        );
+
+        final index = currentChatMessages.indexWhere((msg) => msg.id == tempId);
+        if (index != -1) {
+          currentChatMessages[index] = finalMessage;
+        } else {
+          // If not found, add it (shouldn't happen, but just in case)
+          currentChatMessages.add(finalMessage);
+        }
+      }
+      // else : the optimistic message stays as-is, user sees their msg sent.
 
       // Socket will handle real-time updates for other users
       // The message is already sent via API, socket will broadcast to other participants

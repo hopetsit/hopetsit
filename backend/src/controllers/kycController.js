@@ -241,75 +241,158 @@ const startVerification = async (req, res) => {
       });
     }
 
-    // Crée Persona inquiry si pas déjà fait.
-    // v23.1 part 228 — Daniel screenshot : "ApiException 500 Persona 409
-    // Conflict". Cas : kycApplicantId absent en DB MAIS Persona a deja
-    // une inquiry avec cette reference-id (cree avant + DB jamais
-    // mise a jour OU compte recree). createInquiry renvoie 409.
-    // Fix : on essaie d'abord findInquiryByReferenceId pour reutiliser
-    // l'inquiry existante, sinon on cree, et si createInquiry plante en
-    // 409 on retry le find puis reutilise.
-    let inquiryId = user.kycApplicantId;
-    if (!inquiryId) {
-      const fullName = (user.name || '').trim();
-      const firstName = fullName.split(' ')[0] || '';
-      const lastName = fullName.split(' ').slice(1).join(' ') || '';
-      const referenceId = `${role}_${user._id.toString()}`;
+    // v23.1 part 240 — Daniel screenshot : "toujour impossible de verifier
+    // mon identiter" → 500 Persona 409 Conflict.
+    // ROOT CAUSE FOUND : `user.kycApplicantId` est stocke en DB et pointe
+    // vers une inquiry Persona dont le status est DEJA TERMINAL
+    // (completed / approved / declined / expired / failed) OU dont une
+    // session est deja ouverte ailleurs (auto link). Dans tous ces cas,
+    // POST /inquiries/:id/generate-one-time-link renvoie 409 et le 228
+    // fix v228 ne le couvrait pas (il couvrait le 409 de CREATE, pas du
+    // generate-one-time-link).
+    //
+    // FIX DEEP v240 : helper interne `_resolveInquiryId` qui :
+    //   1. Si kycApplicantId existe → GET /inquiries/:id pour verifier
+    //      le status. Terminal ou inutilisable ? on l'oublie.
+    //   2. Sinon → findByReferenceId (idem v228).
+    //   3. Sinon → createInquiry (idem v228). 409 fallback findByRef.
+    //   4. Wrapper generateOneTimeLink avec recovery : si 409, on null
+    //      out l'inquiryId et on recommence UNE FOIS la creation.
+    const referenceId = `${role}_${user._id.toString()}`;
+    const fullName = (user.name || '').trim();
+    const firstName = fullName.split(' ')[0] || '';
+    const lastName = fullName.split(' ').slice(1).join(' ') || '';
 
-      // Step 1 : look for an existing inquiry under this reference-id.
-      let existing = null;
+    const TERMINAL_STATUSES = new Set([
+      'completed', 'approved', 'declined', 'failed', 'expired',
+    ]);
+
+    const _isStale = (inquiry) => {
       try {
-        existing = await persona.findInquiryByReferenceId(referenceId);
-      } catch (_) {/* defensive */}
-      if (existing?.id) {
-        inquiryId = existing.id;
-        logger.info(`[kyc.start] Reused existing Persona inquiry ${inquiryId} for ${referenceId}`);
-      } else {
-        // Step 2 : create new.
-        try {
-          const inquiry = await persona.createInquiry({
-            userId: user._id.toString(),
-            firstName, lastName, email: user.email, role,
-          });
-          inquiryId = inquiry?.data?.id;
-        } catch (createErr) {
-          // Step 3 : if 409, retry find. Persona may have race conditions.
-          if (createErr?.status === 409) {
-            logger.warn(`[kyc.start] Persona 409 on createInquiry for ${referenceId}, retry find...`);
-            try {
-              const retry = await persona.findInquiryByReferenceId(referenceId);
-              if (retry?.id) {
-                inquiryId = retry.id;
-                logger.info(`[kyc.start] Recovered inquiry ${inquiryId} after 409`);
-              }
-            } catch (_) {/* defensive */}
-          }
-          if (!inquiryId) {
-            logger.error(`[kyc.start] Persona createInquiry failed: ${createErr?.message}`);
-            return res.status(502).json({
-              error: 'Persona inquiry creation failed. Please contact support.',
-              code: 'PERSONA_INQUIRY_FAILED',
-              details: createErr?.data || createErr?.message,
-            });
-          }
-        }
-      }
+        const st = (inquiry?.data?.attributes?.status
+                  || inquiry?.attributes?.status
+                  || '').toLowerCase();
+        return TERMINAL_STATUSES.has(st);
+      } catch (_) { return false; }
+    };
 
-      if (!inquiryId) {
-        return res.status(502).json({ error: 'Persona inquiry creation failed.' });
+    const _createFreshInquiry = async () => {
+      try {
+        const inquiry = await persona.createInquiry({
+          userId: user._id.toString(),
+          firstName, lastName, email: user.email, role,
+        });
+        return inquiry?.data?.id || null;
+      } catch (createErr) {
+        if (createErr?.status === 409) {
+          // Existing inquiry under this reference-id → reuse.
+          logger.warn(`[kyc.start] Persona 409 on createInquiry for ${referenceId}, falling back to findByRef.`);
+          try {
+            const retry = await persona.findInquiryByReferenceId(referenceId);
+            if (retry?.id) return retry.id;
+          } catch (_) {/* defensive */}
+        }
+        logger.error(`[kyc.start] Persona createInquiry failed: ${createErr?.message} status=${createErr?.status}`);
+        throw createErr;
       }
-      // v23.1 part 127 — Phase 3 audit P3-10 : updateOne pour bypass la
-      // revalidation 2dsphere (cf bloc wallet/PI ci-dessus).
-      await Model.updateOne(
-        { _id: user._id },
-        { $set: { kycApplicantId: inquiryId } },
-      );
-      user.kycApplicantId = inquiryId;
-      logger.info(`[kyc.start] Persona inquiry ${inquiryId} stored for ${role} ${user._id}`);
+    };
+
+    // Step A — try to use the stored inquiry, but verify it's not stale.
+    let inquiryId = user.kycApplicantId;
+    if (inquiryId) {
+      try {
+        const detail = await persona.getInquiry(inquiryId);
+        if (_isStale(detail)) {
+          logger.warn(`[kyc.start] Stored inquiry ${inquiryId} is in terminal status, refreshing.`);
+          inquiryId = null;
+          await Model.updateOne(
+            { _id: user._id },
+            { $unset: { kycApplicantId: '' } },
+          );
+          user.kycApplicantId = undefined;
+        }
+      } catch (e) {
+        // Could be 404 (deleted) or other → drop and recreate.
+        logger.warn(`[kyc.start] Stored inquiry ${inquiryId} lookup failed (${e?.status || ''} ${e?.message}). Refreshing.`);
+        inquiryId = null;
+        await Model.updateOne(
+          { _id: user._id },
+          { $unset: { kycApplicantId: '' } },
+        );
+        user.kycApplicantId = undefined;
+      }
     }
 
-    // Generate one-time hosted URL
-    const linkResp = await persona.generateOneTimeLink(inquiryId);
+    // Step B — no usable id yet : findByRef then create.
+    if (!inquiryId) {
+      try {
+        const existing = await persona.findInquiryByReferenceId(referenceId);
+        if (existing?.id && !_isStale(existing)) {
+          inquiryId = existing.id;
+          logger.info(`[kyc.start] Reused existing non-stale Persona inquiry ${inquiryId}.`);
+        }
+      } catch (_) {/* defensive */}
+    }
+    if (!inquiryId) {
+      try {
+        inquiryId = await _createFreshInquiry();
+      } catch (createErr) {
+        return res.status(502).json({
+          error: 'Persona inquiry creation failed. Please contact support.',
+          code: 'PERSONA_INQUIRY_FAILED',
+          details: createErr?.data || createErr?.message,
+        });
+      }
+    }
+    if (!inquiryId) {
+      return res.status(502).json({ error: 'Persona inquiry creation failed.' });
+    }
+    // Persist the (possibly new) inquiry id.
+    await Model.updateOne(
+      { _id: user._id },
+      { $set: { kycApplicantId: inquiryId } },
+    );
+    user.kycApplicantId = inquiryId;
+    logger.info(`[kyc.start] Persona inquiry ${inquiryId} stored for ${role} ${user._id}`);
+
+    // Step C — generate one-time link with 409 recovery (create a new
+    // inquiry and retry once if Persona refuses the link on the stored id).
+    let linkResp;
+    try {
+      linkResp = await persona.generateOneTimeLink(inquiryId);
+    } catch (linkErr) {
+      if (linkErr?.status === 409) {
+        logger.warn(`[kyc.start] Persona 409 on generate-one-time-link for ${inquiryId}, recreating inquiry once.`);
+        try {
+          await Model.updateOne(
+            { _id: user._id },
+            { $unset: { kycApplicantId: '' } },
+          );
+          inquiryId = await _createFreshInquiry();
+          if (!inquiryId) throw new Error('Unable to recreate inquiry after 409.');
+          await Model.updateOne(
+            { _id: user._id },
+            { $set: { kycApplicantId: inquiryId } },
+          );
+          user.kycApplicantId = inquiryId;
+          linkResp = await persona.generateOneTimeLink(inquiryId);
+        } catch (recreateErr) {
+          logger.error(`[kyc.start] 409 recovery failed: ${recreateErr?.message}`);
+          return res.status(502).json({
+            error: 'Unable to refresh the Persona verification link. Please try again in a few minutes or contact support.',
+            code: 'PERSONA_LINK_409_RECOVERY_FAILED',
+            details: recreateErr?.data || recreateErr?.message,
+          });
+        }
+      } else {
+        logger.error(`[kyc.start] generateOneTimeLink failed (${linkErr?.status}): ${linkErr?.message}`);
+        return res.status(502).json({
+          error: 'Persona link generation failed. Please contact support.',
+          code: 'PERSONA_LINK_FAILED',
+          details: linkErr?.data || linkErr?.message,
+        });
+      }
+    }
     const oneTimeLink = linkResp?.meta?.['one-time-link'] || linkResp?.data?.attributes?.url;
 
     // v23.1 part 218 — Daniel : "personna marche pas" malgre env vars OK.

@@ -6,7 +6,7 @@
 // et déplace un marker en temps réel.
 
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useSocketEvent } from "@/lib/useSocket";
@@ -24,27 +24,49 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-const walkerIcon = new L.DivIcon({
-  className: "",
-  html: `<div style="
-    width: 32px; height: 32px; border-radius: 50%;
-    background: linear-gradient(135deg, #EF4324, #FF6B4A);
-    border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;">🚶</div>`,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+// v23.1 part 240 — Daniel : "je vois le halo vert si c un walker ou halo
+// bleu si c un sitter". Le site web reproduit la meme distinction de role
+// que la PawMap mobile : walker = vert, sitter = bleu. Le owner garde le
+// pin orange (gradient brand) historique.
+function makeProviderIcon(role: "walker" | "sitter" | "owner"): L.DivIcon {
+  const colors: Record<string, [string, string, string]> = {
+    walker: ["#16A34A", "#22C55E", "🚶"], // vert
+    sitter: ["#2563EB", "#3B82F6", "🏠"], // bleu
+    owner: ["#EF4324", "#FF6B4A", "🐾"], // orange brand
+  };
+  const [c1, c2, emoji] = colors[role] || colors.walker;
+  return new L.DivIcon({
+    className: "",
+    html: `<div style="
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, ${c1}, ${c2});
+      border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;">${emoji}</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+  });
+}
+
+// Halo de couleur autour du marker (equivalent du halo PawMap mobile).
+function haloColor(role: "walker" | "sitter" | "owner"): string {
+  if (role === "walker") return "#16A34A";
+  if (role === "sitter") return "#2563EB";
+  return "#EF4324";
+}
 
 type Position = { lat: number; lng: number; at?: string };
 
 export default function WalkLiveMap({
   walkerId,
   walkerName,
+  walkerRole = "walker",
   initialPosition,
 }: {
   walkerId?: string;
   walkerName?: string;
+  /** v240 — role pour le halo couleur (vert walker / bleu sitter). */
+  walkerRole?: "walker" | "sitter" | "owner";
   initialPosition?: Position;
 }) {
   // Position courante du walker (peut commencer null si pas de fix initial).
@@ -106,19 +128,37 @@ export default function WalkLiveMap({
         {trailLatLngs.length > 1 && (
           <Polyline
             positions={trailLatLngs}
-            pathOptions={{ color: "#EF4324", weight: 4, opacity: 0.7 }}
+            pathOptions={{ color: haloColor(walkerRole), weight: 4, opacity: 0.7 }}
           />
         )}
         {current && (
-          <Marker position={[current.lat, current.lng]} icon={walkerIcon}>
-            <Popup>
-              <div className="text-sm">
-                <strong>{walkerName || "Walker"}</strong>
-                <br />
-                Dernier point : {staleness < 5 ? "à l'instant" : `il y a ${staleness}s`}
-              </div>
-            </Popup>
-          </Marker>
+          <>
+            {/* v23.1 part 240 — halo couleur autour du marker (parite mobile
+                PawMap). Walker vert / Sitter bleu / Owner orange. */}
+            <Circle
+              center={[current.lat, current.lng]}
+              radius={60}
+              pathOptions={{
+                color: haloColor(walkerRole),
+                fillColor: haloColor(walkerRole),
+                fillOpacity: 0.18,
+                weight: 2,
+                opacity: 0.7,
+              }}
+            />
+            <Marker
+              position={[current.lat, current.lng]}
+              icon={makeProviderIcon(walkerRole)}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <strong>{walkerName || "Walker"}</strong>
+                  <br />
+                  Dernier point : {staleness < 5 ? "à l'instant" : `il y a ${staleness}s`}
+                </div>
+              </Popup>
+            </Marker>
+          </>
         )}
       </MapContainer>
 

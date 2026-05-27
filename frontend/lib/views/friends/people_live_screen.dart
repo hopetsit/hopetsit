@@ -152,9 +152,22 @@ class PeopleLiveScreen extends StatelessWidget {
                       }
                     } catch (_) {/* defensive — open PawMap centered on user */}
                   }
+                  // v23.1 part 240 — Daniel : "as tu bien fixer le probleme
+                  // de geolocalisation de suivre personne live ?".
+                  // Avant v240 : on passait initialLat/Lng mais _bootstrap
+                  // de PawMap ecrasait _currentCenter avec MA position GPS.
+                  // → la map s'ouvrait centree sur moi a la place du friend.
+                  // FIX : (1) _bootstrap respecte maintenant initialLat/Lng
+                  // (cf paw_map_screen.dart hasInitialFocus). (2) on passe
+                  // focusUserId/Role/Name pour injecter une FriendPosition
+                  // synthetique dans LiveMapService → halo violet (Owner) /
+                  // vert (Walker) / bleu (Sitter) autour de l'ami.
                   Get.to(() => PawMapScreen(
                         initialLat: lat,
                         initialLng: lng,
+                        focusUserId: other.id,
+                        focusUserRole: other.model.toLowerCase(),
+                        focusUserName: other.name,
                       ));
                 },
                 child: Container(

@@ -531,6 +531,20 @@ const Map<String, String> frFRTranslations = <String, String>{
       'kyc_already_verified_msg': 'Ton identite est deja verifiee — le badge "Verifie" est actif sur ton profil.',
       'kyc_only_provider_msg': 'La verification Persona est reservee aux sitters et walkers.',
       'pawfollow_request_sent_header': 'Demande de suivi en direct envoyée',
+      'pawfollow_share_position_pending': 'Partage de position en attente',
+      // v23.1 part 240 — i18n sweep complet (audit hardcoded strings).
+      'friends_add_friend_title': 'Ajouter un ami',
+      'chat_locked_dialog_title': 'Chat verrouillé',
+      'chat_locked_dialog_desc':
+          'Pour chatter librement avec des amis et entre deux prestations, active un des deux forfaits :',
+      'chat_locked_dialog_premium_title': 'Premium',
+      'chat_locked_dialog_premium_sub':
+          'Chat avec tout le monde + toutes les features.',
+      'chat_locked_dialog_addon_title': 'Chat add-on (~0,99 €/mois)',
+      'chat_locked_dialog_addon_sub':
+          'Débloque juste le chat, renouvelé tous les 30 jours.',
+      'chat_locked_dialog_later': 'Plus tard',
+      'chat_locked_dialog_open_shop': 'Voir la Boutique',
       'pawfollow_request_owner_wants_to_follow': 'Le propriétaire souhaite suivre ta position en direct',
       'pawfollow_request_provider_wants_to_share': 'Le walker / sitter veut partager sa position avec toi',
       'pawfollow_request_generic': 'Demande de suivi en direct',
@@ -552,6 +566,16 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawfollow_gps_section_subtitle': 'Vous verrez sa position en temps réel dès l\'acceptation.',
       // v23.1 part 206 — bouton CTA sur carte chat quand demande acceptée
       'pawfollow_open_map': 'Voir sur la carte',
+      // v23.1 part 240 — Partager adresse pour RDV (3 profils)
+      'address_share_title': 'Adresse pour le rendez-vous',
+      'address_share_subtitle': 'Lieu de récupération de l\'animal',
+      'address_share_open_directions': 'Itinéraire',
+      'address_share_empty': 'Adresse non renseignée — mets-la à jour dans ton profil.',
+      'address_share_button': 'Partager mon adresse',
+      'address_share_sent_title': 'Adresse envoyée',
+      'address_share_sent_msg': 'L\'adresse a été partagée dans le chat.',
+      'address_share_no_profile_title': 'Adresse manquante',
+      'address_share_no_profile_msg': 'Ajoute une adresse dans ton profil avant de la partager.',
       'friend_block': 'Bloquer',
       'friend_remove': 'Supprimer',
       'friend_block_confirm': 'Bloquer cet ami ?',

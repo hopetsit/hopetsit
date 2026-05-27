@@ -54,9 +54,15 @@ const messageSchema = new mongoose.Schema(
     // Ajout du type 'pawfollow_request' pour les cartes Accepter/Refuser
     // dans le chat. metadata contient { status, direction, bookingId,
     // requesterId, requesterRole, responderRole, expiresAt }.
+    // v23.1 part 240 — Daniel : "sur les 3 profile rajoute partager mon
+    // adresse pour rdv fais un truc styler pour les 3 profile qduand y
+    // font recuperer lanimal y senvoi ladresse directement dans le chat".
+    // Type 'address_share' = card chat dediee qui rend l'adresse du
+    // sender (Owner/Sitter/Walker .address) avec un bouton "Itineraire"
+    // (deep-link Google Maps).
     type: {
       type: String,
-      enum: ['text', 'attachment', 'phone_share', 'pawfollow_request'],
+      enum: ['text', 'attachment', 'phone_share', 'pawfollow_request', 'address_share'],
       default: 'text',
     },
     // v19.1.3 — soft-delete so history stays available for admin moderation

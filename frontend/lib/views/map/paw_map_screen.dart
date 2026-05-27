@@ -37,13 +37,27 @@ class PawMapScreen extends StatefulWidget {
   // v23.1 part 213 — Daniel : "si tu clic dessus sa te montre sur la map"
   // (alertes). On accepte un center initial pour atterrir centré sur un
   // report précis. Null → comportement par défaut (centrer sur le user).
+  //
+  // v23.1 part 240 — Daniel : "quand on met voir la carte pour quoi tu met
+  // suivre balade une nouvelle map au lieu dutiliser la paw map et je vois
+  // le halo vert si c un walker ou halo bleu si c un sitter". Ajout de
+  // focusUserId/Role/Name : quand un chat ouvre la PawMap, on passe ces
+  // params pour injecter une FriendPosition synthetique dans le service
+  // LiveMapService → le halo vert/bleu se dessine automatiquement (cf
+  // _buildHaloCircles plus bas qui lit _liveMap.friendPositions).
   const PawMapScreen({
     super.key,
     this.initialLat,
     this.initialLng,
+    this.focusUserId,
+    this.focusUserRole,
+    this.focusUserName,
   });
   final double? initialLat;
   final double? initialLng;
+  final String? focusUserId;
+  final String? focusUserRole; // 'walker' | 'sitter' | 'owner'
+  final String? focusUserName;
 
   @override
   State<PawMapScreen> createState() => _PawMapScreenState();
@@ -152,6 +166,37 @@ class _PawMapScreenState extends State<PawMapScreen> {
         ? Get.find<LiveMapService>()
         : Get.put(LiveMapService(), permanent: true);
     _liveMap.attach();
+
+    // v23.1 part 240 — si on ouvre la PawMap pour "suivre" un sitter/walker
+    // depuis un chat, on injecte une FriendPosition synthetique pour que
+    // le halo vert (walker) ou bleu (sitter) se dessine instantanement
+    // autour de sa derniere position connue. Le halo sera ensuite
+    // automatiquement rafraichi par les events socket map:friend-position
+    // quand le peer bouge.
+    if ((widget.focusUserId ?? '').isNotEmpty &&
+        widget.initialLat != null &&
+        widget.initialLng != null) {
+      final role = (widget.focusUserRole ?? '').toLowerCase();
+      _liveMap.friendPositions[widget.focusUserId!] = FriendPosition(
+        userId: widget.focusUserId!,
+        role: role,
+        latitude: widget.initialLat!,
+        longitude: widget.initialLng!,
+        at: DateTime.now(),
+      );
+    }
+
+    // v23.1 part 240 — Daniel : "et tu sur que dans le chat qd je met voir
+    // carte sa me met sur le map sur la geoloco du sitter ou walker ?".
+    // PROBLEME TROUVE : meme en passant initialLat/Lng, le _bootstrap()
+    // appelait ensuite getCurrentLocation() et REMPLACAIT _currentCenter
+    // par MA position. Resultat : la map s'ouvrait centree sur le sitter
+    // pour 1 frame puis se recentrait sur moi. FIX : on initialise
+    // _currentCenter ICI a partir des params widget, AVANT que _bootstrap()
+    // tourne. Et dans _bootstrap on detecte ce cas pour ne plus override.
+    if (widget.initialLat != null && widget.initialLng != null) {
+      _currentCenter = LatLng(widget.initialLat!, widget.initialLng!);
+    }
     // v23.1.163 — Daniel : "halo ne change pas de couleur selon option
     // pawspot". 2eme cause potentielle : MapBoostController n'etait
     // initialise QUE lors de la 1re visite de la boutique. Donc le
@@ -418,28 +463,56 @@ class _PawMapScreenState extends State<PawMapScreen> {
           .getCurrentLocation()
           .timeout(const Duration(seconds: 8), onTimeout: () => null);
       if (loc == null) return;
-      final center = LatLng(loc.latitude, loc.longitude);
+      final myCenter = LatLng(loc.latitude, loc.longitude);
       if (!mounted) return;
-      // v23.1.149 — on stocke aussi _userPosition pour pouvoir overlay
-      // notre propre point bleu + halo (au cas où myLocationEnabled du
-      // GoogleMap ne fonctionne pas — permission OS refusée etc.).
+
+      // v23.1 part 240 — Daniel : "et tu sur que dans le chat qd je met
+      // voir carte sa me met sur le map sur la geoloco du sitter ou
+      // walker ?". Avant : on remplacait toujours _currentCenter par MA
+      // position GPS, meme si initialLat/Lng (position d'un sitter ou
+      // d'un ami) avait ete passe → la map se centrait sur moi a la place.
+      // FIX : si on a un initialLat/Lng on garde le centre demande
+      // (sitter, walker, ami). On set juste _userPosition pour pouvoir
+      // afficher MON point bleu en plus, dans un coin de la carte.
+      final hasInitialFocus =
+          widget.initialLat != null && widget.initialLng != null;
       setState(() {
-        _currentCenter = center;
-        _userPosition = center;
+        // _userPosition reste toujours MA position (overlay perso).
+        _userPosition = myCenter;
+        // _currentCenter ne bouge que si on n'a pas de focus explicite.
+        if (!hasInitialFocus) {
+          _currentCenter = myCenter;
+        }
       });
 
       // Wait for the GoogleMap controller to be ready — _mapCtl resolves
       // when onMapCreated fires. Hard timeout to avoid hanging forever if
       // the map widget never builds (e.g. user switched tabs immediately).
-      try {
-        final ctl = await _mapCtl.future.timeout(
-          const Duration(seconds: 6),
-          onTimeout: () => throw TimeoutException('map controller not ready'),
-        );
-        await ctl.animateCamera(CameraUpdate.newLatLngZoom(center, 13));
-      } catch (_) {
-        // Controller never came up — _currentCenter is updated so the
-        // next frame's initialCameraPosition is correct anyway.
+      // v240 — on anime la camera vers MA position UNIQUEMENT si pas de
+      // focus initial (sinon on reste sur le sitter/walker/ami).
+      if (!hasInitialFocus) {
+        try {
+          final ctl = await _mapCtl.future.timeout(
+            const Duration(seconds: 6),
+            onTimeout: () => throw TimeoutException('map controller not ready'),
+          );
+          await ctl.animateCamera(CameraUpdate.newLatLngZoom(myCenter, 13));
+        } catch (_) {
+          // Controller never came up — _currentCenter is updated so the
+          // next frame's initialCameraPosition is correct anyway.
+        }
+      } else {
+        // Focus mode : on anime vers la position du sitter/ami avec un
+        // zoom plus precis pour bien voir le halo.
+        try {
+          final ctl = await _mapCtl.future.timeout(
+            const Duration(seconds: 6),
+            onTimeout: () => throw TimeoutException('map controller not ready'),
+          );
+          await ctl.animateCamera(
+            CameraUpdate.newLatLngZoom(_currentCenter, 14),
+          );
+        } catch (_) {/* defensive */}
       }
 
       await _reloadAtCenter();
@@ -882,7 +955,10 @@ class _PawMapScreenState extends State<PawMapScreen> {
       const familyPink = Color(0xFFEC4899);
 
       for (final pos in _liveMap.friendPositions.values) {
-        final role = friendIdToRole[pos.userId] ?? '';
+        // v23.1 part 240 — fallback sur FriendPosition.role quand le peer
+        // n'est pas dans la liste d'amis (ex: ouverture depuis un chat
+        // sitter/walker non-ami). Sinon halo neutre alors qu'on a le metier.
+        final role = (friendIdToRole[pos.userId] ?? pos.role).toLowerCase();
         final isFamily = familyMemberIds.contains(pos.userId);
         // Priorite v225 : walker/sitter override family/friend.
         Color color;
@@ -1043,14 +1119,22 @@ class _PawMapScreenState extends State<PawMapScreen> {
       };
       for (final pos in _liveMap.friendPositions.values) {
         final friend = friendById[pos.userId];
-        if (friend == null) continue; // Only show accepted friends.
+        // v23.1 part 240 — autorise aussi l'affichage du focusUserId (sitter
+        // ou walker depuis un chat) meme s'il n'est pas dans la liste
+        // d'amis. Sinon Daniel voit le halo sans le pin → confusion.
+        final isFocus =
+            (widget.focusUserId ?? '').isNotEmpty && pos.userId == widget.focusUserId;
+        if (friend == null && !isFocus) continue;
+        final displayName = friend?.other!.name ??
+            widget.focusUserName ??
+            '—';
         markers.add(
           Marker(
             markerId: MarkerId('friend_${pos.userId}'),
             position: LatLng(pos.latitude, pos.longitude),
             icon: BitmapDescriptor.defaultMarkerWithHue(_hueForRole(pos.role)),
             infoWindow: InfoWindow(
-              title: '👤 ${friend.other!.name}',
+              title: '👤 $displayName',
               snippet: 'Vu il y a ${_timeAgo(pos.at)}',
             ),
           ),

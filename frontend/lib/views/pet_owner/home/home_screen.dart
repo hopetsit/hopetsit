@@ -51,9 +51,17 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedTabIndex = 0;
   HomeMyPostsSortOrder _myPostsSortOrder = HomeMyPostsSortOrder.newestFirst;
 
+  // v23.1 part 240 — Daniel : "quand la barre est a 0 sa dois mafficher
+  // uniquement les profile de 0 a 50km de chez moi". Slider minimum =
+  // 50km. Defaut 50km. Plus de mode "toutes les distances" (qui ramenait
+  // sitters a 250km dans le filtre 120km). Constants utilises par le
+  // slider + le label + l'init de _maxDistanceKm.
+  static const double _kMinRadiusKm = 50.0;
+  static const double _kMaxRadiusKm = 500.0;
+
   /// Inline "Près de chez moi" filter — shared by Pet-sitters + Promeneurs
   /// tabs. 0 = toutes les distances (pas de filtre).
-  double _maxDistanceKm = 0;
+  double _maxDistanceKm = _kMinRadiusKm; // v240 — was 0 ("toutes"), now 50km min.
 
   late final HomeController _homeController;
   late final ProfileController _profileController;
@@ -179,19 +187,27 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Same layout as the sitters tab: reactive list + pull-to-refresh.
   /// Shares the "Près de chez moi" slider with the sitters tab (both lists
   /// filter themselves against the same radius via the HomeController).
+  // v23.1 part 240 — retourne un Sliver pour s'integrer au CustomScrollView
+  // de la home (page entierement scrollable). loading + empty utilisent
+  // SliverFillRemaining ; la liste utilise SliverList.builder lazy.
   Widget _buildWalkersTab() {
     return Obx(() {
       if (_homeController.isLoadingWalkers.value) {
-        return const Center(
-          child: CircularProgressIndicator(
-            valueColor:
-                AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: CircularProgressIndicator(
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+            ),
           ),
         );
       }
 
       if (_homeController.walkers.isEmpty) {
-        return Center(
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 28.w),
             child: Column(
@@ -253,26 +269,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          ),
         );
       }
 
-      return RefreshIndicator(
-        color: AppColors.primaryColor,
-        onRefresh: _homeController.loadWalkers,
-        child: ListView.builder(
-          // v23.1 part 230 — REVERT v229 shrinkWrap. ListView.builder
-          // standard (lazy) pour perf low-end (Oppo / petits ecrans).
-          // v23.1 part 233 — cacheExtent 80 (default ~250) : Flutter
-          // pre-build seulement 80px above/below viewport au lieu de
-          // 250px. 3x moins de cards en RAM offscreen = scroll fluide.
-          cacheExtent: 80,
-          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+      // v23.1 part 240 — SliverPadding+SliverList.builder pour scroll unifie.
+      // Le RefreshIndicator parent vient du CustomScrollView (au niveau du
+      // body Scaffold) ou est gere via gesture sur la page entiere — on le
+      // retire ici car SliverList n'accepte pas de wrapper non-sliver.
+      return SliverPadding(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
+        sliver: SliverList.builder(
           itemCount: _homeController.walkers.length,
           itemBuilder: (context, index) {
             final walker = _homeController.walkers[index];
-            // Pluck the 30 / 60 min rates so the Total row of the request
-            // screen can compute live. Session v15 — avoids a second API
-            // call for the walker's rates.
             double? halfHour;
             double? hour;
             for (final r in walker.walkRates) {
@@ -317,18 +327,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _distanceSliderBody(BuildContext context, double current) {
-    final label = current <= 0
-        ? 'distance_slider_all'.tr
-        : 'distance_slider_km'.trParams({'km': current.toInt().toString()});
+    // v23.1 part 240 — Slider toujours actif, minimum 50 km (Daniel :
+    // "deja quand la barre est a 0 sa dois mafficher uniquement les
+    // profile de 0 a 50km"). Plus de mode "toutes les distances" qui
+    // ramenait des sitters a 250km par fallback list complete.
+    final clamped = current.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
+    final label = 'distance_slider_km'
+        .trParams({'km': clamped.toInt().toString()});
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: current > 0
-              ? AppColors.primaryColor
-              : AppColors.divider(context),
+          color: AppColors.primaryColor,
           width: 1.2,
         ),
       ),
@@ -340,9 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Icon(
                 Icons.near_me_rounded,
                 size: 18.sp,
-                color: current > 0
-                    ? AppColors.primaryColor
-                    : AppColors.textSecondary(context),
+                color: AppColors.primaryColor,
               ),
               SizedBox(width: 8.w),
               Expanded(
@@ -353,19 +363,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.textPrimary(context),
                 ),
               ),
-              if (current > 0)
-                GestureDetector(
-                  onTap: () {
-                    setState(() => _maxDistanceKm = 0);
-                    _homeController.nearMeRadiusKm.value = 0;
-                    _homeController.offersNearMeEnabled.value = false;
-                  },
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 18.sp,
-                    color: AppColors.textSecondary(context),
-                  ),
-                ),
             ],
           ),
           SliderTheme(
@@ -381,27 +378,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   const RoundSliderThumbShape(enabledThumbRadius: 9),
             ),
             child: Slider(
-              value: current.clamp(0, 500).toDouble(),
-              min: 0,
-              max: 500,
-              divisions: 50,
-              label: current <= 0 ? 'Toutes' : '${current.toInt()} km',
+              value: clamped,
+              min: _kMinRadiusKm,
+              max: _kMaxRadiusKm,
+              // (500 - 50) / 9 ~ 50 → 9 divisions de 50km (50/100/.../500).
+              divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
+              label: '${clamped.toInt()} km',
               onChanged: (value) {
-                setState(() => _maxDistanceKm = value);
-                _homeController.nearMeRadiusKm.value = value;
-                // Activer automatiquement le filtre dès que l'utilisateur
-                // touche au slider.
-                _homeController.offersNearMeEnabled.value = value > 0;
+                final v = value.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
+                setState(() => _maxDistanceKm = v);
+                _homeController.nearMeRadiusKm.value = v;
+                _homeController.offersNearMeEnabled.value = true;
               },
               onChangeEnd: (value) {
-                if (value > 0) {
-                  _homeController.loadNearbySitters(radiusKm: value.round());
-                  _homeController.loadNearbyWalkers(radiusKm: value.round());
-                } else {
-                  // Reset to full lists when the user drags back to 0.
-                  _homeController.loadSitters();
-                  _homeController.loadWalkers();
-                }
+                final v = value.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
+                _homeController.loadNearbySitters(radiusKm: v.round());
+                _homeController.loadNearbyWalkers(radiusKm: v.round());
               },
             ),
           ),
@@ -409,12 +401,12 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               InterText(
-                text: '0 km',
+                text: '${_kMinRadiusKm.toInt()} km',
                 fontSize: 10.sp,
                 color: AppColors.textSecondary(context),
               ),
               InterText(
-                text: '500 km',
+                text: '${_kMaxRadiusKm.toInt()} km',
                 fontSize: 10.sp,
                 color: AppColors.textSecondary(context),
               ),
@@ -425,6 +417,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // v23.1 part 240 — retourne un Sliver pour s'integrer au CustomScrollView.
+  // Le SortBar devient le premier item de la SliverList (index 0).
   Widget _buildMyPostsTab() {
     return Obx(() {
       final isLoading = _postsController.isLoading.value;
@@ -437,39 +431,38 @@ class _HomeScreenState extends State<HomeScreen> {
             );
 
       if (isLoading && sortedMine.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(child: CircularProgressIndicator()),
+        );
       }
 
       if (sortedMine.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.all(20.w),
-            child: InterText(
-              text: 'my_posts_no_posts'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: AppColors.greyColor,
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.w),
+              child: InterText(
+                text: 'my_posts_no_posts'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.greyColor,
+              ),
             ),
           ),
         );
       }
 
-      return Column(
-        children: [
-          _buildMyPostsSortBar(),
-          // v23.1 part 230 — REVERT v229 shrinkWrap. ListView.builder
-          // standard (lazy) wrap dans Expanded pour la perf low-end.
-          Expanded(
-            child: RefreshIndicator(
-              color: AppColors.primaryColor,
-              onRefresh: _postsController.refreshPosts,
-              child: ListView.builder(
-                // v23.1 part 233 — perf scroll : cacheExtent 80px.
-                cacheExtent: 80,
-                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
-                itemCount: sortedMine.length,
-                itemBuilder: (context, index) {
-                  final post = sortedMine[index];
+      return SliverPadding(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
+        sliver: SliverList.builder(
+          // +1 pour le SortBar en index 0.
+          itemCount: sortedMine.length + 1,
+          itemBuilder: (context, idx) {
+            if (idx == 0) return _buildMyPostsSortBar();
+            final index = idx - 1;
+            final post = sortedMine[index];
                   final rawCity = post.location?.city.trim();
                   final locationLabel = (rawCity != null && rawCity.isNotEmpty)
                       ? rawCity
@@ -569,10 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
-            ),
-          ),
-        ],
-      );
+            );
     });
   }
 
@@ -618,120 +608,39 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── FIX #2: Sitters Tab with "Offers Near Me" button + radius slider ───
+  // v23.1 part 240 — SITTERS tab simplifiee : retourne UN sliver, plus de
+  // duplicata "Offers Near Me" button (le slider inline en haut de la home
+  // joue maintenant ce role). loading/empty state via SliverFillRemaining ;
+  // liste via SliverList.builder lazy.
   Widget _buildSittersTab() {
     return Obx(() {
       final isLoading = _homeController.isLoadingSitters.value;
 
-      return Column(
-        children: [
-          // "Offers Near Me" button
-          Padding(
-            padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 4.h),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          _homeController.offersNearMeEnabled.value
-                              ? AppColors.primaryColor
-                              : AppColors.card(context),
-                      foregroundColor:
-                          _homeController.offersNearMeEnabled.value
-                              ? AppColors.whiteColor
-                              : AppColors.primaryColor,
-                      side: BorderSide(color: AppColors.primaryColor),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 12.h),
-                    ),
-                    icon: Icon(Icons.near_me, size: 20.sp),
-                    label: InterText(
-                      text: 'map_offers_near_me'.tr,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: _homeController.offersNearMeEnabled.value
-                          ? AppColors.whiteColor
-                          : AppColors.primaryColor,
-                    ),
-                    onPressed: () =>
-                        _homeController.toggleOffersNearMe(context),
-                  ),
-                ),
-                // Radius slider shown only when Near Me is active
-                if (_homeController.offersNearMeEnabled.value) ...[
-                  SizedBox(height: 4.h),
-                  Row(
-                    children: [
-                      InterText(
-                        text: 'map_radius_label'.tr,
-                        fontSize: 12.sp,
-                        color: AppColors.greyText,
-                      ),
-                      Expanded(
-                        child: Slider(
-                          value: _homeController.nearMeRadiusKm.value,
-                          min: 0,
-                          max: 500,
-                          divisions: 50,
-                          activeColor: AppColors.primaryColor,
-                          label:
-                              '${_homeController.nearMeRadiusKm.value.round()} km',
-                          onChanged: (val) {
-                            _homeController.nearMeRadiusKm.value = val;
-                          },
-                          onChangeEnd: (val) {
-                            _homeController.loadNearbySitters(
-                                radiusKm: val.round());
-                            _homeController.loadNearbyWalkers(
-                                radiusKm: val.round());
-                          },
-                        ),
-                      ),
-                      InterText(
-                        text:
-                            '${_homeController.nearMeRadiusKm.value.round()} km',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primaryColor,
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+      if (isLoading) {
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      if (_homeController.sitters.isEmpty) {
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.w),
+              child: InterText(
+                text: 'home_no_sitters_message'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.greyColor,
+              ),
             ),
           ),
-
-          // v23.1 part 230 — REVERT v229 shrinkWrap : Expanded standard
-          // pour laisser ListView.builder construire en lazy. Perf low-end.
-          if (isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_homeController.sitters.isEmpty)
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20.w),
-                  child: InterText(
-                    text: 'home_no_sitters_message'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.greyColor,
-                  ),
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.primaryColor,
-                onRefresh: _homeController.loadSitters,
-                child: ListView.builder(
-                  // v23.1 part 233 — perf scroll : cacheExtent 80px.
-                  cacheExtent: 80,
-                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 100.h),
+        );
+      }
+      return SliverPadding(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
+        sliver: SliverList.builder(
                   itemCount: _homeController.sitters.length,
                   itemBuilder: (context, index) {
                     final sitter = _homeController.sitters[index];
@@ -822,10 +731,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-              ),
-            ),
-        ],
-      );
+              );
     });
   }
 
@@ -891,72 +797,88 @@ class _HomeScreenState extends State<HomeScreen> {
         // visible) → fluide partout. Le QuickActionBar + Publication
         // input + SegmentedControl restent fixes en haut, mais c'est
         // un compromis necessaire pour la perf low-end.
+        // v23.1 part 240 — Daniel : "je veux que la page acceuil sur les
+        // 3 profil owner sitter et walker, soit scrolable pas le haut
+        // fixe". Refactor en CustomScrollView avec slivers : le header
+        // (QuickAction + PostInput + Segment + Slider) devient des
+        // SliverToBoxAdapter qui scrollent NATURELLEMENT avec la liste.
+        // Avantage perf : SliverList.builder garde le lazy build (pas de
+        // regression v229 shrinkWrap). Le top fly-away quand l'user
+        // descend dans la liste, comme demandé.
         body: SafeArea(
-          child: Column(
-            children: [
-              // v21 — Quick action bar (only renders when an urgent action
-              // is pending : payment due, booking accepted, etc.).
-              const HomeQuickActionBar(role: 'owner'),
-              const ExpandablePostInput(),
-              SizedBox(height: 12.h),
-
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
-                child: Obx(() {
-                  final allPosts = <PostModel>[
-                    ..._postsController.posts,
-                    ..._postsController.postsWithoutMedia,
-                  ];
-                  final myCount = _userId == null
-                      ? 0
-                      : allPosts.where((p) => p.owner.id == _userId).length;
-
-                  // 3-segment switcher — Publication (orange) / Pet-sitters
-                  // (blue) / Promeneurs (green). Per-segment colors make each
-                  // role easy to distinguish at a glance.
-                  return CustomSegmentedControl(
-                    leftText: '${'my_posts_title'.tr} ($myCount)',
-                    middleText: 'home_segment_sitters'.tr,
-                    rightText: 'home_segment_walkers'.tr,
-                    selectedIndex: _selectedTabIndex,
-                    activeColorLeft: AppColors.primaryColor,
-                    activeColorMiddle: const Color(0xFF1A73E8),
-                    activeColorRight: AppColors.greenColor,
-                    onLeftTap: () {
-                      setState(() => _selectedTabIndex = 0);
-                    },
-                    onMiddleTap: () {
-                      setState(() => _selectedTabIndex = 1);
-                    },
-                    onRightTap: () {
-                      setState(() => _selectedTabIndex = 2);
-                    },
-                  );
-                }),
+          child: CustomScrollView(
+            // Hint Flutter de garder seulement 80px hors viewport en cache
+            // pour scroller fluide sur low-end (Oppo / petits ecrans).
+            cacheExtent: 80,
+            slivers: [
+              // ── Header bloc : actions rapides + input publication ──
+              const SliverToBoxAdapter(
+                child: HomeQuickActionBar(role: 'owner'),
               ),
+              const SliverToBoxAdapter(
+                child: ExpandablePostInput(),
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: 12.h)),
 
-              SizedBox(height: 12.h),
-
-              // Inline "Près de chez moi" slider — ne s'affiche que sur les
-              // onglets Pet-sitters et Promeneurs (pas utile sur Mes posts).
-              if (_selectedTabIndex != 0) ...[
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: _buildInlineDistanceSlider(context),
+              // ── Segmented control (Mes posts / Pet-sitters / Promeneurs) ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Obx(() {
+                    final allPosts = <PostModel>[
+                      ..._postsController.posts,
+                      ..._postsController.postsWithoutMedia,
+                    ];
+                    final myCount = _userId == null
+                        ? 0
+                        : allPosts.where((p) => p.owner.id == _userId).length;
+                    return CustomSegmentedControl(
+                      leftText: '${'my_posts_title'.tr} ($myCount)',
+                      middleText: 'home_segment_sitters'.tr,
+                      rightText: 'home_segment_walkers'.tr,
+                      selectedIndex: _selectedTabIndex,
+                      activeColorLeft: AppColors.primaryColor,
+                      activeColorMiddle: const Color(0xFF1A73E8),
+                      activeColorRight: AppColors.greenColor,
+                      onLeftTap: () {
+                        setState(() => _selectedTabIndex = 0);
+                      },
+                      onMiddleTap: () {
+                        setState(() => _selectedTabIndex = 1);
+                      },
+                      onRightTap: () {
+                        setState(() => _selectedTabIndex = 2);
+                      },
+                    );
+                  }),
                 ),
-                SizedBox(height: 10.h),
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+
+              // ── Slider "Près de chez moi" (sitters/walkers tabs only) ──
+              if (_selectedTabIndex != 0) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: _buildInlineDistanceSlider(context),
+                  ),
+                ),
+                SliverToBoxAdapter(child: SizedBox(height: 10.h)),
               ],
 
-              // v23.1 part 230 — REVERT v229. Expanded(ListView.builder)
-              // standard : items construits paresseusement (lazy), fluide
-              // sur Oppo / low-end devices.
-              Expanded(
-                child: _selectedTabIndex == 0
-                    ? _buildMyPostsTab()
-                    : _selectedTabIndex == 1
-                        ? _buildSittersTab()
-                        : _buildWalkersTab(),
-              ),
+              // ── Tab content (Sliver-based pour scroll unifie) ──
+              // Chaque _buildXxxTab() retourne maintenant un Widget Sliver
+              // (SliverList ou SliverFillRemaining selon loading/empty).
+              if (_selectedTabIndex == 0)
+                _buildMyPostsTab()
+              else if (_selectedTabIndex == 1)
+                _buildSittersTab()
+              else
+                _buildWalkersTab(),
+
+              // Bottom padding pour eviter que le dernier item soit cache
+              // par la pill flottante du bottom nav.
+              SliverToBoxAdapter(child: SizedBox(height: 100.h)),
             ],
           ),
         ),

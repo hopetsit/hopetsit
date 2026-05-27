@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/home/home_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
@@ -42,6 +43,16 @@ class _BottomNavWrapperState extends State<BottomNavWrapper> {
     // que l'owner n'a pas visité l'onglet Réservations.
     if (!Get.isRegistered<BookingsController>()) {
       Get.put(BookingsController(), permanent: true);
+    }
+
+    // v23.1 part 240 — Daniel (3eme tentative) : root cause Personnes
+    // en live + Me suivre brisees → LiveMapService.attach() etait JAMAIS
+    // appele si user n'ouvrait pas PawMap. Resultat : map:identify
+    // jamais emis cote backend → broadcast position no-op. Fix :
+    // register le service au boot, son onInit() hook addOnConnectedHook
+    // pour emettre map:identify a chaque (re)connect socket.
+    if (!Get.isRegistered<LiveMapService>()) {
+      Get.put(LiveMapService(), permanent: true);
     }
 
     // Ensure sitters refresh on every owner login.

@@ -402,18 +402,34 @@ class PaymentResultScreen extends StatelessWidget {
       // accède à des Rx fermés → écran noir + crash. On force-delete
       // l'instance AVANT le offAll pour que le nouveau screen recrée tout
       // proprement depuis zero.
-      try {
-        if (Get.isRegistered<ChatController>()) {
-          Get.delete<ChatController>(force: true);
-        }
-      } catch (_) {/* noop */}
-      // Use Get.offAll to clear the stack — owner never wants to land
-      // back on the payment screen by tapping back from the chat.
-      Get.offAll(
+      //
+      // v23.1 part 240 — Daniel screenshot : "une fois que jeffectue un
+      // paiement au sitter et que je commence a lui parler lapp crash
+      // ecran noir". Le delete + offAll consecutifs creaient une race :
+      // Get.delete dispose le controller pendant qu'un autre Obx (e.g.
+      // ChatListScreen sous le payment) le lit encore → exception unhandled
+      // → next frame ecran noir. FIX : on differe le delete au prochain
+      // frame APRES que offAll ait nettoye la stack. addPostFrameCallback
+      // garantit que la nav est faite avant que delete frappe l'arbre.
+      final convId = conversationId;
+      final contactName = booking?.sitter.name ?? '';
+      final contactImage = booking?.sitter.avatar.url ?? '';
+      // Differe le delete au post-frame pour eviter la race.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          if (Get.isRegistered<ChatController>()) {
+            Get.delete<ChatController>(force: true);
+          }
+        } catch (_) {/* noop */}
+      });
+      // Use Get.off (not offAll) to replace ONLY the payment screen.
+      // Get.offAll detruit toute la pile → autres Obx en cours de build
+      // referencaient l'ancien controller. Get.off est plus chirurgical.
+      Get.off(
         () => IndividualChatScreen(
-          conversationId: conversationId,
-          contactName: booking?.sitter.name ?? '',
-          contactImage: booking?.sitter.avatar.url ?? '',
+          conversationId: convId,
+          contactName: contactName,
+          contactImage: contactImage,
         ),
       );
     } catch (e) {

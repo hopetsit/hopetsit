@@ -89,7 +89,10 @@ class _ReservationRequestFilterDialogState
   late TextEditingController _cityController;
   DateTimeRange? _dateRange;
   String? _serviceType;
-  double _maxDistanceKm = 0;
+  // v23.1 part 240 — slider min 50km (Daniel "0 = 0-50km").
+  static const double _kMinRadiusKm = 50.0;
+  static const double _kMaxRadiusKm = 500.0;
+  double _maxDistanceKm = _kMinRadiusKm;
 
   @override
   void initState() {
@@ -99,7 +102,9 @@ class _ReservationRequestFilterDialogState
     );
     _dateRange = widget.initialState.dateRange;
     _serviceType = widget.initialState.serviceType;
-    _maxDistanceKm = widget.initialState.maxDistanceKm ?? 0;
+    _maxDistanceKm = (widget.initialState.maxDistanceKm ?? _kMinRadiusKm)
+        .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+        .toDouble();
   }
 
   @override
@@ -307,23 +312,23 @@ class _ReservationRequestFilterDialogState
                       children: [
                         Slider(
                           value: _maxDistanceKm,
-                          min: 0,
-                          max: 500,
-                          divisions: 50,
-                          label: _maxDistanceKm == 0
-                              ? 'filter_all_distances'.tr
-                              : '${_maxDistanceKm.toInt()} km',
+                          min: _kMinRadiusKm,
+                          max: _kMaxRadiusKm,
+                          divisions:
+                              ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
+                          label: '${_maxDistanceKm.toInt()} km',
                           onChanged: (value) {
-                            setState(() => _maxDistanceKm = value);
+                            final v = value
+                                .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+                                .toDouble();
+                            setState(() => _maxDistanceKm = v);
                           },
                         ),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 18.w),
                           child: InterText(
-                            text: _maxDistanceKm == 0
-                                ? 'filter_all_distances'.tr
-                                : 'filter_distance_km'
-                                    .trParams({'km': _maxDistanceKm.toInt().toString()}),
+                            text: 'filter_distance_km'
+                                .trParams({'km': _maxDistanceKm.toInt().toString()}),
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary(context),
@@ -371,8 +376,9 @@ class _ReservationRequestFilterDialogState
                                       : _cityController.text.trim(),
                                   dateRange: _dateRange,
                                   serviceType: _serviceType,
-                                  maxDistanceKm:
-                                      _maxDistanceKm > 0 ? _maxDistanceKm : null,
+                                  // v23.1 part 240 — toujours stocker la
+                                  // valeur (au moins 50km). Plus de null.
+                                  maxDistanceKm: _maxDistanceKm,
                                 ),
                               );
                               Navigator.of(context).pop();

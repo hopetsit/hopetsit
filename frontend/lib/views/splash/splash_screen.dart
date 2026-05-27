@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/onboarding/onboarding_screen.dart';
@@ -116,10 +117,38 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkAuthentication() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
+    // v23.1 part 240 — Daniel : "je veux que lapp reste ouverte chaque
+    // fois je la met en back ground elle se ferme". ROOT CAUSE FOUND :
+    // v23.1 part 125 a migré le JWT depuis GetStorage vers SecureTokenStore
+    // (Keystore Android). Quand l'OS kill le process en background (Samsung,
+    // Oppo battery optimization), au cold restart le splash lisait UNIQUEMENT
+    // GetStorage et trouvait null → forçait Onboarding. L'user voyait l'app
+    // "se fermer" alors que c'est juste le splash qui ne savait pas où
+    // chercher.
+    //
+    // FIX : on lit SecureTokenStore en priorité (source of truth depuis v125),
+    // fallback GetStorage pour les vieilles installs jamais migrées.
+    // Aussi : on raccourcit le splash de 2000ms → 800ms pour que le retour
+    // se sente plus instant.
+    await Future.delayed(const Duration(milliseconds: 800));
 
     final storage = GetStorage();
-    final token = storage.read<String>(StorageKeys.authToken);
+    // v240 — Secure-first, GetStorage fallback (deux sources possibles).
+    // tokenSync renvoie null si pas encore hydraté → on force readToken()
+    // qui fait un read disque keystore explicite. C'est cet appel qui était
+    // manquant : main.dart appelait migrateFromLegacyIfNeeded() AVANT runApp,
+    // mais sur certains devices le keystore n'est pas encore disponible à
+    // ce moment, donc _hydrated=false et tokenSync=null. readToken() retry
+    // le read et hydrate le cache.
+    String? token = SecureTokenStore.instance.tokenSync;
+    if (token == null || token.isEmpty) {
+      try {
+        token = await SecureTokenStore.instance.readToken();
+      } catch (_) {/* defensive */}
+    }
+    if (token == null || token.isEmpty) {
+      token = storage.read<String>(StorageKeys.authToken);
+    }
     final storedRole = storage.read<String>(StorageKeys.userRole);
     final jwtRole = _decodeRoleFromJwt(token);
 

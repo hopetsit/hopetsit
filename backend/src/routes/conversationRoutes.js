@@ -455,10 +455,21 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
     const idStr = (v) => v ? (v._id ? v._id.toString() : v.toString()) : null;
-    const isParticipant =
+    // v23.1 part 240 — Daniel screenshot : "impossible deffacer converasation
+    // message erreur" → 403 Not a conversation participant. Cause : ce
+    // handler ne testait l'appartenance que via ownerId/sitterId/walkerId.
+    // Les conversations friendChat (chat ami famille/amis) stockent les
+    // participants dans `conversation.participants[]` (cf le meme bug fix
+    // applique a GET /messages et /peer-position). On etend le check.
+    let isParticipant =
       idStr(conversation.ownerId) === userId ||
       idStr(conversation.sitterId) === userId ||
       idStr(conversation.walkerId) === userId;
+    if (!isParticipant && conversation.friendChat === true && Array.isArray(conversation.participants)) {
+      isParticipant = conversation.participants.some(
+        (p) => idStr(p.userId) === userId
+      );
+    }
     if (!isParticipant) {
       return res.status(403).json({ error: 'Not a conversation participant.' });
     }
@@ -614,6 +625,117 @@ router.post(
   }
 );
 
+// v23.1 part 240 — Daniel : "sur les 3 profile rajoute partager mon
+// adresse pour rdv fais un truc styler pour les 3 profile qduand y font
+// recuperer lanimal y senvoi ladresse directement dans le chat".
+// Endpoint disponible pour les 3 roles (owner / sitter / walker). Le
+// service lit l'adresse du profil de l'expediteur depuis le bon Model
+// selon son role, puis cree un message type 'address_share' dans la
+// conversation. La carte chat le rend de facon stylee avec un bouton
+// "Itineraire" qui ouvre Google Maps (cf address_share_card.dart).
+const Owner = require('../models/Owner');
+const Walker = require('../models/Walker');
+router.post(
+  '/:id/share-address',
+  requireAuth,
+  requireRole('owner', 'sitter', 'walker'),
+  async (req, res) => {
+    try {
+      const conversation = await Conversation.findById(req.params.id);
+      if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+
+      const myId = String(req.user.id);
+      const myRole = String(req.user.role || '').toLowerCase();
+
+      // Verify the user is a participant of this conversation.
+      const idStr = (v) => v ? (v._id ? v._id.toString() : v.toString()) : null;
+      let isParticipant = false;
+      if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
+        isParticipant = conversation.participants.some((p) => idStr(p.userId) === myId);
+      } else {
+        isParticipant =
+          idStr(conversation.ownerId) === myId ||
+          idStr(conversation.sitterId) === myId ||
+          idStr(conversation.walkerId) === myId;
+      }
+      if (!isParticipant) {
+        return res.status(403).json({ error: 'Not a chat participant.' });
+      }
+
+      // Read sender's address from their profile (3 models supported).
+      const ModelByRole = { owner: Owner, sitter: Sitter, walker: Walker };
+      const SenderModel = ModelByRole[myRole];
+      if (!SenderModel) {
+        return res.status(400).json({ error: 'Unsupported sender role.' });
+      }
+      const senderDoc = await SenderModel.findById(myId)
+        .select('address location')
+        .lean();
+      if (!senderDoc) {
+        return res.status(404).json({ error: 'Sender profile not found.' });
+      }
+
+      const address = (senderDoc.address || '').trim();
+      const city = (senderDoc.location && senderDoc.location.city) || '';
+      const coords = senderDoc.location && senderDoc.location.coordinates;
+      const lat = Array.isArray(coords) && coords.length >= 2 ? Number(coords[1]) : null;
+      const lng = Array.isArray(coords) && coords.length >= 2 ? Number(coords[0]) : null;
+
+      if (!address && !city && (lat === null || lng === null)) {
+        return res.status(400).json({ error: 'No address on profile to share.' });
+      }
+
+      const body = [address, city].filter(Boolean).join(', ').trim()
+        || 'Adresse partagée';
+
+      const message = await Message.create({
+        conversationId: conversation._id,
+        senderRole: myRole,
+        senderId: myId,
+        body,
+        attachments: [],
+        type: 'address_share',
+        metadata: {
+          address,
+          city,
+          lat,
+          lng,
+        },
+      });
+
+      // Update conv lastMessage + unread counters of the other side.
+      conversation.lastMessage = body;
+      conversation.lastMessageAt = new Date();
+      if (myRole === 'owner') {
+        if (conversation.sitterId) {
+          conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
+        }
+        if (conversation.walkerId) {
+          conversation.walkerUnreadCount = (conversation.walkerUnreadCount || 0) + 1;
+        }
+      } else if (myRole === 'sitter' || myRole === 'walker') {
+        conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
+      }
+      await conversation.save();
+
+      // Fan out real-time to the conversation room — sender + receiver
+      // see the card instantly.
+      try {
+        const { emitToConversation } = require('../sockets/emitter');
+        emitToConversation(conversation._id.toString(), 'message:new', {
+          conversationId: conversation._id.toString(),
+          message,
+        });
+      } catch (_) {/* defensive */}
+
+      res.status(201).json({ message });
+    } catch (e) {
+      logger.error('share-address error', e);
+      res.status(500).json({ error: 'Unable to share address.' });
+    }
+  }
+);
+
 // v19.1.3 — Soft-delete a message. Only the original sender can delete their
 // own message. Admins have their own admin-only endpoint (see adminRoutes).
 // Socket fans out `message:deleted` so the other party sees the placeholder
@@ -633,10 +755,18 @@ router.delete(
       const idToString = (v) =>
         v ? (v._id ? v._id.toString() : v.toString()) : null;
       const userId = req.user.id;
-      const isParticipant =
+      // v23.1 part 240 — meme fix que DELETE /:id : on autorise les
+      // friendChat (Daniel screenshot 403 sur "Effacer" message dans le
+      // chat ami avec witoulek).
+      let isParticipant =
         idToString(conversation.ownerId) === userId ||
         idToString(conversation.sitterId) === userId ||
         idToString(conversation.walkerId) === userId;
+      if (!isParticipant && conversation.friendChat === true && Array.isArray(conversation.participants)) {
+        isParticipant = conversation.participants.some(
+          (p) => idToString(p.userId) === userId
+        );
+      }
       if (!isParticipant) {
         return res.status(403).json({ error: 'Not a conversation participant.' });
       }

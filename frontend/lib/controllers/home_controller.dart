@@ -45,15 +45,25 @@ class HomeController extends GetxController {
   final RxBool isLoadingWalkers = false.obs;
 
   // FIX #2 — Offers Near Me state
-  final RxBool offersNearMeEnabled = false.obs;
+  // v23.1 part 240 — Daniel : "quand la barre est a 0 sa dois mafficher
+  // uniquement les profile de 0 a 50km de chez moi et apres plus je monte
+  // plus sa safiche avec le bon kms". On enforce desormais 50km minimum
+  // (le slider va de 50 à 500). Le filtre est TOUJOURS actif (plus de mode
+  // "toutes les distances" qui ramenait tous les sitters/walkers sans
+  // limite et brouillait la lecture). Par defaut on demarre a 50.
+  final RxBool offersNearMeEnabled = true.obs;
   final RxDouble nearMeRadiusKm = 50.0.obs;
 
   @override
   void onInit() {
     super.onInit();
     postController.addListener(_onTextChanged);
-    loadSitters();
-    loadWalkers();
+    // v23.1 part 240 — on demarre directement en mode nearby 50km plutot
+    // que loadSitters() (full list sans distance). Daniel ne veut plus
+    // de "toutes les distances" qui melangeait sitters loin + sans km
+    // affiche sur la card.
+    loadNearbySitters(radiusKm: nearMeRadiusKm.value.round());
+    loadNearbyWalkers(radiusKm: nearMeRadiusKm.value.round());
   }
 
   @override
@@ -96,17 +106,22 @@ class HomeController extends GetxController {
   }
 
   /// FIX #2 — Load sitters filtered by GPS distance radius
+  /// v23.1 part 240 — Daniel : "deja quand la barre est a 0 sa dois
+  /// mafficher uniquement les profile de 0 a 50km de chez moi". On
+  /// supprime le fallback-to-full quand la liste nearby est vide :
+  /// c'etait la cause du "je vois witoulek a 250km dans le filtre 120km"
+  /// (le backend ne renvoyait personne → on ramenait toute la base
+  /// sans aucun filtre). Desormais : liste vide assumee, l'UI affiche
+  /// un empty state.
   Future<void> loadNearbySitters({required int radiusKm}) async {
     isLoadingSitters.value = true;
     try {
       final locationService = LocationService();
       final position = await locationService.getCurrentLocation();
       if (position == null) {
-        // v23.1.147 — Daniel : "si on met 20 km le paseador disparaît".
-        // Avant : on affichait juste une erreur, la liste restait vide.
-        // Maintenant : fallback sur la liste complète pour ne pas frustrer
-        // l'utilisateur dont la géoloc n'est pas dispo.
-        await loadSitters();
+        // Pas de GPS : on ne peut pas filtrer, mais on n'expose plus
+        // toute la base. Liste vide ; l'UI invite a activer la geoloc.
+        sitters.clear();
         return;
       }
 
@@ -115,24 +130,15 @@ class HomeController extends GetxController {
         lng: position.longitude,
         radiusInMeters: radiusKm * 1000,
       );
-      // v23.1.147 — fallback si la liste nearby est vide. C'est typique
-      // pour les sitters sans coordonnées GPS en DB (MongoDB $near les
-      // exclut systématiquement). Plutôt qu'un écran vide, on affiche la
-      // liste complète pour que l'utilisateur les voie quand même.
-      if (list.isEmpty) {
-        await loadSitters();
-        return;
-      }
       sitters.assignAll(list);
       offersNearMeEnabled.value = true;
       nearMeRadiusKm.value = radiusKm.toDouble();
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load nearby sitters', error: error.message);
-      // Fallback sur la liste complète en cas d'erreur API.
-      await loadSitters();
+      sitters.clear();
     } catch (error) {
       AppLogger.logError('Failed to load nearby sitters', error: error);
-      await loadSitters();
+      sitters.clear();
     } finally {
       isLoadingSitters.value = false;
     }
@@ -161,15 +167,16 @@ class HomeController extends GetxController {
   }
 
   /// Loads walkers filtered by GPS distance radius.
+  /// v23.1 part 240 — meme fix que loadNearbySitters : on supprime le
+  /// fallback-to-full quand la liste est vide (root cause "barre deconne
+  /// regarde le profil est a + de 250 kms"). Liste vide assumee.
   Future<void> loadNearbyWalkers({required int radiusKm}) async {
     isLoadingWalkers.value = true;
     try {
       final locationService = LocationService();
       final position = await locationService.getCurrentLocation();
       if (position == null) {
-        // v23.1.147 — Daniel : "si on met 20 km le paseador disparaît".
-        // Fallback sur la liste complète au lieu d'écran vide + erreur.
-        await loadWalkers();
+        walkers.clear();
         return;
       }
 
@@ -178,20 +185,13 @@ class HomeController extends GetxController {
         lng: position.longitude,
         radiusInMeters: radiusKm * 1000,
       );
-      // v23.1.147 — fallback si la liste nearby est vide (cas walker sans
-      // coordonnées GPS en DB → exclu par MongoDB $near). Affiche tous
-      // les walkers au lieu d'écran vide.
-      if (list.isEmpty) {
-        await loadWalkers();
-        return;
-      }
       walkers.assignAll(list);
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load nearby walkers', error: error.message);
-      await loadWalkers();
+      walkers.clear();
     } catch (error) {
       AppLogger.logError('Failed to load nearby walkers', error: error);
-      await loadWalkers();
+      walkers.clear();
     } finally {
       isLoadingWalkers.value = false;
     }

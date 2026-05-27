@@ -10,6 +10,10 @@ export default function FAQPage() {
     { q: t("faq_q3"), a: t("faq_a3") },
     { q: t("faq_q4"), a: t("faq_a4") },
     { q: t("faq_q5"), a: t("faq_a5") },
+    // v23.1 part 240 — nouvelles entrées FAQ couvrant PawFollow Famille +
+    // suivi position en direct (les 2 grosses features v240).
+    { q: t("faq_q6"), a: t("faq_a6") },
+    { q: t("faq_q7"), a: t("faq_a7") },
   ];
 
   return (

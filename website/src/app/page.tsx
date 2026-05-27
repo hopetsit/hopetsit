@@ -19,6 +19,37 @@ export default function HomePage() {
     { title: t("trust_map_title"),  body: t("trust_map_body"),  icon: "🗺️" },
   ];
 
+  // v23.1 part 240 — Daniel : "MET A JOUR TOUT LE SITE WEB AVEC LES
+  // NOUVELLES FONCTIONALITER deep work". Surfacing the 4 headline
+  // features added in v240 right on the homepage so visitors landing
+  // from social or organic search see the differentiation immediately.
+  const v240Features = [
+    {
+      emoji: "👨‍👩‍👧",
+      title: t("v240_feat_family_title"),
+      body: t("v240_feat_family_body"),
+      color: "owner",
+    },
+    {
+      emoji: "📍",
+      title: t("v240_feat_pawspot_title"),
+      body: t("v240_feat_pawspot_body"),
+      color: "sitter",
+    },
+    {
+      emoji: "🛰️",
+      title: t("v240_feat_live_title"),
+      body: t("v240_feat_live_body"),
+      color: "walker",
+    },
+    {
+      emoji: "🪪",
+      title: t("v240_feat_kyc_title"),
+      body: t("v240_feat_kyc_body"),
+      color: "owner",
+    },
+  ] as const;
+
   return (
     <>
       {/* Hero — orange gradient, the same accent as the mobile app primary. */}
@@ -132,6 +163,38 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* v23.1 part 240 — "What's new" feature spotlight (4 cards). */}
+      <section className="mx-auto max-w-6xl px-4 py-20">
+        <div className="mb-10 text-center">
+          <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-owner/30 bg-owner-light px-3 py-1 text-xs font-semibold uppercase tracking-wider text-owner">
+            ✨ {t("v240_new_eyebrow")}
+          </span>
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+            {t("v240_new_title")}
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-ink-muted">
+            {t("v240_new_sub")}
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {v240Features.map((f) => (
+            <div
+              key={f.title}
+              className="group relative overflow-hidden rounded-2xl border border-ink/5 bg-white p-6 shadow-card transition-transform hover:-translate-y-1"
+            >
+              <div className={`absolute inset-x-0 top-0 h-1 bg-${f.color}`} />
+              <div
+                className={`mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-${f.color}-light text-2xl`}
+              >
+                {f.emoji}
+              </div>
+              <h3 className="text-base font-bold text-ink">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.body}</p>
+            </div>
+          ))}
         </div>
       </section>
 

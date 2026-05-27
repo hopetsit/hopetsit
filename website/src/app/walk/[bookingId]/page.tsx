@@ -19,7 +19,9 @@ import {
   ApiError,
   Booking,
   getBookingDetail,
+  getProviderLocation,
   getStoredUser,
+  ProviderLocation,
 } from "@/lib/api";
 import { useSocket } from "@/lib/useSocket";
 
@@ -42,6 +44,13 @@ export default function WalkPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // v23.1 part 240 — Daniel : "fix le sur le site web aussi". Avant : la
+  // carte s'ouvrait centree sur Paris jusqu'a recevoir un event socket
+  // du walker. Maintenant : on fetch sa derniere position connue via
+  // /bookings/:id/provider-location au load, et on passe initialPosition
+  // a WalkLiveMap → la carte ouvre directement sur la geoloc du sitter/
+  // walker, et le halo couleur correspond au role.
+  const [providerLoc, setProviderLoc] = useState<ProviderLocation | null>(null);
 
   // Initialise le socket (au cas où l'user arrive direct sur /walk via URL).
   useSocket();
@@ -59,6 +68,13 @@ export default function WalkPage() {
           return;
         }
         setBooking(b);
+        // v240 — fetch provider's last known position (en parallele,
+        // best-effort : si 204/402/409 on continue, la carte s'affichera
+        // vide jusqu'au 1er event socket).
+        try {
+          const loc = await getProviderLocation(bookingId);
+          if (loc) setProviderLoc(loc);
+        } catch (_) {/* defensive — silently fail */}
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
           router.replace("/login");
@@ -93,7 +109,16 @@ export default function WalkPage() {
   // Identifie le walker/sitter à suivre (peut être null sur les bookings où
   // le provider n'a pas encore commencé sa promenade).
   const walkerId = booking.walkerId || booking.sitterId;
-  const walkerName = booking.walkerName || booking.sitterName || "Provider";
+  const walkerName =
+    providerLoc?.providerName ||
+    booking.walkerName ||
+    booking.sitterName ||
+    "Provider";
+  // v23.1 part 240 — role pour halo couleur (vert walker / bleu sitter).
+  // Si /provider-location a repondu on prend sa valeur ; sinon on infere
+  // depuis le booking (walkerId present → walker, sinon sitter).
+  const walkerRole: "walker" | "sitter" =
+    providerLoc?.providerRole || (booking.walkerId ? "walker" : "sitter");
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 md:py-16">
@@ -112,7 +137,20 @@ export default function WalkPage() {
       </p>
 
       <div className="mt-8">
-        <WalkLiveMap walkerId={walkerId} walkerName={walkerName} />
+        <WalkLiveMap
+          walkerId={walkerId}
+          walkerName={walkerName}
+          walkerRole={walkerRole}
+          initialPosition={
+            providerLoc?.coordinates
+              ? {
+                  lat: providerLoc.coordinates.lat,
+                  lng: providerLoc.coordinates.lng,
+                  at: providerLoc.updatedAt || undefined,
+                }
+              : undefined
+          }
+        />
       </div>
 
       {/* Info box sous la carte */}

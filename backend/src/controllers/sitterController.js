@@ -224,14 +224,55 @@ const findNearbySitters = async (req, res) => {
         sittersById.set(id, { ...s, _matchedBy: 'mapBoostLocation' });
       }
     }
-    // Sitters par city : on les ajoute s'ils ne sont pas deja la, avec
-    // distance=0 (puisqu'ils sont meme ville, on les met en tete de
-    // liste apres le geo proche).
+    // v23.1 part 240 — Daniel screenshot : "la barre pres de chez vous
+    // deconne regarde le profil est a + de 250 kms de moi et sa met
+    // nimporte quoi". Root cause : on stampait `distance: 0` pour les
+    // matchs city alors meme que le sitter etait a 250km dans une autre
+    // region (le sitter avait juste son champ city qui matche en
+    // substring). Resultat : la carte affichait "À 0.0 km".
+    //
+    // Fix : on calcule la vraie distance Haversine entre [longitude,
+    // latitude] (l'owner) et les coords du sitter quand elles existent.
+    // Si le sitter n'a pas de coords du tout, on garde distance=null
+    // (le frontend affiche alors juste la ville, pas un faux "0 km").
+    //
+    // ATTENTION : on continue d'inclure les cityMatch dans la liste
+    // (Daniel les voulait visibles pour les sitters fraichement crees
+    // sans coords), mais on les EXCLUT si leur vraie distance depasse
+    // le radius demande — sinon on contredisait le filtre.
+    const haversineKm = (lat1, lon1, lat2, lon2) => {
+      const toRad = (d) => (d * Math.PI) / 180;
+      const R = 6371; // km
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    };
     for (const s of viaCity) {
       const id = String(s._id);
-      if (!sittersById.has(id)) {
-        sittersById.set(id, { ...s, distance: 0, _matchedBy: 'cityMatch' });
+      if (sittersById.has(id)) continue;
+      let realDistanceMeters = null;
+      const coords = s.location && s.location.coordinates;
+      if (Array.isArray(coords) && coords.length >= 2) {
+        const sLng = Number(coords[0]);
+        const sLat = Number(coords[1]);
+        if (Number.isFinite(sLat) && Number.isFinite(sLng) &&
+            Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          const km = haversineKm(latitude, longitude, sLat, sLng);
+          realDistanceMeters = km * 1000;
+          // Respecter le filtre radius si l'owner en a demande un.
+          if (radiusInMeters !== null && realDistanceMeters > radiusInMeters) {
+            continue;
+          }
+        }
       }
+      sittersById.set(id, {
+        ...s,
+        distance: realDistanceMeters, // vraie distance ou null
+        _matchedBy: 'cityMatch',
+      });
     }
     const sitters = Array.from(sittersById.values());
 
