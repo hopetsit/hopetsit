@@ -1459,16 +1459,28 @@ class AuthController extends GetxController {
   /// user's session is invalid and they need to re-authenticate. Callers use
   /// this to know when to trigger [handleLoginRequiredError].
   static bool isLoginRequiredError(String? message, {int? statusCode}) {
-    if (statusCode == 401 || statusCode == 403) return true;
+    // v23.1 part 241 — Daniel : "chat walker ou sitter rien ne saffiche
+    // sa met session expirer alors quon as labonement follow". Root
+    // cause : on consideraIT 401 ET 403 comme "session expiree", mais
+    // 403 = forbidden (PAYMENT_REQUIRED, NOT_PARTICIPANT, CHAT_ACCESS_
+    // REQUIRED), PAS session expiree. Resultat : quand le backend
+    // renvoyait 403 (chat 402/payment ou autre), l'app affichait
+    // "Session expirée" + bouffait les messages → chat blank + demandes
+    // pawfollow_request invisibles. Fix : on ne considere session
+    // expiree QUE pour 401 (vrai unauthorized), et on laisse les 403
+    // bubbler aux handlers dedies (le chat a deja son propre traitement
+    // 403 lignes plus bas).
+    if (statusCode == 401) return true;
     if (message == null) return false;
     final lower = message.toLowerCase();
+    // Patterns explicites de session expiree (401-like) uniquement.
+    // On ENLEVE 'unauthorized' et 'jwt' car trop genericS — un 403
+    // backend qui mentionne "JWT verified" passait par ici a tort.
     return lower.contains('login required') ||
         lower.contains('please login') ||
-        lower.contains('unauthorized') ||
         lower.contains('not authenticated') ||
         lower.contains('invalid token') ||
-        lower.contains('token expired') ||
-        lower.contains('jwt');
+        lower.contains('token expired');
   }
 
   /// v23.1.154 — Daniel : "faite que lapli ne se ferme que si on met

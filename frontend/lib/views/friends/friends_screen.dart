@@ -4,7 +4,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
+import 'dart:async';
+
+import 'package:hopetsit/controllers/chat_controller.dart';
+import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/models/friendship_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -571,16 +576,64 @@ class _FriendTile extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16.r),
       onTap: () async {
-        // Quick local check : si l'ami partage avec moi → on évite l'aller-retour.
+        // v23.1 part 241 — Daniel : "qd on clic sur lami sa me met pas
+        // sa position sur pawmap". Avant : on ouvrait PawMapScreen() SANS
+        // params → _bootstrap centrait sur MA position. Maintenant : on
+        // fetch la position fresh de l'ami (socket cache → fallback API
+        // /friends/:id/last-position) et on passe focusUserId/Role/Name
+        // → PawMap _bootstrap respecte initialLat/Lng (cf fix v240) +
+        // injecte synthetic FriendPosition → halo couleur autour de lui.
+        Future<void> openMapForFriend() async {
+          double? lat;
+          double? lng;
+          // 1) socket cache (most fresh).
+          try {
+            final svc = Get.isRegistered<LiveMapService>()
+                ? Get.find<LiveMapService>()
+                : null;
+            final pos = svc?.friendPositions[other.id];
+            if (pos != null) {
+              lat = pos.latitude;
+              lng = pos.longitude;
+            }
+          } catch (_) {/* defensive */}
+          // 2) fallback DB position via /friends/:id/last-position.
+          if (lat == null || lng == null) {
+            try {
+              final api = Get.find<ApiClient>();
+              final r = await api.get(
+                '/friends/${other.id}/last-position',
+                requiresAuth: true,
+              );
+              if (r is Map) {
+                final rLat = r['lat'];
+                final rLng = r['lng'];
+                if (rLat is num && rLng is num) {
+                  lat = rLat.toDouble();
+                  lng = rLng.toDouble();
+                }
+              }
+            } catch (_) {/* defensive */}
+          }
+          Get.to(() => PawMapScreen(
+                initialLat: lat,
+                initialLng: lng,
+                focusUserId: other.id,
+                focusUserRole: other.model.toLowerCase(),
+                focusUserName: other.name,
+              ));
+        }
+
+        // Quick local check : si l'ami partage avec moi → direct ouverture.
         if (friendship.theirSharePosition) {
-          Get.to(() => const PawMapScreen());
+          await openMapForFriend();
           return;
         }
         // Sinon on demande au backend (la famille bypass le share flag).
         final access = await controller.checkTrackAccess(other.id);
         final canTrack = access['canTrack'] == true;
         if (canTrack) {
-          Get.to(() => const PawMapScreen());
+          await openMapForFriend();
           return;
         }
         CustomSnackbar.showInfo(
@@ -703,9 +756,15 @@ class _FriendTile extends StatelessWidget {
                   activeThumbColor: AppColors.roleAccent(
                     Get.find<AuthController>().userRole.value,
                   ),
-                  onChanged: friendship.myShareAutoByPawFollow
-                      ? null // read-only quand auto par PawFollow
-                      : (v) => controller.setSharePosition(friendship.id, v),
+                  // v23.1 part 241 — Daniel : "partager position et
+                  // bloquer en auto". v226 forcait null (lecture seule)
+                  // quand PawFollow actif → user ne pouvait plus toggler
+                  // off. Daniel veut garder le controle manuel meme avec
+                  // PawFollow (le label "Auto" reste en dessous comme
+                  // indicateur, mais le toggle reste actif). FIX : on
+                  // permet toujours le toggle ; l'user choisit.
+                  onChanged: (v) =>
+                      controller.setSharePosition(friendship.id, v),
                 ),
               ),
               if (friendship.myShareAutoByPawFollow)
@@ -2467,6 +2526,25 @@ class _MessagesTabState extends State<_MessagesTab> {
       } else {
         _chats.clear();
       }
+      // v23.1 part 241 — Daniel : "faire que les message sont les meme
+      // dans chat et ds onglet message". Le bottom-nav Chat tab et le
+      // Messages tab hittent les MEMES /conversations/list mais avec des
+      // controllers separes → cache desynchronise si l'user switch sans
+      // refresh. Fix : on cross-trigger le reload du ChatController
+      // (owner) et SitterChatController (sitter/walker) quand on est
+      // dans _MessagesTab, et inversement (chat_screen.dart le faisait
+      // deja via addPostFrameCallback). Resultat : meme contenu visible
+      // dans les 2 onglets, en temps reel.
+      try {
+        if (Get.isRegistered<ChatController>()) {
+          unawaited(Get.find<ChatController>().reloadConversations());
+        }
+      } catch (_) {/* defensive */}
+      try {
+        if (Get.isRegistered<SitterChatController>()) {
+          unawaited(Get.find<SitterChatController>().reloadConversations());
+        }
+      } catch (_) {/* defensive */}
     } catch (e) {
       _error.value = e.toString().replaceAll('ApiException:', '').trim();
       _chats.clear();
