@@ -210,31 +210,66 @@ const getChatList = async (req, res) => {
 const getConversationMessages = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role, userId } = req.query;
-
-    if (!role || !userId) {
-      return res.status(400).json({ error: 'role and userId are required.' });
-    }
 
     const conversation = await Conversation.findById(id);
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
-    // v18.7 — walker-aware : conversation peut être sitter-convo OU walker-convo.
-    // Avant v18.7, si walker, conversation.sitterId était null → crash
-    // sur .toString() → 500 "Unable to fetch messages".
+    // v23.1 part 238 — Daniel : "Access denied for this conversation"
+    // sur un chat ami. ROOT CAUSE : ce controller utilisait query.role +
+    // query.userId + vrai check seulement sur ownerId/sitterId/walkerId.
+    // Or les conversations friendChat ont participants:[{userId,userModel}]
+    // au lieu d'ownerId/sitterId/walkerId → check fail → 403 systematique
+    // sur tous les chats ami.
+    //
+    // FIX :
+    //  1. Source d'identite = JWT (req.user) au lieu de query params
+    //     (cohérent avec les autres endpoints + securite).
+    //  2. Branch friendChat : check participants[] include userId.
+    //  3. Branch booking-style : check ownerId/sitterId/walkerId.
+    //  4. Bypass staff email (cohérent avec chatAccess.js middleware).
+    const myId = String(req.user?.id || '');
     const idToString = (v) =>
       v ? (v._id ? v._id.toString() : v.toString()) : null;
 
-    const ownerIdValue = idToString(conversation.ownerId);
-    const sitterIdValue = idToString(conversation.sitterId);
-    const walkerIdValue = idToString(conversation.walkerId);
+    let accessOk = false;
 
-    const accessOk =
-      (role === 'owner' && ownerIdValue === userId) ||
-      (role === 'sitter' && sitterIdValue === userId) ||
-      (role === 'walker' && walkerIdValue === userId);
+    // FriendChat : check participants.
+    if (conversation.friendChat === true) {
+      accessOk = (conversation.participants || []).some(
+        (p) => idToString(p.userId) === myId,
+      );
+    } else {
+      // Booking-style : check ownerId / sitterId / walkerId.
+      const ownerIdValue = idToString(conversation.ownerId);
+      const sitterIdValue = idToString(conversation.sitterId);
+      const walkerIdValue = idToString(conversation.walkerId);
+      accessOk = ownerIdValue === myId
+        || sitterIdValue === myId
+        || walkerIdValue === myId;
+    }
+
+    // v23.1 part 238 — staff email bypass (coherent avec chatAccess.js).
+    if (!accessOk) {
+      try {
+        const role = req.user?.role;
+        const Owner = require('../models/Owner');
+        const Sitter = require('../models/Sitter');
+        const Walker = require('../models/Walker');
+        const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
+        const me = await Model.findById(req.user.id).select('isStaff email').lean();
+        const HARDCODED_STAFF_EMAILS = new Set(['dadaciao84@gmail.com']);
+        const envStaffEmails = String(process.env.STAFF_EMAILS || '')
+          .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+        const emailLower = String(me?.email || '').toLowerCase();
+        if (me?.isStaff === true ||
+            HARDCODED_STAFF_EMAILS.has(emailLower) ||
+            envStaffEmails.includes(emailLower)) {
+          accessOk = true;
+        }
+      } catch (_) {/* defensive */}
+    }
 
     if (!accessOk) {
       return res.status(403).json({ error: 'Access denied for this conversation.' });

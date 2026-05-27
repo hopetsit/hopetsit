@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -58,6 +59,14 @@ class LiveMapService extends GetxService {
   final RxBool broadcasting = false.obs;
 
   Timer? _broadcastTicker;
+  // v23.1 part 238 — Daniel : "suivre famille sa me donne pas la bonne
+  // position". v237 fix utilisait _userPosition mais NE LE RAFRAICHIT
+  // PAS pendant le broadcast (le user bouge, la position emise reste
+  // l'initiale). FIX : on s'abonne au stream Geolocator continu pendant
+  // le broadcast. Chaque mise a jour GPS = nouveau dernier-known stocke,
+  // utilise par le ticker 10s + le _emitPosition immediate.
+  StreamSubscription<Position>? _gpsSub;
+  LatLng? _lastKnownGps;
 
   /// Register socket listeners — idempotent.
   void attach() {
@@ -99,16 +108,49 @@ class LiveMapService extends GetxService {
 
   /// Start broadcasting my position to friends. Call [stopBroadcasting] when
   /// the user leaves the map or toggles sharing off.
+  ///
+  /// v23.1 part 238 — Daniel : "suivre famille sa me donne pas la bonne
+  /// position". On ne se base plus sur la closure `latestPosition`
+  /// (qui pouvait pointer sur le map center, pas le GPS reel). A la
+  /// place, on s'abonne au stream Geolocator continu qui pousse une
+  /// nouvelle position des que l'OS detecte un deplacement de >5m.
+  /// Le ticker 10s lit cette derniere position GPS connue → le broadcast
+  /// suit en TEMPS REEL les deplacements de l'user, meme s'il bouge
+  /// rapidement entre 2 ticks.
+  ///
+  /// `latestPosition` est conserve en fallback si le stream GPS n'a pas
+  /// encore livre sa premiere position (cold start du LocationManager).
   void startBroadcasting(LatLng Function() latestPosition, {String? city}) {
     if (broadcasting.value) return;
     broadcasting.value = true;
 
+    // Init last known from the closure (typically _userPosition fresh).
+    final initial = latestPosition();
+    _lastKnownGps = initial;
+
+    // Subscribe to Geolocator stream — pushes every 5m of movement.
+    _gpsSub?.cancel();
+    try {
+      _gpsSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5, // notify every 5m moved
+        ),
+      ).listen((pos) {
+        _lastKnownGps = LatLng(pos.latitude, pos.longitude);
+      }, onError: (e) {
+        debugPrint('[LiveMap] GPS stream error: $e');
+      });
+    } catch (e) {
+      debugPrint('[LiveMap] failed to start GPS stream: $e');
+    }
+
     // Emit once immediately.
-    _emitPosition(latestPosition(), city: city);
-    // Then every 10s while broadcasting.
+    _emitPosition(initial, city: city);
+    // Then every 10s while broadcasting, using the latest GPS we know of.
     _broadcastTicker = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!broadcasting.value) return;
-      final pos = latestPosition();
+      final pos = _lastKnownGps ?? latestPosition();
       _emitPosition(pos, city: city);
     });
   }
@@ -116,6 +158,9 @@ class LiveMapService extends GetxService {
   void stopBroadcasting() {
     _broadcastTicker?.cancel();
     _broadcastTicker = null;
+    _gpsSub?.cancel();
+    _gpsSub = null;
+    _lastKnownGps = null;
     if (!broadcasting.value) return;
     broadcasting.value = false;
     final svc = Get.find<SocketService>();
