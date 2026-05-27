@@ -473,6 +473,92 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// v23.1 part 239 — Daniel : "voir la carte sa mouvre la carte google
+// dans la ville au lieu de mouvrir le paw map sur la position excat du
+// sitter". Endpoint qui retourne la position FRESH du peer de la
+// conversation (User.location.coordinates mis a jour par mapSocket
+// map:position-update toutes les 10s). Plus fiable que le metadata
+// lastLat/Lng du message (qui est fige au moment de la creation).
+//
+// Retourne :
+//   200 { lat, lng, peerId, peerRole } si trackable + position connue
+//   200 { lat: null, lng: null, peerId, peerRole } si trackable mais pas de pos
+//   403 si pas autorise (non-participant)
+//   404 si pas de peer trouve
+router.get('/:id/peer-position', requireAuth, async (req, res) => {
+  try {
+    const conv = await Conversation.findById(req.params.id).lean();
+    if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
+    const myId = String(req.user?.id || '');
+    const idStr = (v) => v ? (v._id ? v._id.toString() : v.toString()) : null;
+
+    // Resolve peer id + role.
+    let peerId = null;
+    let peerRole = null;
+    if (conv.friendChat === true && Array.isArray(conv.participants)) {
+      const isParticipant = conv.participants.some((p) => idStr(p.userId) === myId);
+      if (!isParticipant) {
+        return res.status(403).json({ error: 'Not a chat participant.' });
+      }
+      const other = conv.participants.find((p) => idStr(p.userId) !== myId);
+      if (other) {
+        peerId = idStr(other.userId);
+        peerRole = String(other.userModel || 'Owner').toLowerCase();
+      }
+    } else {
+      const ownerIdValue = idStr(conv.ownerId);
+      const sitterIdValue = idStr(conv.sitterId);
+      const walkerIdValue = idStr(conv.walkerId);
+      const isOwner = ownerIdValue === myId;
+      const isSitter = sitterIdValue === myId;
+      const isWalker = walkerIdValue === myId;
+      if (!isOwner && !isSitter && !isWalker) {
+        return res.status(403).json({ error: 'Not a chat participant.' });
+      }
+      if (isOwner) {
+        if (sitterIdValue) { peerId = sitterIdValue; peerRole = 'sitter'; }
+        else if (walkerIdValue) { peerId = walkerIdValue; peerRole = 'walker'; }
+      } else {
+        peerId = ownerIdValue;
+        peerRole = 'owner';
+      }
+    }
+
+    if (!peerId || !peerRole) {
+      return res.status(404).json({ error: 'No peer found in conversation.' });
+    }
+
+    // Load peer User doc + return last known position.
+    const ModelByRole = {
+      owner: require('../models/Owner'),
+      sitter: require('../models/Sitter'),
+      walker: require('../models/Walker'),
+    };
+    const PeerModel = ModelByRole[peerRole];
+    if (!PeerModel) {
+      return res.status(404).json({ error: 'Invalid peer role.' });
+    }
+    const peer = await PeerModel.findById(peerId).select('location').lean();
+    if (!peer) {
+      return res.status(404).json({ error: 'Peer not found.' });
+    }
+    const coords = peer.location?.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) {
+      return res.json({ lat: null, lng: null, peerId, peerRole });
+    }
+    return res.json({
+      lat: Number(coords[1]), // GeoJSON [lng, lat]
+      lng: Number(coords[0]),
+      peerId,
+      peerRole,
+      city: peer.location?.city || '',
+    });
+  } catch (e) {
+    logger.error('[conversations/peer-position]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // v23.1.182 — Daniel : "sa mouvre pas de balade en cour au lieu denvoyer
 // linviutation au walker ou sitter". Le bouton "Suivre en direct mon
 // animal" dans le chat doit pouvoir envoyer la demande même SANS booking

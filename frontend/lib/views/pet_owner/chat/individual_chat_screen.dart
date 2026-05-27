@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -204,14 +205,44 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     final bookingId = message.pawfollowBookingId;
     final fallbackLat = message.pawfollowLastLat;
     final fallbackLng = message.pawfollowLastLng;
+    // v23.1 part 239 — Daniel : "voir la carte sa mouvre la carte google
+    // dans la ville au lieu de mouvrir le paw map sur la position excat
+    // du sitter". Root cause = fallbackLat/Lng du metadata du message
+    // sont fixes au moment de la creation du message (souvent null ou
+    // ville). On refresh la position FRESH via /conversations/:id/
+    // peer-position qui lit User.location.coordinates mise a jour par
+    // mapSocket toutes les 10s. resolvedLat/Lng overrides fallback si dispo.
+    Future<({double? lat, double? lng})> resolveFresh() async {
+      try {
+        final api = Get.find<ApiClient>();
+        final r = await api.get(
+          '/conversations/${widget.conversationId}/peer-position',
+          requiresAuth: true,
+        );
+        if (r is Map) {
+          final rLat = r['lat'];
+          final rLng = r['lng'];
+          if (rLat is num && rLng is num) {
+            return (lat: rLat.toDouble(), lng: rLng.toDouble());
+          }
+        }
+      } catch (_) {/* defensive */}
+      return (lat: fallbackLat, lng: fallbackLng);
+    }
+
     VoidCallback? openMap;
     if (message.pawfollowStatus == 'accepted') {
       openMap = () async {
+        // v23.1 part 239 — on resolve la position FRESH AVANT d'ouvrir
+        // la carte. Si l'API repond, on utilise sa position en priorite.
+        final fresh = await resolveFresh();
+        final useLat = fresh.lat ?? fallbackLat;
+        final useLng = fresh.lng ?? fallbackLng;
         if (bookingId.isNotEmpty) {
           Get.to(() => LiveWalkMapScreen(
                 bookingId: bookingId,
-                fallbackLat: fallbackLat,
-                fallbackLng: fallbackLng,
+                fallbackLat: useLat,
+                fallbackLng: useLng,
                 contactName: widget.contactName,
               ));
         } else {
@@ -233,27 +264,26 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
             if (candidate != null) {
               Get.to(() => LiveWalkMapScreen(
                     bookingId: candidate.id,
-                    fallbackLat: fallbackLat,
-                    fallbackLng: fallbackLng,
+                    // v23.1 part 239 — useLat/useLng = position FRESH (DB),
+                    // fallback metadata si l'API a echoue.
+                    fallbackLat: useLat,
+                    fallbackLng: useLng,
                     contactName: widget.contactName,
                   ));
             } else {
-              // v23.1 part 237 — Daniel : "qd tu clic sur message follow
-              // animal sa tenvoi sur lendroi du sitter ou walker pour le
-              // follow". Fallback PawMap centree sur la derniere position
-              // connue du provider (lastLat/lastLng du metadata message)
-              // au lieu de la position du user. Comme ca on voit OU est
-              // le walker/sitter avec mon animal.
+              // v23.1 part 239 — PawMap centree sur position FRESH du
+              // provider (recuperee via /friends/:id/last-position avant
+              // l'ouverture).
               Get.to(() => PawMapScreen(
-                    initialLat: fallbackLat,
-                    initialLng: fallbackLng,
+                    initialLat: useLat,
+                    initialLng: useLng,
                   ));
             }
           } catch (_) {
-            // v23.1 part 237 — meme fallback PawMap centree provider.
+            // v23.1 part 239 — meme fallback PawMap centree provider FRESH.
             Get.to(() => PawMapScreen(
-                  initialLat: fallbackLat,
-                  initialLng: fallbackLng,
+                  initialLat: useLat,
+                  initialLng: useLng,
                 ));
           }
         }

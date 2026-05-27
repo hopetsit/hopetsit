@@ -1023,6 +1023,108 @@ router.get('/:id/track-access', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /friends/:id/last-position
+ *
+ * v23.1 part 239 — Daniel : "voir position live je clic sur witoulek qui
+ * est a murcia et sa me met ma geolocalisation a pego" + "voir la carte
+ * sa mouvre la carte google dans la ville au lieu de mouvrir le paw map
+ * sur la position excat du sitter".
+ *
+ * Endpoint qui retourne la DERNIERE position GPS connue d'un ami/famille
+ * (lue depuis User.location.coordinates, mise a jour par mapSocket
+ * map:position-update toutes les 10s). Permet a Daniel de retrouver
+ * la position EXACTE et FRAICHE d'un ami au lieu du fallback metadata
+ * stocke dans le message (qui peut etre stale ou la mauvaise position).
+ *
+ * Reponse :
+ *   200 { lat, lng, at } si trackable + position connue
+ *   200 { lat: null, lng: null } si trackable mais pas de position
+ *   403 { error: ... } si pas autorise (pas amis, pas meme famille, etc.)
+ */
+router.get('/:id/last-position', requireAuth, async (req, res) => {
+  try {
+    const user = me(req);
+    const otherId = req.params.id;
+    if (!otherId) return res.status(400).json({ error: 'Friend id required.' });
+
+    // Reuse the track-access logic for security.
+    const friendship = await Friendship.findOne({
+      status: 'accepted',
+      $or: [
+        { requesterId: user.id, addresseeId: otherId },
+        { requesterId: otherId, addresseeId: user.id },
+      ],
+    }).lean();
+
+    let canTrack = false;
+    if (friendship) {
+      // Family bypass.
+      try {
+        if (await isInSameFamily(user.id, otherId)) canTrack = true;
+      } catch (_) {/* */}
+      // PawFollow bypass (mine OR other's).
+      if (!canTrack) {
+        try {
+          const { hasActivePawFollow } = require('../models/UserSubscription');
+          const [mine, other] = await Promise.all([
+            hasActivePawFollow(user.id),
+            hasActivePawFollow(otherId),
+          ]);
+          if (mine || other) canTrack = true;
+        } catch (_) {/* */}
+      }
+      // Per-friendship share flag.
+      if (!canTrack) {
+        const shares =
+          (String(friendship.requesterId) === String(otherId) &&
+            friendship.requesterSharesPosition === true) ||
+          (String(friendship.addresseeId) === String(otherId) &&
+            friendship.addresseeSharesPosition === true);
+        if (shares) canTrack = true;
+      }
+    }
+
+    if (!canTrack) {
+      return res.status(403).json({
+        error: 'Not authorized to track this user.',
+        canTrack: false,
+      });
+    }
+
+    // Determine the other's model (Owner/Sitter/Walker) by querying each.
+    let otherDoc = null;
+    let otherModel = null;
+    const Owner = require('../models/Owner');
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    for (const [Model, name] of [[Owner, 'Owner'], [Sitter, 'Sitter'], [Walker, 'Walker']]) {
+      try {
+        const doc = await Model.findById(otherId).select('location').lean();
+        if (doc) { otherDoc = doc; otherModel = name; break; }
+      } catch (_) {/* */}
+    }
+    if (!otherDoc) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const coords = otherDoc.location?.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) {
+      return res.json({ lat: null, lng: null, otherModel });
+    }
+    // GeoJSON stores [lng, lat]
+    return res.json({
+      lat: Number(coords[1]),
+      lng: Number(coords[0]),
+      otherModel,
+      city: otherDoc.location?.city || '',
+    });
+  } catch (e) {
+    logger.error('[friends/last-position]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * GET /friends/family/members
  * Liste les membres de MA famille PawFollow + retourne mon statut titulaire.
  * Format de réponse :

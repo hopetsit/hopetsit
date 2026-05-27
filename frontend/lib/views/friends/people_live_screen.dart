@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -108,7 +110,53 @@ class PeopleLiveScreen extends StatelessWidget {
                   const Color(0xFF8B5CF6);
               return InkWell(
                 borderRadius: BorderRadius.circular(16.r),
-                onTap: () => Get.to(() => const PawMapScreen()),
+                // v23.1 part 239 — Daniel : "je clic sur witoulek qui est
+                // a murcia et sa me met ma geolocalisation a pego". Root
+                // cause : PawMapScreen ouverte sans initialLat/Lng →
+                // centre sur la position du user au lieu de l'ami.
+                // Fix : on lit la derniere position broadcast de l'ami
+                // depuis LiveMapService.friendPositions (event socket
+                // map:friend-position) et on passe ces coords a PawMap.
+                onTap: () async {
+                  double? lat;
+                  double? lng;
+                  // 1) Try real-time socket position (most fresh).
+                  try {
+                    final svc = Get.isRegistered<LiveMapService>()
+                        ? Get.find<LiveMapService>()
+                        : null;
+                    final pos = svc?.friendPositions[other.id];
+                    if (pos != null) {
+                      lat = pos.latitude;
+                      lng = pos.longitude;
+                    }
+                  } catch (_) {/* defensive */}
+                  // 2) Fallback to DB position via /friends/:id/last-position
+                  // (v23.1 part 239 — Daniel : witoulek pas vu en live →
+                  // friendPositions vide → fallback DB qui retourne sa
+                  // derniere position broadcastee).
+                  if (lat == null || lng == null) {
+                    try {
+                      final api = Get.find<ApiClient>();
+                      final r = await api.get(
+                        '/friends/${other.id}/last-position',
+                        requiresAuth: true,
+                      );
+                      if (r is Map) {
+                        final rLat = r['lat'];
+                        final rLng = r['lng'];
+                        if (rLat is num && rLng is num) {
+                          lat = rLat.toDouble();
+                          lng = rLng.toDouble();
+                        }
+                      }
+                    } catch (_) {/* defensive — open PawMap centered on user */}
+                  }
+                  Get.to(() => PawMapScreen(
+                        initialLat: lat,
+                        initialLng: lng,
+                      ));
+                },
                 child: Container(
                   padding: EdgeInsets.all(12.w),
                   decoration: BoxDecoration(
