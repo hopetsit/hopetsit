@@ -186,15 +186,24 @@ class ChatController extends GetxController {
       if (!_socketService.isConnected) {
         await _socketService.connect();
       }
-      // Listen for new messages
-      _socketService.onNewMessage((messageData) {
-        _handleNewMessage(messageData);
-      });
-      // v20.0.19 — listen for soft-delete events so the other party sees the
-      // "message deleted" placeholder appear in real time (no refresh needed).
-      _socketService.onMessageDeleted((payload) {
-        _handleMessageDeleted(payload);
-      });
+      // v23.1 part 242 — Daniel : "je veux que les message et demande
+      // aparaisse sur lapplication instatanement, que jai pas besoin de
+      // mettre a jour la page". Avant : onNewMessage etait appele UNE
+      // SEULE FOIS au _initializeSocket. Si la socket disconnect/reconnect
+      // (background → foreground), le listener etait perdu jusqu'a ce
+      // que l'user reouvre le chat. Fix : on enregistre les listeners
+      // via addOnConnectedHook → garanti re-attachement a chaque connect.
+      void wireListeners() {
+        _socketService.onNewMessage((messageData) {
+          _handleNewMessage(messageData);
+        });
+        _socketService.onMessageDeleted((payload) {
+          _handleMessageDeleted(payload);
+        });
+      }
+
+      wireListeners(); // immediate si socket deja UP
+      _socketService.addOnConnectedHook(wireListeners); // re-attach on reconnect
     } catch (e) {
       AppLogger.logError('Failed to initialize socket', error: e);
       final errorMessageStr = e.toString();
@@ -301,6 +310,54 @@ class ChatController extends GetxController {
           }
         } catch (_) { /* noop */ }
       }
+
+      // v23.1 part 242 — Daniel : "messages et demandes instatanement
+      // sans avoir a mettre a jour". Update la conversations LIST aussi :
+      //   - si la conv existe → update lastMessage + bump unreadCount +
+      //     move to top (Whatsapp-like)
+      //   - si pas dans la liste (nouvelle conv) → reloadConversations()
+      // pour la voir apparaitre sans manual refresh. Avant : un nouveau
+      // message pour une conv non-ouverte ne bumpait que le badge global
+      // → user ne voyait pas l'aperçu / dernier message bouger dans la
+      // liste tant qu'il ne refresh pas.
+      try {
+        final raw = messageData['message'] is Map<String, dynamic>
+            ? Map<String, dynamic>.from(messageData['message'] as Map)
+            : messageData;
+        final msgConvId =
+            messageData['conversationId']?.toString() ??
+            messageData['conversation']?['id']?.toString() ??
+            '';
+        if (msgConvId.isEmpty) return;
+        final body = (raw['body'] ?? raw['message'] ?? '').toString();
+        final senderIdForList =
+            raw['senderId']?.toString() ??
+            (raw['sender'] is Map ? (raw['sender'] as Map)['_id']?.toString() : null) ??
+            '';
+        final isFromOther = senderIdForList.isNotEmpty && senderIdForList != userId;
+        final idx = conversations.indexWhere((c) => c.id == msgConvId);
+        if (idx >= 0) {
+          final existing = conversations[idx];
+          final updated = ChatConversation(
+            id: existing.id,
+            contactName: existing.contactName,
+            contactImage: existing.contactImage,
+            lastMessage: body.isNotEmpty ? body : existing.lastMessage,
+            lastMessageTime: DateTime.now(),
+            isOnline: existing.isOnline,
+            unreadCount: isFromOther && msgConvId != currentChatId.value
+                ? existing.unreadCount + 1
+                : existing.unreadCount,
+          );
+          // Remove + insert at top to bring conv to the top of the list.
+          conversations.removeAt(idx);
+          conversations.insert(0, updated);
+        } else {
+          // Conversation pas encore en cache → reload (couvre les
+          // nouvelles convs qui apparaissent en temps reel).
+          _loadConversations();
+        }
+      } catch (_) {/* defensive — never crash on real-time path */}
     } catch (e) {
       AppLogger.logError('Error handling new message from socket', error: e);
     }

@@ -32,20 +32,32 @@ class FriendController extends GetxController {
   void _attachFriendSocketListeners() {
     try {
       final s = Get.find<SocketService>();
-      // Le pattern .off avant .on évite le leak listeners au reconnect
-      // (cf. fix v205 dans socket_service.dart).
-      s.socket?.off('friend_request:accepted');
-      s.socket?.on('friend_request:accepted', (_) {
-        debugPrint('[Friends] socket friend_request:accepted → refresh');
-        refresh();
-      });
-      // notification.new couvre les 2 directions (received + accepted)
-      // si les events directs sont manqués (offline → push notif).
-      s.socket?.off('friend_request:received');
-      s.socket?.on('friend_request:received', (_) {
-        debugPrint('[Friends] socket friend_request:received → refresh');
-        loadRequests();
-      });
+      // v23.1 part 242 — Daniel : "messages et demandes instantanement
+      // sans avoir a mettre a jour". Avant : on attachait les listeners
+      // UNE FOIS au onInit avec s.socket?.on(...) → si la socket n'etait
+      // pas encore connectee (cold start), socket==null → listeners
+      // jamais attaches. Pareil sur reconnect background→fg : les
+      // listeners etaient perdus. Fix : on enregistre via
+      // addOnConnectedHook → re-attache automatiquement a chaque (re)
+      // connect socket. Bonus : si la socket est deja UP, addOnConnectedHook
+      // fire le callback immediatement (cf SocketService impl).
+      void wireFriendListeners() {
+        final socket = s.socket;
+        if (socket == null) return;
+        socket.off('friend_request:accepted');
+        socket.on('friend_request:accepted', (_) {
+          debugPrint('[Friends] socket friend_request:accepted → refresh');
+          refresh();
+        });
+        socket.off('friend_request:received');
+        socket.on('friend_request:received', (_) {
+          debugPrint('[Friends] socket friend_request:received → refresh');
+          loadRequests();
+        });
+      }
+
+      wireFriendListeners();
+      s.addOnConnectedHook(wireFriendListeners);
     } catch (e) {
       debugPrint('[Friends] could not attach socket listeners: $e');
     }

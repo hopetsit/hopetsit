@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/chat_controller.dart';
+import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
 import 'package:hopetsit/views/pet_owner/home/home_screen.dart';
@@ -53,6 +57,23 @@ class _BottomNavWrapperState extends State<BottomNavWrapper> {
     // pour emettre map:identify a chaque (re)connect socket.
     if (!Get.isRegistered<LiveMapService>()) {
       Get.put(LiveMapService(), permanent: true);
+    }
+
+    // v23.1 part 242 — Daniel : "messages et demandes apparaissent
+    // instantanement sans avoir a mettre a jour". Pour que les socket
+    // listeners de ChatController + FriendController soient actifs DES
+    // le boot (et pas seulement quand l'user ouvre l'ecran Chat ou
+    // Friends), on register les 2 controllers en permanent ici. Du coup
+    // les events friend_request:received / message:new bumpent l'UI
+    // meme si l'user est sur Home / PawMap / autre tab.
+    if (!Get.isRegistered<ChatController>()) {
+      Get.put(
+        ChatController(Get.find<ChatRepository>(), storage: Get.find<GetStorage>()),
+        permanent: true,
+      );
+    }
+    if (!Get.isRegistered<FriendController>()) {
+      Get.put(FriendController(), permanent: true);
     }
 
     // Ensure sitters refresh on every owner login.

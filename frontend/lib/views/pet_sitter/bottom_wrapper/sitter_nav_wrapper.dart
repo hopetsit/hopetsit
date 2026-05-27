@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
+import 'package:hopetsit/controllers/sitter_chat_controller.dart';
+import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/views/pet_sitter/home/sitter_homescreen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
@@ -35,6 +39,20 @@ class _SitterNavWrapperState extends State<SitterNavWrapper> {
     // Cf bottom_nav_wrapper.dart pour l'explication detaillee.
     if (!Get.isRegistered<LiveMapService>()) {
       Get.put(LiveMapService(), permanent: true);
+    }
+    // v23.1 part 242 — messages + demandes temps reel.
+    // Cf bottom_nav_wrapper.dart pour l'explication.
+    if (!Get.isRegistered<SitterChatController>()) {
+      Get.put(
+        SitterChatController(
+          Get.find<ChatRepository>(),
+          storage: Get.find<GetStorage>(),
+        ),
+        permanent: true,
+      );
+    }
+    if (!Get.isRegistered<FriendController>()) {
+      Get.put(FriendController(), permanent: true);
     }
   }
 

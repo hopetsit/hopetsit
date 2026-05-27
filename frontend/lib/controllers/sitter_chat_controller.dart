@@ -178,16 +178,20 @@ class SitterChatController extends GetxController {
       if (!_socketService.isConnected) {
         await _socketService.connect();
       }
-      // Listen for new messages
-      _socketService.onNewMessage((messageData) {
-        _handleNewMessage(messageData);
-      });
-      // v20.0.19 — listen for soft-delete so the UI updates in real time on
-      // the other party's chat screen when someone deletes one of their
-      // messages.
-      _socketService.onMessageDeleted((payload) {
-        _handleMessageDeleted(payload);
-      });
+      // v23.1 part 242 — re-attach socket listeners on every (re)connect
+      // pour que les messages arrivent instantanement meme apres un
+      // background → foreground (cf chat_controller.dart pour explication).
+      void wireListeners() {
+        _socketService.onNewMessage((messageData) {
+          _handleNewMessage(messageData);
+        });
+        _socketService.onMessageDeleted((payload) {
+          _handleMessageDeleted(payload);
+        });
+      }
+
+      wireListeners();
+      _socketService.addOnConnectedHook(wireListeners);
     } catch (e) {
       AppLogger.logError('Failed to initialize socket', error: e);
       final errorMessageStr = e.toString();
@@ -288,6 +292,47 @@ class SitterChatController extends GetxController {
           }
         } catch (_) { /* noop */ }
       }
+
+      // v23.1 part 242 — Update conversations LIST aussi (Whatsapp-like).
+      // Cf chat_controller.dart pour l'explication detaillee. Resultat :
+      // le sitter/walker voit la conv bumper au top + last message preview
+      // mis a jour en temps reel, sans avoir a refresh.
+      try {
+        final raw = messageData['message'] is Map<String, dynamic>
+            ? Map<String, dynamic>.from(messageData['message'] as Map)
+            : messageData;
+        final msgConvId =
+            messageData['conversationId']?.toString() ??
+            messageData['conversation']?['id']?.toString() ??
+            '';
+        if (msgConvId.isEmpty) return;
+        final body = (raw['body'] ?? raw['message'] ?? '').toString();
+        final senderIdForList =
+            raw['senderId']?.toString() ??
+            (raw['sender'] is Map ? (raw['sender'] as Map)['_id']?.toString() : null) ??
+            '';
+        final isFromOther = senderIdForList.isNotEmpty && senderIdForList != userId;
+        final idx = conversations.indexWhere((c) => c.id == msgConvId);
+        if (idx >= 0) {
+          final existing = conversations[idx];
+          final updated = SitterChatConversation(
+            id: existing.id,
+            contactName: existing.contactName,
+            contactImage: existing.contactImage,
+            lastMessage: body.isNotEmpty ? body : existing.lastMessage,
+            lastMessageTime: DateTime.now(),
+            isOnline: existing.isOnline,
+            unreadCount: isFromOther && msgConvId != currentChatId.value
+                ? existing.unreadCount + 1
+                : existing.unreadCount,
+          );
+          conversations.removeAt(idx);
+          conversations.insert(0, updated);
+        } else {
+          // Nouvelle conv pas encore en cache → reload.
+          _loadConversations();
+        }
+      } catch (_) {/* defensive */}
     } catch (e) {
       AppLogger.logError('Error handling new message from socket', error: e);
     }
