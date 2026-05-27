@@ -632,7 +632,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
     // v19.1.5 — refresh GPS FIRST, then zoom. Before this fix we used the
     // stale `_currentCenter` which could be the last panned position on the
     // map (parfois "à côté" de l'utilisateur réel).
-    LatLng target = _currentCenter;
+    // v23.1 part 237 — Daniel : "action rapide me suivre a regler".
+    // Bug : _currentCenter etait mis a jour par le pan utilisateur (ligne
+    // 602) → broadcast suivait la map center pas le GPS reel. Fix : on
+    // met a jour _userPosition (cible immobile = vrai GPS) et le broadcast
+    // closure lit _userPosition au lieu de _currentCenter.
+    LatLng target = _userPosition ?? _currentCenter;
     try {
       final loc = await LocationService()
           .getCurrentLocation()
@@ -640,14 +645,20 @@ class _PawMapScreenState extends State<PawMapScreen> {
       if (loc != null) {
         target = LatLng(loc.latitude, loc.longitude);
         if (mounted) {
-          setState(() => _currentCenter = target);
+          setState(() {
+            _currentCenter = target;
+            _userPosition = target; // v237 : ce que le broadcast doit suivre.
+          });
         }
       }
     } catch (_) {
-      // GPS indispo → on garde l'ancien _currentCenter.
+      // GPS indispo → on garde l'ancien _userPosition.
     }
 
-    _liveMap.startBroadcasting(() => _currentCenter);
+    // v23.1 part 237 — broadcast suit _userPosition (GPS reel) au lieu de
+    // _currentCenter (qui derive avec le pan). Les amis recoivent ainsi
+    // VRAIMENT la position GPS de Daniel, pas son map center.
+    _liveMap.startBroadcasting(() => _userPosition ?? _currentCenter);
     CustomSnackbar.showSuccess(
       title: 'pawmap_snack_tracking_on_title'.tr,
       message: 'pawmap_snack_tracking_on_msg'.tr,

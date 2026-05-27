@@ -238,12 +238,23 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                     contactName: widget.contactName,
                   ));
             } else {
-              // Ultime fallback : PawMap globale (l'owner verra ses
-              // bookings actifs depuis la carte).
-              Get.to(() => const PawMapScreen());
+              // v23.1 part 237 — Daniel : "qd tu clic sur message follow
+              // animal sa tenvoi sur lendroi du sitter ou walker pour le
+              // follow". Fallback PawMap centree sur la derniere position
+              // connue du provider (lastLat/lastLng du metadata message)
+              // au lieu de la position du user. Comme ca on voit OU est
+              // le walker/sitter avec mon animal.
+              Get.to(() => PawMapScreen(
+                    initialLat: fallbackLat,
+                    initialLng: fallbackLng,
+                  ));
             }
           } catch (_) {
-            Get.to(() => const PawMapScreen());
+            // v23.1 part 237 — meme fallback PawMap centree provider.
+            Get.to(() => PawMapScreen(
+                  initialLat: fallbackLat,
+                  initialLng: fallbackLng,
+                ));
           }
         }
       };
