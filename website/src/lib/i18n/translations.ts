@@ -344,6 +344,11 @@ export const t: Bundle = {
     chat_empty_state:                 "No conversation yet.",
     chat_delete_btn:                  "Delete conversation",
     chat_delete_confirm:              "Delete this conversation permanently? This will remove every message for both sides.",
+    // v23.1 part 248b — New conversation modal friend picker
+    chat_new_conversation_btn:        "New chat",
+    chat_new_conv_modal_title:        "Start a chat with…",
+    chat_new_conv_modal_empty:        "You don't have friends yet. Add some from the mobile app first.",
+    chat_new_conv_modal_close:        "Close",
   },
 
   fr: {
@@ -648,6 +653,11 @@ export const t: Bundle = {
     chat_empty_state:                 "Aucune conversation pour le moment.",
     chat_delete_btn:                  "Effacer la conversation",
     chat_delete_confirm:              "Effacer définitivement cette conversation ? Tous les messages seront supprimés pour les deux côtés.",
+    // v23.1 part 248b — Modale "Nouvelle conversation" avec sélection ami
+    chat_new_conversation_btn:        "Nouvelle conversation",
+    chat_new_conv_modal_title:        "Démarrer un chat avec…",
+    chat_new_conv_modal_empty:        "Vous n'avez pas encore d'amis. Ajoutez-en depuis l'app mobile d'abord.",
+    chat_new_conv_modal_close:        "Fermer",
   },
 
   es: {
@@ -839,6 +849,11 @@ export const t: Bundle = {
     chat_empty_state:                 "Aún no hay conversaciones.",
     chat_delete_btn:                  "Borrar conversación",
     chat_delete_confirm:              "¿Borrar esta conversación de forma permanente? Se eliminarán todos los mensajes para ambos lados.",
+    // v23.1 part 248b — Modal "Nueva conversación" con selección de amigo
+    chat_new_conversation_btn:        "Nueva conversación",
+    chat_new_conv_modal_title:        "Iniciar un chat con…",
+    chat_new_conv_modal_empty:        "Aún no tienes amigos. Añade alguno desde la app móvil primero.",
+    chat_new_conv_modal_close:        "Cerrar",
   },
 
   de: {
@@ -1029,6 +1044,11 @@ export const t: Bundle = {
     chat_empty_state:                 "Noch keine Unterhaltung.",
     chat_delete_btn:                  "Unterhaltung löschen",
     chat_delete_confirm:              "Diese Unterhaltung endgültig löschen? Alle Nachrichten werden für beide Seiten entfernt.",
+    // v23.1 part 248b — Modal "Neuer Chat" mit Freundauswahl
+    chat_new_conversation_btn:        "Neuer Chat",
+    chat_new_conv_modal_title:        "Chat starten mit…",
+    chat_new_conv_modal_empty:        "Du hast noch keine Freunde. Füge zuerst welche in der mobilen App hinzu.",
+    chat_new_conv_modal_close:        "Schließen",
   },
 
   it: {
@@ -1219,6 +1239,11 @@ export const t: Bundle = {
     chat_empty_state:                 "Ancora nessuna conversazione.",
     chat_delete_btn:                  "Elimina conversazione",
     chat_delete_confirm:              "Eliminare definitivamente questa conversazione? Tutti i messaggi saranno rimossi per entrambi i lati.",
+    // v23.1 part 248b — Modale "Nuova conversazione" con scelta amico
+    chat_new_conversation_btn:        "Nuova conversazione",
+    chat_new_conv_modal_title:        "Avvia una chat con…",
+    chat_new_conv_modal_empty:        "Non hai ancora amici. Aggiungine qualcuno dall'app mobile prima.",
+    chat_new_conv_modal_close:        "Chiudi",
   },
 
   pt: {
@@ -1409,5 +1434,10 @@ export const t: Bundle = {
     chat_empty_state:                 "Ainda sem conversas.",
     chat_delete_btn:                  "Apagar conversa",
     chat_delete_confirm:              "Apagar esta conversa permanentemente? Todas as mensagens serão removidas para ambos os lados.",
+    // v23.1 part 248b — Modal "Nova conversa" com escolha de amigo
+    chat_new_conversation_btn:        "Nova conversa",
+    chat_new_conv_modal_title:        "Iniciar uma conversa com…",
+    chat_new_conv_modal_empty:        "Ainda não tens amigos. Adiciona alguns na app móvel primeiro.",
+    chat_new_conv_modal_close:        "Fechar",
   },
 };

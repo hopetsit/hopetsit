@@ -11,13 +11,17 @@ import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import {
   ApiError,
+  AuthRole,
   ChatMessage,
   Conversation,
   deleteConversation,
+  FriendItem,
   getConversations,
   getMessages,
+  getMyFriends,
   getStoredUser,
   sendMessage,
+  startFriendConversation,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { getSocket } from "@/lib/socket";
@@ -34,6 +38,15 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // v23.1 part 248b — Modal "Nouvelle conversation" : Daniel veut
+  // choisir un ami pour ouvrir un chat direct avec lui (au lieu d'etre
+  // redirige sur /friends/live). On lazy-load les amis a l'ouverture
+  // du modal pour eviter une requete inutile sur les visites /chat
+  // qui ne touchent pas au bouton.
+  const [showNewConvModal, setShowNewConvModal] = useState(false);
+  const [friends, setFriends] = useState<FriendItem[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [startingChatWith, setStartingChatWith] = useState<string | null>(null);
 
   // v23.1 part 146 — assure que le socket est créé même si l'user arrive
   // directement sur /chat sans passer par /dashboard.
@@ -178,6 +191,61 @@ export default function ChatPage() {
     }
   }
 
+  // v23.1 part 248b — Daniel : "le bouton ... il faut quil ouvre un chat
+  // avec un amis qui choisis". Ouvre la modale + charge la friend list.
+  async function handleOpenNewConvModal() {
+    setShowNewConvModal(true);
+    if (friends.length === 0) {
+      setLoadingFriends(true);
+      try {
+        const list = await getMyFriends();
+        // Filtre : seuls les amis acceptes non supprimes, et qu'on n'a
+        // pas DEJA en conversation (sinon doublon, l'user devrait juste
+        // cliquer sur la conv existante).
+        const accepted = list.filter(
+          (f) => f.status === "accepted" && !f.other?.deleted && f.other?.id,
+        );
+        setFriends(accepted);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Failed to load friends");
+      } finally {
+        setLoadingFriends(false);
+      }
+    }
+  }
+
+  async function handlePickFriend(friend: FriendItem) {
+    if (!friend.other?.id || startingChatWith) return;
+    setStartingChatWith(friend.other.id);
+    try {
+      const role = (friend.other.model || "Owner").toLowerCase() as AuthRole;
+      const { conversationId } = await startFriendConversation({
+        targetUserId: friend.other.id,
+        targetUserRole: role,
+      });
+      if (!conversationId) {
+        alert("Failed to start chat.");
+        return;
+      }
+      // Refresh la liste pour que la nouvelle conv apparaisse en haut.
+      const updated = await getConversations();
+      updated.sort((a, b) => {
+        const da = new Date(a.lastMessageAt || 0).getTime();
+        const db = new Date(b.lastMessageAt || 0).getTime();
+        return db - da;
+      });
+      setConversations(updated);
+      setShowNewConvModal(false);
+      // Ouvre la nouvelle conv directement (idempotent serveur-side :
+      // si la conv existait deja, on retombe simplement sur la meme).
+      openConversation(conversationId);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to start chat");
+    } finally {
+      setStartingChatWith(null);
+    }
+  }
+
   // v23.1 part 248 — Daniel : "dans messag il manque le bouton pour effacer
   // la conversation et nouvelle conversation". On wire les 2 actions.
   async function handleDeleteConversation(id: string) {
@@ -223,13 +291,14 @@ export default function ChatPage() {
           </h1>
           <p className="mt-2 text-ink-muted">{t("chat_page_subtitle")}</p>
         </div>
-        <Link
-          href="/friends/live"
+        <button
+          type="button"
+          onClick={handleOpenNewConvModal}
           className="inline-flex items-center gap-2 rounded-full bg-walker px-4 py-2 text-sm font-semibold text-white shadow-cta hover:bg-walker-dark"
         >
           <span aria-hidden="true">💬</span>
           <span>{t("chat_new_conversation_btn")}</span>
-        </Link>
+        </button>
       </div>
 
       {error && (
@@ -404,6 +473,113 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* v23.1 part 248b — Modal sélection ami pour nouvelle conv */}
+      {showNewConvModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowNewConvModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-extrabold">
+                {t("chat_new_conv_modal_title")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowNewConvModal(false)}
+                aria-label={t("chat_new_conv_modal_close")}
+                className="rounded-full p-1 text-ink-muted hover:bg-bg-soft hover:text-ink"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+              {loadingFriends ? (
+                <div className="py-8 text-center text-sm text-ink-muted">
+                  {t("common_loading")}
+                </div>
+              ) : friends.length === 0 ? (
+                <div className="rounded-xl bg-bg-soft px-4 py-8 text-center text-sm text-ink-muted">
+                  {t("chat_new_conv_modal_empty")}
+                </div>
+              ) : (
+                friends.map((f) => {
+                  const other = f.other;
+                  if (!other?.id) return null;
+                  const role = (other.model || "").toLowerCase();
+                  const isPicking = startingChatWith === other.id;
+                  const roleColor =
+                    role === "walker"
+                      ? "#16A34A"
+                      : role === "sitter"
+                        ? "#2563EB"
+                        : "#EF4324";
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      disabled={!!startingChatWith}
+                      onClick={() => handlePickFriend(f)}
+                      className="flex w-full items-center gap-3 rounded-xl border border-ink/5 bg-white px-3 py-2.5 text-left transition hover:border-walker hover:bg-walker/5 disabled:opacity-50"
+                    >
+                      <div
+                        className="grid h-10 w-10 flex-shrink-0 place-items-center overflow-hidden rounded-full"
+                        style={{ backgroundColor: roleColor }}
+                      >
+                        {other.avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={other.avatar}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-sm font-bold text-white">
+                            {(other.name || "?")
+                              .split(/\s+/)
+                              .map((w) => w[0] || "")
+                              .slice(0, 2)
+                              .join("")
+                              .toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {other.name || "Friend"}
+                        </p>
+                        <p className="text-xs capitalize text-ink-muted">
+                          {t(`role_${role || "owner"}`)}
+                        </p>
+                      </div>
+                      {isPicking && (
+                        <span className="text-xs text-ink-muted">…</span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

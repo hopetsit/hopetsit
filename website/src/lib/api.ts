@@ -868,6 +868,29 @@ export async function sendMessage(
   return raw.message;
 }
 
+// v23.1 part 248b — Daniel : "le bouton ... il faut quil ouvre un chat
+// avec un amis qui choisis". Helper qui hit POST /conversations/friend
+// avec { targetUserId, targetUserRole } et retourne la conversation id.
+// Le backend (v23.1.200) cree la conv friendChat ou retourne l'existante
+// si deja la (idempotent serveur-side). Status 200 si deja existante,
+// 201 si nouvelle — on traite les 2 pareil.
+export async function startFriendConversation(input: {
+  targetUserId: string;
+  targetUserRole: AuthRole;
+}): Promise<{ conversationId: string; existed: boolean }> {
+  const raw = await request<{
+    conversation: { id: string };
+    existed?: boolean;
+  }>(`/conversations/friend`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return {
+    conversationId: String(raw?.conversation?.id || ""),
+    existed: !!raw?.existed,
+  };
+}
+
 // v23.1 part 248 — Daniel : "dans messag il manque le bouton pour effacer
 // la conversation". Backend DELETE /conversations/:id existe depuis
 // v23.1 part 240 et supporte deja les friendChat (cf. la route conversation
