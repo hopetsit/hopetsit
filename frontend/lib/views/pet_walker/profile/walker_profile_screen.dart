@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/widgets/kyc_status_banner.dart';
+import 'package:hopetsit/widgets/my_kyc_verified_badge.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
@@ -163,33 +164,43 @@ class WalkerProfileScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Role badge.
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 10.w,
-                            vertical: 4.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20.r),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.directions_walk_rounded,
-                                size: 12.sp,
-                                color: Colors.white,
+                        // v23.1 part 247 — Daniel : "met un badge jolie".
+                        // Row contenant la role pill + le badge KYC verifie.
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Role badge.
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10.w,
+                                vertical: 4.h,
                               ),
-                              SizedBox(width: 4.w),
-                              InterText(
-                                text: 'role_pet_walker'.tr,
-                                fontSize: 10.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(20.r),
                               ),
-                            ],
-                          ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.directions_walk_rounded,
+                                    size: 12.sp,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: 4.w),
+                                  InterText(
+                                    text: 'role_pet_walker'.tr,
+                                    fontSize: 10.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 6.w),
+                            // v247 badge KYC reactive (auto-refresh sur tick).
+                            const MyKycVerifiedBadge(large: true),
+                          ],
                         ),
                         SizedBox(height: 10.h),
                         Obx(() => PoppinsText(

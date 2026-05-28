@@ -2643,6 +2643,9 @@ const Map<String, String> enUSTranslations = <String, String>{
     'friends_empty_subtitle': 'Add friends to see them live on the PawMap.',
     // v23.1 part 244c — chat list FAB.
     'chat_new_conversation_btn': 'New chat',
+    // v23.1 part 247 — KYC verified badge on sitter/walker profile.
+    'kyc_badge_verified': 'Verified',
+    'kyc_badge_verified_tooltip': 'Identity verified by Persona (ID scan + selfie).',
     'role_pet_walker': 'Dog walker',
     'role_pet_walker_desc': 'I walk dogs for their owners.',
     'auth_role_pet_walker': 'Dog walker',

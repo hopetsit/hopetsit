@@ -2420,6 +2420,9 @@ const Map<String, String> deDETranslations = <String, String>{
     'friends_empty_subtitle': 'Füge Freunde hinzu, um sie live auf der PawMap zu sehen.',
     // v23.1 part 244c — Chat-FAB.
     'chat_new_conversation_btn': 'Neuer Chat',
+    // v23.1 part 247 — KYC-Abzeichen verifiziert auf Sitter/Walker-Profil.
+    'kyc_badge_verified': 'Verifiziert',
+    'kyc_badge_verified_tooltip': 'Identität von Persona verifiziert (ID-Scan + Selfie).',
     'role_pet_walker': 'Gassigeher',
     'role_pet_walker_desc': 'Ich führe Hunde für ihre Besitzer aus.',
     'auth_role_pet_walker': 'Gassigeher',

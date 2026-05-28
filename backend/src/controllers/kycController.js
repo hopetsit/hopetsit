@@ -473,8 +473,93 @@ const getStatus = async (req, res) => {
     const role = (req.user.role || '').toLowerCase();
     const Model = _modelForRole(role);
     if (!Model) return res.status(403).json({ error: 'Only sitter or walker.' });
-    const user = await Model.findById(req.user.id).lean();
+    const user = await Model.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // v23.1 part 247 — Daniel : "jai bien verifier mon identiter sa la
+    // valider mais sa ne mas pas mis dans lapp ni identiter verifier".
+    //
+    // Root cause : le user a complete Persona avec succes mais le webhook
+    // /webhooks/persona n'a soit pas fire (sandbox lent), soit signature
+    // mismatch, soit notre serveur l'a manque. Resultat : kycStatus reste
+    // 'pending_verification' meme apres validation cote Persona.
+    //
+    // Fix : si on est en pending_verification et qu'on a un kycApplicantId,
+    // on POLL Persona en synchrone via getInquiry(). Si Persona retourne
+    // completed/approved -> on flip kycStatus = 'verified' direct ici,
+    // exactement comme le webhook l'aurait fait. Si decline/failed/expired
+    // -> 'rejected'. Le user revoit son badge des le prochain refresh.
+    //
+    // Throttle : on poll au max toutes les 30s pour eviter de hammer
+    // l'API Persona si le user spam /kyc/status. Le timestamp de derniere
+    // verif est stocke en RAM (cache process) — pas crucial qu'il soit
+    // persistant, c'est juste un soft limit.
+    if (
+      user.kycStatus === 'pending_verification' &&
+      user.kycApplicantId &&
+      _shouldPollPersona(user._id.toString())
+    ) {
+      try {
+        const inquiry = await persona.getInquiry(user.kycApplicantId);
+        const inqStatus = (inquiry?.data?.attributes?.status || '').toLowerCase();
+        const decisionStatus = (inquiry?.data?.attributes?.['decision-status'] || '').toLowerCase();
+        logger.info(
+          `[kyc.getStatus] poll persona for user=${user._id} ` +
+          `inquiryStatus=${inqStatus} decisionStatus=${decisionStatus}`,
+        );
+        let newStatus = null;
+        let rejectionReason = null;
+        if (inqStatus === 'approved' || inqStatus === 'completed') {
+          if (decisionStatus === 'declined') {
+            newStatus = 'rejected';
+            rejectionReason = 'Document or selfie verification failed.';
+          } else {
+            newStatus = 'verified';
+          }
+        } else if (inqStatus === 'declined' || inqStatus === 'failed') {
+          newStatus = 'rejected';
+          rejectionReason = 'Verification declined by Persona.';
+        } else if (inqStatus === 'expired') {
+          newStatus = 'rejected';
+          rejectionReason = 'Verification link expired.';
+        }
+        if (newStatus && newStatus !== user.kycStatus) {
+          const _persUpdate = {
+            kycStatus: newStatus,
+            kycRejectionReason: rejectionReason,
+          };
+          if (newStatus === 'verified') {
+            _persUpdate.kycVerifiedAt = new Date();
+            _persUpdate.verified = true;
+            user.kycVerifiedAt = _persUpdate.kycVerifiedAt;
+            user.verified = true;
+          }
+          await Model.updateOne({ _id: user._id }, { $set: _persUpdate });
+          user.kycStatus = newStatus;
+          user.kycRejectionReason = rejectionReason;
+          logger.info(
+            `✅ [kyc.getStatus.poll] ${role} ${user._id} → kycStatus=${newStatus} ` +
+            `(webhook fallback)`,
+          );
+          // Notif push.
+          try {
+            const { sendNotification } = require('../services/notificationSender');
+            const notifType = newStatus === 'verified' ? 'kyc_verified' : 'kyc_rejected';
+            sendNotification({
+              userId: user._id.toString(),
+              role,
+              type: notifType,
+              data: { kycStatus: newStatus, reason: rejectionReason },
+              actor: { role: 'system', id: null },
+            }).catch(() => {});
+          } catch (_) { /* noop */ }
+        }
+      } catch (pollErr) {
+        // Best-effort poll — on logue mais on continue, on retourne le
+        // status DB tel quel.
+        logger.warn(`[kyc.getStatus.poll] persona poll failed: ${pollErr.message}`);
+      }
+    }
 
     return res.json({
       kycStatus: user.kycStatus || 'none',
@@ -490,6 +575,19 @@ const getStatus = async (req, res) => {
     return res.status(500).json({ error: 'Unable to fetch KYC status.' });
   }
 };
+
+// v23.1 part 247 — throttle pour le poll Persona dans getStatus. Cache
+// process-level (pas persistant — redemarre serveur reset). 30s entre 2
+// polls par user. Suffit pour le polling /kyc/status frontend qui tape
+// au max 1x par seconde.
+const _personaPollCache = new Map();
+function _shouldPollPersona(userId) {
+  const now = Date.now();
+  const last = _personaPollCache.get(userId) || 0;
+  if (now - last < 30000) return false;
+  _personaPollCache.set(userId, now);
+  return true;
+}
 
 /**
  * v23.1 part 75 — POST /kyc/confirm-payment

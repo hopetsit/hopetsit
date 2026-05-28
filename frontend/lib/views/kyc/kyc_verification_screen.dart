@@ -9,6 +9,7 @@ import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 // v23.1 part 131 — image_picker + dart:io retirés (KYC manuel supprimé).
@@ -61,7 +62,21 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     try {
+      // v23.1 part 247 — capture l'ancien status pour detecter la
+      // transition pending -> verified et fire notifyChanged().
+      final prevStatus = (_status['kycStatus'] ?? 'none').toString();
       _status = await _repo.getStatus();
+      final newStatus = (_status['kycStatus'] ?? 'none').toString();
+      // Daniel : "sa la valider mais sa ne mas pas mis dans lapp ni
+      // identiter verifier ni le beau badge verifier". Cause : apres que
+      // le backend (v247 poll fallback) flippe kycStatus en 'verified',
+      // les autres widgets de l'app (KycStatusBanner sur profile, etc.)
+      // ne refresh pas car ils ecoutent ActiveBenefitsRow.refreshTick.
+      // On le poke ici manuellement -> tous les banners + badges
+      // refresh instantanement.
+      if (newStatus == 'verified' && prevStatus != 'verified') {
+        try { ActiveBenefitsRow.notifyChanged(); } catch (_) {/* defensive */}
+      }
     } catch (e) {
       AppLogger.logError('kyc.getStatus failed', error: e);
     } finally {
@@ -633,6 +648,66 @@ class _PersonaWebViewScreen extends StatefulWidget {
   State<_PersonaWebViewScreen> createState() => _PersonaWebViewScreenState();
 }
 
+// v23.1 part 247 — JS injecte apres chaque page load pour masquer la
+// banniere orange "You are in a Sandbox environment" de Persona. On
+// recherche tous les elements dont le texte contient "Sandbox environment"
+// (case-insensitive), on remonte jusqu'au parent banner (max 5 niveaux,
+// max 600 chars de texte) et on le hide. Idempotent : si la banniere
+// n'existe pas, ne fait rien. Resiste aux changements mineurs CSS Persona.
+const String _hidePersonaSandboxBannerJs = '''
+(function() {
+  try {
+    var hidden = 0;
+    var walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    var nodes = [];
+    var n;
+    while ((n = walker.nextNode())) {
+      var txt = (n.nodeValue || '').toLowerCase();
+      if (
+        txt.indexOf('sandbox environment') !== -1 ||
+        txt.indexOf('environment is for testing') !== -1
+      ) {
+        nodes.push(n);
+      }
+    }
+    nodes.forEach(function(node) {
+      var p = node.parentElement;
+      var lvl = 0;
+      while (p && lvl < 6) {
+        var text = (p.textContent || '');
+        if (
+          text.length < 800 &&
+          (text.toLowerCase().indexOf('sandbox environment') !== -1 ||
+           text.toLowerCase().indexOf('environment is for testing') !== -1)
+        ) {
+          p.style.setProperty('display', 'none', 'important');
+          p.style.setProperty('visibility', 'hidden', 'important');
+          p.style.setProperty('height', '0', 'important');
+          hidden++;
+          break;
+        }
+        p = p.parentElement;
+        lvl++;
+      }
+    });
+    // Re-run after 600ms pour catch les banners qui apparaissent en
+    // delayed (Persona SPA route changes).
+    if (!window.__hpt_persona_banner_obs) {
+      window.__hpt_persona_banner_obs = true;
+      setTimeout(function() {
+        var ev = new Event('hpt-rehide');
+        window.dispatchEvent(ev);
+      }, 600);
+    }
+  } catch (e) {/* defensive */}
+})();
+''';
+
 class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
   late final WebViewController _controller;
   bool _loading = true;
@@ -662,8 +737,22 @@ class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
         onPageStarted: (_) {
           if (mounted) setState(() => _loading = true);
         },
-        onPageFinished: (_) {
+        onPageFinished: (_) async {
           if (mounted) setState(() => _loading = false);
+          // v23.1 part 247 — Daniel screenshot : "dans lapp faite que ce
+          // message ne sorte pas". Persona affiche en haut une banniere
+          // orange "You are in a Sandbox environment" quand on est en
+          // sandbox mode. Pas possible de la desactiver cote Persona —
+          // on l'injecte hors-DOM via CSS apres chaque page load. Solution
+          // robuste : injecter une <style> qui hide tout banner avec
+          // class contenant 'sandbox' OU contenu texte "Sandbox env".
+          //
+          // NB : la VRAIE fix est de passer PERSONA_API_KEY de sandbox vers
+          // production sur Render. Tant qu'on reste en sandbox la banniere
+          // existe ; cette injection est un masque visuel cote user app.
+          try {
+            await _controller.runJavaScript(_hidePersonaSandboxBannerJs);
+          } catch (_) {/* defensive */}
         },
         onNavigationRequest: (request) {
           // Persona uses 'persona-callback://complete' or similar to signal done.

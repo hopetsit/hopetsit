@@ -2253,6 +2253,9 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'friends_empty_subtitle': 'Adiciona amigos para os veres em tempo real na PawMap.',
     // v23.1 part 244c — FAB chat.
     'chat_new_conversation_btn': 'Nova conversa',
+    // v23.1 part 247 — emblema KYC verificado no perfil sitter/walker.
+    'kyc_badge_verified': 'Verificado',
+    'kyc_badge_verified_tooltip': 'Identidade verificada pela Persona (digitalização ID + selfie).',
     'role_pet_walker': 'Passeador',
     'role_pet_walker_desc': 'Passeio cães pelos seus donos.',
     'auth_role_pet_walker': 'Passeador',

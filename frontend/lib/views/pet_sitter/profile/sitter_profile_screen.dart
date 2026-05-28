@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/widgets/kyc_status_banner.dart';
+import 'package:hopetsit/widgets/my_kyc_verified_badge.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -169,6 +170,12 @@ class SitterProfileScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
+                            // v23.1 part 247 — Daniel : "met un badge jolie".
+                            // Badge KYC verifie a cote de la role pill. Le widget
+                            // s'auto-update via /users/me/benefits + tick worker
+                            // declenche par notifyChanged() en fin de KYC.
+                            SizedBox(width: 6.w),
+                            const MyKycVerifiedBadge(large: true),
                           ],
                         ),
                         SizedBox(height: 8.h),
