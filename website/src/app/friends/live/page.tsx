@@ -71,8 +71,12 @@ export default function FriendsLivePage() {
 
         // Fetch en parallele les dernieres positions connues. Si l'ami a
         // coupe son toggle, /last-position renvoie 403 → on l'ignore.
-        const posResults = await Promise.all(
-          accepted.map(async (f) => {
+        // v23.1 part 244d — fix Vercel build TS error : `satisfies` ne
+        // widen pas le type, donc role: "walker"|"sitter"|"owner" reste
+        // narrow et le filter type-predicate FriendLivePosition (qui
+        // accepte aussi "family") refuse l'assignation. Cast explicite.
+        const posResults: (FriendLivePosition | null)[] = await Promise.all(
+          accepted.map(async (f): Promise<FriendLivePosition | null> => {
             if (!f.other?.id) return null;
             try {
               const p = await getFriendLastPosition(f.other.id);
@@ -85,7 +89,7 @@ export default function FriendsLivePage() {
                 lat: p.lat,
                 lng: p.lng,
                 at: new Date().toISOString(),
-              } satisfies FriendLivePosition;
+              };
             } catch {
               return null;
             }

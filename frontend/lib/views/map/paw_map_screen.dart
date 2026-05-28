@@ -180,6 +180,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     _friendController = Get.isRegistered<FriendController>()
         ? Get.find<FriendController>()
         : Get.put(FriendController());
+    // v23.1 part 244d — Daniel : "jai ajouter un walker a ma famille son
+    // halo ne cest pas changer". Root cause : la PawMap ne chargait pas
+    // la liste famille au mount → familyMembers.isEmpty → isFamily=false
+    // pour le walker → outline violet jamais ajoute. Maintenant on force
+    // un loadFamily() async au mount. Le halo se redessine ensuite tout
+    // seul (Obx + halo tick).
+    _friendController.loadFamily();
     _liveMap = Get.isRegistered<LiveMapService>()
         ? Get.find<LiveMapService>()
         : Get.put(LiveMapService(), permanent: true);
@@ -992,14 +999,15 @@ class _PawMapScreenState extends State<PawMapScreen>
         }
       } catch (_) {/* defensive */}
 
-      // v23.1 part 243 — Daniel : "si amis deviens famille mettre halo en
-      // violet, si owner sur la carte halo orange". Nouvelle priorite :
-      //   1. Famille (peu importe le role) → VIOLET (#8B5CF6) — c'est une
-      //      relation forte, prime sur le metier.
-      //   2. Walker → vert (inchange).
-      //   3. Sitter → bleu (inchange).
-      //   4. Owner (ami simple, pas famille) → ORANGE brand (#EF4324).
-      //   5. Fallback (role inconnu) → silver.
+      // v23.1 part 243 — halo color priority.
+      // v23.1 part 244d — Daniel : "jai ajouter un walker a ma famille
+      // son halo ne cest pas changer en couleur violet ou laisse le halo
+      // vert et surligne le de violet se serai encore mieux". Nouvelle
+      // strategie (preferee Daniel) : on garde TOUJOURS la couleur du
+      // role (walker vert / sitter bleu / owner orange / silver), et si
+      // la personne est dans la famille on rajoute un 2e cercle exterieur
+      // violet en outline (sans fill). Cela conserve le code couleur
+      // metier ET signale clairement le statut famille — gagnant-gagnant.
       const silver = Color(0xFFC0C0C0);
       const familyViolet = Color(0xFF8B5CF6);
 
@@ -1009,13 +1017,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         // sitter/walker non-ami). Sinon halo neutre alors qu'on a le metier.
         final role = (friendIdToRole[pos.userId] ?? pos.role).toLowerCase();
         final isFamily = familyMemberIds.contains(pos.userId);
-        // v243 : famille a la priorite la plus haute.
+        // v244d : on choisit toujours la couleur du role.
         Color color;
         String tag;
-        if (isFamily) {
-          color = familyViolet;
-          tag = 'family';
-        } else if (role == 'walker') {
+        if (role == 'walker') {
           color = AppColors.greenColor;
           tag = 'walker';
         } else if (role == 'sitter') {
@@ -1028,6 +1033,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           color = silver;
           tag = 'friend';
         }
+        // 1) Halo principal — couleur du role, comme avant.
         circles.add(
           Circle(
             circleId: CircleId('${tag}_halo_${pos.userId}'),
@@ -1038,6 +1044,21 @@ class _PawMapScreenState extends State<PawMapScreen>
             strokeWidth: 2,
           ),
         );
+        // 2) v244d — outline violet exterieur si membre famille. Rayon
+        // plus grand (80m vs 60m) et stroke epais (3px) pour bien sortir
+        // du halo de role. Pas de fill : juste un anneau violet.
+        if (isFamily) {
+          circles.add(
+            Circle(
+              circleId: CircleId('family_ring_${pos.userId}'),
+              center: LatLng(pos.latitude, pos.longitude),
+              radius: 80,
+              fillColor: Colors.transparent,
+              strokeColor: familyViolet.withValues(alpha: 0.95),
+              strokeWidth: 3,
+            ),
+          );
+        }
       }
     } catch (_) {/* defensive */}
 
