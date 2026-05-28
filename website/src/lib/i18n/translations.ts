@@ -335,6 +335,15 @@ export const t: Bundle = {
     role_walker:                      "Walker",
     role_sitter:                      "Sitter",
     role_owner:                       "Owner",
+    // v23.1 part 248 — Friends live follow-all + pending badge
+    friends_live_follow_all_btn:      "Follow everyone",
+    friends_live_badge_pending:       "Pending",
+    // v23.1 part 248 — Chat page: new conv, delete, empty state, title
+    chat_page_title:                  "Messages",
+    chat_page_subtitle:               "Real-time sync with the mobile app.",
+    chat_empty_state:                 "No conversation yet.",
+    chat_delete_btn:                  "Delete conversation",
+    chat_delete_confirm:              "Delete this conversation permanently? This will remove every message for both sides.",
   },
 
   fr: {
@@ -630,6 +639,15 @@ export const t: Bundle = {
     role_walker:                      "Promeneur",
     role_sitter:                      "Pet-sitter",
     role_owner:                       "Propriétaire",
+    // v23.1 part 248 — Page amis en direct : suivre tout + pending
+    friends_live_follow_all_btn:      "Suivre tout le monde",
+    friends_live_badge_pending:       "En attente",
+    // v23.1 part 248 — Page Chat : nouvelle conv, effacer, vide, titre
+    chat_page_title:                  "Messages",
+    chat_page_subtitle:               "Synchro temps réel avec l'app mobile.",
+    chat_empty_state:                 "Aucune conversation pour le moment.",
+    chat_delete_btn:                  "Effacer la conversation",
+    chat_delete_confirm:              "Effacer définitivement cette conversation ? Tous les messages seront supprimés pour les deux côtés.",
   },
 
   es: {
@@ -812,6 +830,15 @@ export const t: Bundle = {
     role_walker:                      "Paseador",
     role_sitter:                      "Cuidador",
     role_owner:                       "Propietario",
+    // v23.1 part 248 — Página amigos en vivo
+    friends_live_follow_all_btn:      "Seguir a todos",
+    friends_live_badge_pending:       "Pendiente",
+    // v23.1 part 248 — Página chat
+    chat_page_title:                  "Mensajes",
+    chat_page_subtitle:               "Sincronización en tiempo real con la app móvil.",
+    chat_empty_state:                 "Aún no hay conversaciones.",
+    chat_delete_btn:                  "Borrar conversación",
+    chat_delete_confirm:              "¿Borrar esta conversación de forma permanente? Se eliminarán todos los mensajes para ambos lados.",
   },
 
   de: {
@@ -993,6 +1020,15 @@ export const t: Bundle = {
     role_walker:                      "Gassigeher",
     role_sitter:                      "Pet-Sitter",
     role_owner:                       "Besitzer",
+    // v23.1 part 248 — Freunde-Live-Seite
+    friends_live_follow_all_btn:      "Allen folgen",
+    friends_live_badge_pending:       "Ausstehend",
+    // v23.1 part 248 — Chat-Seite
+    chat_page_title:                  "Nachrichten",
+    chat_page_subtitle:               "Echtzeit-Sync mit der mobilen App.",
+    chat_empty_state:                 "Noch keine Unterhaltung.",
+    chat_delete_btn:                  "Unterhaltung löschen",
+    chat_delete_confirm:              "Diese Unterhaltung endgültig löschen? Alle Nachrichten werden für beide Seiten entfernt.",
   },
 
   it: {
@@ -1174,6 +1210,15 @@ export const t: Bundle = {
     role_walker:                      "Dog walker",
     role_sitter:                      "Pet-sitter",
     role_owner:                       "Proprietario",
+    // v23.1 part 248 — Pagina amici in diretta
+    friends_live_follow_all_btn:      "Segui tutti",
+    friends_live_badge_pending:       "In attesa",
+    // v23.1 part 248 — Pagina chat
+    chat_page_title:                  "Messaggi",
+    chat_page_subtitle:               "Sincronizzazione in tempo reale con l'app mobile.",
+    chat_empty_state:                 "Ancora nessuna conversazione.",
+    chat_delete_btn:                  "Elimina conversazione",
+    chat_delete_confirm:              "Eliminare definitivamente questa conversazione? Tutti i messaggi saranno rimossi per entrambi i lati.",
   },
 
   pt: {
@@ -1355,5 +1400,14 @@ export const t: Bundle = {
     role_walker:                      "Passeador",
     role_sitter:                      "Pet-sitter",
     role_owner:                       "Proprietário",
+    // v23.1 part 248 — Página amigos em direto
+    friends_live_follow_all_btn:      "Seguir toda a gente",
+    friends_live_badge_pending:       "Em espera",
+    // v23.1 part 248 — Página chat
+    chat_page_title:                  "Mensagens",
+    chat_page_subtitle:               "Sincronização em tempo real com a app móvel.",
+    chat_empty_state:                 "Ainda sem conversas.",
+    chat_delete_btn:                  "Apagar conversa",
+    chat_delete_confirm:              "Apagar esta conversa permanentemente? Todas as mensagens serão removidas para ambos os lados.",
   },
 };

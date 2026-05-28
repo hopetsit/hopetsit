@@ -980,8 +980,19 @@ class _PawMapScreenState extends State<PawMapScreen>
       final friendCtl = Get.isRegistered<FriendController>()
           ? Get.find<FriendController>()
           : null;
+      // v23.1 part 248 — Daniel : "dans lapp sa marche tjr pas" (halo
+      // violet famille). Robustesse :
+      //   - on lit a la fois `id` ET `userId` cote chaque membre (l'API
+      //     renvoie `id`, mais on supporte aussi `userId` au cas ou
+      //     l'historique du backend changeait).
+      //   - on trim + lowercase pour matcher meme si la casse differe.
+      //   - on ignore le filtre par status (active/pending) : meme un
+      //     pending family member doit avoir son ring violet quand il
+      //     broadcast — Daniel le voit deja sur la PawMap, c'est just le
+      //     ring qui doit s'allumer.
       final familyMemberIds = friendCtl?.familyMembers
-              .map((m) => (m['id'] ?? '').toString())
+              .map((m) =>
+                  ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
               .where((id) => id.isNotEmpty)
               .toSet() ??
           <String>{};
@@ -1016,7 +1027,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         // n'est pas dans la liste d'amis (ex: ouverture depuis un chat
         // sitter/walker non-ami). Sinon halo neutre alors qu'on a le metier.
         final role = (friendIdToRole[pos.userId] ?? pos.role).toLowerCase();
-        final isFamily = familyMemberIds.contains(pos.userId);
+        // v23.1 part 248 — normalisation symetrique pour le matching
+        // famille : trim + lowercase cote pos.userId comme on l'a fait
+        // sur familyMemberIds plus haut. Evite les ratés a cause d'un
+        // hex case mismatch sur certaines plateformes.
+        final normUserId = pos.userId.trim().toLowerCase();
+        final isFamily = familyMemberIds.contains(normUserId);
         // v244d : on choisit toujours la couleur du role.
         Color color;
         String tag;
@@ -1564,6 +1580,21 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // forcer le rebuild a chaque assignAll().
                     _nearbyProviders.length;
                     _showProviders.value;
+                    // v23.1 part 248 — Daniel : "ds lapp sa marche tjr pas"
+                    // (halo violet famille). On declare explicitement
+                    // familyMembers.length comme dependance Obx pour que
+                    // dans le cas ou loadFamily() reussit APRES le premier
+                    // tick halo, la map rebuild immediatement avec le ring
+                    // violet visible.
+                    try {
+                      final fc = Get.isRegistered<FriendController>()
+                          ? Get.find<FriendController>()
+                          : null;
+                      // ignore: unused_local_variable
+                      final _famLen = fc?.familyMembers.length ?? 0;
+                      // ignore: unused_local_variable
+                      final _friLen = fc?.friends.length ?? 0;
+                    } catch (_) {/* defensive */}
                     return GoogleMap(
                       initialCameraPosition: CameraPosition(
                         target: _currentCenter,
@@ -2150,7 +2181,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         borderRadius: BorderRadius.circular(16.r),
         onTap: onTap,
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 6.w),
+          // v23.1 part 248 — Daniel : "les bouton quick action peux etre
+          // reduit encore la police des titre pour que tt sois aligner et
+          // lissible dand tte les langue". Padding horizontal reduit
+          // (6 -> 4) pour donner plus de place au texte ; vertical
+          // legerement reduit (12 -> 10) pour cards plus compactes.
+          padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 4.w),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(16.r),
@@ -2173,9 +2209,12 @@ class _PawMapScreenState extends State<PawMapScreen>
             // n'ont pas le meme nombre de lignes de label.
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // v23.1 part 248 — cercle icone 38 -> 34 + icon 20 -> 18
+              // pour laisser plus de place au label en langues longues
+              // (allemand "Warnungen", italien "Avvisi").
               Container(
-                width: 38.w,
-                height: 38.w,
+                width: 34.w,
+                height: 34.w,
                 decoration: BoxDecoration(
                   color: color,
                   shape: BoxShape.circle,
@@ -2187,19 +2226,22 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ),
                   ],
                 ),
-                child: Icon(icon, color: Colors.white, size: 20.sp),
+                child: Icon(icon, color: Colors.white, size: 18.sp),
               ),
-              SizedBox(height: 6.h),
-              // v23.1 part 243 — un seul titre court, sublabel supprime
-              // (cf. doc methode). On garde maxLines=2 au cas ou une langue
-              // longue (ex. allemand "Warnungen") aurait besoin de wrap.
-              InterText(
-                text: label,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w800,
-                color: color,
-                maxLines: 2,
-                textAlign: TextAlign.center,
+              SizedBox(height: 5.h),
+              // v248 — police 12 -> 10.5 (compromis lisibilite / parite
+              // visuelle entre les 5 langues). minFontSize via FittedBox
+              // pour eviter le wrap quand la traduction depasse de 1-2 px.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: InterText(
+                  text: label,
+                  fontSize: 10.5.sp,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),

@@ -13,6 +13,7 @@ import {
   ApiError,
   ChatMessage,
   Conversation,
+  deleteConversation,
   getConversations,
   getMessages,
   getStoredUser,
@@ -177,6 +178,25 @@ export default function ChatPage() {
     }
   }
 
+  // v23.1 part 248 — Daniel : "dans messag il manque le bouton pour effacer
+  // la conversation et nouvelle conversation". On wire les 2 actions.
+  async function handleDeleteConversation(id: string) {
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(t("chat_delete_confirm"));
+      if (!confirmed) return;
+    }
+    try {
+      await deleteConversation(id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (activeId === id) {
+        setActiveId(null);
+        setMessages([]);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to delete");
+    }
+  }
+
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-24 text-center text-ink-muted">
@@ -189,14 +209,28 @@ export default function ChatPage() {
     <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
       <div className="mb-6">
         <Link href="/dashboard" className="text-sm text-ink-muted hover:text-ink">
-          ← Dashboard
+          ← {t("nav_dashboard")}
         </Link>
       </div>
 
-      <h1 className="font-display text-3xl font-extrabold md:text-4xl">Messages</h1>
-      <p className="mt-2 text-ink-muted">
-        Synchro temps réel avec l&apos;app.
-      </p>
+      {/* v248 — Header avec titre + bouton "Nouvelle conversation" qui
+          renvoie vers /friends/live ou l'user peut piquer un ami pour
+          lancer une conv (parite mobile FAB v244c). */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-extrabold md:text-4xl">
+            {t("chat_page_title")}
+          </h1>
+          <p className="mt-2 text-ink-muted">{t("chat_page_subtitle")}</p>
+        </div>
+        <Link
+          href="/friends/live"
+          className="inline-flex items-center gap-2 rounded-full bg-walker px-4 py-2 text-sm font-semibold text-white shadow-cta hover:bg-walker-dark"
+        >
+          <span aria-hidden="true">💬</span>
+          <span>{t("chat_new_conversation_btn")}</span>
+        </Link>
+      </div>
 
       {error && (
         <div className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -213,42 +247,75 @@ export default function ChatPage() {
         >
           {conversations.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-ink/15 px-4 py-12 text-center text-sm text-ink-muted">
-              Aucune conversation
+              {t("chat_empty_state")}
             </div>
           ) : (
             conversations.map((c) => (
-              <button
+              <div
                 key={c.id}
-                type="button"
-                onClick={() => openConversation(c.id)}
-                className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                className={`group relative w-full rounded-xl border px-4 py-3 transition ${
                   activeId === c.id
                     ? "border-walker bg-walker/5"
                     : "border-ink/5 bg-white hover:border-ink/15"
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  {/* v23.1 part 243 round 3 — fallback otherParty pour les
-                      friendChats (backend v23.1.200) afin que les
-                      conversations entre amis apparaissent avec le bon nom
-                      sur le web aussi (parite Android/iOS). */}
-                  <span className="truncate text-sm font-semibold text-ink">
-                    {c.participantName ||
-                      c.otherParty?.name ||
-                      "Conversation"}
-                  </span>
-                  {(c.unreadCount ?? 0) > 0 && (
-                    <span className="rounded-full bg-walker px-2 py-0.5 text-xs font-bold text-white">
-                      {c.unreadCount}
+                <button
+                  type="button"
+                  onClick={() => openConversation(c.id)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-2 pr-8">
+                    {/* v23.1 part 243 round 3 — fallback otherParty pour les
+                        friendChats (backend v23.1.200) afin que les
+                        conversations entre amis apparaissent avec le bon nom
+                        sur le web aussi (parite Android/iOS). */}
+                    <span className="truncate text-sm font-semibold text-ink">
+                      {c.participantName ||
+                        c.otherParty?.name ||
+                        "Conversation"}
                     </span>
-                  )}
-                </div>
-                {c.lastMessage && (
-                  <div className="mt-1 truncate text-xs text-ink-muted">
-                    {c.lastMessage}
+                    {(c.unreadCount ?? 0) > 0 && (
+                      <span className="rounded-full bg-walker px-2 py-0.5 text-xs font-bold text-white">
+                        {c.unreadCount}
+                      </span>
+                    )}
                   </div>
-                )}
-              </button>
+                  {c.lastMessage && (
+                    <div className="mt-1 truncate text-xs text-ink-muted">
+                      {c.lastMessage}
+                    </div>
+                  )}
+                </button>
+                {/* v248 — bouton effacer conversation (icone poubelle) :
+                    visible au hover sur desktop, toujours visible sur mobile. */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteConversation(c.id);
+                  }}
+                  aria-label={t("chat_delete_btn")}
+                  title={t("chat_delete_btn")}
+                  className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-ink-muted opacity-60 transition hover:bg-red-50 hover:text-red-600 hover:opacity-100 md:opacity-0 md:group-hover:opacity-60"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
+              </div>
             ))
           )}
         </div>

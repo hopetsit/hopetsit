@@ -140,17 +140,46 @@ function FlyToSelected({
   return null;
 }
 
+// v23.1 part 248 — Daniel : "un bouton suivre tout le monde". Quand le
+// nonce change (incrementee par la page au clic du bouton), on fitBounds
+// sur TOUTES les positions live pour qu'elles soient toutes visibles
+// d'un coup. Different du FitBoundsOnChange qui ne fit qu'au premier
+// load et qu'une seule fois.
+function FitAllOnNonce({
+  nonce,
+  positions,
+}: {
+  nonce: number;
+  positions: FriendLivePosition[];
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (nonce <= 0) return;
+    if (positions.length === 0) return;
+    const latlngs = positions.map((p) => [p.lat, p.lng] as [number, number]);
+    if (latlngs.length === 1) {
+      map.flyTo(latlngs[0], 14, { duration: 1.0 });
+    } else {
+      map.flyToBounds(L.latLngBounds(latlngs).pad(0.25), { duration: 1.2 });
+    }
+  }, [nonce, positions, map]);
+  return null;
+}
+
 export default function FriendsLiveMap({
   friends,
   initialPositions = [],
   familyIds = [],
   selectedUserId,
+  fitAllNonce = 0,
 }: {
   friends: FriendItem[];
   initialPositions?: FriendLivePosition[];
   familyIds?: string[];
   /** v246 — controle de focus depuis la liste cote page. */
   selectedUserId?: string;
+  /** v248 — incremente par "Suivre tout le monde" pour fitBounds. */
+  fitAllNonce?: number;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
 
@@ -249,6 +278,7 @@ export default function FriendsLiveMap({
           selectedUserId={selectedUserId}
           positions={positionsList}
         />
+        <FitAllOnNonce nonce={fitAllNonce} positions={positionsList} />
         {positionsList.map((p) => {
           const isFamily = familySet.has(p.userId);
           return (

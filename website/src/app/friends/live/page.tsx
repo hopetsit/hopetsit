@@ -89,11 +89,14 @@ export default function FriendsLivePage() {
           (f) => f.status === "accepted" && !f.other?.deleted,
         );
         setFriends(accepted);
-        // Famille : seulement les status 'active' (les pending ne broadcast pas).
-        const activeFamily = (familyResp.members || []).filter(
-          (m) => m.status === "active" && !!m.id,
-        );
-        setFamilyMembers(activeFamily);
+        // v23.1 part 248 — Daniel : "mes amis en direct y manque famille".
+        // Cause : v246 filtrait uniquement les actives -> walker invite
+        // mais pas encore accepte (status='pending') etait masque -> la
+        // section Famille restait vide. Maintenant on garde TOUTES les
+        // entrees famille avec un id, et on tag chaque tile avec son
+        // status pour afficher un badge "En attente" sur les pending.
+        const allFamily = (familyResp.members || []).filter((m) => !!m.id);
+        setFamilyMembers(allFamily);
 
         // 2) Fetch les dernieres positions connues : on prend les ids
         // uniques de la fusion amis + famille (un membre famille peut
@@ -104,7 +107,7 @@ export default function FriendsLivePage() {
         for (const f of accepted) {
           if (f.other?.id) allIds.add(f.other.id);
         }
-        for (const m of activeFamily) {
+        for (const m of allFamily) {
           if (m.id) allIds.add(m.id);
         }
         const idArr = Array.from(allIds);
@@ -124,7 +127,7 @@ export default function FriendsLivePage() {
             avatar: f.other.avatar || "",
           });
         }
-        for (const m of activeFamily) {
+        for (const m of allFamily) {
           if (!m.id || infoById.has(m.id)) continue;
           infoById.set(m.id, {
             role: roleFromModel(m.role),
@@ -178,6 +181,8 @@ export default function FriendsLivePage() {
 
   // Liste "Famille" tiles : on injecte les family members. Si un family
   // member est aussi friend, on prend le nom/avatar du friend (plus a jour).
+  // v248 — on propage le status pour afficher un badge "En attente" sur
+  // les pending et permettre le filtrage cote "Suivre tout le monde".
   const familyTiles = useMemo(() => {
     return familyMembers.map((m) => {
       const friend = friends.find((f) => f.other?.id === m.id);
@@ -186,6 +191,7 @@ export default function FriendsLivePage() {
         role: roleFromModel(friend?.other?.model || m.role),
         name: friend?.other?.name || m.name || "Famille",
         avatar: friend?.other?.avatar || m.avatar || "",
+        status: m.status, // 'active' | 'pending' | ...
       };
     });
   }, [familyMembers, friends]);
@@ -245,6 +251,19 @@ export default function FriendsLivePage() {
     }
   }
 
+  // v23.1 part 248 — Daniel : "un bouton suivre tout le monde". Au clic
+  // on annule la selection (selectedUserId=undefined) et la map fitBounds
+  // sur TOUTES les positions en ligne. On declenche le fit en remountant
+  // l'effet : on flip un counter qu'on passe au map component.
+  const [followAllNonce, setFollowAllNonce] = useState(0);
+  function handleFollowAll() {
+    setSelectedUserId(undefined);
+    setFollowAllNonce((n) => n + 1);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-24 text-center text-ink-muted">
@@ -295,12 +314,32 @@ export default function FriendsLivePage() {
               .replace("{online}", String(totalOnline))}
       </p>
 
-      <div className="mt-8">
+      {/* v248 — Toolbar : bouton "Suivre tout le monde" si on a au moins
+          1 personne en ligne. fitBoundsAll permet a la map de se recadrer
+          sur l'ensemble des amis + famille en direct. */}
+      {totalOnline > 0 && (
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleFollowAll}
+            className="inline-flex items-center gap-2 rounded-full bg-walker px-4 py-2 text-sm font-semibold text-white shadow-cta hover:bg-walker-dark"
+          >
+            <span>🐾</span>
+            <span>{t("friends_live_follow_all_btn")}</span>
+            <span className="ml-1 rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">
+              {totalOnline}
+            </span>
+          </button>
+        </div>
+      )}
+
+      <div className="mt-4">
         <FriendsLiveMap
           friends={friendsForMap}
           initialPositions={initialPositions}
           familyIds={familyIds}
           selectedUserId={selectedUserId}
+          fitAllNonce={followAllNonce}
         />
       </div>
 
@@ -345,6 +384,10 @@ type Tile = {
   role: "walker" | "sitter" | "owner";
   name: string;
   avatar: string;
+  // v23.1 part 248 — facultatif (seul Famille l'utilise) : si 'pending',
+  // l'invitation n'a pas encore ete acceptee -> on affiche un badge en
+  // attente sur le tile et on n'attend pas de position.
+  status?: "active" | "pending" | "declined" | string;
 };
 
 function FriendsSection({
@@ -450,6 +493,18 @@ function FriendsSection({
                       }}
                     >
                       {t("friends_live_badge_family")}
+                    </span>
+                  )}
+                  {/* v248 — badge "En attente" pour les pending family. */}
+                  {tile.status === "pending" && (
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                      style={{
+                        backgroundColor: "#FEF3C7",
+                        color: "#92400E",
+                      }}
+                    >
+                      {t("friends_live_badge_pending")}
                     </span>
                   )}
                 </div>

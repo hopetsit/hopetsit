@@ -868,6 +868,27 @@ export async function sendMessage(
   return raw.message;
 }
 
+// v23.1 part 248 — Daniel : "dans messag il manque le bouton pour effacer
+// la conversation". Backend DELETE /conversations/:id existe depuis
+// v23.1 part 240 et supporte deja les friendChat (cf. la route conversation
+// routes l.449). On l'expose ici en helper. La suppression est hard delete
+// (messages + doc Conversation), idempotent : si deja deleted, on
+// retourne quand meme success cote UI.
+export async function deleteConversation(conversationId: string): Promise<boolean> {
+  try {
+    await request<{ deleted: boolean }>(
+      `/conversations/${conversationId}`,
+      { method: "DELETE" },
+    );
+    return true;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) {
+      return true; // deja supprime
+    }
+    throw e;
+  }
+}
+
 // ─── PawMap : POI (v23.1 part 146) ──────────────────────────────────────────
 
 export type PoiCategory =
