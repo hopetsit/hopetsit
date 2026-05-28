@@ -2641,6 +2641,8 @@ const Map<String, String> enUSTranslations = <String, String>{
     'common_no_results': 'No results',
     'friends_empty_title': 'No friends yet',
     'friends_empty_subtitle': 'Add friends to see them live on the PawMap.',
+    // v23.1 part 244c — chat list FAB.
+    'chat_new_conversation_btn': 'New chat',
     'role_pet_walker': 'Dog walker',
     'role_pet_walker_desc': 'I walk dogs for their owners.',
     'auth_role_pet_walker': 'Dog walker',

@@ -8,6 +8,7 @@ import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/repositories/chat_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 
@@ -46,6 +47,23 @@ class ChatScreen extends StatelessWidget {
                 // Handle profile tap
                 // debug removed
               },
+            ),
+            // v23.1 part 244c — Daniel : "dans chat rajote en bas a droite
+            // un bouton nouvelle conversation". FAB extended qui ouvre la
+            // FriendsScreen sur l'onglet Mes amis (index 0) : l'user pick
+            // un ami et tap le 💬 a cote du nom pour demarrer une conv.
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: () => Get.to(() => const FriendsScreen()),
+              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.chat_rounded),
+              label: Text(
+                'chat_new_conversation_btn'.tr,
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             backgroundColor: AppColors.scaffold(context),
             body: SafeArea(

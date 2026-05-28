@@ -2418,6 +2418,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'common_no_results': 'Keine Ergebnisse',
     'friends_empty_title': 'Noch keine Freunde',
     'friends_empty_subtitle': 'Füge Freunde hinzu, um sie live auf der PawMap zu sehen.',
+    // v23.1 part 244c — Chat-FAB.
+    'chat_new_conversation_btn': 'Neuer Chat',
     'role_pet_walker': 'Gassigeher',
     'role_pet_walker_desc': 'Ich führe Hunde für ihre Besitzer aus.',
     'auth_role_pet_walker': 'Gassigeher',

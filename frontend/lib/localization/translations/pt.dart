@@ -2251,6 +2251,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'common_no_results': 'Sem resultados',
     'friends_empty_title': 'Ainda sem amigos',
     'friends_empty_subtitle': 'Adiciona amigos para os veres em tempo real na PawMap.',
+    // v23.1 part 244c — FAB chat.
+    'chat_new_conversation_btn': 'Nova conversa',
     'role_pet_walker': 'Passeador',
     'role_pet_walker_desc': 'Passeio cães pelos seus donos.',
     'auth_role_pet_walker': 'Passeador',
