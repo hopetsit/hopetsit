@@ -2576,6 +2576,11 @@ const Map<String, String> frFRTranslations = <String, String>{
     'coin_shop_boost_confirm_description': 'Ton profil sera mis en avant pendant la durée choisie.',
     // v23.1 part 243 — send request totaux.
     'send_request_total_pending': 'À confirmer',
+    // v23.1 part 244 — KYC Persona camera permission messages.
+    'kyc_perm_blocked_title': 'Permission bloquée',
+    'kyc_perm_blocked_msg': 'Tu as refusé l\'accès à la caméra de façon permanente. Ouvre les réglages pour réactiver, puis relance la vérification.',
+    'kyc_perm_camera_title': 'Caméra requise',
+    'kyc_perm_camera_msg': 'Persona a besoin de la caméra pour scanner ta pièce d\'identité et prendre ton selfie. Accepte la permission puis réessaie.',
     'role_pet_walker': 'Promeneur',
     'role_pet_walker_desc': 'Je promène les chiens des propriétaires.',
     'auth_role_pet_walker': 'Promeneur',

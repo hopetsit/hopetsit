@@ -2611,6 +2611,11 @@ const Map<String, String> enUSTranslations = <String, String>{
     'coin_shop_boost_confirm_description': 'Your profile will be promoted for the selected duration.',
     // v23.1 part 243 — send request totals.
     'send_request_total_pending': 'To be confirmed',
+    // v23.1 part 244 — KYC Persona camera permission messages.
+    'kyc_perm_blocked_title': 'Permission blocked',
+    'kyc_perm_blocked_msg': 'You permanently denied camera access. Open settings to re-enable it, then restart the verification.',
+    'kyc_perm_camera_title': 'Camera required',
+    'kyc_perm_camera_msg': 'Persona needs the camera to scan your ID and take a selfie. Accept the permission and try again.',
     'role_pet_walker': 'Dog walker',
     'role_pet_walker_desc': 'I walk dogs for their owners.',
     'auth_role_pet_walker': 'Dog walker',

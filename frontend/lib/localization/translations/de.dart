@@ -2388,6 +2388,11 @@ const Map<String, String> deDETranslations = <String, String>{
     'coin_shop_boost_confirm_description': 'Dein Profil wird während der gewählten Dauer hervorgehoben.',
     // v23.1 part 243 — Anfrage senden, Gesamtbetrag.
     'send_request_total_pending': 'Noch zu bestätigen',
+    // v23.1 part 244 — KYC Persona Kameraberechtigung.
+    'kyc_perm_blocked_title': 'Berechtigung blockiert',
+    'kyc_perm_blocked_msg': 'Du hast den Kamerazugriff dauerhaft verweigert. Öffne die Einstellungen, um ihn zu aktivieren, und starte die Verifizierung erneut.',
+    'kyc_perm_camera_title': 'Kamera erforderlich',
+    'kyc_perm_camera_msg': 'Persona benötigt die Kamera, um deinen Ausweis zu scannen und ein Selfie aufzunehmen. Akzeptiere die Berechtigung und versuche es erneut.',
     'role_pet_walker': 'Gassigeher',
     'role_pet_walker_desc': 'Ich führe Hunde für ihre Besitzer aus.',
     'auth_role_pet_walker': 'Gassigeher',

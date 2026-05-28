@@ -15,6 +15,12 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- v23.1 part 244 — Daniel screenshot Persona KYC : "Impossible
+         d'acceder a la camera". Persona webview demande aussi le micro
+         pour le liveness check (parle sur ton selfie). Sans RECORD_AUDIO
+         dans le manifest, l'OS refuse silencieusement l'acces et le
+         hosted Persona affiche le message d'erreur. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- v23.1 part 125 — READ_EXTERNAL_STORAGE capée à Android 12 (API 32) ;
          Android 13+ utilise READ_MEDIA_IMAGES/VIDEO ci-dessous. Évite que
          Play Console signale une permission non scopée. -->

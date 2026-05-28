@@ -2221,6 +2221,11 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'coin_shop_boost_confirm_description': 'O teu perfil será destacado durante a duração escolhida.',
     // v23.1 part 243 — envio de pedido totais.
     'send_request_total_pending': 'A confirmar',
+    // v23.1 part 244 — KYC Persona permissão câmara.
+    'kyc_perm_blocked_title': 'Permissão bloqueada',
+    'kyc_perm_blocked_msg': 'Negaste permanentemente o acesso à câmara. Abre as definições para reativar e reinicia a verificação.',
+    'kyc_perm_camera_title': 'Câmara necessária',
+    'kyc_perm_camera_msg': 'Persona precisa da câmara para digitalizar o teu documento e tirar uma selfie. Aceita a permissão e tenta de novo.',
     'role_pet_walker': 'Passeador',
     'role_pet_walker_desc': 'Passeio cães pelos seus donos.',
     'auth_role_pet_walker': 'Passeador',

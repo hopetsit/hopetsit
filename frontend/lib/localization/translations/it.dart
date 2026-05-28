@@ -2365,6 +2365,11 @@ const Map<String, String> itITTranslations = <String, String>{
     'coin_shop_boost_confirm_description': 'Il tuo profilo sarà evidenziato per la durata scelta.',
     // v23.1 part 243 — invia richiesta totali.
     'send_request_total_pending': 'Da confermare',
+    // v23.1 part 244 — KYC Persona permessi fotocamera.
+    'kyc_perm_blocked_title': 'Permesso bloccato',
+    'kyc_perm_blocked_msg': 'Hai negato in modo permanente l\'accesso alla fotocamera. Apri le impostazioni per riattivarlo, poi riprova la verifica.',
+    'kyc_perm_camera_title': 'Fotocamera richiesta',
+    'kyc_perm_camera_msg': 'Persona ha bisogno della fotocamera per scansionare il tuo documento e scattare un selfie. Accetta il permesso e riprova.',
     'role_pet_walker': 'Dog walker',
     'role_pet_walker_desc': 'Porto a spasso i cani dei proprietari.',
     'auth_role_pet_walker': 'Dog walker',

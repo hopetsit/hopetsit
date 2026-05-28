@@ -2361,6 +2361,11 @@ const Map<String, String> esESTranslations = <String, String>{
     'coin_shop_boost_confirm_description': 'Tu perfil será destacado durante la duración elegida.',
     // v23.1 part 243 — send request totales.
     'send_request_total_pending': 'Por confirmar',
+    // v23.1 part 244 — KYC Persona permisos cámara.
+    'kyc_perm_blocked_title': 'Permiso bloqueado',
+    'kyc_perm_blocked_msg': 'Has denegado permanentemente el acceso a la cámara. Abre los ajustes para reactivarlo y vuelve a iniciar la verificación.',
+    'kyc_perm_camera_title': 'Cámara requerida',
+    'kyc_perm_camera_msg': 'Persona necesita la cámara para escanear tu ID y tomar tu selfie. Acepta el permiso y vuelve a intentarlo.',
     'role_pet_walker': 'Paseador',
     'role_pet_walker_desc': 'Paseo perros de sus dueños.',
     'auth_role_pet_walker': 'Paseador',

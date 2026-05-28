@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -9,8 +10,14 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:permission_handler/permission_handler.dart';
 // v23.1 part 131 — image_picker + dart:io retirés (KYC manuel supprimé).
 import 'package:webview_flutter/webview_flutter.dart';
+// v23.1 part 244 — Daniel : "Impossible d'acceder a la camera" sur Persona.
+// On a besoin de l'API Android-specifique du webview pour intercepter
+// onPermissionRequest et grant CAMERA + RECORD_AUDIO au site hosted.
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 /// v23.1 part 36 — KYC verification screen pour sitter/walker.
 /// Flow :
@@ -140,6 +147,42 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
+      // v23.1 part 244 — Daniel screenshot : webview Persona bloque sur
+      // "Impossible d'acceder a la camera". Cause : sur Android, l'OS
+      // n'accorde pas implicitement les permissions natives a une page
+      // web qui les demande via getUserMedia. On doit (1) demander le
+      // grant OS-level via permission_handler AVANT d'ouvrir le webview,
+      // (2) intercepter onPermissionRequest cote webview Android pour
+      // forward le grant a la page hosted. Ici on fait l'etape (1) en
+      // sequentiel pour que l'user voie les dialogs systeme natifs
+      // (claires + traduites par Android) avant d'ouvrir Persona.
+      final camStatus = await Permission.camera.request();
+      final micStatus = await Permission.microphone.request();
+      if (camStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+        // L'user a coche "Ne plus demander" → on doit l'envoyer dans
+        // les Settings systeme pour debloquer.
+        CustomSnackbar.showWarning(
+          title: 'kyc_perm_blocked_title'.tr,
+          message: 'kyc_perm_blocked_msg'.tr,
+        );
+        await openAppSettings();
+        return;
+      }
+      if (!camStatus.isGranted) {
+        CustomSnackbar.showWarning(
+          title: 'kyc_perm_camera_title'.tr,
+          message: 'kyc_perm_camera_msg'.tr,
+        );
+        return;
+      }
+      // Microphone facultatif (Persona l'utilise pour le liveness audio
+      // mais marche aussi sans) — on log juste mais on continue.
+      if (!micStatus.isGranted) {
+        AppLogger.logError(
+          'kyc.start microphone permission not granted, '
+          'liveness check may be reduced.',
+        );
+      }
       final resp = await _repo.startVerification();
       final url = resp['oneTimeLink'] as String?;
       if (url == null || url.isEmpty) {
@@ -597,7 +640,22 @@ class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
+    // v23.1 part 244 — Daniel screenshot "Impossible d'acceder a la camera".
+    // Sur Android, on doit configurer le PlatformWebViewControllerCreationParams
+    // pour activer le mediaPlaybackRequiresUserGesture=false + handler les
+    // permissions web (getUserMedia). Sur iOS, WKWebView a besoin de
+    // allowsInlineMediaPlayback + mediaTypesRequiringUserAction vide pour
+    // que Persona puisse demarrer la camera sans intervention user.
+    late final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+    _controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
       ..setNavigationDelegate(NavigationDelegate(
@@ -617,8 +675,28 @@ class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
           }
           return NavigationDecision.navigate;
         },
-      ))
-      ..loadRequest(Uri.parse(widget.url));
+      ));
+
+    // v23.1 part 244 — Android-specific : autoriser CAMERA + RECORD_AUDIO
+    // pour les requetes getUserMedia faites par Persona dans le webview.
+    // Sans ce hook, le webview rejette silencieusement → "Impossible
+    // d'acceder a la camera". L'API setOnPlatformPermissionRequest est
+    // exposee via la platform interface AndroidWebViewController.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final platform = _controller.platform;
+      if (platform is AndroidWebViewController) {
+        platform.setMediaPlaybackRequiresUserGesture(false);
+        platform.setOnPlatformPermissionRequest((request) {
+          // Persona demandera camera (et possiblement audio pour liveness).
+          // On grant tout ce que Persona demande — la pre-check Android
+          // dans _onStartVerification garantit que l'user a deja accepte
+          // au niveau OS.
+          request.grant();
+        });
+      }
+    }
+
+    _controller.loadRequest(Uri.parse(widget.url));
   }
 
   @override
