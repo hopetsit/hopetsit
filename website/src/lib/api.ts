@@ -675,6 +675,47 @@ export async function getFriendLastPosition(
   }
 }
 
+// ─── v23.1 part 246 — Family members (PawFollow Famille) ─────────────────
+// Daniel : "ameliorer liste amis et famille". Le backend expose deja
+// GET /friends/family/members qui retourne les 5 membres famille du
+// titulaire. On l'utilise pour separer la liste cote /friends/live en
+// deux sections distinctes (Famille vs Amis) + appliquer le code couleur
+// violet quand on est dans la famille.
+
+export type FamilyMember = {
+  id: string;
+  role: AuthRole;
+  name: string;
+  avatar: string;
+  addedAt?: string;
+  email?: string | null;
+  status: "pending" | "active" | "declined" | string;
+};
+
+export type FamilyResponse = {
+  hasActiveFamilyPlan: boolean;
+  members: FamilyMember[];
+  remainingSlots: number;
+};
+
+export async function getMyFamily(): Promise<FamilyResponse> {
+  try {
+    const raw = await request<FamilyResponse>(`/friends/family/members`);
+    return {
+      hasActiveFamilyPlan: !!raw?.hasActiveFamilyPlan,
+      members: Array.isArray(raw?.members) ? raw.members : [],
+      remainingSlots: typeof raw?.remainingSlots === "number"
+        ? raw.remainingSlots
+        : 0,
+    };
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
+      return { hasActiveFamilyPlan: false, members: [], remainingSlots: 0 };
+    }
+    throw e;
+  }
+}
+
 export async function createBooking(input: {
   providerType: "sitter" | "walker";
   providerId: string;

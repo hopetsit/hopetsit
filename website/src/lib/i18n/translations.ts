@@ -319,6 +319,22 @@ export const t: Bundle = {
     faq_a6:                 "Add up to 4 family members to your PawFollow plan. Everyone follows your pet, the alerts and the live position on the same map — handy for spouses, grown-up kids or trusted friends.",
     faq_q7:                 "How does live position sharing work?",
     faq_a7:                 "Once a booking is paid, the owner can tap “Track my pet” in the chat. The walker or sitter accepts in one tap, and the position appears on the PawMap with the matching role halo (green / blue). Tracking stops automatically at the end of the booking and can be turned off anytime.",
+
+    // v23.1 part 246 — Friends live page deep upgrade
+    friends_live_title:               "My friends live",
+    friends_live_subtitle:            "{total} friend(s) accepted, {online} currently sharing their position. Tap a card to focus on them.",
+    friends_live_empty:               "You don't have friends on HoPetSit yet. Download the app to add loved ones and turn on position sharing.",
+    friends_live_section_family:      "Family",
+    friends_live_section_friends:     "Friends",
+    friends_live_info_box:            "A friend's position only appears if they enable sharing in the mobile app, or if they hold an active PawFollow subscription. You can manage permissions from your friends list on your phone.",
+    friends_live_tile_follow_action:  "Follow",
+    friends_live_tile_offline_hint:   "Not sharing position yet",
+    friends_live_dot_online:          "Live",
+    friends_live_dot_offline:         "Offline",
+    friends_live_badge_family:        "Family",
+    role_walker:                      "Walker",
+    role_sitter:                      "Sitter",
+    role_owner:                       "Owner",
   },
 
   fr: {
@@ -598,6 +614,22 @@ export const t: Bundle = {
     faq_a6:                 "Ajoute jusqu'à 4 proches à ton plan PawFollow. Tout le monde suit ton animal, les alertes et la position en direct sur la même carte — pratique pour conjoint, grands enfants ou amis de confiance.",
     faq_q7:                 "Comment fonctionne le partage de position en direct ?",
     faq_a7:                 "Une fois la réservation payée, le propriétaire tape « Suivre mon animal » dans le chat. Le promeneur ou sitter accepte en un tap et la position apparaît sur la PawMap avec le halo de couleur du rôle (vert / bleu). Le suivi s'arrête automatiquement à la fin de la prestation et peut être coupé à tout moment.",
+
+    // v23.1 part 246 — Page amis en direct
+    friends_live_title:               "Mes amis en direct",
+    friends_live_subtitle:            "{total} ami(s) accepté(s), {online} en partage de position. Clique sur une carte pour zoomer dessus.",
+    friends_live_empty:               "Vous n'avez pas encore d'amis sur HoPetSit. Téléchargez l'app pour ajouter vos proches et activer le partage de position.",
+    friends_live_section_family:      "Famille",
+    friends_live_section_friends:     "Amis",
+    friends_live_info_box:            "La position d'un ami n'apparaît que s'il a activé le partage dans l'app mobile, ou s'il dispose d'un abonnement PawFollow actif. Vous pouvez gérer ces autorisations depuis votre liste d'amis sur le téléphone.",
+    friends_live_tile_follow_action:  "Suivre",
+    friends_live_tile_offline_hint:   "Ne partage pas sa position",
+    friends_live_dot_online:          "En direct",
+    friends_live_dot_offline:         "Hors ligne",
+    friends_live_badge_family:        "Famille",
+    role_walker:                      "Promeneur",
+    role_sitter:                      "Pet-sitter",
+    role_owner:                       "Propriétaire",
   },
 
   es: {
@@ -764,6 +796,22 @@ export const t: Bundle = {
     faq_a6:                 "Añade hasta 4 familiares a tu plan PawFollow. Todos siguen a tu mascota, las alertas y la posición en vivo en el mismo mapa — ideal para parejas, hijos mayores o amigos de confianza.",
     faq_q7:                 "¿Cómo funciona el seguimiento en vivo?",
     faq_a7:                 "Cuando la reserva está pagada, el dueño toca «Seguir a mi mascota» en el chat. El walker o sitter acepta con un toque y la posición aparece en el PawMap con el halo del rol (verde / azul). El seguimiento se detiene automáticamente al final de la reserva y puede pararse en cualquier momento.",
+
+    // v23.1 part 246 — Página amigos en vivo
+    friends_live_title:               "Mis amigos en vivo",
+    friends_live_subtitle:            "{total} amigo(s) aceptado(s), {online} compartiendo posición. Toca una tarjeta para enfocarla.",
+    friends_live_empty:               "Aún no tienes amigos en HoPetSit. Descarga la app para añadir a tus cercanos y activar el compartir posición.",
+    friends_live_section_family:      "Familia",
+    friends_live_section_friends:     "Amigos",
+    friends_live_info_box:            "La posición de un amigo solo aparece si activa el compartir en la app móvil, o si tiene una suscripción PawFollow activa. Puedes gestionar estos permisos desde tu lista de amigos en el teléfono.",
+    friends_live_tile_follow_action:  "Seguir",
+    friends_live_tile_offline_hint:   "No comparte su posición",
+    friends_live_dot_online:          "En vivo",
+    friends_live_dot_offline:         "Desconectado",
+    friends_live_badge_family:        "Familia",
+    role_walker:                      "Paseador",
+    role_sitter:                      "Cuidador",
+    role_owner:                       "Propietario",
   },
 
   de: {
@@ -929,6 +977,22 @@ export const t: Bundle = {
     faq_a6:                 "Füge bis zu 4 Angehörige zu deinem PawFollow-Plan hinzu. Alle verfolgen dein Tier, die Warnungen und die Live-Position auf derselben Karte — ideal für Partner, erwachsene Kinder oder vertraute Freunde.",
     faq_q7:                 "Wie funktioniert die Live-Standortfreigabe?",
     faq_a7:                 "Sobald eine Buchung bezahlt ist, tippt der Halter \"Mein Tier verfolgen\" im Chat. Walker oder Sitter bestätigen mit einem Tipp und die Position erscheint auf der PawMap mit dem Rollen-Halo (grün / blau). Das Tracking endet automatisch nach der Buchung und kann jederzeit gestoppt werden.",
+
+    // v23.1 part 246 — Freunde-Live-Seite
+    friends_live_title:               "Meine Freunde live",
+    friends_live_subtitle:            "{total} Freund(e) akzeptiert, {online} teilen aktuell ihre Position. Tippe auf eine Karte, um zu fokussieren.",
+    friends_live_empty:               "Du hast noch keine Freunde auf HoPetSit. Lade die App, um Angehörige hinzuzufügen und das Teilen der Position zu aktivieren.",
+    friends_live_section_family:      "Familie",
+    friends_live_section_friends:     "Freunde",
+    friends_live_info_box:            "Die Position eines Freundes erscheint nur, wenn er das Teilen in der mobilen App aktiviert hat oder ein aktives PawFollow-Abo besitzt. Du kannst die Berechtigungen in deiner Freundesliste auf dem Telefon verwalten.",
+    friends_live_tile_follow_action:  "Folgen",
+    friends_live_tile_offline_hint:   "Teilt seine Position nicht",
+    friends_live_dot_online:          "Live",
+    friends_live_dot_offline:         "Offline",
+    friends_live_badge_family:        "Familie",
+    role_walker:                      "Gassigeher",
+    role_sitter:                      "Pet-Sitter",
+    role_owner:                       "Besitzer",
   },
 
   it: {
@@ -1094,6 +1158,22 @@ export const t: Bundle = {
     faq_a6:                 "Aggiungi fino a 4 familiari al tuo piano PawFollow. Tutti seguono il tuo animale, gli avvisi e la posizione live sulla stessa mappa — ideale per partner, figli adulti o amici di fiducia.",
     faq_q7:                 "Come funziona la condivisione della posizione in diretta?",
     faq_a7:                 "Una volta pagata la prenotazione, il proprietario tocca «Segui il mio animale» nella chat. Il walker o sitter accetta con un tocco e la posizione appare sulla PawMap con l'halo del ruolo (verde / blu). Il tracciamento si ferma automaticamente alla fine della prenotazione e si può disattivare in qualsiasi momento.",
+
+    // v23.1 part 246 — Pagina amici in diretta
+    friends_live_title:               "I miei amici in diretta",
+    friends_live_subtitle:            "{total} amico/i accettato/i, {online} condividono la posizione. Tocca una scheda per centrarla sulla mappa.",
+    friends_live_empty:               "Non hai ancora amici su HoPetSit. Scarica l'app per aggiungere i tuoi cari e attivare la condivisione della posizione.",
+    friends_live_section_family:      "Famiglia",
+    friends_live_section_friends:     "Amici",
+    friends_live_info_box:            "La posizione di un amico appare solo se ha attivato la condivisione nell'app mobile, o se ha un abbonamento PawFollow attivo. Puoi gestire questi permessi dalla tua lista amici sul telefono.",
+    friends_live_tile_follow_action:  "Segui",
+    friends_live_tile_offline_hint:   "Non condivide la posizione",
+    friends_live_dot_online:          "Live",
+    friends_live_dot_offline:         "Offline",
+    friends_live_badge_family:        "Famiglia",
+    role_walker:                      "Dog walker",
+    role_sitter:                      "Pet-sitter",
+    role_owner:                       "Proprietario",
   },
 
   pt: {
@@ -1259,5 +1339,21 @@ export const t: Bundle = {
     faq_a6:                 "Adiciona até 4 familiares ao teu plano PawFollow. Todos seguem o teu animal, os alertas e a posição ao vivo no mesmo mapa — ideal para parceiros, filhos adultos ou amigos de confiança.",
     faq_q7:                 "Como funciona a partilha de posição ao vivo?",
     faq_a7:                 "Quando a reserva está paga, o dono toca em «Seguir o meu animal» no chat. O walker ou sitter aceita num toque e a posição aparece no PawMap com o halo da função (verde / azul). O rastreamento termina automaticamente no fim da reserva e pode ser desligado a qualquer momento.",
+
+    // v23.1 part 246 — Página amigos em direto
+    friends_live_title:               "Os meus amigos em direto",
+    friends_live_subtitle:            "{total} amigo(s) aceite(s), {online} a partilhar a posição. Toca num cartão para focar.",
+    friends_live_empty:               "Ainda não tens amigos no HoPetSit. Descarrega a app para adicionar os teus próximos e ativar a partilha de posição.",
+    friends_live_section_family:      "Família",
+    friends_live_section_friends:     "Amigos",
+    friends_live_info_box:            "A posição de um amigo só aparece se tiver ativado a partilha na app móvel, ou se tiver uma subscrição PawFollow ativa. Podes gerir estas permissões a partir da tua lista de amigos no telefone.",
+    friends_live_tile_follow_action:  "Seguir",
+    friends_live_tile_offline_hint:   "Não está a partilhar a posição",
+    friends_live_dot_online:          "Em direto",
+    friends_live_dot_offline:         "Offline",
+    friends_live_badge_family:        "Família",
+    role_walker:                      "Passeador",
+    role_sitter:                      "Pet-sitter",
+    role_owner:                       "Proprietário",
   },
 };

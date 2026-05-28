@@ -1,16 +1,24 @@
 "use client";
 
-// v23.1 part 243 round 3 — Carte web "PawFollow Friends".
-// Daniel : "il faut mettre a jour le site web tout le paw follow suivre
-// les utilisateurs rien nest fais". Equivalent web de la PawMap mobile :
-// chaque ami accepte qui partage sa position apparait avec un halo
-// couleur par role (walker=vert, sitter=bleu, owner=orange, famille=violet).
-//
-// Le composant ecoute `map:friend-position` + `map:friend-offline` pour
-// bouger / retirer les markers en temps reel.
+// v23.1 part 246 — Carte web "PawFollow Friends" (deep refonte).
+// Daniel : "ameliorer liste amis et famille et quand je clic sur le profil
+// jle geolocalise pour le suivre". On accepte un selectedUserId pour
+// permettre a la page (liste tiles) de focus la map sur un ami precis et
+// ouvrir son popup. Parite design avec le mobile v244d :
+//   - halo principal = couleur du role (walker vert / sitter bleu / owner
+//     orange)
+//   - anneau exterieur violet si membre famille (le code couleur metier
+//     reste lisible)
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import {
+  Circle,
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useSocketEvent } from "@/lib/useSocket";
@@ -21,7 +29,8 @@ import type { FriendItem } from "@/lib/api";
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
@@ -34,18 +43,30 @@ function roleFromModel(model: string): "walker" | "sitter" | "owner" {
   return "owner";
 }
 
-// v243 round 3 — meme code couleur que la PawMap mobile.
-// Famille → violet (#8B5CF6), prime sur le role.
-// Walker → vert, Sitter → bleu, Owner → orange.
+// v246 — meme code couleur que la PawMap mobile post-v244d :
+// le role determine la couleur principale, famille ajoute un anneau
+// violet par-dessus. La fonction haloColor donne la couleur metier ;
+// FAMILY_VIOLET est utilise pour le ring exterieur.
 function haloColor(role: Role): string {
-  if (role === "family") return "#8B5CF6";
   if (role === "walker") return "#16A34A";
   if (role === "sitter") return "#2563EB";
+  // family = owner orange par defaut (l'anneau violet signale la famille
+  // de toute facon). En pratique role="family" arrive seulement comme
+  // fallback historique — la vraie info famille passe par familyIds.
   return "#EF4324";
 }
 
-function makeAvatarIcon(role: Role, name: string, avatar?: string): L.DivIcon {
+const FAMILY_VIOLET = "#8B5CF6";
+
+function makeAvatarIcon(
+  role: Role,
+  name: string,
+  avatar?: string,
+  isFamily?: boolean,
+): L.DivIcon {
   const color = haloColor(role);
+  const ringColor = isFamily ? FAMILY_VIOLET : "white";
+  const ringWidth = isFamily ? 4 : 3;
   const initials = (name || "?")
     .split(/\s+/)
     .map((w) => w[0] || "")
@@ -60,7 +81,8 @@ function makeAvatarIcon(role: Role, name: string, avatar?: string): L.DivIcon {
     html: `<div style="
       width: 40px; height: 40px; border-radius: 50%;
       background: ${color};
-      border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border: ${ringWidth}px solid ${ringColor};
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       display: flex; align-items: center; justify-content: center;
       overflow: hidden;">${inner}</div>`,
     iconSize: [40, 40],
@@ -78,7 +100,11 @@ export type FriendLivePosition = {
   at: string;
 };
 
-function FitBoundsOnChange({ positions }: { positions: FriendLivePosition[] }) {
+function FitBoundsOnChange({
+  positions,
+}: {
+  positions: FriendLivePosition[];
+}) {
   const map = useMap();
   const fittedOnce = useRef(false);
   useEffect(() => {
@@ -95,14 +121,36 @@ function FitBoundsOnChange({ positions }: { positions: FriendLivePosition[] }) {
   return null;
 }
 
+// v246 — fly to a specific friend when the selectedUserId prop changes.
+// Daniel : "quand je clic sur le profil jle geolocalise pour le suivre".
+function FlyToSelected({
+  selectedUserId,
+  positions,
+}: {
+  selectedUserId?: string;
+  positions: FriendLivePosition[];
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!selectedUserId) return;
+    const target = positions.find((p) => p.userId === selectedUserId);
+    if (!target) return;
+    map.flyTo([target.lat, target.lng], 15, { duration: 1.2 });
+  }, [selectedUserId, positions, map]);
+  return null;
+}
+
 export default function FriendsLiveMap({
   friends,
   initialPositions = [],
   familyIds = [],
+  selectedUserId,
 }: {
   friends: FriendItem[];
   initialPositions?: FriendLivePosition[];
   familyIds?: string[];
+  /** v246 — controle de focus depuis la liste cote page. */
+  selectedUserId?: string;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
 
@@ -115,11 +163,17 @@ export default function FriendsLiveMap({
     return map;
   }, [friends]);
 
-  const [positions, setPositions] = useState<Map<string, FriendLivePosition>>(() => {
-    const m = new Map<string, FriendLivePosition>();
-    for (const p of initialPositions) m.set(p.userId, p);
-    return m;
-  });
+  const [positions, setPositions] = useState<Map<string, FriendLivePosition>>(
+    () => {
+      const m = new Map<string, FriendLivePosition>();
+      for (const p of initialPositions) m.set(p.userId, p);
+      return m;
+    },
+  );
+
+  // Refs sur chaque Marker pour pouvoir ouvrir le popup quand le user
+  // tape un tile dans la liste (selectedUserId change -> openPopup).
+  const markerRefs = useRef<Map<string, L.Marker>>(new Map());
 
   // map:friend-position → update or add.
   useSocketEvent<{
@@ -130,9 +184,11 @@ export default function FriendsLiveMap({
     at?: string;
   }>("map:friend-position", (data) => {
     const friend = friendByUserId.get(data.userId);
-    const baseRole: Role = familySet.has(data.userId)
-      ? "family"
-      : roleFromModel(friend?.other?.model || data.role || "owner");
+    // v246 — on garde le role metier reel et on signale famille via le
+    // ring exterieur (cf. makeAvatarIcon isFamily).
+    const baseRole: Role = roleFromModel(
+      friend?.other?.model || data.role || "owner",
+    );
     setPositions((prev) => {
       const next = new Map(prev);
       next.set(data.userId, {
@@ -158,6 +214,18 @@ export default function FriendsLiveMap({
     });
   });
 
+  // Quand selectedUserId change, ouvre le popup correspondant.
+  useEffect(() => {
+    if (!selectedUserId) return;
+    const m = markerRefs.current.get(selectedUserId);
+    if (m) {
+      // Petite tempo pour laisser flyTo se terminer avant d'ouvrir
+      // le popup (sinon il peut se fermer pendant l'animation).
+      const tid = setTimeout(() => m.openPopup(), 800);
+      return () => clearTimeout(tid);
+    }
+  }, [selectedUserId]);
+
   const positionsList = Array.from(positions.values());
   const center: [number, number] =
     positionsList.length > 0
@@ -177,39 +245,70 @@ export default function FriendsLiveMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBoundsOnChange positions={positionsList} />
-        {positionsList.map((p) => (
-          <span key={p.userId}>
-            <Circle
-              center={[p.lat, p.lng]}
-              radius={70}
-              pathOptions={{
-                color: haloColor(p.role),
-                fillColor: haloColor(p.role),
-                fillOpacity: 0.18,
-                weight: 2,
-                opacity: 0.7,
-              }}
-            />
-            <Marker
-              position={[p.lat, p.lng]}
-              icon={makeAvatarIcon(p.role, p.name, p.avatar)}
-            >
-              <Popup>
-                <div className="text-sm">
-                  <strong>{p.name}</strong>
-                  <br />
-                  <span className="text-xs uppercase tracking-wider opacity-70">
-                    {p.role}
-                  </span>
-                  <br />
-                  <span className="text-xs opacity-70">
-                    {new Date(p.at).toLocaleString()}
-                  </span>
-                </div>
-              </Popup>
-            </Marker>
-          </span>
-        ))}
+        <FlyToSelected
+          selectedUserId={selectedUserId}
+          positions={positionsList}
+        />
+        {positionsList.map((p) => {
+          const isFamily = familySet.has(p.userId);
+          return (
+            <span key={p.userId}>
+              {/* 1) Halo role color (vert/bleu/orange). */}
+              <Circle
+                center={[p.lat, p.lng]}
+                radius={70}
+                pathOptions={{
+                  color: haloColor(p.role),
+                  fillColor: haloColor(p.role),
+                  fillOpacity: 0.18,
+                  weight: 2,
+                  opacity: 0.7,
+                }}
+              />
+              {/* 2) v246 — anneau exterieur violet si famille (parite
+                  mobile v244d : conserve le code couleur metier + signale
+                  le statut famille). */}
+              {isFamily && (
+                <Circle
+                  center={[p.lat, p.lng]}
+                  radius={95}
+                  pathOptions={{
+                    color: FAMILY_VIOLET,
+                    fillOpacity: 0,
+                    weight: 3,
+                    opacity: 0.95,
+                  }}
+                />
+              )}
+              <Marker
+                position={[p.lat, p.lng]}
+                icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
+                ref={(instance) => {
+                  if (instance) {
+                    markerRefs.current.set(p.userId, instance);
+                  } else {
+                    markerRefs.current.delete(p.userId);
+                  }
+                }}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <strong>{p.name}</strong>
+                    <br />
+                    <span className="text-xs uppercase tracking-wider opacity-70">
+                      {p.role}
+                      {isFamily ? " · Famille" : ""}
+                    </span>
+                    <br />
+                    <span className="text-xs opacity-70">
+                      {new Date(p.at).toLocaleString()}
+                    </span>
+                  </div>
+                </Popup>
+              </Marker>
+            </span>
+          );
+        })}
       </MapContainer>
 
       {/* Overlay status */}
@@ -221,7 +320,8 @@ export default function FriendsLiveMap({
         ) : (
           <span className="text-green-700">
             <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
-            {positionsList.length} ami{positionsList.length > 1 ? "s" : ""} en direct
+            {positionsList.length} ami{positionsList.length > 1 ? "s" : ""} en
+            direct
           </span>
         )}
       </div>
