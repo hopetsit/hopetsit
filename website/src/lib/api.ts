@@ -605,6 +605,76 @@ export async function getProviderLocation(
   }
 }
 
+// ─── v23.1 part 243 round 3 — PawFollow Friends side ────────────────────
+// Daniel : "il faut mettre a jour le site web tout le paw follow suivre
+// les utilisateurs rien nest fais". On expose la liste d'amis acceptes
+// + leur derniere position connue pour pouvoir construire la page
+// /friends/live (l'equivalent web de la PawMap mobile).
+
+export type FriendOther = {
+  id: string;
+  model: "Owner" | "Sitter" | "Walker" | string;
+  name: string;
+  email: string;
+  avatar: string;
+  city?: string;
+  deleted?: boolean;
+  hasPawFollow?: boolean;
+};
+
+export type FriendItem = {
+  id: string;
+  status: "accepted" | "pending" | "declined" | "blocked_pending_cleanup";
+  initiatedByMe: boolean;
+  other: FriendOther;
+  mySharePosition: boolean;
+  theirSharePosition: boolean;
+  myShareAutoByPawFollow?: boolean;
+  createdAt?: string;
+  acceptedAt?: string;
+};
+
+export async function getMyFriends(): Promise<FriendItem[]> {
+  try {
+    const raw = await request<{ friends?: FriendItem[] }>(`/friends`);
+    return Array.isArray(raw?.friends) ? raw.friends : [];
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
+      return [];
+    }
+    throw e;
+  }
+}
+
+export type FriendLastPosition = {
+  lat: number | null;
+  lng: number | null;
+  otherModel?: string;
+  city?: string;
+};
+
+export async function getFriendLastPosition(
+  friendUserId: string,
+): Promise<FriendLastPosition | null> {
+  try {
+    const raw = await request<FriendLastPosition>(
+      `/friends/${friendUserId}/last-position`,
+    );
+    if (raw === null || raw === undefined) return null;
+    return raw;
+  } catch (e) {
+    // 403 (opted out / pas autorise) / 404 / 502 → on retourne null pour
+    // que la page n'affiche pas de marker mais ne crash pas.
+    if (
+      e instanceof ApiError &&
+      (e.status === 403 || e.status === 404 || e.status === 502)
+    ) {
+      return null;
+    }
+    throw e;
+  }
+}
+
 export async function createBooking(input: {
   providerType: "sitter" | "walker";
   providerId: string;
@@ -698,6 +768,18 @@ export type Conversation = {
   // Champs souvent populés côté backend pour la liste :
   participantName?: string;
   participantAvatar?: string;
+  // v23.1 part 243 round 3 — Daniel : "qd jouvre mon compte que ce soit sur
+  // android web ou ios jai les memes messages partout". Le backend renvoie
+  // `friendChat=true` + `otherParty` pour les chats friend-to-friend, mais
+  // le web ne les modelait pas → friendChats invisibles dans la liste.
+  friendChat?: boolean;
+  otherParty?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string;
+    role: AuthRole;
+  };
 };
 
 export type ChatMessage = {

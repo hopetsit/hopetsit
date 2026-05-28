@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -26,8 +27,10 @@ Widget sitterBottomSheet(
               CircleAvatar(
                 radius: 30.r,
                 backgroundColor: AppColors.greyColor.withValues(alpha: 0.2),
+                // v23.1 part 243 round 3 — perf : CachedNetworkImageProvider
+                // limite la decompression a 150px max (vs bitmap natif ~5MB).
                 backgroundImage: sitter.avatar.url.isNotEmpty
-                    ? NetworkImage(sitter.avatar.url)
+                    ? CachedNetworkImageProvider(sitter.avatar.url, maxWidth: 150)
                     : null,
                 child: sitter.avatar.url.isEmpty
                     ? Icon(Icons.person, size: 30.sp, color: AppColors.greyText)

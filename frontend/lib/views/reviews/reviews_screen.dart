@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -75,8 +76,12 @@ class ReviewsScreen extends StatelessWidget {
                             // Profile Picture
                             CircleAvatar(
                               radius: 40.r,
+                              // v23.1 part 243 round 3 — perf.
                               backgroundImage: profileImagePath != null
-                                  ? NetworkImage(profileImagePath ?? '')
+                                  ? CachedNetworkImageProvider(
+                                      profileImagePath ?? '',
+                                      maxWidth: 200,
+                                    ) as ImageProvider
                                   : AssetImage(
                                       profileImagePath ??
                                           AppImages.placeholderImage,

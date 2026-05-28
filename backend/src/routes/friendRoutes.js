@@ -129,16 +129,19 @@ async function enrichFriendship(friendship, viewerId, viewerHasPawFollow) {
   const dbTheirShare = isRequester
     ? friendship.addresseeSharesPosition
     : friendship.requesterSharesPosition;
-  // v23.1 part 226 — Daniel : "debloque le partage de position a mes
-  // amis et famille si jai un abonnement paw follow". Si JE possede un
-  // PawFollow actif, mySharePosition est force a true cote API (le DB
-  // garde son etat reel, mais l'UI affiche le toggle ON + auto-share).
-  // Symetriquement, si l'AMI possede un PawFollow, theirSharePosition
-  // est force true (deja gere en partie par v222 cote frontend mais
-  // mieux ici cote backend pour la coherence).
-  const mySharePosition = viewerHasPawFollow ? true : !!dbMyShare;
-  const theirSharePosition =
-    (other && other.hasPawFollow) ? true : !!dbTheirShare;
+  // v23.1 part 243 — Daniel : "ds la liste amis et amis famislle le
+  // bouton afficher position on off marche pas y reste bloquer sur auto".
+  // Cause : v226 forçait mySharePosition=true cote API quand PawFollow
+  // actif → le user toggler OFF la switch, le PATCH stockait
+  // dbMyShare=false, mais le NEXT GET /friends ecrasait avec true →
+  // la switch rebondissait. Bloque sur Auto.
+  //
+  // Fix : on retourne TOUJOURS la vraie valeur DB. Le flag
+  // myShareAutoByPawFollow reste expose pour que l'UI affiche le badge
+  // "Auto · PawFollow" en dessous de la switch, mais la valeur de la
+  // switch reflete le choix manuel de l'user.
+  const mySharePosition = !!dbMyShare;
+  const theirSharePosition = !!dbTheirShare;
   return {
     id: friendship._id,
     status: friendship.status,
@@ -313,8 +316,8 @@ router.get('/search', requireAuth, async (req, res) => {
       return res.json({ users: [] });
     }
     const meId = req.user.id;
-    const escape = q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const re = new RegExp(escape, 'i');
+    const escape = (s) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const re = new RegExp(escape(q), 'i');
     // v23.1 part 212 — Daniel : "jme co sur allomoteur, je mets ajouter
     // je cherche daniel sa marche pas personne trouver". Cause racine :
     //   - Le SEARCH cherchait sur le champ `name` qui n'EXISTE PAS sur
@@ -326,16 +329,30 @@ router.get('/search', requireAuth, async (req, res) => {
     // se fait apres au moment du mapping.
     const projection = 'firstName lastName email profilePicture avatar';
 
+    // v23.1 part 243 — Daniel : "difficulute a rajouter amis". Quand on
+    // tape un nom complet comme "Daniel Smith", la query precedente
+    // matchait juste /Daniel Smith/i sur firstName et lastName SEPARES,
+    // mais aucun doc n'a "Daniel Smith" stocke entierement dans un seul
+    // champ → 0 resultat alors que le user EST en base.
+    //
+    // Fix : on split la query en tokens. Chaque token doit matcher au
+    // moins UN des champs (firstName | lastName | email) — AND multi-token.
+    // Donc "Daniel Smith" trouve un user avec firstName=Daniel + lastName=Smith,
+    // ET un user avec firstName=Smith + lastName=Daniel, ET un user avec
+    // email=daniel.smith@... etc.
+    const tokens = q.split(/\s+/).filter((t) => t.length >= 1);
+    const andClauses = tokens.map((t) => {
+      const tre = new RegExp(escape(t), 'i');
+      return { $or: [{ email: tre }, { firstName: tre }, { lastName: tre }] };
+    });
+    const matchQuery = andClauses.length > 0
+      ? { $and: andClauses }
+      : { $or: [{ email: re }, { firstName: re }, { lastName: re }] };
+
     const [owners, sitters, walkers] = await Promise.all([
-      Owner.find({
-        $or: [{ email: re }, { firstName: re }, { lastName: re }],
-      }).select(projection).limit(10).lean(),
-      Sitter.find({
-        $or: [{ email: re }, { firstName: re }, { lastName: re }],
-      }).select(projection).limit(10).lean(),
-      Walker.find({
-        $or: [{ email: re }, { firstName: re }, { lastName: re }],
-      }).select(projection).limit(10).lean(),
+      Owner.find(matchQuery).select(projection).limit(10).lean(),
+      Sitter.find(matchQuery).select(projection).limit(10).lean(),
+      Walker.find(matchQuery).select(projection).limit(10).lean(),
     ]);
 
     const _avatarUrl = (a) => (a && (a.url || a)) || '';
@@ -1055,6 +1072,23 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
         { requesterId: otherId, addresseeId: user.id },
       ],
     }).lean();
+
+    // v23.1 part 243 — Daniel : "le bouton afficher position on off
+    // marche pas y reste bloquer sur auto". Si l'ami a EXPLICITEMENT
+    // toggle off sa switch "partager position", on doit refuser meme
+    // si PawFollow / famille — son choix manuel prime sur le bypass abo.
+    // On lit son share-flag EN PREMIER : si false → 403 immediat.
+    const otherShareFlag = friendship
+      ? (String(friendship.requesterId) === String(otherId)
+          ? friendship.requesterSharesPosition
+          : friendship.addresseeSharesPosition)
+      : null;
+    if (otherShareFlag === false) {
+      return res.status(403).json({
+        error: 'Friend opted out of position sharing.',
+        canTrack: false,
+      });
+    }
 
     let canTrack = false;
     if (friendship) {

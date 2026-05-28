@@ -86,12 +86,16 @@ const Map<String, String> frFRTranslations = <String, String>{
       // et personne en live met personnes live position qu'on puisse bien
       // lire". Labels rallonges qui tiennent sur 2 lignes grace au
       // IntrinsicHeight des quick-action cards (toutes meme hauteur).
-      'pawmap_quick_follow': 'Me suivre position',
+      // v23.1 part 243 — Daniel : "met juste un titre par bouton cour quon
+      // comprene et que ce sois traducible ds tte les langue". Labels
+      // raccourcis a 1 mot. Les sublabels restent dans le map pour
+      // backward-compat mais ne sont plus affiches dans le widget.
+      'pawmap_quick_follow': 'Suivre',
       'pawmap_quick_follow_sub': 'Mes proches',
-      'pawmap_quick_follow_on': 'Live actif',
-      'pawmap_quick_family': 'Famille & Amis',
+      'pawmap_quick_follow_on': 'Actif',
+      'pawmap_quick_family': 'Amis',
       'pawmap_quick_family_sub': 'Ajouter',
-      'pawmap_quick_people_live': 'Personnes live position',
+      'pawmap_quick_people_live': 'En direct',
       'pawmap_quick_people_live_sub': 'Position partagee',
       'pawmap_quick_alerts': 'Alertes',
       'pawmap_quick_alerts_sub': 'Signalements',
@@ -2554,6 +2558,24 @@ const Map<String, String> frFRTranslations = <String, String>{
     'kyc_payment_confirmed_msg': 'On lance maintenant la vérification d\'identité.',
     'kyc_link_unavailable': 'Lien de vérification indisponible.',
     'kyc_webview_title': 'Vérification d\'identité',
+    // v23.1 part 243 — nouvelles clés i18n pour supprimer les strings hardcodées FR.
+    'kyc_loading': 'Chargement...',
+    'kyc_launch_persona_btn': '⚡ Lancer la vérification Persona',
+    'kyc_relaunch_persona': 'Relancer la vérification Persona',
+    'kyc_quick_verify_btn': '⚡ Vérification rapide — @price €',
+    'kyc_hint_after_payment': 'Scan ID + selfie, vérification automatique ~2 minutes.',
+    'kyc_hint_before_payment': 'Paiement 3 €, scan ID + selfie, ~2 minutes.',
+    'kyc_sync_pending_title': 'Synchronisation en cours',
+    'kyc_sync_pending_msg': 'Ton paiement est confirmé mais la vérification met un peu plus longtemps que prévu. Réappuie sur "Continuer" dans quelques secondes.',
+    'kyc_payment_canceled_title': 'Paiement annulé',
+    'kyc_payment_canceled_retry': 'Réessaie quand tu veux.',
+    // v23.1 part 243 — coin shop / boost dialogs.
+    'coin_shop_pay_wallet_dialog_title': 'Payer avec ton wallet ?',
+    'coin_shop_pay_wallet_btn': 'Payer avec wallet 💰',
+    'coin_shop_boost_confirm_title': 'Acheter Boost @tier ?',
+    'coin_shop_boost_confirm_description': 'Ton profil sera mis en avant pendant la durée choisie.',
+    // v23.1 part 243 — send request totaux.
+    'send_request_total_pending': 'À confirmer',
     'role_pet_walker': 'Promeneur',
     'role_pet_walker_desc': 'Je promène les chiens des propriétaires.',
     'auth_role_pet_walker': 'Promeneur',

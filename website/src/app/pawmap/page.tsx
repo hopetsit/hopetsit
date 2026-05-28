@@ -97,13 +97,22 @@ export default function PawMapPage() {
       <p className="mt-3 text-center text-sm font-semibold text-walker-dark">{t("pawmap_categories")}</p>
 
       {/* v23.1 part 146 — CTA vers la carte interactive (auth required). */}
-      <div className="mt-6 flex justify-center">
+      {/* v23.1 part 243 round 3 — second CTA vers /friends/live. */}
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Link
           href="/map"
           className="inline-flex items-center gap-2 rounded-full bg-walker px-6 py-3 text-sm font-semibold text-white shadow-cta hover:bg-walker-dark"
         >
           <span>🗺️</span>
           <span>Ouvrir la PawMap interactive</span>
+          <span>→</span>
+        </Link>
+        <Link
+          href="/friends/live"
+          className="inline-flex items-center gap-2 rounded-full border border-walker bg-white px-6 py-3 text-sm font-semibold text-walker-dark hover:bg-walker-light"
+        >
+          <span>🐾</span>
+          <span>Mes amis en direct</span>
           <span>→</span>
         </Link>
       </div>

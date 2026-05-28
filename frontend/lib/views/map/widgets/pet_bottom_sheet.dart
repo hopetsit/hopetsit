@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hopetsit/models/pet_map_item.dart';
@@ -25,8 +26,10 @@ Widget petBottomSheet(
               CircleAvatar(
                 radius: 30.r,
                 backgroundColor: AppColors.greyColor.withValues(alpha: 0.2),
+                // v23.1 part 243 round 3 — perf : CachedNetworkImageProvider
+                // limite la decompression a 150px max.
                 backgroundImage: pet.avatarUrl.isNotEmpty
-                    ? NetworkImage(pet.avatarUrl)
+                    ? CachedNetworkImageProvider(pet.avatarUrl, maxWidth: 150)
                     : null,
                 child: pet.avatarUrl.isEmpty
                     ? Icon(Icons.pets, size: 30.sp, color: AppColors.greyText)

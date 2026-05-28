@@ -63,7 +63,8 @@ class PawMapScreen extends StatefulWidget {
   State<PawMapScreen> createState() => _PawMapScreenState();
 }
 
-class _PawMapScreenState extends State<PawMapScreen> {
+class _PawMapScreenState extends State<PawMapScreen>
+    with WidgetsBindingObserver {
   final Completer<GoogleMapController> _mapCtl = Completer();
   late final PawMapController _poiController;
   late final MapReportController _reportController;
@@ -126,6 +127,17 @@ class _PawMapScreenState extends State<PawMapScreen> {
   Timer? _haloTimer;
   final RxDouble _haloPhase = 0.0.obs;
 
+  /// v23.1 part 243 round 3 — perf : cache des markers (Daniel : "sur
+  /// certain portable sa lague"). Le Obx GoogleMap rebuild a chaque tick
+  /// halo (600ms), ce qui appelait _buildMarkers() qui re-itere TOUS les
+  /// providers/POIs/reports et recree chaque Marker → garbage churn massif
+  /// sur low-end. Maintenant on memoize avec une cle qui depend des inputs
+  /// reels (lengths + show flags) : si la cle n'a pas change, on reutilise
+  /// le Set cache. Le _buildMarkers ne tourne plus que quand la donnee
+  /// change vraiment, pas a chaque tick visuel.
+  Set<Marker>? _cachedMarkers;
+  String _cachedMarkersKey = '';
+
   /// Cached role lookup — read once, used for layer gating and UI.
   String get _role {
     final auth = Get.isRegistered<AuthController>()
@@ -153,6 +165,12 @@ class _PawMapScreenState extends State<PawMapScreen> {
   @override
   void initState() {
     super.initState();
+    // v23.1 part 243 round 3 — perf : pause _haloTimer quand l'app est
+    // en background (Daniel : "sur certain portable sa lague"). Le timer
+    // tickait toutes les 600ms meme avec l'app ecran eteint et forcait
+    // GoogleMap a rebuild dans le vide. Sur Oppo low-end ca decharge
+    // la batterie et fait sauter des frames quand le user revient.
+    WidgetsBinding.instance.addObserver(this);
     _poiController = Get.isRegistered<PawMapController>()
         ? Get.find<PawMapController>()
         : Get.put(PawMapController());
@@ -312,11 +330,34 @@ class _PawMapScreenState extends State<PawMapScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _reloadDebounce?.cancel();
     _haloTimer?.cancel();
     _liveMap.stopBroadcasting();
     _cityCtrl.dispose();
     super.dispose();
+  }
+
+  // v23.1 part 243 round 3 — pause / resume du halo selon le cycle de vie
+  // de l'app. Quand on est paused/inactive (user a quitte vers home / locked),
+  // on annule le timer. Quand on revient resumed, on relance avec la meme
+  // periode. Gain perf : zero rebuild Google Map quand l'app est invisible.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      if (_haloTimer == null || !(_haloTimer!.isActive)) {
+        _haloTimer = Timer.periodic(const Duration(milliseconds: 600), (_) {
+          if (!mounted) return;
+          _haloPhase.value = (_haloPhase.value + 1.0 / 8.0) % 1.0;
+        });
+      }
+    } else {
+      // paused / inactive / detached / hidden → coupe le timer.
+      _haloTimer?.cancel();
+      _haloTimer = null;
+    }
   }
 
   /// v19.1.3 — Modernized search bar: pill-shaped glassmorphic surface with
@@ -951,8 +992,16 @@ class _PawMapScreenState extends State<PawMapScreen> {
         }
       } catch (_) {/* defensive */}
 
+      // v23.1 part 243 — Daniel : "si amis deviens famille mettre halo en
+      // violet, si owner sur la carte halo orange". Nouvelle priorite :
+      //   1. Famille (peu importe le role) → VIOLET (#8B5CF6) — c'est une
+      //      relation forte, prime sur le metier.
+      //   2. Walker → vert (inchange).
+      //   3. Sitter → bleu (inchange).
+      //   4. Owner (ami simple, pas famille) → ORANGE brand (#EF4324).
+      //   5. Fallback (role inconnu) → silver.
       const silver = Color(0xFFC0C0C0);
-      const familyPink = Color(0xFFEC4899);
+      const familyViolet = Color(0xFF8B5CF6);
 
       for (final pos in _liveMap.friendPositions.values) {
         // v23.1 part 240 — fallback sur FriendPosition.role quand le peer
@@ -960,18 +1009,21 @@ class _PawMapScreenState extends State<PawMapScreen> {
         // sitter/walker non-ami). Sinon halo neutre alors qu'on a le metier.
         final role = (friendIdToRole[pos.userId] ?? pos.role).toLowerCase();
         final isFamily = familyMemberIds.contains(pos.userId);
-        // Priorite v225 : walker/sitter override family/friend.
+        // v243 : famille a la priorite la plus haute.
         Color color;
         String tag;
-        if (role == 'walker') {
+        if (isFamily) {
+          color = familyViolet;
+          tag = 'family';
+        } else if (role == 'walker') {
           color = AppColors.greenColor;
           tag = 'walker';
         } else if (role == 'sitter') {
           color = AppColors.sitterAccent;
           tag = 'sitter';
-        } else if (isFamily) {
-          color = familyPink;
-          tag = 'family';
+        } else if (role == 'owner') {
+          color = AppColors.primaryColor;
+          tag = 'owner';
         } else {
           color = silver;
           tag = 'friend';
@@ -993,6 +1045,30 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   // ─── Marker building ─────────────────────────────────────────────────────
+  // v23.1 part 243 round 3 — wrapper qui reutilise le cache si la cle
+  // d'invalidation n'a pas change. Sur low-end (Oppo/Samsung A-series)
+  // ca evite des centaines de _buildMarkers/sec quand le halo tick.
+  Set<Marker> _getMarkersFromCache() {
+    final key = [
+      _nearbyProviders.length,
+      _poiController.visiblePois.length,
+      _reportController.reports.length,
+      _showProviders.value ? 1 : 0,
+      _showPois.value ? 1 : 0,
+      _showReports.value ? 1 : 0,
+      _emojiMarkersReady ? 1 : 0,
+      _liveMap.friendPositions.length,
+      _requests.length,
+      _showRequests.value ? 1 : 0,
+      _showFriends.value ? 1 : 0,
+    ].join('-');
+    if (_cachedMarkers == null || _cachedMarkersKey != key) {
+      _cachedMarkers = _buildMarkers();
+      _cachedMarkersKey = key;
+    }
+    return _cachedMarkers!;
+  }
+
   Set<Marker> _buildMarkers() {
     final Set<Marker> markers = {};
     // v23.1 part 72 — Bug 10 : render nearby providers (owner side).
@@ -1501,7 +1577,10 @@ class _PawMapScreenState extends State<PawMapScreen> {
                       // overlap with the Signaler FAB). We provide our own
                       // +/- pair under the geoloc pin.
                       zoomControlsEnabled: false,
-                      markers: _buildMarkers(),
+                      // v23.1 part 243 round 3 — markers memoizes, voir
+                      // _cachedMarkers + _getMarkersFromCache plus haut.
+                      // Plus de _buildMarkers() sur chaque tick halo.
+                      markers: _getMarkersFromCache(),
                       circles: _buildHaloCircles(),
                     );
                   }),
@@ -1955,6 +2034,10 @@ class _PawMapScreenState extends State<PawMapScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+          // v23.1 part 243 — Daniel : "met juste un titre par bouton cour
+          // quon comprene et que ce sois traducible ds tte les langue".
+          // Sublabels supprimes, labels raccourcis a 1 mot par bouton.
+          //
           // 1. Suivre — toggle broadcast (= je partage ma position aux
           // amis qui peuvent me suivre). Etat actif → vert + icon plein.
           Expanded(
@@ -1964,10 +2047,10 @@ class _PawMapScreenState extends State<PawMapScreen> {
                 icon: on
                     ? Icons.gps_fixed_rounded
                     : Icons.location_searching_rounded,
-                label: 'pawmap_quick_follow'.tr,
-                sublabel: on
+                // v23.1 part 243 — un seul label qui change selon l'etat.
+                label: on
                     ? 'pawmap_quick_follow_on'.tr
-                    : 'pawmap_quick_follow_sub'.tr,
+                    : 'pawmap_quick_follow'.tr,
                 color: on
                     ? const Color(0xFF16A34A)
                     : const Color(0xFFEF4324),
@@ -1981,48 +2064,36 @@ class _PawMapScreenState extends State<PawMapScreen> {
             child: _quickActionCard(
               icon: Icons.people_alt_rounded,
               label: 'pawmap_quick_family'.tr,
-              sublabel: 'pawmap_quick_family_sub'.tr,
               color: const Color(0xFF8B5CF6),
               onTap: () => Get.to(() => const FriendsScreen()),
             ),
           ),
           SizedBox(width: 8.w),
-          // 3. Personnes live position — v23.1 part 225 — Daniel : "vire
-          // personne en live de l'onglet famille amis". L'onglet a ete
-          // supprime, mais la card ici reste : elle ouvre maintenant la
-          // screen autonome PeopleLiveScreen (memo logique, propre AppBar).
-          // Couleur verte pour distinguer du violet Famille et du jaune
-          // Alertes.
+          // 3. Personnes live position — screen autonome PeopleLiveScreen.
           Expanded(
             child: _quickActionCard(
               icon: Icons.gps_fixed_rounded,
               label: 'pawmap_quick_people_live'.tr,
-              sublabel: 'pawmap_quick_people_live_sub'.tr,
               color: const Color(0xFF10B981),
               onTap: () => Get.to(() => const PeopleLiveScreen()),
             ),
           ),
           SizedBox(width: 8.w),
-          // 4. Alertes — ouvre l'ecran AlertsScreen dedie avec onglets
-          // (Tous / Perdus / Danger / Accident / Autres) et badges de
-          // severite. v23.1.186 (mockup Daniel).
+          // 4. Alertes — ouvre l'ecran AlertsScreen dedie.
           Expanded(
             child: _quickActionCard(
               icon: Icons.notifications_active_rounded,
               label: 'pawmap_quick_alerts'.tr,
-              sublabel: 'pawmap_quick_alerts_sub'.tr,
               color: const Color(0xFFF59E0B),
               onTap: () => Get.to(() => const AlertsScreen()),
             ),
           ),
           SizedBox(width: 8.w),
-          // 4. Signaler — ouvre la grille 2x3 ReportCategoryGridScreen
-          // avec 6 grosses cards categorisees. v23.1.186 (mockup Daniel).
+          // 5. Signaler — ouvre la grille 2x3 ReportCategoryGridScreen.
           Expanded(
             child: _quickActionCard(
               icon: Icons.add_circle_rounded,
               label: 'pawmap_quick_report'.tr,
-              sublabel: 'pawmap_quick_report_sub'.tr,
               color: const Color(0xFFDC2626),
               onTap: () async {
                 final created = await Get.to(
@@ -2039,11 +2110,16 @@ class _PawMapScreenState extends State<PawMapScreen> {
   }
 
   /// Carte unique du header — gros bloc carré arrondi avec icône blanche
-  /// sur cercle coloré + label en gras + petit sublabel grisé en dessous.
+  /// sur cercle coloré + label en gras.
+  /// v23.1 part 243 — Daniel : "met juste un titre par bouton cour quon
+  /// comprene et que ce sois traducible ds tte les langue". On supprime
+  /// le sublabel (deuxieme ligne grisee en dessous) qui faisait double
+  /// emploi avec le label principal et compliquait les traductions.
+  /// Le param sublabel est conserve mais ignore — retro-compat des appels.
   Widget _quickActionCard({
     required IconData icon,
     required String label,
-    required String sublabel,
+    String? sublabel,
     required Color color,
     required VoidCallback onTap,
   }) {
@@ -2093,25 +2169,15 @@ class _PawMapScreenState extends State<PawMapScreen> {
                 child: Icon(icon, color: Colors.white, size: 20.sp),
               ),
               SizedBox(height: 6.h),
-              // v23.1.190 — Daniel : "voir si tu peux pas ecrire famille
-              // et amis ds le bouton violet". maxLines=2 permet aux
-              // labels longs (Famille & Amis) de wrap sur 2 lignes au
-              // lieu d'etre tronques.
+              // v23.1 part 243 — un seul titre court, sublabel supprime
+              // (cf. doc methode). On garde maxLines=2 au cas ou une langue
+              // longue (ex. allemand "Warnungen") aurait besoin de wrap.
               InterText(
                 text: label,
-                fontSize: 11.sp,
+                fontSize: 12.sp,
                 fontWeight: FontWeight.w800,
                 color: color,
                 maxLines: 2,
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 2.h),
-              InterText(
-                text: sublabel,
-                fontSize: 9.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.greyText,
-                maxLines: 1,
                 textAlign: TextAlign.center,
               ),
             ],

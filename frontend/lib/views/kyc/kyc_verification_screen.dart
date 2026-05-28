@@ -85,8 +85,9 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       );
       if (result.outcome == AirwallexPaymentOutcome.success) {
         CustomSnackbar.showSuccess(
-          title: 'Paiement confirmé',
-          message: 'On lance maintenant la vérification d\'identité.',
+          // v23.1 part 243 — i18n.
+          title: 'kyc_payment_confirmed'.tr,
+          message: 'kyc_payment_confirmed_msg'.tr,
         );
 
         // v23.1 part 75 — Daniel : "sa as debiter et sa menvoi pas a la
@@ -115,17 +116,16 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
           _onStartVerification();
         } else {
           CustomSnackbar.showWarning(
-            title: 'Synchronisation en cours',
-            message:
-                'Ton paiement est confirmé mais la vérification met un peu '
-                'plus longtemps que prévu. Réappuie sur "Continuer" dans '
-                'quelques secondes.',
+            // v23.1 part 243 — i18n.
+            title: 'kyc_sync_pending_title'.tr,
+            message: 'kyc_sync_pending_msg'.tr,
           );
         }
       } else {
         CustomSnackbar.showError(
-          title: 'Paiement annulé',
-          message: result.errorMessage ?? 'Réessaie quand tu veux.',
+          // v23.1 part 243 — i18n.
+          title: 'kyc_payment_canceled_title'.tr,
+          message: result.errorMessage ?? 'kyc_payment_canceled_retry'.tr,
         );
       }
     } catch (e) {
@@ -252,10 +252,9 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                 ),
                 SizedBox(height: 8.h),
                 InterText(
-                  text:
-                      'Un badge "Vérifié" rassure les propriétaires et augmente '
-                      'tes chances d\'être choisi pour leurs réservations. '
-                      'Vérification rapide (~2 min) avec ID + selfie.',
+                  // v23.1 part 243 — i18n. Was hardcoded FR, now uses the
+                  // 6-lang kyc_screen_why_body key.
+                  text: 'kyc_screen_why_body'.tr,
                   fontSize: 13.sp,
                   color: AppColors.textPrimary(context),
                 ),
@@ -277,29 +276,30 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     String label;
     Color color;
     IconData icon;
+    // v23.1 part 243 — i18n. Was hardcoded FR, now uses kyc_status_* keys.
     switch (status) {
       case 'verified':
-        label = 'Vérifié ✓';
+        label = 'kyc_status_verified'.tr;
         color = const Color(0xFF1976D2);
         icon = Icons.verified_rounded;
         break;
       case 'pending_verification':
-        label = 'En attente de vérification';
+        label = 'kyc_status_pending_verification'.tr;
         color = const Color(0xFFFFA000);
         icon = Icons.pending_outlined;
         break;
       case 'pending_payment':
-        label = 'En attente de paiement';
+        label = 'kyc_status_pending_payment'.tr;
         color = const Color(0xFFFFA000);
         icon = Icons.payment_outlined;
         break;
       case 'rejected':
-        label = 'Vérification refusée';
+        label = 'kyc_status_rejected'.tr;
         color = const Color(0xFFE53935);
         icon = Icons.cancel_outlined;
         break;
       default:
-        label = 'Non vérifié — Coût : ${price}€';
+        label = 'kyc_status_none'.trParams({'price': price.toString()});
         color = AppColors.greyColor;
         icon = Icons.circle_outlined;
     }
@@ -335,8 +335,9 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
             Icon(Icons.verified_rounded,
                 color: const Color(0xFF1976D2), size: 60.sp),
             SizedBox(height: 12.h),
+            // v23.1 part 243 — i18n. Was hardcoded FR.
             PoppinsText(
-              text: 'Tu es vérifié !',
+              text: 'kyc_done_title'.tr,
               fontSize: 18.sp,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF1976D2),
@@ -344,7 +345,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
             if (dateStr.isNotEmpty) ...[
               SizedBox(height: 4.h),
               InterText(
-                text: 'Le $dateStr',
+                text: 'kyc_done_date'.trParams({'date': dateStr}),
                 fontSize: 12.sp,
                 color: AppColors.greyColor,
               ),
@@ -370,7 +371,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                     color: const Color(0xFFE53935), size: 24.sp),
                 SizedBox(width: 8.w),
                 PoppinsText(
-                  text: 'Vérification refusée',
+                  // v23.1 part 243 — i18n.
+                  text: 'kyc_rejected_title'.tr,
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFFE53935),
@@ -379,8 +381,9 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
             ),
             SizedBox(height: 8.h),
             InterText(
+              // v23.1 part 243 — i18n.
               text: _status['kycRejectionReason']?.toString() ??
-                  'Le document ou le selfie n\'ont pas pu être validés. Contacte le support.',
+                  'kyc_rejected_default'.tr,
               fontSize: 13.sp,
               color: AppColors.textPrimary(context),
             ),
@@ -395,7 +398,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                 onPressed: _busy ? null : _onStartVerification,
                 icon: Icon(Icons.bolt_rounded, color: _accent, size: 20.sp),
                 label: Text(
-                  _busy ? 'Chargement...' : 'Relancer la vérification Persona',
+                  // v23.1 part 243 — i18n.
+                  _busy ? 'kyc_loading'.tr : 'kyc_relaunch_persona'.tr,
                   style: TextStyle(
                     color: _accent,
                     fontSize: 13.sp,
@@ -431,7 +435,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                   : Icon(Icons.bolt_rounded,
                       color: Colors.white, size: 20.sp),
               label: Text(
-                _busy ? 'Chargement...' : '⚡ Lancer la vérification Persona',
+                // v23.1 part 243 — i18n.
+                _busy ? 'kyc_loading'.tr : 'kyc_launch_persona_btn'.tr,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14.sp,
@@ -449,7 +454,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
           ),
           SizedBox(height: 4.h),
           InterText(
-            text: 'Scan ID + selfie, vérification automatique ~2 minutes.',
+            // v23.1 part 243 — i18n.
+            text: 'kyc_hint_after_payment'.tr,
             fontSize: 11.sp,
             color: AppColors.greyColor,
           ),
@@ -474,7 +480,10 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                 : Icon(Icons.bolt_rounded,
                     color: Colors.white, size: 20.sp),
             label: Text(
-              _busy ? 'Chargement...' : '⚡ Vérification rapide — $price €',
+              // v23.1 part 243 — i18n.
+              _busy
+                  ? 'kyc_loading'.tr
+                  : 'kyc_quick_verify_btn'.trParams({'price': price.toString()}),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14.sp,
@@ -492,7 +501,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         ),
         SizedBox(height: 4.h),
         InterText(
-          text: 'Paiement 3 €, scan ID + selfie, ~2 minutes.',
+          // v23.1 part 243 — i18n.
+          text: 'kyc_hint_before_payment'.tr,
           fontSize: 11.sp,
           color: AppColors.greyColor,
         ),
@@ -516,17 +526,19 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PoppinsText(
-            text: 'Comment ça marche',
+            // v23.1 part 243 — i18n.
+            text: 'kyc_steps_title'.tr,
             fontSize: 14.sp,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary(context),
           ),
           SizedBox(height: 10.h),
-          _stepItem('1', 'Paie 3 € (frais unique, non-remboursable)'),
-          _stepItem('2', 'Scan ton passeport ou carte d\'identité'),
-          _stepItem('3', 'Prends un selfie pour la liveness check'),
-          _stepItem('4', 'Vérification automatique en ~2 min'),
-          _stepItem('5', 'Le badge "Vérifié" apparaît sur ton profil'),
+          // v23.1 part 243 — i18n. Was hardcoded FR for all 5 steps.
+          _stepItem('1', 'kyc_step1'.tr),
+          _stepItem('2', 'kyc_step2'.tr),
+          _stepItem('3', 'kyc_step3'.tr),
+          _stepItem('4', 'kyc_step4'.tr),
+          _stepItem('5', 'kyc_step5'.tr),
         ],
       ),
     );

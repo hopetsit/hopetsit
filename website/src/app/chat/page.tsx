@@ -228,8 +228,14 @@ export default function ChatPage() {
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
+                  {/* v23.1 part 243 round 3 — fallback otherParty pour les
+                      friendChats (backend v23.1.200) afin que les
+                      conversations entre amis apparaissent avec le bon nom
+                      sur le web aussi (parite Android/iOS). */}
                   <span className="truncate text-sm font-semibold text-ink">
-                    {c.participantName || "Conversation"}
+                    {c.participantName ||
+                      c.otherParty?.name ||
+                      "Conversation"}
                   </span>
                   {(c.unreadCount ?? 0) > 0 && (
                     <span className="rounded-full bg-walker px-2 py-0.5 text-xs font-bold text-white">

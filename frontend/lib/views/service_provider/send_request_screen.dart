@@ -1277,7 +1277,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 PoppinsText(
-                  text: totalText ?? 'À confirmer',
+                  // v23.1 part 243 — i18n. Was hardcoded FR 'À confirmer'.
+                  text: totalText ?? 'send_request_total_pending'.tr,
                   fontSize: 28.sp,
                   fontWeight: FontWeight.w800,
                   color: _roleColor,

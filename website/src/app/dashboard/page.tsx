@@ -266,6 +266,15 @@ export default function DashboardPage() {
           title="PawMap"
           subtitle="Vétos, parcs, plages pet-friendly"
         />
+        {/* v23.1 part 243 round 3 — Daniel : "tout le paw follow suivre les
+            utilisateurs rien nest fais". Nouveau lien dashboard vers la
+            page live des amis. */}
+        <NavCard
+          href="/friends/live"
+          emoji="🐾"
+          title="Mes amis en direct"
+          subtitle="Suivi PawFollow en temps réel"
+        />
         <NavCard
           href="/boutique"
           emoji="🛍️"

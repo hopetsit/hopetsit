@@ -82,12 +82,13 @@ const Map<String, String> enUSTranslations = <String, String>{
       // v23.1.184 — PawMap redesign with 4 quick-action cards.
       // v23.1.191 — shorter sublabels to fit on one line.
       // v23.1 part 225 — Daniel rename for readability (2 lines).
-      'pawmap_quick_follow': 'Track my position',
+      // v23.1 part 243 — short single-word labels per button.
+      'pawmap_quick_follow': 'Follow',
       'pawmap_quick_follow_sub': 'Loved ones',
-      'pawmap_quick_follow_on': 'Live on',
-      'pawmap_quick_family': 'Family & Friends',
+      'pawmap_quick_follow_on': 'Live',
+      'pawmap_quick_family': 'Friends',
       'pawmap_quick_family_sub': 'Add',
-      'pawmap_quick_people_live': 'Live positions',
+      'pawmap_quick_people_live': 'Live',
       'pawmap_quick_people_live_sub': 'Position shared',
       'pawmap_quick_alerts': 'Alerts',
       'pawmap_quick_alerts_sub': 'Reports',
@@ -2592,6 +2593,24 @@ const Map<String, String> enUSTranslations = <String, String>{
     'kyc_payment_confirmed_msg': 'Launching identity verification now.',
     'kyc_link_unavailable': 'Verification link unavailable.',
     'kyc_webview_title': 'Identity verification',
+    // v23.1 part 243 — new i18n keys to remove hardcoded FR strings.
+    'kyc_loading': 'Loading...',
+    'kyc_launch_persona_btn': '⚡ Launch Persona verification',
+    'kyc_relaunch_persona': 'Relaunch Persona verification',
+    'kyc_quick_verify_btn': '⚡ Quick verify — €@price',
+    'kyc_hint_after_payment': 'Scan ID + selfie, automatic verification ~2 minutes.',
+    'kyc_hint_before_payment': '€3 payment, scan ID + selfie, ~2 minutes.',
+    'kyc_sync_pending_title': 'Sync in progress',
+    'kyc_sync_pending_msg': 'Your payment is confirmed but verification is taking a bit longer than expected. Tap "Continue" again in a few seconds.',
+    'kyc_payment_canceled_title': 'Payment canceled',
+    'kyc_payment_canceled_retry': 'Try again whenever you want.',
+    // v23.1 part 243 — coin shop / boost dialogs.
+    'coin_shop_pay_wallet_dialog_title': 'Pay with your wallet?',
+    'coin_shop_pay_wallet_btn': 'Pay with wallet 💰',
+    'coin_shop_boost_confirm_title': 'Buy Boost @tier?',
+    'coin_shop_boost_confirm_description': 'Your profile will be promoted for the selected duration.',
+    // v23.1 part 243 — send request totals.
+    'send_request_total_pending': 'To be confirmed',
     'role_pet_walker': 'Dog walker',
     'role_pet_walker_desc': 'I walk dogs for their owners.',
     'auth_role_pet_walker': 'Dog walker',

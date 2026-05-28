@@ -228,17 +228,21 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     final currency = (pkg['currency'] ?? 'EUR').toString();
     final ok = await Get.dialog<bool>(
       AlertDialog(
-        title: const Text('Payer avec ton wallet ?'),
+        // v23.1 part 243 — i18n. Was hardcoded FR.
+        title: Text('coin_shop_pay_wallet_dialog_title'.tr),
         content: Text(
           'coin_shop_boost_wallet_confirm_msg'.trParams({
             'amount': '${amount.toStringAsFixed(2)} $currency',
           }),
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('common_cancel'.tr),
+          ),
           TextButton(
             onPressed: () => Get.back(result: true),
-            child: const Text('Payer avec wallet 💰'),
+            child: Text('coin_shop_pay_wallet_btn'.tr),
           ),
         ],
       ),
@@ -259,15 +263,20 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
       final priceLabel = pkg != null
           ? '${(pkg['amount'] as num).toStringAsFixed(2)} ${pkg['currency']}'
           : '?';
-      final daysLabel = pkg != null ? '${pkg['days']} jours' : '?';
+      // v23.1 part 243 — i18n. Was "${pkg['days']} jours" hardcoded FR.
+      // Reuse mapboost_days_count which already handles "@count jour(s)".
+      final daysLabel = pkg != null
+          ? 'mapboost_days_count'.trParams({'count': pkg['days'].toString()})
+          : '?';
       final confirmed = await Get.dialog<bool>(
         AlertDialog(
-          title: Text('Acheter Boost ${tier.toUpperCase()} ?'),
+          // v23.1 part 243 — i18n. Was hardcoded FR.
+          title: Text('coin_shop_boost_confirm_title'.trParams({'tier': tier.toUpperCase()})),
           content: Text(
-            'Tier : ${tier.toUpperCase()}\n'
-            'Durée : $daysLabel\n'
-            'Prix : $priceLabel\n\n'
-            'Ton profil sera mis en avant pendant la durée choisie.',
+            '${'mapboost_confirm_tier_label'.tr} : ${tier.toUpperCase()}\n'
+            '${'mapboost_confirm_duration_label'.tr} : $daysLabel\n'
+            '${'mapboost_confirm_price_label'.tr} : $priceLabel\n\n'
+            '${'coin_shop_boost_confirm_description'.tr}',
           ),
           actions: [
             TextButton(
@@ -2241,7 +2250,8 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: const Text('Annuler'),
+            // v23.1 part 243 — i18n. Was hardcoded FR 'Annuler'.
+            child: Text('common_cancel'.tr),
           ),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
@@ -2249,7 +2259,8 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
               backgroundColor: AppColors.primaryColor,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Confirmer'),
+            // v23.1 part 243 — i18n. Was hardcoded FR 'Confirmer'.
+            child: Text('common_confirm'.tr),
           ),
         ],
       ),

@@ -162,9 +162,14 @@ class PetPostCard extends StatelessWidget {
                   backgroundColor: AppColors.primaryColor,
                   child: CircleAvatar(
                     radius: 22.r,
+                    // v23.1 part 243 round 3 — perf : NetworkImage brut
+                    // decode le bitmap pleine resolution serveur (~5-10 MB
+                    // pour un avatar 50px). CachedNetworkImageProvider + maxWidth
+                    // limite a un thumbnail 150px = ~30 KB.
                     backgroundImage:
                         userAvatar != null && userAvatar!.isNotEmpty
-                        ? NetworkImage(userAvatar!)
+                        ? CachedNetworkImageProvider(userAvatar!, maxWidth: 150)
+                              as ImageProvider
                         : AssetImage(AppImages.placeholderImage)
                               as ImageProvider,
                   ),

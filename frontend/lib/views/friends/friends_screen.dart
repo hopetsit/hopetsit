@@ -1884,24 +1884,47 @@ class _AddFriendTabState extends State<_AddFriendTab> {
   final TextEditingController _searchCtrl = TextEditingController();
   final RxList<Map<String, dynamic>> _results = <Map<String, dynamic>>[].obs;
   final RxBool _loading = false.obs;
+  // v23.1 part 243 — Daniel : "difficulute a rajouter amis". Cause racine
+  // partielle : _onSearch lance un GET /friends/search a CHAQUE keystroke
+  // (pas de debounce). Sur reseau lent, le UI etait perpetuellement en
+  // "loading" et les resultats clignotaient. Maintenant 300ms debounce :
+  // on attend que l'user s'arrete de taper avant de hit le backend.
+  Timer? _debounce;
+  // v23.1 part 243 — garde la derniere requete recue pour ne pas
+  // re-render des resultats perimes si l'user a deja efface le champ.
+  String _lastQuery = '';
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _onSearch(String q) async {
-    if (q.length < 2) {
+  void _onSearch(String q) {
+    // v23.1 part 243 — debounce + cancellation. On annule le timer
+    // precedent et on en cree un nouveau, donc seul le DERNIER input
+    // declenche un appel reseau.
+    _debounce?.cancel();
+    if (q.trim().length < 2) {
       _results.clear();
+      _loading.value = false;
+      _lastQuery = '';
       return;
     }
+    _lastQuery = q;
     _loading.value = true;
-    try {
-      _results.assignAll(await widget.controller.searchUsers(q));
-    } finally {
-      _loading.value = false;
-    }
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      final captured = q;
+      try {
+        final users = await widget.controller.searchUsers(captured);
+        // Si l'user a tape autre chose entretemps, on jette le resultat.
+        if (captured != _lastQuery) return;
+        _results.assignAll(users);
+      } finally {
+        if (captured == _lastQuery) _loading.value = false;
+      }
+    });
   }
 
   Future<void> _onShareInvite() async {

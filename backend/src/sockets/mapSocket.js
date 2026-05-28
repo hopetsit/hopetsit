@@ -82,11 +82,21 @@ async function listPositionListeners(userId, role) {
     // partage si j'ai un abonnement").
     if (iHavePawFollow) familyBypass = true;
 
+    // v23.1 part 243 — Daniel : "le bouton afficher position on off
+    // marche pas y reste bloquer sur auto". Le bypass PawFollow/famille
+    // forcait le broadcast meme quand l'user avait explicitement
+    // toggle OFF sa switch (requesterSharesPosition=false). Le toggle
+    // visuel revenait sur ON apres refresh (cf. fix friendRoutes ligne
+    // 139) ET la position continuait a partir cote socket. Maintenant
+    // un opt-out explicite (myShare === false) tue le broadcast meme
+    // avec PawFollow ou famille active.
+    const myShare = isRequester
+      ? f.requesterSharesPosition
+      : f.addresseeSharesPosition;
+    if (myShare === false) continue;
+
     if (!familyBypass) {
-      // My own share flag must be on for me to broadcast.
-      const myShare = isRequester
-        ? f.requesterSharesPosition
-        : f.addresseeSharesPosition;
+      // Default true mais l'user a coupe la switch — securite belt+suspenders.
       if (!myShare) continue;
 
       // The other side's receive flag — they can mute me — we reuse the same
@@ -196,6 +206,31 @@ function registerMapHandlers(io, socket) {
     try {
       const identity = socket.data?.mapIdentity;
       if (!identity) return;
+      // v23.1 part 243 — Daniel : "le bouton suivre si il est etain on
+      // peux plus nous voir sa desactive la position". Avant : on
+      // emettait map:friend-offline aux listeners → leur halo Rx
+      // disparaissait COTE socket en temps reel. MAIS la User.location
+      // persistee en DB par map:position-update (cf. ci-dessus) restait
+      // intacte → /friends/:id/last-position retournait quand meme la
+      // derniere position broadcastee. Daniel pouvait donc encore etre
+      // localise via PeopleLiveScreen apres avoir eteint le toggle.
+      // Fix : on UNSET location.coordinates en DB quand l'user va
+      // offline → le fallback DB retourne null lat/lng, l'ami ne voit
+      // plus aucun point.
+      try {
+        let Model = null;
+        if (identity.role === 'walker') Model = require('../models/Walker');
+        else if (identity.role === 'sitter') Model = require('../models/Sitter');
+        else if (identity.role === 'owner') Model = require('../models/Owner');
+        if (Model) {
+          await Model.updateOne(
+            { _id: identity.userId },
+            { $unset: { 'location.coordinates': '' } },
+          );
+        }
+      } catch (e) {
+        logger.warn(`[mapSocket:go-offline] DB unset failed : ${e.message}`);
+      }
       const listeners = await listPositionListeners(identity.userId, identity.role);
       for (const l of listeners) {
         emitToUser(l.role, l.userId, 'map:friend-offline', {

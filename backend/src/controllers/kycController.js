@@ -393,19 +393,46 @@ const startVerification = async (req, res) => {
         });
       }
     }
-    const oneTimeLink = linkResp?.meta?.['one-time-link'] || linkResp?.data?.attributes?.url;
+    // v23.1 part 243 — Daniel screenshot logs Render : Persona return
+    // `data.attributes` SANS url ni meta.one-time-link → 502
+    // PERSONA_LINK_EMPTY → user bloque sur "Erreur verifier identite".
+    // Le call POST /generate-one-time-link retournait l'inquiry au lieu
+    // du wrapper meta.one-time-link (probable changement API Persona
+    // non documente). On lit maintenant DESORMAIS plus de chemins :
+    //   - meta['one-time-link']   (format historique)
+    //   - data.attributes.url     (deja en place)
+    //   - data.attributes['one-time-link']  (variante)
+    //   - links.session           (autre variante observee chez Persona)
+    let oneTimeLink =
+      linkResp?.meta?.['one-time-link'] ||
+      linkResp?.data?.attributes?.url ||
+      linkResp?.data?.attributes?.['one-time-link'] ||
+      linkResp?.links?.session ||
+      null;
 
-    // v23.1 part 218 — Daniel : "personna marche pas" malgre env vars OK.
-    // Avant : si Persona renvoyait un format inattendu, oneTimeLink = null
-    // et le backend renvoyait 200 avec null → frontend affichait "Lien
-    // indisponible" sans savoir pourquoi. Maintenant : on log la reponse
-    // brute + on renvoie 502 avec details pour que Daniel voie la VRAIE
-    // raison dans Render logs et que le frontend puisse afficher un
-    // message utile.
+    // v243 FALLBACK : si Persona ne retourne aucun lien malgre une
+    // creation d'inquiry reussie, on construit l'URL hosted officielle
+    // a partir de l'inquiryId. Format documente sur le portail Persona :
+    //   https://withpersona.com/verify?inquiry-id={inquiry_id}
+    // Pour les environnements sandbox, on ajoute environment-id si on
+    // l'a en env var (sinon Persona infere depuis l'API key). C'est le
+    // meme flow que le one-time-link mais avec un parametre direct, donc
+    // pas de regression de securite (l'inquiry est deja liee au user
+    // via reference_id sitter/walker_userId).
+    if (!oneTimeLink && inquiryId) {
+      const fallbackUrl = `https://withpersona.com/verify?inquiry-id=${encodeURIComponent(inquiryId)}`;
+      logger.warn(
+        `[kyc.start] Persona did not return a one-time link, falling back to hosted URL. ` +
+        `inquiryId=${inquiryId} fallback=${fallbackUrl} ` +
+        `rawResponse=${JSON.stringify(linkResp).slice(0, 1500)}`,
+      );
+      oneTimeLink = fallbackUrl;
+    }
+
     if (!oneTimeLink) {
       logger.error(
-        `[kyc.start] Persona did NOT return a one-time link. ` +
-        `inquiryId=${inquiryId} rawResponse=${JSON.stringify(linkResp).slice(0, 500)}`,
+        `[kyc.start] Persona did NOT return a one-time link and no fallback possible. ` +
+        `inquiryId=${inquiryId} rawResponse=${JSON.stringify(linkResp).slice(0, 1500)}`,
       );
       return res.status(502).json({
         error: 'Persona did not return a verification link. The Persona inquiry was created but the link generation failed. Check Render logs for the raw Persona response.',
