@@ -605,6 +605,14 @@ class FriendController extends GetxController {
   }) async {
     try {
       final api = Get.find<ApiClient>();
+      // v23.1 part 244 — Daniel : "qd je clic sur licone message que sa
+      // ouvre un chat entre moi et la personne". Log explicite pour
+      // diagnostiquer si le bouton message ne donne rien : on logue le
+      // payload envoye + la reponse exacte, pour qu'on puisse voir cote
+      // Render pourquoi le 403/500 si ca arrive.
+      debugPrint(
+        '[Friends] startFriendChat target=$targetUserId role=$targetUserRole',
+      );
       final r = await api.post(
         '/conversations/friend',
         body: {
@@ -613,10 +621,14 @@ class FriendController extends GetxController {
         },
         requiresAuth: true,
       );
+      debugPrint('[Friends] startFriendChat response=$r');
       if (r is Map && r['conversation'] is Map) {
         final c = Map<String, dynamic>.from(r['conversation'] as Map);
-        return (c['id'] ?? c['_id'])?.toString();
+        final id = (c['id'] ?? c['_id'])?.toString();
+        debugPrint('[Friends] startFriendChat resolved convId=$id');
+        return id;
       }
+      debugPrint('[Friends] startFriendChat response had no conversation map');
       return null;
     } catch (e) {
       debugPrint('[Friends] startFriendChat error: $e');

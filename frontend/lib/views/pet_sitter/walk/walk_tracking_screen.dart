@@ -40,11 +40,10 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
 
   Future<void> _start() async {
     if (!await _ensurePermission()) {
+      // v23.1 part 244 — i18n (Daniel audit deep). Was hardcoded FR.
       CustomSnackbar.showError(
-        title: 'common_error',
-        message: 'live_track_perm_denied'.tr.isEmpty
-            ? 'Permission de localisation refusée.'
-            : 'live_track_perm_denied'.tr,
+        title: 'common_error'.tr,
+        message: 'live_track_perm_denied'.tr,
       );
       return;
     }
@@ -155,15 +154,18 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // v23.1 part 244 — i18n (Daniel audit deep). All hardcoded
+            // strings of the walk tracking screen.
             Text(
               active
-                  ? '🟢 Balade en cours · $_pushed position(s) envoyée(s)'
-                  : 'Prêt à démarrer la balade',
+                  ? 'walk_active_status'
+                        .trParams({'count': _pushed.toString()})
+                  : 'walk_ready_status'.tr,
             ),
             const SizedBox(height: 8),
             if (active)
               Text(
-                'Position envoyée automatiquement à chaque déplacement de 10m+',
+                'walk_position_hint'.tr,
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary(context),
@@ -174,13 +176,13 @@ class _WalkTrackingScreenState extends State<WalkTrackingScreen> {
             if (!active)
               ElevatedButton.icon(
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('Démarrer la balade'),
+                label: Text('walk_start_btn'.tr),
                 onPressed: _busy ? null : _start,
               )
             else
               ElevatedButton.icon(
                 icon: const Icon(Icons.stop),
-                label: const Text('Terminer la balade'),
+                label: Text('walk_stop_btn'.tr),
                 onPressed: _busy ? null : _stop,
               ),
           ],

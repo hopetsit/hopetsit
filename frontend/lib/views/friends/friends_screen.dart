@@ -63,9 +63,13 @@ class FriendsScreen extends StatelessWidget {
     // est desormais une screen autonome (PeopleLiveScreen) ouverte depuis
     // la card quick-action de PawMap. Animaux faisait doublon avec le
     // halo vert/bleu auto sur la map quand on suit un animal. Total : 5.
+    // v23.1 part 244 — Daniel : "longlet a droite message efface le y sert
+    // pas". Le tab Messages doublonnait l'onglet Chat principal du nav
+    // bottom. On supprime l'onglet (de 5 vers 4). Le bouton 💬 cote chaque
+    // ami suffit pour ouvrir une conv 1-to-1.
     return DefaultTabController(
-      length: 5,
-      initialIndex: initialIndex.clamp(0, 4),
+      length: 4,
+      initialIndex: initialIndex.clamp(0, 3),
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -267,11 +271,9 @@ class FriendsScreen extends StatelessWidget {
                 icon: const Icon(Icons.people_alt_rounded),
                 text: 'friends_tab_family'.tr,
               ),
-              // 5. Messages — chats avec mes amis (filtre client-side).
-              Tab(
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
-                text: 'friends_tab_messages'.tr,
-              ),
+              // v23.1 part 244 — onglet Messages supprime (Daniel : "longlet
+              // a droite message efface le y sert pas"). Doublon avec le
+              // chat principal du bottom nav.
             ],
           ),
         ),
@@ -292,9 +294,8 @@ class FriendsScreen extends StatelessWidget {
                   _RequestsTab(controller: controller),
                   _AddFriendTab(controller: controller),
                   _FamilyTab(controller: controller),
-                  // v23.1 part 225 — Personnes en live + Animaux supprimes
-                  // (deplaces vers PeopleLiveScreen autonome / halo map auto).
-                  _MessagesTab(controller: controller),
+                  // v23.1 part 244 — _MessagesTab supprime (Daniel : doublon
+                  // avec le chat principal).
                 ],
               ),
             ),
@@ -342,8 +343,9 @@ class FriendsScreen extends StatelessWidget {
                 ],
               ),
               SizedBox(height: 8.h),
+              // v23.1 part 244 — i18n (Daniel audit deep).
               InterText(
-                text: 'Cherche par email ou nom (min. 2 caractères)',
+                text: 'friends_dialog_search_hint'.tr,
                 fontSize: 12.sp,
                 color: AppColors.greyText,
               ),
@@ -352,7 +354,7 @@ class FriendsScreen extends StatelessWidget {
                 controller: searchCtrl,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'ami@example.com ou Daniel',
+                  hintText: 'friends_dialog_search_placeholder'.tr,
                   prefixIcon: const Icon(Icons.search_rounded),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14.r),
@@ -377,10 +379,11 @@ class FriendsScreen extends StatelessWidget {
                   }
                   if (results.isEmpty) {
                     return Center(
+                      // v23.1 part 244 — i18n.
                       child: InterText(
                         text: searchCtrl.text.isEmpty
-                            ? 'Tape un email ou un nom'
-                            : 'Aucun résultat',
+                            ? 'friends_dialog_empty_state'.tr
+                            : 'common_no_results'.tr,
                         fontSize: 13.sp,
                         color: AppColors.greyText,
                       ),
@@ -501,15 +504,16 @@ class _FriendsTab extends StatelessWidget {
                   children: [
                     Text('🐾', style: TextStyle(fontSize: 50.sp)),
                     SizedBox(height: 12.h),
+                    // v23.1 part 244 — i18n.
                     InterText(
-                      text: 'Pas encore d\'amis',
+                      text: 'friends_empty_title'.tr,
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary(context),
                     ),
                     SizedBox(height: 4.h),
                     InterText(
-                      text: 'Ajoute des amis pour les voir en temps réel sur la PawMap.',
+                      text: 'friends_empty_subtitle'.tr,
                       fontSize: 13.sp,
                       color: AppColors.greyText,
                       textAlign: TextAlign.center,
@@ -747,6 +751,13 @@ class _FriendTile extends StatelessWidget {
           // backend v226 + propage via FriendController.viewerHasPawFollow),
           // la Switch est forcee ON, read-only, et un mini badge
           // "Auto · PawFollow" remplace le label "Partager".
+          // v23.1 part 244 — Daniel : "le bouton auto est toujour bloque je
+          // dois etre en possibiliter metre on ou off". Cause : meme apres
+          // le fix v243 round 2 cote backend (qui debloque le toggle),
+          // l'UI affichait toujours le badge "Auto" en dessous, ce qui
+          // donnait l'impression visuelle que la switch etait verrouillee
+          // alors qu'elle etait fonctionnelle. Fix : on supprime le badge
+          // Auto, on garde le label uniforme "Partager" en dessous.
           Column(
             children: [
               Transform.scale(
@@ -756,45 +767,15 @@ class _FriendTile extends StatelessWidget {
                   activeThumbColor: AppColors.roleAccent(
                     Get.find<AuthController>().userRole.value,
                   ),
-                  // v23.1 part 241 — Daniel : "partager position et
-                  // bloquer en auto". v226 forcait null (lecture seule)
-                  // quand PawFollow actif → user ne pouvait plus toggler
-                  // off. Daniel veut garder le controle manuel meme avec
-                  // PawFollow (le label "Auto" reste en dessous comme
-                  // indicateur, mais le toggle reste actif). FIX : on
-                  // permet toujours le toggle ; l'user choisit.
                   onChanged: (v) =>
                       controller.setSharePosition(friendship.id, v),
                 ),
               ),
-              if (friendship.myShareAutoByPawFollow)
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.lock_open_rounded,
-                          size: 9.sp, color: AppColors.primaryColor),
-                      SizedBox(width: 2.w),
-                      InterText(
-                        text: 'friends_share_auto_pawfollow'.tr,
-                        fontSize: 8.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryColor,
-                      ),
-                    ],
-                  ),
-                )
-              else
-                InterText(
-                  text: 'friends_share_position_label'.tr,
-                  fontSize: 9.sp,
-                  color: AppColors.greyText,
-                ),
+              InterText(
+                text: 'friends_share_position_label'.tr,
+                fontSize: 9.sp,
+                color: AppColors.greyText,
+              ),
             ],
           ),
           SizedBox(width: 4.w),

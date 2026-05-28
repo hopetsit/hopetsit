@@ -78,11 +78,20 @@ async function fetchUserMini(id, modelName) {
     const at = String(u.email).indexOf('@');
     if (at > 0) name = String(u.email).slice(0, at);
   }
+  // v23.1 part 244 — Daniel : "mettre les photo du profil" sur la liste
+  // d'amis. Root cause : avatar dans les models Owner/Sitter/Walker est
+  // un objet { url, publicId } (Cloudinary), pas une string. Avant on
+  // renvoyait l'objet entier → frontend tentait de le parser comme String
+  // URL → echec silencieux → fallback Icon(Person) gris/bleu/vert. Le
+  // search route avait deja le fix avec _avatarUrl mais fetchUserMini
+  // l'avait rate. Maintenant on aplatit en URL string ici aussi.
+  const _avatarUrl = (a) =>
+    (a && (typeof a === 'object' ? a.url : a)) || '';
   return {
     id: u._id,
     model: modelName,
     name,
-    avatar: u.profilePicture || u.avatar || '',
+    avatar: _avatarUrl(u.profilePicture || u.avatar),
     city: u.location?.city || u.city || '',
     // v23.1 part 222 — expose PawFollow status pour que le frontend
     // puisse forcer "Personnes en live" + unlock auto chat + share.

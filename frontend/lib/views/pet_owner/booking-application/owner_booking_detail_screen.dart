@@ -933,13 +933,15 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
   }
 
   String _bookingStatusLabel(String s) {
+    // v23.1 part 244 — i18n (Daniel audit deep). Was hardcoded FR. Les
+    // clés booking_status_* existent deja dans les 6 langues.
     switch (s) {
-      case 'pending': return 'En attente';
-      case 'accepted': return 'Acceptée';
-      case 'agreed': return 'Confirmée';
-      case 'rejected': return 'Refusée';
-      case 'cancelled': return 'Annulée';
-      case 'completed': return 'Terminée';
+      case 'pending': return 'booking_status_pending'.tr;
+      case 'accepted': return 'booking_status_accepted'.tr;
+      case 'agreed': return 'booking_status_agreed'.tr;
+      case 'rejected': return 'booking_status_rejected'.tr;
+      case 'cancelled': return 'booking_status_cancelled'.tr;
+      case 'completed': return 'booking_status_completed'.tr;
       default: return s.isEmpty ? '—' : '${s[0].toUpperCase()}${s.substring(1)}';
     }
   }
@@ -969,11 +971,12 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
   }
 
   String _paymentStatusLabel(String s) {
+    // v23.1 part 244 — i18n (Daniel audit deep).
     switch (s) {
-      case 'paid': return 'Payé';
-      case 'pending': return 'Paiement en attente';
-      case 'failed': return 'Paiement échoué';
-      case 'refunded': return 'Remboursé';
+      case 'paid': return 'payment_status_paid'.tr;
+      case 'pending': return 'payment_status_pending'.tr;
+      case 'failed': return 'payment_status_failed'.tr;
+      case 'refunded': return 'payment_status_refunded'.tr;
       default: return s.isEmpty ? '—' : '${s[0].toUpperCase()}${s.substring(1)}';
     }
   }
