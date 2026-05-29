@@ -15,6 +15,7 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_poi_model.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/models/nearby_request_model.dart';
+import 'package:hopetsit/services/friend_marker_service.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -70,6 +71,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   late final MapReportController _reportController;
   late final FriendController _friendController;
   late final LiveMapService _liveMap;
+  // v23.1 part 249 — service marker custom avec photo profil + ring.
+  late final FriendMarkerService _friendMarkerService;
   // Paris fallback by default — guarantees the GoogleMap widget always has
   // a camera position on the very first frame, even before geolocation
   // resolves. This fixes the "need to tap twice to see the map" bug caused
@@ -187,6 +190,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     // un loadFamily() async au mount. Le halo se redessine ensuite tout
     // seul (Obx + halo tick).
     _friendController.loadFamily();
+    // v23.1 part 249 — service de generation de markers custom avec
+    // photo profil + cercle role color + ring violet famille (parite
+    // design website). Permanent : on partage le cache entre toutes
+    // les ouvertures PawMap pour eviter de regenerer les bitmaps a
+    // chaque navigation.
+    _friendMarkerService = Get.isRegistered<FriendMarkerService>()
+        ? Get.find<FriendMarkerService>()
+        : Get.put(FriendMarkerService(), permanent: true);
     _liveMap = Get.isRegistered<LiveMapService>()
         ? Get.find<LiveMapService>()
         : Get.put(LiveMapService(), permanent: true);
@@ -1098,6 +1109,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       _requests.length,
       _showRequests.value ? 1 : 0,
       _showFriends.value ? 1 : 0,
+      // v23.1 part 249 — Invalide aussi le cache markers quand le
+      // FriendMarkerService genere un nouveau BitmapDescriptor (photo
+      // profil arrivee du CDN). Sans ca, le placeholder colore reste
+      // affiche jusqu'a la prochaine vraie data change.
+      _friendMarkerService.rev.value,
+      // v249 — invalidation aussi quand familyMembers change : un
+      // walker qui devient famille doit avoir son ring violet
+      // instantanement.
+      _friendController.familyMembers.length,
     ].join('-');
     if (_cachedMarkers == null || _cachedMarkersKey != key) {
       _cachedMarkers = _buildMarkers();
@@ -1230,6 +1250,14 @@ class _PawMapScreenState extends State<PawMapScreen>
         for (final f in _friendController.friends)
           if (f.other != null) f.other!.id: f,
       };
+      // v23.1 part 249 — Daniel : "la photo de profile avec le cercle vert
+      // si walker bleu si sitter orange si owner et violet si famille".
+      // On construit un Set des userIds membres famille (incluant pending)
+      // pour decider si le ring violet doit apparaitre.
+      final familyMemberIds = _friendController.familyMembers
+          .map((m) => ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
+          .where((id) => id.isNotEmpty)
+          .toSet();
       for (final pos in _liveMap.friendPositions.values) {
         final friend = friendById[pos.userId];
         // v23.1 part 240 — autorise aussi l'affichage du focusUserId (sitter
@@ -1241,14 +1269,31 @@ class _PawMapScreenState extends State<PawMapScreen>
         final displayName = friend?.other!.name ??
             widget.focusUserName ??
             '—';
+        // v249 — choix du role + avatar.
+        final role = (friend?.other?.model ?? pos.role).toLowerCase();
+        final avatarUrl = friend?.other?.avatar ?? '';
+        final isFamily = familyMemberIds.contains(
+          pos.userId.trim().toLowerCase(),
+        );
+        final icon = _friendMarkerService.getOrPlaceholder(
+          userId: pos.userId,
+          avatarUrl: avatarUrl,
+          role: role,
+          isFamily: isFamily,
+        );
         markers.add(
           Marker(
             markerId: MarkerId('friend_${pos.userId}'),
             position: LatLng(pos.latitude, pos.longitude),
-            icon: BitmapDescriptor.defaultMarkerWithHue(_hueForRole(pos.role)),
+            icon: icon,
+            // v249 — ancre au centre du bitmap (carre 120px) pour que
+            // la photo soit centree pile sur la coord.
+            anchor: const Offset(0.5, 0.5),
             infoWindow: InfoWindow(
               title: '👤 $displayName',
-              snippet: 'Vu il y a ${_timeAgo(pos.at)}',
+              snippet: isFamily
+                  ? '${'pawmap_quick_family'.tr} · ${_timeAgo(pos.at)}'
+                  : 'Vu il y a ${_timeAgo(pos.at)}',
             ),
           ),
         );
@@ -1595,6 +1640,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                       // ignore: unused_local_variable
                       final _friLen = fc?.friends.length ?? 0;
                     } catch (_) {/* defensive */}
+                    // v23.1 part 249 — rebuild quand un nouveau marker
+                    // custom (photo profil) finit de generer. Sans cette
+                    // dependance Obx, le marker reste sur le placeholder
+                    // par defaut jusqu'a la prochaine vraie data change.
+                    // ignore: unused_local_variable
+                    final _markerRev = _friendMarkerService.rev.value;
                     return GoogleMap(
                       initialCameraPosition: CameraPosition(
                         target: _currentCenter,
