@@ -2698,6 +2698,8 @@ const Map<String, String> frFRTranslations = <String, String>{
     'bug_report_short_title': 'Description trop courte',
     'bug_report_short_msg': 'Merci d\'écrire au moins 10 caractères.',
     'send_request_total_estimated': 'Total estimé',
+    'chat_system_payment_confirmed': '✅ Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
+    'chat_system_rendezvous_prompt': '👋 Bonjour ! Discutons ici pour convenir du lieu et de l\'heure de rencontre.',
     'send_request_breakdown_walk': '@minutes min · @provider @currency prestataire + @commission @currency commission (20%)',
     'send_request_breakdown_days_one': '1 jour × @rate @currency/j + @commission @currency commission (20%)',
     'send_request_breakdown_days_many': '@days jours × @rate @currency/j + @commission @currency commission (20%)',

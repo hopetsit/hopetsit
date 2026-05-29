@@ -539,7 +539,7 @@ class _SitterIndividualChatScreenState
               borderRadius: BorderRadius.circular(14.r),
             ),
             child: Text(
-              message.message,
+              message.systemDisplayText,
               style: TextStyle(
                 fontSize: 12.sp,
                 fontStyle: FontStyle.italic,

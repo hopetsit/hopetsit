@@ -3201,12 +3201,17 @@ const confirmBookingPayment = async (req, res) => {
           // system message + sendNotification.
           const existingSysMsg = false;
           if (!existingSysMsg) {
+            // v23.1.255 — metadata.kind ajouté pour que le frontend localise
+            // le texte dans la langue de CHAQUE viewer (le body FR n'est plus
+            // qu'un fallback web/anciens clients). Avant : ces 2 messages
+            // s'affichaient en français même en UI espagnole.
             const systemMessage = await Message.create({
               conversationId: conversation._id,
               senderRole: 'system',
               senderId: ownerId2,
               body: '✅ Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
               type: 'text',
+              metadata: { kind: 'payment_confirmed' },
             });
             // v23.1 part 37 — 2e system message "discutons du lieu de rencontre"
             const rendezvousMessage = await Message.create({
@@ -3215,6 +3220,7 @@ const confirmBookingPayment = async (req, res) => {
               senderId: ownerId2,
               body: '👋 Bonjour ! Discutons ici pour convenir du lieu et de l\'heure de rencontre.',
               type: 'text',
+              metadata: { kind: 'rendezvous_prompt' },
             });
             // v23.1 part 41 — fix Daniel "badge message marche pas" :
             // increment ownerUnreadCount + sitterUnreadCount (schema uses

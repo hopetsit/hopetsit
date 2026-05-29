@@ -33,6 +33,16 @@ const conversationSchema = new mongoose.Schema(
     }],
     lastMessage: { type: String, default: '' },
     lastMessageAt: { type: Date, default: Date.now },
+    // v23.1.255 — Daniel : "si j'efface une conversation et la personne me
+    // réécrit, ça doit rouvrir une conversation". Soft-delete PAR USER : la
+    // suppression masque la conversation pour CET user (l'autre la garde) en
+    // l'ajoutant ici. La liste exclut les conv où je suis dans clearedFor.
+    // Un nouveau message vide ce tableau → la conversation réapparaît pour
+    // tout le monde (comportement type WhatsApp).
+    clearedFor: {
+      type: [{ type: mongoose.Schema.Types.ObjectId }],
+      default: [],
+    },
     ownerUnreadCount: { type: Number, default: 0 },
     sitterUnreadCount: { type: Number, default: 0 },
     ownerLastReadAt: { type: Date, default: null },

@@ -2510,6 +2510,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'bug_report_short_title': 'Beschreibung zu kurz',
     'bug_report_short_msg': 'Bitte mindestens 10 Zeichen schreiben.',
     'send_request_total_estimated': 'Geschätzt gesamt',
+    'chat_system_payment_confirmed': '✅ Zahlung bestätigt. Die Buchung ist aktiv — ihr könnt jetzt hier chatten.',
+    'chat_system_rendezvous_prompt': '👋 Hallo! Lass uns hier den Treffpunkt und die Uhrzeit besprechen.',
     'send_request_breakdown_walk': '@minutes Min · @provider @currency Anbieter + @commission @currency Provision (20%)',
     'send_request_breakdown_days_one': '1 Tag × @rate @currency/Tag + @commission @currency Provision (20%)',
     'send_request_breakdown_days_many': '@days Tage × @rate @currency/Tag + @commission @currency Provision (20%)',

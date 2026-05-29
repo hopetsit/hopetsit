@@ -2733,6 +2733,8 @@ const Map<String, String> enUSTranslations = <String, String>{
     'bug_report_short_title': 'Description too short',
     'bug_report_short_msg': 'Please write at least 10 characters.',
     'send_request_total_estimated': 'Estimated total',
+    'chat_system_payment_confirmed': '✅ Payment confirmed. Your booking is active — you can now chat here.',
+    'chat_system_rendezvous_prompt': '👋 Hello! Let\'s chat here to agree on the meeting place and time.',
     'send_request_breakdown_walk': '@minutes min · @provider @currency provider + @commission @currency commission (20%)',
     'send_request_breakdown_days_one': '1 day × @rate @currency/day + @commission @currency commission (20%)',
     'send_request_breakdown_days_many': '@days days × @rate @currency/day + @commission @currency commission (20%)',

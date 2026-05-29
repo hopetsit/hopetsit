@@ -747,7 +747,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               borderRadius: BorderRadius.circular(14.r),
             ),
             child: Text(
-              message.message,
+              message.systemDisplayText,
               style: TextStyle(
                 fontSize: 12.sp,
                 fontStyle: FontStyle.italic,

@@ -2483,6 +2483,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'bug_report_short_title': 'Descripción demasiado corta',
     'bug_report_short_msg': 'Escribe al menos 10 caracteres.',
     'send_request_total_estimated': 'Total estimado',
+    'chat_system_payment_confirmed': '✅ Pago confirmado. La reserva está activa — ya pueden hablar aquí.',
+    'chat_system_rendezvous_prompt': '👋 ¡Hola! Hablemos aquí para acordar el lugar y la hora del encuentro.',
     'send_request_breakdown_walk': '@minutes min · @provider @currency prestador + @commission @currency comisión (20%)',
     'send_request_breakdown_days_one': '1 día × @rate @currency/día + @commission @currency comisión (20%)',
     'send_request_breakdown_days_many': '@days días × @rate @currency/día + @commission @currency comisión (20%)',

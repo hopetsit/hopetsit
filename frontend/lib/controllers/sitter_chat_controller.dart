@@ -46,6 +46,18 @@ class SitterChatMessage {
   });
 
   bool get isSystem => senderRole.toLowerCase() == 'system';
+  // v23.1.255 — messages système localisés par viewer (cf chat_controller).
+  String get systemKind => (metadata['kind'] ?? '').toString();
+  String get systemDisplayText {
+    switch (systemKind) {
+      case 'payment_confirmed':
+        return 'chat_system_payment_confirmed'.tr;
+      case 'rendezvous_prompt':
+        return 'chat_system_rendezvous_prompt'.tr;
+      default:
+        return message;
+    }
+  }
   bool get isPawfollowRequest => type == 'pawfollow_request';
   // v23.1 part 240 — type 'address_share' (cf chat_controller.dart pour
   // explication detaillee). Parite SitterChatMessage/ChatMessage.

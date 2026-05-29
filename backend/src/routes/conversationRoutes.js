@@ -473,10 +473,37 @@ router.delete('/:id', requireAuth, async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({ error: 'Not a conversation participant.' });
     }
-    // Hard delete : messages + conversation. Le warning frontend
-    // previent que l'action est definitive pour les 2 parties.
-    await Message.deleteMany({ conversationId: conversation._id });
-    await Conversation.findByIdAndDelete(conversation._id);
+    // v23.1.255 — Daniel : "si j'efface une conversation et la personne me
+    // réécrit, ça [doit] rouvrir une conversation". AVANT : hard delete des
+    // messages + conv pour les 2 parties → quand l'autre réécrivait, son
+    // écran pointait sur une conv supprimée (404) et la conv ne revenait
+    // jamais. MAINTENANT : soft-delete PAR USER → on masque la conversation
+    // pour CET utilisateur seulement (clearedFor) ; l'autre la garde et peut
+    // continuer à écrire. Un nouveau message vide clearedFor (cf
+    // conversationController.sendMessage) → la conv réapparaît pour moi.
+    // Hard delete uniquement si les 2 parties l'ont masquée (cleanup DB).
+    const clearedStr = (conversation.clearedFor || []).map(String);
+    if (!clearedStr.includes(String(userId))) {
+      conversation.clearedFor = [...(conversation.clearedFor || []), userId];
+    }
+    const participantIds = conversation.friendChat === true
+      ? (conversation.participants || []).map((p) => idStr(p.userId)).filter(Boolean)
+      : [
+          idStr(conversation.ownerId),
+          idStr(conversation.sitterId),
+          idStr(conversation.walkerId),
+        ].filter(Boolean);
+    const clearedSet = new Set((conversation.clearedFor || []).map(String));
+    const allCleared = participantIds.length > 0 &&
+      participantIds.every((pid) => clearedSet.has(String(pid)));
+    if (allCleared) {
+      await Message.deleteMany({ conversationId: conversation._id });
+      await Conversation.findByIdAndDelete(conversation._id);
+      return res
+        .status(200)
+        .json({ deleted: true, hardDeleted: true, conversationId: id });
+    }
+    await conversation.save();
     return res.status(200).json({ deleted: true, conversationId: id });
   } catch (e) {
     logger.error('delete conversation error', e);

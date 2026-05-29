@@ -112,6 +112,10 @@ const getChatList = async (req, res) => {
       };
     }
 
+    // v23.1.255 — exclut les conversations que CET utilisateur a masquées
+    // (soft-delete). Un nouveau message vide clearedFor → réapparition.
+    query.clearedFor = { $ne: userId };
+
     const conversations = await Conversation.find(query)
       .sort({ updatedAt: -1 })
       .populate('ownerId', 'name email avatar')
@@ -324,6 +328,9 @@ const sendFriendMessage = async ({
   const update = {
     lastMessage: preview,
     lastMessageAt: new Date(),
+    // v23.1.255 — un nouveau message ami fait réapparaître la conversation
+    // chez quiconque l'avait masquée (soft-delete).
+    clearedFor: [],
   };
   await Conversation.findByIdAndUpdate(conversation._id, update);
   // Increment unreadCount du destinataire (chaque participant != sender).
@@ -720,6 +727,10 @@ const startConversation = async (req, res) => {
       });
       conversation.lastMessage = trimmedMsgCheck;
       conversation.lastMessageAt = new Date();
+      // v23.1.255 — un nouveau message fait RÉAPPARAÎTRE la conversation chez
+      // quiconque l'avait masquée (soft-delete) → "la personne me réécrit, ça
+      // rouvre la conversation".
+      conversation.clearedFor = [];
       conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
       await conversation.save();
       await conversation.populate(['ownerId', 'sitterId', 'walkerId']);
@@ -864,6 +875,8 @@ const startConversationBySitter = async (req, res) => {
       });
       conversation.lastMessage = trimmedMsgCheckS;
       conversation.lastMessageAt = new Date();
+      // v23.1.255 — réapparition de la conversation masquée sur nouveau message.
+      conversation.clearedFor = [];
       conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
       await conversation.save();
       await conversation.populate(['ownerId', 'sitterId']);
@@ -986,6 +999,8 @@ const startConversationByWalker = async (req, res) => {
       });
       conversation.lastMessage = trimmedMsgCheckW;
       conversation.lastMessageAt = new Date();
+      // v23.1.255 — réapparition de la conversation masquée sur nouveau message.
+      conversation.clearedFor = [];
       conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
       await conversation.save();
       await conversation.populate(['ownerId', 'walkerId']);

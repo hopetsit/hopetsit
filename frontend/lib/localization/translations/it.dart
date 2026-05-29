@@ -2487,6 +2487,8 @@ const Map<String, String> itITTranslations = <String, String>{
     'bug_report_short_title': 'Descrizione troppo breve',
     'bug_report_short_msg': 'Scrivi almeno 10 caratteri.',
     'send_request_total_estimated': 'Totale stimato',
+    'chat_system_payment_confirmed': '✅ Pagamento confermato. La prenotazione è attiva — potete ora chattare qui.',
+    'chat_system_rendezvous_prompt': '👋 Ciao! Parliamo qui per concordare il luogo e l\'ora dell\'incontro.',
     'send_request_breakdown_walk': '@minutes min · @provider @currency prestatore + @commission @currency commissione (20%)',
     'send_request_breakdown_days_one': '1 giorno × @rate @currency/g + @commission @currency commissione (20%)',
     'send_request_breakdown_days_many': '@days giorni × @rate @currency/g + @commission @currency commissione (20%)',

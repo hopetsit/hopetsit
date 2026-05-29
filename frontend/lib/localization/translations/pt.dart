@@ -2343,6 +2343,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'bug_report_short_title': 'Descrição demasiado curta',
     'bug_report_short_msg': 'Escreve pelo menos 10 caracteres.',
     'send_request_total_estimated': 'Total estimado',
+    'chat_system_payment_confirmed': '✅ Pagamento confirmado. A reserva está ativa — já podem conversar aqui.',
+    'chat_system_rendezvous_prompt': '👋 Olá! Vamos conversar aqui para combinar o local e a hora do encontro.',
     'send_request_breakdown_walk': '@minutes min · @provider @currency prestador + @commission @currency comissão (20%)',
     'send_request_breakdown_days_one': '1 dia × @rate @currency/dia + @commission @currency comissão (20%)',
     'send_request_breakdown_days_many': '@days dias × @rate @currency/dia + @commission @currency comissão (20%)',

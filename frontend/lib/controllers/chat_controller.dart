@@ -47,6 +47,22 @@ class ChatMessage {
   });
 
   bool get isSystem => senderRole.toLowerCase() == 'system';
+  // v23.1.255 — Daniel : messages système (paiement confirmé / rendez-vous)
+  // s'affichaient en FRANÇAIS même en UI espagnole. Cause : le body est figé
+  // en DB dans la langue de l'owner (défaut 'fr' si language non renseigné).
+  // Fix : le backend pose metadata.kind ; on rend ici le texte traduit dans
+  // la langue COURANTE de l'app (chaque viewer voit dans SA langue).
+  String get systemKind => (metadata['kind'] ?? '').toString();
+  String get systemDisplayText {
+    switch (systemKind) {
+      case 'payment_confirmed':
+        return 'chat_system_payment_confirmed'.tr;
+      case 'rendezvous_prompt':
+        return 'chat_system_rendezvous_prompt'.tr;
+      default:
+        return message;
+    }
+  }
   bool get isPawfollowRequest => type == 'pawfollow_request';
   // v23.1 part 240 — type 'address_share' = card "Adresse pour RDV"
   // envoyee via POST /conversations/:id/share-address. metadata contient
