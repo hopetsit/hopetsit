@@ -153,7 +153,7 @@
     "title": "Live-Tracking-Anfrage",
     "body": "Eine Live-Tracking-Anfrage ist gerade in deinem Chat eingegangen.",
     "emailSubject": "Live-Tracking-Anfrage — HoPetSit",
-    "emailBody": "<p>Eine Live-Tracking-Anfrage wurde an deinen Chat gesendet. Öffne die App, um anzunehmen oder abzulehnen.</p>"
+    "emailBody": "<p>Eine Live-Tracking-Anfrage wurde an deinen Chat gesendet. Öffne die App, um anzunehmen oder abzulehnen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Anfrage ansehen</a></p>"
   },
   "live_tracking_accepted": {
     "title": "Live-Tracking angenommen",
@@ -238,5 +238,47 @@
     "body": "Die Anzeige wurde an einen anderen Anbieter vergeben. Finde weitere Gelegenheiten!",
     "emailSubject": "Anzeige vergeben — HoPetSit",
     "emailBody": "<p>Die Anzeige, auf die du dich beworben hast, wurde an einen anderen Anbieter vergeben. Es gibt weitere Gelegenheiten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Anzeigen ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "wallet_credited": {
+    "title": "Geld verfügbar 🎉",
+    "body": "Du hast gerade {{amount}} {{currency}} in deiner Wallet erhalten. Du kannst es im Shop nutzen oder auf dein IBAN auszahlen.",
+    "emailSubject": "Auftrag gestartet — {{amount}} {{currency}} gutgeschrieben",
+    "emailBody": "<p>Dein HoPetSit-Auftrag hat gerade begonnen. <strong>{{amount}} {{currency}}</strong> wurden deiner Wallet gutgeschrieben. Du kannst sie im HoPetSit-Shop nutzen oder jederzeit über die App auf dein IBAN auszahlen.</p>"
+  },
+  "payout_initiated": {
+    "title": "Auszahlung unterwegs",
+    "body": "Gute Nachricht: {{amount}} {{currency}} wurden soeben an dein IBAN gesendet. Gutschrift in 1 bis 3 Werktagen erwartet.",
+    "emailSubject": "HoPetSit-Auszahlung unterwegs — {{amount}} {{currency}}",
+    "emailBody": "<p>Deine HoPetSit-Auszahlung von <strong>{{amount}} {{currency}}</strong> wurde soeben an dein Bankkonto veranlasst. Gutschrift in 1 bis 3 Werktagen erwartet.</p>"
+  },
+  "payout_completed": {
+    "title": "Auszahlung erhalten ✅",
+    "body": "{{amount}} {{currency}} wurden auf dein IBAN eingezahlt.",
+    "emailSubject": "Auszahlung erhalten — {{amount}} {{currency}}",
+    "emailBody": "<p>Deine HoPetSit-Auszahlung von <strong>{{amount}} {{currency}}</strong> ist auf deinem Bankkonto eingegangen.</p>"
+  },
+  "payout_failed": {
+    "title": "Auszahlung fehlgeschlagen",
+    "body": "Die Überweisung konnte nicht abgeschlossen werden. Überprüfe dein IBAN in der App und versuche es erneut.",
+    "emailSubject": "HoPetSit-Auszahlung fehlgeschlagen",
+    "emailBody": "<p>Die HoPetSit-Überweisung auf dein IBAN ist fehlgeschlagen. Grund: {{reason}}. Überprüfe dein IBAN und kontaktiere bei Bedarf den Support.</p>"
+  },
+  "withdrawal_initiated": {
+    "title": "Abhebung läuft",
+    "body": "Deine Abhebung von {{amount}} {{currency}} ist auf dem Weg zu deinem IBAN.",
+    "emailSubject": "HoPetSit-Abhebung läuft",
+    "emailBody": "<p>Deine HoPetSit-Abhebung von <strong>{{amount}} {{currency}}</strong> wurde an dein IBAN veranlasst. Dauer: 1 bis 3 Werktage.</p>"
+  },
+  "withdrawal_completed": {
+    "title": "Abhebung erhalten ✅",
+    "body": "{{amount}} {{currency}} sind auf deinem Bankkonto.",
+    "emailSubject": "Abhebung erhalten — {{amount}} {{currency}}",
+    "emailBody": "<p>Deine HoPetSit-Abhebung von <strong>{{amount}} {{currency}}</strong> wurde deinem Bankkonto gutgeschrieben.</p>"
+  },
+  "withdrawal_failed": {
+    "title": "Abhebung fehlgeschlagen",
+    "body": "Die Abhebung ist fehlgeschlagen. Der Betrag wurde deiner Wallet zurückerstattet.",
+    "emailSubject": "HoPetSit-Abhebung fehlgeschlagen",
+    "emailBody": "<p>Die HoPetSit-Abhebung ist fehlgeschlagen. Grund: {{reason}}. Der Betrag wurde deiner Wallet zurückerstattet, du kannst es erneut versuchen.</p>"
   }
 }

@@ -153,7 +153,7 @@
     "title": "Pedido de rastreamento ao vivo",
     "body": "Um pedido de rastreamento de posição em tempo real acabou de chegar ao teu chat.",
     "emailSubject": "Pedido de rastreamento — HoPetSit",
-    "emailBody": "<p>Um pedido de rastreamento ao vivo foi enviado para o teu chat. Abre a app para aceitar ou recusar.</p>"
+    "emailBody": "<p>Um pedido de rastreamento ao vivo foi enviado para o teu chat. Abre a app para aceitar ou recusar.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver o pedido</a></p>"
   },
   "live_tracking_accepted": {
     "title": "Rastreamento ao vivo aceite",
@@ -238,5 +238,47 @@
     "body": "O anúncio foi atribuído a outro prestador. Encontra outras oportunidades!",
     "emailSubject": "Anúncio preenchido — HoPetSit",
     "emailBody": "<p>O anúncio ao qual te candidataste foi atribuído a outro prestador. Há mais oportunidades disponíveis.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver anúncios</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "wallet_credited": {
+    "title": "Dinheiro disponível 🎉",
+    "body": "Acabaste de receber {{amount}} {{currency}} na tua carteira. Podes usá-lo na loja ou levantá-lo para o teu IBAN.",
+    "emailSubject": "Missão iniciada — {{amount}} {{currency}} creditados",
+    "emailBody": "<p>A tua missão HoPetSit acabou de começar. <strong>{{amount}} {{currency}}</strong> foram creditados na tua carteira. Podes usá-los na loja HoPetSit ou levantá-los para o teu IBAN a qualquer momento na app.</p>"
+  },
+  "payout_initiated": {
+    "title": "Pagamento a caminho",
+    "body": "Boas notícias: {{amount}} {{currency}} acabaram de ser enviados para o teu IBAN. Crédito previsto em 1 a 3 dias úteis.",
+    "emailSubject": "Pagamento HoPetSit a caminho — {{amount}} {{currency}}",
+    "emailBody": "<p>O teu pagamento HoPetSit de <strong>{{amount}} {{currency}}</strong> acabou de ser iniciado para a tua conta bancária. Crédito previsto em 1 a 3 dias úteis.</p>"
+  },
+  "payout_completed": {
+    "title": "Pagamento recebido ✅",
+    "body": "{{amount}} {{currency}} foram depositados no teu IBAN.",
+    "emailSubject": "Pagamento recebido — {{amount}} {{currency}}",
+    "emailBody": "<p>O teu pagamento HoPetSit de <strong>{{amount}} {{currency}}</strong> chegou à tua conta bancária.</p>"
+  },
+  "payout_failed": {
+    "title": "Pagamento falhou",
+    "body": "A transferência não foi concluída. Verifica o teu IBAN na app e tenta novamente.",
+    "emailSubject": "Pagamento HoPetSit falhou",
+    "emailBody": "<p>A transferência HoPetSit para o teu IBAN falhou. Motivo: {{reason}}. Verifica o teu IBAN e contacta o suporte se necessário.</p>"
+  },
+  "withdrawal_initiated": {
+    "title": "Levantamento em curso",
+    "body": "O teu levantamento de {{amount}} {{currency}} está a caminho do teu IBAN.",
+    "emailSubject": "Levantamento HoPetSit em curso",
+    "emailBody": "<p>O teu levantamento HoPetSit de <strong>{{amount}} {{currency}}</strong> foi iniciado para o teu IBAN. Prazo: 1 a 3 dias úteis.</p>"
+  },
+  "withdrawal_completed": {
+    "title": "Levantamento recebido ✅",
+    "body": "{{amount}} {{currency}} estão na tua conta bancária.",
+    "emailSubject": "Levantamento recebido — {{amount}} {{currency}}",
+    "emailBody": "<p>O teu levantamento HoPetSit de <strong>{{amount}} {{currency}}</strong> foi creditado na tua conta bancária.</p>"
+  },
+  "withdrawal_failed": {
+    "title": "Levantamento falhou",
+    "body": "O levantamento falhou. O saldo foi restaurado na tua carteira.",
+    "emailSubject": "Levantamento HoPetSit falhou",
+    "emailBody": "<p>O levantamento HoPetSit falhou. Motivo: {{reason}}. O saldo foi restaurado na tua carteira, podes tentar novamente.</p>"
   }
 }

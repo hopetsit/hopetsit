@@ -151,9 +151,9 @@
   },
   "live_tracking_request_received": {
     "title": "Richiesta di tracciamento live",
-    "body": "Una richiesta di tracciamento della posizione in tempo reale e appena arrivata nella tua chat.",
+    "body": "Una richiesta di tracciamento della posizione in tempo reale è appena arrivata nella tua chat.",
     "emailSubject": "Richiesta di tracciamento — HoPetSit",
-    "emailBody": "<p>Una richiesta di tracciamento live e stata inviata alla tua chat. Apri l’app per accettare o rifiutare.</p>"
+    "emailBody": "<p>Una richiesta di tracciamento live è stata inviata alla tua chat. Apri l’app per accettare o rifiutare.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi la richiesta</a></p>"
   },
   "live_tracking_accepted": {
     "title": "Tracciamento live accettato",
@@ -238,5 +238,47 @@
     "body": "L'annuncio è stato assegnato a un altro fornitore. Trova altre opportunità!",
     "emailSubject": "Annuncio assegnato — HoPetSit",
     "emailBody": "<p>L'annuncio per cui ti sei candidato è stato assegnato a un altro fornitore. Ci sono altre opportunità.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi gli annunci</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link: {{emailLink}}</p>"
+  },
+  "wallet_credited": {
+    "title": "Denaro disponibile 🎉",
+    "body": "Hai appena ricevuto {{amount}} {{currency}} nel tuo portafoglio. Puoi usarli nel negozio o ritirarli sul tuo IBAN.",
+    "emailSubject": "Servizio avviato — {{amount}} {{currency}} accreditati",
+    "emailBody": "<p>Il tuo servizio HoPetSit è appena iniziato. <strong>{{amount}} {{currency}}</strong> sono stati accreditati sul tuo portafoglio. Puoi usarli nel negozio HoPetSit o ritirarli sul tuo IBAN in qualsiasi momento dall'app.</p>"
+  },
+  "payout_initiated": {
+    "title": "Pagamento in arrivo",
+    "body": "Buone notizie: {{amount}} {{currency}} sono appena stati inviati al tuo IBAN. Accredito previsto in 1-3 giorni lavorativi.",
+    "emailSubject": "Pagamento HoPetSit in arrivo — {{amount}} {{currency}}",
+    "emailBody": "<p>Il tuo pagamento HoPetSit di <strong>{{amount}} {{currency}}</strong> è appena stato avviato verso il tuo conto bancario. Accredito previsto in 1-3 giorni lavorativi.</p>"
+  },
+  "payout_completed": {
+    "title": "Pagamento ricevuto ✅",
+    "body": "{{amount}} {{currency}} sono stati depositati sul tuo IBAN.",
+    "emailSubject": "Pagamento ricevuto — {{amount}} {{currency}}",
+    "emailBody": "<p>Il tuo pagamento HoPetSit di <strong>{{amount}} {{currency}}</strong> è arrivato sul tuo conto bancario.</p>"
+  },
+  "payout_failed": {
+    "title": "Pagamento non riuscito",
+    "body": "Il bonifico non è andato a buon fine. Verifica il tuo IBAN nell'app e riprova.",
+    "emailSubject": "Pagamento HoPetSit non riuscito",
+    "emailBody": "<p>Il bonifico HoPetSit verso il tuo IBAN non è andato a buon fine. Motivo: {{reason}}. Verifica il tuo IBAN e contatta l'assistenza se necessario.</p>"
+  },
+  "withdrawal_initiated": {
+    "title": "Prelievo in corso",
+    "body": "Il tuo prelievo di {{amount}} {{currency}} è in viaggio verso il tuo IBAN.",
+    "emailSubject": "Prelievo HoPetSit in corso",
+    "emailBody": "<p>Il tuo prelievo HoPetSit di <strong>{{amount}} {{currency}}</strong> è stato avviato verso il tuo IBAN. Tempi: 1-3 giorni lavorativi.</p>"
+  },
+  "withdrawal_completed": {
+    "title": "Prelievo ricevuto ✅",
+    "body": "{{amount}} {{currency}} sono sul tuo conto bancario.",
+    "emailSubject": "Prelievo ricevuto — {{amount}} {{currency}}",
+    "emailBody": "<p>Il tuo prelievo HoPetSit di <strong>{{amount}} {{currency}}</strong> è stato accreditato sul tuo conto bancario.</p>"
+  },
+  "withdrawal_failed": {
+    "title": "Prelievo non riuscito",
+    "body": "Il prelievo non è riuscito. Il saldo è stato ripristinato nel tuo portafoglio.",
+    "emailSubject": "Prelievo HoPetSit non riuscito",
+    "emailBody": "<p>Il prelievo HoPetSit non è riuscito. Motivo: {{reason}}. Il saldo è stato ripristinato nel tuo portafoglio, puoi riprovare.</p>"
   }
 }

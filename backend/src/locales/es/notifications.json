@@ -238,5 +238,47 @@
     "body": "El anuncio ya fue asignado a otro proveedor. ¡Encuentra otras oportunidades!",
     "emailSubject": "Anuncio cubierto — HoPetSit",
     "emailBody": "<p>El anuncio al que postulaste ya fue asignado a otro proveedor. Hay más oportunidades disponibles.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver anuncios</a></p><p style=\"color:#666;font-size:12px;\">Si el botón no funciona, copia este enlace: {{emailLink}}</p>"
+  },
+  "wallet_credited": {
+    "title": "Dinero disponible 🎉",
+    "body": "Acabas de recibir {{amount}} {{currency}} en tu monedero. Puedes usarlo en la tienda o retirarlo a tu IBAN.",
+    "emailSubject": "Misión iniciada — {{amount}} {{currency}} acreditados",
+    "emailBody": "<p>Tu misión HoPetSit acaba de empezar. <strong>{{amount}} {{currency}}</strong> se han acreditado en tu monedero. Puedes usarlos en la tienda HoPetSit o retirarlos a tu IBAN en cualquier momento desde la app.</p>"
+  },
+  "payout_initiated": {
+    "title": "Pago en camino",
+    "body": "Buenas noticias: {{amount}} {{currency}} se acaban de enviar a tu IBAN. Crédito previsto en 1 a 3 días hábiles.",
+    "emailSubject": "Pago HoPetSit en camino — {{amount}} {{currency}}",
+    "emailBody": "<p>Tu pago HoPetSit de <strong>{{amount}} {{currency}}</strong> acaba de iniciarse hacia tu cuenta bancaria. Crédito previsto en 1 a 3 días hábiles.</p>"
+  },
+  "payout_completed": {
+    "title": "Pago recibido ✅",
+    "body": "{{amount}} {{currency}} se han depositado en tu IBAN.",
+    "emailSubject": "Pago recibido — {{amount}} {{currency}}",
+    "emailBody": "<p>Tu pago HoPetSit de <strong>{{amount}} {{currency}}</strong> ha llegado a tu cuenta bancaria.</p>"
+  },
+  "payout_failed": {
+    "title": "Pago fallido",
+    "body": "La transferencia no se pudo completar. Verifica tu IBAN en la app e inténtalo de nuevo.",
+    "emailSubject": "Pago HoPetSit fallido",
+    "emailBody": "<p>La transferencia HoPetSit a tu IBAN ha fallado. Motivo: {{reason}}. Verifica tu IBAN y contacta con soporte si es necesario.</p>"
+  },
+  "withdrawal_initiated": {
+    "title": "Retiro en curso",
+    "body": "Tu retiro de {{amount}} {{currency}} se está enviando a tu IBAN.",
+    "emailSubject": "Retiro HoPetSit en curso",
+    "emailBody": "<p>Tu retiro HoPetSit de <strong>{{amount}} {{currency}}</strong> se ha iniciado hacia tu IBAN. Plazo: 1 a 3 días hábiles.</p>"
+  },
+  "withdrawal_completed": {
+    "title": "Retiro recibido ✅",
+    "body": "{{amount}} {{currency}} están en tu cuenta bancaria.",
+    "emailSubject": "Retiro recibido — {{amount}} {{currency}}",
+    "emailBody": "<p>Tu retiro HoPetSit de <strong>{{amount}} {{currency}}</strong> se ha acreditado en tu cuenta bancaria.</p>"
+  },
+  "withdrawal_failed": {
+    "title": "Retiro fallido",
+    "body": "El retiro ha fallado. El saldo se ha restaurado en tu monedero.",
+    "emailSubject": "Retiro HoPetSit fallido",
+    "emailBody": "<p>El retiro HoPetSit ha fallado. Motivo: {{reason}}. El saldo se ha restaurado en tu monedero, puedes volver a intentarlo.</p>"
   }
 }
