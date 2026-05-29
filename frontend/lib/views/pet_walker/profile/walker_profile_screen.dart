@@ -625,6 +625,8 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_edit_my_profile'.tr,
           Icons.person_outline_rounded,
           () => Get.to(() => const EditWalkerProfileScreen()),
+          subtitle: 'profile_edit_profile_subtitle'.tr,
+          color: _accent,
         ),
         // v20.0.7 — Paiement management (ajouter CB) remonté en section
         // COMPTE pour être immédiatement accessible, comme chez owner/sitter.
@@ -632,6 +634,8 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_payment_management'.tr,
           Icons.credit_card_rounded,
           () => Get.to(() => const PaymentManagementScreen()),
+          subtitle: 'payment_management_subtitle'.tr,
+          color: _accent,
         ),
         // v23.1 — Mes cartes : walker peut enregistrer une CB pour ses
         // achats (PawSpot, PawFollow). L'écran est role-aware côté backend.
@@ -639,12 +643,16 @@ class WalkerProfileScreen extends StatelessWidget {
           'saved_cards_title'.tr,
           Icons.credit_card_outlined,
           () => Get.to(() => const SavedCardsScreen()),
+          subtitle: 'saved_cards_empty_message'.tr,
+          color: _accent,
         ),
         // v23.1 part 36 — KYC verification (3€) → badge "Vérifié" sur profil.
         _settingsTile(
           'kyc_tile_title'.tr,
           Icons.verified_rounded,
           () => Get.to(() => const KycVerificationScreen()),
+          subtitle: 'kyc_tile_subtitle'.tr,
+          color: const Color(0xFF1976D2),
         ),
         // v19.1.5 — "Mes tarifs" tile : dedicated screen to tweak 30/60 min
         // rates without scrolling through the full edit profile form.
@@ -652,11 +660,15 @@ class WalkerProfileScreen extends StatelessWidget {
           'my_rates_section_title'.tr,
           Icons.euro_rounded,
           () => Get.to(() => const MyRatesScreen(role: 'walker')),
+          subtitle: 'my_rates_walker_hint'.tr,
+          color: _accent,
         ),
         _settingsTile(
           'profile_pawmap'.tr,
           Icons.map_rounded,
           () => Get.to(() => const PawMapScreen()),
+          subtitle: 'sitter_pawmap_subtitle'.tr,
+          color: const Color(0xFF8B5CF6),
         ),
         // v21.1.1 — Tile "Vérifier identité" retirée : Stripe Identity purgé.
 
@@ -674,17 +686,22 @@ class WalkerProfileScreen extends StatelessWidget {
           'wallet_menu_title'.tr,
           Icons.account_balance_wallet_rounded,
           () => Get.to(() => const WalletScreen()),
+          subtitle: 'wallet_menu_subtitle'.tr,
+          color: const Color(0xFF1A73E8),
         ),
         _settingsTile(
           'profile_shop'.tr,
           Icons.storefront_rounded,
           () => Get.to(() => const CoinShopScreen()),
+          color: _accent,
         ),
         // v20.0.7 — Payment Management remonté en section COMPTE en haut.
         _settingsTile(
           'profile_referrals'.tr,
           Icons.group_add_rounded,
           () => Get.to(() => const MyReferralsScreen()),
+          subtitle: 'referrals_subtitle'.tr,
+          color: const Color(0xFFF59E0B),
         ),
 
         _sectionHeader('profile_section_preferences'.tr),
@@ -692,11 +709,15 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_change_language'.tr,
           Icons.language_rounded,
           controller.showLanguageDialog,
+          subtitle: 'profile_change_language_subtitle'.tr,
+          color: _accent,
         ),
         _settingsTile(
           'theme_setting_title'.tr,
           Icons.brightness_6_rounded,
           () => _showThemeDialog(),
+          subtitle: 'theme_setting_subtitle'.tr,
+          color: const Color(0xFF8B5CF6),
         ),
 
         _sectionHeader('profile_section_security'.tr),
@@ -704,12 +725,16 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_password'.tr,
           Icons.lock_outline_rounded,
           () => Get.to(() => const ChangePasswordScreen()),
+          subtitle: 'profile_change_password_subtitle'.tr,
+          color: _accent,
         ),
         _settingsTile(
           'profile_blocked_users'.tr,
           Icons.block_rounded,
           () =>
               Get.to(() => const BlockedUsersScreen(userType: 'pet_walker')),
+          subtitle: 'profile_blocked_users_subtitle'.tr,
+          color: AppColors.errorColor,
         ),
 
         _sectionHeader('profile_section_legal'.tr),
@@ -717,11 +742,15 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_terms'.tr,
           Icons.description_outlined,
           () => Get.to(() => const TermsAndConditionsScreen()),
+          subtitle: 'terms_read_subtitle'.tr,
+          color: const Color(0xFF94A3B8),
         ),
         _settingsTile(
           'profile_privacy'.tr,
           Icons.privacy_tip_outlined,
           () => Get.to(() => const PrivacyPolicyScreen()),
+          subtitle: 'profile_privacy_subtitle'.tr,
+          color: const Color(0xFF94A3B8),
         ),
 
         // v20.0.8 — Bug report tile.
@@ -730,6 +759,8 @@ class WalkerProfileScreen extends StatelessWidget {
           'bug_report_title'.tr,
           Icons.bug_report_rounded,
           () => Get.to(() => const BugReportScreen()),
+          subtitle: 'bug_report_subtitle'.tr,
+          color: const Color(0xFFF59E0B),
         ),
 
         _sectionHeader('profile_section_danger'.tr),
@@ -737,6 +768,7 @@ class WalkerProfileScreen extends StatelessWidget {
           'profile_delete_account'.tr,
           Icons.delete_outline_rounded,
           () => controller.showDeleteAccountDialog(Get.context!),
+          subtitle: 'profile_delete_account_subtitle'.tr,
         ),
       ],
     );
@@ -754,12 +786,25 @@ class WalkerProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _settingsTile(String title, IconData icon, VoidCallback onTap) {
+  // v23.1 part 252 — Daniel : "dans les pages profile faite que le designe
+  // soit a peu pres le meme". On aligne la tuile walker sur celle de
+  // owner/sitter (_buildSettingsTile) : chip icone 38px colore par tuile +
+  // titre PoppinsText w600 primaire + sous-titre 11sp + chevron. Les params
+  // subtitle/color sont nommes optionnels → les anciens appels 3-args
+  // compilent encore (defaut subtitle vide, couleur accent vert walker).
+  Widget _settingsTile(
+    String title,
+    IconData icon,
+    VoidCallback onTap, {
+    String subtitle = '',
+    Color? color,
+  }) {
+    final iconColor = color ?? _accent;
     return GestureDetector(
       onTap: onTap,
       child: Builder(
         builder: (context) => Container(
-          margin: EdgeInsets.only(bottom: 6.h),
+          margin: EdgeInsets.only(bottom: 8.h),
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
@@ -768,23 +813,35 @@ class WalkerProfileScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // v23.1 part 139 — fix icône tordue : .w au lieu de .sp.
               Container(
-                width: 34.w,
-                height: 34.w,
+                width: 38.w,
+                height: 38.w,
                 decoration: BoxDecoration(
-                  color: _accentLight,
-                  borderRadius: BorderRadius.circular(9.r),
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(icon, size: 17.w, color: _accent),
+                child: Icon(icon, size: 18.sp, color: iconColor),
               ),
               SizedBox(width: 12.w),
               Expanded(
-                child: InterText(
-                  text: title,
-                  fontSize: 14.sp,
-                  color: AppColors.textSecondary(context),
-                  fontWeight: FontWeight.w500,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(
+                      text: title,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary(context),
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      SizedBox(height: 2.h),
+                      InterText(
+                        text: subtitle,
+                        fontSize: 11.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Icon(
@@ -802,13 +859,14 @@ class WalkerProfileScreen extends StatelessWidget {
   Widget _settingsTileDanger(
     String title,
     IconData icon,
-    VoidCallback onTap,
-  ) {
+    VoidCallback onTap, {
+    String subtitle = '',
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Builder(
         builder: (context) => Container(
-          margin: EdgeInsets.only(bottom: 6.h),
+          margin: EdgeInsets.only(bottom: 8.h),
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
           decoration: BoxDecoration(
             color: AppColors.errorColor.withValues(alpha: 0.08),
@@ -821,26 +879,39 @@ class WalkerProfileScreen extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 36.w,
-                height: 36.w,
+                width: 38.w,
+                height: 38.w,
                 decoration: BoxDecoration(
                   color: AppColors.errorColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(icon, size: 20.sp, color: AppColors.errorColor),
+                child: Icon(icon, size: 18.sp, color: AppColors.errorColor),
               ),
               SizedBox(width: 12.w),
               Expanded(
-                child: InterText(
-                  text: title,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.errorColor,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PoppinsText(
+                      text: title,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.errorColor,
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      SizedBox(height: 2.h),
+                      InterText(
+                        text: subtitle,
+                        fontSize: 11.sp,
+                        color: AppColors.errorColor.withValues(alpha: 0.7),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Icon(
-                Icons.chevron_right_rounded,
-                size: 20.sp,
+                Icons.arrow_forward_ios,
+                size: 14.sp,
                 color: AppColors.errorColor,
               ),
             ],
