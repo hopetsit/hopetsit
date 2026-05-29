@@ -317,10 +317,13 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
           // — ajout du bouton self-cancel pour bookings payes >72h avant
           // le service. Calls selfCancelBooking endpoint qui refund
           // l'owner integralement et bloque le payout futur du walker.
-          if (_isWithinSelfCancelWindow(booking) &&
-              booking.paymentStatus?.toLowerCase() == 'paid' &&
+          // v23.1.256 — bouton visible pour TOUTE résa payée (aligné détail) ;
+          // le dialogue gère gratuit (>72h) vs fenêtre fermée. Avant : gaté
+          // >72h → caché pour résas proches → "pas revenu sur aucun profil".
+          if (booking.paymentStatus?.toLowerCase() == 'paid' &&
               booking.status.toLowerCase() != 'cancelled' &&
-              booking.status.toLowerCase() != 'completed') ...[
+              booking.status.toLowerCase() != 'completed' &&
+              booking.status.toLowerCase() != 'refunded') ...[
             SizedBox(height: 12.h),
             SizedBox(
               width: double.infinity,
@@ -363,27 +366,35 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
   }
 
   Future<void> _confirmSelfCancel(BookingModel booking) async {
+    // v23.1.256 — annulation gratuite seulement si >72h (règle backend) ;
+    // sinon message "fenêtre fermée" sans bouton confirmer.
+    final canFree = _isWithinSelfCancelWindow(booking);
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         title: Text('cancel_72h_dialog_title'.tr),
-        content: Text('cancel_72h_dialog_message'.tr),
+        content: Text(
+          canFree
+              ? 'cancel_72h_dialog_message'.tr
+              : 'cancel_72h_closed_message'.tr,
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: Text('common_cancel'.tr),
+            child: Text(canFree ? 'common_cancel'.tr : 'common_ok'.tr),
           ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
+          if (canFree)
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              child: Text('cancel_72h_dialog_confirm'.tr),
             ),
-            child: Text('cancel_72h_dialog_confirm'.tr),
-          ),
         ],
       ),
     );
-    if (confirmed == true) {
+    if (confirmed == true && canFree) {
       await Get.find<WalkerBookingsController>()
           .selfCancelBooking(bookingId: booking.id);
     }

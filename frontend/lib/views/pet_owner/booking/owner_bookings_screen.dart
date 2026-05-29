@@ -345,27 +345,37 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   }
 
   Future<void> _confirmSelfCancel(BookingModel booking) async {
+    // v23.1.256 — dialogue adaptatif : annulation gratuite uniquement si
+    // >72h avant le service (règle backend selfCancelWithRefund). Si on est
+    // dans les 72h, on affiche le message "fenêtre fermée" SANS bouton
+    // confirmer (le backend rejetterait de toute façon un self-cancel <72h).
+    final canFree = _isWithinSelfCancelWindow(booking);
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         title: Text('cancel_72h_dialog_title'.tr),
-        content: Text('cancel_72h_dialog_message'.tr),
+        content: Text(
+          canFree
+              ? 'cancel_72h_dialog_message'.tr
+              : 'cancel_72h_closed_message'.tr,
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: Text('common_cancel'.tr),
+            child: Text(canFree ? 'common_cancel'.tr : 'common_ok'.tr),
           ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
+          if (canFree)
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              child: Text('cancel_72h_dialog_confirm'.tr),
             ),
-            child: Text('cancel_72h_dialog_confirm'.tr),
-          ),
         ],
       ),
     );
-    if (confirmed == true) {
+    if (confirmed == true && canFree) {
       await _bookingsController.selfCancelBooking(bookingId: booking.id);
     }
   }
@@ -380,12 +390,19 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
             paymentStatusLower.isEmpty ||
             paymentStatusLower != 'paid');
 
-    // v23.1.161 — Bouton "Annuler" pour reservations payees >72h avant
-    // le service (cancellation gratuite avec refund integral).
+    // v23.1.256 — Daniel : "le bouton annulation 72h n'est revenu sur AUCUN
+    // profil". Cause racine : la liste gâtait le bouton sur
+    // _isWithinSelfCancelWindow (>72h) ET sur le parsing de booking.date —
+    // donc pour une résa proche (<72h) OU si la date ne se parse pas, le
+    // bouton disparaissait TOTALEMENT. On aligne sur l'écran DÉTAIL qui le
+    // montre pour toute résa payée : ici le bouton s'affiche dès que la résa
+    // est payée et non annulée/terminée/remboursée ; le dialogue
+    // (_confirmSelfCancel) adapte ensuite (gratuit si >72h, sinon message
+    // "fenêtre d'annulation gratuite fermée").
     final isCancellable = paymentStatusLower == 'paid' &&
         statusLower != 'cancelled' &&
         statusLower != 'completed' &&
-        _isWithinSelfCancelWindow(booking);
+        statusLower != 'refunded';
 
     return Row(
       children: [

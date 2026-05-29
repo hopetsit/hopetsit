@@ -530,27 +530,35 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   }
 
   Future<void> _confirmSelfCancel(BookingModel booking) async {
+    // v23.1.256 — annulation gratuite seulement si >72h (règle backend) ;
+    // sinon message "fenêtre fermée" sans bouton confirmer.
+    final canFree = _isWithinSelfCancelWindow(booking);
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         title: Text('cancel_72h_dialog_title'.tr),
-        content: Text('cancel_72h_dialog_message'.tr),
+        content: Text(
+          canFree
+              ? 'cancel_72h_dialog_message'.tr
+              : 'cancel_72h_closed_message'.tr,
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: Text('common_cancel'.tr),
+            child: Text(canFree ? 'common_cancel'.tr : 'common_ok'.tr),
           ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
+          if (canFree)
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              child: Text('cancel_72h_dialog_confirm'.tr),
             ),
-            child: Text('cancel_72h_dialog_confirm'.tr),
-          ),
         ],
       ),
     );
-    if (confirmed == true) {
+    if (confirmed == true && canFree) {
       await _bookingsController.selfCancelBooking(bookingId: booking.id);
     }
   }
@@ -558,11 +566,14 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   Widget _buildActionButtons(BookingModel booking) {
     final statusLower = booking.status.toLowerCase();
     final paymentStatusLower = booking.paymentStatus?.toLowerCase();
-    // v23.1.161 — self-cancel pour reservations PAYEES a >72h (refund integral).
+    // v23.1.256 — bouton annulation visible pour TOUTE résa payée (aligné sur
+    // l'écran détail) ; le dialogue gère gratuit (>72h) vs fenêtre fermée.
+    // Avant : gaté sur >72h → caché pour les résas proches ou si date non
+    // parsable → "le bouton 72h n'est revenu sur aucun profil".
     final isCancellable = paymentStatusLower == 'paid' &&
         statusLower != 'cancelled' &&
         statusLower != 'completed' &&
-        _isWithinSelfCancelWindow(booking);
+        statusLower != 'refunded';
 
     return Row(
       children: [
