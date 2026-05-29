@@ -141,7 +141,7 @@
     "title": "Pedido de amizade recebido",
     "body": "Alguém quer adicionar-te como amigo no HoPetSit. Abre a app para aceitar ou recusar.",
     "emailSubject": "Pedido de amizade — HoPetSit",
-    "emailBody": "<p>Recebeste um novo pedido de amizade no HoPetSit. Abre a app para responder.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver pedido</a></p>"
+    "emailBody": "<p>Recebeste um novo pedido de amizade no HoPetSit. Abre a app para responder.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver pedido</a></p>"
   },
   "friend_request_accepted": {
     "title": "Pedido de amizade aceite",
@@ -190,5 +190,53 @@
     "body": "Um membro recusou o teu convite Familia PawFollow. Uma vaga esta novamente disponivel.",
     "emailSubject": "Convite recusado - HoPetSit",
     "emailBody": "<p>Um membro recusou o teu convite Familia PawFollow. Uma vaga esta novamente disponivel no teu plano Familia.</p>"
+  },
+  "kyc_verified": {
+    "title": "Identidade verificada ✅",
+    "body": "A tua verificação de identidade está confirmada. Agora tens o selo de verificado no teu perfil.",
+    "emailSubject": "Identidade verificada — HoPetSit",
+    "emailBody": "<p>Parabéns, a tua identidade foi verificada com sucesso. O selo de verificado já aparece no teu perfil HoPetSit.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver o meu perfil</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "kyc_rejected": {
+    "title": "Verificação recusada",
+    "body": "Não foi possível validar a tua verificação de identidade. Abre a app para tentar novamente.",
+    "emailSubject": "Verificação de identidade — HoPetSit",
+    "emailBody": "<p>Não foi possível validar a tua verificação de identidade. Podes tentar novamente na aplicação.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Tentar novamente</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "kyc_payment_succeeded": {
+    "title": "Pagamento confirmado",
+    "body": "O teu pagamento está confirmado. Agora completa a tua verificação de identidade.",
+    "emailSubject": "Pagamento confirmado — HoPetSit",
+    "emailBody": "<p>Recebemos o teu pagamento. Agora completa a tua verificação de identidade na app.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Continuar verificação</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "map_boost_activated": {
+    "title": "Boost de mapa ativado 🔥",
+    "body": "O teu boost no mapa está ativo. O teu perfil está em destaque para donos próximos.",
+    "emailSubject": "Boost de mapa ativado — HoPetSit",
+    "emailBody": "<p>O teu boost no mapa já está ativo. O teu perfil está em destaque na PawMap para donos próximos.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver o meu perfil</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "subscription_activated": {
+    "title": "Subscrição ativada ✨",
+    "body": "A tua subscrição está ativa. Aproveita todas as tuas vantagens premium.",
+    "emailSubject": "Subscrição ativada — HoPetSit",
+    "emailBody": "<p>A tua subscrição HoPetSit já está ativa. Aproveita todas as tuas vantagens premium.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver as minhas vantagens</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "profile_boost_activated": {
+    "title": "Boost de perfil ativado 🔥",
+    "body": "O teu perfil está impulsionado. Apareces primeiro nas pesquisas.",
+    "emailSubject": "Boost de perfil ativado — HoPetSit",
+    "emailBody": "<p>O teu perfil já está impulsionado. Apareces primeiro nos resultados de pesquisa dos donos.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver o meu perfil</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "chat_addon_activated": {
+    "title": "Chat ativado 💬",
+    "body": "A tua opção de chat está ativa. Agora podes conversar sem limites.",
+    "emailSubject": "Chat ativado — HoPetSit",
+    "emailBody": "<p>A tua opção de chat já está ativa. Podes falar livremente com donos e prestadores.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Abrir as minhas mensagens</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "application_rejected_other_accepted": {
+    "title": "Anúncio preenchido",
+    "body": "O anúncio foi atribuído a outro prestador. Encontra outras oportunidades!",
+    "emailSubject": "Anúncio preenchido — HoPetSit",
+    "emailBody": "<p>O anúncio ao qual te candidataste foi atribuído a outro prestador. Há mais oportunidades disponíveis.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver anúncios</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
   }
 }

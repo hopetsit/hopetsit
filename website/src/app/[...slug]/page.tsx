@@ -60,6 +60,11 @@ function webFallbackFor(path: string): { href: string; label: string } | null {
       return { href: "/dashboard", label: "Voir mon tableau de bord" };
     case "walk":
       return { href: "/bookings", label: "Voir mes réservations" };
+    case "friends":
+    case "amis":
+      // v23.1.254 — notifs amis / famille / suivi live (friend_request_*,
+      // family_*, live_tracking_*). Le hub web vit sur /friends/live.
+      return { href: "/friends/live", label: "Voir mes amis" };
     // v23.1.175 — cases manquantes ajoutées (audit web Next.js).
     case "profile":
       return { href: "/profile", label: "Voir mon profil" };

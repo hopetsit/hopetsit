@@ -141,7 +141,7 @@
     "title": "Freundschaftsanfrage erhalten",
     "body": "Jemand möchte dich als Freund auf HoPetSit hinzufügen. Öffne die App, um anzunehmen oder abzulehnen.",
     "emailSubject": "Freundschaftsanfrage — HoPetSit",
-    "emailBody": "<p>Du hast eine neue Freundschaftsanfrage auf HoPetSit erhalten. Öffne die App, um zu antworten.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Anfrage ansehen</a></p>"
+    "emailBody": "<p>Du hast eine neue Freundschaftsanfrage auf HoPetSit erhalten. Öffne die App, um zu antworten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Anfrage ansehen</a></p>"
   },
   "friend_request_accepted": {
     "title": "Freundschaftsanfrage akzeptiert",
@@ -190,5 +190,53 @@
     "body": "Ein Mitglied hat deine PawFollow-Familieneinladung abgelehnt. Ein Platz ist wieder verfuegbar.",
     "emailSubject": "Einladung abgelehnt - HoPetSit",
     "emailBody": "<p>Ein Mitglied hat deine PawFollow-Familieneinladung abgelehnt. Ein Platz ist wieder in deinem Familienplan verfuegbar.</p>"
+  },
+  "kyc_verified": {
+    "title": "Identität verifiziert ✅",
+    "body": "Deine Identitätsprüfung ist bestätigt. Du hast jetzt das Verifiziert-Abzeichen in deinem Profil.",
+    "emailSubject": "Identität verifiziert — HoPetSit",
+    "emailBody": "<p>Glückwunsch, deine Identität wurde erfolgreich verifiziert. Das Verifiziert-Abzeichen wird jetzt in deinem HoPetSit-Profil angezeigt.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Mein Profil ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "kyc_rejected": {
+    "title": "Verifizierung abgelehnt",
+    "body": "Deine Identitätsprüfung konnte nicht bestätigt werden. Öffne die App, um es erneut zu versuchen.",
+    "emailSubject": "Identitätsprüfung — HoPetSit",
+    "emailBody": "<p>Deine Identitätsprüfung konnte nicht bestätigt werden. Du kannst es in der App erneut versuchen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Erneut versuchen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "kyc_payment_succeeded": {
+    "title": "Zahlung bestätigt",
+    "body": "Deine Zahlung ist bestätigt. Schließe jetzt deine Identitätsprüfung ab.",
+    "emailSubject": "Zahlung bestätigt — HoPetSit",
+    "emailBody": "<p>Wir haben deine Zahlung erhalten. Schließe jetzt deine Identitätsprüfung in der App ab.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Verifizierung fortsetzen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "map_boost_activated": {
+    "title": "Karten-Boost aktiviert 🔥",
+    "body": "Dein Karten-Boost ist aktiv. Dein Profil wird Besitzern in der Nähe hervorgehoben.",
+    "emailSubject": "Karten-Boost aktiviert — HoPetSit",
+    "emailBody": "<p>Dein Karten-Boost ist jetzt aktiv. Dein Profil wird auf der PawMap Besitzern in der Nähe bevorzugt angezeigt.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Mein Profil ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "subscription_activated": {
+    "title": "Abo aktiviert ✨",
+    "body": "Dein Abo ist aktiv. Genieße alle deine Premium-Vorteile.",
+    "emailSubject": "Abo aktiviert — HoPetSit",
+    "emailBody": "<p>Dein HoPetSit-Abo ist jetzt aktiv. Genieße alle deine Premium-Vorteile.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meine Vorteile ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "profile_boost_activated": {
+    "title": "Profil-Boost aktiviert 🔥",
+    "body": "Dein Profil ist geboostet. Du erscheinst zuerst in den Suchergebnissen.",
+    "emailSubject": "Profil-Boost aktiviert — HoPetSit",
+    "emailBody": "<p>Dein Profil ist jetzt geboostet. Du erscheinst bei den Besitzern zuerst in den Suchergebnissen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Mein Profil ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "chat_addon_activated": {
+    "title": "Chat-Option aktiviert 💬",
+    "body": "Deine Chat-Option ist aktiv. Du kannst jetzt unbegrenzt schreiben.",
+    "emailSubject": "Chat aktiviert — HoPetSit",
+    "emailBody": "<p>Deine Chat-Option ist jetzt aktiv. Du kannst frei mit Besitzern und Anbietern schreiben.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meine Nachrichten öffnen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "application_rejected_other_accepted": {
+    "title": "Anzeige vergeben",
+    "body": "Die Anzeige wurde an einen anderen Anbieter vergeben. Finde weitere Gelegenheiten!",
+    "emailSubject": "Anzeige vergeben — HoPetSit",
+    "emailBody": "<p>Die Anzeige, auf die du dich beworben hast, wurde an einen anderen Anbieter vergeben. Es gibt weitere Gelegenheiten.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Anzeigen ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   }
 }

@@ -10,6 +10,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -235,6 +236,15 @@ class DeepLinkService {
       Get.toNamed('/shop');
     } else if (first == 'profile') {
       Get.toNamed('/profile');
+    } else if (first == 'friends' || first == 'amis' ||
+               first == 'family' || first == 'live') {
+      // v23.1.254 — Daniel : "verifie tt les bouton quon recois sur mail
+      // message etc qui soit connecter". Les notifs amis / famille / suivi
+      // en direct (friend_request_received, friend_request_accepted,
+      // family_*, live_tracking_*) pointent vers https://hopetsit.com/friends.
+      // On ouvre FriendsScreen sur l'onglet "Mes amis" (index 0) — l'user y
+      // voit les demandes, la famille et le suivi live.
+      Get.to(() => const FriendsScreen());
     } else if (first == 'auth') {
       // v23.1 part 146 — auto-login via one-time token issued by the website.
       // Format attendu : hopetsit://auth?ott=<64 hex>

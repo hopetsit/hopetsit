@@ -18,6 +18,7 @@ import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/notifications/notification_application_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_post_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
@@ -443,6 +444,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           openCommentsOnOpen: true,
         );
       }
+      return;
+    }
+
+    // v23.1.254 — Daniel : "verifie tt les bouton quon recois sur mail
+    // messag etc qui soit connecter". Les notifs amis / famille / suivi en
+    // direct étaient un no-op au tap (la bande notif s'ouvrait mais rien ne
+    // se passait). Or `friend_request_received` / `family_invitation_received`
+    // / `live_tracking_request_received` sont ACTIONNABLES (accepter/refuser).
+    // On ouvre FriendsScreen (onglet "Mes amis", index 0) où l'user gère
+    // demandes, famille et suivi live. Couvre aussi les variantes _accepted.
+    if (type.contains('friend_request') ||
+        type.contains('family') ||
+        type.contains('live_tracking')) {
+      Get.to(() => const FriendsScreen());
       return;
     }
 

@@ -183,7 +183,7 @@
     "title": "Demande d’ami reçue",
     "body": "Quelqu’un veut t’ajouter comme ami sur HoPetSit. Ouvre l’app pour accepter ou refuser.",
     "emailSubject": "Demande d’ami — HoPetSit",
-    "emailBody": "<p>Tu as reçu une nouvelle demande d’ami sur HoPetSit. Ouvre l’app pour répondre.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la demande</a></p>"
+    "emailBody": "<p>Tu as reçu une nouvelle demande d’ami sur HoPetSit. Ouvre l’app pour répondre.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la demande</a></p>"
   },
   "friend_request_accepted": {
     "title": "Demande d’ami acceptée",
@@ -195,7 +195,7 @@
     "title": "Demande de suivi en direct",
     "body": "Une demande de suivi de position en temps réel vient d’arriver dans ton chat.",
     "emailSubject": "Demande de suivi en direct — HoPetSit",
-    "emailBody": "<p>Une demande de suivi en direct a été envoyée dans ton chat. Ouvre l’app pour accepter ou refuser.</p><p><a href=\"{emailLink}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la demande</a></p>"
+    "emailBody": "<p>Une demande de suivi en direct a été envoyée dans ton chat. Ouvre l’app pour accepter ou refuser.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la demande</a></p>"
   },
   "live_tracking_accepted": {
     "title": "Suivi en direct accepté",
@@ -232,5 +232,53 @@
     "body": "Un membre a refuse ton invitation Famille PawFollow. Une place est de nouveau disponible.",
     "emailSubject": "Invitation refusee - HoPetSit",
     "emailBody": "<p>Un membre a refuse ton invitation Famille PawFollow. Une place est de nouveau disponible dans ton plan Famille.</p>"
+  },
+  "kyc_verified": {
+    "title": "Identité vérifiée ✅",
+    "body": "Ta vérification d'identité est confirmée. Tu as maintenant le badge vérifié sur ton profil.",
+    "emailSubject": "Identité vérifiée — HoPetSit",
+    "emailBody": "<p>Félicitations, ton identité a été vérifiée avec succès. Le badge vérifié est maintenant affiché sur ton profil HoPetSit.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir mon profil</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "kyc_rejected": {
+    "title": "Vérification refusée",
+    "body": "Ta vérification d'identité n'a pas pu être validée. Ouvre l'app pour réessayer.",
+    "emailSubject": "Vérification d'identité — HoPetSit",
+    "emailBody": "<p>Ta vérification d'identité n'a pas pu être validée. Tu peux réessayer depuis l'application.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Réessayer</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "kyc_payment_succeeded": {
+    "title": "Paiement confirmé",
+    "body": "Ton paiement est confirmé. Complète maintenant ta vérification d'identité.",
+    "emailSubject": "Paiement confirmé — HoPetSit",
+    "emailBody": "<p>Nous avons bien reçu ton paiement. Termine maintenant ta vérification d'identité depuis l'application.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Continuer la vérification</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "map_boost_activated": {
+    "title": "Boost carte activé 🔥",
+    "body": "Ton boost sur la carte est actif. Ton profil est mis en avant auprès des propriétaires proches.",
+    "emailSubject": "Boost carte activé — HoPetSit",
+    "emailBody": "<p>Ton boost sur la carte est maintenant actif. Ton profil ressort en priorité sur la PawMap auprès des propriétaires à proximité.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir mon profil</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "subscription_activated": {
+    "title": "Abonnement activé ✨",
+    "body": "Ton abonnement est actif. Profite de tous tes avantages premium.",
+    "emailSubject": "Abonnement activé — HoPetSit",
+    "emailBody": "<p>Ton abonnement HoPetSit est maintenant actif. Tu profites de tous tes avantages premium.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Découvrir mes avantages</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "profile_boost_activated": {
+    "title": "Boost profil activé 🔥",
+    "body": "Ton profil est boosté. Tu apparais en priorité dans les recherches.",
+    "emailSubject": "Boost profil activé — HoPetSit",
+    "emailBody": "<p>Ton profil est maintenant boosté. Tu apparais en priorité dans les résultats de recherche auprès des propriétaires.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir mon profil</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "chat_addon_activated": {
+    "title": "Chat illimité activé 💬",
+    "body": "Ton option chat est active. Tu peux maintenant discuter sans limite.",
+    "emailSubject": "Chat activé — HoPetSit",
+    "emailBody": "<p>Ton option chat est maintenant active. Tu peux échanger librement avec les propriétaires et prestataires.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ouvrir mes messages</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "application_rejected_other_accepted": {
+    "title": "Annonce pourvue",
+    "body": "L'annonce a été attribuée à un autre prestataire. Découvre d'autres opportunités !",
+    "emailSubject": "Annonce pourvue — HoPetSit",
+    "emailBody": "<p>L'annonce à laquelle tu as candidaté a été attribuée à un autre prestataire. D'autres opportunités sont disponibles.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir les annonces</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
   }
 }

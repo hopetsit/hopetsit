@@ -110,9 +110,21 @@ const buildEmailLink = (type, params = {}) => {
     case 'notifications':
       return `${BASE_URL}/notifications`;
 
+    case 'friends':
+    case 'friend_request':
+    case 'live_tracking':
+      // /friends/live - page Next.js existante (hub amis + famille + suivi
+      // live, v246). NB : `/friends` seul n'a pas de page.tsx → 404 web, donc
+      // on cible `/friends/live`. Sur mobile, l'App Link
+      // https://hopetsit.com/friends/live a `pathSegments.first == 'friends'`
+      // → deep_link_service ouvre FriendsScreen (onglet Mes amis).
+      return `${BASE_URL}/friends/live`;
+
     case 'profile':
+    case 'kyc':
       // /profile - lien generique vers le profil (app ouvre l'onglet
-      // profil du role courant).
+      // profil du role courant). KYC verifie/refuse → l'user va sur son
+      // profil voir le badge / relancer la verification.
       return `${BASE_URL}/profile`;
 
     case 'subscription':
@@ -183,8 +195,34 @@ const buildEmailLinkFromNotification = (notifType, data = {}) => {
   if (t === 'subscription_renewed' || t === 'subscription_canceled') {
     return buildEmailLink('subscription');
   }
-  if (t === 'map_boost_active' || t === 'map_boost_expired') {
+  if (t === 'map_boost_active' || t === 'map_boost_expired' ||
+      t === 'map_boost_activated' || t === 'profile_boost_activated') {
+    // Boost carte / profil active → page PawSpot (mise en avant).
     return buildEmailLink('paw_spot');
+  }
+  if (t === 'subscription_activated') {
+    return buildEmailLink('subscription');
+  }
+  if (t === 'chat_addon_activated') {
+    return buildEmailLink('chat');
+  }
+  if (t === 'kyc_verified' || t === 'kyc_rejected' ||
+      t === 'kyc_payment_succeeded') {
+    // Verification d'identite → profil (voir le badge ou relancer).
+    return buildEmailLink('profile');
+  }
+  if (t === 'application_rejected_other_accepted') {
+    // L'annonce a ete pourvue par un autre prestataire → renvoie vers
+    // l'annonce (l'app/web peut afficher d'autres annonces similaires).
+    return buildEmailLink('post', { postId: data.postId });
+  }
+  if (t === 'friend_request_received' || t === 'friend_request_accepted' ||
+      t === 'family_member_added' || t === 'family_invitation_received' ||
+      t === 'family_invitation_accepted' || t === 'family_invitation_refused' ||
+      t === 'live_tracking_request_received' || t === 'live_tracking_accepted' ||
+      t === 'live_tracking_refused') {
+    // Amis / famille / suivi live → page /friends (liste + live).
+    return buildEmailLink('friends');
   }
   // Default : home
   return buildEmailLink('home');
