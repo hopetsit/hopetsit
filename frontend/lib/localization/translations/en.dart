@@ -288,6 +288,13 @@ const Map<String, String> enUSTranslations = <String, String>{
       'availability_instructions':
           'Tap a day: 1st tap = available (green), 2nd = blocked (red), 3rd = clear.',
       'common_error': 'Error',
+      // v23.1 part 252 — common_warning + 5 orphan keys (i18n audit).
+      'common_warning': 'Warning',
+      'auth_apple_signin_title': 'Sign in with Apple',
+      'live_track_title': 'Live tracking',
+      'payout_status_not_connected': 'Not connected',
+      'payout_verification_step_identity': 'Identity verification',
+      'verified': 'Verified',
       'common_error_message':
           'Something went wrong. Please try again or contact support if the issue persists.',
       'common_success': 'Success',

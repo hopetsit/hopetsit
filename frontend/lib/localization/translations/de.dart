@@ -170,6 +170,13 @@ const Map<String, String> deDETranslations = <String, String>{
       'availability_instructions':
           'Tippe auf einen Tag: 1. Tipp = verfügbar (grün), 2. = blockiert (rot), 3. = löschen.',
       'common_error': 'Fehler',
+      // v23.1 part 252 — common_warning + 5 verwaiste Schlüssel (i18n audit).
+      'common_warning': 'Achtung',
+      'auth_apple_signin_title': 'Mit Apple anmelden',
+      'live_track_title': 'Live-Verfolgung',
+      'payout_status_not_connected': 'Nicht verbunden',
+      'payout_verification_step_identity': 'Identitätsprüfung',
+      'verified': 'Verifiziert',
       'common_error_message':
           'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut oder kontaktieren Sie den Support, falls das Problem weiterhin besteht.',
       'common_success': 'Erfolg',

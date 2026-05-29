@@ -1021,7 +1021,12 @@ const processProviderPayoutForBooking = async (booking) => {
           const { creditWallet } = require('../services/walletService');
           const credit = await creditWallet({
             userId: sitter._id.toString(),
-            role: provider.type,
+            // v23.1 part 252 — BUG CRITIQUE : on passait `role:` mais
+            // creditWallet attend `userRole:` (throw 'invalid args' sinon).
+            // Resultat : le wallet n'etait JAMAIS credite (try/catch
+            // silencieux) → solde walker/sitter restait a 0€ malgre
+            // l'historique. Fix : role → userRole.
+            userRole: provider.type,
             amount: netPayout,
             currency: (currency || 'EUR').toUpperCase(),
             type: 'credit_booking',
@@ -1126,7 +1131,8 @@ const processProviderPayoutForBooking = async (booking) => {
         const { creditWallet } = require('../services/walletService');
         await creditWallet({
           userId: sitter._id.toString(),
-          role: provider.type,
+          // v23.1 part 252 — fix role → userRole (cf. note ligne ~1024).
+          userRole: provider.type,
           amount: netPayout,
           currency: (currency || 'EUR').toUpperCase(),
           type: 'credit_booking',
@@ -3057,7 +3063,8 @@ const confirmBookingPayment = async (req, res) => {
             // log the transaction for the in-app earnings history.
             await creditWallet({
               userId: provider.id,
-              role: provider.type,
+              // v23.1 part 252 — fix role → userRole (cf. note ligne ~1024).
+              userRole: provider.type,
               amount: netPayout,
               currency: currency.toUpperCase(),
               type: 'credit_booking',

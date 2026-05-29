@@ -34,18 +34,52 @@ class LocationService {
       if (permission == LocationPermission.deniedForever) {
         // Permissions are denied forever, open app settings
         await Geolocator.openLocationSettings();
-        return null;
+        // v23.1 part 252 — meme si denied forever, on tente la derniere
+        // position connue (souvent dispo du cache OS) pour que la PawMap
+        // n'ouvre pas sur Paris.
+        return await Geolocator.getLastKnownPosition();
       }
 
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: LocationSettings(accuracy: LocationAccuracy.best),
-      );
+      // v23.1 part 252 — Daniel : "la pawmap arrete de souvrir sur paris
+      // quel souvrs sur ma position". Root cause : getCurrentPosition avec
+      // accuracy.best est LENT (GPS froid) et sans timeLimit interne ; sur
+      // un fix lent il timeout cote appelant (8s) → null → fallback Paris.
+      //
+      // Fix robuste :
+      //   1. On tente d'abord getLastKnownPosition() (INSTANTANE, cache OS).
+      //      Si dispo, on la retourne immediatement → la carte ouvre pres
+      //      de l'user tout de suite.
+      //   2. En parallele, getCurrentPosition avec accuracy MEDIUM (bien
+      //      plus rapide a obtenir un 1er fix que best) + timeLimit 6s.
+      //   3. Si getCurrentPosition reussit, sa valeur est plus fraiche, on
+      //      la prefere ; sinon on garde la last-known.
+      Position? lastKnown;
+      try {
+        lastKnown = await Geolocator.getLastKnownPosition();
+      } catch (_) {/* defensive */}
 
-      return position;
+      try {
+        final fresh = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 6),
+          ),
+        );
+        return fresh;
+      } catch (_) {
+        // getCurrentPosition lent/echoue → on retombe sur la last-known
+        // (peut etre null si l'OS n'a jamais eu de fix, mais c'est mieux
+        // que Paris quand elle existe).
+        return lastKnown;
+      }
     } catch (e) {
       AppLogger.logError('Error getting location', error: e);
-      return null;
+      // Ultime fallback : last-known position.
+      try {
+        return await Geolocator.getLastKnownPosition();
+      } catch (_) {
+        return null;
+      }
     }
   }
 

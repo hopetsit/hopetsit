@@ -222,8 +222,21 @@ class EditOwnerProfileScreen extends StatelessWidget {
                                             controller.phoneController.text,
                                           );
                                         },
-                                        initialSelection:
-                                            controller.selectedCountryCode.value,
+                                        // v23.1 part 252 — Daniel : "le
+                                        // telephone est tjr sur pakistant".
+                                        // Root cause : selectedCountryCode
+                                        // defaut '' → CountryCodePicker ne
+                                        // matche rien → fallback Pakistan.
+                                        // On passe un defaut base sur la
+                                        // locale du device (ES/FR) si vide.
+                                        initialSelection: controller
+                                                .selectedCountryCode
+                                                .value
+                                                .isNotEmpty
+                                            ? controller
+                                                .selectedCountryCode.value
+                                            : (Get.deviceLocale?.countryCode ??
+                                                'FR'),
                                         showCountryOnly: false,
                                         showOnlyCountryWhenClosed: false,
                                         alignLeft: false,

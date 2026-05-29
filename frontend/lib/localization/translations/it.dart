@@ -186,6 +186,13 @@ const Map<String, String> itITTranslations = <String, String>{
       'availability_instructions':
           'Tocca un giorno: 1º tocco = disponibile (verde), 2º = bloccato (rosso), 3º = cancellare.',
       'common_error': 'Errore',
+      // v23.1 part 252 — common_warning + 5 chiavi orfane (audit i18n).
+      'common_warning': 'Attenzione',
+      'auth_apple_signin_title': 'Accedi con Apple',
+      'live_track_title': 'Tracciamento in diretta',
+      'payout_status_not_connected': 'Non connesso',
+      'payout_verification_step_identity': 'Verifica identità',
+      'verified': 'Verificato',
       'common_error_message':
           'Si è verificato un errore. Riprova o contatta il supporto se il problema persiste.',
       'common_success': 'Successo',

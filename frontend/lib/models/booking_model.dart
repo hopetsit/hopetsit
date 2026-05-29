@@ -157,10 +157,13 @@ class BookingModel {
     // If 'owner' exists, use it; otherwise use 'otherParty' (for sitter flow)
     final finalOwnerData = ownerData ?? otherParty ?? {};
 
+    // v23.1 part 252 — crash audit : whereType au lieu de cast brut
+    // (crashait si un element pets n'etait pas un Map).
     final petsList = json['pets'] as List<dynamic>?;
     final parsedPets = petsList != null
         ? petsList
-              .map((e) => BookingPet.fromJson(e as Map<String, dynamic>))
+              .whereType<Map<String, dynamic>>()
+              .map((e) => BookingPet.fromJson(e))
               .toList()
         : <BookingPet>[];
     final firstPetName = parsedPets.isNotEmpty
@@ -199,7 +202,8 @@ class BookingModel {
       basePrice:
           (json['basePrice'] as num?)?.toDouble() ??
           (json['base_price'] as num?)?.toDouble(),
-      pricing: json['pricing'] != null
+      // v23.1 part 252 — crash audit : is Map au lieu de cast brut.
+      pricing: json['pricing'] is Map<String, dynamic>
           ? BookingPricing.fromJson(json['pricing'] as Map<String, dynamic>)
           : null,
       cancelledAt:

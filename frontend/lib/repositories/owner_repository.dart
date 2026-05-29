@@ -321,8 +321,13 @@ class OwnerRepository {
     }
 
     // Add duration only if provided (required for dog_walking)
-    if (duration != null && duration.isNotEmpty) {
-      body['duration'] = int.parse(duration);
+    // v23.1 part 252 — crash audit : int.parse crashait (FormatException)
+    // si duration n'etait pas purement numerique (ex. "30 min"). tryParse.
+    if (duration != null && duration.trim().isNotEmpty) {
+      final parsedDuration = int.tryParse(duration.trim());
+      if (parsedDuration != null) {
+        body['duration'] = parsedDuration;
+      }
     }
 
     // Session v16-owner-walker — send the right query key. The backend

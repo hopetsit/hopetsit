@@ -82,10 +82,15 @@ class _NotificationApplicationViewScreenState
       }
       final bookingsCtrl = Get.find<BookingsController>();
       await bookingsCtrl.loadBookings();
-      final booking = bookingsCtrl.bookings.firstWhere(
-        (b) => b.id == app.bookingId,
-        orElse: () => bookingsCtrl.bookings.first,
-      );
+      // v23.1 part 252 — crash audit : le orElse retournait
+      // bookings.first qui CRASHE ("Bad state: No element") si la liste
+      // est vide (API lente/vide au tap notif). On filtre en Dart pur
+      // (sans dependance d'extension) et on sort proprement si introuvable.
+      final matches = bookingsCtrl.bookings
+          .where((b) => b.id == app.bookingId)
+          .toList();
+      if (matches.isEmpty) return;
+      final booking = matches.first;
       // If the booking is already paid, don't redirect to payment — just
       // stay on the notification screen (it already shows "Acceptée").
       if ((booking.paymentStatus ?? '').toLowerCase() == 'paid') return;

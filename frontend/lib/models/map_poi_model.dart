@@ -42,8 +42,10 @@ class MapPOI {
     double lng = 0;
     double lat = 0;
     if (coords.length >= 2) {
-      lng = (coords[0] as num).toDouble();
-      lat = (coords[1] as num).toDouble();
+      // v23.1 part 252 — crash audit : as num? nullable (sinon crash si
+      // coord en String).
+      lng = (coords[0] as num?)?.toDouble() ?? 0;
+      lat = (coords[1] as num?)?.toDouble() ?? 0;
     }
     return MapPOI(
       id: j['_id']?.toString() ?? j['id']?.toString() ?? '',

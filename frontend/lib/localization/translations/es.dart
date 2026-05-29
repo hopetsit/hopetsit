@@ -170,6 +170,13 @@ const Map<String, String> esESTranslations = <String, String>{
       'availability_instructions':
           'Toca un día: 1.ª vez = disponible (verde), 2.ª = bloqueado (rojo), 3.ª = borrar.',
       'common_error': 'Error',
+      // v23.1 part 252 — common_warning + 5 claves huérfanas (audit i18n).
+      'common_warning': 'Atención',
+      'auth_apple_signin_title': 'Iniciar sesión con Apple',
+      'live_track_title': 'Seguimiento en vivo',
+      'payout_status_not_connected': 'No conectado',
+      'payout_verification_step_identity': 'Verificación de identidad',
+      'verified': 'Verificado',
       'common_error_message':
           'Se produjo un error. Inténtalo de nuevo o contacta con soporte si el problema persiste.',
       'common_success': 'Éxito',

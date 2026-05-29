@@ -224,9 +224,16 @@ class EditSitterProfileScreen extends StatelessWidget {
                                             controller.phoneController.text,
                                           );
                                         },
+                                        // v23.1 part 252 — fallback locale
+                                        // device si vide (sinon Pakistan).
                                         initialSelection: controller
-                                            .selectedCountryCode
-                                            .value,
+                                                .selectedCountryCode
+                                                .value
+                                                .isNotEmpty
+                                            ? controller
+                                                .selectedCountryCode.value
+                                            : (Get.deviceLocale?.countryCode ??
+                                                'FR'),
                                         showCountryOnly: false,
                                         showOnlyCountryWhenClosed: false,
                                         alignLeft: false,

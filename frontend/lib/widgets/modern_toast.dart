@@ -75,10 +75,12 @@ class ModernToast {
   }
 
   /// Green ✓ toast. Use for "saved", "sent", "added" confirmations.
+  // v23.1 part 252 — titres par defaut i18n (etaient hardcodes FR ->
+  // affiches en FR meme en UI ES/DE/IT/PT). 1 fix = tous les toasts app-wide.
   static void success(String message, {String? title}) {
     _show(
       message: message,
-      title: title ?? 'Succès',
+      title: title ?? 'common_success'.tr,
       type: ContentType.success,
     );
   }
@@ -89,7 +91,7 @@ class ModernToast {
   static void error(String message, {String? title}) {
     _show(
       message: message,
-      title: title ?? 'Erreur',
+      title: title ?? 'common_error'.tr,
       type: ContentType.failure,
     );
   }
@@ -98,7 +100,7 @@ class ModernToast {
   static void info(String message, {String? title}) {
     _show(
       message: message,
-      title: title ?? 'Info',
+      title: title ?? 'common_info'.tr,
       type: ContentType.help,
     );
   }
@@ -107,7 +109,7 @@ class ModernToast {
   static void warning(String message, {String? title}) {
     _show(
       message: message,
-      title: title ?? 'Attention',
+      title: title ?? 'common_warning'.tr,
       type: ContentType.warning,
     );
   }

@@ -36,6 +36,10 @@ const walletTransactionSchema = new mongoose.Schema(
         'credit_booking',       // Owner a payé une booking → credit provider
         'debit_withdrawal',     // Provider demande un virement IBAN/PayPal
         'debit_shop',           // Provider achète un boost/premium avec solde
+        // v23.1 part 252 — 'debit_purchase' etait le default de payFromWallet
+        // (walletService l.401) mais absent de l'enum → payFromWallet jetait
+        // une ValidationError. Alias de debit_shop pour les achats boutique.
+        'debit_purchase',       // Achat boutique via solde wallet (alias shop)
         'refund',               // Booking annulée → remboursement au provider (rare)
         'admin_adjustment',     // Correction manuelle admin (litige)
       ],
@@ -67,7 +71,14 @@ const walletTransactionSchema = new mongoose.Schema(
     // ── État ────────────────────────────────────────────────────────────
     status: {
       type: String,
-      enum: ['pending', 'completed', 'failed', 'cancelled'],
+      // v23.1 part 252 — BUG CRITIQUE : 'processing' etait utilise par
+      // walletService.processPendingWithdrawals (claim avant l'appel
+      // Airwallex) mais ABSENT de l'enum. claimed.save() validait l'enum
+      // → ValidationError → rollback en 'pending' alors que le payout
+      // Airwallex etait DEJA parti → risque de DOUBLE-PAYOUT au tick
+      // suivant (la tx redevient pending et est reclaim). On ajoute
+      // 'processing' a l'enum pour que le claim persiste correctement.
+      enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'],
       default: 'completed',
       index: true,
     },

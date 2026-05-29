@@ -133,34 +133,40 @@ class PostModel {
       notes: json['notes'] as String? ?? '',
       images:
           (json['images'] as List<dynamic>?)
-              ?.map((e) => PostImage.fromJson(e as Map<String, dynamic>))
+              ?.whereType<Map<String, dynamic>>()
+              .map((e) => PostImage.fromJson(e))
               .toList() ??
           [],
       videos:
           (json['videos'] as List<dynamic>?)
-              ?.map((e) => PostVideo.fromJson(e as Map<String, dynamic>))
+              ?.whereType<Map<String, dynamic>>()
+              .map((e) => PostVideo.fromJson(e))
               .toList() ??
           [],
+      // v23.1 part 252 — crash audit : feed home tres frequent. Les `as
+      // Map<String,dynamic>` et `DateTime.parse(... as String)` crashaient
+      // si un element n'etait pas un Map ou si la date etait absente/
+      // malformee. On blinde avec whereType + tryParse.
       likes:
           (json['likes'] as List<dynamic>?)
-              ?.map((e) => PostLike.fromJson(e as Map<String, dynamic>))
+              ?.whereType<Map<String, dynamic>>()
+              .map((e) => PostLike.fromJson(e))
               .toList() ??
           [],
       comments:
           (json['comments'] as List<dynamic>?)
-              ?.map((e) => PostComment.fromJson(e as Map<String, dynamic>))
+              ?.whereType<Map<String, dynamic>>()
+              .map((e) => PostComment.fromJson(e))
               .toList() ??
           [],
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : DateTime.now(),
-      owner: json['owner'] != null
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
+          DateTime.now(),
+      owner: json['owner'] is Map<String, dynamic>
           ? PostOwner.fromJson(json['owner'] as Map<String, dynamic>)
           : PostOwner(
-              id: json['ownerId'] as String? ?? '',
+              id: json['ownerId']?.toString() ?? '',
               name: '',
               email: '',
               avatar: '',

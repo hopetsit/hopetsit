@@ -308,6 +308,13 @@ const Map<String, String> frFRTranslations = <String, String>{
       'availability_instructions':
           'Appuie sur un jour : 1er appui = disponible (vert), 2e = bloqué (rouge), 3e = effacer.',
       'common_error': 'Erreur',
+      // v23.1 part 252 — common_warning + 5 cles orphelines (audit i18n).
+      'common_warning': 'Attention',
+      'auth_apple_signin_title': 'Connexion avec Apple',
+      'live_track_title': 'Suivi en direct',
+      'payout_status_not_connected': 'Non connecté',
+      'payout_verification_step_identity': 'Vérification d\'identité',
+      'verified': 'Vérifié',
       'common_error_message':
           'Une erreur est survenue. Réessayez ou contactez le support si le problème persiste.',
       'common_success': 'Succès',

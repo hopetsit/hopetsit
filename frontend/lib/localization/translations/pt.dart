@@ -390,6 +390,13 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'availability_instructions':
           'Toque num dia: 1.º toque = disponível (verde), 2.º = bloqueado (vermelho), 3.º = limpar.',
       'common_error': 'Erro',
+      // v23.1 part 252 — common_warning + 5 chaves órfãs (audit i18n).
+      'common_warning': 'Atenção',
+      'auth_apple_signin_title': 'Iniciar sessão com Apple',
+      'live_track_title': 'Seguimento em direto',
+      'payout_status_not_connected': 'Não ligado',
+      'payout_verification_step_identity': 'Verificação de identidade',
+      'verified': 'Verificado',
       'common_error_message':
           'Ocorreu um erro. Tente novamente ou contacte o suporte se o problema persistir.',
       'common_success': 'Sucesso',
