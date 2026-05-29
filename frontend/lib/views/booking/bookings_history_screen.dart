@@ -293,6 +293,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                                 imageUrl: booking.sitter.avatar.url,
                                 width: 32.w,
                                 height: 32.h,
+                                memCacheWidth: 96, // v23.1 part 250 perf (32px liste)
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   width: 32.w,

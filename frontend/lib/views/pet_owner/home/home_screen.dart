@@ -638,6 +638,31 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
+      // v23.1 part 250 — perf : le calcul du "latest post" (filter + sort
+      // de postsWithoutMedia) etait fait DANS l'itemBuilder, donc re-execute
+      // pour CHAQUE sitter a chaque frame de scroll → O(posts) × O(sitters).
+      // Or `days` ne depend ni de l'index ni du sitter (c'est le dernier
+      // post de l'user courant). On le calcule UNE SEULE FOIS ici, hors du
+      // builder. Dans l'itemBuilder on ne fait plus que la multiplication
+      // par les tarifs du sitter. Gain direct sur le jank de scroll low-end.
+      int? sharedEstDays;
+      if (_userId != null) {
+        final myPosts = _postsController.postsWithoutMedia
+            .where((p) =>
+                p.owner.id == _userId &&
+                p.startDate != null &&
+                p.endDate != null)
+            .toList();
+        if (myPosts.isNotEmpty) {
+          myPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          final latestPost = myPosts.first;
+          final rawDays =
+              latestPost.endDate!.difference(latestPost.startDate!).inDays;
+          // Treat same-day requests as 1 day (avoid hiding total).
+          sharedEstDays = rawDays > 0 ? rawDays : 1;
+        }
+      }
+
       return SliverPadding(
         padding: EdgeInsets.symmetric(horizontal: 20.w),
         sliver: SliverList.builder(
@@ -649,30 +674,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     // from the SitterModel (including the hourly × 8 fallback),
                     // so we only compute the "estimated cost" here from the
                     // Owner's latest active reservation post and hand it in.
+                    // v23.1 part 250 — days hisse hors builder ; ici on ne
+                    // calcule plus que le cout par sitter (cheap).
                     double? estCost;
-                    int? estDays;
-                    if (_userId != null) {
-                      final myPosts = _postsController.postsWithoutMedia
-                          .where((p) => p.owner.id == _userId && p.startDate != null && p.endDate != null)
-                          .toList();
-                      if (myPosts.isNotEmpty) {
-                        myPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-                        final latestPost = myPosts.first;
-                        final rawDays = latestPost.endDate!
-                            .difference(latestPost.startDate!)
-                            .inDays;
-                        // Treat same-day requests as 1 day (avoid hiding total).
-                        final days = rawDays > 0 ? rawDays : 1;
-                        estDays = days;
-                        if (sitter.dailyRate > 0) {
-                          estCost = sitter.dailyRate * days;
-                        } else if (sitter.hourlyRate > 0) {
-                          estCost = sitter.hourlyRate * 8 * days; // 8h/day
-                        } else if (sitter.weeklyRate > 0) {
-                          estCost = (sitter.weeklyRate / 7) * days;
-                        } else if (sitter.monthlyRate > 0) {
-                          estCost = (sitter.monthlyRate / 30) * days;
-                        }
+                    final int? estDays = sharedEstDays;
+                    if (estDays != null) {
+                      final days = estDays;
+                      if (sitter.dailyRate > 0) {
+                        estCost = sitter.dailyRate * days;
+                      } else if (sitter.hourlyRate > 0) {
+                        estCost = sitter.hourlyRate * 8 * days; // 8h/day
+                      } else if (sitter.weeklyRate > 0) {
+                        estCost = (sitter.weeklyRate / 7) * days;
+                      } else if (sitter.monthlyRate > 0) {
+                        estCost = (sitter.monthlyRate / 30) * days;
                       }
                     }
 

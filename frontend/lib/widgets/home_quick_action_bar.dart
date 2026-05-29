@@ -63,7 +63,7 @@ class HomeQuickActionBar extends StatefulWidget {
 }
 
 class _HomeQuickActionBarState extends State<HomeQuickActionBar>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _pulse;
   // v22.1 — Bug 14a : worker pour réagir aux nouvelles notifs.
   Worker? _notifWorker;
@@ -82,6 +82,9 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   @override
   void initState() {
     super.initState();
+    // v23.1 part 250 — perf : observer lifecycle pour couper le timer de
+    // refresh quand l'app passe en background (cf. didChangeAppLifecycleState).
+    WidgetsBinding.instance.addObserver(this);
     // v23.1 — hydrate the dismiss set from disk so dismissed banners stay
     // hidden after app restart.
     try {
@@ -122,10 +125,35 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         final notifs = Get.find<NotificationsController>();
         _notifWorker = ever<int>(notifs.unreadCount, (_) => _refreshBookings());
       }
-      _periodicRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
-        if (mounted) _refreshBookings();
-      });
+      _startPeriodicRefresh();
     });
+  }
+
+  // v23.1 part 250 — perf : le timer de refresh 30s tournait meme quand
+  // l'app etait en background (le widget reste monte dans l'IndexedStack
+  // du nav bottom). 3 appels reseau toutes les 30s pour rien → reveils
+  // CPU + radio + batterie sur low-end. On le coupe en background et on
+  // le relance au resume (meme pattern que paw_map_screen v243 round 3).
+  void _startPeriodicRefresh() {
+    _periodicRefresh?.cancel();
+    _periodicRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _refreshBookings();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      // Refresh immediat au retour + relance le timer.
+      _refreshBookings();
+      _startPeriodicRefresh();
+    } else {
+      // paused / inactive / detached / hidden → coupe le timer.
+      _periodicRefresh?.cancel();
+      _periodicRefresh = null;
+    }
   }
 
   void _refreshBookings() {
@@ -160,6 +188,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulse.dispose();
     _notifWorker?.dispose();
     _periodicRefresh?.cancel();

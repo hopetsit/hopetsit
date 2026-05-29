@@ -792,7 +792,10 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                     message.senderImage.isNotEmpty &&
                         (message.senderImage.startsWith('http://') ||
                             message.senderImage.startsWith('https://'))
-                    ? CachedNetworkImageProvider(message.senderImage)
+                    // v23.1 part 250 — perf : maxWidth 120 (avatar 36px) pour
+                    // ne pas decompresser un bitmap pleine resolution par
+                    // bulle de message (tres repete dans la liste chat).
+                    ? CachedNetworkImageProvider(message.senderImage, maxWidth: 120)
                     : null,
                 child:
                     message.senderImage.isEmpty ||

@@ -239,6 +239,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                     imageUrl: imageUrl,
                     width: double.infinity,
                     height: 300.h,
+                    memCacheWidth: 720, // v23.1 part 250 perf (header pleine largeur)
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
                       color: AppColors.lightGrey,
@@ -680,6 +681,7 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                     imageUrl: reviewerImage,
                     width: 50.w,
                     height: 50.h,
+                    memCacheWidth: 150, // v23.1 part 250 perf (avatar 50px liste reviews)
                     fit: BoxFit.cover,
                     placeholder: (context, url) => CircleAvatar(
                       radius: 25.r,

@@ -296,6 +296,7 @@ class WalkerProfileScreen extends StatelessWidget {
                     : (imageUrl.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: imageUrl,
+                            memCacheWidth: 720, // v23.1 part 250 perf (cover header)
                             fit: BoxFit.cover,
                             placeholder: (_, __) =>
                                 Container(color: AppColors.lightGrey),

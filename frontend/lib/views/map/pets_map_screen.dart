@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -347,10 +348,12 @@ class _PetsMapScreenState extends State<PetsMapScreen> {
                                                 radius: 28.r,
                                                 backgroundColor:
                                                     AppColors.card(context),
+                                                // v23.1 part 250 — perf cache + maxWidth.
                                                 backgroundImage:
                                                     sitter.avatar.url.isNotEmpty
-                                                    ? NetworkImage(
+                                                    ? CachedNetworkImageProvider(
                                                         sitter.avatar.url,
+                                                        maxWidth: 170,
                                                       )
                                                     : null,
                                                 child: sitter.avatar.url.isEmpty

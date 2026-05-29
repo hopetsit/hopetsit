@@ -285,8 +285,10 @@ class _PostCommentSheetState extends State<PostCommentSheet> {
             child: CircleAvatar(
               radius: 18.r,
               backgroundColor: AppColors.lightGrey,
+              // v23.1 part 250 — perf : maxWidth 120 (avatar 36px, repete
+              // dans la liste de commentaires).
               backgroundImage: comment.authorAvatar.isNotEmpty
-                  ? CachedNetworkImageProvider(comment.authorAvatar)
+                  ? CachedNetworkImageProvider(comment.authorAvatar, maxWidth: 120)
                   : null,
               child: comment.authorAvatar.isEmpty
                   ? Icon(

@@ -116,10 +116,14 @@ class SitterCard extends StatelessWidget {
               ? Border.all(color: boostGold, width: 2.5)
               : null,
           boxShadow: [
+            // v23.1 part 250 — perf : blur du glow boost reduit 14→8. Un
+            // blurRadius eleve est cher a peindre par carte dans la liste
+            // scrollable sur GPU low-end. 8 reste visuellement un halo dore
+            // net. Le design (bordure + couleur) ne change pas.
             if (isBoosted)
               BoxShadow(
                 color: boostGold.withValues(alpha: 0.35),
-                blurRadius: 14,
+                blurRadius: 8,
                 spreadRadius: 1,
               ),
             BoxShadow(

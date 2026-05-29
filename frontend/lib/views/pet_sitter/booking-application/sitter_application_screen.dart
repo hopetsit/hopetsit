@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -115,8 +116,9 @@ class _SitterApplicationScreenState extends State<SitterApplicationScreen> {
                     radius: 30.r,
                     backgroundColor:
                         AppColors.primaryColor.withValues(alpha: 0.15),
+                    // v23.1 part 250 — perf cache + maxWidth (avatar 60px).
                     backgroundImage: avatarUrl.isNotEmpty
-                        ? NetworkImage(avatarUrl)
+                        ? CachedNetworkImageProvider(avatarUrl, maxWidth: 180)
                         : null,
                     child: avatarUrl.isEmpty
                         ? Icon(Icons.person,

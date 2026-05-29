@@ -67,10 +67,11 @@ class WalkerCard extends StatelessWidget {
               ? Border.all(color: boostGold, width: 2.5)
               : null,
           boxShadow: [
+            // v23.1 part 250 — perf : blur boost 14→8 (peinture GPU low-end).
             if (isBoosted)
               BoxShadow(
                 color: boostGold.withValues(alpha: 0.35),
-                blurRadius: 14,
+                blurRadius: 8,
                 spreadRadius: 1,
               ),
             BoxShadow(

@@ -186,10 +186,11 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
               ? Border.all(color: const Color(0xFFD4AF37), width: 2.5)
               : null,
           boxShadow: [
+            // v23.1 part 250 — perf : blur boost 14→8 (peinture GPU low-end).
             if (widget.isBoosted)
               BoxShadow(
                 color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
-                blurRadius: 14,
+                blurRadius: 8,
                 spreadRadius: 1,
               ),
             ...AppColors.cardShadow(context),

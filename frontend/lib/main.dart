@@ -127,9 +127,15 @@ void main() async {
   // ignore: discarded_futures
   DeepLinkService.instance.start();
 
-  // v21.1.1 — Stripe purgé. Airwallex SDK init au boot.
+  // v21.1.1 — Stripe purgé. Airwallex SDK init.
+  // v23.1 part 250 — perf time-to-first-frame : l'init Airwallex bloquait
+  // runApp (= duree de l'ecran noir au demarrage) alors que le SDK n'est
+  // utile qu'au PREMIER paiement. On le lance en fire-and-forget : l'app
+  // demarre immediatement, le SDK finit de s'init en tache de fond. Le
+  // flow paiement attend deja confirmPaymentIntent qui re-check l'init.
   final useDemo = (dotenv.env['AIRWALLEX_USE_DEMO'] ?? 'false').toLowerCase() == 'true';
-  await AirwallexPaymentService.init(live: !useDemo);
+  // ignore: discarded_futures
+  AirwallexPaymentService.init(live: !useDemo);
 
   // Sprint 8 step 6 — optional Sentry. Opt-in via SENTRY_DSN_FRONTEND in .env.
   final sentryDsn = dotenv.env['SENTRY_DSN_FRONTEND'] ?? '';

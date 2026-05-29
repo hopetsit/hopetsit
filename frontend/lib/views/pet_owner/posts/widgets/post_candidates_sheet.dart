@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -330,8 +331,12 @@ class _CandidateCard extends StatelessWidget {
                 radius: 22.r,
                 backgroundColor:
                     AppColors.primaryColor.withValues(alpha: 0.1),
-                backgroundImage:
-                    avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                // v23.1 part 250 — perf : CachedNetworkImageProvider + maxWidth
+                // (avatar 44px, repete dans la liste de candidats). NetworkImage
+                // brut re-telechargeait l'image entiere a chaque scroll.
+                backgroundImage: avatarUrl.isNotEmpty
+                    ? CachedNetworkImageProvider(avatarUrl, maxWidth: 130)
+                    : null,
                 child: avatarUrl.isEmpty
                     ? Icon(Icons.person, size: 22.sp,
                         color: AppColors.primaryColor)
