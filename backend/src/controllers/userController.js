@@ -849,7 +849,9 @@ const signAuthToken = (payload, options = {}) => {
   }
   return jwt.sign(payload, process.env.JWT_SECRET, {
     // v23.1 part 37 — JWT 30j au lieu de 7j (Daniel veut pas d'auto-logout).
-    expiresIn: '30d',
+    // v23.1.254 — allongé à 365j (switchRole) pour aligner sur authController
+    // et éviter le "Session expirée" mensuel.
+    expiresIn: '365d',
     ...options,
   });
 };

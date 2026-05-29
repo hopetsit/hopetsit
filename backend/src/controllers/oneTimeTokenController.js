@@ -27,7 +27,8 @@ const signAuthToken = (payload, options = {}) => {
     throw new Error('JWT_SECRET environment variable is not configured.');
   }
   return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: '30d',
+    // v23.1.254 — token de session aligné sur authController : 365j (avant 30j).
+    expiresIn: '365d',
     ...options,
   });
 };

@@ -42,9 +42,12 @@ const signAuthToken = (payload, options = {}) => {
   }
   return jwt.sign(payload, process.env.JWT_SECRET, {
     // v23.1 part 37 — Daniel : pas d'auto-logout sauf si user logout ou
-    // app fermée. JWT 30j (au lieu de 7j) → user reste connecté ~1 mois
-    // sans re-login.
-    expiresIn: '30d',
+    // app fermée. JWT 30j (au lieu de 7j) → user reste connecté ~1 mois.
+    // v23.1.254 — Daniel (fondateur, teste en permanence) en avait marre du
+    // "Session expirée" tous les 30j → token allongé à 365j. JWT_SECRET
+    // reste stable (env Render) donc rien n'invalide les tokens existants ;
+    // les nouveaux durent 1 an.
+    expiresIn: '365d',
     ...options,
   });
 };
