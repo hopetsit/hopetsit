@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
+import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
@@ -309,31 +310,11 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                     child: Text('🏆', style: TextStyle(fontSize: 14.sp)),
                                   ),
                                 ],
-                                // Coin Boost badge.
+                                // v23.1 part 253 — badge Boost harmonise
+                                // (widget partage BoostBadge).
                                 if (widget.isBoosted) ...[
                                   SizedBox(width: 4.w),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [Colors.orange, Colors.red.shade400],
-                                      ),
-                                      borderRadius: BorderRadius.circular(8.r),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('🔥', style: TextStyle(fontSize: 10.sp)),
-                                        SizedBox(width: 2.w),
-                                        InterText(
-                                          text: 'boost_badge'.tr,
-                                          fontSize: 9.sp,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                  const BoostBadge(),
                                 ],
                               ],
                             ),

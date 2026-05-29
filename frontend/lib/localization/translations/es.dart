@@ -1288,6 +1288,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'home_segment_sitters': 'Cuidadores',
       'home_segment_walkers': 'Paseadores',
       'my_posts_no_posts': 'No se encontraron publicaciones',
+      'my_posts_empty_subtitle': 'Publica una solicitud para encontrar un cuidador o paseador cerca de ti.', // v23.1 part 253
       'my_posts_delete_title': 'Eliminar publicacion?',
       'my_posts_delete_message':
           'Estas seguro de que deseas eliminar esta publicacion? Esta accion no se puede deshacer.',
@@ -2071,6 +2072,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'shop_tab_pawpass': 'PawFollow',
     'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Destacado',
+    'top_badge': 'Top', // v23.1 part 253
     'boost_choose_package': 'Elige un paquete',
     'boost_choose_subtitle': 'Impulsa tu perfil a lo más alto del feed para ser visto primero!',
     'boost_days': 'días',

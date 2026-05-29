@@ -1392,6 +1392,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'home_segment_sitters': 'Pet Sitters',
       'home_segment_walkers': 'Dog Walkers',
       'my_posts_no_posts': 'No posts found',
+      'my_posts_empty_subtitle': 'Publish a request to find a sitter or walker near you.', // v23.1 part 253
       'my_posts_delete_title': 'Delete post?',
       'my_posts_delete_message':
           'Are you sure you want to delete this post? This action cannot be undone.',
@@ -2319,6 +2320,7 @@ const Map<String, String> enUSTranslations = <String, String>{
     'shop_tab_pawpass': 'PawFollow',
     'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Boosted',
+    'top_badge': 'Top', // v23.1 part 253
     'boost_choose_package': 'Choose a package',
     'boost_choose_subtitle': 'Boost your profile to the top of the feed to be seen first!',
     'boost_days': 'days',

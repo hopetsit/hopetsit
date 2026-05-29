@@ -1463,6 +1463,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'home_segment_sitters': 'Pet-sitters',
       'home_segment_walkers': 'Promeneurs',
       'my_posts_no_posts': 'Aucune publication trouvée',
+      'my_posts_empty_subtitle': 'Publie une demande pour trouver un sitter ou un promeneur près de chez toi.', // v23.1 part 253
       'my_posts_delete_title': 'Supprimer la publication ?',
       'my_posts_delete_message':
           'Voulez-vous vraiment supprimer cette publication ? Cette action est irreversible.',
@@ -2270,6 +2271,7 @@ const Map<String, String> frFRTranslations = <String, String>{
     'shop_tab_pawpass': 'PawFollow',
     'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Boosté',
+    'top_badge': 'Top', // v23.1 part 253 — badge Top Sitter/Walker unifie
     'boost_choose_package': 'Choisir un forfait',
     'boost_choose_subtitle': 'Boostez votre profil en haut du feed pour être vu en premier !',
     'boost_days': 'jours',

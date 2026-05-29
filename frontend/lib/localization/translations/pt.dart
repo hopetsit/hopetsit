@@ -1207,6 +1207,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'home_segment_sitters': 'Babás de animais de estimação',
       'home_segment_walkers': 'Passeadores',
       'my_posts_no_posts': 'Nenhuma postagem encontrada',
+      'my_posts_empty_subtitle': 'Publica um pedido para encontrar um sitter ou passeador perto de ti.', // v23.1 part 253
       'my_posts_delete_title': 'Excluir postagem?',
       'my_posts_delete_message': 'Tem certeza de que deseja excluir esta postagem? Esta ação não pode ser desfeita.',
       'my_posts_delete_success': 'Postagem excluída com sucesso.',
@@ -1931,6 +1932,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'shop_tab_pawpass': 'PawFollow',
     'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Destacado',
+    'top_badge': 'Top', // v23.1 part 253
     'boost_choose_package': 'Escolha um pacote',
     'boost_choose_subtitle': 'Impulsione o seu perfil para o topo do feed!',
     'boost_days': 'dias',

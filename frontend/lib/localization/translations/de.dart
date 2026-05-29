@@ -345,6 +345,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'home_segment_sitters': 'Tiersitter',
       'home_segment_walkers': 'Hundeausführer',
       'my_posts_no_posts': 'Keine Beiträge gefunden',
+      'my_posts_empty_subtitle': 'Veröffentliche eine Anfrage, um einen Sitter oder Gassigeher in deiner Nähe zu finden.', // v23.1 part 253
       'my_posts_delete_title': 'Beitrag loeschen?',
       'my_posts_delete_message':
           'Moechtest du diesen Beitrag wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.',
@@ -2098,6 +2099,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'shop_tab_pawpass': 'PawFollow',
     'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'Geboostet',
+    'top_badge': 'Top', // v23.1 part 253
     'boost_choose_package': 'Paket wählen',
     'boost_choose_subtitle': 'Boosten Sie Ihr Profil ganz oben im Feed!',
     'boost_days': 'Tage',

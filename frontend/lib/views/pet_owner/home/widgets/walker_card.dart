@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 
 /// Lightweight card used by the "Promeneurs" tab on the owner home screen.
@@ -202,33 +203,13 @@ class WalkerCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (walker.isBoosted || walker.isTopWalker)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8.w, vertical: 4.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                          color: const Color(0xFFB8860B), width: 0.5),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.workspace_premium_rounded,
-                            size: 12.sp, color: const Color(0xFFB8860B)),
-                        SizedBox(width: 2.w),
-                        Text(
-                          walker.isTopWalker ? 'Top' : 'Boost',
-                          style: TextStyle(
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFFB8860B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                // v23.1 part 253 — badges Boost/Top harmonises (widgets
+                // partages BoostBadge/TopProviderBadge, memes que sitter +
+                // service_provider). Boost = flamme i18n ; Top = or premium.
+                if (walker.isBoosted)
+                  const BoostBadge()
+                else if (walker.isTopWalker)
+                  const TopProviderBadge(),
               ],
             ),
             if (walker.bio != null && walker.bio!.trim().isNotEmpty) ...[

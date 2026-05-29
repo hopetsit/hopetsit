@@ -446,11 +446,45 @@ isOwnerBoosted: post.isOwnerBoosted ||
           }
 
           if (sortedMine.isEmpty) {
+            // v23.1 part 253 — empty state modernise (icone + titre + sous-
+            // texte) pour un rendu plus pro, coherent avec les autres
+            // empty states de l'app (amis, etc.).
             return Center(
-              child: InterText(
-                text: 'my_posts_no_posts'.tr,
-                fontSize: 14.sp,
-                color: AppColors.textSecondary(context),
+              child: Padding(
+                padding: EdgeInsets.all(32.w),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 88.w,
+                      height: 88.w,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withValues(alpha: 0.10),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.post_add_rounded,
+                        size: 44.sp,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    SizedBox(height: 18.h),
+                    PoppinsText(
+                      text: 'my_posts_no_posts'.tr,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 6.h),
+                    InterText(
+                      text: 'my_posts_empty_subtitle'.tr,
+                      fontSize: 13.sp,
+                      color: AppColors.textSecondary(context),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             );
           }

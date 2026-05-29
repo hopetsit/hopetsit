@@ -357,6 +357,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'home_segment_sitters': 'Sitter per animali',
       'home_segment_walkers': 'Dog walker',
       'my_posts_no_posts': 'Nessun post trovato',
+      'my_posts_empty_subtitle': 'Pubblica una richiesta per trovare un sitter o un dog walker vicino a te.', // v23.1 part 253
       'my_posts_delete_title': 'Eliminare il post?',
       'my_posts_delete_message':
           'Sei sicuro di voler eliminare questo post? Questa azione non puo essere annullata.',
@@ -2075,6 +2076,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'shop_tab_pawpass': 'PawFollow',
     'shop_tab_pawspot': 'PawSpot',
     'boost_badge': 'In evidenza',
+    'top_badge': 'Top', // v23.1 part 253
     'boost_choose_package': 'Scegli un pacchetto',
     'boost_choose_subtitle': 'Potenzia il tuo profilo in cima al feed per essere visto per primo!',
     'boost_days': 'giorni',

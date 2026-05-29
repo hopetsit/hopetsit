@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 
 /// Session v15-3 — compact pet-sitter card for the Owner's "Pet-sitters" tab.
@@ -264,32 +265,10 @@ class SitterCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (sitter.isBoosted)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8.w, vertical: 4.h),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.orange, Colors.red.shade400],
-                      ),
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('🔥', style: TextStyle(fontSize: 10.sp)),
-                        SizedBox(width: 2.w),
-                        Text(
-                          'Boost',
-                          style: TextStyle(
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                // v23.1 part 253 — badge Boost harmonise sur les 3 cartes
+                // (sitter/walker/service_provider) : meme gradient flamme
+                // orange→rouge + 🔥 + label i18n 'boost_badge' (Boosté).
+                if (sitter.isBoosted) const BoostBadge(),
                 // ⋮ menu — only shown when onBlock is provided (home browse).
                 if (onBlock != null)
                   PopupMenuButton<String>(
