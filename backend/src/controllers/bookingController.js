@@ -4492,16 +4492,23 @@ const requestLiveTracking = async (req, res) => {
             lastMessage: '📍 Demande de suivi en direct',
             lastMessageAt: new Date(),
           });
-          // Broadcast via socket si dispo.
+          // v23.1.255 — Daniel : "la demande de suivre mon animal ne
+          // s'affiche pas sur les 3 profils". CAUSE RACINE : ce broadcast
+          // utilisait require('../sockets/io') — un module qui N'EXISTE PAS
+          // → throw avalé par le catch → la carte pawfollow_request était
+          // créée en DB mais JAMAIS poussée en temps réel. En plus, il visait
+          // la room `conversation_<id>` alors que chatSocket joint la room
+          // `<id>` brut. Résultat : demande de suivi invisible tant qu'on ne
+          // rouvrait pas le chat (et avec le socket mort → invisible tout
+          // court). FIX : emitChatMessage() — la bonne API, qui cible la room
+          // conversation (chat ouvert) ET les user-rooms des participants
+          // (badge + insertion live même hors écran chat), sur les 3 profils.
           try {
-            const { getIo } = require('../sockets/io');
-            const io = getIo && getIo();
-            if (io) {
-              io.to(`conversation_${conversation._id}`).emit('message:new', {
-                conversationId: String(conversation._id),
-                message: msg.toObject(),
-              });
-            }
+            const { emitChatMessage } = require('../sockets/emitter');
+            emitChatMessage(conversation, 'message:new', {
+              conversationId: String(conversation._id),
+              message: msg.toObject(),
+            });
           } catch (_) {/* defensive */}
         }
       }
@@ -4509,23 +4516,39 @@ const requestLiveTracking = async (req, res) => {
       logger.warn('[booking.requestLiveTracking] chat msg failed', e);
     }
 
-    // Push notif à l'owner avec deep-link vers la conversation.
+    // v23.1.255 — Push notif au BON destinataire (le responder), pas
+    // toujours l'owner. Avant : userId hardcodé = ownerId → quand c'est
+    // l'OWNER qui envoyait "suivez mon animal" au provider, c'est l'owner
+    // qui se notifiait lui-même et le walker/sitter ne recevait RIEN.
+    //   - owner demande   → notifie le provider (walker/sitter du booking)
+    //   - provider demande → notifie l'owner
     try {
       const { sendNotification } = require('../services/notificationSender');
       const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
-      await sendNotification({
-        userId: ownerId,
-        role: 'owner',
-        type: 'live_tracking_request_received',
-        title: 'live_tracking_request_title',
-        body: 'live_tracking_request_body',
-        data: {
-          bookingId: String(bookingId),
-          providerRole: userRole,
-          // Deep link → /walk/:bookingId qui ouvre LiveWalkMapScreen.
-          emailLink: buildEmailLink('walk', { bookingId: String(bookingId) }),
-        },
-      });
+      let recipientId;
+      let recipientRole;
+      if (isOwner) {
+        recipientRole = booking.walkerId ? 'walker' : 'sitter';
+        recipientId = booking.walkerId || booking.sitterId;
+      } else {
+        recipientRole = 'owner';
+        recipientId = ownerId;
+      }
+      if (recipientId) {
+        await sendNotification({
+          userId: String(recipientId),
+          role: recipientRole,
+          type: 'live_tracking_request_received',
+          title: 'live_tracking_request_title',
+          body: 'live_tracking_request_body',
+          data: {
+            bookingId: String(bookingId),
+            providerRole: userRole,
+            // Deep link → /walk/:bookingId qui ouvre LiveWalkMapScreen.
+            emailLink: buildEmailLink('walk', { bookingId: String(bookingId) }),
+          },
+        });
+      }
     } catch (e) {
       logger.warn('[booking.requestLiveTracking] notif failed', e);
     }
@@ -4737,11 +4760,14 @@ const requestLiveTrackingByConversation = async (req, res) => {
       lastMessageAt: new Date(),
     });
 
-    // Broadcast via le user-room standard (chatSocket utilise les rooms
-    // par conversationId).
+    // v23.1.255 — emitChatMessage (au lieu de emitToConversation) pour que
+    // la carte arrive en temps réel ET bump le badge même si le destinataire
+    // n'a pas le chat ouvert (cible room conversation + user-rooms des
+    // participants). Aligné sur conversationController + le fix du chemin
+    // /bookings/:id/follow-request.
     try {
-      const { emitToConversation } = require('../sockets/emitter');
-      emitToConversation(String(conversation._id), 'message:new', {
+      const { emitChatMessage } = require('../sockets/emitter');
+      emitChatMessage(conversation, 'message:new', {
         conversationId: String(conversation._id),
         message: msg.toObject(),
       });

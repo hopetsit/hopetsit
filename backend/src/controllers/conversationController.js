@@ -1079,9 +1079,26 @@ const startFriendConversation = async (req, res) => {
 
     // Idempotent : cherche une conv friendChat existante avec ces 2
     // participants (ordre indifferent).
+    // v23.1.255 — Daniel : "si j'écris depuis l'onglet amis/famille, ça
+    // ouvre une NOUVELLE conversation alors qu'une existe déjà". CAUSE :
+    // participants.userId est un ObjectId mais le $all recevait des STRINGS
+    // (myId/targetUserId viennent du JWT/body en string). Le cast Mongoose
+    // sur un $all ciblant un sous-champ d'array n'est pas garanti → aucun
+    // match → une conv friendChat en DOUBLON créée à chaque tap. FIX : cast
+    // explicite en ObjectId pour garantir le match → réutilisation de la
+    // conversation existante au lieu d'en créer une nouvelle.
+    const toOid = (v) => {
+      try {
+        return new mongoose.Types.ObjectId(String(v));
+      } catch (_) {
+        return v;
+      }
+    };
+    const myOid = toOid(myId);
+    const targetOid = toOid(targetUserId);
     const existing = await Conversation.findOne({
       friendChat: true,
-      'participants.userId': { $all: [myId, targetUserId] },
+      'participants.userId': { $all: [myOid, targetOid] },
     });
     if (existing) {
       return res.status(200).json({
