@@ -188,10 +188,13 @@ class SitterCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          // v23.1 part 38 — VerifiedBadge unifié : check
-                          // verified OU identityVerified pour couvrir l'ancien
-                          // système ET le nouveau KYC Persona.
-                          if (sitter.identityVerified || sitter.verified) ...[
+                          // v23.1 part 251 — Daniel : "tout les profile on le
+                          // badge verifier a corriger". Le flag legacy `verified`
+                          // est true pour quasi tout le monde (actions admin/IBAN),
+                          // donc `|| verified` affichait le badge partout. On ne
+                          // garde QUE identityVerified (= kycStatus verified cote
+                          // backend v251).
+                          if (sitter.identityVerified) ...[
                             SizedBox(width: 6.w),
                             VerifiedBadge(
                               isVerified: true,

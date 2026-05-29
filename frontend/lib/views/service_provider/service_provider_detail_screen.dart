@@ -299,8 +299,8 @@ class _ServiceProviderDetailContent extends StatelessWidget {
                           color: AppColors.textPrimary(context),
                         ),
                       ),
-                      // v23.1 part 38 — VerifiedBadge dans hero card sitter detail.
-                      if (sitter.verified || sitter.identityVerified) ...[
+                      // v23.1 part 251 — badge KYC only (flag legacy verified retire).
+                      if (sitter.identityVerified) ...[
                         SizedBox(width: 8.w),
                         VerifiedBadge(isVerified: true, large: true),
                       ],

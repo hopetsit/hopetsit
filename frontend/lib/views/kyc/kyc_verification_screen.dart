@@ -648,61 +648,74 @@ class _PersonaWebViewScreen extends StatefulWidget {
   State<_PersonaWebViewScreen> createState() => _PersonaWebViewScreenState();
 }
 
-// v23.1 part 247 — JS injecte apres chaque page load pour masquer la
-// banniere orange "You are in a Sandbox environment" de Persona. On
-// recherche tous les elements dont le texte contient "Sandbox environment"
-// (case-insensitive), on remonte jusqu'au parent banner (max 5 niveaux,
-// max 600 chars de texte) et on le hide. Idempotent : si la banniere
-// n'existe pas, ne fait rien. Resiste aux changements mineurs CSS Persona.
+// v23.1 part 247 + 251 — JS injecte pour masquer la banniere orange
+// "You are in a Sandbox environment" de Persona.
+//
+// v251 — Daniel : "effacer le message sandbox qd personna souvre". Le
+// scan one-shot v247 ratait la banniere car Persona est une SPA qui la
+// rend EN DIFFERE (apres onPageFinished). Nouvelle approche robuste :
+//   1. hideFn() : scan + hide (remonte jusqu'au parent banner, max 6 lvl).
+//   2. Run immediat.
+//   3. MutationObserver sur document.body → re-run a chaque mutation DOM
+//      (catch la banniere des qu'elle est injectee, meme apres navigation
+//      SPA interne Persona).
+//   4. setInterval 400ms pendant 12s en filet de securite (au cas ou
+//      l'observer raterait un cas).
+// Guard window flag pour ne pas re-installer observer + interval a
+// chaque page load.
 const String _hidePersonaSandboxBannerJs = '''
 (function() {
   try {
-    var hidden = 0;
-    var walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT,
-      null,
-      false
-    );
-    var nodes = [];
-    var n;
-    while ((n = walker.nextNode())) {
-      var txt = (n.nodeValue || '').toLowerCase();
-      if (
-        txt.indexOf('sandbox environment') !== -1 ||
-        txt.indexOf('environment is for testing') !== -1
-      ) {
-        nodes.push(n);
-      }
-    }
-    nodes.forEach(function(node) {
-      var p = node.parentElement;
-      var lvl = 0;
-      while (p && lvl < 6) {
-        var text = (p.textContent || '');
-        if (
-          text.length < 800 &&
-          (text.toLowerCase().indexOf('sandbox environment') !== -1 ||
-           text.toLowerCase().indexOf('environment is for testing') !== -1)
-        ) {
-          p.style.setProperty('display', 'none', 'important');
-          p.style.setProperty('visibility', 'hidden', 'important');
-          p.style.setProperty('height', '0', 'important');
-          hidden++;
-          break;
+    function hideFn() {
+      try {
+        var walker = document.createTreeWalker(
+          document.body, NodeFilter.SHOW_TEXT, null, false);
+        var nodes = [];
+        var n;
+        while ((n = walker.nextNode())) {
+          var txt = (n.nodeValue || '').toLowerCase();
+          if (txt.indexOf('sandbox environment') !== -1 ||
+              txt.indexOf('environment is for testing') !== -1 ||
+              txt.indexOf('never enter your personal') !== -1) {
+            nodes.push(n);
+          }
         }
-        p = p.parentElement;
-        lvl++;
-      }
-    });
-    // Re-run after 600ms pour catch les banners qui apparaissent en
-    // delayed (Persona SPA route changes).
-    if (!window.__hpt_persona_banner_obs) {
-      window.__hpt_persona_banner_obs = true;
-      setTimeout(function() {
-        var ev = new Event('hpt-rehide');
-        window.dispatchEvent(ev);
-      }, 600);
+        nodes.forEach(function(node) {
+          var p = node.parentElement;
+          var lvl = 0;
+          while (p && lvl < 7) {
+            var text = (p.textContent || '');
+            if (text.length < 900 &&
+                (text.toLowerCase().indexOf('sandbox environment') !== -1 ||
+                 text.toLowerCase().indexOf('environment is for testing') !== -1)) {
+              p.style.setProperty('display', 'none', 'important');
+              p.style.setProperty('visibility', 'hidden', 'important');
+              p.style.setProperty('height', '0', 'important');
+              p.style.setProperty('max-height', '0', 'important');
+              p.style.setProperty('overflow', 'hidden', 'important');
+              break;
+            }
+            p = p.parentElement;
+            lvl++;
+          }
+        });
+      } catch (e) {}
+    }
+    hideFn();
+    if (!window.__hpt_persona_banner_installed) {
+      window.__hpt_persona_banner_installed = true;
+      // 1) MutationObserver : re-hide a chaque changement DOM.
+      try {
+        var obs = new MutationObserver(function() { hideFn(); });
+        obs.observe(document.body, { childList: true, subtree: true });
+      } catch (e) {}
+      // 2) Filet de securite : interval 400ms pendant 12s.
+      var ticks = 0;
+      var iv = setInterval(function() {
+        hideFn();
+        ticks++;
+        if (ticks > 30) clearInterval(iv);
+      }, 400);
     }
   } catch (e) {/* defensive */}
 })();

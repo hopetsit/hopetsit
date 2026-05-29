@@ -77,13 +77,26 @@ const sanitizeUser = (userDoc, { includeCard = false, includeEmail = false, incl
 
   // Sprint 5 step 7 — redact identity-verification document URL everywhere
   // except for the sitter themselves or the admin; expose a boolean flag only.
+  //
+  // v23.1 part 251 — Daniel : "jai verifier cardelli hermanos, mais tout
+  // les profile on le badge verifier a corriger". Root cause : identityVerified
+  // etait calcule depuis l'ANCIEN champ identityVerification.status (flow
+  // upload manuel SUPPRIME en v131 — "verification uniquement par Persona").
+  // Le vrai flag KYC du flow Persona actuel est kycStatus === 'verified'.
+  // On base donc identityVerified sur kycStatus en PRIORITE, avec fallback
+  // sur l'ancien identityVerification.status pour les rares users verifies
+  // manuellement avant v131. Le flag legacy `verified` (mis a true par
+  // diverses actions admin/IBAN) n'est PLUS utilise pour ce badge.
+  const kycVerified = sanitized.kycStatus === 'verified';
+  const legacyManualVerified =
+    sanitized.identityVerification &&
+    typeof sanitized.identityVerification === 'object' &&
+    sanitized.identityVerification.status === 'verified';
+  sanitized.identityVerified = kycVerified || legacyManualVerified;
   if (sanitized.identityVerification && typeof sanitized.identityVerification === 'object') {
-    sanitized.identityVerified = sanitized.identityVerification.status === 'verified';
     if (!includeIdentityDoc) {
       delete sanitized.identityVerification.documentUrl;
     }
-  } else {
-    sanitized.identityVerified = false;
   }
   
   // Only include card if explicitly requested (for card endpoints)

@@ -134,8 +134,9 @@ class WalkerCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          // v23.1 part 38 — VerifiedBadge unifié.
-                          if (walker.identityVerified || walker.verified) ...[
+                          // v23.1 part 251 — badge KYC only (cf. sitter_card),
+                          // flag legacy `verified` retire (true pour tous).
+                          if (walker.identityVerified) ...[
                             SizedBox(width: 6.w),
                             VerifiedBadge(
                               isVerified: true,

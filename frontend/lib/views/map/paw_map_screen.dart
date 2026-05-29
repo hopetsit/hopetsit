@@ -94,7 +94,16 @@ class _PawMapScreenState extends State<PawMapScreen>
   final RxBool _showPois = true.obs;
   // v23.1.189 — Daniel : "sur map autour de vous quon puisse le fermer".
   // Bouton X qui hide la card "Autour de vous" pour cette session.
-  final RxBool _aroundYouVisible = true.obs;
+  // v23.1 part 251 — Daniel : "Autour de vous qd on ferme et on revien sur
+  // la map reapparait". Root cause : _aroundYouVisible etait un champ
+  // d'INSTANCE qui se reinitialisait a true a chaque remount du State
+  // (quitter/revenir sur l'onglet map recree le State). On le backe par
+  // un flag STATIC qui survit aux remounts pendant toute la session app :
+  // une fois ferme, la card reste fermee meme apres navigation. Reset au
+  // restart de l'app (nouvelle session, nouveaux signalements).
+  static bool _aroundYouDismissedSession = false;
+  late final RxBool _aroundYouVisible =
+      (!_aroundYouDismissedSession).obs;
 
   // v23.1.190 — Daniel : "pour les signalement au lieu de halo rouge
   // emoji du signalement". Cache BitmapDescriptor par type de report,
@@ -2011,7 +2020,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                 SizedBox(width: 8.w),
                 // v23.1.189 — bouton X pour cacher la card.
                 GestureDetector(
-                  onTap: () => _aroundYouVisible.value = false,
+                  onTap: () {
+                    // v251 — persiste la fermeture pour toute la session.
+                    _aroundYouVisible.value = false;
+                    _aroundYouDismissedSession = true;
+                  },
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     width: 24.w,

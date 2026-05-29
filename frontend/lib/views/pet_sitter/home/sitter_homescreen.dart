@@ -1867,31 +1867,104 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   static const double _kMaxRadiusKm = 500.0;
 
   Widget _buildInlineDistanceSlider(BuildContext context) {
-    // Initialise le filtre a 50km si absent — toujours actif.
+    // v23.1 part 251 — Daniel : "la barre pres de chez moi dans lacceuil
+    // rame un peux". Root cause : l'ancien onChanged appelait setState +
+    // _filterState.copyWith a CHAQUE tick de drag → re-filtre + re-trie +
+    // rebuild TOUT le feed (toutes les cartes) a chaque pixel. Sur low-end
+    // c'est saccade.
+    //
+    // Fix : on delegue a _InlineDistanceSlider, un StatefulWidget dedie qui
+    // gere sa propre valeur de drag EN LOCAL (le thumb bouge fluide, la
+    // valeur s'affiche), et n'appelle le callback onCommit (= re-filtre du
+    // feed) QU'AU RELACHEMENT du doigt (onChangeEnd). Le feed ne recalcule
+    // donc qu'UNE fois, pas a chaque pixel.
     final raw = _filterState.maxDistanceKm ?? _kMinRadiusKm;
     final current = raw.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
-    final label = 'distance_slider_km'
-        .trParams({'km': current.toInt().toString()});
+    return _InlineDistanceSlider(
+      initial: current,
+      min: _kMinRadiusKm,
+      max: _kMaxRadiusKm,
+      onCommit: (v) {
+        setState(() {
+          _filterState = _filterState.copyWith(maxDistanceKm: v);
+        });
+      },
+    );
+  }
+
+  /// Stub — report post flow. The real implementation opens ReportDialog.
+  /// Kept lightweight so the feed still compiles while the report UI is
+  /// finalised for the sitter side.
+  void _handleReportPost({required String postId}) {
+    // TODO: wire ReportDialog.show(context: context, targetType: 'post', targetId: postId)
+    AppLogger.logUserAction('Report post pressed', data: {'postId': postId});
+  }
+}
+
+/// v23.1 part 251 — slider distance "Près de chez moi" autonome.
+///
+/// Gere sa valeur de drag EN LOCAL : le thumb bouge fluide et le label
+/// "X km" se met a jour pendant le glissement SANS rebuild du feed parent.
+/// Le callback [onCommit] n'est appele qu'au RELACHEMENT du doigt
+/// (onChangeEnd), donc le feed (filter + sort + cartes) ne recalcule
+/// qu'une seule fois au lieu d'a chaque pixel. Fix le lag low-end signale
+/// par Daniel.
+class _InlineDistanceSlider extends StatefulWidget {
+  const _InlineDistanceSlider({
+    required this.initial,
+    required this.min,
+    required this.max,
+    required this.onCommit,
+  });
+
+  final double initial;
+  final double min;
+  final double max;
+  final ValueChanged<double> onCommit;
+
+  @override
+  State<_InlineDistanceSlider> createState() => _InlineDistanceSliderState();
+}
+
+class _InlineDistanceSliderState extends State<_InlineDistanceSlider> {
+  late double _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.initial.clamp(widget.min, widget.max).toDouble();
+  }
+
+  @override
+  void didUpdateWidget(_InlineDistanceSlider old) {
+    super.didUpdateWidget(old);
+    // Si le parent change la valeur initiale (ex. reset filtre), on
+    // resynchronise — mais seulement si differente pour eviter de casser
+    // un drag en cours.
+    final clamped = widget.initial.clamp(widget.min, widget.max).toDouble();
+    if (clamped != old.initial.clamp(widget.min, widget.max).toDouble()) {
+      _value = clamped;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label =
+        'distance_slider_km'.trParams({'km': _value.toInt().toString()});
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color: AppColors.primaryColor,
-          width: 1.2,
-        ),
+        border: Border.all(color: AppColors.primaryColor, width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.near_me_rounded,
-                size: 18.sp,
-                color: AppColors.primaryColor,
-              ),
+              Icon(Icons.near_me_rounded,
+                  size: 18.sp, color: AppColors.primaryColor),
               SizedBox(width: 8.w),
               Expanded(
                 child: InterText(
@@ -1906,27 +1979,27 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: AppColors.primaryColor,
-              inactiveTrackColor:
-                  AppColors.primaryColor.withValues(alpha: 0.2),
+              inactiveTrackColor: AppColors.primaryColor.withValues(alpha: 0.2),
               thumbColor: AppColors.primaryColor,
-              overlayColor:
-                  AppColors.primaryColor.withValues(alpha: 0.15),
+              overlayColor: AppColors.primaryColor.withValues(alpha: 0.15),
               trackHeight: 4,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 9),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
             ),
             child: Slider(
-              value: current,
-              min: _kMinRadiusKm,
-              max: _kMaxRadiusKm,
-              divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
-              label: '${current.toInt()} km',
-              onChanged: (value) {
-                final v = value.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
+              value: _value,
+              min: widget.min,
+              max: widget.max,
+              divisions: ((widget.max - widget.min) ~/ 10),
+              label: '${_value.toInt()} km',
+              // Drag : update LOCAL seulement (pas de rebuild feed).
+              onChanged: (v) {
                 setState(() {
-                  _filterState =
-                      _filterState.copyWith(maxDistanceKm: v);
+                  _value = v.clamp(widget.min, widget.max).toDouble();
                 });
+              },
+              // Relachement : commit au parent → re-filtre le feed 1x.
+              onChangeEnd: (v) {
+                widget.onCommit(v.clamp(widget.min, widget.max).toDouble());
               },
             ),
           ),
@@ -1934,12 +2007,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               InterText(
-                text: '${_kMinRadiusKm.toInt()} km',
+                text: '${widget.min.toInt()} km',
                 fontSize: 10.sp,
                 color: AppColors.textSecondary(context),
               ),
               InterText(
-                text: '${_kMaxRadiusKm.toInt()} km',
+                text: '${widget.max.toInt()} km',
                 fontSize: 10.sp,
                 color: AppColors.textSecondary(context),
               ),
@@ -1948,13 +2021,5 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         ],
       ),
     );
-  }
-
-  /// Stub — report post flow. The real implementation opens ReportDialog.
-  /// Kept lightweight so the feed still compiles while the report UI is
-  /// finalised for the sitter side.
-  void _handleReportPost({required String postId}) {
-    // TODO: wire ReportDialog.show(context: context, targetType: 'post', targetId: postId)
-    AppLogger.logUserAction('Report post pressed', data: {'postId': postId});
   }
 }

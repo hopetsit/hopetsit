@@ -1246,7 +1246,15 @@ class _FamilyTab extends StatelessWidget {
             ),
             SizedBox(height: 16.h),
             // ── 2. "Inviter un membre" section header ──────────────────
-            if (controller.familyRemainingSlots.value > 0) ...[
+            // v23.1 part 251 — Daniel : "Manque bouton a jouter un membre
+            // et choisir liste amis ou famille". 2 corrections :
+            //   a) Le gating utilisait familyRemainingSlots (Rx separe qui
+            //      pouvait desync → "Famille pleine" affiche a tort alors
+            //      que la hero card montrait "1/5"). On utilise desormais
+            //      members.length < 5 (coherent avec la hero card).
+            //   b) Ajout d'une grosse carte "Depuis mes amis" en 1er qui
+            //      ouvre un picker de la liste d'amis (tap un ami → invite).
+            if (members.length < 5) ...[
               InterText(
                 text: 'family_invite_section_title'.tr,
                 fontSize: 14.sp,
@@ -1260,7 +1268,15 @@ class _FamilyTab extends StatelessWidget {
                 color: AppColors.greyText,
               ),
               SizedBox(height: 10.h),
-              // 2 cards inline "Par nom" / "Par email"
+              // v251 — methode principale : choisir depuis ses amis.
+              _FamilyInviteOptionCard(
+                icon: Icons.group_rounded,
+                title: 'family_add_from_friends'.tr,
+                subtitle: 'family_add_from_friends_sub'.tr,
+                onTap: () => _showAddFromFriendsSheet(context, controller),
+              ),
+              SizedBox(height: 10.h),
+              // 2 cards inline "Par nom" / "Par email" (methodes secondaires)
               Row(
                 children: [
                   Expanded(
@@ -1399,6 +1415,150 @@ class _FamilyTab extends StatelessWidget {
               _FamilyAddByEmail(ctx: ctx, controller: controller),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // v23.1 part 251 — Daniel : "choisir liste amis ou famille". Bottom
+  // sheet qui liste les amis acceptes (hors membres famille deja ajoutes)
+  // et permet d'en inviter un en 1 tap → addFamilyMember.
+  void _showAddFromFriendsSheet(
+      BuildContext context, FriendController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.all(16.w),
+        constraints: BoxConstraints(maxHeight: 520.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.group_rounded,
+                    color: AppColors.primaryColor, size: 24.sp),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: InterText(
+                    text: 'family_add_from_friends'.tr,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            Expanded(
+              child: Obx(() {
+                // Amis acceptes pas deja dans la famille.
+                final familyIds = controller.familyMembers
+                    .map((m) => (m['id'] ?? m['userId'] ?? '').toString())
+                    .toSet();
+                final candidates = controller.friends
+                    .where((f) =>
+                        f.status == 'accepted' &&
+                        (f.other?.id.isNotEmpty ?? false) &&
+                        !familyIds.contains(f.other!.id))
+                    .toList();
+                if (candidates.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24.w),
+                      child: InterText(
+                        text: 'family_add_from_friends_empty'.tr,
+                        fontSize: 13.sp,
+                        color: AppColors.greyText,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: candidates.length,
+                  separatorBuilder: (_, __) => SizedBox(height: 8.h),
+                  itemBuilder: (_, i) {
+                    final other = candidates[i].other!;
+                    final roleColor = {
+                          'Owner': const Color(0xFF8B5CF6),
+                          'Sitter': AppColors.sitterAccent,
+                          'Walker': AppColors.greenColor,
+                        }[other.model] ??
+                        const Color(0xFF8B5CF6);
+                    return ListTile(
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 4.w),
+                      leading: CircleAvatar(
+                        radius: 22.r,
+                        backgroundColor: roleColor.withValues(alpha: 0.15),
+                        backgroundImage: other.avatar.isNotEmpty
+                            ? CachedNetworkImageProvider(other.avatar,
+                                maxWidth: 150)
+                            : null,
+                        child: other.avatar.isEmpty
+                            ? Icon(Icons.person, color: roleColor, size: 22.sp)
+                            : null,
+                      ),
+                      title: InterText(
+                        text: other.name.isEmpty ? 'Utilisateur' : other.name,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary(context),
+                      ),
+                      subtitle: InterText(
+                        text: other.model,
+                        fontSize: 11.sp,
+                        color: AppColors.greyText,
+                      ),
+                      trailing: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final err = await controller.addFamilyMember(
+                            userId: other.id,
+                            userRole: other.model.toLowerCase(),
+                          );
+                          if (!ctx.mounted) return;
+                          if (err.isEmpty) {
+                            Navigator.of(ctx).pop();
+                            CustomSnackbar.showSuccess(
+                              title: 'family_invite_sent_title'.tr,
+                              message: 'family_invite_sent_msg'
+                                  .trParams({'name': other.name}),
+                            );
+                          } else {
+                            CustomSnackbar.showError(
+                              title: 'common_error'.tr,
+                              message: err == 'FAMILY_FULL'
+                                  ? 'family_full_msg'.tr
+                                  : err == 'ALREADY_MEMBER'
+                                      ? 'family_already_member'.tr
+                                      : err,
+                            );
+                          }
+                        },
+                        child: InterText(
+                          text: 'family_invite_btn'.tr,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
         ),
       ),
     );
