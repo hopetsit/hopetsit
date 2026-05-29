@@ -4497,6 +4497,8 @@ const requestLiveTracking = async (req, res) => {
           await Conversation.findByIdAndUpdate(conversation._id, {
             lastMessage: '📍 Demande de suivi en direct',
             lastMessageAt: new Date(),
+            // v23.1.256 — réapparition si un participant avait masqué la conv.
+            clearedFor: [],
           });
           // v23.1.255 — Daniel : "la demande de suivre mon animal ne
           // s'affiche pas sur les 3 profils". CAUSE RACINE : ce broadcast
@@ -4630,15 +4632,20 @@ const respondToPawfollowRequest = async (req, res) => {
     await message.save();
 
     // Broadcast via socket aux 2 parties.
+    // v23.1.256 — même bug que requestLiveTracking : require('../sockets/io')
+    // (module INEXISTANT) → throw avalé → la mise à jour accept/refus n'était
+    // JAMAIS diffusée en temps réel. FIX : emitChatMessage (room conversation
+    // + user-rooms participants). On émet aussi 'message:new' avec le message
+    // mis à jour pour que les clients qui ne gèrent pas 'message:updated'
+    // rafraîchissent quand même la carte (dédup par id côté frontend).
     try {
-      const { getIo } = require('../sockets/io');
-      const io = getIo && getIo();
-      if (io) {
-        io.to(`conversation_${conv._id}`).emit('message:updated', {
-          conversationId: String(conv._id),
-          message: message.toObject(),
-        });
-      }
+      const { emitChatMessage } = require('../sockets/emitter');
+      const payload = {
+        conversationId: String(conv._id),
+        message: message.toObject(),
+      };
+      emitChatMessage(conv, 'message:updated', payload);
+      emitChatMessage(conv, 'message:new', payload);
     } catch (_) {/* defensive */}
 
     return res.json({
@@ -4764,6 +4771,8 @@ const requestLiveTrackingByConversation = async (req, res) => {
     await Conversation.findByIdAndUpdate(conversation._id, {
       lastMessage: '📍 Demande de suivi en direct',
       lastMessageAt: new Date(),
+      // v23.1.256 — réapparition si un participant avait masqué la conv.
+      clearedFor: [],
     });
 
     // v23.1.255 — emitChatMessage (au lieu de emitToConversation) pour que

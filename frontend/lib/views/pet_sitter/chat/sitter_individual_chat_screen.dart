@@ -179,6 +179,15 @@ class _SitterIndividualChatScreenState
             title: 'follow_request_sent_title'.tr,
             message: 'follow_request_sent_msg'.tr,
           );
+          // v23.1.256 — Daniel : "la demande s'affiche dans aucun profil".
+          // Cause : le côté provider ne rechargeait PAS le chat après envoi
+          // → l'expéditeur ne voyait jamais sa propre carte (dépendait 100%
+          // du socket). On recharge comme le fait l'owner → la carte
+          // pawfollow_request apparaît immédiatement.
+          await chatController.loadChatMessages(
+            widget.conversationId,
+            contactName: widget.contactName,
+          );
         } catch (e) {
           if (!mounted) return;
           CustomSnackbar.showError(
@@ -217,6 +226,12 @@ class _SitterIndividualChatScreenState
       CustomSnackbar.showSuccess(
         title: 'follow_request_sent_title'.tr,
         message: 'follow_request_sent_msg'.tr,
+      );
+      // v23.1.256 — recharge le chat pour afficher tout de suite la carte
+      // pawfollow_request côté expéditeur (provider), sans dépendre du socket.
+      await chatController.loadChatMessages(
+        widget.conversationId,
+        contactName: widget.contactName,
       );
     } catch (e) {
       CustomSnackbar.showError(

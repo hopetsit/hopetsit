@@ -809,19 +809,31 @@ router.post('/request', requireAuth, async (req, res) => {
     // Avant : seule la notif push remontait, donc si l'app était ouverte
     // (pas en background) le destinataire ne voyait rien jusqu'à un kill.
     try {
-      const { getIo } = require('../sockets/io');
-      const io = getIo && getIo();
-      if (io) {
-        const payload = {
-          friendshipId: String(friendship._id),
-          from: {
-            userId: String(user.id),
-            role: (user.model || '').toLowerCase(),
-          },
-        };
-        io.to(`user_${targetId}`).emit('friend_request:received', payload);
-        io.to(`user_${user.id}`).emit('friend_request:received', payload);
-      }
+      // v23.1.256 — BUG MAJEUR : require('../sockets/io') = module INEXISTANT
+      // → throw avalé → la demande d'ami n'était JAMAIS poussée en temps réel.
+      // De plus la room visée `user_<id>` ne matche pas la vraie room
+      // `user:<role>:<id>` que le frontend rejoint. FIX : emitToUser (emitter)
+      // qui cible la bonne user-room → demande reçue instantanément.
+      const { emitToUser } = require('../sockets/emitter');
+      const payload = {
+        friendshipId: String(friendship._id),
+        from: {
+          userId: String(user.id),
+          role: (user.model || '').toLowerCase(),
+        },
+      };
+      emitToUser(
+        (friendship.addresseeModel || '').toLowerCase(),
+        String(friendship.addresseeId),
+        'friend_request:received',
+        payload,
+      );
+      emitToUser(
+        (friendship.requesterModel || '').toLowerCase(),
+        String(friendship.requesterId),
+        'friend_request:received',
+        payload,
+      );
     } catch (socketErr) {
       logger.warn('[friends/request] socket emit failed', socketErr);
     }
@@ -878,17 +890,27 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
       logger.warn('[friends/accept] notif failed', notifErr);
     }
     try {
-      const { getIo } = require('../sockets/io');
-      const io = getIo && getIo();
-      if (io) {
-        const payload = {
-          friendshipId: String(f._id),
-          by: { userId: String(user.id), role: (user.model || '').toLowerCase() },
-        };
-        // Convention HopeTSIT : room par user = `user_${userId}`.
-        io.to(`user_${f.requesterId}`).emit('friend_request:accepted', payload);
-        io.to(`user_${f.addresseeId}`).emit('friend_request:accepted', payload);
-      }
+      // v23.1.256 — même fix que /request : emitToUser (vraie room
+      // user:<role>:<id>) au lieu du module inexistant sockets/io + room
+      // `user_<id>`. L'acceptation est maintenant poussée en temps réel aux
+      // 2 parties → la liste d'amis se rafraîchit sans kill de l'app.
+      const { emitToUser } = require('../sockets/emitter');
+      const payload = {
+        friendshipId: String(f._id),
+        by: { userId: String(user.id), role: (user.model || '').toLowerCase() },
+      };
+      emitToUser(
+        (f.requesterModel || '').toLowerCase(),
+        String(f.requesterId),
+        'friend_request:accepted',
+        payload,
+      );
+      emitToUser(
+        (f.addresseeModel || '').toLowerCase(),
+        String(f.addresseeId),
+        'friend_request:accepted',
+        payload,
+      );
     } catch (socketErr) {
       logger.warn('[friends/accept] socket emit failed', socketErr);
     }
