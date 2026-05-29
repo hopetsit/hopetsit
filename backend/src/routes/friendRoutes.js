@@ -1181,23 +1181,98 @@ router.get('/family/members', requireAuth, async (req, res) => {
   try {
     const user = me(req);
     const now = new Date();
-    const sub = await UserSubscription.findOne({
+    // v23.1 part 249 — Daniel : "ps famille nest tjr pas rajouter ds le
+    // site web". Cause racine identifiee : la query etait CASE-SENSITIVE
+    // sur userModel (cherchait 'Owner' / 'Sitter' / 'Walker') alors que
+    // certains docs UserSubscription stockent en lowercase ('owner' etc.).
+    // Resultat : si tu es titulaire de la sub Famille mais que ton sub
+    // doc a userModel='owner' (lowercase), la query rate, hasActiveFamilyPlan
+    // = false, et l'UI cote site web affiche zero famille.
+    //
+    // En plus, on couvre maintenant le cas "je suis membre d'une autre
+    // famille" : un cluster de family-related users est retourne, regroupant :
+    //   1. Mes membres (si je suis titulaire)
+    //   2. Le titulaire + autres membres de la sub qui m'inclut (si je suis
+    //      membre d'une famille d'un autre)
+    // Cela donne au frontend une vue globale "ma famille étendue".
+    const userModelVariants = [
+      user.model,
+      String(user.model).toLowerCase(),
+    ];
+    const ownSub = await UserSubscription.findOne({
       userId: user.id,
-      userModel: user.model,
+      userModel: { $in: userModelVariants },
       plan: 'famille',
       status: 'active',
       currentPeriodEnd: { $gt: now },
     }).lean();
-    if (!sub) {
+
+    // Subs qui m'incluent comme membre (someone else's family).
+    const subsHostingMe = await UserSubscription.find({
+      'familyMembers.userId': user.id,
+      plan: 'famille',
+      status: 'active',
+      currentPeriodEnd: { $gt: now },
+    }).lean();
+
+    // Aggregation : map id -> familyMemberEntry pour dedup.
+    const byId = new Map();
+
+    if (ownSub && Array.isArray(ownSub.familyMembers)) {
+      for (const m of ownSub.familyMembers) {
+        const id = String(m.userId);
+        byId.set(id, {
+          userId: id,
+          userModel: m.userModel,
+          email: m.email || null,
+          addedAt: m.addedAt,
+          status: m.status || 'active',
+        });
+      }
+    }
+    for (const sub of subsHostingMe) {
+      // Le titulaire de cette sub est un de mes "family circle".
+      const holderId = String(sub.userId);
+      if (holderId !== String(user.id) && !byId.has(holderId)) {
+        byId.set(holderId, {
+          userId: holderId,
+          userModel: sub.userModel,
+          email: null,
+          addedAt: sub.createdAt,
+          status: 'active', // le titulaire est always actif
+        });
+      }
+      // Et les autres membres (sauf moi).
+      for (const m of (sub.familyMembers || [])) {
+        const id = String(m.userId);
+        if (id === String(user.id)) continue;
+        if (byId.has(id)) continue;
+        byId.set(id, {
+          userId: id,
+          userModel: m.userModel,
+          email: m.email || null,
+          addedAt: m.addedAt,
+          status: m.status || 'active',
+        });
+      }
+    }
+
+    // hasActiveFamilyPlan = je suis titulaire d'une sub active OU je suis
+    // membre actif d'une sub. C'est plus permissif que l'ancienne version.
+    const hasActiveFamilyPlan = !!ownSub || subsHostingMe.length > 0;
+
+    if (byId.size === 0) {
       return res.json({
-        hasActiveFamilyPlan: false,
+        hasActiveFamilyPlan,
         members: [],
-        remainingSlots: 0,
+        remainingSlots: ownSub
+          ? Math.max(0, 5 - (Array.isArray(ownSub.familyMembers) ? ownSub.familyMembers.length : 0))
+          : 0,
       });
     }
-    const raw = Array.isArray(sub.familyMembers) ? sub.familyMembers : [];
-    // v23.1.183 — on retourne TOUS les membres (incluant pending) avec
-    // leur status, pour que le titulaire voie qui n'a pas encore accepté.
+
+    const raw = Array.from(byId.values());
+    // Enrichit avec nom + avatar + role normalise via fetchUserMini.
     const enriched = await Promise.all(
       raw.map(async (m) => {
         const mini = await fetchUserMini(m.userId, m.userModel);
@@ -1207,20 +1282,21 @@ router.get('/family/members', requireAuth, async (req, res) => {
           name: mini?.name || '',
           avatar: mini?.avatar || '',
           addedAt: m.addedAt,
-          email: m.email || null,
-          status: m.status || 'active',
+          email: m.email,
+          status: m.status,
         };
       }),
     );
-    // remainingSlots ne compte QUE les actifs (un pending peut être
-    // refusé → la place sera libre).
-    const activeCount = raw.filter(
-      (m) => !m.status || m.status === 'active',
-    ).length;
+
+    // remainingSlots compte les actives de la sub que JE detiens.
+    const ownActiveCount = ownSub
+      ? (Array.isArray(ownSub.familyMembers) ? ownSub.familyMembers : [])
+          .filter((m) => !m.status || m.status === 'active').length
+      : 0;
     res.json({
-      hasActiveFamilyPlan: true,
+      hasActiveFamilyPlan,
       members: enriched,
-      remainingSlots: Math.max(0, 5 - activeCount),
+      remainingSlots: ownSub ? Math.max(0, 5 - ownActiveCount) : 0,
     });
   } catch (e) {
     logger.error('[friends/family/members]', e);
