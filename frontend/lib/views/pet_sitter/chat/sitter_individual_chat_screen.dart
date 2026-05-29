@@ -147,65 +147,23 @@ class _SitterIndividualChatScreenState
   // 2. POST /bookings/:id/follow-request → backend push notif à l'owner
   // 3. Snackbar de confirmation
   Future<void> _onFollowMeTap() async {
+    // v23.1.256 — DEEP FIX : on envoie TOUJOURS la demande de suivi dans la
+    // conversation actuellement OUVERTE (widget.conversationId). Avant, on
+    // cherchait un booking par NOM (norm(owner.name)) + paymentStatus=='paid'
+    // — fragile : si le match échouait ou si paymentStatus manquait, on
+    // basculait sur un autre chemin qui pouvait 403er ou créer la carte dans
+    // une autre conversation → "la demande s'affiche dans aucun profil". Le
+    // backend (requestLiveTrackingByConversation) accepte désormais tout
+    // participant (booking OU friendChat) et crée la carte dans CETTE
+    // conversation. On capture aussi la position GPS pour que l'owner puisse
+    // suivre. Puis on recharge le chat → la carte apparaît immédiatement.
     try {
       final repo = Get.find<SitterRepository>();
-      final bookings = await repo.getMyBookings();
-      String norm(String s) =>
-          s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
-      final wantedName = norm(widget.contactName);
-      final candidate = bookings.firstWhereOrNull((b) {
-        final pay = (b.paymentStatus ?? '').toLowerCase();
-        final st = (b.status).toLowerCase();
-        if (pay != 'paid') return false;
-        if (st == 'cancelled' || st == 'refunded' || st == 'completed') {
-          return false;
-        }
-        return norm(b.owner.name) == wantedName ||
-            norm(b.owner.name).contains(wantedName) ||
-            wantedName.contains(norm(b.owner.name));
-      });
-      final bookingId = candidate?.id;
-      if (bookingId == null || bookingId.isEmpty) {
-        // v23.1.182 — Daniel : "verifie les 3 prfofile et encore une
-        // fois en profondeur". Côté sitter aussi : si pas de booking
-        // payé, on bascule sur l'endpoint conversation-based qui
-        // notifie l'owner sans dépendance booking.
-        try {
-          await repo.requestLiveTrackingByConversation(
-            conversationId: widget.conversationId,
-          );
-          if (!mounted) return;
-          CustomSnackbar.showSuccess(
-            title: 'follow_request_sent_title'.tr,
-            message: 'follow_request_sent_msg'.tr,
-          );
-          // v23.1.256 — Daniel : "la demande s'affiche dans aucun profil".
-          // Cause : le côté provider ne rechargeait PAS le chat après envoi
-          // → l'expéditeur ne voyait jamais sa propre carte (dépendait 100%
-          // du socket). On recharge comme le fait l'owner → la carte
-          // pawfollow_request apparaît immédiatement.
-          await chatController.loadChatMessages(
-            widget.conversationId,
-            contactName: widget.contactName,
-          );
-        } catch (e) {
-          if (!mounted) return;
-          CustomSnackbar.showError(
-            title: 'follow_unavailable_title'.tr,
-            message: e.toString().replaceAll('ApiException:', '').trim(),
-          );
-        }
-        return;
-      }
-      // v23.1.170-fix — Daniel : "que owner suive ma balade". Pour que ça
-      // marche end-to-end, il faut pousser MA position GPS au backend
-      // (sinon /provider-location renvoie NO_LOCATION_YET côté owner).
-      // On capture la position courante via geolocator avant le follow-request.
       double? lat;
       double? lng;
       try {
-        final hasPermission = await Geolocator.checkPermission();
-        if (hasPermission == LocationPermission.denied) {
+        final perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) {
           await Geolocator.requestPermission();
         }
         final pos = await Geolocator.getCurrentPosition(
@@ -216,9 +174,10 @@ class _SitterIndividualChatScreenState
         );
         lat = pos.latitude;
         lng = pos.longitude;
-      } catch (_) {/* on continue sans coords; backend renverra NO_LOCATION_YET */}
-      await repo.requestLiveTracking(
-        bookingId: bookingId,
+      } catch (_) {/* on continue sans coords */}
+
+      await repo.requestLiveTrackingByConversation(
+        conversationId: widget.conversationId,
         lat: lat,
         lng: lng,
       );
@@ -227,13 +186,14 @@ class _SitterIndividualChatScreenState
         title: 'follow_request_sent_title'.tr,
         message: 'follow_request_sent_msg'.tr,
       );
-      // v23.1.256 — recharge le chat pour afficher tout de suite la carte
-      // pawfollow_request côté expéditeur (provider), sans dépendre du socket.
+      // Recharge le chat → la carte pawfollow_request apparaît tout de suite
+      // côté expéditeur (sans dépendre du socket).
       await chatController.loadChatMessages(
         widget.conversationId,
         contactName: widget.contactName,
       );
     } catch (e) {
+      if (!mounted) return;
       CustomSnackbar.showError(
         title: 'follow_unavailable_title'.tr,
         message: e.toString().replaceAll('ApiException:', '').trim(),

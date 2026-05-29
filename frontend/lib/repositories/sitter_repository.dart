@@ -275,10 +275,15 @@ class SitterRepository {
   /// pawfollow_request dans le chat et notifie l'owner.
   Future<Map<String, dynamic>> requestLiveTrackingByConversation({
     required String conversationId,
+    double? lat,
+    double? lng,
   }) async {
     final response = await _apiClient.post(
       '/conversations/$conversationId/follow-request',
-      body: const <String, dynamic>{},
+      body: <String, dynamic>{
+        if (lat != null && lng != null) 'lat': lat,
+        if (lat != null && lng != null) 'lng': lng,
+      },
       requiresAuth: true,
     );
     if (response is Map<String, dynamic>) return response;

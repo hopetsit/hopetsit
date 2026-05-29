@@ -388,7 +388,6 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
           .toList()
           // Most recent first.
           ..sort((a, b) => (b.updatedAt).compareTo(a.updatedAt));
-      final bookingId = candidate.isNotEmpty ? candidate.first.id : null;
 
       // v23.1.193 — Daniel : "chat rien changer aucun bouton". Avant on
       // n'ouvrait le sheet QUE si bookingId trouve via fuzzy match nom
@@ -407,13 +406,14 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               fallbackContactImage: widget.contactImage,
               onConfirm: () async {
                 try {
-                  if (booking != null && bookingId != null && bookingId.isNotEmpty) {
-                    await repo.requestLiveTracking(bookingId: bookingId);
-                  } else {
-                    await repo.requestLiveTrackingByConversation(
-                      conversationId: widget.conversationId,
-                    );
-                  }
+                  // v23.1.256 — DEEP FIX : on envoie TOUJOURS via la
+                  // conversation ouverte (backend permissif) pour que la carte
+                  // atterrisse à coup sûr dans CE chat. Avant, le chemin
+                  // booking (requestLiveTracking) pouvait créer la carte
+                  // ailleurs ou échouer → "demande s'affiche dans aucun profil".
+                  await repo.requestLiveTrackingByConversation(
+                    conversationId: widget.conversationId,
+                  );
                 } catch (e) {
                   if (mounted) {
                     CustomSnackbar.showError(

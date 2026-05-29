@@ -4693,42 +4693,85 @@ const requestLiveTrackingByConversation = async (req, res) => {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
-    // Owner of conv → demande au walker/sitter. Sinon le sens
-    // walker/sitter → owner via le bouton miroir côté provider.
+    // v23.1.256 — Daniel : "la demande de suivi ne s'affiche sur AUCUN
+    // profil". CAUSE : les guards de rôle ci-dessous renvoyaient 403 dès que
+    // ça ne collait pas pile (chats friendChat sans walkerId/sitterId, ou
+    // toute incohérence de rôle) → le message n'était JAMAIS créé. On
+    // remplace par une résolution PERMISSIVE : on vérifie juste que
+    // l'appelant est participant de CETTE conversation (booking OU
+    // friendChat), et on déduit le destinataire = l'autre partie. Le message
+    // est ainsi toujours créé dans la conversation regardée → la carte
+    // apparaît côté expéditeur (qui recharge) ET côté destinataire (socket).
+    const idStr = (v) => (v ? (v._id ? String(v._id) : String(v)) : null);
     let direction;
     let responderRole;
     let responderId;
-    if (userRole === 'owner') {
-      if (String(conversation.ownerId) !== String(userId)) {
-        return res.status(403).json({ error: 'Not your conversation.' });
+    let isParticipant = false;
+
+    if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
+      const meP = conversation.participants.find(
+        (p) => idStr(p.userId) === String(userId),
+      );
+      const otherP = conversation.participants.find(
+        (p) => idStr(p.userId) !== String(userId),
+      );
+      isParticipant = !!meP;
+      if (otherP) {
+        responderId = idStr(otherP.userId);
+        responderRole = String(otherP.userModel || 'owner').toLowerCase();
       }
-      if (conversation.walkerId) {
-        direction = 'owner_to_walker';
-        responderRole = 'walker';
-        responderId = conversation.walkerId;
-      } else if (conversation.sitterId) {
-        direction = 'owner_to_sitter';
-        responderRole = 'sitter';
-        responderId = conversation.sitterId;
-      } else {
-        return res.status(400).json({ error: 'Conversation has no provider.' });
-      }
-    } else if (userRole === 'walker') {
-      if (String(conversation.walkerId) !== String(userId)) {
-        return res.status(403).json({ error: 'Not your conversation.' });
-      }
-      direction = 'walker_to_owner';
-      responderRole = 'owner';
-      responderId = conversation.ownerId;
-    } else if (userRole === 'sitter') {
-      if (String(conversation.sitterId) !== String(userId)) {
-        return res.status(403).json({ error: 'Not your conversation.' });
-      }
-      direction = 'sitter_to_owner';
-      responderRole = 'owner';
-      responderId = conversation.ownerId;
+      direction = `${userRole}_to_${responderRole || 'other'}`;
     } else {
-      return res.status(403).json({ error: 'Role not allowed.' });
+      // Conversation booking : owner ↔ sitter/walker.
+      const ownerIdV = idStr(conversation.ownerId);
+      const sitterIdV = idStr(conversation.sitterId);
+      const walkerIdV = idStr(conversation.walkerId);
+      const providerIdV = walkerIdV || sitterIdV;
+      const providerRole = conversation.walkerId ? 'walker' : 'sitter';
+      if (String(userId) === ownerIdV) {
+        isParticipant = true;
+        direction = `owner_to_${providerRole}`;
+        responderRole = providerRole;
+        responderId = providerIdV;
+      } else if (providerIdV && String(userId) === providerIdV) {
+        isParticipant = true;
+        direction = `${providerRole}_to_owner`;
+        responderRole = 'owner';
+        responderId = ownerIdV;
+      }
+    }
+
+    if (!isParticipant) {
+      return res
+        .status(403)
+        .json({ error: 'Not a conversation participant.' });
+    }
+
+    // v23.1.256 — persiste la position GPS de l'appelant (si fournie) pour
+    // que l'autre partie puisse réellement suivre (sinon /provider-location
+    // renvoie NO_LOCATION_YET). Même logique que requestLiveTracking.
+    try {
+      const { lat, lng } = req.body || {};
+      const hasCoords =
+        typeof lat === 'number' && typeof lng === 'number' &&
+        !Number.isNaN(lat) && !Number.isNaN(lng);
+      if (hasCoords) {
+        const Walker = require('../models/Walker');
+        const Sitter = require('../models/Sitter');
+        const Owner = require('../models/Owner');
+        const update = {
+          'location.type': 'Point',
+          'location.coordinates': [lng, lat],
+          'location.updatedAt': new Date(),
+        };
+        const Model =
+          userRole === 'walker' ? Walker :
+          userRole === 'sitter' ? Sitter :
+          userRole === 'owner' ? Owner : null;
+        if (Model) await Model.findByIdAndUpdate(userId, { $set: update });
+      }
+    } catch (e) {
+      logger.warn('[requestLiveTrackingByConversation] location update failed', e);
     }
 
     // Anti-spam : pas de doublon < 5 min.
