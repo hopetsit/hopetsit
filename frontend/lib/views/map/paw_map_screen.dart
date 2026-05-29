@@ -2176,13 +2176,20 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
           SizedBox(width: 8.w),
           // 2. Famille & Amis — ouvre FriendsScreen.
+          // v23.1.255 — badge avec le nombre de demandes d'amis en attente
+          // (FriendController.incomingRequests). Obx → se met à jour en
+          // temps réel quand une demande arrive (socket friend_request:received).
           Expanded(
-            child: _quickActionCard(
-              icon: Icons.people_alt_rounded,
-              label: 'pawmap_quick_family'.tr,
-              color: const Color(0xFF8B5CF6),
-              onTap: () => Get.to(() => const FriendsScreen()),
-            ),
+            child: Obx(() {
+              final pending = _friendController.incomingRequests.length;
+              return _quickActionCard(
+                icon: Icons.people_alt_rounded,
+                label: 'pawmap_quick_family'.tr,
+                color: const Color(0xFF8B5CF6),
+                badgeCount: pending,
+                onTap: () => Get.to(() => const FriendsScreen()),
+              );
+            }),
           ),
           SizedBox(width: 8.w),
           // 3. Personnes live position — screen autonome PeopleLiveScreen.
@@ -2238,8 +2245,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     String? sublabel,
     required Color color,
     required VoidCallback onTap,
+    // v23.1.255 — Daniel : "badge 1 sur le quick bouton" pour les demandes
+    // d'amis en attente. >0 → pastille rouge en coin haut-droit.
+    int badgeCount = 0,
   }) {
-    return Material(
+    final card = Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16.r),
@@ -2311,6 +2321,33 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         ),
       ),
+    );
+    if (badgeCount <= 0) return card;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        card,
+        Positioned(
+          top: -5,
+          right: -3,
+          child: Container(
+            width: 18.w,
+            height: 18.w,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF4324),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+            child: InterText(
+              text: badgeCount > 9 ? '9+' : '$badgeCount',
+              fontSize: 9.5.sp,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

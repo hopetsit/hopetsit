@@ -617,6 +617,17 @@ router.post(
       conversation.lastMessageAt = new Date();
       conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
       await conversation.save();
+      // v23.1.255 — broadcast temps réel (il MANQUAIT totalement → le
+      // partage de téléphone n'apparaissait pas avant de rouvrir le chat).
+      try {
+        const { emitChatMessage } = require('../sockets/emitter');
+        emitChatMessage(conversation, 'message:new', {
+          conversationId: conversation._id.toString(),
+          message: typeof message.toObject === 'function'
+            ? message.toObject()
+            : message,
+        });
+      } catch (_) {/* defensive */}
       res.status(201).json({ message });
     } catch (e) {
       logger.error('share-phone error', e);
@@ -718,13 +729,21 @@ router.post(
       }
       await conversation.save();
 
-      // Fan out real-time to the conversation room — sender + receiver
-      // see the card instantly.
+      // Fan out real-time — sender + receiver voient la carte adresse
+      // instantanément.
+      // v23.1.255 — Daniel : "vérifie que l'envoi de mon adresse s'affiche
+      // sur tous les profils". On passe de emitToConversation (room chat
+      // seulement) à emitChatMessage (room conversation + user-rooms des
+      // participants) → la carte arrive en direct ET bump le badge même si
+      // le destinataire n'a pas le chat ouvert, sur owner/sitter/walker.
+      // + message.toObject() pour une sérialisation propre.
       try {
-        const { emitToConversation } = require('../sockets/emitter');
-        emitToConversation(conversation._id.toString(), 'message:new', {
+        const { emitChatMessage } = require('../sockets/emitter');
+        emitChatMessage(conversation, 'message:new', {
           conversationId: conversation._id.toString(),
-          message,
+          message: typeof message.toObject === 'function'
+            ? message.toObject()
+            : message,
         });
       } catch (_) {/* defensive */}
 

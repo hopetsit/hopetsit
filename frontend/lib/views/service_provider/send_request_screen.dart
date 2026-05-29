@@ -1156,8 +1156,15 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           final commission = providerGross * commissionRate;
           final ownerTotal = providerGross + commission;
           totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
-          breakdown =
-              '$minutes min · ${providerGross.toStringAsFixed(2)} $currency prestataire + ${commission.toStringAsFixed(2)} $currency commission (20%)';
+          // v23.1.255 — i18n : avant, breakdown était une string FR hardcodée
+          // ("prestataire", "commission") affichée dans TOUTES les langues
+          // (Daniel : ligne entourée sur le screenshot ES). Désormais via .trParams.
+          breakdown = 'send_request_breakdown_walk'.trParams({
+            'minutes': '$minutes',
+            'provider': providerGross.toStringAsFixed(2),
+            'currency': currency,
+            'commission': commission.toStringAsFixed(2),
+          });
         } else if (notSetNotice != null) {
           breakdown = notSetNotice;
         }
@@ -1187,8 +1194,11 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               final commission = providerGross * commissionRate;
               final ownerTotal = providerGross + commission;
               totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
-              breakdown =
-                  '1 journée × ${dailyRate.toStringAsFixed(2)} $currency/j + ${commission.toStringAsFixed(2)} $currency commission (20%)';
+              breakdown = 'send_request_breakdown_days_one'.trParams({
+                'rate': dailyRate.toStringAsFixed(2),
+                'currency': currency,
+                'commission': commission.toStringAsFixed(2),
+              });
             }
           }
         }
@@ -1211,8 +1221,15 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             final commission = providerGross * commissionRate;
             final ownerTotal = providerGross + commission;
             totalText = '${ownerTotal.toStringAsFixed(2)} $currency';
-            breakdown =
-                '$days jour${days > 1 ? 's' : ''} × ${dailyRate.toStringAsFixed(2)} $currency/j + ${commission.toStringAsFixed(2)} $currency commission (20%)';
+            breakdown = (days > 1
+                    ? 'send_request_breakdown_days_many'
+                    : 'send_request_breakdown_days_one')
+                .trParams({
+              'days': '$days',
+              'rate': dailyRate.toStringAsFixed(2),
+              'currency': currency,
+              'commission': commission.toStringAsFixed(2),
+            });
           }
         }
       }
