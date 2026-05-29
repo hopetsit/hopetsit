@@ -195,7 +195,20 @@ class BookingModel {
       owner: BookingUser.fromJson(finalOwnerData),
       sitter: BookingSitter.fromJson(finalSitterData),
       pets: parsedPets,
-      paymentStatus: json['paymentStatus'] as String?,
+      // v23.1.254 — Daniel : "annulation sous 72h a disparu sur tous les
+      // profils". Cause racine : le bouton d'annulation 72h est gaté sur
+      // `paymentStatus == 'paid'`, mais certains chemins backend renvoient
+      // un booking payé SANS le champ paymentStatus (le backend marque le
+      // paiement via status='paid' ET/OU paidAt, et sanitizeBooking n'ajoute
+      // paymentStatus que s'il est défini en DB). Résultat : paymentStatus
+      // null → bouton caché sur les 3 profils. Fallback : si status='paid'
+      // ou paidAt présent, on considère paymentStatus='paid'. Ne peut que
+      // FAIRE APPARAÎTRE le bouton pour des réservations réellement payées.
+      paymentStatus: (json['paymentStatus'] as String?) ??
+          ((((json['status'] as String?) ?? '').toLowerCase() == 'paid') ||
+                  (json['paidAt'] ?? json['paid_at']) != null
+              ? 'paid'
+              : null),
       totalAmount:
           (json['totalAmount'] as num?)?.toDouble() ??
           (json['total_amount'] as num?)?.toDouble(),

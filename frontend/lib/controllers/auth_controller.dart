@@ -16,6 +16,7 @@ import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_constants.dart';
 import 'package:flutter/scheduler.dart';
@@ -112,6 +113,10 @@ class AuthController extends GetxController {
     // v23.1 part 43 — sync userRole with JWT.role on every app start so a
     // role drift between localStorage and the backend's JWT can't survive.
     _syncRoleFromJwt();
+    // v23.1.254 — confort total : refresh silencieux du token au démarrage
+    // (expiration glissante). Garde le token frais 365j + reconnecte le
+    // socket temps réel avec un token valide. Best-effort, n'attend pas.
+    unawaited(refreshToken());
   }
 
   @override
@@ -1514,6 +1519,57 @@ class AuthController extends GetxController {
     } catch (_) {
       // Snackbar may fail if context unavailable — silently ignore.
       // Critical : we NEVER auto-logout here.
+    }
+  }
+
+  /// v23.1.254 — Daniel : "joue le confort total". Refresh silencieux du
+  /// token à expiration glissante. Tant que l'app est ouverte au moins une
+  /// fois par an, le token (365j) ne périme jamais → plus JAMAIS de
+  /// "Session expirée", et le socket temps réel (messages, demandes d'amis,
+  /// notifs) reste vivant.
+  ///
+  /// Appelé silencieusement :
+  ///   - au démarrage de l'app si une session est déjà stockée,
+  ///   - au retour de background (lifecycle resumed).
+  ///
+  /// Best-effort : si le refresh échoue (token déjà périmé, réseau down,
+  /// backend en cold start), on ne fait RIEN de bruyant — l'app continue
+  /// avec le token courant et retentera au prochain resume. On ne déconnecte
+  /// JAMAIS l'utilisateur ici.
+  static bool _refreshInFlight = false;
+  Future<bool> refreshToken() async {
+    if (_refreshInFlight) return false;
+    // Pas de refresh si aucune session stockée.
+    final current = SecureTokenStore.instance.tokenSync ??
+        _storage.read<String>(StorageKeys.authToken);
+    if (current == null || current.isEmpty) return false;
+
+    _refreshInFlight = true;
+    try {
+      final response = await _authRepository.refresh();
+      final token = _extractToken(response);
+      if (token == null || token.isEmpty) return false;
+
+      // Persiste le token frais (Keychain/Keystore + miroir GetStorage).
+      await SecureTokenStore.instance.writeToken(token);
+      await _storage.write(StorageKeys.authToken, token);
+
+      // CRUCIAL : propage le token frais au socket pour que le temps réel
+      // survive (sinon les reconnexions auto utilisent l'ancien token).
+      try {
+        if (Get.isRegistered<SocketService>()) {
+          await Get.find<SocketService>().updateAuthToken(token);
+        }
+      } catch (_) {/* socket pas prêt — sera connecté au besoin */}
+
+      debugPrint('[HOPETSIT] ✅ Token rafraîchi (sliding 365j)');
+      return true;
+    } catch (e) {
+      // Échec non critique : on log discret et on continue.
+      debugPrint('[HOPETSIT] ⚠️ refreshToken (non-critique): $e');
+      return false;
+    } finally {
+      _refreshInFlight = false;
     }
   }
 

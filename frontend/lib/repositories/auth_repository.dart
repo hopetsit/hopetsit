@@ -30,6 +30,24 @@ class AuthRepository {
     throw ApiException('Unexpected login response.', details: response);
   }
 
+  /// v23.1.254 — Refresh à expiration glissante (confort total).
+  /// Envoie le token actuel (requiresAuth) et reçoit un token frais 365j.
+  /// Appelé silencieusement au démarrage / resume pour que l'utilisateur
+  /// actif ne voie jamais "Session expirée".
+  Future<Map<String, dynamic>> refresh() async {
+    final response = await _apiClient.post(
+      ApiEndpoints.authRefresh,
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    if (response is Map) {
+      return Map<String, dynamic>.from(response);
+    }
+    throw ApiException('Unexpected refresh response.', details: response);
+  }
+
   /// Creates a new account for either owners or sitters.
   Future<Map<String, dynamic>> signup({
     required String role,

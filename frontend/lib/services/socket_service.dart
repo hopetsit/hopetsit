@@ -164,6 +164,50 @@ class SocketService {
     }
   }
 
+  /// v23.1.254 — Met à jour le token JWT utilisé par le socket et garantit
+  /// que le temps réel reste vivant après un refresh silencieux du token.
+  ///
+  /// Bug racine corrigé : `setAuth({'token': token})` capture le token UNE
+  /// SEULE FOIS au connect initial. Les reconnexions automatiques de
+  /// socket.io réutilisent CE token. Si le token a été rafraîchi (ou s'il
+  /// était périmé au démarrage), les reconnexions échouaient en boucle
+  /// (handshake AUTH_FAILED côté backend) → messages chat / demandes d'amis
+  /// / notifs JAMAIS livrés en temps réel tant qu'on ne se reco/deco pas.
+  ///
+  /// Ici on : (1) met à jour `socket.auth` ET les extraHeaders pour que les
+  /// futures reconnexions utilisent le token frais ; (2) si le socket est
+  /// mort (le token périmé l'avait tué), on force un disconnect→connect
+  /// MAINTENANT pour relancer le handshake. S'il est déjà vivant, on ne le
+  /// coupe pas (évite une coupure inutile du temps réel).
+  Future<void> updateAuthToken(String token) async {
+    try {
+      if (_socket == null) {
+        // Pas encore de socket : connexion normale (connect() lit le token
+        // frais depuis le storage).
+        await connect();
+        return;
+      }
+      // Met à jour la source de vérité pour les (re)connexions futures.
+      _socket!.auth = {'token': token};
+      try {
+        _socket!.io.options?['extraHeaders'] = {
+          'Authorization': 'Bearer $token',
+        };
+      } catch (_) {/* options peut être immuable selon l'état — best-effort */}
+
+      if (!_isConnected) {
+        // Socket mort → relance immédiate avec le token frais.
+        _socket!.disconnect();
+        _socket!.connect();
+        AppLogger.logInfo('Socket auth updated + reconnecting (was dead)');
+      } else {
+        AppLogger.logInfo('Socket auth token updated (live, no cut)');
+      }
+    } catch (e) {
+      AppLogger.logError('updateAuthToken failed', error: e);
+    }
+  }
+
   /// Joins a conversation room.
   ///
   /// v20.0.19 — backend handler at chatSocket.js line 40 expects

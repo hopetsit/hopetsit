@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/repositories/notifications_repository.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -70,6 +71,17 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
+      // v23.1.254 — confort total : refresh silencieux du token AVANT de
+      // reconnecter le socket. Si le token a expiré pendant le background,
+      // refreshToken() en récupère un frais ET reconnecte le socket avec ce
+      // token (sinon la reconnexion auto réutilise l'ancien token périmé →
+      // handshake AUTH_FAILED → messages/demandes plus jamais temps réel).
+      // Best-effort, fire-and-forget.
+      try {
+        if (Get.isRegistered<AuthController>()) {
+          Get.find<AuthController>().refreshToken();
+        }
+      } catch (_) {/* defensive */}
       // App returned to foreground — pull latest notifs so the bell badge
       // is up to date (covers both push-arrived-while-bg and missed pushes).
       refreshAll();

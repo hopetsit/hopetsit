@@ -4,6 +4,8 @@ class ApiEndpoints {
 
   static const String users = '/users';
   static const String authLogin = '/auth/login';
+  // v23.1.254 — refresh à expiration glissante (confort total).
+  static const String authRefresh = '/auth/refresh';
   static const String authSignup = '/auth/signup';
   static const String authVerify = '/auth/verify';
   static const String authResendVerification = '/auth/resend-code';

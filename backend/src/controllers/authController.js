@@ -1494,9 +1494,44 @@ const adminLogin = async (req, res) => {
   }
 };
 
+/**
+ * POST /auth/refresh — v23.1.254
+ *
+ * Daniel : "confort total" — l'utilisateur actif ne doit JAMAIS voir
+ * "Session expirée". Refresh à expiration glissante : `requireAuth` garantit
+ * que le token actuel est encore valide, on en ré-émet un neuf (365j) avec
+ * le même {id, role}. L'app l'appelle silencieusement au démarrage et au
+ * retour de background → tant que l'app est ouverte au moins 1x/an, le
+ * token ne périme jamais. Aucune donnée sensible requise (pas de mot de
+ * passe) : on s'appuie uniquement sur le token déjà validé.
+ */
+const refreshToken = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id || !req.user.role) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    const token = signAuthToken({
+      id: String(req.user.id),
+      role: String(req.user.role),
+    });
+    return res.json({ token, role: req.user.role });
+  } catch (error) {
+    logger.error('refreshToken error', error);
+    if (error.message && error.message.includes('JWT_SECRET')) {
+      return res
+        .status(500)
+        .json({ error: 'Authentication service is not configured.' });
+    }
+    return res
+      .status(500)
+      .json({ error: 'Unable to refresh session. Please try again later.' });
+  }
+};
+
 module.exports = {
   signup,
   login,
+  refreshToken,
   verifyEmail,
   resendVerificationCode,
   forgotPassword,

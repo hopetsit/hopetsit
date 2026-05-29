@@ -3,6 +3,7 @@ const express = require('express');
 const {
   signup,
   login,
+  refreshToken,
   googleAuth,
   appleAuth,
   verifyEmail,
@@ -289,6 +290,10 @@ router.post('/signup', signup);
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/login', login);
+// v23.1.254 — refresh à expiration glissante (confort total). requireAuth
+// garantit que le token actuel est valide ; renvoie un token frais 365j.
+// L'app l'appelle silencieusement au démarrage et au retour de background.
+router.post('/refresh', requireAuth, refreshToken);
 // v23.1 part 128 — Phase 4 audit P4-2 : rate-limit dédié anti-brute-force.
 // 3 tentatives par 15 minutes — un admin légitime ne se trompe pas 4 fois.
 // La route /auth est déjà sous authLimiter (5/min) pour ne pas affecter
