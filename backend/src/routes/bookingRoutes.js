@@ -1016,5 +1016,34 @@ router.post(
   require('../controllers/bookingController').respondToPawfollowRequest,
 );
 
+// v23.1.259 — Confirmation de service + libération paiement.
+//   start/complete : réservés au provider (sitter/walker) assigné.
+//   confirm/dispute : réservés à l'owner. Les controllers re-vérifient
+//   l'appartenance exacte au booking.
+router.post(
+  '/:id/service/start',
+  requireAuth,
+  requireRole('sitter', 'walker'),
+  require('../controllers/bookingController').startService,
+);
+router.post(
+  '/:id/service/complete',
+  requireAuth,
+  requireRole('sitter', 'walker'),
+  require('../controllers/bookingController').completeService,
+);
+router.post(
+  '/:id/service/confirm',
+  requireAuth,
+  requireRole('owner'),
+  require('../controllers/bookingController').confirmService,
+);
+router.post(
+  '/:id/service/dispute',
+  requireAuth,
+  requireRole('owner'),
+  require('../controllers/bookingController').disputeService,
+);
+
 module.exports = router;
 

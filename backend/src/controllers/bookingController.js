@@ -851,16 +851,37 @@ const isBookingPayoutDue = (booking) => {
  * If the release datetime is already in the past (legacy data, admin retry),
  * the payout is released immediately.
  */
+// v23.1.259 — Système de confirmation (Daniel). Auto-release de sécurité :
+// si l'owner ne confirme pas la fin du service, le paiement est libéré
+// automatiquement 48h après la fin prévue (ou 48h après que le provider a
+// tapé "rendu", selon ce qui arrive en premier). L'owner peut libérer plus
+// tôt en confirmant, ou bloquer via un litige.
+const CONFIRMATION_AUTO_RELEASE_MS = 48 * 60 * 60 * 1000;
+
 const schedulePayoutForBooking = async (booking) => {
   if (!booking) return;
   if (booking.payoutStatus === 'completed' || booking.payoutStatus === 'processing') {
     return;
   }
 
-  booking.scheduledPayoutAt = resolvePayoutReleaseAt(booking);
+  // v23.1.259 — On NE libère plus le paiement au START du service. Le booking
+  // entre dans le flux de confirmation : le provider doit marquer début/fin,
+  // l'owner confirme (→ libère), sinon auto-release 48h après la fin prévue.
+  // On programme scheduledPayoutAt = fin + 48h : le scheduler EXISTANT
+  // (processScheduledSitterPayouts) libère à cette date si rien d'autre
+  // n'arrive avant, et SAUTE les litiges. La confirmation owner avance la
+  // date à "maintenant" (cf confirmServiceCompletion).
+  if (!booking.confirmationStatus || booking.confirmationStatus === 'none') {
+    booking.confirmationStatus = 'awaiting_start';
+  }
+  const endAt = resolveBookingEndDate(booking);
+  const autoReleaseAt = new Date(endAt.getTime() + CONFIRMATION_AUTO_RELEASE_MS);
+  booking.autoReleaseAt = autoReleaseAt;
+  booking.scheduledPayoutAt = autoReleaseAt;
 
-  if (isBookingPayoutDue(booking)) {
-    // Release window already elapsed → release now.
+  if (autoReleaseAt.getTime() <= Date.now()) {
+    // Service terminé depuis >48h (donnée legacy / résa passée) → release now.
+    booking.payoutStatus = 'scheduled';
     await booking.save();
     await processProviderPayoutForBooking(booking);
     return;
@@ -869,7 +890,7 @@ const schedulePayoutForBooking = async (booking) => {
   booking.payoutStatus = 'scheduled';
   await booking.save();
   logger.info(
-    `🗓️  Payout scheduled for booking ${booking._id.toString()} on ${booking.scheduledPayoutAt.toISOString()} (service-start policy v23.1.66).`
+    `🗓️  Payout (flux confirmation) programmé pour booking ${booking._id.toString()} le ${autoReleaseAt.toISOString()} (auto-release 48h après fin ; avancé si l'owner confirme).`,
   );
 };
 
@@ -1352,6 +1373,12 @@ const getMyBookings = async (req, res) => {
         id: sanitized.id,
         status: sanitized.status,
         paymentStatus: booking.paymentStatus || 'pending', // Include payment status
+        // v23.1.259 — état du flux de confirmation de service (pour afficher
+        // les bons boutons : démarrer / terminer / confirmer / litige).
+        confirmationStatus: booking.confirmationStatus || 'none',
+        serviceStartedAt: booking.serviceStartedAt || null,
+        serviceEndedAt: booking.serviceEndedAt || null,
+        autoReleaseAt: booking.autoReleaseAt || null,
         pets: pets.map(pet => {
           if (pet && typeof pet === 'object' && pet._id) {
             // Pet is populated, return full details
@@ -3993,6 +4020,12 @@ const processScheduledSitterPayouts = async () => {
   const dueBookings = await Booking.find({
     payoutStatus: 'scheduled',
     scheduledPayoutAt: { $lte: now },
+    // v23.1.259 — NE JAMAIS libérer un paiement en litige. L'owner a signalé
+    // un problème → résolution manuelle (remboursement / accord) requise. Les
+    // statuts de confirmation 'awaiting_start'/'in_progress' ne sont PAS
+    // exclus : leur scheduledPayoutAt = fin+48h n'est de toute façon pas
+    // encore atteint tant que le service n'est pas fini.
+    confirmationStatus: { $ne: 'disputed' },
   })
     .populate('ownerId')
     .populate('sitterId')
@@ -4029,6 +4062,8 @@ const processHeldPayouts = async () => {
   const heldBookings = await Booking.find({
     payoutStatus: 'held',
     paymentStatus: 'paid',
+    // v23.1.259 — ne jamais débloquer un paiement en litige.
+    confirmationStatus: { $ne: 'disputed' },
   })
     .populate('ownerId')
     .populate('sitterId')
@@ -4865,6 +4900,221 @@ const requestLiveTrackingByConversation = async (req, res) => {
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────
+// v23.1.259 — SYSTÈME DE CONFIRMATION DE SERVICE (Daniel)
+//
+// Flux validé :
+//   1. Le PROVIDER tape "J'ai récupéré l'animal" → startService (in_progress)
+//   2. Le PROVIDER tape "J'ai rendu l'animal"   → completeService
+//      (awaiting_confirmation, auto-release programmé à +48h)
+//   3. L'OWNER confirme                          → confirmService
+//      (confirmed → paiement libéré immédiatement)
+//      OU signale un problème                    → disputeService
+//      (disputed → paiement bloqué, résolution manuelle)
+//   Sécurité : si l'owner ne fait rien sous 48h, le scheduler existant
+//   libère le paiement automatiquement (scheduledPayoutAt = autoReleaseAt).
+// ──────────────────────────────────────────────────────────────────────────
+
+const _resolveConfirmProvider = (booking) => {
+  if (booking.walkerId) {
+    return { id: String(booking.walkerId), role: 'walker' };
+  }
+  if (booking.sitterId) {
+    return { id: String(booking.sitterId), role: 'sitter' };
+  }
+  return { id: null, role: null };
+};
+
+const _isBookingProviderUser = (booking, userId, userRole) =>
+  (userRole === 'sitter' && String(booking.sitterId) === String(userId)) ||
+  (userRole === 'walker' && String(booking.walkerId) === String(userId));
+
+// POST /bookings/:id/service/start — provider marque "J'ai récupéré l'animal".
+const startService = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (!_isBookingProviderUser(booking, userId, userRole)) {
+      return res.status(403).json({ error: 'Only the assigned provider can start the service.' });
+    }
+    if ((booking.paymentStatus || '').toLowerCase() !== 'paid') {
+      return res.status(409).json({ error: 'Booking is not paid.', code: 'BOOKING_NOT_PAID' });
+    }
+    if (['confirmed', 'disputed'].includes(booking.confirmationStatus)) {
+      return res.status(409).json({ error: 'Service already finalized.', confirmationStatus: booking.confirmationStatus });
+    }
+    booking.confirmationStatus = 'in_progress';
+    booking.serviceStartedAt = booking.serviceStartedAt || new Date();
+    await booking.save();
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      await sendNotification({
+        userId: String(booking.ownerId),
+        role: 'owner',
+        type: 'service_started',
+        data: {
+          bookingId: String(booking._id),
+          emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
+        },
+      });
+    } catch (e) { logger.warn('[startService] notif failed', e); }
+    return res.json({
+      success: true,
+      confirmationStatus: booking.confirmationStatus,
+      serviceStartedAt: booking.serviceStartedAt,
+    });
+  } catch (e) {
+    logger.error('[startService]', e);
+    return res.status(500).json({ error: 'Unable to start service.' });
+  }
+};
+
+// POST /bookings/:id/service/complete — provider marque "J'ai rendu l'animal".
+const completeService = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (!_isBookingProviderUser(booking, userId, userRole)) {
+      return res.status(403).json({ error: 'Only the assigned provider can complete the service.' });
+    }
+    if ((booking.paymentStatus || '').toLowerCase() !== 'paid') {
+      return res.status(409).json({ error: 'Booking is not paid.', code: 'BOOKING_NOT_PAID' });
+    }
+    if (['confirmed', 'disputed'].includes(booking.confirmationStatus)) {
+      return res.status(409).json({ error: 'Service already finalized.', confirmationStatus: booking.confirmationStatus });
+    }
+    booking.confirmationStatus = 'awaiting_confirmation';
+    booking.serviceEndedAt = new Date();
+    booking.autoReleaseAt = new Date(Date.now() + CONFIRMATION_AUTO_RELEASE_MS);
+    booking.scheduledPayoutAt = booking.autoReleaseAt;
+    if (booking.payoutStatus !== 'completed' && booking.payoutStatus !== 'processing') {
+      booking.payoutStatus = 'scheduled';
+    }
+    await booking.save();
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      await sendNotification({
+        userId: String(booking.ownerId),
+        role: 'owner',
+        type: 'service_completion_request',
+        data: {
+          bookingId: String(booking._id),
+          emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
+        },
+      });
+    } catch (e) { logger.warn('[completeService] notif failed', e); }
+    return res.json({
+      success: true,
+      confirmationStatus: booking.confirmationStatus,
+      serviceEndedAt: booking.serviceEndedAt,
+      autoReleaseAt: booking.autoReleaseAt,
+    });
+  } catch (e) {
+    logger.error('[completeService]', e);
+    return res.status(500).json({ error: 'Unable to complete service.' });
+  }
+};
+
+// POST /bookings/:id/service/confirm — owner confirme → libère le paiement.
+const confirmService = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (userRole !== 'owner' || String(booking.ownerId) !== String(userId)) {
+      return res.status(403).json({ error: 'Only the owner can confirm the service.' });
+    }
+    if (booking.confirmationStatus === 'confirmed') {
+      return res.json({ success: true, confirmationStatus: 'confirmed', alreadyConfirmed: true });
+    }
+    if (booking.confirmationStatus === 'disputed') {
+      return res.status(409).json({ error: 'Booking is under dispute.', confirmationStatus: 'disputed' });
+    }
+    booking.confirmationStatus = 'confirmed';
+    booking.ownerConfirmedAt = new Date();
+    // Libération immédiate : scheduledPayoutAt = maintenant.
+    booking.scheduledPayoutAt = new Date();
+    if (booking.payoutStatus !== 'completed' && booking.payoutStatus !== 'processing') {
+      booking.payoutStatus = 'scheduled';
+    }
+    await booking.save();
+    // Release now (best-effort ; le scheduler rattrape sinon).
+    try {
+      await processProviderPayoutForBooking(booking);
+    } catch (e) { logger.warn('[confirmService] payout release failed (scheduler will retry)', e); }
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      const prov = _resolveConfirmProvider(booking);
+      if (prov.id) {
+        await sendNotification({
+          userId: prov.id,
+          role: prov.role,
+          type: 'service_confirmed',
+          data: {
+            bookingId: String(booking._id),
+            emailLink: buildEmailLink('wallet'),
+          },
+        });
+      }
+    } catch (e) { logger.warn('[confirmService] notif failed', e); }
+    return res.json({ success: true, confirmationStatus: 'confirmed', ownerConfirmedAt: booking.ownerConfirmedAt });
+  } catch (e) {
+    logger.error('[confirmService]', e);
+    return res.status(500).json({ error: 'Unable to confirm service.' });
+  }
+};
+
+// POST /bookings/:id/service/dispute — owner signale un problème → bloque.
+const disputeService = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (userRole !== 'owner' || String(booking.ownerId) !== String(userId)) {
+      return res.status(403).json({ error: 'Only the owner can dispute the service.' });
+    }
+    if (booking.confirmationStatus === 'confirmed') {
+      return res.status(409).json({ error: 'Service already confirmed; payment released.' });
+    }
+    booking.confirmationStatus = 'disputed';
+    booking.disputedAt = new Date();
+    booking.disputeReason = (req.body?.reason || '').toString().slice(0, 500);
+    // Bloque le payout : le scheduler saute les 'disputed' (cf
+    // processScheduledSitterPayouts). On retire aussi la date programmée.
+    booking.scheduledPayoutAt = null;
+    await booking.save();
+    try {
+      const { sendNotification } = require('../services/notificationSender');
+      const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+      const prov = _resolveConfirmProvider(booking);
+      if (prov.id) {
+        await sendNotification({
+          userId: prov.id,
+          role: prov.role,
+          type: 'service_disputed',
+          data: {
+            bookingId: String(booking._id),
+            emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
+          },
+        });
+      }
+    } catch (e) { logger.warn('[disputeService] notif failed', e); }
+    return res.json({ success: true, confirmationStatus: 'disputed', disputedAt: booking.disputedAt });
+  } catch (e) {
+    logger.error('[disputeService]', e);
+    return res.status(500).json({ error: 'Unable to dispute service.' });
+  }
+};
+
 module.exports = {
   createBooking,
   listBookings,
@@ -4902,4 +5152,9 @@ module.exports = {
   respondToPawfollowRequest,
   // v23.1.182 — Suivre sans booking via conversation.
   requestLiveTrackingByConversation,
+  // v23.1.259 — Confirmation de service + libération paiement.
+  startService,
+  completeService,
+  confirmService,
+  disputeService,
 };

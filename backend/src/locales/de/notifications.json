@@ -280,5 +280,29 @@
     "body": "Die Abhebung ist fehlgeschlagen. Der Betrag wurde deiner Wallet zurückerstattet.",
     "emailSubject": "HoPetSit-Abhebung fehlgeschlagen",
     "emailBody": "<p>Die HoPetSit-Abhebung ist fehlgeschlagen. Grund: {{reason}}. Der Betrag wurde deiner Wallet zurückerstattet, du kannst es erneut versuchen.</p>"
+  },
+  "service_started": {
+    "title": "Service gestartet 🐾",
+    "body": "Dein Anbieter hat dein Tier abgeholt und den Service gestartet.",
+    "emailSubject": "Service gestartet — HoPetSit",
+    "emailBody": "<p>Gute Nachricht: dein Anbieter hat soeben dein Tier abgeholt und den Service gestartet.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "service_completion_request": {
+    "title": "Serviceende bestätigen",
+    "body": "Dein Anbieter gibt an, dein Tier zurückgegeben zu haben. Bestätige, dass alles gut lief, um die Zahlung freizugeben.",
+    "emailSubject": "Serviceende bestätigen — HoPetSit",
+    "emailBody": "<p>Dein Anbieter gibt an, dein Tier zurückgegeben zu haben. Bestätige, dass alles gut lief — das gibt die Zahlung frei. Ohne Antwort innerhalb von 48h wird sie automatisch freigegeben.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Bestätigen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "service_confirmed": {
+    "title": "Service bestätigt ✅",
+    "body": "Der Besitzer hat den Service bestätigt. Deine Zahlung wurde freigegeben.",
+    "emailSubject": "Service bestätigt — Zahlung freigegeben",
+    "emailBody": "<p>Der Besitzer hat bestätigt, dass alles gut lief. Deine Zahlung wurde an deine Wallet freigegeben.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Meine Wallet ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "service_disputed": {
+    "title": "Problem gemeldet",
+    "body": "Der Besitzer hat ein Problem mit diesem Service gemeldet. Die Zahlung ist bis zur Klärung zurückgehalten.",
+    "emailSubject": "Problem gemeldet — HoPetSit",
+    "emailBody": "<p>Der Besitzer hat ein Problem mit diesem Service gemeldet. Die Zahlung ist bis zur Klärung zurückgehalten. Kontaktiere ihn über den Chat.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   }
 }

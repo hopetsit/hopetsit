@@ -280,5 +280,29 @@
     "body": "L'annonce a été attribuée à un autre prestataire. Découvre d'autres opportunités !",
     "emailSubject": "Annonce pourvue — HoPetSit",
     "emailBody": "<p>L'annonce à laquelle tu as candidaté a été attribuée à un autre prestataire. D'autres opportunités sont disponibles.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir les annonces</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "service_started": {
+    "title": "Service démarré 🐾",
+    "body": "Ton prestataire vient de récupérer ton animal et a démarré le service.",
+    "emailSubject": "Service démarré — HoPetSit",
+    "emailBody": "<p>Bonne nouvelle : ton prestataire vient de récupérer ton animal et a démarré le service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "service_completion_request": {
+    "title": "Confirme la fin du service",
+    "body": "Ton prestataire indique avoir rendu ton animal. Confirme que tout s'est bien passé pour libérer le paiement.",
+    "emailSubject": "Confirme la fin du service — HoPetSit",
+    "emailBody": "<p>Ton prestataire indique avoir rendu ton animal. Confirme que tout s'est bien passé — cela libère le paiement. Sans réponse de ta part sous 48h, il sera libéré automatiquement.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Confirmer</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "service_confirmed": {
+    "title": "Service confirmé ✅",
+    "body": "Le propriétaire a confirmé la fin du service. Ton paiement est libéré.",
+    "emailSubject": "Service confirmé — paiement libéré",
+    "emailBody": "<p>Le propriétaire a confirmé que tout s'est bien passé. Ton paiement est libéré vers ton portefeuille.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir mon portefeuille</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "service_disputed": {
+    "title": "Problème signalé",
+    "body": "Le propriétaire a signalé un problème sur ce service. Le paiement est en attente de résolution.",
+    "emailSubject": "Problème signalé — HoPetSit",
+    "emailBody": "<p>Le propriétaire a signalé un problème sur ce service. Le paiement est suspendu en attendant une résolution. Contacte-le via le chat pour trouver un accord.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
   }
 }

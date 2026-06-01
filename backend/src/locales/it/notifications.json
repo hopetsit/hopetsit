@@ -280,5 +280,29 @@
     "body": "Il prelievo non è riuscito. Il saldo è stato ripristinato nel tuo portafoglio.",
     "emailSubject": "Prelievo HoPetSit non riuscito",
     "emailBody": "<p>Il prelievo HoPetSit non è riuscito. Motivo: {{reason}}. Il saldo è stato ripristinato nel tuo portafoglio, puoi riprovare.</p>"
+  },
+  "service_started": {
+    "title": "Servizio iniziato 🐾",
+    "body": "Il tuo prestatore ha preso il tuo animale e ha iniziato il servizio.",
+    "emailSubject": "Servizio iniziato — HoPetSit",
+    "emailBody": "<p>Buone notizie: il tuo prestatore ha appena preso il tuo animale e ha iniziato il servizio.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi prenotazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link: {{emailLink}}</p>"
+  },
+  "service_completion_request": {
+    "title": "Conferma la fine del servizio",
+    "body": "Il tuo prestatore indica di aver riportato il tuo animale. Conferma che è andato tutto bene per liberare il pagamento.",
+    "emailSubject": "Conferma la fine del servizio — HoPetSit",
+    "emailBody": "<p>Il tuo prestatore indica di aver riportato il tuo animale. Conferma che è andato tutto bene — questo libera il pagamento. Senza risposta entro 48h, verrà liberato automaticamente.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Conferma</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link: {{emailLink}}</p>"
+  },
+  "service_confirmed": {
+    "title": "Servizio confermato ✅",
+    "body": "Il proprietario ha confermato il servizio. Il tuo pagamento è stato liberato.",
+    "emailSubject": "Servizio confermato — pagamento liberato",
+    "emailBody": "<p>Il proprietario ha confermato che è andato tutto bene. Il tuo pagamento è stato liberato sul tuo portafoglio.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi il mio portafoglio</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link: {{emailLink}}</p>"
+  },
+  "service_disputed": {
+    "title": "Problema segnalato",
+    "body": "Il proprietario ha segnalato un problema su questo servizio. Il pagamento è sospeso in attesa di risoluzione.",
+    "emailSubject": "Problema segnalato — HoPetSit",
+    "emailBody": "<p>Il proprietario ha segnalato un problema su questo servizio. Il pagamento è sospeso in attesa di risoluzione. Contattalo via chat.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi prenotazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link: {{emailLink}}</p>"
   }
 }

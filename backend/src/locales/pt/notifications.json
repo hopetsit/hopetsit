@@ -280,5 +280,29 @@
     "body": "O levantamento falhou. O saldo foi restaurado na tua carteira.",
     "emailSubject": "Levantamento HoPetSit falhou",
     "emailBody": "<p>O levantamento HoPetSit falhou. Motivo: {{reason}}. O saldo foi restaurado na tua carteira, podes tentar novamente.</p>"
+  },
+  "service_started": {
+    "title": "Serviço iniciado 🐾",
+    "body": "O teu prestador recolheu o teu animal e iniciou o serviço.",
+    "emailSubject": "Serviço iniciado — HoPetSit",
+    "emailBody": "<p>Boas notícias: o teu prestador acabou de recolher o teu animal e iniciou o serviço.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "service_completion_request": {
+    "title": "Confirma o fim do serviço",
+    "body": "O teu prestador indica ter devolvido o teu animal. Confirma que correu tudo bem para libertar o pagamento.",
+    "emailSubject": "Confirma o fim do serviço — HoPetSit",
+    "emailBody": "<p>O teu prestador indica ter devolvido o teu animal. Confirma que correu tudo bem — isto liberta o pagamento. Sem resposta em 48h, será libertado automaticamente.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Confirmar</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "service_confirmed": {
+    "title": "Serviço confirmado ✅",
+    "body": "O dono confirmou o serviço. O teu pagamento foi libertado.",
+    "emailSubject": "Serviço confirmado — pagamento libertado",
+    "emailBody": "<p>O dono confirmou que correu tudo bem. O teu pagamento foi libertado para a tua carteira.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver a minha carteira</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "service_disputed": {
+    "title": "Problema reportado",
+    "body": "O dono reportou um problema neste serviço. O pagamento está retido até resolução.",
+    "emailSubject": "Problema reportado — HoPetSit",
+    "emailBody": "<p>O dono reportou um problema neste serviço. O pagamento está retido até resolução. Contacta-o pelo chat.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
   }
 }

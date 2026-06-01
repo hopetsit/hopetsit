@@ -280,5 +280,29 @@
     "body": "The listing was assigned to another provider. Find other opportunities!",
     "emailSubject": "Listing filled — HoPetSit",
     "emailBody": "<p>The listing you applied to was assigned to another provider. More opportunities are available.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Browse listings</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+  },
+  "service_started": {
+    "title": "Service started 🐾",
+    "body": "Your provider has picked up your pet and started the service.",
+    "emailSubject": "Service started — HoPetSit",
+    "emailBody": "<p>Good news: your provider just picked up your pet and started the service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+  },
+  "service_completion_request": {
+    "title": "Confirm service completion",
+    "body": "Your provider says they returned your pet. Confirm everything went well to release the payment.",
+    "emailSubject": "Confirm service completion — HoPetSit",
+    "emailBody": "<p>Your provider says they returned your pet. Confirm everything went well — this releases the payment. If you don't respond within 48h, it will be released automatically.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Confirm</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+  },
+  "service_confirmed": {
+    "title": "Service confirmed ✅",
+    "body": "The owner confirmed the service. Your payment has been released.",
+    "emailSubject": "Service confirmed — payment released",
+    "emailBody": "<p>The owner confirmed everything went well. Your payment has been released to your wallet.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View my wallet</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+  },
+  "service_disputed": {
+    "title": "Issue reported",
+    "body": "The owner reported an issue with this service. Payment is on hold pending resolution.",
+    "emailSubject": "Issue reported — HoPetSit",
+    "emailBody": "<p>The owner reported an issue with this service. Payment is on hold pending resolution. Contact them via chat to resolve it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   }
 }

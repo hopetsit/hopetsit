@@ -126,6 +126,37 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // v23.1.259 — Système de confirmation de service (Daniel) :
+    //   awaiting_start  : payé, le provider n'a pas encore démarré
+    //   in_progress     : le provider a tapé "J'ai récupéré l'animal"
+    //   awaiting_confirmation : le provider a tapé "J'ai rendu l'animal",
+    //                     l'owner doit confirmer (libère le paiement)
+    //   confirmed       : l'owner a confirmé → paiement libéré
+    //   disputed        : l'owner a signalé un problème → paiement bloqué
+    //   none            : bookings legacy (avant la feature) → ancien flux
+    // Le payout n'est libéré que sur 'confirmed' OU par l'auto-release 48h
+    // (scheduledPayoutAt = autoReleaseAt) ; jamais sur 'disputed'.
+    confirmationStatus: {
+      type: String,
+      enum: [
+        'none',
+        'awaiting_start',
+        'in_progress',
+        'awaiting_confirmation',
+        'confirmed',
+        'disputed',
+      ],
+      default: 'none',
+      index: true,
+    },
+    serviceStartedAt: { type: Date, default: null },
+    serviceEndedAt: { type: Date, default: null },
+    ownerConfirmedAt: { type: Date, default: null },
+    // Date à laquelle le paiement est auto-libéré si l'owner ne confirme pas
+    // (= fin de service + 48h ; recalculée quand le provider marque "rendu").
+    autoReleaseAt: { type: Date, default: null },
+    disputeReason: { type: String, default: null },
+    disputedAt: { type: Date, default: null },
     // Self-cancellation (72h window)
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: ['owner', 'sitter', null], default: null },
