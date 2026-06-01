@@ -194,6 +194,13 @@ class SitterChatController extends GetxController {
       // pour que les messages arrivent instantanement meme apres un
       // background → foreground (cf chat_controller.dart pour explication).
       void wireListeners() {
+        // v23.1.258 — re-(join) la conversation à CHAQUE connexion : sinon, si
+        // le socket n'était pas encore connecté au loadChatMessages, le client
+        // n'entre jamais dans la room → messages/demandes pas reçus en direct
+        // (il fallait rafraîchir). Cf chat_controller pour le détail.
+        if (currentChatId.value.isNotEmpty) {
+          _socketService.joinConversation(currentChatId.value);
+        }
         _socketService.onNewMessage((messageData) {
           _handleNewMessage(messageData);
         });

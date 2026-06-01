@@ -192,6 +192,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     _friendController = Get.isRegistered<FriendController>()
         ? Get.find<FriendController>()
         : Get.put(FriendController());
+    // v23.1.258 — Daniel : "le badge 1 des demandes d'amis n'apparaît pas".
+    // Si le FriendController existait déjà (onInit pas relancé), son
+    // incomingRequests pouvait être périmé/vide → badge à 0. On force un
+    // refresh à l'ouverture de la PawMap pour que le compteur (et donc le
+    // badge sur le bouton "Famille & Amis") soit à jour.
+    unawaited(_friendController.refresh());
     // v23.1 part 244d — Daniel : "jai ajouter un walker a ma famille son
     // halo ne cest pas changer". Root cause : la PawMap ne chargait pas
     // la liste famille au mount → familyMembers.isEmpty → isFamily=false

@@ -210,6 +210,18 @@ class ChatController extends GetxController {
       // que l'user reouvre le chat. Fix : on enregistre les listeners
       // via addOnConnectedHook → garanti re-attachement a chaque connect.
       void wireListeners() {
+        // v23.1.258 — Daniel : "les messages et la demande ne sont pas
+        // instantanés, je dois rafraîchir la page". CAUSE : on ré-attachait
+        // bien les listeners à chaque (re)connexion, MAIS on ne RE-REJOIGNAIT
+        // PAS la room de conversation. Or joinConversation() est skippé si le
+        // socket n'est pas encore connecté au moment du loadChatMessages
+        // (connect() est async, _isConnected encore false juste après) → le
+        // client n'entre jamais dans la room `conversationId` → les
+        // `message:new` émis vers cette room ne lui arrivent jamais en direct.
+        // FIX : on (re)joint la conversation courante à CHAQUE connexion.
+        if (currentChatId.value.isNotEmpty) {
+          _socketService.joinConversation(currentChatId.value);
+        }
         _socketService.onNewMessage((messageData) {
           _handleNewMessage(messageData);
         });

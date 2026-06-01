@@ -12,7 +12,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:hopetsit/services/location_service.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -287,15 +287,17 @@ class ReportCategoryGridScreen extends StatelessWidget {
           // appliquait deja le fix, mais cette grid avait son propre
           // fallback (0,0) toxique. Si pas de GPS, on refuse la creation
           // au lieu de stocker un fantome.
+          // v23.1.258 — Daniel : "les signalements ne marchent pas". CAUSE :
+          // on capturait le GPS via Geolocator.getCurrentPosition (timeout 8s)
+          // SANS fallback → si le GPS était lent/indispo (intérieur, cold
+          // start), point==null → erreur "pas de GPS" → impossible de
+          // signaler. FIX : LocationService (getLastKnownPosition INSTANTANÉ
+          // en fallback + getCurrentPosition medium) — même robustesse que la
+          // PawMap, qui a déjà ta position.
           LatLng? point;
           try {
-            final pos = await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.high,
-                timeLimit: Duration(seconds: 8),
-              ),
-            );
-            point = LatLng(pos.latitude, pos.longitude);
+            final pos = await LocationService().getCurrentLocation();
+            if (pos != null) point = LatLng(pos.latitude, pos.longitude);
           } catch (_) {/* point reste null */}
           if (point == null || (point.latitude == 0 && point.longitude == 0)) {
             if (!context.mounted) return;
