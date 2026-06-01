@@ -1345,9 +1345,18 @@ router.post('/family/invite-member', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid userRole.' });
     }
     const now = new Date();
+    // v23.1.264 — Daniel : "erreur FAMILY_PLAN_REQUIRED alors que j'ai le
+    // PawFollow Famille actif". Cause racine : ces endpoints d'invitation
+    // filtraient sur userModel: user.model (casse exacte) alors que
+    // GET /family/members (qui affiche "Famille actif · 2/5") accepte aussi
+    // la variante minuscule via $in. Si user.model et le userModel stocké
+    // diffèrent en casse (selon le chemin d'auth / un ancien doc), l'invite
+    // ne trouvait pas la sub → 403 trompeur. On aligne EXACTEMENT sur la
+    // requête de /family/members pour garantir la cohérence.
+    const userModelVariants = [user.model, String(user.model).toLowerCase()];
     const sub = await UserSubscription.findOne({
       userId: user.id,
-      userModel: user.model,
+      userModel: { $in: userModelVariants },
       plan: 'famille',
       status: 'active',
       currentPeriodEnd: { $gt: now },
@@ -1436,9 +1445,18 @@ router.post('/family/invite-by-email', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Valid email required.' });
     }
     const now = new Date();
+    // v23.1.264 — Daniel : "erreur FAMILY_PLAN_REQUIRED alors que j'ai le
+    // PawFollow Famille actif". Cause racine : ces endpoints d'invitation
+    // filtraient sur userModel: user.model (casse exacte) alors que
+    // GET /family/members (qui affiche "Famille actif · 2/5") accepte aussi
+    // la variante minuscule via $in. Si user.model et le userModel stocké
+    // diffèrent en casse (selon le chemin d'auth / un ancien doc), l'invite
+    // ne trouvait pas la sub → 403 trompeur. On aligne EXACTEMENT sur la
+    // requête de /family/members pour garantir la cohérence.
+    const userModelVariants = [user.model, String(user.model).toLowerCase()];
     const sub = await UserSubscription.findOne({
       userId: user.id,
-      userModel: user.model,
+      userModel: { $in: userModelVariants },
       plan: 'famille',
       status: 'active',
       currentPeriodEnd: { $gt: now },

@@ -22,12 +22,10 @@ import 'package:hopetsit/widgets/app_text.dart';
 ///     disputed             → "Litige en cours"
 ///
 /// Ne s'affiche que pour les réservations PAYÉES (le flux ne concerne que
-/// l'argent en séquestre). v23.1.262 — pour `confirmationStatus == 'none'`
-/// (bookings LEGACY payés avant la feature, souvent déjà terminés) on MASQUE
-/// entièrement la carte : sinon les anciennes réservations affichaient
-/// « Service pas encore démarré » alors qu'elles sont finies (Daniel). Les
-/// réservations passées par le nouveau flux reçoivent `awaiting_start` côté
-/// backend dès le paiement → la carte s'affiche normalement.
+/// l'argent en séquestre). Pour `confirmationStatus == 'none'` (bookings
+/// payés avant que le backend ne pose 'awaiting_start') on traite comme
+/// `awaiting_start` côté provider → le prestataire peut démarrer le service
+/// et le système reste visible sur toute réservation payée.
 class ServiceConfirmationCard extends StatelessWidget {
   const ServiceConfirmationCard({
     super.key,
@@ -58,10 +56,13 @@ class ServiceConfirmationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isPaid) return const SizedBox.shrink();
     final st = _status;
-    // v23.1.262 — bookings legacy (payés avant la feature) : confirmationStatus
-    // reste 'none' et n'entrera jamais dans le flux → on masque la carte pour
-    // ne pas afficher « Service pas encore démarré » sur des services finis.
-    if (st == 'none') return const SizedBox.shrink();
+    // v23.1.264 — Daniel : "pourquoi je n'ai plus le système de confirmation
+    // dans réservations ?". En v262 on masquait la carte pour
+    // confirmationStatus=='none', mais ses réservations (payées avant que le
+    // backend ne pose 'awaiting_start') valent 'none' → la carte disparaissait
+    // complètement. On REVIENT là-dessus : 'none' est traité comme
+    // 'awaiting_start' (le prestataire peut démarrer le service) → le système
+    // reste visible et utilisable sur toute réservation payée.
 
     return Container(
       width: double.infinity,
