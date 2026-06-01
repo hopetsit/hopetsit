@@ -1109,6 +1109,47 @@ const switchRole = async (req, res) => {
     await TargetModel.updateOne({ _id: newUser._id }, updateOps);
     newUser = await TargetModel.findById(newUser._id);
 
+    // v23.1.260 — Daniel : "si un ami change son profil en walker/sitter, il
+    // doit RESTER dans ma liste d'amis". CAUSE : switchRole supprime l'ancien
+    // doc (ci-dessous) → toutes les amitiés/conversations qui le référençaient
+    // pointaient vers un doc supprimé → l'ami disparaissait des listes des
+    // autres. FIX : on MIGRE le graphe social (amitiés + chats amis) de
+    // l'ancien doc (userId, currentRole) vers le nouveau (newUser._id,
+    // targetRole) AVANT de supprimer l'ancien doc. Les bookings/avis NE sont
+    // PAS migrés (ils restent liés au rôle d'origine).
+    try {
+      const Friendship = require('../models/Friendship');
+      const Conversation = require('../models/Conversation');
+      const cap = (r) => r.charAt(0).toUpperCase() + r.slice(1); // owner→Owner
+      const oldModelName = cap(currentRole);
+      const newModelName = cap(targetRole);
+      // Amitiés : que je sois requester ou addressee.
+      await Friendship.updateMany(
+        { requesterId: userId, requesterModel: oldModelName },
+        { $set: { requesterId: newUser._id, requesterModel: newModelName } },
+      );
+      await Friendship.updateMany(
+        { addresseeId: userId, addresseeModel: oldModelName },
+        { $set: { addresseeId: newUser._id, addresseeModel: newModelName } },
+      );
+      // Conversations friendChat : repointer le participant.
+      await Conversation.updateMany(
+        { friendChat: true, 'participants.userId': userId },
+        {
+          $set: {
+            'participants.$[p].userId': newUser._id,
+            'participants.$[p].userModel': newModelName,
+          },
+        },
+        { arrayFilters: [{ 'p.userId': userId }] },
+      );
+      logger.info(
+        `[switchRole] graphe social migré ${oldModelName}:${userId} → ${newModelName}:${newUser._id}`,
+      );
+    } catch (migErr) {
+      logger.warn('[switchRole] migration graphe social échouée (non bloquant)', migErr);
+    }
+
     // Delete old user from the correct collection.
     const OldModel = ROLE_MODELS[currentRole];
     if (OldModel) {
