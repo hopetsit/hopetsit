@@ -116,6 +116,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   final RxBool _showFriends = true.obs;
   final RxBool _showRequests = true.obs;
 
+  // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la trace".
+  // Mode SUIVI LIVE : quand on tape un ami sur la carte (ou qu'on ouvre la map
+  // en "voir la balade" depuis un chat), on zoome au plus près et la caméra
+  // RECENTRE automatiquement à chaque nouvelle position socket
+  // (map:friend-position). `_followUserId == null` ⇒ pas de suivi.
+  // `_suppressFollowAutoStop` = true pendant NOS propres animations caméra,
+  // pour ne pas confondre un recentrage auto avec un drag manuel de l'user.
+  String? _followUserId;
+  String _followName = '';
+  bool _suppressFollowAutoStop = false;
+  Worker? _followWorker;
+  static const double _followZoom = 18.0;
+
   /// Nearby reservation requests for the sitter/walker layer. Fetched in
   /// `_reloadAtCenter()` via `/posts/requests/nearby`. Empty for owner role.
   final RxList<NearbyRequestPost> _requests = <NearbyRequestPost>[].obs;
@@ -236,6 +249,28 @@ class _PawMapScreenState extends State<PawMapScreen>
         at: DateTime.now(),
       );
     }
+
+    // v23.1.263 — si on ouvre la PawMap pour "suivre" quelqu'un (focusUserId
+    // passé depuis un chat / "voir la balade"), on entre directement en mode
+    // suivi : la caméra restera collée à sa position.
+    if ((widget.focusUserId ?? '').isNotEmpty) {
+      _followUserId = widget.focusUserId;
+      _followName = widget.focusUserName ?? '';
+    }
+    // v23.1.263 — Worker de SUIVI "à la trace". Dès qu'une nouvelle position
+    // arrive pour l'ami suivi (socket map:friend-position → friendPositions),
+    // on recentre la caméra dessus. C'est ce qui manquait : avant, le marker
+    // (une fois le cache corrigé) bougeait, mais la caméra restait figée.
+    _followWorker = ever<Map<String, FriendPosition>>(
+      _liveMap.friendPositions,
+      (positions) {
+        final uid = _followUserId;
+        if (uid == null) return;
+        final fp = positions[uid];
+        if (fp == null) return;
+        _animateFollowCamera(LatLng(fp.latitude, fp.longitude));
+      },
+    );
 
     // v23.1 part 240 — Daniel : "et tu sur que dans le chat qd je met voir
     // carte sa me met sur le map sur la geoloco du sitter ou walker ?".
@@ -366,6 +401,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     WidgetsBinding.instance.removeObserver(this);
     _reloadDebounce?.cancel();
     _haloTimer?.cancel();
+    _followWorker?.dispose();
     _liveMap.stopBroadcasting();
     _cityCtrl.dispose();
     super.dispose();
@@ -1121,6 +1157,15 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showReports.value ? 1 : 0,
       _emojiMarkersReady ? 1 : 0,
       _liveMap.friendPositions.length,
+      // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la
+      // trace". La clé n'incluait que le NOMBRE d'amis → un ami qui se
+      // déplace (même nombre) ne réinvalidait pas le cache → marker FIGÉ.
+      // On ajoute une signature des coordonnées (5 décimales ≈ 1 m) : le
+      // marker bouge désormais en temps réel à chaque position socket.
+      _liveMap.friendPositions.values
+          .map((p) =>
+              '${p.latitude.toStringAsFixed(5)},${p.longitude.toStringAsFixed(5)}')
+          .join('|'),
       _requests.length,
       _showRequests.value ? 1 : 0,
       _showFriends.value ? 1 : 0,
@@ -1309,6 +1354,13 @@ class _PawMapScreenState extends State<PawMapScreen>
               snippet: isFamily
                   ? '${'pawmap_quick_family'.tr} · ${_timeAgo(pos.at)}'
                   : 'Vu il y a ${_timeAgo(pos.at)}',
+            ),
+            // v23.1.263 — taper un ami = zoom au plus près + suivi "à la
+            // trace" : la caméra reste collée à lui à chaque nouvelle position.
+            onTap: () => _startFollow(
+              pos.userId,
+              LatLng(pos.latitude, pos.longitude),
+              displayName,
             ),
           ),
         );
@@ -1674,14 +1726,28 @@ class _PawMapScreenState extends State<PawMapScreen>
                         final lat = widget.initialLat;
                         final lng = widget.initialLng;
                         if (lat != null && lng != null) {
+                          // v23.1.263 — si on ouvre en mode suivi (focusUserId),
+                          // on zoome au plus près directement.
+                          final z = (widget.focusUserId ?? '').isNotEmpty
+                              ? _followZoom
+                              : 16.0;
                           c.animateCamera(
                             CameraUpdate.newCameraPosition(
-                              CameraPosition(target: LatLng(lat, lng), zoom: 16),
+                              CameraPosition(target: LatLng(lat, lng), zoom: z),
                             ),
                           );
                         }
                       },
                       onCameraMove: _onCameraMove,
+                      // v23.1.263 — un drag MANUEL de la carte coupe le suivi
+                      // (sauf si c'est NOUS qui recentrons la caméra : flag
+                      // _suppressFollowAutoStop). L'user reprend la main quand
+                      // il veut, et retape l'ami pour resuivre.
+                      onCameraMoveStarted: () {
+                        if (_followUserId != null && !_suppressFollowAutoStop) {
+                          _stopFollow();
+                        }
+                      },
                       onCameraIdle: _scheduleReload,
                       myLocationEnabled: true,
                       // v23.1 part 68 — Daniel : "cest derriere le bouton ma
@@ -1742,6 +1808,16 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ),
                   );
                 }),
+
+                // v23.1.263 — bannière "Suivi en direct" : visible tant qu'on
+                // suit un ami à la trace. Bouton Stop pour reprendre la main.
+                if (_followUserId != null)
+                  Positioned(
+                    top: 12.h,
+                    left: 12.w,
+                    right: 12.w,
+                    child: Center(child: _buildFollowingBanner()),
+                  ),
 
                 // v19.1.3 — compact upsell pins in the LEFT corner so they
                 // stop covering the map (users complained the wide banner at
@@ -1922,16 +1998,126 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+  // ─── Suivi live d'un ami (v23.1.263) ────────────────────────────────────
+  /// Recentre la caméra sur [target]. Marque le mouvement comme "programmatique"
+  /// pendant ~800 ms pour que onCameraMoveStarted ne coupe pas le suivi.
+  Future<void> _animateFollowCamera(LatLng target, {double? zoom}) async {
+    if (!_mapCtl.isCompleted) return;
+    final ctl = await _mapCtl.future;
+    _suppressFollowAutoStop = true;
+    try {
+      if (zoom != null) {
+        await ctl.animateCamera(CameraUpdate.newLatLngZoom(target, zoom));
+      } else {
+        // newLatLng conserve le zoom courant → suivi fluide sans re-zoomer.
+        await ctl.animateCamera(CameraUpdate.newLatLng(target));
+      }
+    } catch (_) {/* map pas prête */}
+    Future.delayed(const Duration(milliseconds: 800), () {
+      _suppressFollowAutoStop = false;
+    });
+  }
+
+  /// Démarre le suivi d'un ami : zoom au plus près + recentrage auto ensuite.
+  void _startFollow(String userId, LatLng pos, String name) {
+    setState(() {
+      _followUserId = userId;
+      _followName = name;
+    });
+    _animateFollowCamera(pos, zoom: _followZoom);
+  }
+
+  /// Arrête le suivi (bouton Stop ou drag manuel de la carte).
+  void _stopFollow() {
+    if (_followUserId == null) return;
+    setState(() {
+      _followUserId = null;
+      _followName = '';
+    });
+  }
+
+  /// Bannière "Suivi en direct" affichée tant qu'on suit un ami à la trace.
+  Widget _buildFollowingBanner() {
+    final name = _followName.trim().isEmpty
+        ? 'pawmap_following_default'.tr
+        : _followName.trim();
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
+      decoration: BoxDecoration(
+        color: AppColors.primaryColor,
+        borderRadius: BorderRadius.circular(24.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 9.w,
+            height: 9.w,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Flexible(
+            child: InterText(
+              text: 'pawmap_following_label'.trParams({'name': name}),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              maxLines: 1,
+            ),
+          ),
+          SizedBox(width: 10.w),
+          GestureDetector(
+            onTap: _stopFollow,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: InterText(
+                text: 'pawmap_following_stop'.tr,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _zoomIn() async {
     if (!_mapCtl.isCompleted) return;
     final ctl = await _mapCtl.future;
+    // Zoomer ne doit pas couper le suivi en cours.
+    if (_followUserId != null) _suppressFollowAutoStop = true;
     await ctl.animateCamera(CameraUpdate.zoomIn());
+    if (_followUserId != null) {
+      Future.delayed(const Duration(milliseconds: 800),
+          () => _suppressFollowAutoStop = false);
+    }
   }
 
   Future<void> _zoomOut() async {
     if (!_mapCtl.isCompleted) return;
     final ctl = await _mapCtl.future;
+    if (_followUserId != null) _suppressFollowAutoStop = true;
     await ctl.animateCamera(CameraUpdate.zoomOut());
+    if (_followUserId != null) {
+      Future.delayed(const Duration(milliseconds: 800),
+          () => _suppressFollowAutoStop = false);
+    }
   }
 
   /// Recenters the GoogleMap camera on the user's current GPS location.
