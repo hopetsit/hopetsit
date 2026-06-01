@@ -5,6 +5,9 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
+import 'package:hopetsit/widgets/service_confirmation_card.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -29,6 +32,47 @@ class WalkerBookingsScreen extends StatefulWidget {
 class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
   // Same colour as walker price-block in PetPostCard / PaymentPage v17d.
   static const Color _walkerAccent = Color(0xFF16A34A);
+
+  // v23.1.260 — confirmation de service (côté walker).
+  String? _busySvcId;
+
+  Future<void> _onServiceStart(BookingModel booking) async {
+    setState(() => _busySvcId = booking.id);
+    try {
+      await Get.find<WalkerRepository>().startService(bookingId: booking.id);
+      CustomSnackbar.showSuccess(
+        title: 'service_started_snack_title'.tr,
+        message: 'service_started_snack_msg'.tr,
+      );
+      await _bookingsController.loadBookings();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _busySvcId = null);
+    }
+  }
+
+  Future<void> _onServiceComplete(BookingModel booking) async {
+    setState(() => _busySvcId = booking.id);
+    try {
+      await Get.find<WalkerRepository>().completeService(bookingId: booking.id);
+      CustomSnackbar.showSuccess(
+        title: 'service_completed_snack_title'.tr,
+        message: 'service_completed_snack_msg'.tr,
+      );
+      await _bookingsController.loadBookings();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _busySvcId = null);
+    }
+  }
 
   late WalkerBookingsController _bookingsController;
   String _selectedStatus = 'all';
@@ -345,6 +389,18 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
               ),
             ),
           ],
+          // v23.1.260 — carte de confirmation de service dans la liste walker.
+          if ((booking.paymentStatus?.toLowerCase() == 'paid') &&
+              booking.status.toLowerCase() != 'cancelled' &&
+              booking.status.toLowerCase() != 'refunded')
+            ServiceConfirmationCard(
+              confirmationStatus: booking.confirmationStatus,
+              role: 'walker',
+              isPaid: true,
+              busy: _busySvcId == booking.id,
+              onStart: () => _onServiceStart(booking),
+              onComplete: () => _onServiceComplete(booking),
+            ),
         ],
       ),
     );

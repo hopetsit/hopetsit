@@ -221,6 +221,25 @@ class WalkerRepository {
   }
 
   /// DELETE /bookings/:id/self-cancel — 72h self-cancellation window.
+  /// v23.1.260 — Confirmation de service (côté walker).
+  Future<Map<String, dynamic>> startService({required String bookingId}) async {
+    final r = await _apiClient.post(
+      '${ApiEndpoints.bookings}/$bookingId/service/start',
+      body: const <String, dynamic>{},
+      requiresAuth: true,
+    );
+    return _asMap(r);
+  }
+
+  Future<Map<String, dynamic>> completeService({required String bookingId}) async {
+    final r = await _apiClient.post(
+      '${ApiEndpoints.bookings}/$bookingId/service/complete',
+      body: const <String, dynamic>{},
+      requiresAuth: true,
+    );
+    return _asMap(r);
+  }
+
   Future<Map<String, dynamic>> selfCancelBooking({
     required String bookingId,
     String? reason,

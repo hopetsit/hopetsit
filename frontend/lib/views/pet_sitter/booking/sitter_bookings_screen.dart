@@ -5,6 +5,9 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/widgets/service_confirmation_card.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/utils/pricing_display_helper.dart';
@@ -22,6 +25,46 @@ class SitterBookingsScreen extends StatefulWidget {
 
 class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
   late SitterBookingsController _bookingsController;
+  // v23.1.260 — id du booking dont l'action service est en cours.
+  String? _busySvcId;
+
+  Future<void> _onServiceStart(BookingModel booking) async {
+    setState(() => _busySvcId = booking.id);
+    try {
+      await Get.find<SitterRepository>().startService(bookingId: booking.id);
+      CustomSnackbar.showSuccess(
+        title: 'service_started_snack_title'.tr,
+        message: 'service_started_snack_msg'.tr,
+      );
+      await _bookingsController.loadBookings();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _busySvcId = null);
+    }
+  }
+
+  Future<void> _onServiceComplete(BookingModel booking) async {
+    setState(() => _busySvcId = booking.id);
+    try {
+      await Get.find<SitterRepository>().completeService(bookingId: booking.id);
+      CustomSnackbar.showSuccess(
+        title: 'service_completed_snack_title'.tr,
+        message: 'service_completed_snack_msg'.tr,
+      );
+      await _bookingsController.loadBookings();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _busySvcId = null);
+    }
+  }
   String? _selectedStatus;
   // v18.7 — couleur d'accent sitter (bleu) pour cohérence avec le reste
   // de l'app. Les 3 écrans Réservations (owner/sitter/walker) utilisent
@@ -393,6 +436,18 @@ class _SitterBookingsScreenState extends State<SitterBookingsScreen> {
 
           // Action Buttons
           _buildActionButtons(booking),
+          // v23.1.260 — carte de confirmation de service dans la liste.
+          if ((booking.paymentStatus?.toLowerCase() == 'paid') &&
+              booking.status.toLowerCase() != 'cancelled' &&
+              booking.status.toLowerCase() != 'refunded')
+            ServiceConfirmationCard(
+              confirmationStatus: booking.confirmationStatus,
+              role: 'sitter',
+              isPaid: true,
+              busy: _busySvcId == booking.id,
+              onStart: () => _onServiceStart(booking),
+              onComplete: () => _onServiceComplete(booking),
+            ),
         ],
       ),
     );
