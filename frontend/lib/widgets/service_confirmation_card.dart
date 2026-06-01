@@ -22,8 +22,12 @@ import 'package:hopetsit/widgets/app_text.dart';
 ///     disputed             → "Litige en cours"
 ///
 /// Ne s'affiche que pour les réservations PAYÉES (le flux ne concerne que
-/// l'argent en séquestre). Pour `confirmationStatus == 'none'` (bookings
-/// legacy) on traite comme `awaiting_start` côté provider.
+/// l'argent en séquestre). v23.1.262 — pour `confirmationStatus == 'none'`
+/// (bookings LEGACY payés avant la feature, souvent déjà terminés) on MASQUE
+/// entièrement la carte : sinon les anciennes réservations affichaient
+/// « Service pas encore démarré » alors qu'elles sont finies (Daniel). Les
+/// réservations passées par le nouveau flux reçoivent `awaiting_start` côté
+/// backend dès le paiement → la carte s'affiche normalement.
 class ServiceConfirmationCard extends StatelessWidget {
   const ServiceConfirmationCard({
     super.key,
@@ -54,6 +58,10 @@ class ServiceConfirmationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isPaid) return const SizedBox.shrink();
     final st = _status;
+    // v23.1.262 — bookings legacy (payés avant la feature) : confirmationStatus
+    // reste 'none' et n'entrera jamais dans le flux → on masque la carte pour
+    // ne pas afficher « Service pas encore démarré » sur des services finis.
+    if (st == 'none') return const SizedBox.shrink();
 
     return Container(
       width: double.infinity,

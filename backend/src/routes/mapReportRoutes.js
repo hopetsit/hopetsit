@@ -29,7 +29,11 @@ const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' 
  * ont été ajoutés à REPORT_TYPES (dead_animal, trap, poison, stray_pet,
  * construction). See also frontend gating in CreateReportSheet.
  */
-const FREE_REPORT_TYPES = ['lost_pet', 'aggressive_dog', 'water_active'];
+// v3.4 — DOIT rester synchronisé avec frontend ReportTypes.freeTypes
+// (map_report_model.dart) : aggressive_dog, hazard, water_active, dead_animal.
+// Avant, hazard et dead_animal étaient présentés comme gratuits côté app mais
+// renvoyaient 402 côté backend → "Envío imposible" pour les free users.
+const FREE_REPORT_TYPES = ['aggressive_dog', 'hazard', 'water_active', 'dead_animal'];
 
 function parseFloatOr(value, fallback) {
   const n = parseFloat(value);

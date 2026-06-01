@@ -336,35 +336,50 @@ class ReportCategoryGridScreen extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 34.w,
-                    height: 34.w,
-                    decoration: BoxDecoration(
-                      color: cat.color,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: cat.color.withValues(alpha: 0.40),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+              // v23.1.262 — Daniel : "recentrer les icônes". Avant, le bloc
+              // icône+label était centré dans la tuile, mais comme certains
+              // labels tiennent sur 1 ligne et d'autres sur 2, la hauteur du
+              // bloc variait → les icônes n'étaient pas alignées entre elles.
+              // Fix : Positioned.fill (le Column occupe toute la tuile) +
+              // hauteur de label FIXE (2 lignes réservées) → chaque icône est
+              // exactement au même niveau, peu importe la longueur du label.
+              Positioned.fill(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 34.w,
+                      height: 34.w,
+                      decoration: BoxDecoration(
+                        color: cat.color,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: cat.color.withValues(alpha: 0.40),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(cat.icon, color: Colors.white, size: 16.sp),
                     ),
-                    child: Icon(cat.icon, color: Colors.white, size: 16.sp),
-                  ),
-                  SizedBox(height: 5.h),
-                  InterText(
-                    text: cat.labelKey.tr,
-                    fontSize: 9.sp,
-                    fontWeight: FontWeight.w700,
-                    color: cat.color,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                  ),
-                ],
+                    SizedBox(height: 6.h),
+                    SizedBox(
+                      height: 24.h,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: InterText(
+                          text: cat.labelKey.tr,
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.w700,
+                          color: cat.color,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (!isFree)
                 Positioned(

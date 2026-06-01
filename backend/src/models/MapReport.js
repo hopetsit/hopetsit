@@ -37,6 +37,16 @@ const REPORT_TYPES = [
   'poison',            // appât empoisonné / suspect
   'stray_pet',         // animal errant (sans collier, sans propriétaire visible)
   'construction',      // zone de travaux dangereuse pour les animaux
+  // Session v3.4 — 7 nouveaux types Premium (sécurité étendue). DOIT rester
+  // synchronisé avec frontend ReportTypes.all (map_report_model.dart) sinon
+  // POST /map-reports renvoie 400 "Invalid type" → "Envío imposible".
+  'busy_traffic',      // trafic dense / route dangereuse
+  'fire_smoke',        // incendie / fumée
+  'flood',             // inondation
+  'fallen_tree',       // arbre tombé / obstacle
+  'chemical',          // produits chimiques / déversement
+  'wildlife',          // faune sauvage (sanglier, serpent…)
+  'no_dogs_zone',      // zone interdite aux chiens
 ];
 
 const REPORT_TTL_MS = 48 * 60 * 60 * 1000; // 48h

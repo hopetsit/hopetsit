@@ -1,14 +1,11 @@
-/// Sprint 8 step 3 — Privacy Policy in 6 languages.
+/// Privacy Policy in 6 languages (en/fr/es/de/it/pt).
 ///
-/// AI-DRAFTED FIRST PASS — MUST BE REVIEWED BY A QUALIFIED LAWYER.
+/// Internal note: review with qualified legal counsel before relying on these.
 library;
 
 const String privacyVersion = '1.0';
 
 const String _privacyEn = r"""
-⚠️ AI-DRAFTED: first pass to satisfy Play Store / App Store requirements.
-MUST be reviewed by a qualified lawyer before production use.
-
 # HopeTSIT — Privacy Policy
 
 Version 1.0
@@ -21,7 +18,7 @@ Version 1.0
 
 - **Account data**: name, email, password (hashed), phone, country, language, avatar.
 - **Pet profile data**: breed, age, vaccinations, behaviour, veterinarians, authorisations.
-- **Booking / payment data**: history, amounts, commissions. Card details are tokenised by Stripe; we never see the full card number.
+- **Booking / payment data**: history, amounts, commissions. Card details are tokenised by Airwallex (PCI-DSS Level 1); we never see the full card number.
 - **Location data**: GPS coordinates (for "near me" discovery and live walk tracking — sitter side only, during active walks).
 - **Content**: posts, messages, photos.
 - **Technical data**: device type, OS, IP address, crash logs, FCM tokens.
@@ -41,7 +38,7 @@ Version 1.0
 
 ## 4. Sharing with third parties (sub-processors)
 
-- **Stripe** (Ireland / US): payment processing.
+- **Airwallex** (UK / Hong Kong): payment processing (PCI-DSS Level 1 certified).
 - **Firebase / Google LLC** (US): authentication, push notifications, crash reporting, analytics.
 - **Cloudinary** (US): media storage.
 - **MongoDB Atlas** (US / EU): database hosting.
@@ -85,9 +82,6 @@ For any privacy request: **hopetsit@gmail.com**.
 """;
 
 const String _privacyFr = r"""
-⚠️ RÉDIGÉ PAR IA : premier jet conforme aux exigences Play Store / App Store.
-DOIT être relu par un avocat qualifié avant mise en production.
-
 # HopeTSIT — Politique de confidentialité
 
 Version 1.0
@@ -100,7 +94,7 @@ Version 1.0
 
 - **Données de compte** : nom, email, mot de passe (haché), téléphone, pays, langue, avatar.
 - **Profil animal** : race, âge, vaccinations, comportement, vétérinaires, autorisations.
-- **Données de réservation / paiement** : historique, montants, commissions. Les détails de carte sont tokenisés par Stripe ; le numéro complet ne nous parvient jamais.
+- **Données de réservation / paiement** : historique, montants, commissions. Les détails de carte sont tokenisés par Airwallex (PCI-DSS Niveau 1) ; le numéro complet ne nous parvient jamais.
 - **Données de localisation** : coordonnées GPS (pour le « près de chez moi » et le suivi de promenade en temps réel côté petsitter durant les promenades actives).
 - **Contenus** : publications, messages, photos.
 - **Données techniques** : type d'appareil, OS, adresse IP, journaux de crash, tokens FCM.
@@ -120,7 +114,7 @@ Version 1.0
 
 ## 4. Partage avec des tiers (sous-traitants)
 
-- **Stripe** (Irlande / États-Unis) : traitement des paiements.
+- **Airwallex** (Royaume-Uni / Hong Kong) : traitement des paiements (certifié PCI-DSS Niveau 1).
 - **Firebase / Google LLC** (États-Unis) : authentification, notifications push, crash reporting, analytics.
 - **Cloudinary** (États-Unis) : stockage de médias.
 - **MongoDB Atlas** (États-Unis / UE) : hébergement de la base de données.
@@ -164,8 +158,6 @@ Pour toute demande : **hopetsit@gmail.com**.
 """;
 
 const String _privacyEs = r"""
-⚠️ REDACTADO POR IA — primer borrador. DEBE ser revisado por un abogado.
-
 # HopeTSIT — Política de privacidad
 
 Versión 1.0
@@ -180,7 +172,7 @@ Cuenta, perfil animal, reservas/pagos, ubicación GPS (opcional), contenidos, da
 Ejecución del contrato, consentimiento, interés legítimo.
 
 ## 4. Encargados
-Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
+Airwallex, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
 
 ## 5. Conservación
 Vida útil de la cuenta + 30 días; 3 años para facturación; documentos de identidad 3 años tras verificación.
@@ -202,8 +194,6 @@ Preaviso de 30 días.
 """;
 
 const String _privacyDe = r"""
-⚠️ KI-ENTWURF — muss von einem qualifizierten Anwalt geprüft werden.
-
 # HopeTSIT — Datenschutzrichtlinie
 
 Version 1.0
@@ -218,7 +208,7 @@ Konto, Tierprofil, Buchungen/Zahlungen, GPS-Daten (optional), Inhalte, technisch
 Vertragserfüllung, Einwilligung, berechtigtes Interesse.
 
 ## 4. Auftragsverarbeiter
-Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
+Airwallex, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
 
 ## 5. Speicherdauer
 Kontolaufzeit + 30 Tage; 3 Jahre für Abrechnungsunterlagen; verschlüsselte Ausweisdokumente 3 Jahre nach Prüfung.
@@ -240,8 +230,6 @@ Nicht für Nutzer unter 18 Jahren bestimmt.
 """;
 
 const String _privacyIt = r"""
-⚠️ REDATTO DA IA — prima bozza. DEVE essere revisionato da un avvocato.
-
 # HopeTSIT — Informativa sulla privacy
 
 Versione 1.0
@@ -256,7 +244,7 @@ Account, profilo animale, prenotazioni/pagamenti, GPS (facoltativo), contenuti, 
 Esecuzione del contratto, consenso, interesse legittimo.
 
 ## 4. Responsabili del trattamento
-Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
+Airwallex, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
 
 ## 5. Conservazione
 Durata dell'account + 30 giorni; 3 anni per fatturazione; documenti d'identità 3 anni dopo la verifica.
@@ -278,8 +266,6 @@ Preavviso di 30 giorni.
 """;
 
 const String _privacyPt = r"""
-⚠️ REDIGIDO POR IA — primeiro esboço. DEVE ser revisto por um advogado.
-
 # HopeTSIT — Política de privacidade
 
 Versão 1.0
@@ -294,7 +280,7 @@ Conta, perfil do animal, reservas/pagamentos, GPS (opcional), conteúdos, dados 
 Execução do contrato, consentimento, interesse legítimo.
 
 ## 4. Subcontratantes
-Stripe, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
+Airwallex, Firebase, Cloudinary, MongoDB Atlas, Google Maps, Render.com.
 
 ## 5. Conservação
 Duração da conta + 30 dias; 3 anos para faturação; documentos de identidade 3 anos após verificação.
