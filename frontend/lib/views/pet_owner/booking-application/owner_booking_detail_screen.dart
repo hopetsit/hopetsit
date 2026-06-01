@@ -7,6 +7,9 @@ import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/widgets/service_confirmation_card.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Detail screen for a booking (owner view).
 /// Shows: Service Provider (sitter card), Pets, Note, Pay/Chat/Cancel actions.
@@ -30,6 +33,53 @@ class OwnerBookingDetailScreen extends StatefulWidget {
 }
 
 class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
+  // v23.1.259 — état local du flux de confirmation (maj optimiste après
+  // confirmer / signaler un problème, sans refetch).
+  late String _confirmationStatus = widget.booking.confirmationStatus;
+  bool _serviceBusy = false;
+
+  Future<void> _onOwnerConfirm() async {
+    setState(() => _serviceBusy = true);
+    try {
+      await Get.find<OwnerRepository>().confirmService(bookingId: widget.booking.id);
+      if (!mounted) return;
+      setState(() => _confirmationStatus = 'confirmed');
+      CustomSnackbar.showSuccess(
+        title: 'service_confirmed_snack_title'.tr,
+        message: 'service_confirmed_snack_msg'.tr,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _serviceBusy = false);
+    }
+  }
+
+  Future<void> _onOwnerDispute() async {
+    setState(() => _serviceBusy = true);
+    try {
+      await Get.find<OwnerRepository>().disputeService(bookingId: widget.booking.id);
+      if (!mounted) return;
+      setState(() => _confirmationStatus = 'disputed');
+      CustomSnackbar.showWarning(
+        title: 'service_disputed_snack_title'.tr,
+        message: 'service_disputed_snack_msg'.tr,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _serviceBusy = false);
+    }
+  }
+
   String _timeAgo(String isoDate) {
     try {
       final date = DateTime.parse(isoDate);
@@ -577,6 +627,17 @@ class _OwnerBookingDetailScreenState extends State<OwnerBookingDetailScreen> {
                 Padding(
                   padding: EdgeInsets.only(top: 12.h),
                   child: _buildSelfCancelButton(context, booking),
+                ),
+
+              // v23.1.259 — Carte de confirmation de service (owner).
+              if (isPaid && statusLower != 'cancelled' && statusLower != 'refunded')
+                ServiceConfirmationCard(
+                  confirmationStatus: _confirmationStatus,
+                  role: 'owner',
+                  isPaid: isPaid,
+                  busy: _serviceBusy,
+                  onConfirm: _onOwnerConfirm,
+                  onDispute: _onOwnerDispute,
                 ),
 
               SizedBox(height: 40.h),

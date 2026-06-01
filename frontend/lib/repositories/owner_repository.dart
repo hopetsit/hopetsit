@@ -1347,6 +1347,33 @@ class OwnerRepository {
     );
   }
 
+  /// v23.1.259 — Confirmation de service (côté owner). Confirmer = libère
+  /// le paiement au prestataire ; litige = bloque le paiement.
+  Future<Map<String, dynamic>> confirmService({required String bookingId}) async {
+    final r = await _apiClient.post(
+      '/bookings/$bookingId/service/confirm',
+      body: const <String, dynamic>{},
+      requiresAuth: true,
+    );
+    if (r is Map<String, dynamic>) return r;
+    if (r is Map) return Map<String, dynamic>.from(r);
+    throw ApiException('Unexpected confirm-service response.', details: r);
+  }
+
+  Future<Map<String, dynamic>> disputeService({
+    required String bookingId,
+    String? reason,
+  }) async {
+    final r = await _apiClient.post(
+      '/bookings/$bookingId/service/dispute',
+      body: {if (reason != null && reason.isNotEmpty) 'reason': reason},
+      requiresAuth: true,
+    );
+    if (r is Map<String, dynamic>) return r;
+    if (r is Map) return Map<String, dynamic>.from(r);
+    throw ApiException('Unexpected dispute-service response.', details: r);
+  }
+
   Future<Map<String, dynamic>> requestLiveTracking({
     required String bookingId,
     double? lat,

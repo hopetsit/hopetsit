@@ -71,6 +71,13 @@ class BookingModel {
   final BookingSitter sitter;
   final List<BookingPet> pets; // From API "pets" array
   final String? paymentStatus; // 'pending', 'paid', 'failed', etc.
+  // v23.1.259 — Système de confirmation de service. confirmationStatus :
+  // none / awaiting_start / in_progress / awaiting_confirmation / confirmed /
+  // disputed. Pilote l'affichage des boutons (démarrer/terminer/confirmer).
+  final String confirmationStatus;
+  final String? serviceStartedAt;
+  final String? serviceEndedAt;
+  final String? autoReleaseAt;
   final double? totalAmount; // Total amount including platform fee
   final double? basePrice; // Base price before platform fee
   final BookingPricing? pricing; // Pricing details
@@ -103,6 +110,10 @@ class BookingModel {
     required this.sitter,
     List<BookingPet>? pets,
     this.paymentStatus,
+    this.confirmationStatus = 'none',
+    this.serviceStartedAt,
+    this.serviceEndedAt,
+    this.autoReleaseAt,
     this.totalAmount,
     this.basePrice,
     this.pricing,
@@ -209,6 +220,12 @@ class BookingModel {
                   (json['paidAt'] ?? json['paid_at']) != null
               ? 'paid'
               : null),
+      // v23.1.259 — confirmation de service.
+      confirmationStatus:
+          (json['confirmationStatus'] as String?) ?? 'none',
+      serviceStartedAt: json['serviceStartedAt'] as String?,
+      serviceEndedAt: json['serviceEndedAt'] as String?,
+      autoReleaseAt: json['autoReleaseAt'] as String?,
       totalAmount:
           (json['totalAmount'] as num?)?.toDouble() ??
           (json['total_amount'] as num?)?.toDouble(),

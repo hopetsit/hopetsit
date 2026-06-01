@@ -294,6 +294,30 @@ class SitterRepository {
     );
   }
 
+  /// v23.1.259 — Confirmation de service (côté provider). Démarrer = "J'ai
+  /// récupéré l'animal" ; terminer = "J'ai rendu l'animal".
+  Future<Map<String, dynamic>> startService({required String bookingId}) async {
+    final r = await _apiClient.post(
+      '/bookings/$bookingId/service/start',
+      body: const <String, dynamic>{},
+      requiresAuth: true,
+    );
+    if (r is Map<String, dynamic>) return r;
+    if (r is Map) return Map<String, dynamic>.from(r);
+    throw ApiException('Unexpected start-service response.', details: r);
+  }
+
+  Future<Map<String, dynamic>> completeService({required String bookingId}) async {
+    final r = await _apiClient.post(
+      '/bookings/$bookingId/service/complete',
+      body: const <String, dynamic>{},
+      requiresAuth: true,
+    );
+    if (r is Map<String, dynamic>) return r;
+    if (r is Map) return Map<String, dynamic>.from(r);
+    throw ApiException('Unexpected complete-service response.', details: r);
+  }
+
   /// v23.1.176 — POST /bookings/pawfollow-request/:messageId/respond
   /// body: { action: 'accept' | 'refuse' }
   Future<Map<String, dynamic>> respondPawfollowRequest({

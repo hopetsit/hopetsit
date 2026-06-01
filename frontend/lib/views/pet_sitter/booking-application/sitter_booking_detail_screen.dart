@@ -7,6 +7,9 @@ import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/string_utils.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/widgets/service_confirmation_card.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Detail screen for a booking request (sitter view).
 /// Shows: Requests (client card), Pets, Note, Accept/Decline.
@@ -31,6 +34,51 @@ class SitterBookingDetailScreen extends StatefulWidget {
 
 class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
   bool _isAccepting = false;
+  // v23.1.259 — flux de confirmation côté provider (start/complete).
+  late String _confirmationStatus = widget.booking.confirmationStatus;
+  bool _serviceBusy = false;
+
+  Future<void> _onProviderStart() async {
+    setState(() => _serviceBusy = true);
+    try {
+      await Get.find<SitterRepository>().startService(bookingId: widget.booking.id);
+      if (!mounted) return;
+      setState(() => _confirmationStatus = 'in_progress');
+      CustomSnackbar.showSuccess(
+        title: 'service_started_snack_title'.tr,
+        message: 'service_started_snack_msg'.tr,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _serviceBusy = false);
+    }
+  }
+
+  Future<void> _onProviderComplete() async {
+    setState(() => _serviceBusy = true);
+    try {
+      await Get.find<SitterRepository>().completeService(bookingId: widget.booking.id);
+      if (!mounted) return;
+      setState(() => _confirmationStatus = 'awaiting_confirmation');
+      CustomSnackbar.showSuccess(
+        title: 'service_completed_snack_title'.tr,
+        message: 'service_completed_snack_msg'.tr,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    } finally {
+      if (mounted) setState(() => _serviceBusy = false);
+    }
+  }
 
   String _timeAgo(String isoDate) {
     try {
@@ -515,6 +563,21 @@ class _SitterBookingDetailScreenState extends State<SitterBookingDetailScreen> {
                 Padding(
                   padding: EdgeInsets.only(top: 12.h),
                   child: _buildSelfCancelButton(context, booking),
+                ),
+
+              // v23.1.259 — Carte de confirmation de service (provider).
+              if (booking.paymentStatus?.toLowerCase() == 'paid' &&
+                  booking.status.toLowerCase() != 'cancelled' &&
+                  booking.status.toLowerCase() != 'refunded')
+                ServiceConfirmationCard(
+                  // Écran provider (sitter OU walker) ; la carte ne distingue
+                  // que provider vs owner → 'sitter' suffit pour _isProvider.
+                  confirmationStatus: _confirmationStatus,
+                  role: 'sitter',
+                  isPaid: true,
+                  busy: _serviceBusy,
+                  onStart: _onProviderStart,
+                  onComplete: _onProviderComplete,
                 ),
 
               SizedBox(height: 40.h),
