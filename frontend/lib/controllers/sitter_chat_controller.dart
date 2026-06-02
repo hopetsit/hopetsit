@@ -368,7 +368,10 @@ class SitterChatController extends GetxController {
 
     try {
       final response = await _chatRepository.getChatList();
-      conversations.value = response.map((item) {
+      // v23.1.267 — dédup par contact (otherParty.id) : ne montrer qu'UNE
+      // conversation par personne (évite le doublon réservation + amis).
+      final deduped = _dedupByOtherParty(response);
+      conversations.value = deduped.map((item) {
         return _mapToSitterChatConversation(item);
       }).toList();
     } catch (e) {
@@ -381,6 +384,38 @@ class SitterChatController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// v23.1.267 — déduplique la liste par contact (otherParty.id), gardant la
+  /// conversation la plus récente (évite 2 fils réservation + amis).
+  List<Map<String, dynamic>> _dedupByOtherParty(dynamic items) {
+    int ts(Map m) {
+      final v = m['lastMessageAt'] ?? m['lastMessageTime'] ?? m['updatedAt'];
+      if (v is int) return v;
+      final d = DateTime.tryParse(v?.toString() ?? '');
+      return d?.millisecondsSinceEpoch ?? 0;
+    }
+
+    final byKey = <String, Map<String, dynamic>>{};
+    if (items is List) {
+      for (final raw in items) {
+        if (raw is! Map) continue;
+        final it = Map<String, dynamic>.from(raw);
+        final op = it['otherParty'];
+        final otherId =
+            (op is Map ? (op['id'] ?? op['_id']) : null)?.toString() ?? '';
+        final key = otherId.isNotEmpty
+            ? 'u:$otherId'
+            : 'c:${(it['_id'] ?? it['id'] ?? '').toString()}';
+        final existing = byKey[key];
+        if (existing == null || ts(it) >= ts(existing)) {
+          byKey[key] = it;
+        }
+      }
+    }
+    final result = byKey.values.toList()
+      ..sort((a, b) => ts(b).compareTo(ts(a)));
+    return result;
   }
 
   SitterChatConversation _mapToSitterChatConversation(

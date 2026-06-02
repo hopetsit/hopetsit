@@ -63,6 +63,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.className}>
       <body className="min-h-screen bg-white text-ink antialiased">
+        {/* v23.1.267 — SEO/AEO : données structurées Organization + WebSite. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "Organization",
+                  "@id": "https://hopetsit.com/#organization",
+                  name: "HoPetSit",
+                  legalName: "CARDELLI HERMANOS LIMITED",
+                  url: "https://hopetsit.com",
+                  logo: "https://hopetsit.com/logo.svg",
+                  email: "hopetsit@gmail.com",
+                  description:
+                    "Trusted marketplace connecting pet owners with sitters and dog walkers across Europe.",
+                },
+                {
+                  "@type": "WebSite",
+                  "@id": "https://hopetsit.com/#website",
+                  url: "https://hopetsit.com",
+                  name: "HoPetSit",
+                  publisher: { "@id": "https://hopetsit.com/#organization" },
+                  inLanguage: ["en", "fr", "es", "de", "it", "pt"],
+                },
+              ],
+            }),
+          }}
+        />
         <LanguageProvider>
           <Header />
           <main>{children}</main>

@@ -7,7 +7,7 @@ const APK_URL = "/HoPetSit.apk"; // copied to public/ by BUILD_APK.bat (v23.1 pa
 // v23.1 part 146 — version courante de l'APK exposée sur le site.
 // Doit être mise à jour manuellement quand BUILD_APK.bat est relancé sur
 // une nouvelle version (ou automatisé plus tard via un /public/apk-info.json).
-const APK_VERSION = "v23.1.146";
+const APK_VERSION = "v23.1.267";
 
 export default function DownloadPage() {
   const { t } = useT();

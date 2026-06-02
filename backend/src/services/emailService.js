@@ -20,6 +20,17 @@ const transporter = (() => {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // v23.1.267 — Daniel : "les mails de notification arrivent en retard".
+    // CAUSE : sans pool, CHAQUE email rouvrait une connexion SMTP complète
+    // (TCP + TLS + AUTH) → plusieurs secondes par mail, aggravé par le
+    // throttling Gmail. On active le POOL (connexions réutilisées) + des
+    // timeouts courts pour ne pas rester bloqué sur un serveur lent.
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    connectionTimeout: 10000,
+    greetingTimeout: 7000,
+    socketTimeout: 20000,
   });
   // Verify transporter at boot so we see a clear error in logs if creds are wrong
   t.verify((err) => {

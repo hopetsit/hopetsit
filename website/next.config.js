@@ -18,6 +18,19 @@ const nextConfig = {
   // l'extension → octet-stream → iOS rejette → Universal Links morts.
   // Android `assetlinks.json` accepte tout content-type JSON mais on le
   // pin aussi par cohérence.
+  // v23.1.267 — SEO/marketing : les chemins FR partagés (pubs, anciens liens)
+  // n'existaient pas comme routes (le site est mono-URL avec switch de langue
+  // client) → 404. On les redirige vers leur équivalent EN (308 permanent).
+  async redirects() {
+    return [
+      { source: '/tarifs', destination: '/pricing', permanent: true },
+      { source: '/comment-ca-marche', destination: '/how-it-works', permanent: true },
+      { source: '/telecharger', destination: '/download', permanent: true },
+      { source: '/confidentialite', destination: '/privacy', permanent: true },
+      { source: '/mentions-legales', destination: '/imprint', permanent: true },
+    ];
+  },
+
   async headers() {
     return [
       {
