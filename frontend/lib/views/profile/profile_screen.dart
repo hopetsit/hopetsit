@@ -295,17 +295,25 @@ class ProfileScreen extends StatelessWidget {
 
   /// Quick action cards row for owner.
   Widget _buildQuickActions(ProfileController controller) {
-    return Row(
-      children: [
-        _quickAction(Icons.pets, 'profile_edit_pets_profile'.tr,
-            controller.navigateToEditPetProfile),
-        SizedBox(width: 10.w),
-        _quickAction(Icons.history, 'profile_bookings_history'.tr,
-            controller.navigateToBookingsHistory),
-        SizedBox(width: 10.w),
-        _quickAction(Icons.rocket_launch, 'boost_shop_title'.tr,
-            () => Get.to(() => const CoinShopScreen())),
-      ],
+    // v23.1.269 — Daniel : "le carré blanc à droite n'a pas la même taille que
+    // les deux autres". CAUSE : le label "Boutique" tient sur 1 ligne alors que
+    // "Modifier le profil des animaux" et "Historique des réservations" font 2
+    // lignes → cartes de hauteurs différentes (le Row centre verticalement).
+    // FIX : IntrinsicHeight + stretch → les 3 cartes ont la MÊME hauteur.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _quickAction(Icons.pets, 'profile_edit_pets_profile'.tr,
+              controller.navigateToEditPetProfile),
+          SizedBox(width: 10.w),
+          _quickAction(Icons.history, 'profile_bookings_history'.tr,
+              controller.navigateToBookingsHistory),
+          SizedBox(width: 10.w),
+          _quickAction(Icons.rocket_launch, 'boost_shop_title'.tr,
+              () => Get.to(() => const CoinShopScreen())),
+        ],
+      ),
     );
   }
 
@@ -322,6 +330,10 @@ class ProfileScreen extends StatelessWidget {
               boxShadow: AppColors.cardShadow(context),
             ),
           child: Column(
+            // v23.1.269 — centre verticalement (les cartes ont désormais la
+            // même hauteur via IntrinsicHeight ; on centre le contenu pour que
+            // l'icône reste alignée même quand le label tient sur 1 ligne).
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 width: 38.w,
