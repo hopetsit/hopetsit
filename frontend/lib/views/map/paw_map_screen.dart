@@ -1150,6 +1150,31 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           );
         }
+        // 3) v23.1.274 — Daniel : "le pin halo de paw follow doit suivre
+        // la personne qd y bouge". Quand on SUIT activement cette personne
+        // (_followUserId == son id), on rajoute un anneau "tracking" qui
+        // RESPIRE avec _haloPhase (30→70m) pour montrer sans ambiguite que
+        // le suivi est live et centre sur elle. Le centre lit la position
+        // LIVE (pos.latitude/longitude) exactement comme le halo principal,
+        // donc l'anneau se deplace a la trace : a chaque map:friend-position
+        // recue, l'Obx rebuild (signature coords v263) et ce cercle est
+        // recalcule au nouveau point. Compare en normalise (trim+lower) pour
+        // matcher meme si la casse de l'hex differe d'une plateforme.
+        final follow = _followUserId;
+        if (follow != null && normUserId == follow.trim().toLowerCase()) {
+          final phase = _haloPhase.value; // 0..1
+          circles.add(
+            Circle(
+              circleId: CircleId('follow_track_${pos.userId}'),
+              center: LatLng(pos.latitude, pos.longitude),
+              radius: 30 + (phase * 40), // respiration 30→70m
+              fillColor: color.withValues(alpha: 0.10 * (1 - phase)),
+              strokeColor: color.withValues(alpha: 0.95),
+              strokeWidth: 4,
+              zIndex: 5,
+            ),
+          );
+        }
       }
     } catch (_) {/* defensive */}
 
