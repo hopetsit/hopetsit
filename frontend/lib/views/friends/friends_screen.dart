@@ -566,11 +566,22 @@ class _FriendTile extends StatelessWidget {
     // et amis en violet walker en vert sitter en bleu". Owner = friend /
     // famille → violet (cohérent avec la carte "Famille & Amis" du
     // PawMap header). Walker = vert, Sitter = bleu (deja en place).
-    final roleColor = {
-      'Owner': const Color(0xFF8B5CF6),
-      'Sitter': AppColors.sitterAccent,
-      'Walker': AppColors.greenColor,
-    }[other.model] ?? const Color(0xFF8B5CF6);
+    // v23.1.267 — Daniel : "les membres famille doivent se mettre en violet".
+    // Le code couleur par rôle (sitter bleu / walker vert) masquait
+    // l'appartenance famille. Si l'ami est AUSSI un membre de ma famille, on
+    // force le violet, peu importe son rôle.
+    final familyIds = controller.familyMembers
+        .map((m) => (m['id'] ?? m['userId'] ?? '').toString())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+    final isFamily = other.id.isNotEmpty && familyIds.contains(other.id);
+    final roleColor = isFamily
+        ? const Color(0xFF8B5CF6)
+        : ({
+            'Owner': const Color(0xFF8B5CF6),
+            'Sitter': AppColors.sitterAccent,
+            'Walker': AppColors.greenColor,
+          }[other.model] ?? const Color(0xFF8B5CF6));
 
     // v23.1.170 — Daniel : "si une famille veux se suivre que juste en
     // cliquand sur le nom ds sa liste damis par exemplet sa le geoloclaise".
@@ -1972,16 +1983,27 @@ class _FamilyMemberTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 22.r,
-            backgroundColor: AppColors.primaryColor.withValues(alpha: 0.15),
-            // v23.1 part 231 — perf : CachedNetworkImageProvider+maxWidth.
-            backgroundImage: avatar.isNotEmpty
-                ? CachedNetworkImageProvider(avatar, maxWidth: 150)
-                : null,
-            child: avatar.isEmpty
-                ? Icon(Icons.person, color: AppColors.primaryColor, size: 20.sp)
-                : null,
+          // v23.1.267 — Daniel : "les membres famille en violet". Chaque
+          // entrée ici EST un membre famille → avatar cerclé violet.
+          Container(
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.fromBorderSide(
+                BorderSide(color: Color(0xFF8B5CF6), width: 2),
+              ),
+            ),
+            child: CircleAvatar(
+              radius: 22.r,
+              backgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+              // v23.1 part 231 — perf : CachedNetworkImageProvider+maxWidth.
+              backgroundImage: avatar.isNotEmpty
+                  ? CachedNetworkImageProvider(avatar, maxWidth: 150)
+                  : null,
+              child: avatar.isEmpty
+                  ? const Icon(Icons.person,
+                      color: Color(0xFF8B5CF6), size: 20)
+                  : null,
+            ),
           ),
           SizedBox(width: 12.w),
           Expanded(

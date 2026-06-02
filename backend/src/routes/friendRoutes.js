@@ -98,6 +98,36 @@ async function resolveOwnFamilySub(user) {
     currentPeriodEnd: { $gt: now },
   });
   if (sub && String(sub.userId) !== String(user.id)) {
+    // v23.1.267 — re-point COLLISION-SAFE. Si une sub existe DÉJÀ sous
+    // l'identité courante (ex : un doc 'none'/pawpass), un save() direct
+    // violerait l'index unique {userId,userModel} (E11000) → la réparation
+    // ne persistait jamais. On FUSIONNE alors les données Famille dans le
+    // doc existant et on supprime l'orpheline.
+    let existing = null;
+    try {
+      existing = await UserSubscription.findOne({
+        userId: user.id,
+        userModel: user.model,
+      });
+    } catch (_) {/* defensive */}
+    if (existing && String(existing._id) !== String(sub._id)) {
+      existing.plan = 'famille';
+      existing.status = sub.status;
+      existing.currentPeriodStart = sub.currentPeriodStart;
+      existing.currentPeriodEnd = sub.currentPeriodEnd;
+      existing.familyMembers = sub.familyMembers || [];
+      try {
+        await existing.save();
+        await UserSubscription.deleteOne({ _id: sub._id });
+        logger.info(
+          `[resolveOwnFamilySub] sub Famille fusionnée → ${user.model}:${user.id}`,
+        );
+        return existing;
+      } catch (e) {
+        logger.warn('[resolveOwnFamilySub] merge failed', e);
+        return sub; // au pire on opère sur l'orpheline (l'invite marchera).
+      }
+    }
     sub.userId = user.id;
     sub.userModel = user.model;
     try {
@@ -315,7 +345,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           ];
         const otherDoc = OtherModel
           ? await OtherModel.findById(otherId)
-              .select('firstName lastName email')
+              .select('firstName lastName email avatar')
               .lean()
           : null;
         // v23.1 part 220 — name fallback : firstName+lastName, sinon
@@ -361,6 +391,11 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           otherModel,
           otherExists: !!otherDoc,
           otherName,
+          // v23.1.267 — Daniel : "les photos de profil n'apparaissent pas".
+          // /diagnose (source de la liste Mes amis) ne renvoyait pas l'avatar
+          // → placeholder gris partout. On aplatit l'objet {url,publicId} en
+          // URL string.
+          otherAvatar: (otherDoc && otherDoc.avatar && otherDoc.avatar.url) || '',
           otherHasPawFollow,
           createdAt: f.createdAt,
           acceptedAt: f.acceptedAt,
