@@ -8,9 +8,13 @@ const { sendNotification } = require('./notificationSender');
 const logger = require('../utils/logger');
 
 const getOwnerStats = async (ownerId) => {
+  // v23.1.271 — Daniel : "top owner/sitter/walker reste à 0". On compte aussi
+  // les services CONFIRMÉS (nouveau flux de confirmation owner) en plus des
+  // bookings marqués 'completed' (ancien flux). Sinon le compteur ne bouge
+  // jamais car le flux de confirmation ne posait pas status='completed'.
   const completedBookingsCount = await Booking.countDocuments({
     ownerId,
-    status: 'completed',
+    $or: [{ status: 'completed' }, { confirmationStatus: 'confirmed' }],
   });
   const credits = await OwnerCredit.find({ ownerId, used: false }).lean();
   const availableCreditsTotal = credits.reduce((s, c) => s + (c.amount || 0), 0);
@@ -63,7 +67,10 @@ const onBookingCompleted = async (booking) => {
     logger.warn('referral hook failed', e.message);
   }
 
-  const count = await Booking.countDocuments({ ownerId, status: 'completed' });
+  const count = await Booking.countDocuments({
+    ownerId,
+    $or: [{ status: 'completed' }, { confirmationStatus: 'confirmed' }],
+  });
 
   // Every 3rd completed booking: grant a 10% discount credit on next booking.
   if (count > 0 && count % 3 === 0) {
@@ -118,7 +125,10 @@ const consumeLoyaltyDiscount = async (ownerId, bookingId) => {
 const recomputeSitterStatus = async (sitterId) => {
   if (!sitterId) return null;
   const [count, agg] = await Promise.all([
-    Booking.countDocuments({ sitterId, status: 'completed' }),
+    Booking.countDocuments({
+      sitterId,
+      $or: [{ status: 'completed' }, { confirmationStatus: 'confirmed' }],
+    }),
     Review.aggregate([
       { $match: { revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(sitterId)) } },
       { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } },
@@ -159,7 +169,10 @@ const recomputeSitterStatus = async (sitterId) => {
 const recomputeWalkerStatus = async (walkerId) => {
   if (!walkerId) return null;
   const [count, agg] = await Promise.all([
-    Booking.countDocuments({ walkerId, status: 'completed' }),
+    Booking.countDocuments({
+      walkerId,
+      $or: [{ status: 'completed' }, { confirmationStatus: 'confirmed' }],
+    }),
     Review.aggregate([
       { $match: { revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(walkerId)) } },
       { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } },

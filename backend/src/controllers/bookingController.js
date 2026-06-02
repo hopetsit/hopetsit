@@ -4097,6 +4097,17 @@ const processScheduledSitterPayouts = async () => {
     try {
       await processProviderPayoutForBooking(booking);
       released += 1;
+      // v23.1.271 — auto-release 48h (owner n'a pas confirmé dans les temps) :
+      // on AUTO-CONFIRME le service pour qu'il compte vers le statut Top (les
+      // compteurs loyalty incluent les services confirmés). Le recompute Top
+      // sera rafraîchi au prochain trigger non-populé (confirm / avis) pour
+      // éviter de réinitialiser averageRating ici (booking est populé).
+      if (booking.confirmationStatus !== 'confirmed'
+          && booking.confirmationStatus !== 'disputed') {
+        booking.confirmationStatus = 'confirmed';
+        booking.ownerConfirmedAt = booking.ownerConfirmedAt || new Date();
+        await booking.save();
+      }
     } catch (err) {
       logger.error(`⚠️  processScheduledSitterPayouts: failed for booking ${booking._id}`, err);
     }
@@ -5103,10 +5114,20 @@ const confirmService = async (req, res) => {
       booking.payoutStatus = 'scheduled';
     }
     await booking.save();
-    // Release now (best-effort ; le scheduler rattrape sinon).
+    // Release now (best-effort ; le scheduler rattrape sinon). IMPORTANT : le
+    // payout exige booking.status='paid' (cf processProviderPayoutForBooking),
+    // donc on le fait AVANT le hook de complétion.
     try {
       await processProviderPayoutForBooking(booking);
     } catch (e) { logger.warn('[confirmService] payout release failed (scheduler will retry)', e); }
+    // v23.1.271 — Daniel : "top sitter/walker reste à 0". Le statut Top
+    // (loyalty) ne se mettait jamais à jour car le flux de confirmation ne
+    // déclenchait pas onBookingCompleted. On le déclenche ici : recompute Top
+    // sitter/walker + Premium owner + crédits fidélité (les compteurs incluent
+    // désormais les services confirmés, cf loyaltyService).
+    try {
+      await onBookingCompleted(booking);
+    } catch (e) { logger.warn('[confirmService] loyalty hook failed', e?.message || e); }
     try {
       const { sendNotification } = require('../services/notificationSender');
       const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
