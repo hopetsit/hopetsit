@@ -309,11 +309,21 @@ class ChatController extends GetxController {
             ? Map<String, dynamic>.from(messageData['message'] as Map)
             : messageData;
         final newMessage = _mapToChatMessage(raw, userId);
-        // Check if message already exists to avoid duplicates
+        // v23.1.270 — Daniel : "quand j'écris ça s'écrit en double". CAUSE :
+        // l'écho socket de MON PROPRE message arrive souvent AVANT que le POST
+        // REST n'ait remplacé le tempId optimiste par le vrai _id → la dédup
+        // par id rate → l'écho est ajouté en 2e exemplaire. FIX : on n'ajoute
+        // JAMAIS l'écho de mon propre message (il est déjà affiché en optimiste
+        // puis finalisé par la réponse REST). On dédup quand même par id pour
+        // les messages des AUTRES (rejeu socket à la reconnexion).
+        final senderId = raw['senderId']?.toString() ??
+            messageData['senderId']?.toString() ??
+            '';
+        final isMine = senderId.isNotEmpty && senderId == userId;
         final exists = currentChatMessages.any(
           (msg) => msg.id == newMessage.id,
         );
-        if (!exists) {
+        if (!isMine && !exists) {
           currentChatMessages.add(newMessage);
           // Update last message in conversations
           _updateLastMessage(newMessage.message);

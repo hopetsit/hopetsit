@@ -961,6 +961,48 @@ const processProviderPayoutForBooking = async (booking) => {
       return;
     }
 
+    // v23.1.270 — Daniel : "j'ai fini un service et 0€ dans mon wallet". Le
+    // modèle "part 83" veut que l'argent du provider arrive dans son WALLET
+    // (puis retrait/boutique). Mais les branches stripe (défaut, mort) et
+    // IBAN-sans-bénéficiaire-Airwallex marquaient "completed/pending" SANS
+    // créditer le wallet → solde à 0. Ce helper crédite le wallet
+    // (withdrawable=true, idempotent par booking) + notifie le provider.
+    const creditProviderWalletNow = async (sourceTag) => {
+      try {
+        const { creditWallet } = require('../services/walletService');
+        const c = await creditWallet({
+          userId: sitter._id.toString(),
+          userRole: provider.type,
+          amount: netPayout,
+          currency: (currency || 'EUR').toUpperCase(),
+          type: 'credit_booking',
+          bookingId: booking._id.toString(),
+          meta: { source: sourceTag, autoPayout: false },
+          withdrawable: true,
+        });
+        try {
+          const { sendNotification } = require('../services/notificationSender');
+          await sendNotification({
+            userId: sitter._id.toString(),
+            role: provider.type,
+            type: 'wallet_credited',
+            data: {
+              bookingId: booking._id.toString(),
+              amount: String(netPayout),
+              currency: (currency || 'EUR').toUpperCase(),
+            },
+            actor: { role: 'system', id: null },
+          });
+        } catch (_) { /* non-critical */ }
+        return c;
+      } catch (e) {
+        logger.error(
+          `❌ wallet credit failed booking=${booking._id.toString()}: ${e?.message || e}`,
+        );
+        return null;
+      }
+    };
+
     // v18.5 — #3 hold admin : si le provider n'a toujours rien configuré
     // (ni IBAN ni PayPal ni Stripe Connect actif) au moment du payout,
     // on ne marque PAS `failed` (ce qui coincerait définitivement les
@@ -977,12 +1019,17 @@ const processProviderPayoutForBooking = async (booking) => {
       sitter.stripeConnectAccountId &&
       sitter.stripeConnectAccountStatus === 'active';
     if (!hasIban && !hasPaypal && !hasStripeConnectActive) {
-      booking.payoutStatus = 'held';
-      booking.heldAmount = netPayout;
-      booking.heldSince = booking.heldSince || new Date();
+      // v23.1.270 — modèle wallet : on crédite QUAND MÊME le wallet (l'argent
+      // est dispo en in-app : boutique, + retrait dès qu'un IBAN est ajouté).
+      // On ne bloque plus les fonds en "held" → fini le 0€.
+      await creditProviderWalletNow('wallet_credit_no_payout_method');
+      booking.payoutMethod = 'wallet';
+      booking.payoutStatus = 'completed';
+      booking.payoutCompletedAt = new Date();
+      booking.payoutError = null;
       await booking.save();
       logger.info(
-        `⏸️  Payout HELD for booking ${booking._id.toString()} — provider ${provider.type}:${sitter._id} has no payout method yet. Will release when IBAN/PayPal configured.`
+        `💰 Wallet credited (no bank method yet) booking ${booking._id.toString()} provider ${provider.type}:${sitter._id} amount=${netPayout} ${currency}`,
       );
       return;
     }
@@ -1091,15 +1138,18 @@ const processProviderPayoutForBooking = async (booking) => {
         }
       }
 
-      // Stripe-era / fallback : queue for manual SEPA transfer by admin.
-      booking.payoutStatus = 'pending_manual_transfer';
-      booking.payoutMethod = 'iban';
+      // v23.1.270 — modèle wallet (part 83) : on CRÉDITE le wallet
+      // (withdrawable=true) au lieu de mettre en file de virement manuel. Le
+      // provider retire ensuite depuis son wallet → processPendingWithdrawals
+      // déclenche le virement Airwallex (bénéficiaire créé au retrait). Sans
+      // ça, un IBAN sans bénéficiaire Airwallex laissait le solde à 0€.
+      await creditProviderWalletNow('wallet_credit_iban');
+      booking.payoutMethod = 'wallet';
+      booking.payoutStatus = 'completed';
+      booking.payoutCompletedAt = new Date();
       booking.manualPayoutDetails = {
-        iban: ibanNumber,
         ibanMasked: maskedIban,
         holderName,
-        bic: sitter.ibanBic || '',
-        providerEmail: sitter.email || '',
         providerRole: provider.type,
         providerId: sitter._id.toString(),
         amount: netPayout,
@@ -1109,7 +1159,7 @@ const processProviderPayoutForBooking = async (booking) => {
       booking.payoutError = null;
       await booking.save();
       logger.info(
-        `⏳ IBAN payout queued for manual admin transfer: booking=${booking._id.toString()} provider=${provider.type}:${sitter._id} amount=${netPayout} ${currency} iban=${maskedIban}`,
+        `💰 Wallet credited (IBAN → retrait via wallet) booking=${booking._id.toString()} provider=${provider.type}:${sitter._id} amount=${netPayout} ${currency} iban=${maskedIban}`,
       );
       return;
     }
@@ -1182,10 +1232,18 @@ const processProviderPayoutForBooking = async (booking) => {
         sitter.payoutMethod = 'paypal';
         return processProviderPayoutForBooking(booking);
       }
+      // v23.1.270 — Stripe Connect est purgé (aucun compte connecté). Cette
+      // branche marquait "completed" SANS rien verser → 0€. On crédite le
+      // wallet (modèle part 83) : c'est le cas par défaut quand le provider
+      // n'a pas changé son payoutMethod (défaut 'stripe').
+      await creditProviderWalletNow('wallet_credit_default');
+      booking.payoutMethod = 'wallet';
       booking.payoutStatus = 'completed';
+      booking.payoutCompletedAt = new Date();
       booking.payoutAt = new Date();
+      booking.payoutError = null;
       await booking.save();
-      logger.info('✅ Stripe Connect payout auto-completed for booking', booking._id.toString());
+      logger.info('💰 Wallet credited (défaut/stripe→wallet) for booking', booking._id.toString());
       return;
     }
 

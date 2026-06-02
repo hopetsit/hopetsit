@@ -74,12 +74,19 @@ async function creditWallet({
   // success path) without double-crediting. Without this, a single paid
   // booking could end up crediting the provider's wallet twice : once
   // when payment was confirmed, once again when the SEPA payout settled.
-  if (bookingId && type === 'credit_booking') {
+  // v23.1.270 — Daniel : "j'ai fini un service et 0€ dans mon wallet". La
+  // dedup ignorait le flag `withdrawable` : une ligne d'HISTORIQUE
+  // (withdrawable=false, n'incrémente PAS le solde) bloquait ensuite le VRAI
+  // crédit (withdrawable=true) → solde figé à 0 alors que l'historique montre
+  // le paiement. On ne dédup QUE contre un crédit qui a réellement incrémenté
+  // le solde (withdrawable=true), et seulement quand on s'apprête à créditer.
+  if (bookingId && type === 'credit_booking' && withdrawable) {
     const existing = await WalletTransaction.findOne({
       userId,
       bookingId,
       type,
       status: { $in: ['completed', 'pending'] },
+      'meta.withdrawable': true,
     }).lean();
     if (existing) {
       logger.info(

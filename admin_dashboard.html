@@ -2298,7 +2298,7 @@ async function loadDashboard() {
           <td>${fmtDate(b.createdAt)}</td>
           <td>${escapeHtml(b.owner?.name || '-')}</td>
           <td>${escapeHtml(b.sitter?.name || '-')}</td>
-          <td>€${(b.totalAmount||0).toFixed(2)}</td>
+          <td>€${(b.pricing?.totalPrice||b.totalAmount||0).toFixed(2)}</td>
           <td><span class="badge badge-green">Paid</span></td>
         </tr>
       `).join('')}</tbody></table>

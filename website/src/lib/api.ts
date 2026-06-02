@@ -464,6 +464,10 @@ export type ProviderProfile = {
   location?: { city?: string; lat?: number; lng?: number };
   isBoosted?: boolean;
   isMapBoosted?: boolean;
+  // v23.1.270 — statut mérite "Top" (loyalty : 20+ services + note > 4.5),
+  // distinct du boost payé. Présents dans la réponse /sitters /walkers.
+  isTopSitter?: boolean;
+  isTopWalker?: boolean;
 };
 
 export type Pagination = {

@@ -272,7 +272,13 @@ class _PawMapScreenState extends State<PawMapScreen>
         if (uid == null) return;
         final fp = positions[uid];
         if (fp == null) return;
-        _animateFollowCamera(LatLng(fp.latitude, fp.longitude));
+        // v23.1.270 — Daniel : "zoom fort + à la trace". On force _followZoom
+        // à chaque position pour rester collé en gros plan sur la personne
+        // (avant : newLatLng gardait le zoom courant → souvent trop large).
+        _animateFollowCamera(
+          LatLng(fp.latitude, fp.longitude),
+          zoom: _followZoom,
+        );
       },
     );
 
@@ -616,15 +622,18 @@ class _PawMapScreenState extends State<PawMapScreen>
           // next frame's initialCameraPosition is correct anyway.
         }
       } else {
-        // Focus mode : on anime vers la position du sitter/ami avec un
-        // zoom plus precis pour bien voir le halo.
+        // Focus mode : on anime vers la position du sitter/ami. v23.1.270 —
+        // Daniel : "le suivi doit zoomer FORT sur la personne". En mode SUIVI
+        // (_followUserId), on zoome à _followZoom (18) au lieu de 14 — avant,
+        // ce 14 écrasait le zoom 18 posé par onMapCreated → zoom trop faible.
         try {
           final ctl = await _mapCtl.future.timeout(
             const Duration(seconds: 6),
             onTimeout: () => throw TimeoutException('map controller not ready'),
           );
+          final z = _followUserId != null ? _followZoom : 14.0;
           await ctl.animateCamera(
-            CameraUpdate.newLatLngZoom(_currentCenter, 14),
+            CameraUpdate.newLatLngZoom(_currentCenter, z),
           );
         } catch (_) {/* defensive */}
       }

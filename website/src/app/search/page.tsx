@@ -198,9 +198,19 @@ function ProviderCard({
             </div>
           )}
         </div>
-        {(provider.isBoosted || provider.isMapBoosted) && (
+        {/* v23.1.270 — Daniel : "pourquoi tous les profils ont le badge Top".
+            Avant, le badge "Top" s'affichait sur isBoosted/isMapBoosted (= a
+            payé un boost), donc sur quasi tous les profils boostés. Le vrai
+            statut Top est le mérite loyalty (isTopSitter/isTopWalker). On
+            sépare : 🏆 Top = mérite ; 🚀 Boosté = promotion payée. */}
+        {(provider.isTopSitter || provider.isTopWalker) && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-            ⭐ Top
+            🏆 Top
+          </span>
+        )}
+        {(provider.isBoosted || provider.isMapBoosted) && (
+          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-800">
+            🚀 Boosté
           </span>
         )}
       </div>

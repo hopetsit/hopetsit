@@ -4,6 +4,9 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/app_notification_model.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
+import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/repositories/notifications_repository.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -257,12 +260,43 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
               lower == 'booking_accepted') {
             unreadHome.value = unreadHome.value + 1;
             _storage.write(_kUnreadHome, unreadHome.value);
+          } else if (lower.startsWith('service_')) {
+            // v23.1.270 — Daniel : badge réservation "animal récupéré / rendu /
+            // confirmation". Les events de confirmation de service
+            // (service_started, service_completion_request, service_confirmed,
+            // service_disputed) n'avaient pas de listener → le badge "action
+            // requise" de l'onglet Réservations n'était mis à jour qu'au refresh
+            // 30s. On recharge les réservations immédiatement → badge instantané.
+            unreadBookings.value = unreadBookings.value + 1;
+            _storage.write(_kUnreadBookings, unreadBookings.value);
+            _reloadBookingControllers();
           }
         } catch (_) {}
       });
     } catch (_) {
       // SocketService not registered yet — listener will be re-attached on next onInit.
     }
+  }
+
+  /// v23.1.270 — recharge les contrôleurs de réservation (silencieux) à
+  /// l'arrivée d'un event service_* pour rafraîchir le badge "action requise"
+  /// de l'onglet Réservations en temps réel, quel que soit le rôle actif.
+  void _reloadBookingControllers() {
+    try {
+      if (Get.isRegistered<BookingsController>()) {
+        Get.find<BookingsController>().loadBookings(silent: true);
+      }
+    } catch (_) {/* defensive */}
+    try {
+      if (Get.isRegistered<SitterBookingsController>()) {
+        Get.find<SitterBookingsController>().loadBookings(silent: true);
+      }
+    } catch (_) {/* defensive */}
+    try {
+      if (Get.isRegistered<WalkerBookingsController>()) {
+        Get.find<WalkerBookingsController>().loadBookings(silent: true);
+      }
+    } catch (_) {/* defensive */}
   }
 
   void clearChatBadge() {

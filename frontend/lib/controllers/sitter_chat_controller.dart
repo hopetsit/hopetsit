@@ -287,11 +287,19 @@ class SitterChatController extends GetxController {
           userId,
           'sitter',
         );
+        // v23.1.270 — Daniel : "quand j'écris ça s'écrit en double". On
+        // n'ajoute JAMAIS l'écho socket de mon propre message (déjà affiché en
+        // optimiste + finalisé par la réponse REST) — sinon course tempId/_id
+        // → doublon. Dédup par id conservée pour les messages des autres.
+        final senderId = raw['senderId']?.toString() ??
+            messageData['senderId']?.toString() ??
+            '';
+        final isMine = senderId.isNotEmpty && senderId == userId;
         // Check if message already exists to avoid duplicates
         final exists = currentChatMessages.any(
           (msg) => msg.id == newMessage.id,
         );
-        if (!exists) {
+        if (!isMine && !exists) {
           currentChatMessages.add(newMessage);
           // Update last message in conversations
           _updateLastMessage(newMessage.message);
