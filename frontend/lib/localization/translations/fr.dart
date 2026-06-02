@@ -90,7 +90,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       // comprene et que ce sois traducible ds tte les langue". Labels
       // raccourcis a 1 mot. Les sublabels restent dans le map pour
       // backward-compat mais ne sont plus affiches dans le widget.
-      'pawmap_quick_follow': 'Suivre',
+      'pawmap_quick_follow': 'Me suivre',
+      'family_member_pending': 'En attente',
       'pawmap_quick_follow_sub': 'Mes proches',
       'pawmap_quick_follow_on': 'Actif',
       'pawmap_quick_family': 'Amis',

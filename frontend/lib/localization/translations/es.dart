@@ -2712,7 +2712,8 @@ const Map<String, String> esESTranslations = <String, String>{
     // v23.1 part 243 — etiquetas cortas de 1 palabra por botón.
     'pawmap_quick_family': 'Amigos',
     'pawmap_quick_family_sub': 'Añadir',
-    'pawmap_quick_follow': 'Seguir',
+    'pawmap_quick_follow': 'Seguirme',
+    'family_member_pending': 'Pendiente',
     'pawmap_quick_follow_on': 'Activo',
     'pawmap_quick_follow_sub': 'Mis allegados',
     'pawmap_quick_people_live': 'En vivo',

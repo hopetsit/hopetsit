@@ -1926,6 +1926,12 @@ class _FamilyMemberTile extends StatelessWidget {
     final avatar = (member['avatar'] ?? '').toString();
     final role = (member['role'] ?? '').toString();
     final id = (member['id'] ?? '').toString();
+    // v23.1.273 — Daniel : "ça me l'a mis dans la liste avant même
+    // l'acceptation". Un membre invité reste 'pending' tant qu'il n'a pas
+    // accepté → on l'affiche avec un badge "En attente" pour qu'il ne soit pas
+    // confondu avec un membre actif.
+    final status = (member['status'] ?? 'active').toString();
+    final isPending = status == 'pending';
     // v23.1.266 — Daniel : "quand j'appuie sur un membre famille ça ne me
     // renvoie pas à la PawMap". Le tile famille n'avait AUCUN onTap (contraire-
     // ment au tile ami). On ajoute le même comportement : fetch position
@@ -2016,10 +2022,38 @@ class _FamilyMemberTile extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
                 SizedBox(height: 2.h),
-                InterText(
-                  text: role,
-                  fontSize: 11.sp,
-                  color: AppColors.greyText,
+                Row(
+                  children: [
+                    Flexible(
+                      child: InterText(
+                        text: role,
+                        fontSize: 11.sp,
+                        color: AppColors.greyText,
+                        maxLines: 1,
+                      ),
+                    ),
+                    // v23.1.273 — badge "En attente" si l'invité n'a pas
+                    // encore accepté la demande de famille.
+                    if (isPending) ...[
+                      SizedBox(width: 6.w),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 6.w, vertical: 1.h),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B)
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: InterText(
+                          text: '⏳ ${'family_member_pending'.tr}',
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFB45309),
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

@@ -83,7 +83,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       // v23.1.191 — shorter sublabels to fit on one line.
       // v23.1 part 225 — Daniel rename for readability (2 lines).
       // v23.1 part 243 — short single-word labels per button.
-      'pawmap_quick_follow': 'Follow',
+      'pawmap_quick_follow': 'Follow me',
+      'family_member_pending': 'Pending',
       'pawmap_quick_follow_sub': 'Loved ones',
       'pawmap_quick_follow_on': 'Live',
       'pawmap_quick_family': 'Friends',

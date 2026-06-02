@@ -2448,6 +2448,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ? const Color(0xFF16A34A)
                     : const Color(0xFFEF4324),
                 onTap: _toggleBroadcast,
+                // v23.1.273 — "Me suivre" sur une seule ligne.
+                maxLines: 1,
               );
             }),
           ),
@@ -2525,6 +2527,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v23.1.255 — Daniel : "badge 1 sur le quick bouton" pour les demandes
     // d'amis en attente. >0 → pastille rouge en coin haut-droit.
     int badgeCount = 0,
+    // v23.1.273 — Daniel : "Me suivre sur une ligne". maxLines=1 + FittedBox
+    // scaleDown → le label reste sur 1 ligne et la police se réduit au besoin.
+    int maxLines = 2,
   }) {
     final card = Material(
       color: Colors.transparent,
@@ -2590,7 +2595,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   fontSize: 10.5.sp,
                   fontWeight: FontWeight.w800,
                   color: color,
-                  maxLines: 2,
+                  maxLines: maxLines,
                   textAlign: TextAlign.center,
                 ),
               ),

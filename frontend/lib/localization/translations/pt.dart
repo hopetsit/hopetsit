@@ -2586,7 +2586,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     // v23.1 part 243 — etiquetas curtas de 1 palavra por botão.
     'pawmap_quick_family': 'Amigos',
     'pawmap_quick_family_sub': 'Adicionar',
-    'pawmap_quick_follow': 'Seguir',
+    'pawmap_quick_follow': 'Seguir-me',
+    'family_member_pending': 'Pendente',
     'pawmap_quick_follow_on': 'Ativo',
     'pawmap_quick_follow_sub': 'Os meus próximos',
     'pawmap_quick_people_live': 'Ao vivo',
