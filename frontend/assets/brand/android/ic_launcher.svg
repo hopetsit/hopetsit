@@ -5,7 +5,7 @@
     <ellipse cx="-195" cy="-154" rx="58" ry="65" fill="#EF4324"/>
     <ellipse cx="-68" cy="-235" rx="58" ry="65" fill="#1A73E8"/>
     <ellipse cx="68"  cy="-235" rx="58" ry="65" fill="#008000"/>
-    <ellipse cx="195" cy="-154" rx="58" ry="65" fill="#EF4324"/>
+    <ellipse cx="195" cy="-154" rx="58" ry="65" fill="#8B5CF6"/>
     <path d="M-290,120 C-290,-34 -181,-119 0,-119 C181,-119 290,-34 290,120 C290,239 181,314 0,314 C-181,314 -290,239 -290,120 Z" fill="#1A1A1A"/>
     <ellipse cx="0" cy="120" rx="205" ry="102" fill="#0D0D0D"/>
     <circle cx="0" cy="120" r="99" fill="#EF4324"/>

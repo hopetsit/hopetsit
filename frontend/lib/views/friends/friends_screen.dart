@@ -93,74 +93,10 @@ class FriendsScreen extends StatelessWidget {
           // + lien deep-link via SharePlus (le destinataire peut le coller
           // dans WhatsApp/email/sms etc.).
           actions: [
-            // v23.1 part 214 — Daniel : "je ne recois toujours pas la
-            // demande d'amis sa me met envoyer mais je ne recois rien".
-            // Bouton diagnostic qui appelle /friends/whoami + /diagnose
-            // et affiche TOUTE l'etat des friendships du user courant
-            // dans un AlertDialog. Daniel peut ouvrir sur ses 2 phones
-            // et comparer pour identifier ce qui cloche reellement.
-            IconButton(
-              icon: Icon(Icons.bug_report_rounded,
-                  color: AppColors.primaryColor, size: 22.sp),
-              tooltip: 'friend_diagnose_tooltip'.tr,
-              onPressed: () async {
-                final result = await controller.diagnose();
-                if (!context.mounted) return;
-                if (result == null) {
-                  CustomSnackbar.showError(
-                    title: 'common_error'.tr,
-                    message: 'friend_diagnose_failed'.tr,
-                  );
-                  return;
-                }
-                final whoami = (result['whoami'] as Map?) ?? {};
-                final diag = (result['diagnose'] as Map?) ?? {};
-                final friendships = (diag['friendships'] as List?) ?? [];
-                final buf = StringBuffer();
-                buf.writeln('━━━ MOI ━━━');
-                buf.writeln('id    : ${whoami['id']}');
-                buf.writeln('model : ${whoami['model']}  (jwtRole=${whoami['jwtRole']})');
-                buf.writeln('name  : ${whoami['name'] ?? '(vide)'}');
-                buf.writeln('email : ${whoami['emailHint'] ?? '(vide)'}');
-                buf.writeln('doc OK: ${whoami['docExists']}');
-                buf.writeln('');
-                buf.writeln('━━━ FRIENDSHIPS (${friendships.length}) ━━━');
-                if (friendships.isEmpty) {
-                  buf.writeln('Aucune amitie en DB de mon cote.');
-                }
-                for (final f in friendships) {
-                  if (f is! Map) continue;
-                  buf.writeln('• id=${f['friendshipId']}');
-                  buf.writeln('  status=${f['status']}  iAmReq=${f['iAmRequester']}');
-                  buf.writeln('  req ${f['requesterModel']}:${f['requesterId']}');
-                  buf.writeln('  add ${f['addresseeModel']}:${f['addresseeId']}');
-                  buf.writeln('  other ${f['otherModel']}:${f['otherId']}');
-                  buf.writeln('  otherExists=${f['otherExists']}  name="${f['otherName'] ?? ''}"');
-                  buf.writeln('');
-                }
-                showDialog<void>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text('friend_diagnose_title'.tr),
-                    content: SingleChildScrollView(
-                      child: SelectableText(
-                        buf.toString(),
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11.sp,
-                        ),
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: Text('common_close'.tr),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+            // v23.1.274 — Daniel : "dans mes amis enleve la petite icone
+            // report de bug". Le bouton diagnostic (loupe bug) servait au
+            // debug des demandes d'amis ; il est retire de la barre d'app
+            // (la methode controller.diagnose() reste dispo si besoin).
             // v23.1.174 — Accès à la liste des bloqués depuis la barre d'app.
             IconButton(
               icon: Icon(Icons.block_rounded,
@@ -1080,9 +1016,12 @@ class _FamilyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = AppColors.roleAccent(
-      Get.find<AuthController>().userRole.value,
-    );
+    // v23.1.274 — Daniel : "le paw follow famille change la police couleur
+    // violet comme ca le code couleur de lapp a un sens". L'onglet Famille
+    // utilise desormais le VIOLET famille (#8B5CF6) comme accent au lieu de
+    // la couleur du role, pour rester coherent avec le halo famille de la
+    // PawMap, le 4eme orteil violet du logo et la carte "Famille active".
+    const accent = Color(0xFF8B5CF6);
     return RefreshIndicator(
       onRefresh: () => controller.loadFamily(),
       child: Obx(() {
@@ -1156,11 +1095,18 @@ class _FamilyTab extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             // ── 1. Top hero card "PawFollow Famille actif" ──────────────
+            // v23.1.274 — Daniel : "le paw follow famille change la police
+            // couleur violet comme ca le code couleur de lapp a un sens".
+            // La famille = VIOLET (#8B5CF6 / #7C3AED), comme le halo famille
+            // sur la PawMap et le 4eme orteil du logo. On repasse donc cette
+            // carte du theme orange historique au theme violet famille :
+            // fond violet clair, anneau bouclier violet, titre + compteur
+            // en violet. Coherent avec tout le code couleur de l'app.
             Container(
               padding: EdgeInsets.fromLTRB(16.w, 16.h, 12.w, 16.h),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFFF1ED), Color(0xFFFFE4D6)],
+                  colors: [Color(0xFFF5F3FF), Color(0xFFEDE9FE)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -1169,20 +1115,20 @@ class _FamilyTab extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Shield+paw orange ring icon (left)
+                  // Shield+paw violet ring icon (left) — code couleur famille.
                   Container(
                     width: 52.w,
                     height: 52.w,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFEF4324), Color(0xFFDC2626)],
+                        colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFEF4324).withValues(alpha: 0.30),
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.30),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -1200,7 +1146,7 @@ class _FamilyTab extends StatelessWidget {
                           text: 'family_active_title'.tr,
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary(context),
+                          color: const Color(0xFF7C3AED),
                         ),
                         SizedBox(height: 4.h),
                         RichText(
@@ -1211,7 +1157,7 @@ class _FamilyTab extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFEF4324),
+                                  color: const Color(0xFF7C3AED),
                                 ),
                               ),
                               TextSpan(

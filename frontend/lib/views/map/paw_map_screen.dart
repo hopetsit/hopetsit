@@ -1086,14 +1086,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       } catch (_) {/* defensive */}
 
       // v23.1 part 243 — halo color priority.
-      // v23.1 part 244d — Daniel : "jai ajouter un walker a ma famille
-      // son halo ne cest pas changer en couleur violet ou laisse le halo
-      // vert et surligne le de violet se serai encore mieux". Nouvelle
-      // strategie (preferee Daniel) : on garde TOUJOURS la couleur du
-      // role (walker vert / sitter bleu / owner orange / silver), et si
-      // la personne est dans la famille on rajoute un 2e cercle exterieur
-      // violet en outline (sans fill). Cela conserve le code couleur
-      // metier ET signale clairement le statut famille — gagnant-gagnant.
+      // v23.1.275 — Daniel : "si l'ami sitter/walker/owner passe a famille
+      // alors met un SEUL halo violet, pas la peine d'emettre 3 halos
+      // differents". On abandonne l'ancienne strategie (role + 2e anneau
+      // violet empile) au profit d'une PRIORITE FAMILLE : famille -> un
+      // unique halo violet ; sinon couleur du role (walker vert / sitter
+      // bleu / owner orange / ami argent). Un seul cercle par personne.
       const silver = Color(0xFFC0C0C0);
       const familyViolet = Color(0xFF8B5CF6);
 
@@ -1108,10 +1106,20 @@ class _PawMapScreenState extends State<PawMapScreen>
         // hex case mismatch sur certaines plateformes.
         final normUserId = pos.userId.trim().toLowerCase();
         final isFamily = familyMemberIds.contains(normUserId);
-        // v244d : on choisit toujours la couleur du role.
+        // v23.1.275 — Daniel : "si l'ami sitter/walker/owner passe a famille
+        // alors met un SEUL halo violet, pas la peine d'emettre 3 halos
+        // differents". PRIORITE FAMILLE : si la personne est dans ma famille
+        // PawFollow, son halo est UNIQUEMENT violet (code couleur famille) —
+        // on n'empile plus halo-de-role + anneau violet (ca faisait 2 cercles).
+        // Sinon, couleur du role : walker VERT / sitter BLEU / owner ORANGE /
+        // ami ARGENT. Dans tous les cas le centre lit la position LIVE, donc
+        // le halo SUIT la personne a la trace pendant la promenade / la garde.
         Color color;
         String tag;
-        if (role == 'walker') {
+        if (isFamily) {
+          color = familyViolet;
+          tag = 'family';
+        } else if (role == 'walker') {
           color = AppColors.greenColor;
           tag = 'walker';
         } else if (role == 'sitter') {
@@ -1124,7 +1132,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           color = silver;
           tag = 'friend';
         }
-        // 1) Halo principal — couleur du role, comme avant.
+        // Halo UNIQUE — violet si famille, sinon couleur du role. Centre =
+        // position LIVE -> il se deplace avec la personne (suivi a la trace).
         circles.add(
           Circle(
             circleId: CircleId('${tag}_halo_${pos.userId}'),
@@ -1135,22 +1144,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             strokeWidth: 2,
           ),
         );
-        // 2) v244d — outline violet exterieur si membre famille. Rayon
-        // plus grand (80m vs 60m) et stroke epais (3px) pour bien sortir
-        // du halo de role. Pas de fill : juste un anneau violet.
-        if (isFamily) {
-          circles.add(
-            Circle(
-              circleId: CircleId('family_ring_${pos.userId}'),
-              center: LatLng(pos.latitude, pos.longitude),
-              radius: 80,
-              fillColor: Colors.transparent,
-              strokeColor: familyViolet.withValues(alpha: 0.95),
-              strokeWidth: 3,
-            ),
-          );
-        }
-        // 3) v23.1.274 — Daniel : "le pin halo de paw follow doit suivre
+        // v23.1.274 — Daniel : "le pin halo de paw follow doit suivre
         // la personne qd y bouge". Quand on SUIT activement cette personne
         // (_followUserId == son id), on rajoute un anneau "tracking" qui
         // RESPIRE avec _haloPhase (30→70m) pour montrer sans ambiguite que
