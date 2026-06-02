@@ -55,8 +55,9 @@ class SitterBookingsController extends GetxController {
     }
   }
 
-  Future<void> loadBookings({String? status}) async {
-    isLoading.value = true;
+  /// [silent] = rafraîchissement de fond (timer 30s) : pas de spinner.
+  Future<void> loadBookings({String? status, bool silent = false}) async {
+    if (!silent) isLoading.value = true;
     // When status is null, reset to "all" (no filter)
     selectedStatus.value = status ?? '';
 
@@ -79,7 +80,7 @@ class SitterBookingsController extends GetxController {
         error: error,
       );
     } finally {
-      isLoading.value = false;
+      if (!silent) isLoading.value = false;
     }
   }
 

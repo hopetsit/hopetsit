@@ -26,7 +26,13 @@ import 'package:hopetsit/widgets/app_text.dart';
 /// payés avant que le backend ne pose 'awaiting_start') on traite comme
 /// `awaiting_start` côté provider → le prestataire peut démarrer le service
 /// et le système reste visible sur toute réservation payée.
-class ServiceConfirmationCard extends StatelessWidget {
+///
+/// v23.1.265 — Daniel : "les deux boutons tournent en même temps". Le `busy`
+/// du parent est par-réservation, pas par-bouton → quand l'owner tape
+/// CONFIRMER, le spinner s'affichait AUSSI sur SIGNALER. La carte est
+/// désormais Stateful et mémorise quel bouton a été tapé (`_pending`) : seul
+/// ce bouton-là tourne, l'autre est juste désactivé le temps de l'appel.
+class ServiceConfirmationCard extends StatefulWidget {
   const ServiceConfirmationCard({
     super.key,
     required this.confirmationStatus,
@@ -48,21 +54,34 @@ class ServiceConfirmationCard extends StatelessWidget {
   final Future<void> Function()? onConfirm;
   final Future<void> Function()? onDispute;
 
-  bool get _isProvider => role == 'sitter' || role == 'walker';
+  @override
+  State<ServiceConfirmationCard> createState() =>
+      _ServiceConfirmationCardState();
+}
+
+class _ServiceConfirmationCardState extends State<ServiceConfirmationCard> {
+  /// Identifiant du bouton actuellement tapé ('start'|'complete'|'confirm'|
+  /// 'dispute'). Seul ce bouton affiche le spinner pendant que `widget.busy`.
+  String? _pending;
+
+  bool get _isProvider =>
+      widget.role == 'sitter' || widget.role == 'walker';
   String get _status =>
-      confirmationStatus.isEmpty ? 'none' : confirmationStatus;
+      widget.confirmationStatus.isEmpty ? 'none' : widget.confirmationStatus;
+
+  @override
+  void didUpdateWidget(covariant ServiceConfirmationCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Quand le parent a fini (busy repasse à false), on réarme la carte.
+    if (!widget.busy && _pending != null) {
+      _pending = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!isPaid) return const SizedBox.shrink();
+    if (!widget.isPaid) return const SizedBox.shrink();
     final st = _status;
-    // v23.1.264 — Daniel : "pourquoi je n'ai plus le système de confirmation
-    // dans réservations ?". En v262 on masquait la carte pour
-    // confirmationStatus=='none', mais ses réservations (payées avant que le
-    // backend ne pose 'awaiting_start') valent 'none' → la carte disparaissait
-    // complètement. On REVIENT là-dessus : 'none' est traité comme
-    // 'awaiting_start' (le prestataire peut démarrer le service) → le système
-    // reste visible et utilisable sur toute réservation payée.
 
     return Container(
       width: double.infinity,
@@ -120,8 +139,9 @@ class ServiceConfirmationCard extends StatelessWidget {
           _infoLine(context, 'service_card_in_progress'.tr),
           SizedBox(height: 10.h),
           _actionButton(
+            action: 'complete',
             label: 'service_card_provider_complete_btn'.tr,
-            onTap: onComplete,
+            onTap: widget.onComplete,
             color: const Color(0xFF16A34A),
           ),
         ];
@@ -132,8 +152,9 @@ class ServiceConfirmationCard extends StatelessWidget {
       // awaiting_start / none → démarrer
       return [
         _actionButton(
+          action: 'start',
           label: 'service_card_provider_start_btn'.tr,
-          onTap: onStart,
+          onTap: widget.onStart,
           color: AppColors.primaryColor,
         ),
       ];
@@ -152,16 +173,18 @@ class ServiceConfirmationCard extends StatelessWidget {
           children: [
             Expanded(
               child: _actionButton(
+                action: 'confirm',
                 label: 'service_card_confirm_btn'.tr,
-                onTap: onConfirm,
+                onTap: widget.onConfirm,
                 color: const Color(0xFF16A34A),
               ),
             ),
             SizedBox(width: 10.w),
             Expanded(
               child: _actionButton(
+                action: 'dispute',
                 label: 'service_card_dispute_btn'.tr,
-                onTap: onDispute,
+                onTap: widget.onDispute,
                 color: const Color(0xFFDC2626),
                 outlined: true,
               ),
@@ -192,15 +215,26 @@ class ServiceConfirmationCard extends StatelessWidget {
   }
 
   Widget _actionButton({
+    required String action,
     required String label,
     required Future<void> Function()? onTap,
     required Color color,
     bool outlined = false,
   }) {
+    // Ce bouton tourne UNIQUEMENT s'il est celui qui a été tapé.
+    final spinning = widget.busy && _pending == action;
+    // Tous les boutons sont désactivés pendant un appel en cours (anti
+    // double-tap), mais un seul affiche le spinner.
+    final disabled = widget.busy || onTap == null;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: (busy || onTap == null) ? null : () => onTap(),
+        onPressed: disabled
+            ? null
+            : () {
+                setState(() => _pending = action);
+                onTap();
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: outlined ? Colors.transparent : color,
           foregroundColor: outlined ? color : Colors.white,
@@ -211,7 +245,7 @@ class ServiceConfirmationCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12.r),
           ),
         ),
-        child: busy
+        child: spinning
             ? SizedBox(
                 width: 18.w,
                 height: 18.w,

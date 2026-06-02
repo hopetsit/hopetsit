@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -35,6 +37,9 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
   String _selectedStatus = 'all';
   // v23.1.260 — id du booking dont l'action confirmation est en cours.
   String? _busySvcId;
+  // v23.1.265 — Daniel : "les pages réservation se mettent à jour toutes les
+  // 30s". Rafraîchissement de fond silencieux (pas de spinner).
+  Timer? _autoRefresh;
 
   Future<void> _onServiceConfirm(BookingModel booking) async {
     setState(() => _busySvcId = booking.id);
@@ -89,6 +94,16 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
     _bookingsController = Get.isRegistered<BookingsController>()
         ? Get.find<BookingsController>()
         : Get.put(BookingsController());
+    // v23.1.265 — refresh auto toutes les 30s tant que l'écran est visible.
+    _autoRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _bookingsController.loadBookings(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoRefresh?.cancel();
+    super.dispose();
   }
 
   List<BookingModel> get _filteredBookings {

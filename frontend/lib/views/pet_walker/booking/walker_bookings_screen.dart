@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -32,6 +34,8 @@ class WalkerBookingsScreen extends StatefulWidget {
 class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
   // Same colour as walker price-block in PetPostCard / PaymentPage v17d.
   static const Color _walkerAccent = Color(0xFF16A34A);
+  // v23.1.265 — refresh auto silencieux toutes les 30s.
+  Timer? _autoRefresh;
 
   // v23.1.260 — confirmation de service (côté walker).
   String? _busySvcId;
@@ -89,6 +93,16 @@ class _WalkerBookingsScreenState extends State<WalkerBookingsScreen> {
   void initState() {
     super.initState();
     _bookingsController = Get.put(WalkerBookingsController());
+    // v23.1.265 — refresh auto toutes les 30s tant que l'écran est visible.
+    _autoRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _bookingsController.loadBookings(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoRefresh?.cancel();
+    super.dispose();
   }
 
   List<BookingModel> get _filteredBookings {

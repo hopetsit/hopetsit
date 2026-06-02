@@ -52,8 +52,10 @@ class BookingsController extends GetxController {
     }
   }
 
-  Future<void> loadBookings({String? status}) async {
-    isLoading.value = true;
+  /// [silent] = rafraîchissement de fond (timer 30s) : ne déclenche pas le
+  /// spinner plein écran pour ne pas faire clignoter la liste.
+  Future<void> loadBookings({String? status, bool silent = false}) async {
+    if (!silent) isLoading.value = true;
     if (status != null) {
       selectedStatus.value = status;
     }
@@ -81,7 +83,7 @@ class BookingsController extends GetxController {
         error: error,
       );
     } finally {
-      isLoading.value = false;
+      if (!silent) isLoading.value = false;
     }
   }
 
