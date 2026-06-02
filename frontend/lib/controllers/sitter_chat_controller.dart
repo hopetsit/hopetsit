@@ -858,10 +858,6 @@ class SitterChatController extends GetxController {
       AppLogger.logDebug('Attachment URLs: $attachments');
     }
 
-    // v19.1.3 — soft-deleted flag from backend.
-    final isDeleted = data['isDeleted'] == true ||
-        data['deletedAt'] != null;
-
     final senderRoleStr = (data['senderRole'] ?? data['sender_role'] ?? '').toString();
 
     // v23.1.176 — type + metadata pour la carte pawfollow_request.
@@ -872,6 +868,16 @@ class SitterChatController extends GetxController {
         metadataMap = Map<String, dynamic>.from(data['metadata'] as Map);
       } catch (_) {/* defensive */}
     }
+
+    // v19.1.3 — soft-deleted flag from backend.
+    // v23.1.272 — Daniel : "quand l'autre supprime, ça laisse une bulle VIDE".
+    // Corps redacté côté serveur sans flag isDeleted/deletedAt → bulle fantôme.
+    // On traite un message TEXTE au corps vide sans pièce jointe comme supprimé.
+    final isDeleted = data['isDeleted'] == true ||
+        data['deletedAt'] != null ||
+        (typeStr == 'text' &&
+            message.trim().isEmpty &&
+            attachments.isEmpty);
 
     return SitterChatMessage(
       id: id,

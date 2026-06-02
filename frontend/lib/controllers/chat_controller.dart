@@ -930,11 +930,6 @@ class ChatController extends GetxController {
       AppLogger.logDebug('Attachment URLs: $attachments');
     }
 
-    // v19.1.3 — soft-deleted flag from backend (body + attachments are already
-    // redacted server-side, we just flip the UI bit).
-    final isDeleted = data['isDeleted'] == true ||
-        data['deletedAt'] != null;
-
     final senderRoleStr = (data['senderRole'] ?? data['sender_role'] ?? '').toString();
 
     // v23.1.176 — type + metadata pour pawfollow_request card.
@@ -945,6 +940,20 @@ class ChatController extends GetxController {
         metadataMap = Map<String, dynamic>.from(data['metadata'] as Map);
       } catch (_) {/* defensive */}
     }
+
+    // v19.1.3 — soft-deleted flag from backend (body + attachments are already
+    // redacted server-side, we just flip the UI bit).
+    // v23.1.272 — Daniel : "quand l'autre supprime, ça laisse une bulle VIDE
+    // (witoulek sans texte)". Si le serveur a redacté le corps SANS renvoyer le
+    // flag isDeleted/deletedAt au rechargement, on obtenait un message au corps
+    // vide + isDeleted=false → ni 'Message supprimé' ni texte → bulle fantôme
+    // vide. On traite un message TEXTE au corps vide ET sans pièce jointe comme
+    // supprimé → placeholder 'Message supprimé' au lieu d'une bulle vide.
+    final isDeleted = data['isDeleted'] == true ||
+        data['deletedAt'] != null ||
+        (typeStr == 'text' &&
+            message.trim().isEmpty &&
+            attachments.isEmpty);
 
     return ChatMessage(
       id: id,
