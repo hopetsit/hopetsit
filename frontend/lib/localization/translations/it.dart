@@ -1287,6 +1287,9 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawmap_following_label': '🔴 Tracciamento live · @name',
       'pawmap_following_default': 'il tuo amico',
       'pawmap_following_stop': 'Ferma',
+      'pawmap_fit_none_title': 'Nessun amico da mostrare',
+      'pawmap_fit_none_msg':
+          'Nessuno dei tuoi amici sta condividendo la posizione in questo momento.',
       'pawmap_time_just_now': 'proprio ora',
       'pawmap_distance_km': '@km km',
       'pawmap_hours_remaining_label': '@hours h rimaste',

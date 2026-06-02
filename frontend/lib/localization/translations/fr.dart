@@ -1351,6 +1351,9 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_following_label': '🔴 Suivi en direct · @name',
       'pawmap_following_default': 'votre ami',
       'pawmap_following_stop': 'Arrêter',
+      'pawmap_fit_none_title': 'Aucun ami à afficher',
+      'pawmap_fit_none_msg':
+          'Aucun de vos amis ne partage sa position pour le moment.',
       'pawmap_time_just_now': 'à l\'instant',
       'pawmap_distance_km': '@km km',
       'pawmap_hours_remaining_label': '@hours h restantes',

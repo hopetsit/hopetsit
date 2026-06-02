@@ -129,6 +129,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   Worker? _followWorker;
   static const double _followZoom = 18.0;
 
+  // v23.1.266 — Daniel : "un bouton discret pour une vue satellite". Type de
+  // carte togglable normal ↔ hybride (satellite + rues/labels).
+  MapType _mapType = MapType.normal;
+
   /// Nearby reservation requests for the sitter/walker layer. Fetched in
   /// `_reloadAtCenter()` via `/posts/requests/nearby`. Empty for owner role.
   final RxList<NearbyRequestPost> _requests = <NearbyRequestPost>[].obs;
@@ -1764,6 +1768,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                       // v23.1 part 243 round 3 — markers memoizes, voir
                       // _cachedMarkers + _getMarkersFromCache plus haut.
                       // Plus de _buildMarkers() sur chaque tick halo.
+                      mapType: _mapType,
                       markers: _getMarkersFromCache(),
                       circles: _buildHaloCircles(),
                     );
@@ -1950,9 +1955,80 @@ class _PawMapScreenState extends State<PawMapScreen>
             onTap: _zoomOut,
             tone: AppColors.textPrimary(context),
           ),
+          // v23.1.266 — bouton vue satellite (hybride) discret.
+          _stackedDivider(),
+          _buildStackedControl(
+            icon: _mapType == MapType.normal
+                ? Icons.satellite_alt_rounded
+                : Icons.map_rounded,
+            onTap: _toggleMapType,
+            tone: _mapType == MapType.normal
+                ? AppColors.textPrimary(context)
+                : AppColors.primaryColor,
+          ),
+          // v23.1.266 — bouton "voir tous mes amis" (dézoome pour les englober).
+          _stackedDivider(),
+          _buildStackedControl(
+            icon: Icons.groups_rounded,
+            onTap: _fitAllFriends,
+            tone: AppColors.textPrimary(context),
+          ),
         ],
       ),
     );
+  }
+
+  /// Bascule normal ↔ satellite (hybride : imagerie + rues/labels).
+  void _toggleMapType() {
+    setState(() {
+      _mapType =
+          _mapType == MapType.normal ? MapType.hybrid : MapType.normal;
+    });
+  }
+
+  /// v23.1.266 — Daniel : "un bouton pour dézoomer et voir tous mes amis dans
+  /// un pays". Ajuste la caméra pour englober toutes les positions amis connues
+  /// (+ la mienne).
+  Future<void> _fitAllFriends() async {
+    if (!_mapCtl.isCompleted) return;
+    final pts = _liveMap.friendPositions.values
+        .where((p) => !(p.latitude == 0 && p.longitude == 0))
+        .map((p) => LatLng(p.latitude, p.longitude))
+        .toList();
+    if (_userPosition != null) pts.add(_userPosition!);
+    if (pts.isEmpty) {
+      CustomSnackbar.showInfo(
+        title: 'pawmap_fit_none_title'.tr,
+        message: 'pawmap_fit_none_msg'.tr,
+      );
+      return;
+    }
+    // On arrête le suivi le temps de la vue d'ensemble.
+    if (_followUserId != null) _stopFollow();
+    final ctl = await _mapCtl.future;
+    if (pts.length == 1) {
+      await ctl.animateCamera(CameraUpdate.newLatLngZoom(pts.first, 13));
+      return;
+    }
+    double minLat = pts.first.latitude, maxLat = pts.first.latitude;
+    double minLng = pts.first.longitude, maxLng = pts.first.longitude;
+    for (final p in pts) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+    // Points quasi confondus → un simple zoom centré (évite un bounds dégénéré).
+    if ((maxLat - minLat).abs() < 0.0005 && (maxLng - minLng).abs() < 0.0005) {
+      await ctl.animateCamera(CameraUpdate.newLatLngZoom(
+          LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2), 14));
+      return;
+    }
+    final bounds = LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+    await ctl.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
   }
 
   Widget _buildStackedControl({

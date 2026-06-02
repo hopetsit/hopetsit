@@ -1915,7 +1915,54 @@ class _FamilyMemberTile extends StatelessWidget {
     final avatar = (member['avatar'] ?? '').toString();
     final role = (member['role'] ?? '').toString();
     final id = (member['id'] ?? '').toString();
-    return Container(
+    // v23.1.266 — Daniel : "quand j'appuie sur un membre famille ça ne me
+    // renvoie pas à la PawMap". Le tile famille n'avait AUCUN onTap (contraire-
+    // ment au tile ami). On ajoute le même comportement : fetch position
+    // (socket cache → /friends/:id/last-position) puis ouvre la PawMap centrée
+    // sur lui + suivi. La famille est toujours trackable (PawFollow Famille).
+    return InkWell(
+      borderRadius: BorderRadius.circular(14.r),
+      onTap: id.isEmpty
+          ? null
+          : () async {
+              double? lat;
+              double? lng;
+              try {
+                final svc = Get.isRegistered<LiveMapService>()
+                    ? Get.find<LiveMapService>()
+                    : null;
+                final pos = svc?.friendPositions[id];
+                if (pos != null) {
+                  lat = pos.latitude;
+                  lng = pos.longitude;
+                }
+              } catch (_) {/* defensive */}
+              if (lat == null || lng == null) {
+                try {
+                  final api = Get.find<ApiClient>();
+                  final r = await api.get(
+                    '/friends/$id/last-position',
+                    requiresAuth: true,
+                  );
+                  if (r is Map) {
+                    final rLat = r['lat'];
+                    final rLng = r['lng'];
+                    if (rLat is num && rLng is num) {
+                      lat = rLat.toDouble();
+                      lng = rLng.toDouble();
+                    }
+                  }
+                } catch (_) {/* defensive */}
+              }
+              Get.to(() => PawMapScreen(
+                    initialLat: lat,
+                    initialLng: lng,
+                    focusUserId: id,
+                    focusUserRole: role.toLowerCase(),
+                    focusUserName: name,
+                  ));
+            },
+      child: Container(
       margin: EdgeInsets.only(bottom: 10.h),
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
@@ -2002,6 +2049,7 @@ class _FamilyMemberTile extends StatelessWidget {
             },
           ),
         ],
+      ),
       ),
     );
   }

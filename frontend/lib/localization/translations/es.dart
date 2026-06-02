@@ -1175,6 +1175,9 @@ const Map<String, String> esESTranslations = <String, String>{
       'pawmap_following_label': '🔴 Seguimiento en directo · @name',
       'pawmap_following_default': 'tu amigo',
       'pawmap_following_stop': 'Detener',
+      'pawmap_fit_none_title': 'Ningún amigo que mostrar',
+      'pawmap_fit_none_msg':
+          'Ninguno de tus amigos comparte su ubicación ahora mismo.',
       'pawmap_time_just_now': 'ahora mismo',
       'pawmap_distance_km': '@km km',
       'pawmap_hours_remaining_label': '@hours h restantes',

@@ -1283,6 +1283,9 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawmap_following_label': '🔴 Live tracking · @name',
       'pawmap_following_default': 'your friend',
       'pawmap_following_stop': 'Stop',
+      'pawmap_fit_none_title': 'No friends to show',
+      'pawmap_fit_none_msg':
+          'None of your friends is sharing their location right now.',
       'pawmap_time_just_now': 'just now',
       'pawmap_distance_km': '@km km',
       'pawmap_hours_remaining_label': '@hours h left',

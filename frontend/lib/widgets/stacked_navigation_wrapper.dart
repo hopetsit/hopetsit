@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
+import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/controllers/chat_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
@@ -44,6 +46,28 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
     if (role == 'walker') return const Color(0xFF16A34A);
     if (role == 'sitter') return const Color(0xFF2563EB);
     return AppColors.primaryColor;
+  }
+
+  /// v23.1.266 — Daniel : "un petit badge stylé pour la demande de
+  /// confirmation". Nombre de réservations en attente de l'action de
+  /// l'utilisateur (owner : à confirmer ; prestataire : à démarrer/terminer).
+  /// Role-aware : lit le bon contrôleur de réservations.
+  int _bookingsBadgeCount() {
+    final role = Get.isRegistered<AuthController>()
+        ? (Get.find<AuthController>().userRole.value ?? 'owner').toLowerCase()
+        : 'owner';
+    try {
+      if (role == 'sitter' && Get.isRegistered<SitterBookingsController>()) {
+        return Get.find<SitterBookingsController>().pendingActionCount;
+      }
+      if (role == 'walker' && Get.isRegistered<WalkerBookingsController>()) {
+        return Get.find<WalkerBookingsController>().pendingActionCount;
+      }
+      if (Get.isRegistered<BookingsController>()) {
+        return Get.find<BookingsController>().pendingActionCount;
+      }
+    } catch (_) {/* defensive */}
+    return 0;
   }
 
   @override
@@ -171,11 +195,50 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
               label: '',
             ),
             BottomNavigationBarItem(
-              icon: Image.asset(
-                AppImages.calendarIcon,
-                width: 22,
-                height: 22,
-                color: _currentIndex == 3 ? activeColor : const Color(0xFF9E9E9E),
+              // v23.1.266 — badge vert "action requise" (confirmer / démarrer /
+              // terminer un service) sur l'onglet Réservations.
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Image.asset(
+                    AppImages.calendarIcon,
+                    width: 22,
+                    height: 22,
+                    color: _currentIndex == 3
+                        ? activeColor
+                        : const Color(0xFF9E9E9E),
+                  ),
+                  Positioned(
+                    top: -4,
+                    right: -6,
+                    child: Obx(() {
+                      final n = _bookingsBadgeCount();
+                      if (n <= 0) return const SizedBox.shrink();
+                      final label = n > 9 ? '9+' : n.toString();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        constraints: const BoxConstraints(
+                            minWidth: 16, minHeight: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF16A34A),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
               label: 'nav_bookings'.tr,
             ),

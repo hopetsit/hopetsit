@@ -1268,6 +1268,9 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawmap_following_label': '🔴 Live-Verfolgung · @name',
       'pawmap_following_default': 'deinen Freund',
       'pawmap_following_stop': 'Stopp',
+      'pawmap_fit_none_title': 'Keine Freunde anzuzeigen',
+      'pawmap_fit_none_msg':
+          'Keiner deiner Freunde teilt gerade seinen Standort.',
       'pawmap_time_just_now': 'gerade eben',
       'pawmap_distance_km': '@km km',
       'pawmap_hours_remaining_label': '@hours Std. übrig',

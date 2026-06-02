@@ -1104,6 +1104,9 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawmap_following_label': '🔴 Seguimento em direto · @name',
       'pawmap_following_default': 'o teu amigo',
       'pawmap_following_stop': 'Parar',
+      'pawmap_fit_none_title': 'Nenhum amigo para mostrar',
+      'pawmap_fit_none_msg':
+          'Nenhum dos teus amigos está a partilhar a localização agora.',
       'pawmap_time_just_now': 'agora mesmo',
       'pawmap_distance_km': '@km km',
       'pawmap_hours_remaining_label': '@hours h restantes',

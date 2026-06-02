@@ -1143,6 +1143,24 @@ const switchRole = async (req, res) => {
         },
         { arrayFilters: [{ 'p.userId': userId }] },
       );
+      // v23.1.266 — Daniel : "FAMILY_PLAN_REQUIRED alors que j'ai le PawFollow
+      // Famille". CAUSE RACINE : on migrait amitiés + chats mais PAS
+      // l'abonnement. Après un changement de rôle, la sub (PawFollow Famille/
+      // Solo, PawPass) pointait toujours vers l'ANCIEN doc supprimé → les
+      // endpoints famille (findOne par userId du titulaire) ne la trouvaient
+      // plus → 403. On repointe userId/userModel vers le nouveau doc.
+      try {
+        const UserSubscription = require('../models/UserSubscription');
+        await UserSubscription.updateMany(
+          { userId, userModel: oldModelName },
+          { $set: { userId: newUser._id, userModel: newModelName } },
+        );
+      } catch (subErr) {
+        // Conflit d'index unique {userId,userModel} possible si une sub existe
+        // déjà sous le nouveau rôle — non bloquant, le self-heal côté invite
+        // prendra le relais.
+        logger.warn('[switchRole] migration abonnement échouée (non bloquant)', subErr);
+      }
       logger.info(
         `[switchRole] graphe social migré ${oldModelName}:${userId} → ${newModelName}:${newUser._id}`,
       );

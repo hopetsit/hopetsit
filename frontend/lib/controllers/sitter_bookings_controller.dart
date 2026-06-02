@@ -16,6 +16,14 @@ class SitterBookingsController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString selectedStatus = ''.obs;
 
+  /// v23.1.266 — nb de réservations en attente de MON action (badge nav).
+  /// Prestataire : services à démarrer (récupérer) ou à terminer (rendre).
+  int get pendingActionCount => bookings
+      .where((b) =>
+          b.confirmationStatus == 'awaiting_start' ||
+          b.confirmationStatus == 'in_progress')
+      .length;
+
   @override
   void onInit() {
     super.onInit();

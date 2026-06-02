@@ -16,6 +16,12 @@ class BookingsController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString selectedStatus = ''.obs;
 
+  /// v23.1.266 — nb de réservations en attente de MON action (badge nav).
+  /// Owner : services terminés par le prestataire, à confirmer/signaler.
+  int get pendingActionCount => bookings
+      .where((b) => b.confirmationStatus == 'awaiting_confirmation')
+      .length;
+
   @override
   void onInit() {
     super.onInit();

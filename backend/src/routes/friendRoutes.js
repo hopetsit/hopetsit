@@ -34,6 +34,84 @@ function me(req) {
   };
 }
 
+/**
+ * v23.1.266 — Résout l'abonnement PawFollow Famille DONT L'UTILISATEUR EST
+ * TITULAIRE, avec SELF-HEAL.
+ *
+ * Daniel : "FAMILY_PLAN_REQUIRED alors que j'ai le PawFollow Famille". Cause :
+ * avant le fix de migration (v23.1.266), switchRole ne déplaçait pas la sub →
+ * après un changement de rôle, l'abonnement restait rattaché à l'ANCIEN doc
+ * (supprimé) → findOne({ userId: user.id }) ne le trouvait plus.
+ *
+ * Ce helper :
+ *   1. cherche la sub sous l'id COURANT (cas normal) ;
+ *   2. sinon, rassemble toutes les identités de l'utilisateur (oldId + tous
+ *      les docs de rôle partageant le même email) et retrouve la sub orpheline ;
+ *   3. la REPOINTE sur le doc courant (réparation définitive).
+ *
+ * Accepte plan 'famille' ET 'family' (au cas où une sub aurait été écrite sans
+ * passer par le hook pre-save qui normalise en 'famille').
+ *
+ * @returns {Promise<Object|null>} document sub hydraté (.save()-able) ou null.
+ */
+async function resolveOwnFamilySub(user) {
+  const UserSubscription = require('../models/UserSubscription');
+  const now = new Date();
+  const PLAN_FAMILLE = { $in: ['famille', 'family'] };
+
+  let sub = await UserSubscription.findOne({
+    userId: user.id,
+    plan: PLAN_FAMILLE,
+    status: 'active',
+    currentPeriodEnd: { $gt: now },
+  });
+  if (sub) return sub;
+
+  // Self-heal : rassembler toutes les identités possibles.
+  const candidateIds = new Set([String(user.id)]);
+  try {
+    const Model = MODEL_BY_NAME[user.model];
+    const meDoc = Model
+      ? await Model.findById(user.id).select('email oldId').lean()
+      : null;
+    if (meDoc && meDoc.oldId) candidateIds.add(String(meDoc.oldId));
+    const email = meDoc && meDoc.email;
+    if (email) {
+      const [owners, sitters, walkers] = await Promise.all([
+        Owner.find({ email }).select('_id oldId').lean(),
+        Sitter.find({ email }).select('_id oldId').lean(),
+        Walker.find({ email }).select('_id oldId').lean(),
+      ]);
+      for (const d of [...owners, ...sitters, ...walkers]) {
+        candidateIds.add(String(d._id));
+        if (d.oldId) candidateIds.add(String(d.oldId));
+      }
+    }
+  } catch (e) {
+    logger.warn('[resolveOwnFamilySub] self-heal lookup failed', e);
+  }
+
+  sub = await UserSubscription.findOne({
+    userId: { $in: Array.from(candidateIds) },
+    plan: PLAN_FAMILLE,
+    status: 'active',
+    currentPeriodEnd: { $gt: now },
+  });
+  if (sub && String(sub.userId) !== String(user.id)) {
+    sub.userId = user.id;
+    sub.userModel = user.model;
+    try {
+      await sub.save();
+      logger.info(
+        `[resolveOwnFamilySub] sub Famille réparée → ${user.model}:${user.id}`,
+      );
+    } catch (e) {
+      logger.warn('[resolveOwnFamilySub] re-point save failed', e);
+    }
+  }
+  return sub || null;
+}
+
 /** Fetch a minimal user profile regardless of role, for enriching friend lists. */
 async function fetchUserMini(id, modelName) {
   const Model = MODEL_BY_NAME[modelName];
@@ -1345,22 +1423,10 @@ router.post('/family/invite-member', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid userRole.' });
     }
     const now = new Date();
-    // v23.1.264 — Daniel : "erreur FAMILY_PLAN_REQUIRED alors que j'ai le
-    // PawFollow Famille actif". Cause racine : ces endpoints d'invitation
-    // filtraient sur userModel: user.model (casse exacte) alors que
-    // GET /family/members (qui affiche "Famille actif · 2/5") accepte aussi
-    // la variante minuscule via $in. Si user.model et le userModel stocké
-    // diffèrent en casse (selon le chemin d'auth / un ancien doc), l'invite
-    // ne trouvait pas la sub → 403 trompeur. On aligne EXACTEMENT sur la
-    // requête de /family/members pour garantir la cohérence.
-    const userModelVariants = [user.model, String(user.model).toLowerCase()];
-    const sub = await UserSubscription.findOne({
-      userId: user.id,
-      userModel: { $in: userModelVariants },
-      plan: 'famille',
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
-    });
+    // v23.1.266 — résolution robuste + SELF-HEAL de la sub Famille : gère les
+    // abonnements orphelins (rattachés à un ancien doc après un switchRole
+    // antérieur au fix de migration) et les répare. Voir resolveOwnFamilySub.
+    const sub = await resolveOwnFamilySub(user);
     if (!sub) {
       return res.status(403).json({
         error: 'Active PawFollow Famille subscription required.',
@@ -1445,22 +1511,10 @@ router.post('/family/invite-by-email', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Valid email required.' });
     }
     const now = new Date();
-    // v23.1.264 — Daniel : "erreur FAMILY_PLAN_REQUIRED alors que j'ai le
-    // PawFollow Famille actif". Cause racine : ces endpoints d'invitation
-    // filtraient sur userModel: user.model (casse exacte) alors que
-    // GET /family/members (qui affiche "Famille actif · 2/5") accepte aussi
-    // la variante minuscule via $in. Si user.model et le userModel stocké
-    // diffèrent en casse (selon le chemin d'auth / un ancien doc), l'invite
-    // ne trouvait pas la sub → 403 trompeur. On aligne EXACTEMENT sur la
-    // requête de /family/members pour garantir la cohérence.
-    const userModelVariants = [user.model, String(user.model).toLowerCase()];
-    const sub = await UserSubscription.findOne({
-      userId: user.id,
-      userModel: { $in: userModelVariants },
-      plan: 'famille',
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
-    });
+    // v23.1.266 — résolution robuste + SELF-HEAL de la sub Famille : gère les
+    // abonnements orphelins (rattachés à un ancien doc après un switchRole
+    // antérieur au fix de migration) et les répare. Voir resolveOwnFamilySub.
+    const sub = await resolveOwnFamilySub(user);
     if (!sub) {
       return res.status(403).json({
         error: 'Active PawFollow Famille subscription required.',
