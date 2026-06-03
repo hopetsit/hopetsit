@@ -357,7 +357,16 @@ const sendFriendMessage = async ({
       }).catch(() => {});
     }
   } catch (_) {/* defensive */}
-  return { sentMessage: { ...msg.toObject(), id: String(msg._id) } };
+  // v23.1.276 — Daniel : "sur lapp jecris et sa me met message supprimé".
+  // CAUSE : le chat booking renvoyait/émettait le message sous la clé `message`
+  // (sanitizé), mais le chat AMI/FAMILLE le renvoyait sous `sentMessage` (brut,
+  // sans flag isDeleted). L'app lisait `message` → null pour les amis → body
+  // vide → faux "Message supprimé". On harmonise : on SANITIZE et on renvoie
+  // les DEUX clés (`message` = canonique comme le booking + `sentMessage` =
+  // rétro-compat). Shape homogène : id, body, type, isDeleted=false, createdAt.
+  const sanitized = sanitizeMessage(msg);
+  const withId = { ...sanitized, id: sanitized.id || String(msg._id) };
+  return { message: withId, sentMessage: withId };
 };
 
 const createConversationMessage = async (req, res) => {

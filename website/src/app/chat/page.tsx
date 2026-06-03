@@ -129,9 +129,23 @@ export default function ChatPage() {
   }, [messages]);
 
   // v23.1 part 146 — listener socket pour les nouveaux messages temps réel.
-  useSocketEvent<ChatMessage & { conversationId: string }>(
+  // v23.1.276 — Daniel : "conversations pas synchronisées + message supprimé".
+  // Le backend émet { conversationId, triggeredBy, message, sentMessage } : le
+  // vrai message (id, body…) est NICHÉ sous `message` (chat booking) ou
+  // `sentMessage` (chat ami/famille). Avant on lisait payload.body / payload.id
+  // au top-level → undefined → désync + bulles vides. On DÉBALLE l'enveloppe.
+  useSocketEvent<Record<string, unknown>>(
     "message:new",
-    (msg) => {
+    (payload) => {
+      const inner = (payload.message ??
+        payload.sentMessage ??
+        payload) as ChatMessage & { conversationId?: string };
+      const conversationId =
+        (payload.conversationId as string) || inner?.conversationId || "";
+      const msg: ChatMessage & { conversationId: string } = {
+        ...inner,
+        conversationId,
+      };
       // Si le message arrive pour la conversation actuellement ouverte, on
       // l'append à la liste. Sinon on bump l'unreadCount dans la liste des
       // conversations (et on refresh pour mettre à jour le lastMessage).

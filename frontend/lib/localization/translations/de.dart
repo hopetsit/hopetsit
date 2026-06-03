@@ -2208,6 +2208,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'premium_choose_plan': 'PawFollow-Plan wählen',
     'premium_choose_plan_subtitle': 'Schalte die volle PawMap und Social frei',
     'premium_active': 'PawFollow aktiv',
+    'shop_status_inactive': 'Inaktiv',
     'premium_free_plan': 'Kostenloser Plan',
     'mapboost_header_title': 'Meinen Pin auf der Karte boosten',
     'mapboost_header_subtitle': 'Hervorgehobener Pin auf PawMap — Nachbarn sehen dich zuerst',

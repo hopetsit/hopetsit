@@ -71,7 +71,6 @@ class PawfollowRequestCard extends StatelessWidget {
   final VoidCallback? onOpenMap;
 
   static const _orangeBrand = Color(0xFFEF4324);
-  static const _orangeLight = Color(0xFFFFF1ED);
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +120,10 @@ class PawfollowRequestCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 14.w),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          // v23.1.276 — Daniel : "en dark mode la police se lit mal" sur les
+          // cartes partage de position. Fond adaptatif : le texte textPrimary
+          // (blanc en dark) était invisible sur fond blanc hardcodé.
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
             color: _orangeBrand.withValues(alpha: 0.30),
@@ -232,7 +234,7 @@ class PawfollowRequestCard extends StatelessWidget {
                       height: 44.w,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _orangeLight,
+                        color: _orangeBrand.withValues(alpha: 0.12),
                         border: Border.all(color: _orangeBrand, width: 1.5),
                       ),
                       clipBehavior: Clip.antiAlias,
@@ -285,7 +287,7 @@ class PawfollowRequestCard extends StatelessWidget {
                   padding: EdgeInsets.symmetric(
                       horizontal: 12.w, vertical: 10.h),
                   decoration: BoxDecoration(
-                    color: _orangeLight,
+                    color: _orangeBrand.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
                       color: _orangeBrand.withValues(alpha: 0.25),
@@ -319,7 +321,9 @@ class PawfollowRequestCard extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.all(12.w),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                    // v23.1.276 — gris clair fixe → teinte adaptative (le titre
+                    // GPS textPrimary blanc était invisible sur gris clair en dark).
+                    color: _orangeBrand.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Row(
@@ -487,7 +491,7 @@ class PawfollowRequestCard extends StatelessWidget {
                 margin: EdgeInsets.all(10.w),
                 padding: EdgeInsets.all(10.w),
                 decoration: BoxDecoration(
-                  color: _orangeLight,
+                  color: _orangeBrand.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Row(

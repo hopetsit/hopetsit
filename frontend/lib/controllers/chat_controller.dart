@@ -305,9 +305,12 @@ class ChatController extends GetxController {
         // `Map.toString()` du nested (= IDs Mongo qui ressemblent à des
         // chiffres), et _id=null → fallback `DateTime.now().millisecondsSinceEpoch`
         // (= chiffres purs). On déballe avant le mapping.
-        final raw = messageData['message'] is Map<String, dynamic>
+        // v23.1.276 — déballe `message` (booking) OU `sentMessage` (ami/famille).
+        final raw = messageData['message'] is Map
             ? Map<String, dynamic>.from(messageData['message'] as Map)
-            : messageData;
+            : messageData['sentMessage'] is Map
+                ? Map<String, dynamic>.from(messageData['sentMessage'] as Map)
+                : messageData;
         final newMessage = _mapToChatMessage(raw, userId);
         // v23.1.270 — Daniel : "quand j'écris ça s'écrit en double". CAUSE :
         // l'écho socket de MON PROPRE message arrive souvent AVANT que le POST
@@ -323,7 +326,7 @@ class ChatController extends GetxController {
         final exists = currentChatMessages.any(
           (msg) => msg.id == newMessage.id,
         );
-        if (!isMine && !exists) {
+        if (!isMine && !exists && _isRenderableMessage(newMessage)) {
           currentChatMessages.add(newMessage);
           // Update last message in conversations
           _updateLastMessage(newMessage.message);
@@ -339,6 +342,7 @@ class ChatController extends GetxController {
           final senderId =
               messageData['senderId']?.toString() ??
               messageData['message']?['senderId']?.toString() ??
+              messageData['sentMessage']?['senderId']?.toString() ??
               '';
           // N'incrémente PAS si c'est nous-mêmes qui avons envoyé.
           if (senderId.isNotEmpty && senderId != userId) {
@@ -359,9 +363,12 @@ class ChatController extends GetxController {
       // → user ne voyait pas l'aperçu / dernier message bouger dans la
       // liste tant qu'il ne refresh pas.
       try {
-        final raw = messageData['message'] is Map<String, dynamic>
+        // v23.1.276 — déballe `message` (booking) OU `sentMessage` (ami/famille).
+        final raw = messageData['message'] is Map
             ? Map<String, dynamic>.from(messageData['message'] as Map)
-            : messageData;
+            : messageData['sentMessage'] is Map
+                ? Map<String, dynamic>.from(messageData['sentMessage'] as Map)
+                : messageData;
         final msgConvId =
             messageData['conversationId']?.toString() ??
             messageData['conversation']?['id']?.toString() ??
@@ -637,9 +644,12 @@ class ChatController extends GetxController {
       );
 
       // Map API response to ChatMessage objects
-      final mappedMessages = response.map((item) {
-        return _mapToChatMessage(item, userId);
-      }).toList();
+      // v23.1.276 — on filtre les artefacts vides (voir _isRenderableMessage)
+      // pour ne jamais afficher de bulle fantôme vide.
+      final mappedMessages = response
+          .map((item) => _mapToChatMessage(item, userId))
+          .where(_isRenderableMessage)
+          .toList();
 
       AppLogger.logDebug(
         'Loaded ${mappedMessages.length} messages for conversation $chatId',
@@ -699,10 +709,33 @@ class ChatController extends GetxController {
     }
   }
 
+  // v23.1.276 — un message TEXTE au corps vide, sans pièce jointe et NON
+  // marqué supprimé est un artefact (ne doit jamais s'afficher) — évite la
+  // bulle fantôme vide. Les messages supprimés (placeholder), les cards
+  // non-texte (pawfollow_request…) et les messages avec PJ restent rendus.
+  bool _isRenderableMessage(ChatMessage m) {
+    if (m.isDeleted) return true;
+    if (m.type != 'text') return true;
+    if (m.attachments.isNotEmpty) return true;
+    return m.message.trim().isNotEmpty;
+  }
+
   ChatMessage _mapToChatMessage(
     Map<String, dynamic> data,
     String currentUserId,
   ) {
+    // v23.1.276 — Daniel : "sur lapp jecris et sa me met message supprimé".
+    // CAUSE RACINE : le payload `message:new` (socket) ET la réponse REST POST
+    // d'envoi nichent le vrai message sous `message` (chat booking) ou
+    // `sentMessage` (chat ami/famille), avec conversationId/triggeredBy au
+    // top-level. Avant on lisait data['body'] directement → null pour ces
+    // enveloppes → texte vide → (v272) marqué "Message supprimé". On DÉBALLE
+    // d'abord le sous-objet message s'il existe, puis on map celui-là.
+    if (data['message'] is Map) {
+      data = Map<String, dynamic>.from(data['message'] as Map);
+    } else if (data['sentMessage'] is Map) {
+      data = Map<String, dynamic>.from(data['sentMessage'] as Map);
+    }
     // Extract message ID
     final id =
         data['_id']?.toString() ??
@@ -943,17 +976,16 @@ class ChatController extends GetxController {
 
     // v19.1.3 — soft-deleted flag from backend (body + attachments are already
     // redacted server-side, we just flip the UI bit).
-    // v23.1.272 — Daniel : "quand l'autre supprime, ça laisse une bulle VIDE
-    // (witoulek sans texte)". Si le serveur a redacté le corps SANS renvoyer le
-    // flag isDeleted/deletedAt au rechargement, on obtenait un message au corps
-    // vide + isDeleted=false → ni 'Message supprimé' ni texte → bulle fantôme
-    // vide. On traite un message TEXTE au corps vide ET sans pièce jointe comme
-    // supprimé → placeholder 'Message supprimé' au lieu d'une bulle vide.
-    final isDeleted = data['isDeleted'] == true ||
-        data['deletedAt'] != null ||
-        (typeStr == 'text' &&
-            message.trim().isEmpty &&
-            attachments.isEmpty);
+    // v23.1.276 — Daniel : "sur lapp jecris et sa me met message supprimé".
+    // L'heuristique v272 "texte vide ⇒ supprimé" produisait des FAUX POSITIFS
+    // dès qu'un message légitime arrivait avec un body non lu (enveloppe
+    // sentMessage des chats ami/famille). Maintenant qu'on déballe l'enveloppe
+    // en tête de fonction, le body est toujours lu correctement, donc on
+    // revient à un flag de suppression EXPLICITE uniquement : un message n'est
+    // "supprimé" que si le serveur l'a marqué (isDeleted/deletedAt). Les rares
+    // messages réellement vides non-supprimés sont filtrés à l'affichage.
+    final isDeleted =
+        data['isDeleted'] == true || data['deletedAt'] != null;
 
     return ChatMessage(
       id: id,

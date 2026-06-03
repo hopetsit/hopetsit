@@ -209,6 +209,23 @@ export default function FriendsLivePage() {
       }));
   }, [friends, familyIdSet]);
 
+  // v23.1.276 — Daniel : "ya pas amis sitter et walker comme categorie qui
+  // apparaissent dans suivre mes amis". On éclate les amis (hors famille) par
+  // RÔLE pour avoir des sections distinctes : Amis (owners), Pet-sitters,
+  // Promeneurs — cohérent avec le code couleur rôle de l'app.
+  const ownerFriendTiles = useMemo(
+    () => friendTiles.filter((f) => f.role !== "sitter" && f.role !== "walker"),
+    [friendTiles],
+  );
+  const sitterFriendTiles = useMemo(
+    () => friendTiles.filter((f) => f.role === "sitter"),
+    [friendTiles],
+  );
+  const walkerFriendTiles = useMemo(
+    () => friendTiles.filter((f) => f.role === "walker"),
+    [friendTiles],
+  );
+
   // Synthetic friends list (friends + family) pour resoudre les events
   // socket dans FriendsLiveMap pour la famille hors-friendList.
   const friendsForMap = useMemo<FriendItem[]>(() => {
@@ -357,11 +374,35 @@ export default function FriendsLivePage() {
         />
       )}
 
-      {/* Section Amis (sans famille — pas de doublon). */}
-      {friendTiles.length > 0 && (
+      {/* v23.1.276 — Sections AMIS éclatées par rôle : Amis (owners),
+          Pet-sitters, Promeneurs — pour que les amis sitter/walker aient
+          leur propre catégorie (sans famille, pas de doublon). */}
+      {ownerFriendTiles.length > 0 && (
         <FriendsSection
           title={t("friends_live_section_friends")}
-          tiles={friendTiles}
+          tiles={ownerFriendTiles}
+          onlinePositions={initialPositions}
+          selectedUserId={selectedUserId}
+          onTileClick={handleTileClick}
+          t={t}
+        />
+      )}
+
+      {sitterFriendTiles.length > 0 && (
+        <FriendsSection
+          title={`🐾 ${t("role_sitter")}`}
+          tiles={sitterFriendTiles}
+          onlinePositions={initialPositions}
+          selectedUserId={selectedUserId}
+          onTileClick={handleTileClick}
+          t={t}
+        />
+      )}
+
+      {walkerFriendTiles.length > 0 && (
+        <FriendsSection
+          title={`🐕 ${t("role_walker")}`}
+          tiles={walkerFriendTiles}
           onlinePositions={initialPositions}
           selectedUserId={selectedUserId}
           onTileClick={handleTileClick}

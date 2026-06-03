@@ -73,16 +73,41 @@ router.get(
       // index) pour éviter les collisions entre rôles.
       let subscriptionActive = false;
       let subscriptionPlan = null;
+      // v23.1.276 — Daniel : "change premium à PawFollow avec les jours restant
+      // et rajoute badge Family avec les jours". On expose désormais :
+      //   - pawFollowExpiry : fin de l'abo PawFollow INDIVIDUEL (mensuel/annuel)
+      //   - familyActive + familyExpiry : plan FAMILLE actif où je suis
+      //     titulaire OU membre accepté (status='active').
+      // Cela permet 2 badges distincts (PawFollow doré + Family violet) avec
+      // leurs jours respectifs, et la bannière boutique scindée en deux.
+      let pawFollowExpiry = null;
+      let familyActive = false;
+      let familyExpiry = null;
       try {
         const UserSubscription = require('../models/UserSubscription');
+        const now = new Date();
         const sub = await UserSubscription.findOne({
           userId: req.user.id,
           userModel: modelName,
           status: 'active',
         }).select('currentPeriodEnd plan').lean();
-        if (sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > new Date()) {
+        if (sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now) {
           subscriptionActive = true;
           subscriptionPlan = sub.plan || null;
+          pawFollowExpiry = sub.currentPeriodEnd;
+        }
+        const fam = await UserSubscription.findOne({
+          status: 'active',
+          plan: { $in: ['famille', 'family'] },
+          currentPeriodEnd: { $gt: now },
+          $or: [
+            { userId: req.user.id, userModel: modelName },
+            { familyMembers: { $elemMatch: { userId: req.user.id, status: 'active' } } },
+          ],
+        }).select('currentPeriodEnd').lean();
+        if (fam && fam.currentPeriodEnd) {
+          familyActive = true;
+          familyExpiry = fam.currentPeriodEnd;
         }
       } catch (e) {
         logger.warn(`[users/me/benefits] subscription lookup failed : ${e.message}`);
@@ -101,6 +126,9 @@ router.get(
         ibanVerified: !!user.ibanVerified,
         isPremium: !!user.isPremium || subscriptionActive,
         subscriptionPlan,
+        pawFollowExpiry,
+        familyActive,
+        familyExpiry,
         // v23.1 part 115 — flag identityVerification (manual upload status)
         // pour le banner KYC du profil.
         identityVerificationStatus: user.identityVerification?.status || 'none',

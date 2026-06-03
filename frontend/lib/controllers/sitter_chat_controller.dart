@@ -279,9 +279,12 @@ class SitterChatController extends GetxController {
         // Le webhook paiement émet un payload nested `{conversationId,
         // message: {...}}` au lieu du payload flat. Sans unpack, on affichait
         // des IDs Mongo bruts comme texte → écran noir + crash.
-        final raw = messageData['message'] is Map<String, dynamic>
+        // v23.1.276 — déballe `message` (booking) OU `sentMessage` (ami/famille).
+        final raw = messageData['message'] is Map
             ? Map<String, dynamic>.from(messageData['message'] as Map)
-            : messageData;
+            : messageData['sentMessage'] is Map
+                ? Map<String, dynamic>.from(messageData['sentMessage'] as Map)
+                : messageData;
         final newMessage = _mapToSitterChatMessage(
           raw,
           userId,
@@ -299,7 +302,7 @@ class SitterChatController extends GetxController {
         final exists = currentChatMessages.any(
           (msg) => msg.id == newMessage.id,
         );
-        if (!isMine && !exists) {
+        if (!isMine && !exists && _isRenderableMessage(newMessage)) {
           currentChatMessages.add(newMessage);
           // Update last message in conversations
           _updateLastMessage(newMessage.message);
@@ -311,6 +314,7 @@ class SitterChatController extends GetxController {
           final senderId =
               messageData['senderId']?.toString() ??
               messageData['message']?['senderId']?.toString() ??
+              messageData['sentMessage']?['senderId']?.toString() ??
               '';
           if (senderId.isNotEmpty && senderId != userId) {
             if (Get.isRegistered<NotificationsController>()) {
@@ -325,9 +329,12 @@ class SitterChatController extends GetxController {
       // le sitter/walker voit la conv bumper au top + last message preview
       // mis a jour en temps reel, sans avoir a refresh.
       try {
-        final raw = messageData['message'] is Map<String, dynamic>
+        // v23.1.276 — déballe `message` (booking) OU `sentMessage` (ami/famille).
+        final raw = messageData['message'] is Map
             ? Map<String, dynamic>.from(messageData['message'] as Map)
-            : messageData;
+            : messageData['sentMessage'] is Map
+                ? Map<String, dynamic>.from(messageData['sentMessage'] as Map)
+                : messageData;
         final msgConvId =
             messageData['conversationId']?.toString() ??
             messageData['conversation']?['id']?.toString() ??
@@ -599,9 +606,11 @@ class SitterChatController extends GetxController {
       );
 
       // Map API response to SitterChatMessage objects
-      final mappedMessages = response.map((item) {
-        return _mapToSitterChatMessage(item, userId, role);
-      }).toList();
+      // v23.1.276 — filtre les artefacts vides (voir _isRenderableMessage).
+      final mappedMessages = response
+          .map((item) => _mapToSitterChatMessage(item, userId, role))
+          .where(_isRenderableMessage)
+          .toList();
 
       AppLogger.logDebug(
         'Loaded ${mappedMessages.length} messages for conversation $chatId',
@@ -625,11 +634,29 @@ class SitterChatController extends GetxController {
     }
   }
 
+  // v23.1.276 — artefact vide (texte sans corps/PJ, non supprimé) → jamais
+  // affiché (évite la bulle fantôme). Voir chat_controller pour le détail.
+  bool _isRenderableMessage(SitterChatMessage m) {
+    if (m.isDeleted) return true;
+    if (m.type != 'text') return true;
+    if (m.attachments.isNotEmpty) return true;
+    return m.message.trim().isNotEmpty;
+  }
+
   SitterChatMessage _mapToSitterChatMessage(
     Map<String, dynamic> data,
     String currentUserId,
     String currentUserRole,
   ) {
+    // v23.1.276 — Daniel : "sur lapp jecris et sa me met message supprimé".
+    // Le payload message:new (socket) et la réponse REST POST nichent le vrai
+    // message sous `message` (booking) ou `sentMessage` (ami/famille). On
+    // DÉBALLE l'enveloppe d'abord, sinon body=null → faux "Message supprimé".
+    if (data['message'] is Map) {
+      data = Map<String, dynamic>.from(data['message'] as Map);
+    } else if (data['sentMessage'] is Map) {
+      data = Map<String, dynamic>.from(data['sentMessage'] as Map);
+    }
     // Extract message ID
     final id =
         data['_id']?.toString() ??
@@ -870,14 +897,13 @@ class SitterChatController extends GetxController {
     }
 
     // v19.1.3 — soft-deleted flag from backend.
-    // v23.1.272 — Daniel : "quand l'autre supprime, ça laisse une bulle VIDE".
-    // Corps redacté côté serveur sans flag isDeleted/deletedAt → bulle fantôme.
-    // On traite un message TEXTE au corps vide sans pièce jointe comme supprimé.
-    final isDeleted = data['isDeleted'] == true ||
-        data['deletedAt'] != null ||
-        (typeStr == 'text' &&
-            message.trim().isEmpty &&
-            attachments.isEmpty);
+    // v23.1.276 — Daniel : "sur lapp jecris et sa me met message supprimé".
+    // On retire l'heuristique v272 "texte vide ⇒ supprimé" (faux positifs sur
+    // les messages dont l'enveloppe sentMessage n'était pas déballée). Le body
+    // est désormais toujours lu (déballage en tête), donc suppression EXPLICITE
+    // uniquement ; les rares vides non-supprimés sont filtrés à l'affichage.
+    final isDeleted =
+        data['isDeleted'] == true || data['deletedAt'] != null;
 
     return SitterChatMessage(
       id: id,

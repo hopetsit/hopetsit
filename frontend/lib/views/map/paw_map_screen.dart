@@ -493,12 +493,16 @@ class _PawMapScreenState extends State<PawMapScreen>
               style: TextStyle(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary(context),
+                // v23.1.276 — Daniel : "vérifie les couleurs en dark mode sur la
+                // PawMap". La GoogleMap reste TOUJOURS claire (pas de style
+                // sombre), donc le pill de recherche est blanc : on FIXE le
+                // texte en sombre (sinon textPrimary=blanc en dark → invisible).
+                color: const Color(0xFF1F2937),
               ),
               decoration: InputDecoration(
                 hintText: 'paw_map_search_city_hint'.tr,
                 hintStyle: TextStyle(
-                  color: AppColors.textSecondary(context),
+                  color: const Color(0xFF9CA3AF),
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w500,
                 ),
@@ -981,9 +985,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       );
     }
 
-    if (_isSitterOrWalker) return circles; // owner-only feature
-    if (!_showProviders.value) return circles;
-    for (final p in _nearbyProviders) {
+    // v23.1.276 — Daniel : "unifie les halos des utilisateurs pour que tout
+    // soit plus fluide et compréhensible". Avant, un `return` ici (owner-only)
+    // empêchait les halos AMIS (plus bas) de s'afficher pour un sitter/walker.
+    // On enferme donc la boucle PROVIDER dans un `if` au lieu de couper, pour
+    // toujours atteindre le bloc amis. + DEDUP : un provider qui est AUSSI un
+    // ami live ne reçoit PAS de halo provider (son halo ami unifié le
+    // représente déjà) → fini les 2-3 halos empilés sur la même personne.
+    final friendLiveIds = _liveMap.friendPositions.keys
+        .map((k) => k.trim().toLowerCase())
+        .toSet();
+    if (!_isSitterOrWalker && _showProviders.value) {
+      for (final p in _nearbyProviders) {
       final loc = p['location'] is Map ? p['location'] as Map : null;
       final coords = loc != null && loc['coordinates'] is List
           ? loc['coordinates'] as List
@@ -993,6 +1006,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       final lat = (coords[1] as num).toDouble();
       final id = (p['id'] ?? p['_id'] ?? '').toString();
       if (id.isEmpty) continue;
+      // v23.1.276 — dédup halos : ce provider est aussi un ami live → on saute
+      // son halo provider (anneau role + tier), son halo AMI unifié suffit.
+      if (friendLiveIds.contains(id.trim().toLowerCase())) continue;
       // v23.1.161 — Daniel : "la couleur des halo marche pas". v159 mettait
       // l'anneau role-color DANS le if(isMapBoosted), donc seuls les
       // providers avec PawSpot actif l'avaient. Maintenant on dessine
@@ -1037,6 +1053,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           strokeWidth: 2,
         ),
       );
+      }
     }
 
     // v23.1.174 — Daniel : "halo argent sur les amis, halo rose sur les
@@ -1223,6 +1240,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v23.1 part 72 — Bug 10 : render nearby providers (owner side).
     // Boosted (isMapBoosted) get gold hue ; non-boosted get role color.
     if (_showProviders.value && !_isSitterOrWalker) {
+      // v23.1.276 — dédup marqueurs : un provider qui est aussi un ami live ne
+      // reçoit PAS de pin provider — son marqueur ami (avatar) le représente.
+      final friendLiveIds = _liveMap.friendPositions.keys
+          .map((k) => k.trim().toLowerCase())
+          .toSet();
       for (final p in _nearbyProviders) {
         final loc = p['location'] is Map ? p['location'] as Map : null;
         final coords = loc != null && loc['coordinates'] is List
@@ -1233,6 +1255,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         final lat = (coords[1] as num).toDouble();
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
+        if (friendLiveIds.contains(id.trim().toLowerCase())) continue;
         final role = (p['_role'] ?? 'walker').toString();
         final name = (p['name'] ?? '').toString();
         final isMapBoosted = p['isMapBoosted'] == true;

@@ -438,7 +438,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
                     color: AppColors.greyText,
                   ),
                   SizedBox(height: 16.h),
-                  ..._packages.map(_buildPackageCard),
+                  ..._packages.map((p) => _buildPackageCard(context, p)),
                   SizedBox(height: 20.h),
                   _buildHowItWorks(),
                   if (_history.isNotEmpty) ...[
@@ -524,7 +524,7 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
     );
   }
 
-  Widget _buildPackageCard(Map<String, dynamic> pkg) {
+  Widget _buildPackageCard(BuildContext context, Map<String, dynamic> pkg) {
     final tier = pkg['tier'] as String;
     // Backend can return amount as double (e.g. 4.99) or int — coerce via num.
     final amount = ((pkg['amount'] as num?) ?? 0).toDouble();
@@ -552,7 +552,9 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
             child: Container(
               padding: EdgeInsets.all(16.w),
               decoration: BoxDecoration(
-                color: Colors.white,
+                // v23.1.276 — fond adaptatif (dark mode lisible). En light =
+                // blanc, en dark = carte sombre → le texte reste visible.
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16.r),
                 border: isPopular ? Border.all(color: AppColors.primaryColor, width: 2) : null,
                 boxShadow: isPopular
@@ -1021,78 +1023,99 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     );
   }
 
+  // v23.1.276 — Daniel : "le gros bouton PawFollow actif, divise-le en deux :
+  // à gauche en jaune PawFollow actif avec le nombre de jours, à droite
+  // PawFollow Family en violet avec les jours". Bannière SCINDÉE : la moitié
+  // correspondant au plan actif s'allume (PawFollow doré pour mensuel/annuel,
+  // Family violet pour le plan famille), l'autre reste grisée (inactive).
   Widget _buildStatusCard(BuildContext context, SubscriptionController controller) {
     final status = controller.status.value;
     final isPremium = status?.isPremium ?? false;
+    final plan = (status?.plan ?? 'none').toLowerCase();
+    final isFamilyPlan = plan == 'famille' || plan == 'family';
     final remainingDays = status?.remainingDays ?? 0;
+    final pawFollowActive = isPremium && !isFamilyPlan;
+    final familyActive = isPremium && isFamilyPlan;
 
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: _statusHalf(
+            context,
+            emoji: '⭐',
+            title: 'PawFollow',
+            active: pawFollowActive,
+            days: remainingDays,
+            activeColors: const [Color(0xFFFFD700), Color(0xFFFF9500)],
+          ),
+        ),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: _statusHalf(
+            context,
+            emoji: '👨‍👩‍👧',
+            title: 'Family',
+            active: familyActive,
+            days: remainingDays,
+            activeColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusHalf(
+    BuildContext context, {
+    required String emoji,
+    required String title,
+    required bool active,
+    required int days,
+    required List<Color> activeColors,
+  }) {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isPremium
-              ? const [Color(0xFFFFD700), Color(0xFFFF9500)]
+          colors: active
+              ? activeColors
               : [Colors.grey.shade300, Colors.grey.shade200],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16.r),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 56.w,
-            height: 56.w,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-            child: Center(
-              child: Text(
-                isPremium ? '⭐' : '🐾',
-                style: TextStyle(fontSize: 28.sp),
-              ),
-            ),
-          ),
-          SizedBox(width: 14.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InterText(
-                  text: isPremium ? 'premium_active'.tr : 'premium_free_plan'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w700,
-                  color: isPremium ? Colors.white : AppColors.blackColor,
-                ),
-                SizedBox(height: 4.h),
-                InterText(
-                  text: isPremium
-                      ? 'premium_remaining_days'.trParams({
-                          'days': '$remainingDays',
-                        })
-                      : 'premium_upsell_text'.tr,
+          Row(
+            children: [
+              Text(emoji, style: TextStyle(fontSize: 18.sp)),
+              SizedBox(width: 6.w),
+              Flexible(
+                child: InterText(
+                  text: title,
                   fontSize: 13.sp,
-                  color: isPremium ? Colors.white.withValues(alpha: 0.9) : AppColors.greyText,
+                  fontWeight: FontWeight.w800,
+                  color: active ? Colors.white : AppColors.blackColor,
+                  maxLines: 1,
                 ),
-                if (isPremium && status!.cancelAtPeriodEnd) ...[
-                  SizedBox(height: 4.h),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: InterText(
-                      text: "Annulation à la fin de la période",
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+              ),
+            ],
+          ),
+          SizedBox(height: 4.h),
+          InterText(
+            text: active
+                ? (days > 0
+                    ? 'premium_remaining_days'.trParams({'days': '$days'})
+                    : 'premium_active'.tr)
+                : 'shop_status_inactive'.tr,
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w600,
+            color: active
+                ? Colors.white.withValues(alpha: 0.95)
+                : AppColors.greyText,
+            maxLines: 2,
           ),
         ],
       ),
@@ -1104,19 +1127,24 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     SubscriptionController controller,
     SubscriptionPlan plan,
   ) {
-    // v22.1 — 3 plans visuellement distincts : Mensuel ⭐ / Annuel 🏆 (gold)
-    // / Famille 👨‍👩‍👧‍👦 (bleu — partage 5 membres).
+    // v23.1.276 — Daniel : "bien distinguer le PawFollow mensuel / annuel, et
+    // la police violette pour PawFollow Famille". 3 plans visuellement
+    // distincts : Mensuel ⭐ (gold clair) / Annuel 🏆 (gold profond + MEILLEUR
+    // PRIX) / Famille 👨‍👩‍👧 (VIOLET, code couleur famille de l'app).
     final isYearly = plan.plan == 'yearly';
-    final isFamily = plan.plan == 'family';
+    // robuste FR/EN : l'enum backend accepte 'famille' ET 'family'.
+    final isFamily = plan.plan == 'family' || plan.plan == 'famille';
     final savings = isYearly ? 'pawfollow_yearly_savings'.tr : '';
     final currentPlan = controller.status.value?.plan;
     final isCurrent = currentPlan == plan.plan && controller.isPremium;
 
+    // Couleur d'accent par plan (distinction claire mensuel/annuel/famille).
+    const familyViolet = Color(0xFF8B5CF6);
     final accentColor = isFamily
-        ? const Color(0xFF2196F3) // bleu famille
+        ? familyViolet // violet famille
         : isYearly
-            ? const Color(0xFFFFD700) // gold annuel
-            : const Color(0xFFFFD700); // gold default
+            ? const Color(0xFFE8A00A) // gold profond annuel
+            : const Color(0xFFFFC83D); // gold clair mensuel
 
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
@@ -1129,7 +1157,9 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
             child: Container(
               padding: EdgeInsets.all(16.w),
               decoration: BoxDecoration(
-                color: Colors.white,
+                // v23.1.276 — fond adaptatif : en dark mode le titre
+                // (textPrimary = blanc) était invisible sur fond blanc.
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16.r),
                 border: (isYearly || isFamily)
                     ? Border.all(color: accentColor, width: 2)
@@ -1173,7 +1203,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                           text: '${('pawfollow_plan_${plan.plan}').tr}$savings',
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
+                          // v23.1.276 — titre violet pour PawFollow Famille.
+                          color: isFamily
+                              ? const Color(0xFF7C3AED)
+                              : AppColors.textPrimary(context),
                         ),
                         SizedBox(height: 4.h),
                         InterText(
@@ -1195,7 +1228,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                         text: CurrencyHelper.format(plan.currency, plan.amount),
                         fontSize: 22.sp,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFFFF9500),
+                        // v23.1.276 — prix violet pour PawFollow Famille.
+                        color: isFamily
+                            ? const Color(0xFF7C3AED)
+                            : const Color(0xFFFF9500),
                       ),
                       InterText(
                         text: '${CurrencyHelper.format(plan.currency, plan.amountPerDay)}${'pawfollow_per_day_suffix'.tr}',
@@ -1955,7 +1991,8 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
             child: Container(
               padding: EdgeInsets.all(16.w),
               decoration: BoxDecoration(
-                color: Colors.white,
+                // v23.1.276 — fond adaptatif (dark mode lisible).
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(16.r),
                 border: isPopular
                     ? Border.all(color: AppColors.mapBoostGold, width: 2)

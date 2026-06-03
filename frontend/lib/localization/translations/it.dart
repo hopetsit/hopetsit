@@ -2185,6 +2185,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'premium_choose_plan': 'Scegli un piano PawFollow',
     'premium_choose_plan_subtitle': 'Sblocca PawMap completa e social',
     'premium_active': 'PawFollow attivo',
+    'shop_status_inactive': 'Inattivo',
     'premium_free_plan': 'Piano gratuito',
     'mapboost_header_title': 'Potenzia il mio pin sulla mappa',
     'mapboost_header_subtitle': 'Pin evidenziato su PawMap — i vicini ti vedono per primo',

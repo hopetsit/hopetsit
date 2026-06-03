@@ -13,7 +13,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 import 'package:hopetsit/data/network/api_client.dart';
-import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 class ActiveBenefitsRow extends StatefulWidget {
@@ -157,9 +156,31 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     final boostActive = boostExpiry != null && boostExpiry.isAfter(now);
     final pawSpotActive = mapBoostExpiry != null && mapBoostExpiry.isAfter(now);
 
+    // v23.1.276 — Daniel : "change premium à PawFollow avec les jours restant
+    // et rajoute badge Family avec les jours, pour une vraie distinction".
+    //   - Badge PawFollow (doré ⭐) : abo INDIVIDUEL actif (mensuel/annuel).
+    //   - Badge Family (violet 👨‍👩‍👧) : plan FAMILLE actif (titulaire ou membre).
+    // Un titulaire famille n'a QUE le badge Family (pas de PawFollow individuel).
+    final plan = (p['subscriptionPlan'] ?? '').toString().toLowerCase();
+    final isFamilyPlan = plan == 'famille' || plan == 'family';
+    final familyActive = p['familyActive'] == true;
+    final pawFollowExpiry = _toDate(p['pawFollowExpiry']);
+    final familyExpiry = _toDate(p['familyExpiry']);
+    final hasIndividualPawFollow = isPremium && !isFamilyPlan;
+
     final children = <Widget>[];
-    if (isPremium) {
-      children.add(_badge(context, '⭐', 'Premium', const Color(0xFFFFD700)));
+    if (hasIndividualPawFollow) {
+      final days = pawFollowExpiry != null
+          ? pawFollowExpiry.difference(now).inDays
+          : 0;
+      final label = days > 0 ? 'PawFollow · ${days}j' : 'PawFollow';
+      children.add(_badge(context, '⭐', label, const Color(0xFFFFD700)));
+    }
+    if (familyActive) {
+      final days =
+          familyExpiry != null ? familyExpiry.difference(now).inDays : 0;
+      final label = days > 0 ? 'Family · ${days}j' : 'Family';
+      children.add(_badge(context, '👨‍👩‍👧', label, const Color(0xFF8B5CF6)));
     }
     if (boostActive) {
       final days = boostExpiry!.difference(now).inDays;

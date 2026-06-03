@@ -38,7 +38,7 @@ const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency
 const { countryToCurrency } = require('../utils/countryCurrency');
 const { createNotificationSafe } = require('../services/notificationService');
 const { sendNotification } = require('../services/notificationSender');
-const { onBookingCompleted, consumeLoyaltyDiscount } = require('../services/loyaltyService');
+const { onBookingCompleted, consumeLoyaltyDiscount, recomputeSitterStatus, recomputeWalkerStatus } = require('../services/loyaltyService');
 const { mergeScheduleFromApplication, normalizeServiceType } = require('../utils/bookingAgreementFields');
 const {
   buildRequestFingerprint,
@@ -4107,6 +4107,20 @@ const processScheduledSitterPayouts = async () => {
         booking.confirmationStatus = 'confirmed';
         booking.ownerConfirmedAt = booking.ownerConfirmedAt || new Date();
         await booking.save();
+        // v23.1.276 — Daniel : "top sitter/walker n'augmente pas". L'auto-release
+        // 48h confirmait le service mais NE recalculait JAMAIS le statut Top
+        // (le commentaire promettait "un trigger ultérieur" qui n'existait pas).
+        // On recompute donc ici, avec l'id EXPLICITE du provider (booking est
+        // populé → booking.sitterId est un doc, on extrait _id) pour mettre à
+        // jour completedServicesCount + isTopSitter/isTopWalker + averageRating.
+        try {
+          const sid = booking.sitterId && (booking.sitterId._id || booking.sitterId);
+          const wid = booking.walkerId && (booking.walkerId._id || booking.walkerId);
+          if (sid) await recomputeSitterStatus(sid);
+          if (wid) await recomputeWalkerStatus(wid);
+        } catch (e) {
+          logger.warn(`[scheduler] Top recompute failed booking ${booking._id}: ${e?.message || e}`);
+        }
       }
     } catch (err) {
       logger.error(`⚠️  processScheduledSitterPayouts: failed for booking ${booking._id}`, err);

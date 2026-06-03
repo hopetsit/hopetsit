@@ -35,7 +35,6 @@ class AddressShareCard extends StatelessWidget {
   final bool isFromCurrentUser;
 
   static const _orangeBrand = Color(0xFFEF4324);
-  static const _orangeLight = Color(0xFFFFF1ED);
 
   Future<void> _openInMaps() async {
     // Prefer GPS coords (most accurate) ; fallback on address+city string.
@@ -69,7 +68,10 @@ class AddressShareCard extends StatelessWidget {
           constraints: BoxConstraints(maxWidth: 320.w),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              // v23.1.276 — Daniel : "en dark mode la police se lit mal".
+              // Fond adaptatif : le texte (textPrimary = blanc en dark) était
+              // invisible sur un fond blanc hardcodé. En light = carte blanche.
+              color: AppColors.card(context),
               borderRadius: BorderRadius.circular(20.r),
               border: Border.all(
                 color: _orangeBrand.withValues(alpha: 0.30),
@@ -146,7 +148,9 @@ class AddressShareCard extends StatelessWidget {
                     padding: EdgeInsets.symmetric(
                         horizontal: 12.w, vertical: 12.h),
                     decoration: BoxDecoration(
-                      color: _orangeLight,
+                      // v23.1.276 — teinte orange semi-transparente (lisible en
+                      // light ET dark) au lieu d'un beige clair fixe.
+                      color: _orangeBrand.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
                         color: _orangeBrand.withValues(alpha: 0.20),

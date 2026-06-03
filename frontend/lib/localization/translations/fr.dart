@@ -2394,6 +2394,7 @@ const Map<String, String> frFRTranslations = <String, String>{
     'premium_choose_plan': 'Choisir un forfait PawFollow',
     'premium_choose_plan_subtitle': 'Débloquez la PawMap complète et le social',
     'premium_active': 'PawFollow actif',
+    'shop_status_inactive': 'Inactif',
     'premium_free_plan': 'Plan gratuit',
     'mapboost_header_title': 'Booster mon pin sur la map',
     'mapboost_header_subtitle': 'Pin surligné sur la PawMap — les voisins vous voient en premier',
