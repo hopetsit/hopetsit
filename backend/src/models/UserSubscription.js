@@ -407,14 +407,35 @@ async function hasActivePawFollow(userId) {
   if (!userId) return false;
   const Model = mongoose.model('UserSubscription');
   const now = new Date();
-  const sub = await Model.findOne({
+  // 1) Abo PROPRE actif (n'importe quel tier : monthly / yearly / famille).
+  const own = await Model.findOne({
     userId: String(userId),
     status: 'active',
     currentPeriodEnd: { $gt: now },
   })
-    .select('plan status currentPeriodEnd')
+    .select('_id')
     .lean();
-  return !!sub;
+  if (own) return true;
+  // 2) v23.1.280 — Daniel (décision : modèle "un seul PawFamily, membres
+  // GRATUITS"). Un MEMBRE accepté d'un plan Famille actif bénéficie du
+  // PawFollow gratuitement via le titulaire. On vérifie donc l'appartenance
+  // à une sub 'famille' active en tant que membre status='active' (les
+  // 'pending' n'ont pas encore accepté ; les anciens membres sans status
+  // sont considérés actifs pour rétro-compat, cf isInSameFamily).
+  const asMember = await Model.findOne({
+    plan: 'famille',
+    status: 'active',
+    currentPeriodEnd: { $gt: now },
+    familyMembers: {
+      $elemMatch: {
+        userId: String(userId),
+        $or: [{ status: 'active' }, { status: { $exists: false } }],
+      },
+    },
+  })
+    .select('_id')
+    .lean();
+  return !!asMember;
 }
 
 module.exports = mongoose.model('UserSubscription', userSubscriptionSchema);
