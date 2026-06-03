@@ -1998,13 +1998,19 @@ class _PawMapScreenState extends State<PawMapScreen>
           _buildStackedControl(
             icon: Icons.add_rounded,
             onTap: _zoomIn,
-            tone: AppColors.textPrimary(context),
+            // v23.1.281 — ton FIXE foncé : la pilule est blanche (lisible sur
+            // la carte claire) donc l'icône ne doit PAS suivre le thème, sinon
+            // en dark mode textPrimary devient blanc → icône blanche invisible.
+            tone: const Color(0xFF1F2937),
           ),
           _stackedDivider(),
           _buildStackedControl(
             icon: Icons.remove_rounded,
             onTap: _zoomOut,
-            tone: AppColors.textPrimary(context),
+            // v23.1.281 — ton FIXE foncé : la pilule est blanche (lisible sur
+            // la carte claire) donc l'icône ne doit PAS suivre le thème, sinon
+            // en dark mode textPrimary devient blanc → icône blanche invisible.
+            tone: const Color(0xFF1F2937),
           ),
           // v23.1.266 — bouton vue satellite (hybride) discret.
           _stackedDivider(),
@@ -2014,7 +2020,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 : Icons.map_rounded,
             onTap: _toggleMapType,
             tone: _mapType == MapType.normal
-                ? AppColors.textPrimary(context)
+                ? const Color(0xFF1F2937)
                 : AppColors.primaryColor,
           ),
           // v23.1.266 — bouton "voir tous mes amis" (dézoome pour les englober).
@@ -2022,7 +2028,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           _buildStackedControl(
             icon: Icons.groups_rounded,
             onTap: _fitAllFriends,
-            tone: AppColors.textPrimary(context),
+            // v23.1.281 — ton FIXE foncé : la pilule est blanche (lisible sur
+            // la carte claire) donc l'icône ne doit PAS suivre le thème, sinon
+            // en dark mode textPrimary devient blanc → icône blanche invisible.
+            tone: const Color(0xFF1F2937),
           ),
         ],
       ),

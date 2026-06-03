@@ -421,6 +421,13 @@ class FriendController extends GetxController {
   final RxList<Map<String, dynamic>> familyMembers =
       <Map<String, dynamic>>[].obs;
   final RxInt familyRemainingSlots = 0.obs;
+  // v23.1.281 — Daniel : "je n'arrive pas à ajouter de membre famille". Cause :
+  // il est MEMBRE d'une famille (pas titulaire) → seul le titulaire peut
+  // ajouter/retirer. On distingue les 2 états pour afficher la bonne UI.
+  //   - isFamilyHolder=true  → titulaire : UI "Inviter un membre".
+  //   - isFamilyHolder=false → membre   : bannière "Tu es dans la famille de X".
+  final RxBool isFamilyHolder = false.obs;
+  final Rxn<Map<String, dynamic>> familyHolder = Rxn<Map<String, dynamic>>();
 
   /// Charge les membres de ma famille PawFollow.
   Future<void> loadFamily() async {
@@ -429,6 +436,14 @@ class FriendController extends GetxController {
       final r = await api.get('/friends/family/members', requiresAuth: true);
       if (r is Map) {
         hasFamilyPlan.value = r['hasActiveFamilyPlan'] == true;
+        // v23.1.281 — défaut true si le backend ne renvoie pas encore isHolder
+        // (Render pas redéployé) → on ne casse pas l'UI titulaire existante.
+        isFamilyHolder.value = r.containsKey('isHolder')
+            ? r['isHolder'] == true
+            : true;
+        familyHolder.value = (r['holder'] is Map)
+            ? Map<String, dynamic>.from(r['holder'] as Map)
+            : null;
         final list = (r['members'] is List) ? r['members'] as List : [];
         familyMembers.assignAll(
           list.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList(),
@@ -438,6 +453,8 @@ class FriendController extends GetxController {
     } catch (e) {
       debugPrint('[Friends] loadFamily error: $e');
       hasFamilyPlan.value = false;
+      isFamilyHolder.value = false;
+      familyHolder.value = null;
       familyMembers.clear();
       familyRemainingSlots.value = 0;
     }

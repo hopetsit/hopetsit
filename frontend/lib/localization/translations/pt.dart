@@ -2533,6 +2533,10 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'family_active_desc':
         'Adiciona a tua família para partilhar animais, locais e alertas em segurança.',
     'family_active_title': 'PawFollow Família ativo',
+    'family_you_are_member': 'És membro da família de @name',
+    'family_you_are_member_generic': 'És membro de uma família',
+    'family_member_only_hint':
+        'Apenas o titular pode adicionar ou remover membros.',
     'family_invitation_accepted_msg': 'Agora fazes parte da família.',
     'family_invitation_received_title': 'Convite de família',
     'family_invitation_status_active': 'Membro ativo',

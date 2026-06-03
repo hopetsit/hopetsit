@@ -2700,6 +2700,10 @@ const Map<String, String> deDETranslations = <String, String>{
     'family_active_desc':
         'Füge deine Familie hinzu, um Tiere, Orte und Warnungen sicher zu teilen.',
     'family_active_title': 'PawFollow Familie aktiv',
+    'family_you_are_member': 'Du bist Mitglied der Familie von @name',
+    'family_you_are_member_generic': 'Du bist Mitglied einer Familie',
+    'family_member_only_hint':
+        'Nur der Inhaber kann Mitglieder hinzufügen oder entfernen.',
     'family_invitation_accepted_msg': 'Du gehörst jetzt zur Familie.',
     'family_invitation_received_title': 'Familieneinladung',
     'family_invitation_status_active': 'Aktives Mitglied',

@@ -599,6 +599,10 @@ const Map<String, String> enUSTranslations = <String, String>{
       'family_header_title': 'PawFollow Family active',
       'family_slots': '@used / @total members added',
       'family_active_title': 'PawFollow Family active',
+      'family_you_are_member': 'You are a member of @name\'s family',
+      'family_you_are_member_generic': 'You are a member of a family',
+      'family_member_only_hint':
+          'Only the plan holder can add or remove members.',
       'family_members_added': 'members added',
       'family_active_desc':
           'Add your family so you can safely share your pets, places and alerts together.',

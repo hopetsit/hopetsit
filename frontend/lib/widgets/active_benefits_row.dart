@@ -210,12 +210,32 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           context, '📍', withDays('PawSpot', days), const Color(0xFF10B981)));
     }
     if (children.isEmpty) return const SizedBox.shrink();
+    // v23.1.281 — Daniel : "les badges pas ordonnés, fais-les côte à côte 2 sur
+    // 2". On range les badges en grille 2 colonnes (2 par ligne) au lieu d'un
+    // Wrap qui empile selon la largeur (PawFollow·1230j seul sur sa ligne).
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i += 2) {
+      final cells = <Widget>[Expanded(child: children[i])];
+      cells.add(SizedBox(width: 6.w));
+      cells.add(
+        i + 1 < children.length
+            ? Expanded(child: children[i + 1])
+            : const Expanded(child: SizedBox.shrink()),
+      );
+      rows.add(Padding(
+        padding: EdgeInsets.only(bottom: i + 2 < children.length ? 6.h : 0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: cells,
+        ),
+      ));
+    }
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6.h),
-      child: Wrap(
-        spacing: 6.w,
-        runSpacing: 4.h,
-        children: children,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: rows,
       ),
     );
   }

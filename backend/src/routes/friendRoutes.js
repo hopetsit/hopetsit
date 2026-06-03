@@ -69,18 +69,19 @@ async function resolveOwnFamilySub(user) {
 
   // Self-heal : rassembler toutes les identités possibles.
   const candidateIds = new Set([String(user.id)]);
+  let myEmail = null;
   try {
     const Model = MODEL_BY_NAME[user.model];
     const meDoc = Model
       ? await Model.findById(user.id).select('email oldId').lean()
       : null;
     if (meDoc && meDoc.oldId) candidateIds.add(String(meDoc.oldId));
-    const email = meDoc && meDoc.email;
-    if (email) {
+    myEmail = meDoc && meDoc.email ? String(meDoc.email).toLowerCase() : null;
+    if (myEmail) {
       const [owners, sitters, walkers] = await Promise.all([
-        Owner.find({ email }).select('_id oldId').lean(),
-        Sitter.find({ email }).select('_id oldId').lean(),
-        Walker.find({ email }).select('_id oldId').lean(),
+        Owner.find({ email: meDoc.email }).select('_id oldId').lean(),
+        Sitter.find({ email: meDoc.email }).select('_id oldId').lean(),
+        Walker.find({ email: meDoc.email }).select('_id oldId').lean(),
       ]);
       for (const d of [...owners, ...sitters, ...walkers]) {
         candidateIds.add(String(d._id));
@@ -97,6 +98,50 @@ async function resolveOwnFamilySub(user) {
     status: 'active',
     currentPeriodEnd: { $gt: now },
   });
+
+  // v23.1.281 — Daniel : "je n'arrive TJR pas à ajouter/enlever un membre
+  // famille". Dernier recours quand la sub titulaire est rattachée à un doc
+  // de rôle introuvable via oldId/email-docs (ex : ancien doc supprimé après
+  // un switchRole) : on balaie les subs Famille actives et on retient celle
+  // dont le TITULAIRE partage MON email. Couvre le cas "j'ai créé la famille
+  // sur un autre de mes rôles" sans dépendre d'une chaîne oldId intacte.
+  if (!sub && myEmail) {
+    try {
+      const famSubs = await UserSubscription.find({
+        plan: PLAN_FAMILLE,
+        status: 'active',
+        currentPeriodEnd: { $gt: now },
+      }).limit(100);
+      for (const cand of famSubs) {
+        const HolderModel =
+          MODEL_BY_NAME[cand.userModel] ||
+          MODEL_BY_NAME[ROLE_TO_MODEL_NAME[String(cand.userModel).toLowerCase()]];
+        if (!HolderModel) continue;
+        let holderDoc = null;
+        try {
+          holderDoc = await HolderModel.findById(cand.userId)
+            .select('email')
+            .lean();
+        } catch (_) {/* defensive */}
+        if (
+          holderDoc &&
+          holderDoc.email &&
+          String(holderDoc.email).toLowerCase() === myEmail
+        ) {
+          sub = cand;
+          break;
+        }
+      }
+    } catch (e) {
+      logger.warn('[resolveOwnFamilySub] email-holder recovery failed', e);
+    }
+  }
+
+  if (!sub) {
+    logger.warn(
+      `[resolveOwnFamilySub] AUCUNE sub Famille titulaire trouvée pour ${user.model}:${user.id} (email=${myEmail || 'n/a'}, candidats=${candidateIds.size})`,
+    );
+  }
   if (sub && String(sub.userId) !== String(user.id)) {
     // v23.1.267 — re-point COLLISION-SAFE. Si une sub existe DÉJÀ sous
     // l'identité courante (ex : un doc 'none'/pawpass), un save() direct
@@ -153,10 +198,14 @@ async function fetchUserMini(id, modelName) {
   // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
   // l'option". On expose le tier PawSpot (mapBoost) ACTIF pour que l'UI dessine
   // un anneau coloré sur l'avatar (bronze/silver/gold/platinum), sinon null.
+  // v23.1.281 — Daniel : "les utilisateurs PawSpot NORMAL, ça ne fait rien".
+  // CAUSE : un PawSpot de base a mapBoostExpiry actif MAIS mapBoostTier=null →
+  // pawSpotTier devenait null → aucun anneau. On retombe sur 'bronze' (tier de
+  // base) dès que le boost est ACTIF, pour qu'il y ait TOUJOURS un anneau.
   let pawSpotTier = null;
   try {
     if (u.mapBoostExpiry && new Date(u.mapBoostExpiry) > new Date()) {
-      pawSpotTier = (u.mapBoostTier || '').toString().toLowerCase() || null;
+      pawSpotTier = (u.mapBoostTier || '').toString().toLowerCase() || 'bronze';
     }
   } catch (_) {/* defensive */}
   // v23.1 part 222 — Daniel : "lorsque mes amis sont ajoutes si ils ont
@@ -391,12 +440,14 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           } catch (_) {/* defensive */}
         }
         // v23.1.280 — tier PawSpot actif de l'ami (anneau coloré sur l'avatar).
+        // v23.1.281 — PawSpot de base (mapBoostTier null mais boost actif) →
+        // 'bronze' pour qu'il y ait TOUJOURS un anneau (cf fetchUserMini).
         let otherPawSpotTier = null;
         try {
           if (otherDoc && otherDoc.mapBoostExpiry
               && new Date(otherDoc.mapBoostExpiry) > new Date()) {
             otherPawSpotTier = (otherDoc.mapBoostTier || '')
-                .toString().toLowerCase() || null;
+                .toString().toLowerCase() || 'bronze';
           }
         } catch (_) {/* defensive */}
         return {
@@ -1351,17 +1402,17 @@ router.get('/family/members', requireAuth, async (req, res) => {
     //   2. Le titulaire + autres membres de la sub qui m'inclut (si je suis
     //      membre d'une famille d'un autre)
     // Cela donne au frontend une vue globale "ma famille étendue".
-    const userModelVariants = [
-      user.model,
-      String(user.model).toLowerCase(),
-    ];
-    const ownSub = await UserSubscription.findOne({
-      userId: user.id,
-      userModel: { $in: userModelVariants },
-      plan: 'famille',
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
-    }).lean();
+    // v23.1.281 — on UNIFIE la détection titulaire avec resolveOwnFamilySub
+    // (même résolveur robuste que l'ajout/retrait : oldId + docs même email +
+    // balayage email-titulaire + self-heal/re-point). Ainsi isHolder reflète
+    // EXACTEMENT la capacité réelle d'ajouter/retirer (plus de désync entre la
+    // carte "Inviter" et l'échec FAMILY_PLAN_REQUIRED).
+    let ownSub = null;
+    try {
+      ownSub = await resolveOwnFamilySub(user);
+    } catch (_) {
+      ownSub = null;
+    }
 
     // Subs qui m'incluent comme membre (someone else's family).
     const subsHostingMe = await UserSubscription.find({
@@ -1417,9 +1468,31 @@ router.get('/family/members', requireAuth, async (req, res) => {
     // membre actif d'une sub. C'est plus permissif que l'ancienne version.
     const hasActiveFamilyPlan = !!ownSub || subsHostingMe.length > 0;
 
+    // v23.1.281 — Daniel : "je n'arrive pas à ajouter de membre famille" alors
+    // que la carte affiche la famille. CAUSE : il est MEMBRE d'une famille (pas
+    // titulaire) → l'app lui montrait l'UI titulaire ("Inviter un membre") qui
+    // échoue forcément (seul le titulaire peut ajouter/retirer). On expose donc
+    // isHolder + holder pour que l'app affiche le bon état (titulaire vs membre).
+    const isHolder = !!ownSub;
+    let holder = null;
+    if (!isHolder && subsHostingMe.length > 0) {
+      const hostSub = subsHostingMe[0];
+      try {
+        const hMini = await fetchUserMini(hostSub.userId, hostSub.userModel);
+        holder = {
+          id: String(hostSub.userId),
+          role: String(hostSub.userModel || '').toLowerCase(),
+          name: hMini?.name || '',
+          avatar: hMini?.avatar || '',
+        };
+      } catch (_) {/* defensive */}
+    }
+
     if (byId.size === 0) {
       return res.json({
         hasActiveFamilyPlan,
+        isHolder,
+        holder,
         members: [],
         remainingSlots: ownSub
           ? Math.max(0, 5 - (Array.isArray(ownSub.familyMembers) ? ownSub.familyMembers.length : 0))
@@ -1454,6 +1527,8 @@ router.get('/family/members', requireAuth, async (req, res) => {
       : 0;
     res.json({
       hasActiveFamilyPlan,
+      isHolder,
+      holder,
       members: enriched,
       remainingSlots: ownSub ? Math.max(0, 5 - ownActiveCount) : 0,
     });
@@ -1669,21 +1744,18 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
     const user = me(req);
     const targetId = req.params.userId;
     // v23.1.279 — Daniel : "je n'arrive pas à enlever un membre de famille".
-    // CAUSE RACINE : ce DELETE était CASE-SENSITIVE sur userModel (user.model
-    // = 'Owner') alors que le sub Famille peut être stocké en 'owner'
-    // (lowercase) — comme c'était déjà le cas pour le GET /family/members.
-    // Résultat : la query ne trouvait pas le sub → 404 → retrait silencieux
-    // raté. On aligne la query sur celle du GET (variantes de casse + plan
-    // tolérant FR/EN).
-    const sub = await UserSubscription.findOne({
-      userId: user.id,
-      userModel: { $in: [user.model, String(user.model).toLowerCase()] },
-      plan: { $in: ['famille', 'family'] },
-    });
+    // CAUSE RACINE : ce DELETE était CASE-SENSITIVE sur userModel + exigeait
+    // userId = user.id EXACT (aucun self-heal) → si la sub titulaire est
+    // rattachée à un ancien doc de rôle, retrait raté en 404.
+    // v23.1.281 — on UNIFIE avec resolveOwnFamilySub (même résolveur robuste
+    // que l'ajout : oldId + docs même email + balayage email-titulaire). Ainsi
+    // ajout ET retrait trouvent toujours la même sub titulaire.
+    const sub = await resolveOwnFamilySub(user);
     if (!sub) {
-      return res
-        .status(404)
-        .json({ error: 'No family subscription found.' });
+      return res.status(404).json({
+        error: 'No family subscription found.',
+        code: 'FAMILY_PLAN_REQUIRED',
+      });
     }
     const before = (sub.familyMembers || []).length;
     sub.familyMembers = (sub.familyMembers || []).filter(

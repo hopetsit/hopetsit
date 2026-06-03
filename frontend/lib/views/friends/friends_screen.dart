@@ -1278,7 +1278,58 @@ class _FamilyTab extends StatelessWidget {
             //      members.length < 5 (coherent avec la hero card).
             //   b) Ajout d'une grosse carte "Depuis mes amis" en 1er qui
             //      ouvre un picker de la liste d'amis (tap un ami → invite).
-            if (members.length < 5) ...[
+            // v23.1.281 — Daniel : "je n'arrive pas à ajouter de membre". Si je
+            // suis MEMBRE (pas titulaire) d'une famille, je ne dois PAS voir l'UI
+            // "Inviter un membre" (elle échoue, seul le titulaire peut ajouter).
+            // On affiche à la place une bannière "Tu es dans la famille de X".
+            if (!controller.isFamilyHolder.value) ...[
+              Container(
+                padding: EdgeInsets.all(14.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDE9FE),
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.30),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        color: const Color(0xFF7C3AED), size: 22.sp),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InterText(
+                            text: (controller.familyHolder.value?['name'] ?? '')
+                                    .toString()
+                                    .isEmpty
+                                ? 'family_you_are_member_generic'.tr
+                                : 'family_you_are_member'.trParams({
+                                    'name': (controller
+                                                .familyHolder.value?['name'] ??
+                                            '')
+                                        .toString(),
+                                  }),
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF7C3AED),
+                          ),
+                          SizedBox(height: 4.h),
+                          InterText(
+                            text: 'family_member_only_hint'.tr,
+                            fontSize: 11.sp,
+                            color: AppColors.textSecondary(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 18.h),
+            ] else if (members.length < 5) ...[
               InterText(
                 text: 'family_invite_section_title'.tr,
                 fontSize: 14.sp,
@@ -1346,6 +1397,7 @@ class _FamilyTab extends StatelessWidget {
               ...members.map((m) => _FamilyMemberTile(
                     member: m,
                     controller: controller,
+                    isHolder: controller.isFamilyHolder.value,
                   )),
             ] else
               Padding(
@@ -1929,9 +1981,16 @@ class _FamilyAddByEmailState extends State<_FamilyAddByEmail> {
 }
 
 class _FamilyMemberTile extends StatelessWidget {
-  const _FamilyMemberTile({required this.member, required this.controller});
+  const _FamilyMemberTile({
+    required this.member,
+    required this.controller,
+    this.isHolder = true,
+  });
   final Map<String, dynamic> member;
   final FriendController controller;
+  // v23.1.281 — seul le titulaire voit le bouton "retirer" (un membre ne peut
+  // pas retirer les autres membres de la famille).
+  final bool isHolder;
 
   @override
   Widget build(BuildContext context) {
@@ -2132,22 +2191,24 @@ class _FamilyMemberTile extends StatelessWidget {
               ),
             ),
           if (id.isNotEmpty) SizedBox(width: 4.w),
-          IconButton(
-            icon: Icon(Icons.person_remove_rounded,
-                color: AppColors.errorColor, size: 20.sp),
-            tooltip: 'family_remove_member_tooltip'.tr,
-            onPressed: () async {
-              final ok = await controller.removeFamilyMember(id);
-              if (!context.mounted) return;
-              if (ok) {
-                CustomSnackbar.showSuccess(
-                  title: 'family_member_removed_title'.tr,
-                  message: 'family_member_removed_msg'
-                      .trParams({'name': name}),
-                );
-              }
-            },
-          ),
+          // v23.1.281 — bouton retirer réservé au titulaire de la famille.
+          if (isHolder)
+            IconButton(
+              icon: Icon(Icons.person_remove_rounded,
+                  color: AppColors.errorColor, size: 20.sp),
+              tooltip: 'family_remove_member_tooltip'.tr,
+              onPressed: () async {
+                final ok = await controller.removeFamilyMember(id);
+                if (!context.mounted) return;
+                if (ok) {
+                  CustomSnackbar.showSuccess(
+                    title: 'family_member_removed_title'.tr,
+                    message: 'family_member_removed_msg'
+                        .trParams({'name': name}),
+                  );
+                }
+              },
+            ),
         ],
       ),
       ),

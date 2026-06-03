@@ -2664,6 +2664,10 @@ const Map<String, String> esESTranslations = <String, String>{
     'family_active_desc':
         'Añade a tu familia para compartir mascotas, lugares y alertas de forma segura.',
     'family_active_title': 'PawFollow Familia activo',
+    'family_you_are_member': 'Eres miembro de la familia de @name',
+    'family_you_are_member_generic': 'Eres miembro de una familia',
+    'family_member_only_hint':
+        'Solo el titular puede añadir o quitar miembros.',
     'family_invitation_accepted_msg': 'Ahora formas parte de la familia.',
     'family_invitation_received_title': 'Invitación de familia',
     'family_invitation_status_active': 'Miembro activo',
