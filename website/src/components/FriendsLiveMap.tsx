@@ -274,7 +274,7 @@ export default function FriendsLiveMap({
       >
         {/* v23.1.278 — zoom +/- natif Leaflet + switcher Plan/Satellite
             (Esri, gratuit) + maxZoom 19 (zoom rue), comme sur la PawMap. */}
-        <LayersControl position="topright">
+        <LayersControl position="bottomright">
           <LayersControl.BaseLayer checked name="Plan">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

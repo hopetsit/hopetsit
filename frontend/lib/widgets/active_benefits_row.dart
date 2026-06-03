@@ -164,12 +164,15 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     final familyActive = p['familyActive'] == true;
     final pawFollowExpiry = _toDate(p['pawFollowExpiry']);
     final familyExpiry = _toDate(p['familyExpiry']);
-    // v23.1.278 — Daniel : "le badge jaune PawFollow n'y est pas". On lit le
-    // flag backend pawFollowActive (premium individuel OU staff) — indépendant
-    // de la famille → les 2 badges peuvent coexister. Fallback isPremium pour
-    // les anciennes versions du backend pas encore déployées.
-    final hasIndividualPawFollow =
-        p['pawFollowActive'] == true || (isPremium && !familyActive);
+    // v23.1.279 — Daniel : "le badge jaune PawFollow n'y est tjr pas". On lit
+    // le flag backend pawFollowActive (premium individuel/staff) — indépendant
+    // de la famille → les 2 badges coexistent. FALLBACK robuste : si le backend
+    // n'expose pas encore pawFollowActive (Render pas redéployé), on retombe
+    // sur isPremium pour ne pas masquer le badge (l'ancien `&& !familyActive`
+    // le cachait à tort pour un user premium ET famille).
+    final hasIndividualPawFollow = p.containsKey('pawFollowActive')
+        ? p['pawFollowActive'] == true
+        : isPremium;
 
     final children = <Widget>[];
     if (hasIndividualPawFollow) {

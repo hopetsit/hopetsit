@@ -94,7 +94,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'family_member_pending': 'En attente',
       'pawmap_quick_follow_sub': 'Mes proches',
       'pawmap_quick_follow_on': 'Actif',
-      'pawmap_quick_family': 'Amis',
+      'pawmap_quick_family': 'Mon cercle',
       'pawmap_quick_family_sub': 'Ajouter',
       'pawmap_quick_people_live': 'En direct',
       'pawmap_quick_people_live_sub': 'Position partagee',

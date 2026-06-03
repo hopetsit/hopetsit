@@ -1644,10 +1644,17 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
   try {
     const user = me(req);
     const targetId = req.params.userId;
+    // v23.1.279 — Daniel : "je n'arrive pas à enlever un membre de famille".
+    // CAUSE RACINE : ce DELETE était CASE-SENSITIVE sur userModel (user.model
+    // = 'Owner') alors que le sub Famille peut être stocké en 'owner'
+    // (lowercase) — comme c'était déjà le cas pour le GET /family/members.
+    // Résultat : la query ne trouvait pas le sub → 404 → retrait silencieux
+    // raté. On aligne la query sur celle du GET (variantes de casse + plan
+    // tolérant FR/EN).
     const sub = await UserSubscription.findOne({
       userId: user.id,
-      userModel: user.model,
-      plan: 'famille',
+      userModel: { $in: [user.model, String(user.model).toLowerCase()] },
+      plan: { $in: ['famille', 'family'] },
     });
     if (!sub) {
       return res

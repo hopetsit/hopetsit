@@ -2755,7 +2755,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'pawmap_quick_alerts': 'Warnungen',
     'pawmap_quick_alerts_sub': 'Meldungen',
     // v23.1 part 243 — kurze 1-Wort-Labels pro Button.
-    'pawmap_quick_family': 'Freunde',
+    'pawmap_quick_family': 'Mein Kreis',
     'pawmap_quick_family_sub': 'Hinzufügen',
     'pawmap_quick_follow': 'Mir folgen',
     'family_member_pending': 'Ausstehend',

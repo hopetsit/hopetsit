@@ -50,6 +50,15 @@ export default function HomePage() {
     },
   ] as const;
 
+  // v23.1.279 — Daniel : "mettre 4 façons d'utiliser HopeTSIT + l'onglet
+  // PawFamily". La 4e carte (PawFamily) est en VIOLET = code couleur famille.
+  const usageWays = [
+    { emoji: "🔎", title: t("home_way1_title"), body: t("home_way1_body"), accent: "owner" },
+    { emoji: "💼", title: t("home_way2_title"), body: t("home_way2_body"), accent: "sitter" },
+    { emoji: "📍", title: t("home_way3_title"), body: t("home_way3_body"), accent: "walker" },
+    { emoji: "👨‍👩‍👧", title: t("home_way4_title"), body: t("home_way4_body"), accent: "family" },
+  ] as const;
+
   return (
     <>
       {/* Hero — orange gradient, the same accent as the mobile app primary. */}
@@ -90,15 +99,15 @@ export default function HomePage() {
                 <div className="flex items-start gap-3">
                   <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl">🐕</div>
                   <div>
-                    <div className="text-sm font-semibold text-ink">Sophie · Pet sitter</div>
+                    <div className="text-sm font-semibold text-ink">Sophie · {t("home_sophie_role")}</div>
                     <div className="text-xs text-ink-muted">Lyon · 4.9 ★ · Top Sitter</div>
                   </div>
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                   {[
-                    { t: "Day", v: "€30" },
-                    { t: "Week", v: "€180" },
-                    { t: "Month", v: "€620" },
+                    { t: t("home_card_day"), v: "€30" },
+                    { t: t("home_card_week"), v: "€180" },
+                    { t: t("home_card_month"), v: "€620" },
                   ].map((x) => (
                     <div key={x.t} className="rounded-xl bg-bg-soft p-2">
                       <div className="text-[10px] uppercase tracking-wider text-ink-soft">{x.t}</div>
@@ -107,13 +116,13 @@ export default function HomePage() {
                   ))}
                 </div>
                 <div className="mt-5 rounded-xl bg-sitter-light/70 p-3">
-                  <div className="text-[11px] uppercase text-sitter-dark">Estimated earning</div>
+                  <div className="text-[11px] uppercase text-sitter-dark">{t("home_est_earning")}</div>
                   <div className="mt-1 text-2xl font-extrabold text-sitter-dark">€48.00</div>
-                  <div className="text-[11px] text-ink-muted">1 day × €40 + 20% commission</div>
+                  <div className="text-[11px] text-ink-muted">{t("home_est_detail")}</div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button className="rounded-full border border-ink/10 py-2 text-xs font-semibold text-ink">Details</button>
-                  <button className="rounded-full bg-owner py-2 text-xs font-semibold text-white">Send request</button>
+                  <button className="rounded-full border border-ink/10 py-2 text-xs font-semibold text-ink">{t("home_card_details")}</button>
+                  <button className="rounded-full bg-owner py-2 text-xs font-semibold text-white">{t("home_card_request")}</button>
                 </div>
               </div>
             </div>
@@ -195,6 +204,54 @@ export default function HomePage() {
               <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.body}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* v23.1.279 — Daniel : "4 façons d'utiliser HopeTSIT + onglet PawFamily".
+          4 cartes ; la 4e (PawFamily) en VIOLET = code couleur famille. */}
+      <section className="bg-bg-soft py-20">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+            {t("home_ways_title")}
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-base leading-relaxed text-ink-muted">
+            {t("home_ways_sub")}
+          </p>
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {usageWays.map((w) => {
+              const isFamily = w.accent === "family";
+              return (
+                <div
+                  key={w.title}
+                  className={
+                    "group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-card transition-transform hover:-translate-y-1 " +
+                    (isFamily ? "border-violet-300 ring-1 ring-violet-200" : "border-ink/5")
+                  }
+                >
+                  <div
+                    className={
+                      isFamily
+                        ? "absolute inset-x-0 top-0 h-1 bg-violet-500"
+                        : `absolute inset-x-0 top-0 h-1 bg-${w.accent}`
+                    }
+                  />
+                  <div
+                    className={
+                      isFamily
+                        ? "mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-violet-100 text-2xl"
+                        : `mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-${w.accent}-light text-2xl`
+                    }
+                  >
+                    {w.emoji}
+                  </div>
+                  <h3 className={"text-base font-bold " + (isFamily ? "text-violet-700" : "text-ink")}>
+                    {w.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{w.body}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

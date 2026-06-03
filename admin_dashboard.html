@@ -4161,5 +4161,70 @@ async function toggleStaff(role, userId, isStaff) {
   }
 }
   </script>
+  <!-- v23.1.279 — Daniel : "la traduction admin en anglais et espagnol ne
+       marche pas". CAUSE : le <select> appelait setAdminLang() qui n'existait
+       PAS (aucune fonction, aucun dictionnaire). On l'implémente ici avec les
+       3 langues (FR/EN/ES) pour toutes les clés data-i18n, + application au
+       chargement (langue mémorisée dans localStorage). -->
+  <script>
+    const ADMIN_I18N = {
+      fr: {
+        login_sub: "Tableau de bord admin · Accès restreint",
+        backend_url: "URL Backend",
+        admin_email: "Email admin",
+        admin_password: "Mot de passe admin",
+        access_dashboard: "Accéder au tableau de bord →",
+        logout: "Déconnexion",
+        loading: "Chargement...",
+        dash_overview: "Vue d'ensemble",
+        dash_recent_payments: "Paiements récents",
+        loyalty_title: "Avantages fidélité",
+        loyalty_desc: "Owners Premium (10+ réservations) · Top Sitters (20+ prestations + note 4.5★) · Top Walkers (20+ balades + note 4.5★). Commission réduite à 15% pour Top Sitter/Walker.",
+      },
+      en: {
+        login_sub: "Admin Dashboard · Restricted Access",
+        backend_url: "Backend URL",
+        admin_email: "Admin Email",
+        admin_password: "Admin Password",
+        access_dashboard: "Access Dashboard →",
+        logout: "Logout",
+        loading: "Loading...",
+        dash_overview: "Overview",
+        dash_recent_payments: "Recent payments",
+        loyalty_title: "Loyalty benefits",
+        loyalty_desc: "Premium owners (10+ bookings) · Top Sitters (20+ services + 4.5★ rating) · Top Walkers (20+ walks + 4.5★ rating). Reduced 15% commission for Top Sitter/Walker.",
+      },
+      es: {
+        login_sub: "Panel de administración · Acceso restringido",
+        backend_url: "URL del backend",
+        admin_email: "Email de administrador",
+        admin_password: "Contraseña de administrador",
+        access_dashboard: "Acceder al panel →",
+        logout: "Cerrar sesión",
+        loading: "Cargando...",
+        dash_overview: "Resumen",
+        dash_recent_payments: "Pagos recientes",
+        loyalty_title: "Ventajas de fidelidad",
+        loyalty_desc: "Propietarios Premium (10+ reservas) · Top Sitters (20+ servicios + nota 4.5★) · Top Walkers (20+ paseos + nota 4.5★). Comisión reducida al 15% para Top Sitter/Walker.",
+      },
+    };
+    function setAdminLang(lang) {
+      const dict = ADMIN_I18N[lang] || ADMIN_I18N.fr;
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key] != null) el.textContent = dict[key];
+      });
+      try { localStorage.setItem('adminLang', lang); } catch (_) {}
+      try { document.documentElement.setAttribute('lang', lang); } catch (_) {}
+      const sel = document.getElementById('lang-switcher');
+      if (sel && sel.value !== lang) sel.value = lang;
+    }
+    // Applique la langue mémorisée au chargement (défaut FR).
+    (function () {
+      let saved = 'fr';
+      try { saved = localStorage.getItem('adminLang') || 'fr'; } catch (_) {}
+      setAdminLang(saved);
+    })();
+  </script>
 </body>
 </html>

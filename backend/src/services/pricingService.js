@@ -127,8 +127,19 @@ async function init() {
     }
 
     // Same version → load DB values into cache (admin edits respected).
+    // v23.1.279 — Daniel : "mettre les prix de PawFamily dans l'admin". Si la
+    // DB a été seedée AVANT l'ajout du tier `family` (premium) ou `famille`
+    // (pawfollow), le doc DB ne contient pas ces tiers → l'admin affichait des
+    // cases VIDES. On DEEP-MERGE : on part des DEFAULTS (qui ont family) et on
+    // superpose les valeurs DB (edits admin) → les tiers manquants sont
+    // toujours remplis, sans écraser les prix personnalisés.
     for (const cat of CATEGORIES) {
-      if (doc[cat]) cache[cat] = doc[cat];
+      if (!doc[cat]) continue;
+      const merged = JSON.parse(JSON.stringify(DEFAULTS[cat] || {}));
+      for (const cur of Object.keys(doc[cat])) {
+        merged[cur] = { ...(merged[cur] || {}), ...doc[cat][cur] };
+      }
+      cache[cat] = merged;
     }
     logger.info?.(`[pricingService] loaded pricing from DB (${PRICING_VERSION})`);
   } catch (e) {

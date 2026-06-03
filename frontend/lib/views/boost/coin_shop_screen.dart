@@ -798,6 +798,29 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
   @override
   bool get wantKeepAlive => true;
 
+  // v23.1.279 — Daniel : "PawFollow et Family se calculent ensemble, Family
+  // reste inactif". La bannière s'appuyait sur le plan UNIQUE de la sub
+  // (mutuellement exclusif). On lit /me/benefits pour des signaux
+  // INDÉPENDANTS (pawFollowActive + familyActive + leurs expirations) → les 2
+  // moitiés peuvent être actives en même temps avec leurs propres jours.
+  Map<String, dynamic> _benefits = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBenefits();
+  }
+
+  Future<void> _loadBenefits() async {
+    try {
+      if (!Get.isRegistered<ApiClient>()) return;
+      final r = await Get.find<ApiClient>()
+          .get('/users/me/benefits', requiresAuth: true);
+      if (!mounted) return;
+      if (r is Map) setState(() => _benefits = Map<String, dynamic>.from(r));
+    } catch (_) {/* defensive */}
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -1040,9 +1063,33 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     final isPremium = status?.isPremium ?? false;
     final plan = (status?.plan ?? 'none').toLowerCase();
     final isFamilyPlan = plan == 'famille' || plan == 'family';
-    final remainingDays = status?.remainingDays ?? 0;
-    final pawFollowActive = isPremium && !isFamilyPlan;
-    final familyActive = isPremium && isFamilyPlan;
+    final statusDays = status?.remainingDays ?? 0;
+
+    // v23.1.279 — Daniel : "on dirait que PawFollow et Family se calculent
+    // ensemble, Family reste inactif". On rend les 2 moitiés INDÉPENDANTES via
+    // /me/benefits (un user peut avoir un abo individuel ET être dans une
+    // famille). Fallback sur le plan unique de la sub si le backend n'est pas
+    // encore déployé (pawFollowActive/familyActive absents du payload).
+    DateTime? _toDate(dynamic v) =>
+        (v is String && v.isNotEmpty) ? DateTime.tryParse(v) : null;
+    int _daysUntil(DateTime? d) => d == null
+        ? 0
+        : d.difference(DateTime.now()).inDays.clamp(0, 999999);
+    final b = _benefits;
+    final pfExpiry = _toDate(b['pawFollowExpiry']);
+    final famExpiry = _toDate(b['familyExpiry']);
+    final pawFollowActive = b.containsKey('pawFollowActive')
+        ? b['pawFollowActive'] == true
+        : (isPremium && !isFamilyPlan);
+    final familyActive = b.containsKey('familyActive')
+        ? b['familyActive'] == true
+        : (isPremium && isFamilyPlan);
+    // Jours par moitié : expiration dédiée si dispo, sinon les jours du plan
+    // courant (ex: staff sans sub individuel → statusDays côté PawFollow).
+    final pawFollowDays =
+        pfExpiry != null ? _daysUntil(pfExpiry) : (pawFollowActive ? statusDays : 0);
+    final familyDays =
+        famExpiry != null ? _daysUntil(famExpiry) : (familyActive && isFamilyPlan ? statusDays : 0);
 
     // v23.1.278 — Daniel : "la page PawFollow a disparu". BUG : un Row avec
     // CrossAxisAlignment.stretch dans un Column/SingleChildScrollView reçoit
@@ -1059,7 +1106,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               emoji: '⭐',
               title: 'PawFollow',
               active: pawFollowActive,
-              days: remainingDays,
+              days: pawFollowDays,
               activeColors: const [Color(0xFFFFD700), Color(0xFFFF9500)],
             ),
           ),
@@ -1070,7 +1117,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               emoji: '👨‍👩‍👧',
               title: 'Family',
               active: familyActive,
-              days: remainingDays,
+              days: familyDays,
               activeColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
             ),
           ),

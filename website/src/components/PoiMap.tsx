@@ -123,7 +123,7 @@ export default function PoiMap({
             Leaflet natif (haut-gauche) ; on ajoute un switcher de couches
             (haut-droite) Plan / Satellite (Esri World Imagery, gratuit, sans
             clé) ; maxZoom 19 permet de zoomer jusqu'au niveau de la rue. */}
-        <LayersControl position="topright">
+        <LayersControl position="bottomright">
           <LayersControl.BaseLayer checked name="Plan">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
