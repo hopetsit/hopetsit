@@ -3423,13 +3423,26 @@ class _LayerToggle extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
         decoration: BoxDecoration(
+          // v23.1.278 — Daniel : "en mode dark on voit mal la barre sur la
+          // PawMap". La GoogleMap reste TOUJOURS claire (pas de style sombre),
+          // donc on FIXE les chips en surface CLAIRE (blanc + texte sombre)
+          // dans les 2 modes, avec une ombre douce pour bien les détacher de
+          // la carte — au lieu de couleurs adaptatives qui devenaient sombres
+          // et incohérentes en dark mode.
           color: active
-              ? AppColors.primaryColor.withValues(alpha: 0.12)
-              : AppColors.card(context),
+              ? AppColors.primaryColor.withValues(alpha: 0.14)
+              : Colors.white,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: active ? AppColors.primaryColor : AppColors.divider(context),
+            color: active ? AppColors.primaryColor : const Color(0xFFE0E0E0),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3442,7 +3455,7 @@ class _LayerToggle extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: active
                   ? AppColors.primaryColor
-                  : AppColors.textPrimary(context),
+                  : const Color(0xFF1F2937),
             ),
             if (premiumBadge) ...[
               SizedBox(width: 4.w),

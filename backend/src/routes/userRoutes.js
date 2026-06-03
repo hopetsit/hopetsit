@@ -94,7 +94,10 @@ router.get(
         if (sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now) {
           subscriptionActive = true;
           subscriptionPlan = sub.plan || null;
-          pawFollowExpiry = sub.currentPeriodEnd;
+          // v23.1.278 — pawFollowExpiry ne concerne QUE l'abo INDIVIDUEL
+          // (mensuel/annuel/solo). Un titulaire famille relève de familyExpiry.
+          const ownFamily = sub.plan === 'famille' || sub.plan === 'family';
+          if (!ownFamily) pawFollowExpiry = sub.currentPeriodEnd;
         }
         const fam = await UserSubscription.findOne({
           status: 'active',
@@ -113,6 +116,12 @@ router.get(
         logger.warn(`[users/me/benefits] subscription lookup failed : ${e.message}`);
       }
 
+      // v23.1.278 — Daniel : "le badge jaune PawFollow n'y est pas". PawFollow
+      // INDIVIDUEL actif = isPremium legacy/staff OU abo individuel actif (pas
+      // famille). Distinct de familyActive → on peut afficher les 2 badges.
+      const ownPlanFamily = subscriptionPlan === 'famille' || subscriptionPlan === 'family';
+      const pawFollowActive = !!user.isPremium || (subscriptionActive && !ownPlanFamily);
+
       const payload = {
         role,
         boostExpiry: user.boostExpiry || null,
@@ -126,6 +135,7 @@ router.get(
         ibanVerified: !!user.ibanVerified,
         isPremium: !!user.isPremium || subscriptionActive,
         subscriptionPlan,
+        pawFollowActive,
         pawFollowExpiry,
         familyActive,
         familyExpiry,

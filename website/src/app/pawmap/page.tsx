@@ -11,6 +11,7 @@ type Plan = {
   features: string[];
   highlighted: boolean;
   badge?: string;
+  isFamily?: boolean;
 };
 
 type Offer = {
@@ -78,6 +79,7 @@ export default function PawMapPage() {
       ],
       highlighted: false,
       badge: t("pawfollow_family_badge"),
+      isFamily: true,
     },
   ];
 
@@ -134,36 +136,81 @@ export default function PawMapPage() {
           {t("pawfollow_desc")}
         </p>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {pawfollowPlans.map((p) => (
-            <div
-              key={p.name}
-              className={
-                "relative rounded-2xl border bg-white p-6 shadow-card transition " +
-                (p.highlighted ? "border-walker ring-2 ring-walker scale-[1.02]" : "border-ink/5")
-              }
-            >
-              {p.badge ? (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white">
-                  {p.badge}
-                </span>
-              ) : null}
-              <h3 className="text-lg font-bold text-ink">{p.name}</h3>
-              <p className="mt-3 text-3xl font-extrabold text-walker-dark">
-                {p.price}
-                <span className="ml-1 text-sm font-medium text-ink-muted">{p.period}</span>
-              </p>
-              <p className="mt-1 text-xs text-ink-muted">{p.tagline}</p>
-              <ul className="mt-5 space-y-2">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-ink">
-                    <span className="mt-0.5 text-walker">✓</span>
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        {/* v23.1.278 — Daniel : "sépare bien + couleur". Section 1 :
+            Suis ton animal (PawFollow individuel — vert walker). */}
+        <h3 className="mt-10 text-center font-display text-xl font-extrabold text-walker-dark">
+          🐾 {t("pawfollow_section_solo")}
+        </h3>
+        <div className="mt-6 grid grid-cols-1 gap-5 md:mx-auto md:max-w-3xl md:grid-cols-2">
+          {pawfollowPlans
+            .filter((p) => !p.isFamily)
+            .map((p) => (
+              <div
+                key={p.name}
+                className={
+                  "relative rounded-2xl border bg-white p-6 shadow-card transition " +
+                  (p.highlighted ? "border-walker ring-2 ring-walker scale-[1.02]" : "border-ink/5")
+                }
+              >
+                {p.badge ? (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white">
+                    {p.badge}
+                  </span>
+                ) : null}
+                <h4 className="text-lg font-bold text-ink">{p.name}</h4>
+                <p className="mt-3 text-3xl font-extrabold text-walker-dark">
+                  {p.price}
+                  <span className="ml-1 text-sm font-medium text-ink-muted">{p.period}</span>
+                </p>
+                <p className="mt-1 text-xs text-ink-muted">{p.tagline}</p>
+                <ul className="mt-5 space-y-2">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-ink">
+                      <span className="mt-0.5 text-walker">✓</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </div>
+
+        {/* Section 2 : PawFamily (suivi en famille — VIOLET, code couleur famille). */}
+        <h3 className="mt-12 text-center font-display text-xl font-extrabold text-violet-700">
+          👨‍👩‍👧 PawFamily
+        </h3>
+        <p className="mx-auto mt-2 max-w-xl text-center text-sm text-ink-muted">
+          {t("pawfollow_section_family_sub")}
+        </p>
+        <div className="mt-6 grid grid-cols-1 gap-5 md:mx-auto md:max-w-md">
+          {pawfollowPlans
+            .filter((p) => p.isFamily)
+            .map((p) => (
+              <div
+                key={p.name}
+                className="relative rounded-2xl border-2 border-violet-500 bg-violet-50 p-6 shadow-card ring-1 ring-violet-200 transition"
+              >
+                {p.badge ? (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white">
+                    {p.badge}
+                  </span>
+                ) : null}
+                <h4 className="text-lg font-bold text-violet-800">{p.name}</h4>
+                <p className="mt-3 text-3xl font-extrabold text-violet-700">
+                  {p.price}
+                  <span className="ml-1 text-sm font-medium text-ink-muted">{p.period}</span>
+                </p>
+                <p className="mt-1 text-xs text-ink-muted">{p.tagline}</p>
+                <ul className="mt-5 space-y-2">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-ink">
+                      <span className="mt-0.5 text-violet-600">✓</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
         </div>
       </div>
 

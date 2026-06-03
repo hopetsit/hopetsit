@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  LayersControl,
   MapContainer,
   Marker,
   Popup,
@@ -112,13 +113,32 @@ export default function PoiMap({
         key={mapKey}
         center={center}
         zoom={13}
+        maxZoom={19}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
+        zoomControl={true}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {/* v23.1.278 — Daniel : "rajoute la barre +/- , vue satellite, zoom
+            dans la rue" sur la PawMap du site. Le zoom +/- est le contrôle
+            Leaflet natif (haut-gauche) ; on ajoute un switcher de couches
+            (haut-droite) Plan / Satellite (Esri World Imagery, gratuit, sans
+            clé) ; maxZoom 19 permet de zoomer jusqu'au niveau de la rue. */}
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Plan">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite">
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com">Esri</a>, Maxar, Earthstar Geographics'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
 
         <MapMoveHandler onMove={onMapMove} />
 

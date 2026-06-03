@@ -161,12 +161,15 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     //   - Badge PawFollow (doré ⭐) : abo INDIVIDUEL actif (mensuel/annuel).
     //   - Badge Family (violet 👨‍👩‍👧) : plan FAMILLE actif (titulaire ou membre).
     // Un titulaire famille n'a QUE le badge Family (pas de PawFollow individuel).
-    final plan = (p['subscriptionPlan'] ?? '').toString().toLowerCase();
-    final isFamilyPlan = plan == 'famille' || plan == 'family';
     final familyActive = p['familyActive'] == true;
     final pawFollowExpiry = _toDate(p['pawFollowExpiry']);
     final familyExpiry = _toDate(p['familyExpiry']);
-    final hasIndividualPawFollow = isPremium && !isFamilyPlan;
+    // v23.1.278 — Daniel : "le badge jaune PawFollow n'y est pas". On lit le
+    // flag backend pawFollowActive (premium individuel OU staff) — indépendant
+    // de la famille → les 2 badges peuvent coexister. Fallback isPremium pour
+    // les anciennes versions du backend pas encore déployées.
+    final hasIndividualPawFollow =
+        p['pawFollowActive'] == true || (isPremium && !familyActive);
 
     final children = <Widget>[];
     if (hasIndividualPawFollow) {

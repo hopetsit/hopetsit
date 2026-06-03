@@ -817,32 +817,39 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
             children: [
               _buildStatusCard(context, controller),
               SizedBox(height: 20.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InterText(
-                          text: 'premium_choose_plan'.tr,
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
-                        ),
-                        SizedBox(height: 4.h),
-                        InterText(
-                          text: 'premium_choose_plan_subtitle'.tr,
-                          fontSize: 13.sp,
-                          color: AppColors.greyText,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _buildCurrencyPicker(context, controller),
-                ],
+              // v23.1.278 — Daniel : "sépare bien sur la même page PawFollow :
+              // un titre genre 'Suis ton animal', et PawFamily en violet pour
+              // suivre en famille". 2 sections distinctes sur le même onglet.
+              Align(
+                alignment: Alignment.centerRight,
+                child: _buildCurrencyPicker(context, controller),
               ),
-              SizedBox(height: 16.h),
-              ...controller.plans.map((p) => _buildPlanCard(context, controller, p)),
+              SizedBox(height: 14.h),
+              // ── Section 1 : Suis ton animal (PawFollow individuel) ──────
+              _planSectionHeader(
+                context,
+                emoji: '🐾',
+                title: 'pawfollow_section_solo'.tr,
+                subtitle: 'pawfollow_section_solo_sub'.tr,
+                color: const Color(0xFFFF9500),
+              ),
+              SizedBox(height: 12.h),
+              ...controller.plans
+                  .where((p) => p.plan != 'family' && p.plan != 'famille')
+                  .map((p) => _buildPlanCard(context, controller, p)),
+              SizedBox(height: 22.h),
+              // ── Section 2 : PawFamily (suivi en famille) — VIOLET ────────
+              _planSectionHeader(
+                context,
+                emoji: '👨‍👩‍👧',
+                title: 'PawFamily',
+                subtitle: 'pawfollow_section_family_sub'.tr,
+                color: const Color(0xFF7C3AED),
+              ),
+              SizedBox(height: 12.h),
+              ...controller.plans
+                  .where((p) => p.plan == 'family' || p.plan == 'famille')
+                  .map((p) => _buildPlanCard(context, controller, p)),
               SizedBox(height: 20.h),
               // Session v3.2 — Chat add-on tile for free users who just want
               // chat with friends without going full Premium.
@@ -1037,31 +1044,38 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     final pawFollowActive = isPremium && !isFamilyPlan;
     final familyActive = isPremium && isFamilyPlan;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: _statusHalf(
-            context,
-            emoji: '⭐',
-            title: 'PawFollow',
-            active: pawFollowActive,
-            days: remainingDays,
-            activeColors: const [Color(0xFFFFD700), Color(0xFFFF9500)],
+    // v23.1.278 — Daniel : "la page PawFollow a disparu". BUG : un Row avec
+    // CrossAxisAlignment.stretch dans un Column/SingleChildScrollView reçoit
+    // une hauteur NON BORNÉE → erreur de layout qui masquait tout le reste de
+    // la page (forfaits). On enveloppe dans IntrinsicHeight pour borner la
+    // hauteur, ainsi les 2 moitiés s'égalisent sans casser le scroll.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _statusHalf(
+              context,
+              emoji: '⭐',
+              title: 'PawFollow',
+              active: pawFollowActive,
+              days: remainingDays,
+              activeColors: const [Color(0xFFFFD700), Color(0xFFFF9500)],
+            ),
           ),
-        ),
-        SizedBox(width: 10.w),
-        Expanded(
-          child: _statusHalf(
-            context,
-            emoji: '👨‍👩‍👧',
-            title: 'Family',
-            active: familyActive,
-            days: remainingDays,
-            activeColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+          SizedBox(width: 10.w),
+          Expanded(
+            child: _statusHalf(
+              context,
+              emoji: '👨‍👩‍👧',
+              title: 'Family',
+              active: familyActive,
+              days: remainingDays,
+              activeColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1119,6 +1133,44 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
           ),
         ],
       ),
+    );
+  }
+
+  // v23.1.278 — en-tête de section de forfaits (Suis ton animal / PawFamily).
+  // PawFamily reçoit la couleur violette (code couleur famille de l'app).
+  Widget _planSectionHeader(
+    BuildContext context, {
+    required String emoji,
+    required String title,
+    required String subtitle,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(emoji, style: TextStyle(fontSize: 20.sp)),
+            SizedBox(width: 8.w),
+            Flexible(
+              child: InterText(
+                text: title,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w800,
+                color: color,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 4.h),
+        InterText(
+          text: subtitle,
+          fontSize: 12.sp,
+          color: AppColors.greyText,
+          maxLines: 2,
+        ),
+      ],
     );
   }
 

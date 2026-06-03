@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
+  LayersControl,
   MapContainer,
   Marker,
   Popup,
@@ -266,13 +267,29 @@ export default function FriendsLiveMap({
       <MapContainer
         center={center}
         zoom={positionsList.length > 0 ? 13 : 5}
+        maxZoom={19}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
+        zoomControl={true}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {/* v23.1.278 — zoom +/- natif Leaflet + switcher Plan/Satellite
+            (Esri, gratuit) + maxZoom 19 (zoom rue), comme sur la PawMap. */}
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Plan">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite">
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com">Esri</a>, Maxar, Earthstar Geographics'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
         <FitBoundsOnChange positions={positionsList} />
         <FlyToSelected
           selectedUserId={selectedUserId}

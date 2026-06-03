@@ -173,6 +173,8 @@ export const t: Bundle = {
     // PawFollow / PawSpot pricing on the PawMap page
     pawfollow_title: "PawFollow",
     pawfollow_desc: "Unlock all PawMap features, real-time tracking and unlimited chat with your sitter / walker.",
+    pawfollow_section_solo: "Follow your pet",
+    pawfollow_section_family_sub: "Share tracking with up to 5 family members",
     pawfollow_monthly_name: "PawFollow Monthly",
     pawfollow_monthly_period: "/ month",
     pawfollow_monthly_tagline: "No commitment",
@@ -490,6 +492,8 @@ export const t: Bundle = {
     // PawFollow / PawSpot pricing on the PawMap page
     pawfollow_title: "PawFollow",
     pawfollow_desc: "Débloque toutes les fonctionnalités de la PawMap, le suivi temps-réel et le chat illimité avec ton sitter / walker.",
+    pawfollow_section_solo: "Suis ton animal",
+    pawfollow_section_family_sub: "Partage le suivi avec jusqu’à 5 membres de ta famille",
     pawfollow_monthly_name: "PawFollow Mensuel",
     pawfollow_monthly_period: "/ mois",
     pawfollow_monthly_tagline: "Sans engagement",
@@ -733,6 +737,8 @@ export const t: Bundle = {
     // PawFollow / PawSpot pricing on the PawMap page
     pawfollow_title: "PawFollow",
     pawfollow_desc: "Desbloquea todas las funciones del PawMap, el seguimiento en tiempo real y el chat ilimitado con tu cuidador / paseador.",
+    pawfollow_section_solo: "Sigue a tu animal",
+    pawfollow_section_family_sub: "Comparte el seguimiento con hasta 5 familiares",
     pawfollow_monthly_name: "PawFollow Mensual",
     pawfollow_monthly_period: "/ mes",
     pawfollow_monthly_tagline: "Sin compromiso",
@@ -929,6 +935,8 @@ export const t: Bundle = {
     // PawFollow / PawSpot pricing on the PawMap page
     pawfollow_title: "PawFollow",
     pawfollow_desc: "Schalte alle PawMap-Funktionen frei: Echtzeit-Tracking und unbegrenzter Chat mit deinem Sitter / Walker.",
+    pawfollow_section_solo: "Folge deinem Tier",
+    pawfollow_section_family_sub: "Teile das Tracking mit bis zu 5 Familienmitgliedern",
     pawfollow_monthly_name: "PawFollow Monatlich",
     pawfollow_monthly_period: "/ Monat",
     pawfollow_monthly_tagline: "Keine Bindung",
@@ -1124,6 +1132,8 @@ export const t: Bundle = {
     // PawFollow / PawSpot pricing on the PawMap page
     pawfollow_title: "PawFollow",
     pawfollow_desc: "Sblocca tutte le funzioni della PawMap, il tracciamento in tempo reale e la chat illimitata con il tuo sitter / walker.",
+    pawfollow_section_solo: "Segui il tuo animale",
+    pawfollow_section_family_sub: "Condividi il tracciamento con un massimo di 5 familiari",
     pawfollow_monthly_name: "PawFollow Mensile",
     pawfollow_monthly_period: "/ mese",
     pawfollow_monthly_tagline: "Senza impegno",
@@ -1319,6 +1329,8 @@ export const t: Bundle = {
     // PawFollow / PawSpot pricing on the PawMap page
     pawfollow_title: "PawFollow",
     pawfollow_desc: "Desbloqueia todas as funcionalidades do PawMap, o rastreamento em tempo real e o chat ilimitado com o teu sitter / walker.",
+    pawfollow_section_solo: "Siga o seu animal",
+    pawfollow_section_family_sub: "Partilhe o seguimento com até 5 familiares",
     pawfollow_monthly_name: "PawFollow Mensal",
     pawfollow_monthly_period: "/ mês",
     pawfollow_monthly_tagline: "Sem compromisso",

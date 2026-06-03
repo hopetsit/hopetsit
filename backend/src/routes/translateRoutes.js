@@ -39,6 +39,9 @@ async function _tryLibreTranslate(text, source, target) {
           target,
           format: 'text',
         }),
+        // v23.1.278 — timeout 6s : les instances LibreTranslate publiques sont
+        // souvent mortes/payantes ; sans timeout le bouton "Traduire" pendait.
+        signal: AbortSignal.timeout(6000),
       });
       if (!r.ok) continue;
       const data = await r.json();
@@ -67,23 +70,29 @@ async function _tryMyMemory(text, source, target) {
   if (source && source !== 'auto') {
     return _myMemoryTrySingle(text, source, target);
   }
-  // Auto-detect : on essaie EN, FR, ES, DE, IT, PT en cascade.
-  // Quasi-tout le monde tape soit en EN soit dans sa langue. Le first
-  // success match est retourné.
+  // Auto-detect : on essaie EN, FR, ES, DE, IT, PT en cascade et on garde la
+  // MEILLEURE correspondance (match score le plus élevé), pas juste la 1ère —
+  // sinon on choisissait une mauvaise source.
   const candidates = ['en', 'fr', 'es', 'de', 'it', 'pt'].filter(
     (l) => l !== target,
   );
+  let best = null;
   for (const src of candidates) {
     const r = await _myMemoryTrySingle(text, src, target);
-    if (r) return r;
+    if (r && (!best || (r.matchScore || 0) > (best.matchScore || 0))) {
+      best = r;
+      // Confiance haute → on arrête tôt (évite d'épuiser le quota MyMemory).
+      if ((r.matchScore || 0) >= 0.85) break;
+    }
   }
-  return null;
+  return best;
 }
 
 async function _myMemoryTrySingle(text, src, target) {
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${target}`;
-    const r = await fetch(url);
+    const email = (process.env.MYMEMORY_EMAIL || '').trim();
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${target}${email ? `&de=${encodeURIComponent(email)}` : ''}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) return null;
     const data = await r.json();
     const tr = data?.responseData?.translatedText;
@@ -91,14 +100,22 @@ async function _myMemoryTrySingle(text, src, target) {
     // Si MyMemory renvoie une erreur (genre "INVALID SOURCE LANGUAGE")
     // dans le translatedText, on ignore.
     if (!tr || typeof tr !== 'string') return null;
-    if (tr.toUpperCase().includes('INVALID') ||
-        tr.toUpperCase().includes('NO CONTENT') ||
-        tr.toUpperCase().includes('MUST BE A VALID')) {
+    const trU = tr.toUpperCase();
+    if (trU.includes('INVALID') ||
+        trU.includes('NO CONTENT') ||
+        trU.includes('MUST BE A VALID') ||
+        trU.includes('QUERY LENGTH LIMIT') ||
+        trU.includes('MYMEMORY WARNING')) {
       return null;
     }
-    // Score < 0.5 = traduction très approximative, on l'ignore pour
-    // éviter de retourner du charabia.
-    if (match < 0.5) return null;
+    // v23.1.278 — Daniel : "le bouton traduire ne marche pas". L'ancien filtre
+    // match < 0.5 rejetait des traductions VALIDES (le score MyMemory est un
+    // score de mémoire de traduction, souvent bas pour une trad machine
+    // correcte). On accepte donc toute trad non-erreur et DIFFÉRENTE du texte
+    // source ; le score sert juste au ranking de la source auto-détectée.
+    if (tr.trim().toLowerCase() === String(text).trim().toLowerCase()) {
+      return null; // identique → pas une vraie traduction (mauvaise source)
+    }
     return {
       translation: tr,
       detectedSourceLang: src,

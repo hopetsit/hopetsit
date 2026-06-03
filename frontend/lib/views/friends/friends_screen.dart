@@ -426,6 +426,13 @@ class _FriendsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: controller.refresh,
       child: Obx(() {
+        // v23.1.278 — Daniel : "quand j'enlève un membre de la famille, il
+        // reste en violet". L'Obx n'observait que `friends`, pas
+        // `familyMembers` → la tuile gardait isFamily=true (violet) après un
+        // retrait. On déclare familyMembers.length comme dépendance pour que
+        // la couleur/role de chaque tuile se recalcule dès l'ajout/retrait.
+        // ignore: unused_local_variable
+        final famLen = controller.familyMembers.length;
         if (controller.isLoading.value && controller.friends.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -641,7 +648,18 @@ class _FriendTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6.r),
                       ),
                       child: InterText(
-                        text: other.model,
+                        // v23.1.278 — Daniel : "walker/sitter mal traduit, et
+                        // quand c'est violet le statut passe à Famille". Si
+                        // l'ami est famille → "Famille" (violet), sinon le rôle
+                        // TRADUIT (Promeneur / Petsitter / Propriétaire).
+                        text: isFamily
+                            ? 'friends_tab_family'.tr
+                            : (<String, String>{
+                                'Walker': 'role_walker'.tr,
+                                'Sitter': 'role_sitter'.tr,
+                                'Owner': 'role_owner'.tr,
+                              }[other.model] ??
+                                other.model),
                         fontSize: 9.sp,
                         fontWeight: FontWeight.w700,
                         color: roleColor,
