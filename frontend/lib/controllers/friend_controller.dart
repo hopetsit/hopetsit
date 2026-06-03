@@ -193,6 +193,8 @@ class FriendController extends GetxController {
               'avatar': (f['otherAvatar'] ?? '').toString(),
               'city': '',
               'hasPawFollow': otherHasPawFollow,
+              // v23.1.280 — tier PawSpot pour l'anneau doré/bleu sur l'avatar.
+              'pawSpotTier': (f['otherPawSpotTier'] ?? '').toString(),
             }
           : {
               'id': '',

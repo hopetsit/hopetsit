@@ -525,6 +525,31 @@ class _FriendTile extends StatelessWidget {
             'Sitter': AppColors.sitterAccent,
             'Walker': AppColors.greenColor,
           }[other.model] ?? const Color(0xFF8B5CF6));
+    // v23.1.280 — Daniel : "je veux ce design (web) dans amis famille : rôle +
+    // badge FAMILLE, et si l'ami a PawSpot un anneau doré/bleu sur l'avatar".
+    //   - roleColorPure : couleur du MÉTIER (jamais violet) pour le badge rôle.
+    //   - pawSpotRing : doré (gold/platinum) ou bleu (bronze/silver) selon
+    //     l'option PawSpot active, sinon null.
+    //   - avatarRing : PawSpot prioritaire, sinon violet famille, sinon rôle.
+    final roleColorPure = ({
+          'Owner': const Color(0xFF8B5CF6),
+          'Sitter': AppColors.sitterAccent,
+          'Walker': AppColors.greenColor,
+        }[other.model] ??
+        const Color(0xFF8B5CF6));
+    Color? pawSpotRing;
+    switch (other.pawSpotTier) {
+      case 'gold':
+      case 'platinum':
+        pawSpotRing = const Color(0xFFF59E0B); // doré
+        break;
+      case 'silver':
+      case 'bronze':
+        pawSpotRing = const Color(0xFF3B82F6); // bleu
+        break;
+    }
+    final avatarRing =
+        pawSpotRing ?? (isFamily ? const Color(0xFF8B5CF6) : roleColorPure);
 
     // v23.1.170 — Daniel : "si une famille veux se suivre que juste en
     // cliquand sur le nom ds sa liste damis par exemplet sa le geoloclaise".
@@ -609,23 +634,31 @@ class _FriendTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24.r,
-            backgroundColor: roleColor.withValues(alpha: 0.15),
-            child: other.avatar.isNotEmpty
-                ? ClipOval(
-                    // v23.1 part 233 — perf memCacheWidth 150 (3x retina).
-                    child: CachedNetworkImage(
-                      imageUrl: other.avatar,
-                      width: 48.r,
-                      height: 48.r,
-                      memCacheWidth: 150,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) =>
-                          Icon(Icons.person, color: roleColor, size: 22.sp),
-                    ),
-                  )
-                : Icon(Icons.person, color: roleColor, size: 22.sp),
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              // v23.1.280 — anneau coloré (PawSpot doré/bleu, sinon famille/role).
+              border: Border.all(color: avatarRing, width: 2.4),
+            ),
+            child: CircleAvatar(
+              radius: 23.r,
+              backgroundColor: roleColor.withValues(alpha: 0.15),
+              child: other.avatar.isNotEmpty
+                  ? ClipOval(
+                      // v23.1 part 233 — perf memCacheWidth 150 (3x retina).
+                      child: CachedNetworkImage(
+                        imageUrl: other.avatar,
+                        width: 46.r,
+                        height: 46.r,
+                        memCacheWidth: 150,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) =>
+                            Icon(Icons.person, color: roleColor, size: 22.sp),
+                      ),
+                    )
+                  : Icon(Icons.person, color: roleColor, size: 22.sp),
+            ),
           ),
           SizedBox(width: 12.w),
           Expanded(
@@ -638,41 +671,37 @@ class _FriendTile extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary(context),
                 ),
-                SizedBox(height: 2.h),
-                Row(
+                SizedBox(height: 4.h),
+                // v23.1.280 — design web : badge RÔLE (couleur métier traduite)
+                // + badge FAMILLE violet EN PLUS si famille + badge PawSpot
+                // doré/bleu si l'ami a l'option. Wrap pour ne jamais déborder.
+                Wrap(
+                  spacing: 6.w,
+                  runSpacing: 4.h,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
-                      decoration: BoxDecoration(
-                        color: roleColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6.r),
-                      ),
-                      child: InterText(
-                        // v23.1.278 — Daniel : "walker/sitter mal traduit, et
-                        // quand c'est violet le statut passe à Famille". Si
-                        // l'ami est famille → "Famille" (violet), sinon le rôle
-                        // TRADUIT (Promeneur / Petsitter / Propriétaire).
-                        text: isFamily
-                            ? 'friends_tab_family'.tr
-                            : (<String, String>{
-                                'Walker': 'role_walker'.tr,
-                                'Sitter': 'role_sitter'.tr,
-                                'Owner': 'role_owner'.tr,
-                              }[other.model] ??
-                                other.model),
-                        fontSize: 9.sp,
-                        fontWeight: FontWeight.w700,
-                        color: roleColor,
-                      ),
+                    _miniBadge(
+                      label: <String, String>{
+                            'Walker': 'role_walker'.tr,
+                            'Sitter': 'role_sitter'.tr,
+                            'Owner': 'role_owner'.tr,
+                          }[other.model] ??
+                          other.model,
+                      color: roleColorPure,
                     ),
-                    if (other.city.isNotEmpty) ...[
-                      SizedBox(width: 6.w),
+                    if (isFamily)
+                      _miniBadge(
+                        label: 'friends_tab_family'.tr,
+                        color: const Color(0xFF8B5CF6),
+                      ),
+                    if (pawSpotRing != null)
+                      _miniBadge(label: 'PawSpot', color: pawSpotRing),
+                    if (other.city.isNotEmpty)
                       InterText(
                         text: other.city,
                         fontSize: 11.sp,
                         color: AppColors.greyText,
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -844,6 +873,26 @@ class _FriendTile extends StatelessWidget {
           ),
         ],
       ),
+      ),
+    );
+  }
+
+  // v23.1.280 — Daniel : "réorganise les badges que ça fasse propre". Mini
+  // badge pilule (fond couleur 15% + texte couleur, gras) réutilisé pour le
+  // rôle (couleur métier), FAMILLE (violet) et PawSpot (doré/bleu). Même
+  // langage visuel que les cartes amis du site web.
+  Widget _miniBadge({required String label, required Color color}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: InterText(
+        text: label,
+        fontSize: 9.sp,
+        fontWeight: FontWeight.w700,
+        color: color,
       ),
     );
   }
@@ -1896,6 +1945,34 @@ class _FamilyMemberTile extends StatelessWidget {
     // confondu avec un membre actif.
     final status = (member['status'] ?? 'active').toString();
     final isPending = status == 'pending';
+    // v23.1.280 — Daniel : "je veux ce design dans amis famille comme sur le
+    // web : badge rôle (couleur métier) + badge FAMILLE, et anneau PawSpot
+    // doré/bleu selon l'option". Parité avec _FriendTile + cartes web.
+    final roleColorPure = ({
+          'owner': const Color(0xFF8B5CF6),
+          'sitter': AppColors.sitterAccent,
+          'walker': AppColors.greenColor,
+        }[role.toLowerCase()] ??
+        const Color(0xFF8B5CF6));
+    final roleLabel = <String, String>{
+          'walker': 'role_walker'.tr,
+          'sitter': 'role_sitter'.tr,
+          'owner': 'role_owner'.tr,
+        }[role.toLowerCase()] ??
+        (role.isEmpty ? 'role_owner'.tr : role);
+    Color? pawSpotRing;
+    switch ((member['pawSpotTier'] ?? '').toString().toLowerCase()) {
+      case 'gold':
+      case 'platinum':
+        pawSpotRing = const Color(0xFFF59E0B); // doré
+        break;
+      case 'silver':
+      case 'bronze':
+        pawSpotRing = const Color(0xFF3B82F6); // bleu
+        break;
+    }
+    // Famille → anneau violet par défaut, mais PawSpot prioritaire si présent.
+    final avatarRing = pawSpotRing ?? const Color(0xFF8B5CF6);
     // v23.1.266 — Daniel : "quand j'appuie sur un membre famille ça ne me
     // renvoie pas à la PawMap". Le tile famille n'avait AUCUN onTap (contraire-
     // ment au tile ami). On ajoute le même comportement : fetch position
@@ -1955,12 +2032,12 @@ class _FamilyMemberTile extends StatelessWidget {
         children: [
           // v23.1.267 — Daniel : "les membres famille en violet". Chaque
           // entrée ici EST un membre famille → avatar cerclé violet.
+          // v23.1.280 — PawSpot prioritaire : anneau doré/bleu si l'option est
+          // active, sinon violet famille.
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.fromBorderSide(
-                BorderSide(color: Color(0xFF8B5CF6), width: 2),
-              ),
+              border: Border.all(color: avatarRing, width: 2.4),
             ),
             child: CircleAvatar(
               radius: 22.r,
@@ -1985,28 +2062,32 @@ class _FamilyMemberTile extends StatelessWidget {
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
                 ),
-                SizedBox(height: 2.h),
-                Row(
+                SizedBox(height: 4.h),
+                // v23.1.280 — design web : badge RÔLE (couleur métier) + badge
+                // FAMILLE violet + badge PawSpot doré/bleu + En attente. Wrap
+                // pour ne jamais déborder.
+                Wrap(
+                  spacing: 6.w,
+                  runSpacing: 4.h,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Flexible(
-                      child: InterText(
-                        text: role,
-                        fontSize: 11.sp,
-                        color: AppColors.greyText,
-                        maxLines: 1,
-                      ),
+                    _familyMiniBadge(label: roleLabel, color: roleColorPure),
+                    _familyMiniBadge(
+                      label: 'friends_tab_family'.tr,
+                      color: const Color(0xFF8B5CF6),
                     ),
+                    if (pawSpotRing != null)
+                      _familyMiniBadge(label: 'PawSpot', color: pawSpotRing),
                     // v23.1.273 — badge "En attente" si l'invité n'a pas
                     // encore accepté la demande de famille.
-                    if (isPending) ...[
-                      SizedBox(width: 6.w),
+                    if (isPending)
                       Container(
                         padding: EdgeInsets.symmetric(
-                            horizontal: 6.w, vertical: 1.h),
+                            horizontal: 7.w, vertical: 2.h),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF59E0B)
                               .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8.r),
+                          borderRadius: BorderRadius.circular(6.r),
                         ),
                         child: InterText(
                           text: '⏳ ${'family_member_pending'.tr}',
@@ -2016,7 +2097,6 @@ class _FamilyMemberTile extends StatelessWidget {
                           maxLines: 1,
                         ),
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -2070,6 +2150,24 @@ class _FamilyMemberTile extends StatelessWidget {
           ),
         ],
       ),
+      ),
+    );
+  }
+
+  // v23.1.280 — mini badge pilule (parité _FriendTile._miniBadge) pour
+  // l'onglet Famille : rôle (couleur métier), FAMILLE (violet), PawSpot.
+  Widget _familyMiniBadge({required String label, required Color color}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: InterText(
+        text: label,
+        fontSize: 9.sp,
+        fontWeight: FontWeight.w700,
+        color: color,
       ),
     );
   }

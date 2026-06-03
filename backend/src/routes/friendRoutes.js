@@ -147,9 +147,18 @@ async function fetchUserMini(id, modelName) {
   const Model = MODEL_BY_NAME[modelName];
   if (!Model) return null;
   const u = await Model.findById(id)
-    .select('firstName lastName profilePicture location city avatar email')
+    .select('firstName lastName profilePicture location city avatar email mapBoostExpiry mapBoostTier')
     .lean();
   if (!u) return null;
+  // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
+  // l'option". On expose le tier PawSpot (mapBoost) ACTIF pour que l'UI dessine
+  // un anneau coloré sur l'avatar (bronze/silver/gold/platinum), sinon null.
+  let pawSpotTier = null;
+  try {
+    if (u.mapBoostExpiry && new Date(u.mapBoostExpiry) > new Date()) {
+      pawSpotTier = (u.mapBoostTier || '').toString().toLowerCase() || null;
+    }
+  } catch (_) {/* defensive */}
   // v23.1 part 222 — Daniel : "lorsque mes amis sont ajoutes si ils ont
   // un plan PawFollow le chat se debloque et on peux se partager la
   // position, de plus je dois les voir ds les personnes en live qd y
@@ -204,6 +213,8 @@ async function fetchUserMini(id, modelName) {
     // v23.1 part 222 — expose PawFollow status pour que le frontend
     // puisse forcer "Personnes en live" + unlock auto chat + share.
     hasPawFollow,
+    // v23.1.280 — tier PawSpot actif (anneau coloré sur l'avatar).
+    pawSpotTier,
   };
 }
 
@@ -345,7 +356,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           ];
         const otherDoc = OtherModel
           ? await OtherModel.findById(otherId)
-              .select('firstName lastName email avatar')
+              .select('firstName lastName email avatar mapBoostExpiry mapBoostTier')
               .lean()
           : null;
         // v23.1 part 220 — name fallback : firstName+lastName, sinon
@@ -379,6 +390,15 @@ router.get('/diagnose', requireAuth, async (req, res) => {
                 && new Date(sub.currentPeriodEnd) > now;
           } catch (_) {/* defensive */}
         }
+        // v23.1.280 — tier PawSpot actif de l'ami (anneau coloré sur l'avatar).
+        let otherPawSpotTier = null;
+        try {
+          if (otherDoc && otherDoc.mapBoostExpiry
+              && new Date(otherDoc.mapBoostExpiry) > new Date()) {
+            otherPawSpotTier = (otherDoc.mapBoostTier || '')
+                .toString().toLowerCase() || null;
+          }
+        } catch (_) {/* defensive */}
         return {
           friendshipId: String(f._id),
           status: f.status,
@@ -397,6 +417,7 @@ router.get('/diagnose', requireAuth, async (req, res) => {
           // URL string.
           otherAvatar: (otherDoc && otherDoc.avatar && otherDoc.avatar.url) || '',
           otherHasPawFollow,
+          otherPawSpotTier,
           createdAt: f.createdAt,
           acceptedAt: f.acceptedAt,
         };
@@ -1419,6 +1440,9 @@ router.get('/family/members', requireAuth, async (req, res) => {
           addedAt: m.addedAt,
           email: m.email,
           status: m.status,
+          // v23.1.280 — tier PawSpot actif du membre → anneau doré/bleu sur
+          // l'avatar dans l'onglet Famille de l'app (parité _FriendTile).
+          pawSpotTier: mini?.pawSpotTier || null,
         };
       }),
     );

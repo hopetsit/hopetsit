@@ -192,6 +192,7 @@ export default function FriendsLivePage() {
         name: friend?.other?.name || m.name || "Famille",
         avatar: friend?.other?.avatar || m.avatar || "",
         status: m.status, // 'active' | 'pending' | ...
+        pawSpotTier: friend?.other?.pawSpotTier ?? null,
       };
     });
   }, [familyMembers, friends]);
@@ -206,6 +207,7 @@ export default function FriendsLivePage() {
         role: roleFromModel(f.other!.model),
         name: f.other!.name || "Ami",
         avatar: f.other!.avatar || "",
+        pawSpotTier: f.other!.pawSpotTier ?? null,
       }));
   }, [friends, familyIdSet]);
 
@@ -429,7 +431,26 @@ type Tile = {
   // l'invitation n'a pas encore ete acceptee -> on affiche un badge en
   // attente sur le tile et on n'attend pas de position.
   status?: "active" | "pending" | "declined" | string;
+  // v23.1.280 — tier PawSpot actif de l'ami ('bronze'|'silver'|'gold'|
+  // 'platinum') → anneau doré/bleu sur l'avatar (parité app).
+  pawSpotTier?: string | null;
 };
+
+// v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré ou bleu selon
+// l'option". Gold/Platinum → doré (#F59E0B), Silver/Bronze → bleu (#3B82F6),
+// sinon null. Identique au switch Dart de _FriendTile.
+function pawSpotRingColor(tier?: string | null): string | null {
+  switch ((tier || "").toLowerCase()) {
+    case "gold":
+    case "platinum":
+      return "#F59E0B"; // doré
+    case "silver":
+    case "bronze":
+      return "#3B82F6"; // bleu
+    default:
+      return null;
+  }
+}
 
 function FriendsSection({
   title,
@@ -471,6 +492,10 @@ function FriendsSection({
           const isOnline = onlineSet.has(tile.id);
           const isSelected = selectedUserId === tile.id;
           const color = roleColor(tile.role);
+          // v23.1.280 — anneau avatar : PawSpot (doré/bleu) prioritaire, sinon
+          // violet famille, sinon transparent (parité _FriendTile app).
+          const pawRing = pawSpotRingColor(tile.pawSpotTier);
+          const avatarRing = pawRing ?? (isFamily ? "#8B5CF6" : null);
           return (
             <button
               key={tile.id}
@@ -485,13 +510,13 @@ function FriendsSection({
                   : t("friends_live_tile_offline_hint")
               }
             >
-              {/* Avatar + ring violet famille */}
+              {/* Avatar + anneau : PawSpot doré/bleu > violet famille > rien */}
               <div
                 className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full"
                 style={{
                   backgroundColor: color,
-                  border: isFamily
-                    ? "3px solid #8B5CF6"
+                  border: avatarRing
+                    ? `3px solid ${avatarRing}`
                     : "3px solid transparent",
                 }}
               >
@@ -534,6 +559,18 @@ function FriendsSection({
                       }}
                     >
                       {t("friends_live_badge_family")}
+                    </span>
+                  )}
+                  {/* v23.1.280 — badge PawSpot doré/bleu si l'ami a l'option. */}
+                  {pawRing && (
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                      style={{
+                        backgroundColor: `${pawRing}26`,
+                        color: pawRing,
+                      }}
+                    >
+                      📍 {t("friends_live_badge_pawspot")}
                     </span>
                   )}
                   {/* v248 — badge "En attente" pour les pending family. */}

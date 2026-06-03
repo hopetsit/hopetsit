@@ -10,6 +10,9 @@ class FriendProfile {
   // voir ds les personnes en live". Backend ajoute ce flag dans
   // fetchUserMini en regardant UserSubscription active.
   final bool hasPawFollow;
+  // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
+  // l'option". Tier PawSpot actif ('bronze'|'silver'|'gold'|'platinum') ou ''.
+  final String pawSpotTier;
 
   const FriendProfile({
     required this.id,
@@ -18,6 +21,7 @@ class FriendProfile {
     this.avatar = '',
     this.city = '',
     this.hasPawFollow = false,
+    this.pawSpotTier = '',
   });
 
   factory FriendProfile.fromJson(Map<String, dynamic> j) => FriendProfile(
@@ -27,6 +31,7 @@ class FriendProfile {
         avatar: (j['avatar'] as String?) ?? '',
         city: (j['city'] as String?) ?? '',
         hasPawFollow: j['hasPawFollow'] == true,
+        pawSpotTier: (j['pawSpotTier'] ?? '').toString().toLowerCase(),
       );
 
   String get roleLowercase => model.toLowerCase();

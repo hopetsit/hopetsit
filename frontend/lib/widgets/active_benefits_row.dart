@@ -168,35 +168,46 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     // le flag backend pawFollowActive (premium individuel/staff) — indépendant
     // de la famille → les 2 badges coexistent. FALLBACK robuste : si le backend
     // n'expose pas encore pawFollowActive (Render pas redéployé), on retombe
-    // sur isPremium pour ne pas masquer le badge (l'ancien `&& !familyActive`
-    // le cachait à tort pour un user premium ET famille).
+    // sur isPremium.
+    // v23.1.280 — Daniel : "réorganise les badges que ça fasse propre" / "on
+    // dirait que PawFollow et PawFamily se calculent ensemble". En mode
+    // FALLBACK (backend sans pawFollowActive), un titulaire Famille a
+    // isPremium=true → il affichait DEUX badges (PawFollow + Famille). On
+    // soustrait familyActive du fallback pour ne montrer qu'UN badge propre.
     final hasIndividualPawFollow = p.containsKey('pawFollowActive')
         ? p['pawFollowActive'] == true
-        : isPremium;
+        : (isPremium && !familyActive);
+
+    // v23.1.280 — suffixe jours localisé (« · 5 j » / « · 5 d » / « · 5 T. »…)
+    // au lieu du « j » hardcodé FR, pour que les 3 profils soient propres dans
+    // les 6 langues.
+    String withDays(String base, int days) => days > 0
+        ? '$base · ${'pawmap_time_days_short'.trParams({'n': '$days'})}'
+        : base;
 
     final children = <Widget>[];
     if (hasIndividualPawFollow) {
       final days = pawFollowExpiry != null
           ? pawFollowExpiry.difference(now).inDays
           : 0;
-      final label = days > 0 ? 'PawFollow · ${days}j' : 'PawFollow';
-      children.add(_badge(context, '⭐', label, const Color(0xFFFFD700)));
+      children.add(_badge(
+          context, '⭐', withDays('PawFollow', days), const Color(0xFFF59E0B)));
     }
     if (familyActive) {
       final days =
           familyExpiry != null ? familyExpiry.difference(now).inDays : 0;
-      final label = days > 0 ? 'Family · ${days}j' : 'Family';
-      children.add(_badge(context, '👨‍👩‍👧', label, const Color(0xFF8B5CF6)));
+      children.add(_badge(context, '👨‍👩‍👧',
+          withDays('friends_tab_family'.tr, days), const Color(0xFF8B5CF6)));
     }
     if (boostActive) {
-      final days = boostExpiry!.difference(now).inDays;
-      final label = days <= 0 ? 'Boost' : 'Boost · ${days}j';
-      children.add(_badge(context, '🚀', label, const Color(0xFFE8472A)));
+      final days = boostExpiry.difference(now).inDays;
+      children.add(_badge(
+          context, '🚀', withDays('Boost', days), const Color(0xFFE8472A)));
     }
     if (pawSpotActive) {
-      final days = mapBoostExpiry!.difference(now).inDays;
-      final label = days <= 0 ? 'PawSpot' : 'PawSpot · ${days}j';
-      children.add(_badge(context, '📍', label, const Color(0xFF10B981)));
+      final days = mapBoostExpiry.difference(now).inDays;
+      children.add(_badge(
+          context, '📍', withDays('PawSpot', days), const Color(0xFF10B981)));
     }
     if (children.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -249,9 +260,9 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: color.withOpacity(0.4), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

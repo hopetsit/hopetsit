@@ -624,6 +624,10 @@ export type FriendOther = {
   city?: string;
   deleted?: boolean;
   hasPawFollow?: boolean;
+  // v23.1.280 — Daniel : "si l'ami a l'option PawSpot, anneau doré/bleu selon
+  // l'option" (parité avec l'app). Tier PawSpot actif renvoyé par
+  // fetchUserMini : 'bronze' | 'silver' | 'gold' | 'platinum' | null.
+  pawSpotTier?: string | null;
 };
 
 export type FriendItem = {
