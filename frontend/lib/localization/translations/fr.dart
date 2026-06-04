@@ -635,6 +635,10 @@ const Map<String, String> frFRTranslations = <String, String>{
       'family_you_are_member_generic': 'Tu es membre d\'une famille',
       'family_member_only_hint':
           'Seul le titulaire peut ajouter ou retirer des membres.',
+      'family_leave_button': 'Quitter la famille',
+      'family_leave_confirm_desc':
+          'Tu ne feras plus partie de cette famille. Tu pourras créer la tienne ou être réinvité.',
+      'family_left_msg': 'Tu as quitté la famille.',
       'family_members_added': 'membres ajoutés',
       'family_active_desc':
           'Ajoutez votre famille pour pouvoir partager vos animaux, lieux et alertes en toute sécurité.',

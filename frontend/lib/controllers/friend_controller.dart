@@ -534,6 +534,20 @@ class FriendController extends GetxController {
     }
   }
 
+  /// v23.1.282 — Un MEMBRE quitte la famille dont il fait partie. Le débloque
+  /// pour devenir son propre titulaire (ou être réinvité ailleurs).
+  Future<bool> leaveFamily() async {
+    try {
+      final api = Get.find<ApiClient>();
+      await api.post('/friends/family/leave', body: {}, requiresAuth: true);
+      await loadFamily();
+      return true;
+    } catch (e) {
+      debugPrint('[Friends] leaveFamily error: $e');
+      return false;
+    }
+  }
+
   /// v23.1.170 — GET /friends/:id/track-access
   /// Renvoie { canTrack: bool, reason: 'family' | 'shared' | 'none' | 'no_friendship' }
   Future<Map<String, dynamic>> checkTrackAccess(String otherUserId) async {

@@ -2668,6 +2668,10 @@ const Map<String, String> esESTranslations = <String, String>{
     'family_you_are_member_generic': 'Eres miembro de una familia',
     'family_member_only_hint':
         'Solo el titular puede añadir o quitar miembros.',
+    'family_leave_button': 'Salir de la familia',
+    'family_leave_confirm_desc':
+        'Ya no formarás parte de esta familia. Podrás crear la tuya o ser reinvitado.',
+    'family_left_msg': 'Has salido de la familia.',
     'family_invitation_accepted_msg': 'Ahora formas parte de la familia.',
     'family_invitation_received_title': 'Invitación de familia',
     'family_invitation_status_active': 'Miembro activo',

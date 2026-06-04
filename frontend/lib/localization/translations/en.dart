@@ -603,6 +603,10 @@ const Map<String, String> enUSTranslations = <String, String>{
       'family_you_are_member_generic': 'You are a member of a family',
       'family_member_only_hint':
           'Only the plan holder can add or remove members.',
+      'family_leave_button': 'Leave family',
+      'family_leave_confirm_desc':
+          'You will no longer be part of this family. You can create your own or be re-invited.',
+      'family_left_msg': 'You left the family.',
       'family_members_added': 'members added',
       'family_active_desc':
           'Add your family so you can safely share your pets, places and alerts together.',

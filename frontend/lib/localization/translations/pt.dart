@@ -2537,6 +2537,10 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'family_you_are_member_generic': 'És membro de uma família',
     'family_member_only_hint':
         'Apenas o titular pode adicionar ou remover membros.',
+    'family_leave_button': 'Sair da família',
+    'family_leave_confirm_desc':
+        'Deixarás de fazer parte desta família. Poderás criar a tua ou ser reconvidado.',
+    'family_left_msg': 'Saíste da família.',
     'family_invitation_accepted_msg': 'Agora fazes parte da família.',
     'family_invitation_received_title': 'Convite de família',
     'family_invitation_status_active': 'Membro ativo',

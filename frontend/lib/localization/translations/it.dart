@@ -2701,6 +2701,10 @@ const Map<String, String> itITTranslations = <String, String>{
     'family_you_are_member_generic': 'Sei un membro di una famiglia',
     'family_member_only_hint':
         'Solo il titolare può aggiungere o rimuovere membri.',
+    'family_leave_button': 'Lascia la famiglia',
+    'family_leave_confirm_desc':
+        'Non farai più parte di questa famiglia. Potrai crearne una tua o essere reinvitato.',
+    'family_left_msg': 'Hai lasciato la famiglia.',
     'family_invitation_accepted_msg': 'Ora fai parte della famiglia.',
     'family_invitation_received_title': 'Invito di famiglia',
     'family_invitation_status_active': 'Membro attivo',

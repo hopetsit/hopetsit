@@ -1322,6 +1322,62 @@ class _FamilyTab extends StatelessWidget {
                             fontSize: 11.sp,
                             color: AppColors.textSecondary(context),
                           ),
+                          SizedBox(height: 10.h),
+                          // v23.1.282 — sortie : un membre peut quitter la
+                          // famille pour redevenir libre (créer la sienne).
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final confirmed = await Get.dialog<bool>(
+                                  AlertDialog(
+                                    title: Text('family_leave_button'.tr),
+                                    content: Text('family_leave_confirm_desc'.tr),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Get.back(result: false),
+                                        child: Text('common_cancel'.tr),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.errorColor,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        onPressed: () => Get.back(result: true),
+                                        child: Text('family_leave_button'.tr),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed != true) return;
+                                final ok = await controller.leaveFamily();
+                                if (ok) {
+                                  CustomSnackbar.showSuccess(
+                                    title: 'family_leave_button'.tr,
+                                    message: 'family_left_msg'.tr,
+                                  );
+                                }
+                              },
+                              icon: Icon(Icons.logout_rounded,
+                                  size: 16.sp, color: const Color(0xFF7C3AED)),
+                              label: Text(
+                                'family_leave_button'.tr,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF7C3AED),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                    color: Color(0xFF8B5CF6), width: 1.2),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 12.w, vertical: 6.h),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.r)),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

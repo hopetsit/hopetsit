@@ -210,32 +210,31 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           context, '📍', withDays('PawSpot', days), const Color(0xFF10B981)));
     }
     if (children.isEmpty) return const SizedBox.shrink();
-    // v23.1.281 — Daniel : "les badges pas ordonnés, fais-les côte à côte 2 sur
-    // 2". On range les badges en grille 2 colonnes (2 par ligne) au lieu d'un
-    // Wrap qui empile selon la largeur (PawFollow·1230j seul sur sa ligne).
-    final rows = <Widget>[];
-    for (var i = 0; i < children.length; i += 2) {
-      final cells = <Widget>[Expanded(child: children[i])];
-      cells.add(SizedBox(width: 6.w));
-      cells.add(
-        i + 1 < children.length
-            ? Expanded(child: children[i + 1])
-            : const Expanded(child: SizedBox.shrink()),
-      );
-      rows.add(Padding(
-        padding: EdgeInsets.only(bottom: i + 2 < children.length ? 6.h : 0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: cells,
-        ),
-      ));
-    }
+    // v23.1.282 — Daniel : "plus aucun badge n'apparaît". RÉGRESSION v281 : la
+    // grille Column→Row(Expanded, stretch) cassait la mise en page dans le
+    // header (largeur lâche) → tout le sous-arbre des badges disparaissait.
+    // On revient à un Wrap (robuste, jamais de contrainte non bornée) mais on
+    // garde le « 2 par ligne » en fixant chaque cellule à ~la demi-largeur via
+    // LayoutBuilder. Les pilules gardent leur taille naturelle (Align à gauche)
+    // → grille propre 2 colonnes, sans risque de crash de layout.
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6.h),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: rows,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxW =
+              constraints.maxWidth.isFinite ? constraints.maxWidth : 320.w;
+          final cellW = ((maxW - 6.w) / 2).clamp(80.0, maxW);
+          return Wrap(
+            spacing: 6.w,
+            runSpacing: 6.h,
+            children: children
+                .map((b) => SizedBox(
+                      width: cellW,
+                      child: Align(alignment: Alignment.centerLeft, child: b),
+                    ))
+                .toList(),
+          );
+        },
       ),
     );
   }

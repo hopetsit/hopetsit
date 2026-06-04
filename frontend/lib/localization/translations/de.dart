@@ -2704,6 +2704,10 @@ const Map<String, String> deDETranslations = <String, String>{
     'family_you_are_member_generic': 'Du bist Mitglied einer Familie',
     'family_member_only_hint':
         'Nur der Inhaber kann Mitglieder hinzufügen oder entfernen.',
+    'family_leave_button': 'Familie verlassen',
+    'family_leave_confirm_desc':
+        'Du bist dann nicht mehr Teil dieser Familie. Du kannst deine eigene erstellen oder erneut eingeladen werden.',
+    'family_left_msg': 'Du hast die Familie verlassen.',
     'family_invitation_accepted_msg': 'Du gehörst jetzt zur Familie.',
     'family_invitation_received_title': 'Familieneinladung',
     'family_invitation_status_active': 'Aktives Mitglied',

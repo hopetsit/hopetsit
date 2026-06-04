@@ -1777,6 +1777,50 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
 });
 
 /**
+ * POST /friends/family/leave — un MEMBRE quitte la/les famille(s) dont il fait
+ * partie (se retire lui-même des familyMembers du/des titulaire(s)).
+ *
+ * v23.1.282 — Daniel : "j'ai l'abonnement famille et c'est bloqué, impossible
+ * d'ajouter/enlever". CAUSE : dadaciao84 est MEMBRE de la famille d'un autre
+ * compte → il ne peut pas gérer de famille tant qu'il est membre. On lui donne
+ * une sortie : quitter la famille. Ensuite il est libre d'être son propre
+ * titulaire (acheter PawFamily) ou d'être réinvité ailleurs.
+ */
+router.post('/family/leave', requireAuth, async (req, res) => {
+  try {
+    const user = me(req);
+    const now = new Date();
+    // Toutes les subs Famille actives où je figure comme membre.
+    const subs = await UserSubscription.find({
+      plan: { $in: ['famille', 'family'] },
+      status: 'active',
+      currentPeriodEnd: { $gt: now },
+      'familyMembers.userId': user.id,
+    });
+    let removed = 0;
+    for (const sub of subs) {
+      const before = (sub.familyMembers || []).length;
+      sub.familyMembers = (sub.familyMembers || []).filter(
+        (m) => String(m.userId) !== String(user.id),
+      );
+      if (sub.familyMembers.length !== before) {
+        removed += before - sub.familyMembers.length;
+        await sub.save();
+      }
+    }
+    if (removed === 0) {
+      return res
+        .status(404)
+        .json({ error: 'Not a member of any family.', code: 'NOT_A_MEMBER' });
+    }
+    res.json({ success: true, leftFamilies: subs.length });
+  } catch (e) {
+    logger.error('[friends/family/leave]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * v23.1.185 — Daniel mockup : nouvel onglet "Animaux" dans Famille &
  * Amis qui liste les pets de mes amis acceptes + membres famille
  * actifs. Permet de les contacter / suivre en un tap.
