@@ -85,42 +85,62 @@ router.get(
       let familyExpiry = null;
       try {
         const UserSubscription = require('../models/UserSubscription');
+        const {
+          familyActiveMatch,
+          familyExpiryOf,
+        } = require('../models/UserSubscription');
         const now = new Date();
+        // v23.1.283 — famille DÉCOUPLÉE de l'individuel. L'abo INDIVIDUEL =
+        // plan monthly/yearly/solo actif (currentPeriodEnd futur). Le plan
+        // FAMILLE a son propre timer familyExpiry (ou ancien plan='famille').
         const sub = await UserSubscription.findOne({
           userId: req.user.id,
           userModel: modelName,
-          status: 'active',
-        }).select('currentPeriodEnd plan').lean();
-        if (sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now) {
-          subscriptionActive = true;
-          subscriptionPlan = sub.plan || null;
-          // v23.1.278 — pawFollowExpiry ne concerne QUE l'abo INDIVIDUEL
-          // (mensuel/annuel/solo). Un titulaire famille relève de familyExpiry.
-          const ownFamily = sub.plan === 'famille' || sub.plan === 'family';
-          if (!ownFamily) pawFollowExpiry = sub.currentPeriodEnd;
+        }).select('currentPeriodEnd plan familyExpiry status').lean();
+        if (sub) {
+          const indivActive =
+            sub.status === 'active' &&
+            sub.currentPeriodEnd &&
+            new Date(sub.currentPeriodEnd) > now &&
+            sub.plan !== 'famille' &&
+            sub.plan !== 'family';
+          if (indivActive) {
+            subscriptionActive = true;
+            subscriptionPlan = sub.plan || null;
+            pawFollowExpiry = sub.currentPeriodEnd;
+          }
         }
+        // Famille : titulaire (familyExpiry OU ancien plan) OU membre actif.
         const fam = await UserSubscription.findOne({
-          status: 'active',
-          plan: { $in: ['famille', 'family'] },
-          currentPeriodEnd: { $gt: now },
-          $or: [
-            { userId: req.user.id, userModel: modelName },
-            { familyMembers: { $elemMatch: { userId: req.user.id, status: 'active' } } },
+          $and: [
+            familyActiveMatch(now),
+            {
+              $or: [
+                { userId: req.user.id, userModel: modelName },
+                {
+                  familyMembers: {
+                    $elemMatch: { userId: req.user.id, status: 'active' },
+                  },
+                },
+              ],
+            },
           ],
-        }).select('currentPeriodEnd').lean();
-        if (fam && fam.currentPeriodEnd) {
+        })
+          .select('currentPeriodEnd familyExpiry plan')
+          .lean();
+        if (fam) {
           familyActive = true;
-          familyExpiry = fam.currentPeriodEnd;
+          familyExpiry = familyExpiryOf(fam);
         }
       } catch (e) {
         logger.warn(`[users/me/benefits] subscription lookup failed : ${e.message}`);
       }
 
-      // v23.1.278 — Daniel : "le badge jaune PawFollow n'y est pas". PawFollow
-      // INDIVIDUEL actif = isPremium legacy/staff OU abo individuel actif (pas
-      // famille). Distinct de familyActive → on peut afficher les 2 badges.
-      const ownPlanFamily = subscriptionPlan === 'famille' || subscriptionPlan === 'family';
-      const pawFollowActive = !!user.isPremium || (subscriptionActive && !ownPlanFamily);
+      // v23.1.278/283 — PawFollow INDIVIDUEL actif = isPremium legacy/staff OU
+      // abo individuel actif. subscriptionActive ne vaut désormais true QUE pour
+      // l'individuel (la famille est gérée séparément) → les 2 badges peuvent
+      // coexister sans se calculer ensemble.
+      const pawFollowActive = !!user.isPremium || subscriptionActive;
 
       const payload = {
         role,

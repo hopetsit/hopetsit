@@ -56,14 +56,12 @@ function me(req) {
  */
 async function resolveOwnFamilySub(user) {
   const UserSubscription = require('../models/UserSubscription');
+  const { familyActiveMatch } = require('../models/UserSubscription');
   const now = new Date();
-  const PLAN_FAMILLE = { $in: ['famille', 'family'] };
 
   let sub = await UserSubscription.findOne({
     userId: user.id,
-    plan: PLAN_FAMILLE,
-    status: 'active',
-    currentPeriodEnd: { $gt: now },
+    ...familyActiveMatch(now),
   });
   if (sub) return sub;
 
@@ -94,9 +92,7 @@ async function resolveOwnFamilySub(user) {
 
   sub = await UserSubscription.findOne({
     userId: { $in: Array.from(candidateIds) },
-    plan: PLAN_FAMILLE,
-    status: 'active',
-    currentPeriodEnd: { $gt: now },
+    ...familyActiveMatch(now),
   });
 
   // v23.1.281 — Daniel : "je n'arrive TJR pas à ajouter/enlever un membre
@@ -107,11 +103,9 @@ async function resolveOwnFamilySub(user) {
   // sur un autre de mes rôles" sans dépendre d'une chaîne oldId intacte.
   if (!sub && myEmail) {
     try {
-      const famSubs = await UserSubscription.find({
-        plan: PLAN_FAMILLE,
-        status: 'active',
-        currentPeriodEnd: { $gt: now },
-      }).limit(100);
+      const famSubs = await UserSubscription.find(
+        familyActiveMatch(now),
+      ).limit(100);
       for (const cand of famSubs) {
         const HolderModel =
           MODEL_BY_NAME[cand.userModel] ||
@@ -156,10 +150,11 @@ async function resolveOwnFamilySub(user) {
       });
     } catch (_) {/* defensive */}
     if (existing && String(existing._id) !== String(sub._id)) {
-      existing.plan = 'famille';
-      existing.status = sub.status;
-      existing.currentPeriodStart = sub.currentPeriodStart;
-      existing.currentPeriodEnd = sub.currentPeriodEnd;
+      // v23.1.283 — découplage : on fusionne la FAMILLE dans familyExpiry
+      // (sans écraser l'abo individuel plan/currentPeriodEnd du doc existant).
+      const { familyExpiryOf } = require('../models/UserSubscription');
+      existing.familyExpiry = familyExpiryOf(sub) || existing.familyExpiry;
+      existing.status = 'active';
       existing.familyMembers = sub.familyMembers || [];
       try {
         await existing.save();
@@ -1181,7 +1176,7 @@ router.post('/:id/share', requireAuth, async (req, res) => {
 //   DELETE /family/member/:userId → retirer un membre
 
 const UserSubscription = require('../models/UserSubscription');
-const { isInSameFamily } = require('../models/UserSubscription');
+const { isInSameFamily, familyActiveMatch } = require('../models/UserSubscription');
 
 /**
  * GET /friends/:id/track-access
@@ -1415,11 +1410,10 @@ router.get('/family/members', requireAuth, async (req, res) => {
     }
 
     // Subs qui m'incluent comme membre (someone else's family).
+    // v23.1.283 — famille active tolérante (familyExpiry OU ancien plan).
     const subsHostingMe = await UserSubscription.find({
       'familyMembers.userId': user.id,
-      plan: 'famille',
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
+      ...familyActiveMatch(now),
     }).lean();
 
     // Aggregation : map id -> familyMemberEntry pour dedup.
@@ -1792,10 +1786,8 @@ router.post('/family/leave', requireAuth, async (req, res) => {
     const now = new Date();
     // Toutes les subs Famille actives où je figure comme membre.
     const subs = await UserSubscription.find({
-      plan: { $in: ['famille', 'family'] },
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
       'familyMembers.userId': user.id,
+      ...familyActiveMatch(now),
     });
     let removed = 0;
     for (const sub of subs) {
@@ -1849,10 +1841,7 @@ router.get('/pets', requireAuth, async (req, res) => {
     const now = new Date();
     const ownSub = await UserSubscription.findOne({
       userId: user.id,
-      userModel: user.model,
-      plan: 'famille',
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
+      ...familyActiveMatch(now),
     }).lean();
     if (ownSub && Array.isArray(ownSub.familyMembers)) {
       for (const m of ownSub.familyMembers) {
@@ -1861,9 +1850,7 @@ router.get('/pets', requireAuth, async (req, res) => {
     }
     const subsHostingMe = await UserSubscription.find({
       'familyMembers.userId': user.id,
-      plan: 'famille',
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
+      ...familyActiveMatch(now),
     }).lean();
     for (const sub of subsHostingMe) {
       friendIds.add(String(sub.userId));
@@ -1922,11 +1909,9 @@ router.get('/family/invitations', requireAuth, async (req, res) => {
     const user = me(req);
     const now = new Date();
     const subs = await UserSubscription.find({
-      plan: 'famille',
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
       'familyMembers.userId': user.id,
       'familyMembers.status': 'pending',
+      ...familyActiveMatch(now),
     }).lean();
 
     const invitations = [];
@@ -1968,9 +1953,10 @@ router.post('/family/invitation/:id/accept', requireAuth, async (req, res) => {
     const user = me(req);
     const invitationId = req.params.id;
     const sub = await UserSubscription.findOne({
+      // v23.1.283 — l'invitation est identifiée par son _id (n'existe que sur
+      // une sub famille) ; plus de filtre plan:'famille' (famille découplée).
       'familyMembers._id': invitationId,
       'familyMembers.userId': user.id,
-      plan: 'famille',
       status: 'active',
     });
     if (!sub) {
@@ -2023,9 +2009,9 @@ router.post('/family/invitation/:id/refuse', requireAuth, async (req, res) => {
     const user = me(req);
     const invitationId = req.params.id;
     const sub = await UserSubscription.findOne({
+      // v23.1.283 — famille découplée : plus de filtre plan:'famille'.
       'familyMembers._id': invitationId,
       'familyMembers.userId': user.id,
-      plan: 'famille',
     });
     if (!sub) {
       return res.status(404).json({ error: 'Invitation not found.' });

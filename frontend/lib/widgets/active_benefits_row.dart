@@ -230,7 +230,15 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
             children: children
                 .map((b) => SizedBox(
                       width: cellW,
-                      child: Align(alignment: Alignment.centerLeft, child: b),
+                      // v23.1.283 — Daniel : "le texte des badges sort un peu".
+                      // FittedBox(scaleDown) réduit la pilule pour qu'elle tienne
+                      // TOUJOURS dans la demi-largeur (aucun débordement), sans
+                      // couper le texte (pas d'ellipse).
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: b,
+                      ),
                     ))
                 .toList(),
           );

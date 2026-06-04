@@ -45,9 +45,20 @@ async function resolvePremium(req) {
   const userId = req.user.id;
   const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
   const sub = await UserSubscription.findOne({ userId, userModel });
-  const isPremium =
+  const now = new Date();
+  // v23.1.283 — Premium = abo individuel actif OU plan FAMILLE actif
+  // (familyExpiry découplé OU ancien plan='famille'). Évite que les titulaires
+  // famille (currentPeriodEnd=null après découplage) perdent le premium.
+  const indivActive =
     sub && sub.status === 'active' && sub.currentPeriodEnd &&
-    new Date(sub.currentPeriodEnd) > new Date();
+    new Date(sub.currentPeriodEnd) > now;
+  const familyActive =
+    sub &&
+    ((sub.familyExpiry && new Date(sub.familyExpiry) > now) ||
+      ((sub.plan === 'famille' || sub.plan === 'family') &&
+        sub.currentPeriodEnd &&
+        new Date(sub.currentPeriodEnd) > now));
+  const isPremium = !!(indivActive || familyActive);
   return { isPremium, sub };
 }
 

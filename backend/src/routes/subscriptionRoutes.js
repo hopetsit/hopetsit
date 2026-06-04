@@ -52,10 +52,23 @@ function serializeSubscription(sub) {
       mapBoostCreditsRemaining: 0,
     };
   }
+  // v23.1.283 — expose le timer FAMILLE découplé (familyExpiry) + un flag
+  // familyActive (familyExpiry futur OU ancien plan='famille' actif), pour que
+  // les consommateurs de /status (site web) détectent la famille même quand
+  // l'abo individuel et la famille sont distincts.
+  const _now = new Date();
+  const _famExp = sub.familyExpiry
+    ? sub.familyExpiry
+    : ((sub.plan === 'famille' || sub.plan === 'family') && sub.currentPeriodEnd
+        ? sub.currentPeriodEnd
+        : null);
+  const familyActive = !!(_famExp && new Date(_famExp) > _now);
   return {
     plan: sub.plan,
     status: sub.status,
     isPremium: sub.isCurrentlyPremium ? sub.isCurrentlyPremium() : (sub.status === 'active' && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > new Date()),
+    familyActive,
+    familyExpiry: _famExp,
     features: sub.features || {},
     currentPeriodStart: sub.currentPeriodStart,
     currentPeriodEnd: sub.currentPeriodEnd,
@@ -171,17 +184,32 @@ router.post('/subscribe', requireAuth, async (req, res) => {
         // indépendamment du pre-save hook. Tous les routes lectures filtrent
         // par 'famille' (FR canonique).
         const planCanonical = plan === 'family' ? 'famille' : plan;
+        const isFamilyPurchase = planCanonical === 'famille';
         let sub = await UserSubscription.findOne({ userId, userModel: userModelName });
         const now = new Date();
-        const startFrom = sub?.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
-          ? new Date(sub.currentPeriodEnd)
-          : now;
-        const newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86_400_000);
         if (!sub) sub = new UserSubscription({ userId, userModel: userModelName });
-        sub.plan = planCanonical;
-        sub.status = 'active';
-        sub.currentPeriodStart = sub.currentPeriodStart || now;
-        sub.currentPeriodEnd = newPeriodEnd;
+        // v23.1.283 — découplage famille/individuel (cf purchaseActivationController).
+        const { migrateLegacyFamily } = require('../models/UserSubscription');
+        migrateLegacyFamily(sub, now);
+        let startFrom;
+        let newPeriodEnd;
+        if (isFamilyPurchase) {
+          startFrom = sub.familyExpiry && new Date(sub.familyExpiry) > now
+            ? new Date(sub.familyExpiry)
+            : now;
+          newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86_400_000);
+          sub.familyExpiry = newPeriodEnd;
+          sub.status = 'active';
+        } else {
+          startFrom = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
+            ? new Date(sub.currentPeriodEnd)
+            : now;
+          newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86_400_000);
+          sub.plan = planCanonical;
+          sub.status = 'active';
+          sub.currentPeriodStart = sub.currentPeriodStart || now;
+          sub.currentPeriodEnd = newPeriodEnd;
+        }
         sub.cancelAtPeriodEnd = false;
         sub.features = { ...PREMIUM_FEATURES_DEFAULT };
         sub.payments = sub.payments || [];
@@ -349,16 +377,30 @@ router.post('/confirm', requireAuth, async (req, res) => {
       sub = new UserSubscription({ userId, userModel });
     }
 
-    // Extend from current period end if still premium, else start now
-    const startFrom = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
-      ? new Date(sub.currentPeriodEnd)
-      : now;
-    const newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86400000);
-
-    sub.plan = plan;
-    sub.status = 'active';
-    sub.currentPeriodStart = sub.currentPeriodStart || now;
-    sub.currentPeriodEnd = newPeriodEnd;
+    // v23.1.283 — découplage famille/individuel (cf purchaseActivationController).
+    const planCanonical = plan === 'family' ? 'famille' : plan;
+    const isFamilyPurchase = planCanonical === 'famille';
+    const { migrateLegacyFamily } = require('../models/UserSubscription');
+    migrateLegacyFamily(sub, now);
+    let startFrom;
+    let newPeriodEnd;
+    if (isFamilyPurchase) {
+      startFrom = sub.familyExpiry && new Date(sub.familyExpiry) > now
+        ? new Date(sub.familyExpiry)
+        : now;
+      newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86400000);
+      sub.familyExpiry = newPeriodEnd;
+      sub.status = 'active';
+    } else {
+      startFrom = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
+        ? new Date(sub.currentPeriodEnd)
+        : now;
+      newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86400000);
+      sub.plan = planCanonical;
+      sub.status = 'active';
+      sub.currentPeriodStart = sub.currentPeriodStart || now;
+      sub.currentPeriodEnd = newPeriodEnd;
+    }
     sub.cancelAtPeriodEnd = false;
     sub.lastPaymentIntentId = paymentIntentId || '';
 

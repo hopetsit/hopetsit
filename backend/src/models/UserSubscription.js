@@ -208,9 +208,21 @@ const userSubscriptionSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Period window — renewals push currentPeriodEnd forward
+    // Period window — renewals push currentPeriodEnd forward.
+    // v23.1.283 — `plan`/`currentPeriodEnd` ne concernent QUE l'abo INDIVIDUEL
+    // (monthly/yearly/solo). Le plan FAMILLE est devenu INDÉPENDANT : son propre
+    // timer `familyExpiry` (ci-dessous) → prendre PawFollow ou PawFamily ne
+    // désactive plus l'autre, et un mois individuel = 30 j sans empiler les
+    // jours famille.
     currentPeriodStart: { type: Date, default: null },
     currentPeriodEnd: { type: Date, default: null, index: true },
+
+    // v23.1.283 — Daniel : "prendre PawFollow ou PawFamily désactive l'autre".
+    // Timer DÉDIÉ au plan Famille (titulaire), indépendant de l'abo individuel.
+    // Rétro-compat : les anciennes subs famille (plan='famille' + currentPeriodEnd)
+    // sont migrées vers familyExpiry à la 1re écriture (migrateLegacyFamily), et
+    // les LECTURES acceptent les 2 formes (familyActiveMatch).
+    familyExpiry: { type: Date, default: null, index: true },
 
     // Cancellation
     cancelAtPeriodEnd: { type: Boolean, default: false },
@@ -328,6 +340,57 @@ userSubscriptionSchema.methods.isCurrentlyPremium = function isCurrentlyPremium(
   return new Date(this.currentPeriodEnd) > new Date();
 };
 
+// v23.1.283 — DÉCOUPLAGE famille / individuel.
+// Source de vérité de l'expiration FAMILLE d'une sub (titulaire) :
+//   - nouveau champ familyExpiry, OU
+//   - rétro-compat : ancienne forme plan='famille'/'family' + currentPeriodEnd.
+function familyExpiryOf(sub) {
+  if (!sub) return null;
+  if (sub.familyExpiry) return sub.familyExpiry;
+  if (
+    (sub.plan === 'famille' || sub.plan === 'family') &&
+    sub.currentPeriodEnd
+  ) {
+    return sub.currentPeriodEnd;
+  }
+  return null;
+}
+
+// Condition de requête Mongoose « plan Famille actif » (titulaire), tolérante
+// aux 2 formes (nouveau familyExpiry OU ancienne plan='famille'). À combiner
+// avec d'autres champs via spread : { userId: x, ...familyActiveMatch(now) }.
+function familyActiveMatch(now = new Date()) {
+  return {
+    $or: [
+      { familyExpiry: { $gt: now } },
+      {
+        plan: { $in: ['famille', 'family'] },
+        status: 'active',
+        currentPeriodEnd: { $gt: now },
+      },
+    ],
+  };
+}
+
+// Migration-à-l'écriture : déplace une ancienne sub famille (plan='famille' +
+// currentPeriodEnd) vers familyExpiry, et libère le slot individuel
+// (plan='none', currentPeriodEnd=null). Idempotent. À appeler en début
+// d'activation pour que prendre un abo individuel ne perde pas la famille.
+function migrateLegacyFamily(sub, now = new Date()) {
+  if (!sub) return;
+  if (
+    !sub.familyExpiry &&
+    (sub.plan === 'famille' || sub.plan === 'family') &&
+    sub.currentPeriodEnd &&
+    new Date(sub.currentPeriodEnd) > now
+  ) {
+    sub.familyExpiry = sub.currentPeriodEnd;
+    sub.currentPeriodEnd = null;
+    sub.currentPeriodStart = null;
+    sub.plan = 'none';
+  }
+}
+
 /**
  * v23.1.170 — Helper : retourne true si userA et userB sont membres de la
  * même famille PawFollow Famille (peu importe qui est le titulaire). Pour
@@ -354,9 +417,7 @@ async function isInSameFamily(userAId, userBId) {
   // Sub où A est titulaire ET active ET famille → vérifier si B est dedans
   const subA = await Model.findOne({
     userId: a,
-    plan: 'famille',
-    status: 'active',
-    currentPeriodEnd: { $gt: now },
+    ...familyActiveMatch(now),
   }).lean();
   // v23.1.183 — n'inclut que les membres status='active' (les 'pending'
   // sont des invitations en attente, l'invité n'a pas encore accepté).
@@ -371,9 +432,7 @@ async function isInSameFamily(userAId, userBId) {
   // Sub où B est titulaire ET active ET famille → vérifier si A est dedans
   const subB = await Model.findOne({
     userId: b,
-    plan: 'famille',
-    status: 'active',
-    currentPeriodEnd: { $gt: now },
+    ...familyActiveMatch(now),
   }).lean();
   if (subB && Array.isArray(subB.familyMembers)) {
     if (subB.familyMembers.some(
@@ -383,9 +442,7 @@ async function isInSameFamily(userAId, userBId) {
   // Subs où A figure en family member → vérifier si B figure dans la même
   const subsContainingA = await Model.find({
     'familyMembers.userId': a,
-    plan: 'famille',
-    status: 'active',
-    currentPeriodEnd: { $gt: now },
+    ...familyActiveMatch(now),
   }).lean();
   for (const sub of subsContainingA) {
     // v23.1.183 — ignore les membres pending.
@@ -407,11 +464,15 @@ async function hasActivePawFollow(userId) {
   if (!userId) return false;
   const Model = mongoose.model('UserSubscription');
   const now = new Date();
-  // 1) Abo PROPRE actif (n'importe quel tier : monthly / yearly / famille).
+  // 1) Abo PROPRE actif : individuel (status active + currentPeriodEnd futur)
+  //    OU titulaire d'un plan Famille actif (familyExpiry futur OU ancien
+  //    plan='famille'). v23.1.283 — famille découplée de l'individuel.
   const own = await Model.findOne({
     userId: String(userId),
-    status: 'active',
-    currentPeriodEnd: { $gt: now },
+    $or: [
+      { status: 'active', currentPeriodEnd: { $gt: now } },
+      { familyExpiry: { $gt: now } },
+    ],
   })
     .select('_id')
     .lean();
@@ -423,9 +484,7 @@ async function hasActivePawFollow(userId) {
   // 'pending' n'ont pas encore accepté ; les anciens membres sans status
   // sont considérés actifs pour rétro-compat, cf isInSameFamily).
   const asMember = await Model.findOne({
-    plan: 'famille',
-    status: 'active',
-    currentPeriodEnd: { $gt: now },
+    ...familyActiveMatch(now),
     familyMembers: {
       $elemMatch: {
         userId: String(userId),
@@ -445,6 +504,10 @@ module.exports.PREMIUM_PRICING = PREMIUM_PRICING;
 module.exports.PREMIUM_FEATURES_DEFAULT = PREMIUM_FEATURES_DEFAULT;
 module.exports.isInSameFamily = isInSameFamily;
 module.exports.hasActivePawFollow = hasActivePawFollow;
+// v23.1.283 — découplage famille / individuel.
+module.exports.familyExpiryOf = familyExpiryOf;
+module.exports.familyActiveMatch = familyActiveMatch;
+module.exports.migrateLegacyFamily = migrateLegacyFamily;
 module.exports.getPlanPricing = getPlanPricing;
 module.exports.PAWFOLLOW_PLAN_INTERVALS = PAWFOLLOW_PLAN_INTERVALS;
 module.exports.PAWFOLLOW_PRICING = PAWFOLLOW_PRICING;

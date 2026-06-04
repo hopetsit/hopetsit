@@ -156,32 +156,43 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
   }
 
   const now = new Date();
-  // v23.1 part 74 — Daniel : "PawFollow pris mais Suivre dit toujours
-  // PAWFOLLOW_REQUIRED". Root cause : we were setting `sub.expiresAt`
-  // but the UserSubscription schema field is actually `currentPeriodEnd`
-  // (cf. models/UserSubscription.js line 209). Mongoose silently dropped
-  // expiresAt with strict mode, so the subscription was status='active'
-  // but currentPeriodEnd=null → every PawFollow check failed.
-  // Now we set BOTH the canonical currentPeriodEnd AND the legacy
-  // expiresAt (for any code that may still read the old name).
-  const currentExpiry =
-    sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
-      ? new Date(sub.currentPeriodEnd)
-      : now;
-  const newExpiry = new Date(currentExpiry.getTime() + intervalDays * 86_400_000);
-
-  // v23.1.178 — Daniel : "je prend labonement famille et y se passe rien".
-  // Normalisation défensive 'family' → 'famille' AVANT le sub.save() pour
-  // garantir que toutes les routes lectures (qui filtrent par
-  // plan: 'famille') trouvent ce doc, indépendamment du pre-save hook.
   const planCanonical = plan === 'family' ? 'famille' : plan;
+  const isFamilyPurchase = planCanonical === 'famille';
 
-  sub.plan = planCanonical;
-  sub.status = 'active';
-  sub.currentPeriodStart = sub.currentPeriodStart || now;
-  sub.currentPeriodEnd = newExpiry;
-  // legacy alias
-  sub.expiresAt = newExpiry;
+  // v23.1.283 — Daniel : "prendre PawFollow ou PawFamily désactive l'autre" +
+  // "1 mois = 300 j au lieu de 30". RACINE : l'abo individuel et le plan Famille
+  // partageaient UN SEUL plan + currentPeriodEnd → écrasement mutuel + empilage
+  // des jours. On DÉCOUPLE : familyExpiry pour la famille, currentPeriodEnd pour
+  // l'individuel. migrateLegacyFamily déplace d'abord toute ancienne sub famille
+  // (plan='famille' + currentPeriodEnd) vers familyExpiry pour ne rien perdre.
+  const { migrateLegacyFamily } = require('../models/UserSubscription');
+  migrateLegacyFamily(sub, now);
+
+  let newExpiry;
+  if (isFamilyPurchase) {
+    // Timer FAMILLE indépendant : on étend familyExpiry (sans toucher l'abo
+    // individuel). plan/currentPeriodEnd restent ceux de l'individuel.
+    const famBase =
+      sub.familyExpiry && new Date(sub.familyExpiry) > now
+        ? new Date(sub.familyExpiry)
+        : now;
+    newExpiry = new Date(famBase.getTime() + intervalDays * 86_400_000);
+    sub.familyExpiry = newExpiry;
+    sub.status = 'active';
+  } else {
+    // Abo INDIVIDUEL (monthly/yearly/solo) : on étend currentPeriodEnd (sans
+    // toucher la famille). Un mois sur un slot vide = exactement 30 j.
+    const indivBase =
+      sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
+        ? new Date(sub.currentPeriodEnd)
+        : now;
+    newExpiry = new Date(indivBase.getTime() + intervalDays * 86_400_000);
+    sub.plan = planCanonical;
+    sub.status = 'active';
+    sub.currentPeriodStart = sub.currentPeriodStart || now;
+    sub.currentPeriodEnd = newExpiry;
+    sub.expiresAt = newExpiry; // legacy alias
+  }
   sub.currency = currency;
 
   // Map-boost credit allowance per plan :
