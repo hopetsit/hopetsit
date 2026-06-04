@@ -98,8 +98,8 @@ router.get(
           userModel: modelName,
         }).select('currentPeriodEnd plan familyExpiry status').lean();
         if (sub) {
+          // v23.1.284 — détection individuel par DATE (status peut être périmé).
           const indivActive =
-            sub.status === 'active' &&
             sub.currentPeriodEnd &&
             new Date(sub.currentPeriodEnd) > now &&
             sub.plan !== 'famille' &&

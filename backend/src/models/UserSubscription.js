@@ -359,13 +359,17 @@ function familyExpiryOf(sub) {
 // Condition de requête Mongoose « plan Famille actif » (titulaire), tolérante
 // aux 2 formes (nouveau familyExpiry OU ancienne plan='famille'). À combiner
 // avec d'autres champs via spread : { userId: x, ...familyActiveMatch(now) }.
+// v23.1.284 — Daniel : "j'ai un plan famille actif mais je dois RE-acheter
+// pour débloquer l'invitation". CAUSE probable : la branche legacy exigeait
+// status:'active', or le champ status peut être périmé (past_due/canceled alors
+// que la période payée court encore). On se fie désormais à la DATE seule
+// (currentPeriodEnd/familyExpiry futur = accès), plus robuste.
 function familyActiveMatch(now = new Date()) {
   return {
     $or: [
       { familyExpiry: { $gt: now } },
       {
         plan: { $in: ['famille', 'family'] },
-        status: 'active',
         currentPeriodEnd: { $gt: now },
       },
     ],
@@ -467,10 +471,12 @@ async function hasActivePawFollow(userId) {
   // 1) Abo PROPRE actif : individuel (status active + currentPeriodEnd futur)
   //    OU titulaire d'un plan Famille actif (familyExpiry futur OU ancien
   //    plan='famille'). v23.1.283 — famille découplée de l'individuel.
+  // v23.1.284 — détection par DATE (pas par status, qui peut être périmé) :
+  // période individuelle OU familyExpiry dans le futur = actif.
   const own = await Model.findOne({
     userId: String(userId),
     $or: [
-      { status: 'active', currentPeriodEnd: { $gt: now } },
+      { currentPeriodEnd: { $gt: now } },
       { familyExpiry: { $gt: now } },
     ],
   })

@@ -13,6 +13,7 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_purchase_refresh.dart';
 import 'package:hopetsit/views/auth/location_picker_map_screen.dart';
 import 'package:hopetsit/views/boost/widgets/map_boost_pin_icon.dart';
+import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -804,11 +805,23 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
   // INDÉPENDANTS (pawFollowActive + familyActive + leurs expirations) → les 2
   // moitiés peuvent être actives en même temps avec leurs propres jours.
   Map<String, dynamic> _benefits = const {};
+  Worker? _benefitsTick;
 
   @override
   void initState() {
     super.initState();
     _loadBenefits();
+    // v23.1.284 — re-fetch les jours quand un achat (n'importe où) notifie.
+    _benefitsTick = ever<int>(
+      ActiveBenefitsRow.refreshTickAccessor,
+      (_) => _loadBenefits(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _benefitsTick?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBenefits() async {
@@ -1519,6 +1532,12 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
       final ok = await controller.purchase(plan);
       if (!mounted) return;
       if (ok) {
+        // v23.1.284 — Daniel : "les jours ne se rajoutent pas dans le bouton".
+        // CAUSE : la carte statut (_benefits) n'était chargée qu'au initState,
+        // jamais re-fetchée après achat. On recharge /me/benefits + on notifie
+        // le badge profil (ActiveBenefitsRow) pour que les jours montent.
+        await _loadBenefits();
+        ActiveBenefitsRow.notifyChanged();
         CustomSnackbar.showSuccess(
           title: 'premium_activated_title'.tr,
           message: 'premium_activated_msg'.tr,

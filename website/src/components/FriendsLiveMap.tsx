@@ -141,6 +141,62 @@ function FlyToSelected({
   return null;
 }
 
+// v23.1.284 — Daniel : "sur la pawmap du site web je veux que ce soit
+// synchronisé comme sur le téléphone et qu'on puisse follow la personne".
+// FollowFriend = équivalent web du mode suivi de la PawMap mobile : tant que
+// followUserId est défini, la caméra RE-CENTRE en continu sur la dernière
+// position live de l'ami (mise à jour par socket map:friend-position). Un
+// drag manuel arrête le suivi (comme onCameraMoveStarted côté app).
+function FollowFriend({
+  followUserId,
+  positions,
+  onStop,
+}: {
+  followUserId?: string;
+  positions: FriendLivePosition[];
+  onStop?: () => void;
+}) {
+  const map = useMap();
+  const lastFollowed = useRef<string | undefined>(undefined);
+  const suppressStop = useRef(false);
+
+  useEffect(() => {
+    if (!followUserId) {
+      lastFollowed.current = undefined;
+      return;
+    }
+    const target = positions.find((p) => p.userId === followUserId);
+    if (!target) return;
+    suppressStop.current = true;
+    if (lastFollowed.current !== followUserId) {
+      // Entrée en mode suivi → zoom rapproché (parité _followZoom mobile).
+      map.flyTo([target.lat, target.lng], 17, { duration: 1.0 });
+      lastFollowed.current = followUserId;
+    } else {
+      // Déplacement live → recentrage doux sans changer le zoom.
+      map.panTo([target.lat, target.lng], { animate: true, duration: 0.8 });
+    }
+    const tid = setTimeout(() => {
+      suppressStop.current = false;
+    }, 1100);
+    return () => clearTimeout(tid);
+  }, [followUserId, positions, map]);
+
+  // Arrêt du suivi sur drag manuel (pas sur les recentrages programmatiques).
+  useEffect(() => {
+    if (!followUserId) return;
+    const onDragStart = () => {
+      if (!suppressStop.current) onStop?.();
+    };
+    map.on("dragstart", onDragStart);
+    return () => {
+      map.off("dragstart", onDragStart);
+    };
+  }, [followUserId, map, onStop]);
+
+  return null;
+}
+
 // v23.1 part 248 — Daniel : "un bouton suivre tout le monde". Quand le
 // nonce change (incrementee par la page au clic du bouton), on fitBounds
 // sur TOUTES les positions live pour qu'elles soient toutes visibles
@@ -173,6 +229,10 @@ export default function FriendsLiveMap({
   familyIds = [],
   selectedUserId,
   fitAllNonce = 0,
+  followUserId,
+  onStopFollow,
+  followLabel = "Suivi en direct",
+  stopLabel = "Stop",
 }: {
   friends: FriendItem[];
   initialPositions?: FriendLivePosition[];
@@ -181,6 +241,11 @@ export default function FriendsLiveMap({
   selectedUserId?: string;
   /** v248 — incremente par "Suivre tout le monde" pour fitBounds. */
   fitAllNonce?: number;
+  /** v23.1.284 — suivi continu d'un ami (caméra qui le traque en live). */
+  followUserId?: string;
+  onStopFollow?: () => void;
+  followLabel?: string;
+  stopLabel?: string;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
 
@@ -296,6 +361,11 @@ export default function FriendsLiveMap({
           positions={positionsList}
         />
         <FitAllOnNonce nonce={fitAllNonce} positions={positionsList} />
+        <FollowFriend
+          followUserId={followUserId}
+          positions={positionsList}
+          onStop={onStopFollow}
+        />
         {positionsList.map((p) => {
           const isFamily = familySet.has(p.userId);
           return (
@@ -357,6 +427,27 @@ export default function FriendsLiveMap({
           );
         })}
       </MapContainer>
+
+      {/* v23.1.284 — bannière "Suivi en direct" + bouton Stop (parité mobile). */}
+      {followUserId && (
+        <div className="absolute left-3 top-3 z-[400] flex items-center gap-2 rounded-full bg-walker px-3 py-1.5 text-xs font-bold text-white shadow-lg">
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white"></span>
+          <span>
+            {followLabel}
+            {(() => {
+              const f = positionsList.find((p) => p.userId === followUserId);
+              return f ? ` — ${f.name}` : "";
+            })()}
+          </span>
+          <button
+            type="button"
+            onClick={onStopFollow}
+            className="ml-1 rounded-full bg-white/25 px-2 py-0.5 font-bold hover:bg-white/40"
+          >
+            {stopLabel}
+          </button>
+        </div>
+      )}
 
       {/* Overlay status */}
       <div className="absolute right-3 top-3 z-[400] rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold shadow-lg backdrop-blur">

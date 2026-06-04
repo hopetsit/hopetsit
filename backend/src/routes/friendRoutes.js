@@ -56,14 +56,33 @@ function me(req) {
  */
 async function resolveOwnFamilySub(user) {
   const UserSubscription = require('../models/UserSubscription');
-  const { familyActiveMatch } = require('../models/UserSubscription');
+  const {
+    familyActiveMatch,
+    migrateLegacyFamily,
+  } = require('../models/UserSubscription');
   const now = new Date();
 
   let sub = await UserSubscription.findOne({
     userId: user.id,
     ...familyActiveMatch(now),
   });
-  if (sub) return sub;
+  if (sub) {
+    // v23.1.284 — migration-à-la-lecture : normalise une ancienne sub famille
+    // (plan='famille'+currentPeriodEnd) vers familyExpiry pour que /me/benefits
+    // (et la boutique) la détectent de façon cohérente.
+    if (
+      !sub.familyExpiry &&
+      (sub.plan === 'famille' || sub.plan === 'family') &&
+      sub.currentPeriodEnd &&
+      new Date(sub.currentPeriodEnd) > now
+    ) {
+      migrateLegacyFamily(sub, now);
+      try {
+        await sub.save();
+      } catch (_) {/* best-effort */}
+    }
+    return sub;
+  }
 
   // Self-heal : rassembler toutes les identités possibles.
   const candidateIds = new Set([String(user.id)]);

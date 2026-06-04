@@ -68,6 +68,9 @@ export default function FriendsLivePage() {
   // v246 — userId du friend selectionne (tile click). Passe a FriendsLiveMap
   // qui flyTo dessus et ouvre son popup.
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
+  // v23.1.284 — userId de l'ami SUIVI en continu (caméra qui le traque en
+  // live, comme sur le téléphone). Distinct de selectedUserId (focus ponctuel).
+  const [followUserId, setFollowUserId] = useState<string | undefined>();
 
   // Initialise le socket pour que la map recoive les events temps reel.
   useSocket();
@@ -264,6 +267,8 @@ export default function FriendsLivePage() {
 
   function handleTileClick(userId: string) {
     setSelectedUserId(userId);
+    // v23.1.284 — cliquer un ami = le SUIVRE en continu (parité mobile).
+    setFollowUserId(userId);
     // Scroll up smoothly so the user voit la map bouger.
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -277,6 +282,8 @@ export default function FriendsLivePage() {
   const [followAllNonce, setFollowAllNonce] = useState(0);
   function handleFollowAll() {
     setSelectedUserId(undefined);
+    // "Voir tout le monde" arrête le suivi d'un ami unique.
+    setFollowUserId(undefined);
     setFollowAllNonce((n) => n + 1);
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -359,6 +366,10 @@ export default function FriendsLivePage() {
           familyIds={familyIds}
           selectedUserId={selectedUserId}
           fitAllNonce={followAllNonce}
+          followUserId={followUserId}
+          onStopFollow={() => setFollowUserId(undefined)}
+          followLabel={t("friends_live_following")}
+          stopLabel={t("friends_live_stop_follow")}
         />
       </div>
 
