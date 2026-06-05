@@ -95,7 +95,33 @@ const getWalkerProfile = async (req, res) => {
     if (!walker) {
       return res.status(404).json({ error: 'Walker not found.' });
     }
-    res.json({ walker: sanitizeUser(walker) });
+    // v23.1.290 — Daniel : les avis (note + commentaire) doivent être visibles
+    // par tous sur le détail walker, comme sur le détail sitter. Même format.
+    const Review = require('../models/Review');
+    const reviewDocs = await Review.find({
+      revieweeId: req.params.id,
+      revieweeModel: 'Walker',
+      hidden: { $ne: true },
+    })
+      .sort({ createdAt: -1 })
+      .populate('reviewerId')
+      .lean();
+    const formattedReviews = reviewDocs.map((r) => ({
+      id: r._id.toString(),
+      reviewer: {
+        id: r.reviewerId?._id?.toString() || '',
+        name: r.reviewerId?.name || '',
+        avatar: r.reviewerId?.avatar?.url || '',
+      },
+      reviewerName: r.reviewerId?.name || '',
+      reviewerImage: r.reviewerId?.avatar?.url || '',
+      rating: r.rating || 0,
+      comment: r.comment || '',
+      createdAt: r.createdAt,
+    }));
+    const payload = sanitizeUser(walker);
+    payload.reviews = formattedReviews;
+    res.json({ walker: payload });
   } catch (error) {
     logger.error('getWalkerProfile error', error);
     res.status(500).json({ error: 'Unable to fetch walker profile.' });

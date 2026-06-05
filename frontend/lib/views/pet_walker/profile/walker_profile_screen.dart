@@ -140,7 +140,9 @@ class WalkerProfileScreen extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          height: 200.h,
+          // v23.1.290 — hauteur MINIMALE : le header s'étend si les badges
+          // passent sur 2 lignes au lieu de déborder sous le dégradé.
+          constraints: BoxConstraints(minHeight: 200.h),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [

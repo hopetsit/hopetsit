@@ -289,6 +289,144 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
             Icons.work_outline,
             w.service.map((s) => s.replaceAll('_', ' ')).join(', '),
           ),
+
+        SizedBox(height: 16.h),
+        // v23.1.290 — Avis (note + commentaire), visibles par tous.
+        _buildReviewsSection(w),
+      ],
+    );
+  }
+
+  // v23.1.290 — section Avis du walker, miroir du détail sitter. Rend w.reviews
+  // (avatar + nom + étoiles + commentaire). Visible par tous.
+  Widget _buildReviewsSection(dynamic w) {
+    final reviewsList = (w.reviews as List<dynamic>?) ?? [];
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.appBar(context),
+        borderRadius: BorderRadius.circular(12.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.rate_review_outlined,
+                  color: _walkerAccent, size: 20.sp),
+              SizedBox(width: 8.w),
+              PoppinsText(
+                text: 'sitter_detail_reviews_title'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          if (reviewsList.isEmpty)
+            InterText(
+              text: 'sitter_detail_no_reviews'.tr,
+              fontSize: 13.sp,
+              color: AppColors.greyColor,
+            )
+          else
+            ...reviewsList.map<Widget>(
+              (review) => Padding(
+                padding: EdgeInsets.only(bottom: 12.h),
+                child: _buildReviewItem(review),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewItem(dynamic review) {
+    String asStr(dynamic v) => v == null ? '' : v.toString();
+    final Map reviewMap = review is Map ? review : const {};
+    final Map reviewerMap =
+        reviewMap['reviewer'] is Map ? reviewMap['reviewer'] as Map : const {};
+    final reviewerName =
+        asStr(reviewMap['reviewerName']).isNotEmpty
+            ? asStr(reviewMap['reviewerName'])
+            : asStr(reviewerMap['name']);
+    final reviewerImage = asStr(reviewMap['reviewerImage']).isNotEmpty
+        ? asStr(reviewMap['reviewerImage'])
+        : asStr(reviewerMap['avatar']);
+    final rating = (reviewMap['rating'] as num?)?.toDouble() ?? 0.0;
+    final comment = asStr(reviewMap['comment']);
+    final displayName = reviewerName.trim().isNotEmpty
+        ? reviewerName.trim()
+        : 'sitter_detail_anonymous_reviewer'.tr;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        reviewerImage.startsWith('http')
+            ? ClipOval(
+                child: CachedNetworkImage(
+                  imageUrl: reviewerImage,
+                  width: 44.w,
+                  height: 44.w,
+                  memCacheWidth: 132,
+                  fit: BoxFit.cover,
+                  errorWidget: (c, u, e) => CircleAvatar(
+                    radius: 22.r,
+                    backgroundColor: AppColors.grey300Color,
+                    child: Icon(Icons.person,
+                        size: 24.sp, color: AppColors.greyColor),
+                  ),
+                ),
+              )
+            : CircleAvatar(
+                radius: 22.r,
+                backgroundColor: AppColors.grey300Color,
+                child: Icon(Icons.person,
+                    size: 24.sp, color: AppColors.greyColor),
+              ),
+        SizedBox(width: 12.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: PoppinsText(
+                      text: displayName,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary(context),
+                    ),
+                  ),
+                  ...List.generate(5, (i) {
+                    return Icon(
+                      i < rating.round() ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 13.sp,
+                    );
+                  }),
+                ],
+              ),
+              if (comment.isNotEmpty) ...[
+                SizedBox(height: 4.h),
+                InterText(
+                  text: comment,
+                  fontSize: 12.sp,
+                  color: AppColors.textSecondary(context),
+                ),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }

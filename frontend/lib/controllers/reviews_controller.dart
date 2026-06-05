@@ -13,6 +13,12 @@ class ReviewsController extends GetxController {
   final RxString description = ''.obs;
   final RxBool isLoading = false.obs;
 
+  // v23.1.290 — mode édition : si l'owner a déjà un avis pour ce booking, on
+  // pré-remplit l'écran et on bascule sur PUT (au lieu de POST), avec la
+  // possibilité de supprimer.
+  final RxBool isEditing = false.obs;
+  String? _reviewId;
+
   void setRating(int newRating) {
     rating.value = newRating;
   }
@@ -50,18 +56,30 @@ class ReviewsController extends GetxController {
     isLoading.value = true;
 
     try {
-      await _ownerRepository.submitReview(
-        revieweeId: serviceProviderId,
-        rating: rating.value.toDouble(),
-        comment: description.value.trim(),
-        bookingId: bookingId,
-        revieweeRole: revieweeRole,
-      );
-
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: 'snackbar_text_review_submitted_successfully',
-      );
+      if (isEditing.value && _reviewId != null) {
+        // v23.1.290 — édition d'un avis existant → PUT.
+        await _ownerRepository.updateReview(
+          reviewId: _reviewId!,
+          rating: rating.value.toDouble(),
+          comment: description.value.trim(),
+        );
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'reviews_updated_success'.tr,
+        );
+      } else {
+        await _ownerRepository.submitReview(
+          revieweeId: serviceProviderId,
+          rating: rating.value.toDouble(),
+          comment: description.value.trim(),
+          bookingId: bookingId,
+          revieweeRole: revieweeRole,
+        );
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'snackbar_text_review_submitted_successfully',
+        );
+      }
 
       // Reset form
       rating.value = 0;
@@ -99,6 +117,52 @@ class ReviewsController extends GetxController {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
         message: 'review_submit_failed'.tr,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// v23.1.290 — au montage de l'écran : charge l'avis existant de l'owner pour
+  /// ce booking. S'il existe → mode édition + pré-remplissage note/commentaire.
+  Future<void> loadExistingReview(String? bookingId) async {
+    isEditing.value = false;
+    _reviewId = null;
+    try {
+      final existing = await _ownerRepository.getMyReview(bookingId: bookingId);
+      if (existing != null) {
+        _reviewId = (existing['id'] ?? existing['_id'])?.toString();
+        if (_reviewId != null && _reviewId!.isNotEmpty) {
+          isEditing.value = true;
+          final r = existing['rating'];
+          rating.value = r is num ? r.round() : (int.tryParse('$r') ?? 0);
+          description.value = (existing['comment'] ?? '').toString();
+        }
+      }
+    } catch (_) {
+      // Silencieux : en cas d'échec on reste en mode création.
+    }
+  }
+
+  /// v23.1.290 — supprime l'avis existant (mode édition uniquement).
+  Future<void> deleteReview() async {
+    if (_reviewId == null || _reviewId!.isEmpty) return;
+    isLoading.value = true;
+    try {
+      await _ownerRepository.deleteReview(reviewId: _reviewId!);
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'reviews_deleted_success'.tr,
+      );
+      rating.value = 0;
+      description.value = '';
+      isEditing.value = false;
+      _reviewId = null;
+      _navigateToHome();
+    } catch (e) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'review_delete_failed'.tr,
       );
     } finally {
       isLoading.value = false;

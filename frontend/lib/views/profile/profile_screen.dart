@@ -132,7 +132,10 @@ class ProfileScreen extends StatelessWidget {
         // Gradient background
         Container(
           width: double.infinity,
-          height: 200.h,
+          // v23.1.290 — hauteur MINIMALE (au lieu de fixe) : le header s'étend
+          // si les badges passent sur 2 lignes (PawFollow + Famille + Boost +
+          // PawSpot) au lieu de déborder sous le dégradé.
+          constraints: BoxConstraints(minHeight: 200.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [

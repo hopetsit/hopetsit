@@ -392,9 +392,13 @@ const getSitterProfile = async (req, res) => {
     }
 
     // Get reviews for this sitter from Review model
+    // v23.1.290 — exclure les avis masqués par l'admin (modération). Sans ce
+    // filtre, un avis "hidden" restait visible sur le profil sitter alors que
+    // listReviews et le détail walker l'excluent déjà.
     const reviews = await Review.find({
       revieweeId: id,
       revieweeModel: 'Sitter',
+      hidden: { $ne: true },
     })
       .sort({ createdAt: -1 })
       .populate('reviewerId');

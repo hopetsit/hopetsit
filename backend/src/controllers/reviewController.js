@@ -133,12 +133,16 @@ const createReview = async (req, res) => {
       throw e;
     }
 
-    if (revieweeRole === 'sitter') {
+    // v23.1.290 — Daniel : l'owner peut noter sitter OU walker. Les 2 modèles
+    // ont rating + reviewsCount (+ averageRating). Avant, la moyenne n'était
+    // recalculée que pour les sitters → la note walker restait à 0.
+    if (revieweeRole === 'sitter' || revieweeRole === 'walker') {
       const previousTotal = (reviewee.rating || 0) * (reviewee.reviewsCount || 0);
       const newReviewsCount = (reviewee.reviewsCount || 0) + 1;
       const newAverage = (previousTotal + numericRating) / newReviewsCount;
       reviewee.rating = Number(newAverage.toFixed(2));
       reviewee.reviewsCount = newReviewsCount;
+      if (reviewee.averageRating !== undefined) reviewee.averageRating = reviewee.rating;
       await reviewee.save();
     }
 
@@ -293,10 +297,127 @@ const reportReview = async (req, res) => {
   }
 };
 
+// v23.1.290 — résolution d'un modèle par son NOM (Owner/Sitter/Walker), utile
+// pour le recompute qui travaille avec revieweeModel (un nom, pas un rôle).
+const getModelByName = (name) => {
+  if (name === 'Owner') return Owner;
+  if (name === 'Sitter') return Sitter;
+  if (name === 'Walker') return Walker;
+  return null;
+};
+
+// v23.1.290 — recalcule la moyenne d'un prestataire DEPUIS ZÉRO à partir de tous
+// ses avis non masqués. La moyenne mobile de createReview ne sait pas retirer/
+// ajuster une note lors d'un edit/delete, donc edit & delete passent par ici.
+const recomputeRevieweeRating = async (revieweeId, modelName) => {
+  const Model = getModelByName(modelName);
+  if (!Model || modelName === 'Owner') return;
+  const agg = await Review.aggregate([
+    {
+      $match: {
+        revieweeId: new mongoose.Types.ObjectId(String(revieweeId)),
+        revieweeModel: modelName,
+        hidden: { $ne: true },
+      },
+    },
+    { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+  ]);
+  const avg = agg.length ? Number((agg[0].avg || 0).toFixed(2)) : 0;
+  const count = agg.length ? agg[0].count : 0;
+  const r = await Model.findById(revieweeId);
+  if (!r) return;
+  r.rating = avg;
+  r.reviewsCount = count;
+  if (r.averageRating !== undefined) r.averageRating = avg;
+  await r.save();
+  if (modelName === 'Sitter') recomputeSitterStatus(revieweeId).catch(() => {});
+};
+
+// GET /reviews/mine?bookingId=...  → l'avis de l'utilisateur connecté pour ce
+// booking (ou null). Sert à savoir si on est en mode création ou édition.
+const getMyReview = async (req, res) => {
+  try {
+    const reviewerId = req.user?.id;
+    if (!reviewerId || !mongoose.Types.ObjectId.isValid(reviewerId)) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    const { bookingId } = req.query;
+    const q = { reviewerId };
+    if (bookingId && mongoose.Types.ObjectId.isValid(bookingId)) {
+      q.bookingId = bookingId;
+    }
+    const review = await Review.findOne(q).sort({ createdAt: -1 }).lean();
+    return res.json({ review: review ? sanitizeDoc(review) : null });
+  } catch (e) {
+    logger.error('getMyReview error', e);
+    return res.status(500).json({ error: 'Unable to load your review.' });
+  }
+};
+
+// PUT /reviews/:id  → seul l'auteur peut modifier rating/comment, puis recompute.
+const updateReview = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid review id.' });
+    }
+    const review = await Review.findById(id);
+    if (!review) return res.status(404).json({ error: 'Review not found.' });
+    if (String(review.reviewerId) !== String(userId)) {
+      return res.status(403).json({ error: 'You can only edit your own review.' });
+    }
+    const { rating, comment } = req.body || {};
+    if (rating !== undefined) {
+      const numericRating = Number(rating);
+      if (!Number.isFinite(numericRating) || numericRating < 1 || numericRating > 5) {
+        return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
+      }
+      review.rating = numericRating;
+    }
+    if (comment !== undefined) {
+      review.comment = String(comment || '').trim().slice(0, 500);
+    }
+    await review.save();
+    await recomputeRevieweeRating(review.revieweeId, review.revieweeModel);
+    return res.json({ review: sanitizeDoc(review) });
+  } catch (e) {
+    logger.error('updateReview error', e);
+    return res.status(500).json({ error: 'Unable to update review.' });
+  }
+};
+
+// DELETE /reviews/:id  → seul l'auteur, puis recompute la moyenne.
+const deleteReview = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid review id.' });
+    }
+    const review = await Review.findById(id);
+    if (!review) return res.status(404).json({ error: 'Review not found.' });
+    if (String(review.reviewerId) !== String(userId)) {
+      return res.status(403).json({ error: 'You can only delete your own review.' });
+    }
+    const revieweeId = review.revieweeId;
+    const revieweeModel = review.revieweeModel;
+    await review.deleteOne();
+    await recomputeRevieweeRating(revieweeId, revieweeModel);
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('deleteReview error', e);
+    return res.status(500).json({ error: 'Unable to delete review.' });
+  }
+};
+
 module.exports = {
   createReview,
   listReviews,
   replyToReview,
   reportReview,
+  getMyReview,
+  updateReview,
+  deleteReview,
 };
 

@@ -1244,6 +1244,51 @@ class OwnerRepository {
     }
   }
 
+  /// v23.1.290 — l'avis de l'utilisateur connecté pour un booking (ou null).
+  /// Permet d'ouvrir l'écran d'avis en mode création OU édition.
+  Future<Map<String, dynamic>?> getMyReview({String? bookingId}) async {
+    try {
+      final response = await _apiClient.get(
+        '${ApiEndpoints.reviews}/mine',
+        queryParameters: (bookingId != null && bookingId.isNotEmpty)
+            ? {'bookingId': bookingId}
+            : null,
+        requiresAuth: true,
+      );
+      final map = response is Map ? Map<String, dynamic>.from(response) : null;
+      final review = map?['review'];
+      if (review is Map) return Map<String, dynamic>.from(review);
+      return null;
+    } catch (e) {
+      AppLogger.logError('Failed to load my review', error: e);
+      return null;
+    }
+  }
+
+  /// v23.1.290 — modifier son propre avis (note + commentaire).
+  Future<Map<String, dynamic>> updateReview({
+    required String reviewId,
+    required double rating,
+    required String comment,
+  }) async {
+    final response = await _apiClient.put(
+      '${ApiEndpoints.reviews}/$reviewId',
+      body: {'rating': rating, 'comment': comment},
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected update review response.', details: response);
+  }
+
+  /// v23.1.290 — supprimer son propre avis.
+  Future<void> deleteReview({required String reviewId}) async {
+    await _apiClient.delete(
+      '${ApiEndpoints.reviews}/$reviewId',
+      requiresAuth: true,
+    );
+  }
+
   /// Blocks any user (owner or sitter) via the generic /blocks endpoint.
   Future<Map<String, dynamic>> blockAnyUser({
     required String targetUserId,

@@ -1,6 +1,6 @@
 const express = require('express');
 
-const { createReview, listReviews, replyToReview, reportReview } = require('../controllers/reviewController');
+const { createReview, listReviews, replyToReview, reportReview, getMyReview, updateReview, deleteReview } = require('../controllers/reviewController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -60,6 +60,14 @@ router.post('/:id/reply', requireAuth, replyToReview);
 
 // Sprint 7 step 5 — report a review as inappropriate.
 router.post('/:id/report', requireAuth, reportReview);
+
+// v23.1.290 — l'avis de l'utilisateur connecté pour un booking (mode édition).
+// IMPORTANT : déclaré AVANT les routes paramétrées /:id pour ne pas être capturé.
+router.get('/mine', requireAuth, getMyReview);
+
+// v23.1.290 — modifier / supprimer son propre avis (auteur uniquement).
+router.put('/:id', requireAuth, updateReview);
+router.delete('/:id', requireAuth, deleteReview);
 
 /**
  * @swagger

@@ -10,7 +10,7 @@ const reviewSchema = new mongoose.Schema(
     reviewerModel: {
       type: String,
       required: true,
-      enum: ['Owner', 'Sitter'],
+      enum: ['Owner', 'Sitter', 'Walker'],
     },
     revieweeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,7 +20,7 @@ const reviewSchema = new mongoose.Schema(
     revieweeModel: {
       type: String,
       required: true,
-      enum: ['Owner', 'Sitter'],
+      enum: ['Owner', 'Sitter', 'Walker'],
     },
     rating: { type: Number, required: true, min: 1, max: 5 },
     comment: { type: String, default: '', maxlength: 500 },

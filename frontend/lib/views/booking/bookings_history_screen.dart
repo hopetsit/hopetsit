@@ -675,7 +675,12 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
         // v18.5 — #22 : bouton "Laisser un avis" sur bookings completed.
         // Remplace l'option review sur l'écran paiement réussi (#17) qui
         // n'avait pas de sens car le service n'était pas encore fait.
-        if (statusLower == 'completed') ...[
+        // v23.1.290 — le flux de confirmation (v259) met confirmationStatus
+        // == 'confirmed' en laissant status == 'paid' → le bouton
+        // n'apparaissait JAMAIS. On l'affiche aussi quand le service est
+        // confirmé.
+        if (statusLower == 'completed' ||
+            booking.confirmationStatus == 'confirmed') ...[
           SizedBox(width: 12.w),
           Expanded(
             child: ElevatedButton(

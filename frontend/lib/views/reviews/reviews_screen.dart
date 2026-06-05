@@ -8,7 +8,7 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/reviews_controller.dart';
 
-class ReviewsScreen extends StatelessWidget {
+class ReviewsScreen extends StatefulWidget {
   final String serviceProviderName;
   final String phoneNumber;
   final String email;
@@ -33,10 +33,82 @@ class ReviewsScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final ReviewsController controller = Get.put(ReviewsController());
-    final TextEditingController descriptionController = TextEditingController();
+  State<ReviewsScreen> createState() => _ReviewsScreenState();
+}
 
+class _ReviewsScreenState extends State<ReviewsScreen> {
+  late final ReviewsController controller;
+  late final TextEditingController descriptionController;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(ReviewsController());
+    descriptionController = TextEditingController();
+    // v23.1.290 — charge l'avis existant ; s'il existe, on pré-remplit le champ
+    // de texte (le TextField n'est pas lié au Rx, il faut l'alimenter à la main).
+    _loadExisting();
+  }
+
+  Future<void> _loadExisting() async {
+    await controller.loadExistingReview(widget.bookingId);
+    if (!mounted) return;
+    if (controller.isEditing.value) {
+      descriptionController.text = controller.description.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirmDelete() async {
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: AppColors.card(context),
+        title: PoppinsText(
+          text: 'reviews_delete_confirm_title'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
+        ),
+        content: InterText(
+          text: 'reviews_delete_confirm_body'.tr,
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w400,
+          color: AppColors.textPrimary(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: InterText(
+              text: 'common_cancel'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey500Color,
+            ),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: InterText(
+              text: 'reviews_delete'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.red,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await controller.deleteReview();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
@@ -77,13 +149,13 @@ class ReviewsScreen extends StatelessWidget {
                             CircleAvatar(
                               radius: 40.r,
                               // v23.1 part 243 round 3 — perf.
-                              backgroundImage: profileImagePath != null
+                              backgroundImage: widget.profileImagePath != null
                                   ? CachedNetworkImageProvider(
-                                      profileImagePath ?? '',
+                                      widget.profileImagePath ?? '',
                                       maxWidth: 200,
                                     ) as ImageProvider
                                   : AssetImage(
-                                      profileImagePath ??
+                                      widget.profileImagePath ??
                                           AppImages.placeholderImage,
                                     ),
                             ),
@@ -95,7 +167,7 @@ class ReviewsScreen extends StatelessWidget {
                                 children: [
                                   // Name
                                   PoppinsText(
-                                    text: serviceProviderName,
+                                    text: widget.serviceProviderName,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textPrimary(context),
@@ -112,7 +184,7 @@ class ReviewsScreen extends StatelessWidget {
                                       ),
                                       SizedBox(width: 8.w),
                                       InterText(
-                                        text: phoneNumber,
+                                        text: widget.phoneNumber,
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.w400,
                                         color: AppColors.grey500Color,
@@ -134,7 +206,7 @@ class ReviewsScreen extends StatelessWidget {
                                       SizedBox(width: 8.w),
                                       Expanded(
                                         child: InterText(
-                                          text: email,
+                                          text: widget.email,
                                           fontSize: 14.sp,
                                           fontWeight: FontWeight.w400,
                                           color: AppColors.grey500Color,
@@ -229,7 +301,7 @@ class ReviewsScreen extends StatelessWidget {
 
                         SizedBox(height: 24.h),
 
-                        // Submit Button
+                        // Submit / Edit Button
                         Align(
                           alignment: Alignment.centerRight,
                           child: Obx(
@@ -239,7 +311,9 @@ class ReviewsScreen extends StatelessWidget {
                               radius: 48.r,
                               title: controller.isLoading.value
                                   ? 'reviews_submitting'.tr
-                                  : 'reviews_submit'.tr,
+                                  : (controller.isEditing.value
+                                        ? 'reviews_edit'.tr
+                                        : 'reviews_submit'.tr),
                               bgColor: AppColors.primaryColor,
                               textColor: AppColors.whiteColor,
                               onTap:
@@ -247,14 +321,43 @@ class ReviewsScreen extends StatelessWidget {
                                       !controller.isLoading.value
                                   ? () => controller.submitReview(
                                       serviceProviderId:
-                                          serviceProviderId ?? '',
-                                      serviceProviderName: serviceProviderName,
-                                      bookingId: bookingId,
-                                      revieweeRole: revieweeRole,
+                                          widget.serviceProviderId ?? '',
+                                      serviceProviderName:
+                                          widget.serviceProviderName,
+                                      bookingId: widget.bookingId,
+                                      revieweeRole: widget.revieweeRole,
                                     )
                                   : null,
                             ),
                           ),
+                        ),
+
+                        // v23.1.290 — bouton "Supprimer mon avis" (mode édition).
+                        Obx(
+                          () => controller.isEditing.value
+                              ? Padding(
+                                  padding: EdgeInsets.only(top: 12.h),
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: controller.isLoading.value
+                                          ? null
+                                          : _confirmDelete,
+                                      icon: Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: Colors.red,
+                                        size: 18.sp,
+                                      ),
+                                      label: InterText(
+                                        text: 'reviews_delete'.tr,
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                       ],
                     ),
