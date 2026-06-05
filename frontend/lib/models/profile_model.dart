@@ -21,6 +21,15 @@ class ProfileModel {
   final List<dynamic> reviewsGiven;
   final List<dynamic> reviewsReceived;
   final ProfileStats stats;
+  // v23.1.292 — note/avis/top status renvoyés par le profil public (sitter &
+  // walker) mais ignorés jusqu'ici. Maintenant lus pour afficher la vraie note,
+  // le vrai nombre d'avis (cliquable), et l'état Top Sitter/Walker.
+  final double rating;
+  final int reviewsCount;
+  final List<dynamic> reviews;
+  final double averageRating;
+  final int completedServicesCount;
+  final bool isTopSitter;
 
   ProfileModel({
     required this.id,
@@ -45,6 +54,12 @@ class ProfileModel {
     required this.reviewsGiven,
     required this.reviewsReceived,
     required this.stats,
+    this.rating = 0.0,
+    this.reviewsCount = 0,
+    this.reviews = const [],
+    this.averageRating = 0.0,
+    this.completedServicesCount = 0,
+    this.isTopSitter = false,
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
@@ -86,6 +101,22 @@ class ProfileModel {
       stats: ProfileStats.fromJson(
         json['stats'] as Map<String, dynamic>? ?? {},
       ),
+      rating: (json['rating'] as num?)?.toDouble() ??
+          (json['averageRating'] as num?)?.toDouble() ??
+          0.0,
+      reviewsCount: (json['reviewsCount'] as num?)?.toInt() ?? 0,
+      // Le profil public sitter/walker renvoie `reviews` ; fallback sur
+      // `reviewsReceived` selon l'endpoint.
+      reviews: json['reviews'] as List<dynamic>? ??
+          (json['reviewsReceived'] as List<dynamic>? ?? []),
+      averageRating: (json['averageRating'] as num?)?.toDouble() ??
+          (json['rating'] as num?)?.toDouble() ??
+          0.0,
+      completedServicesCount:
+          (json['completedServicesCount'] as num?)?.toInt() ?? 0,
+      isTopSitter: (json['isTopSitter'] as bool?) ??
+          (json['isTopWalker'] as bool?) ??
+          false,
     );
   }
 

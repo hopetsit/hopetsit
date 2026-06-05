@@ -2017,6 +2017,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'reviews_delete_confirm_body': 'This action is permanent and will remove your rating and comment.',
       'review_prompt_title': 'How was the service?',
       'review_prompt_cta': 'Rate the provider',
+      'review_already_rated': 'Rated · Edit',
       'post_already_reserved_cta': 'Already reserved',
       'application_card_price_label': 'Your earnings for this service',
       'application_card_you_receive': 'You receive @amount net',

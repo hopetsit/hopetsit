@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
+import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — sitter peut payer un PawSpot/PawFollow.
@@ -303,9 +304,20 @@ class SitterProfileScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _statItem('0.0', 'stat_rating'.tr, Icons.star_rounded, Colors.amber),
+            // v23.1.292 — vraie note (avant codée en dur à '0.0').
+            _statItem((profile?.rating ?? 0).toStringAsFixed(1), 'stat_rating'.tr, Icons.star_rounded, Colors.amber),
             Container(width: 1, height: 32.h, color: AppColors.divider(context)),
-            _statItem('0', 'stat_reviews'.tr, Icons.reviews_outlined, accent),
+            // v23.1.292 — vrai nombre d'avis + cliquable → liste des avis reçus.
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Get.to(() => MyReviewsScreen(
+                    reviews: profile?.reviews ?? const [],
+                    rating: profile?.rating ?? 0,
+                    reviewsCount: profile?.reviewsCount ?? 0,
+                    accent: accent,
+                  )),
+              child: _statItem('${profile?.reviewsCount ?? 0}', 'stat_reviews'.tr, Icons.reviews_outlined, accent),
+            ),
             Container(width: 1, height: 32.h, color: AppColors.divider(context)),
             _statItem('${profile?.service.length ?? 0}', 'stat_services'.tr, Icons.work_outline_rounded, AppColors.greenColor),
           ],

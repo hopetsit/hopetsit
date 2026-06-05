@@ -1816,6 +1816,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'reviews_delete_confirm_body': 'Esta acción es definitiva y eliminará tu valoración y comentario.',
       'review_prompt_title': '¿Qué tal el servicio?',
       'review_prompt_cta': 'Valorar al proveedor',
+      'review_already_rated': 'Ya valorado · Editar',
       'post_already_reserved_cta': 'Ya reservado',
       'application_card_price_label': 'Remuneración por este servicio',
       'application_card_you_receive': 'Recibes @amount neto',

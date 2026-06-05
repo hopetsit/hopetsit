@@ -1823,6 +1823,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'reviews_delete_confirm_body': 'Diese Aktion ist endgültig und entfernt deine Note und deinen Kommentar.',
       'review_prompt_title': 'Wie war der Service?',
       'review_prompt_cta': 'Anbieter bewerten',
+      'review_already_rated': 'Bereits bewertet · Bearbeiten',
       'post_already_reserved_cta': 'Bereits reserviert',
       'application_card_price_label': 'Vergütung für diese Leistung',
       'application_card_you_receive': 'Du erhältst @amount netto',

@@ -1729,6 +1729,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'reviews_delete_confirm_body': 'Esta ação é definitiva e removerá a sua nota e o seu comentário.',
       'review_prompt_title': 'Como correu o serviço?',
       'review_prompt_cta': 'Avaliar o prestador',
+      'review_already_rated': 'Já avaliado · Editar',
       'post_already_reserved_cta': 'Já reservado',
       'application_card_price_label': 'Remuneração por este serviço',
       'application_card_you_receive': 'Recebes @amount líquidos',

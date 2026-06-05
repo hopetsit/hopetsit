@@ -397,86 +397,9 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
             // étoile ou le lien ouvre l'écran d'avis (note pré-sélectionnée).
             if (booking.confirmationStatus == 'confirmed' ||
                 booking.status.toLowerCase() == 'completed')
-              _buildReviewPrompt(booking),
+              _ReviewPromptTile(booking: booking),
           ],
         ),
-      ),
-    );
-  }
-
-  // v23.1.291 — carte de note inline (maquette owner) : « Comment s'est passé
-  // le service ? » + 5 étoiles tappables + lien « Noter le prestataire ». Taper
-  // ouvre l'écran d'avis (qui gère création OU édition si déjà noté), avec la
-  // note pré-sélectionnée selon l'étoile touchée.
-  Widget _buildReviewPrompt(BookingModel booking) {
-    final serviceLower = (booking.serviceType ?? '').toLowerCase();
-    final resolvedRole = (serviceLower.contains('walking') ||
-            serviceLower.contains('dog_walking'))
-        ? 'walker'
-        : 'sitter';
-    void openReview(int rating) {
-      Get.to(
-        () => ReviewsScreen(
-          serviceProviderName: booking.sitter.name,
-          phoneNumber: booking.sitter.mobile,
-          email: booking.sitter.email,
-          profileImagePath: booking.sitter.avatar.url.isNotEmpty
-              ? booking.sitter.avatar.url
-              : null,
-          serviceProviderId: booking.sitter.id,
-          bookingId: booking.id,
-          revieweeRole: resolvedRole,
-          initialRating: rating,
-        ),
-      );
-    }
-
-    return Container(
-      margin: EdgeInsets.only(top: 12.h),
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4EF),
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: const Color(0xFFFFD9CC)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PoppinsText(
-            text: 'review_prompt_title'.tr,
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 10.h),
-          Row(
-            children: List.generate(5, (i) {
-              return GestureDetector(
-                onTap: () => openReview(i + 1),
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: EdgeInsets.only(right: 8.w),
-                  child: Icon(
-                    Icons.star_rounded,
-                    size: 34.sp,
-                    color: AppColors.grey300Color,
-                  ),
-                ),
-              );
-            }),
-          ),
-          SizedBox(height: 10.h),
-          GestureDetector(
-            onTap: () => openReview(0),
-            behavior: HitTestBehavior.opaque,
-            child: InterText(
-              text: 'review_prompt_cta'.tr,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primaryColor,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -732,6 +655,173 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
       height: 32.h,
       color: AppColors.lightGrey,
       child: Icon(Icons.person, size: 20.sp, color: _ownerAccent),
+    );
+  }
+}
+
+/// v23.1.292 — carte de note inline (maquette owner). Au montage, vérifie si
+/// l'owner a déjà noté ce booking (getMyReview) :
+///   • pas encore noté → « Comment s'est passé le service ? » + 5 étoiles + lien.
+///   • déjà noté → « ✓ Déjà noté · Modifier » (taper ouvre l'écran en mode
+///     édition/suppression).
+/// Tout tap est absorbé (HitTestBehavior.opaque) pour ne JAMAIS remonter à la
+/// carte de réservation qui ouvre la page paiement.
+class _ReviewPromptTile extends StatefulWidget {
+  final BookingModel booking;
+  const _ReviewPromptTile({required this.booking});
+
+  @override
+  State<_ReviewPromptTile> createState() => _ReviewPromptTileState();
+}
+
+class _ReviewPromptTileState extends State<_ReviewPromptTile> {
+  Map<String, dynamic>? _existing;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await Get.find<OwnerRepository>()
+          .getMyReview(bookingId: widget.booking.id);
+      if (mounted) {
+        setState(() {
+          _existing = r;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String get _resolvedRole {
+    final s = (widget.booking.serviceType ?? '').toLowerCase();
+    return (s.contains('walking') || s.contains('dog_walking'))
+        ? 'walker'
+        : 'sitter';
+  }
+
+  void _openReview(int rating) {
+    final b = widget.booking;
+    Get.to(
+      () => ReviewsScreen(
+        serviceProviderName: b.sitter.name,
+        phoneNumber: b.sitter.mobile,
+        email: b.sitter.email,
+        profileImagePath:
+            b.sitter.avatar.url.isNotEmpty ? b.sitter.avatar.url : null,
+        serviceProviderId: b.sitter.id,
+        bookingId: b.id,
+        revieweeRole: _resolvedRole,
+        initialRating: rating,
+      ),
+    )?.then((_) => _load()); // rafraîchit l'état au retour (noté / modifié / supprimé)
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+    return _existing != null ? _alreadyRated() : _starPrompt();
+  }
+
+  // État « déjà noté » : étoiles pleines + « Modifier ».
+  Widget _alreadyRated() {
+    final rating = ((_existing!['rating'] as num?) ?? 0).round();
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openReview(0),
+      child: Container(
+        margin: EdgeInsets.only(top: 12.h),
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEAF7EE),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: const Color(0xFFB7E4C7)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_rounded,
+                color: AppColors.greenColor, size: 20.sp),
+            SizedBox(width: 8.w),
+            ...List.generate(
+              5,
+              (i) => Icon(
+                i < rating ? Icons.star_rounded : Icons.star_border_rounded,
+                color: Colors.amber,
+                size: 18.sp,
+              ),
+            ),
+            const Spacer(),
+            InterText(
+              text: 'review_already_rated'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // État « pas encore noté » : invitation + étoiles tappables + lien.
+  Widget _starPrompt() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openReview(0),
+      child: Container(
+        margin: EdgeInsets.only(top: 12.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF4EF),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: const Color(0xFFFFD9CC)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PoppinsText(
+              text: 'review_prompt_title'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+            ),
+            SizedBox(height: 10.h),
+            Row(
+              children: List.generate(5, (i) {
+                return GestureDetector(
+                  onTap: () => _openReview(i + 1),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: 8.w),
+                    child: Icon(
+                      Icons.star_rounded,
+                      size: 34.sp,
+                      color: AppColors.grey300Color,
+                    ),
+                  ),
+                );
+              }),
+            ),
+            SizedBox(height: 10.h),
+            GestureDetector(
+              onTap: () => _openReview(0),
+              behavior: HitTestBehavior.opaque,
+              child: InterText(
+                text: 'review_prompt_cta'.tr,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryColor,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
