@@ -151,16 +151,28 @@ app.use(express.urlencoded({ limit: '25mb', extended: true }));
 // The file lives at <repo>/admin_dashboard.html; backend/src/app.js is 3
 // levels deep so we go up ../../..
 const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html');
+// v23.1.287 — deploy marker. Bumped on every admin push so we can verify which
+// build is actually LIVE on Render (GET /__build). If /__build still returns an
+// old value after a push, Render did not redeploy (auto-deploy off / build
+// filter / failed deploy) — not a code problem.
+const ADMIN_BUILD = 'v287';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('X-Admin-Build', ADMIN_BUILD);
   next();
 };
 app.get(['/admin', '/admin.html', '/admin_dashboard.html'], noAdminCache, (req, res) => {
   res.sendFile(ADMIN_HTML_PATH, (err) => {
     if (err) res.status(404).send('admin_dashboard.html not found in repo root');
   });
+});
+// Dead-simple deploy probe: open this URL in a browser. If it shows the current
+// build (v287) the new backend is live; if it 404s or shows an old value, the
+// deploy has not gone through yet.
+app.get('/__build', (req, res) => {
+  res.type('text').send(`HopeTSIT admin build ${ADMIN_BUILD}`);
 });
 // Sprint 8 step 5 — structured request logger (pino-http) with reqId + duration.
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
