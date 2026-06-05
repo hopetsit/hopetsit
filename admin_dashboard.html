@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v287</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v288</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -1340,6 +1340,19 @@ function renderAnnoncesList(posts) {
     const dates = (p.startDate || p.endDate)
       ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📅 ${p.startDate ? new Date(p.startDate).toLocaleDateString('fr-FR') : '?'} → ${p.endDate ? new Date(p.endDate).toLocaleDateString('fr-FR') : '?'}</div>`
       : '';
+    // v23.1.288 — Daniel : "je ne vois pas ce qu'écrivent les gens". Le texte
+    // libre d'une annonce peut être dans body OU dans notes (notes du
+    // propriétaire) — on affiche LES DEUX. Si les deux sont vides, on montre un
+    // résumé lisible (type de demande + services) au lieu de "(pas de texte)".
+    const bodyBlock = p.body
+      ? `<div style="color:var(--text);font-size:14px;margin-bottom:8px;line-height:1.5;white-space:pre-wrap;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px solid var(--border)">${escapeHtml(p.body)}</div>`
+      : '';
+    const notesBlock = p.notes
+      ? `<div style="color:var(--text);font-size:13px;margin-bottom:8px;line-height:1.5;white-space:pre-wrap;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px solid var(--border)"><span style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.5px">📝 NOTE DU PROPRIÉTAIRE</span><br>${escapeHtml(p.notes)}</div>`
+      : '';
+    const emptyBlock = (!p.body && !p.notes)
+      ? `<div style="color:var(--text-muted);font-size:13px;margin-bottom:8px;font-style:italic;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px dashed var(--border)">Aucun texte libre — demande de service${(p.serviceTypes || []).length ? ' : ' + escapeHtml(p.serviceTypes.join(', ')) : ''}.</div>`
+      : '';
     return `
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px">
         <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
@@ -1350,7 +1363,7 @@ function renderAnnoncesList(posts) {
               <span style="color:var(--text-muted);font-size:12px">· ${p.postType}</span>
             </div>
             <div style="font-weight:700;margin-bottom:6px;font-size:14px">${p.owner.name || p.owner.email || '(anonyme)'} <span style="color:var(--text-muted);font-weight:400;font-size:12px">${p.owner.email ? '(' + p.owner.email + ')' : ''}</span></div>
-            <div style="color:var(--text);font-size:14px;margin-bottom:8px;line-height:1.5;white-space:pre-wrap;background:var(--bg);padding:10px 14px;border-radius:8px;border:1px solid var(--border)">${p.body ? escapeHtml(p.body) : '<em style="color:var(--text-muted)">(pas de texte)</em>'}</div>
+            ${bodyBlock}${notesBlock}${emptyBlock}
             ${services ? `<div style="margin-top:6px">${services}</div>` : ''}
             ${dates}
             ${p.city ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📍 ${p.city}</div>` : ''}
@@ -1699,10 +1712,14 @@ function renderPawmapStats(d) {
 // Editable catalog backed by /admin/services (GET/PATCH/reset). 3 hardcoded
 // service keys + duration arrays + per-language label & description overrides.
 let _servicesState = null;
+// v23.1.288 — `def` = libellé par défaut de l'app pour chaque langue (source :
+// frontend service_* translations). Affiché en référence + placeholder pour
+// que la page Services ne paraisse plus "vide" (Daniel : "service page pas
+// remplie"). Les champs override restent vides = on utilise ce défaut.
 const SERVICE_META = [
-  { key: 'dog_walking', label: '🐾 Promenade' },
-  { key: 'day_care',    label: '☀️ Garderie' },
-  { key: 'pet_sitting', label: '🏡 Garde multi-jours' },
+  { key: 'dog_walking', label: '🐾 Promenade', def: { fr:'Promenade', en:'Dog walking', de:'Spaziergang', es:'Paseo', it:'Passeggiata', pt:'Passeio' } },
+  { key: 'day_care',    label: '☀️ Garderie',  def: { fr:'Garderie', en:'Day care', de:'Tagesbetreuung', es:'Guardería', it:'Asilo', pt:'Creche' } },
+  { key: 'pet_sitting', label: '🏡 Garde multi-jours', def: { fr:'Pet-sitting', en:'Pet sitting', de:'Tierbetreuung', es:'Cuidado de mascotas', it:'Pet sitting', pt:'Cuidar de animais de estimação' } },
 ];
 const SERVICE_LANGS = ['fr','en','de','es','it','pt'];
 
@@ -1750,12 +1767,15 @@ function renderServices() {
     const labelOverride = entry.labelOverride || {};
     const descOverride = entry.descOverride || {};
 
-    const langInputs = SERVICE_LANGS.map((lang) => `
+    const def = s.def || {};
+    const langInputs = SERVICE_LANGS.map((lang) => {
+      const dflt = (def[lang] || '').replace(/"/g, '&quot;');
+      return `
       <div style="margin-bottom:10px">
-        <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">${lang.toUpperCase()}</div>
+        <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">${lang.toUpperCase()}${def[lang] ? ` <span style="color:var(--text);font-weight:700;letter-spacing:0">· ${escapeHtml(def[lang])}</span> <span style="color:var(--text-muted);letter-spacing:0">(défaut)</span>` : ''}</div>
         <input
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:4px"
-          placeholder="Override du label (vide = défaut app)"
+          placeholder="${dflt ? dflt + ' (défaut — laisser vide pour le garder)' : 'Override du label (vide = défaut app)'}"
           value="${(labelOverride[lang] || '').replace(/"/g, '&quot;')}"
           onchange="onServiceFieldEdit('${s.key}','labelOverride','${lang}', this)">
         <input
@@ -1764,7 +1784,8 @@ function renderServices() {
           value="${(descOverride[lang] || '').replace(/"/g, '&quot;')}"
           onchange="onServiceFieldEdit('${s.key}','descOverride','${lang}', this)">
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     return `
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px">
@@ -2128,8 +2149,10 @@ async function loadTermsDocument(lang) {
     ta.value = d.content || '';
     ver.value = d.version || '1.0';
     meta.textContent = d.exists
-      ? `Last updated ${d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ''} by ${d.updatedBy || 'admin'}`
-      : 'No document yet — app is showing the bundled default.';
+      ? `Dernière mise à jour ${d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ''} par ${d.updatedBy || 'admin'}`
+      : (d.source === 'bundled'
+          ? '📄 Texte officiel intégré à l\'app (pas encore enregistré en base). Cliquez « Enregistrer » pour le stocker et pouvoir l\'éditer en ligne.'
+          : 'Aucun document, et aucun texte par défaut trouvé pour cette langue.');
   } catch (e) {
     ta.value = '';
     showToast('Failed to load terms: ' + e.message, 'error');
@@ -2176,8 +2199,10 @@ async function renderPrivacyEditor() {
     const d = await api(`/admin/privacy-policy/${lang}`);
     document.getElementById('privacy-version').value = d.version || '1.0';
     const meta = d.exists
-      ? `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Last updated ${d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ''} by ${d.updatedBy || 'admin'}</div>`
-      : `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Aucun document pour ${lang.toUpperCase()} — l'app utilise le texte par défaut intégré.</div>`;
+      ? `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Dernière mise à jour ${d.updatedAt ? new Date(d.updatedAt).toLocaleString() : ''} par ${d.updatedBy || 'admin'}</div>`
+      : (d.source === 'bundled'
+          ? `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">📄 Texte officiel intégré à l'app (pas encore enregistré en base). Cliquez « Enregistrer » pour le stocker.</div>`
+          : `<div style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Aucun document pour ${lang.toUpperCase()}, et aucun texte par défaut trouvé.</div>`);
     wrap.innerHTML = `
       ${meta}
       <textarea id="privacy-content" style="width:100%;min-height:480px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.5">${(d.content || '').replace(/</g,'&lt;')}</textarea>

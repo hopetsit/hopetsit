@@ -763,19 +763,45 @@ router.delete('/reports/:id', requireAdmin, async (req, res) => {
 const TermsDocument = require('../models/TermsDocument');
 const TERMS_LANGS = ['en', 'fr', 'es', 'it', 'de', 'pt'];
 
+// v23.1.288 — Daniel : "cgv et confidentialité page pas remplies". Quand AUCUNE
+// version éditée n'existe en base, l'éditeur admin affichait un textarea VIDE,
+// alors que l'app montre bel et bien le texte légal intégré dans l'APK
+// (backend/legal/*.md). Ces .md sont censés être importés en base par
+// seedLegalDocs.js, qui n'a jamais tourné en prod → base vide → admin vide.
+// On retombe donc directement sur le fichier .md pour PRÉ-REMPLIR l'éditeur
+// avec le contenu réel. `source:'bundled'` indique que ça vient du fichier (pas
+// encore stocké/édité en base) ; un Enregistrer le persiste alors en Mongo.
+const _fsLegal = require('fs');
+const _pathLegal = require('path');
+const LEGAL_DIR = _pathLegal.join(__dirname, '..', '..', 'legal');
+function readBundledLegal(kind, lang) {
+  try {
+    const fp = _pathLegal.join(LEGAL_DIR, `${kind}_${String(lang || '').toLowerCase()}.md`);
+    if (!_fsLegal.existsSync(fp)) return '';
+    return _fsLegal.readFileSync(fp, 'utf8').trim();
+  } catch (e) {
+    return '';
+  }
+}
+
 router.get('/terms', requireAdmin, async (req, res) => {
   try {
     const docs = await TermsDocument.find().lean();
     const byLang = {};
     for (const d of docs) byLang[d.language] = d;
-    const payload = TERMS_LANGS.map((lang) => ({
-      language: lang,
-      content: byLang[lang]?.content ?? '',
-      version: byLang[lang]?.version ?? '',
-      updatedAt: byLang[lang]?.updatedAt ?? null,
-      updatedBy: byLang[lang]?.updatedBy ?? '',
-      exists: Boolean(byLang[lang]),
-    }));
+    const payload = TERMS_LANGS.map((lang) => {
+      const has = Boolean(byLang[lang]);
+      const bundled = has ? '' : readBundledLegal('terms', lang);
+      return {
+        language: lang,
+        content: has ? byLang[lang].content : bundled,
+        version: byLang[lang]?.version ?? '',
+        updatedAt: byLang[lang]?.updatedAt ?? null,
+        updatedBy: byLang[lang]?.updatedBy ?? '',
+        exists: has,
+        source: has ? 'db' : (bundled ? 'bundled' : 'empty'),
+      };
+    });
     res.json({ languages: TERMS_LANGS, documents: payload });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -789,8 +815,18 @@ router.get('/terms/:lang', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Unsupported language.' });
     }
     const doc = await TermsDocument.findOne({ language: lang }).lean();
-    if (!doc) return res.json({ language: lang, content: '', version: '', updatedAt: null, exists: false });
-    res.json({ ...doc, exists: true });
+    if (!doc) {
+      const bundled = readBundledLegal('terms', lang);
+      return res.json({
+        language: lang,
+        content: bundled,
+        version: '',
+        updatedAt: null,
+        exists: false,
+        source: bundled ? 'bundled' : 'empty',
+      });
+    }
+    res.json({ ...doc, exists: true, source: 'db' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -850,14 +886,19 @@ router.get('/privacy-policy', requireAdmin, async (req, res) => {
     const docs = await PrivacyPolicyDocument.find().lean();
     const byLang = {};
     for (const d of docs) byLang[d.language] = d;
-    const payload = PRIVACY_LANGS.map((lang) => ({
-      language: lang,
-      content: byLang[lang]?.content ?? '',
-      version: byLang[lang]?.version ?? '',
-      updatedAt: byLang[lang]?.updatedAt ?? null,
-      updatedBy: byLang[lang]?.updatedBy ?? '',
-      exists: Boolean(byLang[lang]),
-    }));
+    const payload = PRIVACY_LANGS.map((lang) => {
+      const has = Boolean(byLang[lang]);
+      const bundled = has ? '' : readBundledLegal('privacy', lang);
+      return {
+        language: lang,
+        content: has ? byLang[lang].content : bundled,
+        version: byLang[lang]?.version ?? '',
+        updatedAt: byLang[lang]?.updatedAt ?? null,
+        updatedBy: byLang[lang]?.updatedBy ?? '',
+        exists: has,
+        source: has ? 'db' : (bundled ? 'bundled' : 'empty'),
+      };
+    });
     res.json({ languages: PRIVACY_LANGS, documents: payload });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -871,8 +912,18 @@ router.get('/privacy-policy/:lang', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Unsupported language.' });
     }
     const doc = await PrivacyPolicyDocument.findOne({ language: lang }).lean();
-    if (!doc) return res.json({ language: lang, content: '', version: '', updatedAt: null, exists: false });
-    res.json({ ...doc, exists: true });
+    if (!doc) {
+      const bundled = readBundledLegal('privacy', lang);
+      return res.json({
+        language: lang,
+        content: bundled,
+        version: '',
+        updatedAt: null,
+        exists: false,
+        source: bundled ? 'bundled' : 'empty',
+      });
+    }
+    res.json({ ...doc, exists: true, source: 'db' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1622,6 +1673,7 @@ router.get('/posts', requireAdmin, async (req, res) => {
       id: p._id.toString(),
       postType: p.postType,
       body: p.body,
+      notes: p.notes || '',
       serviceTypes: p.serviceTypes || [],
       serviceLocation: p.serviceLocation,
       startDate: p.startDate,
