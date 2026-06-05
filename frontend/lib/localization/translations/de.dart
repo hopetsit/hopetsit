@@ -1205,6 +1205,8 @@ const Map<String, String> deDETranslations = <String, String>{
           'Aktuell kein Hundesitter in deiner Region. Du kannst eine Spaziergangs-Anfrage veröffentlichen — sie wird Hundesittern in deiner Nähe angezeigt.',
       'paw_map_search_city_hint': 'Stadt suchen…',
       'paw_map_filter_all': 'Alle',
+      'pawmap_filter_places': 'Orte',
+      'pawmap_filter_apply': 'Anwenden',
       // v23.1.147 — Aufgabe löschen.
       'task_delete_button': 'Aufgabe löschen',
       'task_delete_confirm_title': 'Diese Aufgabe löschen?',
@@ -2807,7 +2809,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'report_section_free_hint': 'Für alle verfügbar, mit 1 Tipp.',
     'report_section_premium': 'Premium',
     'report_section_premium_hint':
-        'Erfordert PawFollow- / PawPass-Plan.',
+        'Erfordert PawFollow- / PawFamily-Plan.',
     'report_what_to_report': 'Was möchtest du melden?',
     'tracking_sheet_address': 'Abfahrtsadresse',
     'tracking_sheet_available': 'Verfügbar',

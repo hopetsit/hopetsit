@@ -191,7 +191,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'report_section_free': 'Gratuit',
       'report_section_free_hint': 'Accessible a tous, en 1 clic.',
       'report_section_premium': 'Premium',
-      'report_section_premium_hint': 'Necessite un abo PawFollow / PawPass.',
+      'report_section_premium_hint': 'Necessite un abo PawFollow / PawFamily.',
       'report_cat_water_active': 'Point d\'eau OK',
       'report_cat_found_pet': 'Animal trouve',
       'report_cat_trap': 'Piege repere',
@@ -1297,6 +1297,8 @@ const Map<String, String> frFRTranslations = <String, String>{
           'Aucun promeneur dans votre zone pour le moment. Vous pouvez publier une demande de promenade — elle sera visible par les promeneurs à proximité.',
       'paw_map_search_city_hint': 'Chercher une ville…',
       'paw_map_filter_all': 'Tous',
+      'pawmap_filter_places': 'Lieux',
+      'pawmap_filter_apply': 'Appliquer',
       // v23.1.147 — supprimer une tâche.
       'task_delete_button': 'Supprimer la tâche',
       'task_delete_confirm_title': 'Supprimer cette tâche ?',

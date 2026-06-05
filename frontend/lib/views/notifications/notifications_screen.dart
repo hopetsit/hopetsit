@@ -464,7 +464,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (type == 'message_new' || type.contains('message')) {
       final conversationId = _dataString(data, 'conversationId');
       if (conversationId == null) return;
-      final isSitter = role == 'sitter';
+      // v23.1.286 — walker partage l'écran chat des prestataires (comme sitter).
+      // Avant, walker tombait dans la branche owner → mauvais écran de conv.
+      final isSitter = role == 'sitter' || role == 'walker';
       final contact = await _resolveChatContactForNotification(
         conversationId: conversationId,
         isSitter: isSitter,

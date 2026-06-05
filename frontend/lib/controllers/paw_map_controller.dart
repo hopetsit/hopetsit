@@ -36,6 +36,40 @@ class PawMapController extends GetxController {
 
   void clearFilters() => enabledCategories.clear();
 
+  // v23.1.285 — menu de filtres en CHECKLIST (cases cochées) au lieu des
+  // puces. Sémantique « coché = catégorie affichée » :
+  //   - enabledCategories vide = TOUTES affichées (toutes cochées).
+  //   - décocher une catégorie alors qu'on est en « toutes » → on bascule sur
+  //     un set explicite (toutes sauf celle décochée).
+  //   - si on re-coche toutes les catégories, on revient au set vide (= toutes)
+  //     pour rester cohérent avec categoryActive().
+  void setCategoryShown(String c, bool show, List<String> allCategories) {
+    if (enabledCategories.isEmpty) {
+      // état « toutes » → on matérialise le set complet avant de retirer.
+      enabledCategories.addAll(allCategories);
+    }
+    if (show) {
+      enabledCategories.add(c);
+    } else {
+      enabledCategories.remove(c);
+    }
+    // tout coché = revient à l'état « toutes » (set vide).
+    if (enabledCategories.length >= allCategories.length) {
+      enabledCategories.clear();
+    }
+  }
+
+  /// Tout afficher (équivalent « Tous »).
+  void selectAllCategories() => enabledCategories.clear();
+
+  /// Ne rien afficher : set explicite avec une catégorie sentinelle
+  /// inexistante → aucun POI ne matche (categoryActive renvoie false partout).
+  void hideAllCategories() {
+    enabledCategories
+      ..clear()
+      ..add('__none__');
+  }
+
   /// Fetch POIs within `maxDistanceMeters` of the given point.
   Future<void> loadNearby(LatLng center, {String? category}) async {
     isLoading.value = true;

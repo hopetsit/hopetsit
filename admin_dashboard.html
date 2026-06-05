@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HopeTSIT — Admin v23.1 part 240</title>
+<title>HoPetSit — Admin</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -178,7 +178,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   <form class="login-card" id="login-form" autocomplete="on"
         onsubmit="event.preventDefault(); login(); return false;"
         action="javascript:void(0)">
-    <div class="login-logo">🐾 HopeTSIT</div>
+    <div class="login-logo">🐾 HoPetSit</div>
     <div class="login-sub" data-i18n="login_sub">Admin Dashboard · Restricted Access</div>
     <label class="login-label" for="api-url" data-i18n="backend_url">Backend URL</label>
     <input id="api-url" class="login-input" type="url" autocomplete="url" name="url" placeholder="https://your-api.onrender.com" value=""/>
@@ -195,9 +195,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 <div id="app">
   <header>
     <div>
-      <span class="header-logo">🐾 HopeTSIT</span>
+      <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v240</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v286</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -215,49 +215,50 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <!-- SIDEBAR — v23.1 part 105 : reorganisée par catégories logiques. -->
     <nav class="sidebar">
       <!-- Vue d'ensemble -->
-      <div class="nav-section" style="margin-top:8px">📊 Vue d'ensemble</div>
-      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Tableau de bord</div>
-      <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> Mes revenus</div>
+      <div class="nav-section" style="margin-top:8px">📊 <span data-i18n="navsec_overview">Vue d'ensemble</span></div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Tableau de bord</span></div>
+      <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> <span data-i18n="nav_revenue">Mes revenus</span></div>
 
       <!-- Utilisateurs -->
-      <div class="nav-section" style="margin-top:18px">👥 Utilisateurs</div>
-      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> Propriétaires</div>
-      <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> Pet-sitters</div>
-      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> Promeneurs</div>
-      <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> Vérifications ID</div>
-      <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> Modération users</div>
-      <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> Avantages fidélité</div>
+      <div class="nav-section" style="margin-top:18px">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
+      <div class="nav-item" onclick="showPage('owners')"><span class="nav-icon">👤</span> <span data-i18n="nav_owners">Propriétaires</span></div>
+      <div class="nav-item" onclick="showPage('sitters')"><span class="nav-icon">🐕</span> <span data-i18n="nav_sitters">Pet-sitters</span></div>
+      <div class="nav-item" onclick="showPage('walkers')"><span class="nav-icon">🚶</span> <span data-i18n="nav_walkers">Promeneurs</span></div>
+      <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Vérifications ID</span></div>
+      <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
+      <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages fidélité</span></div>
 
       <!-- Activité -->
-      <div class="nav-section" style="margin-top:18px">📅 Activité</div>
-      <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> Réservations</div>
-      <div class="nav-item" onclick="showPage('annonces')"><span class="nav-icon">📣</span> Annonces</div>
-      <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> Chat &amp; messages</div>
-      <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> Avis utilisateurs</div>
-      <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> Signalements</div>
+      <div class="nav-section" style="margin-top:18px">📅 <span data-i18n="navsec_activity">Activité</span></div>
+      <div class="nav-item" onclick="showPage('bookings')"><span class="nav-icon">📅</span> <span data-i18n="nav_bookings">Réservations</span></div>
+      <div class="nav-item" onclick="showPage('annonces')"><span class="nav-icon">📣</span> <span data-i18n="nav_listings">Annonces</span></div>
+      <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> <span data-i18n="nav_chat">Chat &amp; messages</span></div>
+      <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> <span data-i18n="nav_reviews">Avis utilisateurs</span></div>
+      <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> <span data-i18n="nav_reports">Signalements</span></div>
 
       <!-- Finance -->
-      <div class="nav-section" style="margin-top:18px">💳 Finance</div>
-      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💳</span> Paiements</div>
-      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> Factures</div>
-      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> Virements IBAN</div>
-      <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> Portefeuilles</div>
+      <div class="nav-section" style="margin-top:18px">💳 <span data-i18n="navsec_finance">Finance</span></div>
+      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💳</span> <span data-i18n="nav_payments">Paiements</span></div>
+      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Factures</span></div>
+      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">Virements IBAN</span></div>
+      <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> <span data-i18n="nav_wallets">Portefeuilles</span></div>
+      <div class="nav-item" onclick="showPage('accounting')"><span class="nav-icon">📒</span> <span data-i18n="nav_accounting">Comptabilité</span></div>
 
       <!-- Boutique -->
-      <div class="nav-section" style="margin-top:18px">🛍️ Boutique</div>
-      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> Activité boutique</div>
-      <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> Tarifs</div>
-      <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> Services</div>
+      <div class="nav-section" style="margin-top:18px">🛍️ <span data-i18n="navsec_shop">Boutique</span></div>
+      <div class="nav-item" onclick="showPage('boosts')"><span class="nav-icon">🚀</span> <span data-i18n="nav_shop_activity">Activité boutique</span></div>
+      <div class="nav-item" onclick="showPage('pricing')"><span class="nav-icon">💶</span> <span data-i18n="nav_pricing">Tarifs</span></div>
+      <div class="nav-item" onclick="showPage('services')"><span class="nav-icon">🧰</span> <span data-i18n="nav_services">Services</span></div>
 
       <!-- Contenu -->
-      <div class="nav-section" style="margin-top:18px">📜 Contenu</div>
-      <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> CGU</div>
-      <div class="nav-item" onclick="showPage('privacy')"><span class="nav-icon">🔒</span> Confidentialité</div>
+      <div class="nav-section" style="margin-top:18px">📜 <span data-i18n="navsec_content">Contenu</span></div>
+      <div class="nav-item" onclick="showPage('terms')"><span class="nav-icon">📜</span> <span data-i18n="nav_terms">CGU</span></div>
+      <div class="nav-item" onclick="showPage('privacy')"><span class="nav-icon">🔒</span> <span data-i18n="nav_privacy">Confidentialité</span></div>
 
       <!-- Système -->
-      <div class="nav-section" style="margin-top:18px">⚙️ Système</div>
-      <div class="nav-item" onclick="showPage('pawmap')"><span class="nav-icon">🗺️</span> PawMap</div>
-      <div class="nav-item" onclick="showPage('bugs')"><span class="nav-icon">🐛</span> Bugs reportés</div>
+      <div class="nav-section" style="margin-top:18px">⚙️ <span data-i18n="navsec_system">Système</span></div>
+      <div class="nav-item" onclick="showPage('pawmap')"><span class="nav-icon">🗺️</span> <span data-i18n="nav_pawmap">PawMap</span></div>
+      <div class="nav-item" onclick="showPage('bugs')"><span class="nav-icon">🐛</span> <span data-i18n="nav_bugs">Bugs reportés</span></div>
     </nav>
 
     <!-- PAGES -->
@@ -279,25 +280,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
         <div class="stats-grid" id="stats-grid">
           <div class="loading"><div class="spinner"></div> <span data-i18n="loading">Chargement...</span></div>
-        </div>
-
-        <!-- v23.1 part 240 — "What's new" pour les admins. Récapitule les
-             grosses features ajoutées en v240 + les endpoints / models
-             côté backend qui ont été modifiés. Pas i18n (admin-only, FR). -->
-        <div style="margin:24px 0;border:1px solid #EF432255;background:linear-gradient(135deg,#FFF1ED 0%,#fff 100%);border-radius:14px;padding:18px 20px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-            <span style="background:#EF4324;color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:12px">NOUVEAU · v240</span>
-            <span style="font-family:Syne,sans-serif;font-size:16px;font-weight:700;color:#0F172A">Fonctionnalités v240 livrées</span>
-          </div>
-          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7;color:#334155">
-            <li><strong>PawFollow Famille :</strong> jusqu'à 4 membres par plan, position partagée sur la même map (`UserSubscription.familyMembers`).</li>
-            <li><strong>Partage adresse RDV :</strong> nouveau type Message <code>address_share</code> — visible dans la section Chat ci-dessus.</li>
-            <li><strong>Suivi position en direct :</strong> halo vert (walker) / bleu (sitter) sur la PawMap. Endpoint <code>/conversations/:id/peer-position</code>.</li>
-            <li><strong>Slider "Près de chez moi" :</strong> 50km min, vraie distance Haversine pour les sitters cityMatch (fix bug `distance=0`).</li>
-            <li><strong>Persona KYC 409 fix :</strong> check du status + recovery automatique sur 409 conflict — voir la page Vérifications ID.</li>
-            <li><strong>Bug fix friendChat :</strong> DELETE conversation/message accepte maintenant les conversations <code>friendChat: true</code> (participants[]).</li>
-            <li><strong>i18n :</strong> 472 nouvelles traductions ES/DE/IT/PT + 9 strings hardcoded corrigées.</li>
-          </ul>
         </div>
 
         <div class="section-title">💳 <span data-i18n="dash_recent_payments">Paiements récents</span></div>
@@ -697,6 +679,17 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </p>
         <div class="stats-grid" id="payouts-summary"></div>
         <div style="margin-top:20px" id="payouts-details"></div>
+      </div>
+
+      <!-- COMPTABILITÉ (v286) — bilan des bénéfices HoPetSit pour le comptable -->
+      <div id="page-accounting" class="page">
+        <div class="section-title">📒 <span data-i18n="acc_title">Comptabilité — Mon bilan</span></div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:820px;line-height:1.6">
+          <span data-i18n="acc_desc">Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (Boost, PawSpot, Premium, Chat). Hors paiements reversés aux prestataires. Pour mon comptable.</span>
+          <button class="action-btn btn-primary" style="margin-left:10px" onclick="exportAccountingCsv()">⬇️ <span data-i18n="acc_export">Exporter CSV</span></button>
+        </div>
+        <div class="stats-grid" id="accounting-summary"></div>
+        <div style="margin-top:20px" id="accounting-details"></div>
       </div>
 
       <!-- BUG REPORTS (v20.0.8) -->
@@ -1272,6 +1265,7 @@ function showPage(name) {
   if (name === 'reports') initReportsPage();
   if (name === 'chat') loadChatConversations();
   if (name === 'wallets') loadAdminWallets();
+  if (name === 'accounting') loadAccounting();
   if (name === 'loyalty') loadAdminLoyalty();
   if (name === 'payouts') loadAdminPayouts();
   if (name === 'bugs') loadBugReports();
@@ -3267,8 +3261,16 @@ async function loadChatConversations() {
     const rows = (data.conversations || []).map(c => {
       const when = c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleString() : '';
       const preview = escapeHtml((c.lastMessage || '').slice(0, 60));
+      // v286 — affiche les NOMS des participants (owner + prestataire) au lieu
+      // de juste l'ID de conversation.
+      const owner = escapeHtml(c.ownerName || '—');
+      const provider = escapeHtml(c.providerName || '—');
+      const roleTag = c.providerRole
+        ? `<span style="background:${c.providerRole === 'walker' ? '#1976D2' : '#5942CC'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;text-transform:uppercase;margin-left:4px">${c.providerRole}</span>`
+        : '';
       return `<div class="card" style="padding:10px;cursor:pointer" onclick="loadChatMessages('${c.id}')">
-        <div style="font-weight:600;font-size:13px">${c.id.slice(-6)} - ${when}</div>
+        <div style="font-weight:600;font-size:13px">👤 ${owner} ⇄ ${provider}${roleTag}</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:2px">#${c.id.slice(-6)} · ${when}</div>
         <div style="color:var(--text-muted);font-size:12px;margin-top:4px">${preview}</div>
       </div>`;
     }).join('');
@@ -3448,6 +3450,80 @@ async function loadAdminPayouts() {
   } catch (e) {
     det.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
   }
+}
+
+// v286 — COMPTABILITÉ : vue dédiée "pour mon comptable". Réutilise /admin/payouts
+// (commissions + boutique) et présente UNIQUEMENT mes bénéfices HoPetSit, avec
+// export CSV. Les 80% reversés aux prestataires ne sont pas comptés ici.
+let _accountingData = null;
+async function loadAccounting() {
+  const sum = document.getElementById('accounting-summary');
+  const det = document.getElementById('accounting-details');
+  if (!sum || !det) return;
+  sum.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  det.innerHTML = '';
+  try {
+    const d = await api('/admin/payouts');
+    _accountingData = d;
+    const s = d.summary || {};
+    const b = d.bookings || {};
+    const bb = s.boutiqueBreakdown || {};
+    const f = (n) => Number(n || 0).toFixed(2);
+    const commission = Number(s.commissionAllTime || 0);
+    const boutique = Number(s.boutiqueAllTime || 0);
+    sum.innerHTML =
+      '<div class="stat-card" style="--accent:#EF4324"><div class="stat-label">💼 Commissions (réservations)</div><div class="stat-value">' + f(commission) + ' EUR</div><div class="stat-sub">' + (s.bookingCount || 0) + ' réservations payées</div></div>' +
+      '<div class="stat-card" style="--accent:#8B5CF6"><div class="stat-label">🛍️ Revenus boutique</div><div class="stat-value">' + f(boutique) + ' EUR</div><div class="stat-sub">Boost + PawSpot + Premium + Chat</div></div>' +
+      '<div class="stat-card" style="--accent:#16A34A"><div class="stat-label">📒 Bénéfice total HoPetSit</div><div class="stat-value" style="color:var(--green)">' + f(commission + boutique) + ' EUR</div><div class="stat-sub">Commissions + Boutique</div></div>' +
+      '<div class="stat-card" style="--accent:#0EA5E9"><div class="stat-label">📈 CA brut réservations</div><div class="stat-value">' + f(b.grossAllTime) + ' EUR</div><div class="stat-sub">total encaissé (avant reversement prestataires)</div></div>';
+    det.innerHTML =
+      '<h3 style="font-size:16px;margin:20px 0 10px">💼 Commissions par période</h3>' +
+      '<table class="table"><thead><tr><th>Période</th><th>Commissions</th><th>Réservations</th></tr></thead><tbody>' +
+      '<tr><td><strong>7 derniers jours</strong></td><td>' + f(b.last7d && b.last7d.commission) + ' EUR</td><td>' + ((b.last7d && b.last7d.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>30 derniers jours</strong></td><td>' + f(b.last30d && b.last30d.commission) + ' EUR</td><td>' + ((b.last30d && b.last30d.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>Ce mois</strong></td><td>' + f(b.thisMonth && b.thisMonth.commission) + ' EUR</td><td>' + ((b.thisMonth && b.thisMonth.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>Depuis le début</strong></td><td><strong>' + f(b.commissionAllTime) + ' EUR</strong></td><td>' + (b.count || 0) + '</td></tr>' +
+      '</tbody></table>' +
+      '<h3 style="font-size:16px;margin:24px 0 10px">🛍️ Revenus boutique par produit</h3>' +
+      '<table class="table"><thead><tr><th>Produit</th><th>Total</th><th>Achats</th></tr></thead><tbody>' +
+      '<tr><td><strong>🚀 Boost profil</strong></td><td>' + f(bb.profileBoost && bb.profileBoost.total) + ' EUR</td><td>' + ((bb.profileBoost && bb.profileBoost.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>🗺️ PawSpot (map boost)</strong></td><td>' + f(bb.mapBoost && bb.mapBoost.total) + ' EUR</td><td>' + ((bb.mapBoost && bb.mapBoost.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>⭐ Premium / PawFollow</strong></td><td>' + f(bb.premium && bb.premium.total) + ' EUR</td><td>' + ((bb.premium && bb.premium.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>💬 Chat add-on</strong></td><td>' + f(bb.chatAddon && bb.chatAddon.total) + ' EUR</td><td>' + ((bb.chatAddon && bb.chatAddon.count) || 0) + '</td></tr>' +
+      '<tr><td><strong>Total boutique</strong></td><td><strong>' + f(boutique) + ' EUR</strong></td><td></td></tr>' +
+      '</tbody></table>' +
+      '<p style="margin-top:14px;color:var(--text-muted);font-size:13px">Note comptable : ces montants sont les <strong>bénéfices HoPetSit</strong> (commissions plateforme + boutique). Les paiements reversés aux prestataires (≈80%) ne sont PAS comptés ici.</p>';
+  } catch (e) {
+    det.innerHTML = '<div style="color:var(--red)">' + e.message + '</div>';
+  }
+}
+
+function exportAccountingCsv() {
+  const d = _accountingData;
+  if (!d) { alert('Ouvre d\'abord la page Comptabilité pour charger les données.'); return; }
+  const s = d.summary || {}; const b = d.bookings || {}; const bb = s.boutiqueBreakdown || {};
+  const f = (n) => Number(n || 0).toFixed(2);
+  const rows = [
+    ['Categorie', 'Libelle', 'Montant_EUR', 'Nombre'],
+    ['Commissions', 'Total (toutes reservations)', f(s.commissionAllTime), s.bookingCount || 0],
+    ['Commissions', '7 derniers jours', f(b.last7d && b.last7d.commission), (b.last7d && b.last7d.count) || 0],
+    ['Commissions', '30 derniers jours', f(b.last30d && b.last30d.commission), (b.last30d && b.last30d.count) || 0],
+    ['Commissions', 'Ce mois', f(b.thisMonth && b.thisMonth.commission), (b.thisMonth && b.thisMonth.count) || 0],
+    ['Boutique', 'Boost profil', f(bb.profileBoost && bb.profileBoost.total), (bb.profileBoost && bb.profileBoost.count) || 0],
+    ['Boutique', 'PawSpot (map boost)', f(bb.mapBoost && bb.mapBoost.total), (bb.mapBoost && bb.mapBoost.count) || 0],
+    ['Boutique', 'Premium / PawFollow', f(bb.premium && bb.premium.total), (bb.premium && bb.premium.count) || 0],
+    ['Boutique', 'Chat add-on', f(bb.chatAddon && bb.chatAddon.total), (bb.chatAddon && bb.chatAddon.count) || 0],
+    ['Boutique', 'Total boutique', f(s.boutiqueAllTime), ''],
+    ['Total', 'Benefice HoPetSit (commissions + boutique)', f(Number(s.commissionAllTime || 0) + Number(s.boutiqueAllTime || 0)), ''],
+    ['Info', 'CA brut reservations (avant reversement)', f(b.grossAllTime), b.count || 0],
+  ];
+  const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'comptabilite_hopetsit_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // v23.1 part 100 — Daniel : "rien que aujourdhui jai payer plus de 30e
@@ -4176,6 +4252,10 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Accéder au tableau de bord →",
         logout: "Déconnexion",
         loading: "Chargement...",
+        navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Finance", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
+        nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Propriétaires", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés",
+        acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
+        acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (Boost, PawSpot, Premium, Chat). Hors paiements reversés aux prestataires. Pour mon comptable.",
         dash_overview: "Vue d'ensemble",
         dash_recent_payments: "Paiements récents",
         loyalty_title: "Avantages fidélité",
@@ -4189,6 +4269,10 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Access Dashboard →",
         logout: "Logout",
         loading: "Loading...",
+        navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "Finance", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
+        nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Owners", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports",
+        acc_title: "Accounting — My balance", acc_export: "Export CSV",
+        acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
         dash_overview: "Overview",
         dash_recent_payments: "Recent payments",
         loyalty_title: "Loyalty benefits",
@@ -4202,6 +4286,10 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Acceder al panel →",
         logout: "Cerrar sesión",
         loading: "Cargando...",
+        navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
+        nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Propietarios", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados",
+        acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
+        acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
         dash_overview: "Resumen",
         dash_recent_payments: "Pagos recientes",
         loyalty_title: "Ventajas de fidelidad",

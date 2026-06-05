@@ -1224,6 +1224,8 @@ const Map<String, String> itITTranslations = <String, String>{
           'Nessun dog walker nella tua zona al momento. Puoi pubblicare una richiesta di passeggiata — sarà visibile ai dog walker nelle vicinanze.',
       'paw_map_search_city_hint': 'Cerca una città…',
       'paw_map_filter_all': 'Tutti',
+      'pawmap_filter_places': 'Luoghi',
+      'pawmap_filter_apply': 'Applica',
       // v23.1.147 — eliminare un'attività.
       'task_delete_button': 'Elimina attività',
       'task_delete_confirm_title': 'Eliminare questa attività?',
@@ -2802,7 +2804,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'report_section_free': 'Gratis',
     'report_section_free_hint': 'Disponibile per tutti, con 1 tocco.',
     'report_section_premium': 'Premium',
-    'report_section_premium_hint': 'Richiede piano PawFollow / PawPass.',
+    'report_section_premium_hint': 'Richiede piano PawFollow / PawFamily.',
     'report_what_to_report': 'Cosa vuoi segnalare?',
     'tracking_sheet_address': 'Indirizzo di partenza',
     'tracking_sheet_available': 'Disponibile',

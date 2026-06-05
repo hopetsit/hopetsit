@@ -1041,6 +1041,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
           'Nenhum passeador na tua zona neste momento. Podes publicar um pedido de passeio — ficará visível para os passeadores próximos.',
       'paw_map_search_city_hint': 'Procurar uma cidade…',
       'paw_map_filter_all': 'Todos',
+      'pawmap_filter_places': 'Locais',
+      'pawmap_filter_apply': 'Aplicar',
       // v23.1.147 — eliminar uma tarefa.
       'task_delete_button': 'Eliminar tarefa',
       'task_delete_confirm_title': 'Eliminar esta tarefa?',
@@ -2640,7 +2642,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'report_section_free_hint': 'Disponível para todos, em 1 toque.',
     'report_section_premium': 'Premium',
     'report_section_premium_hint':
-        'Requer plano PawFollow / PawPass.',
+        'Requer plano PawFollow / PawFamily.',
     'report_what_to_report': 'O que queres reportar?',
     'tracking_sheet_address': 'Endereço de partida',
     'tracking_sheet_available': 'Disponível',

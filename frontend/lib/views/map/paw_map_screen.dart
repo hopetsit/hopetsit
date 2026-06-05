@@ -115,6 +115,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   final RxBool _showReports = true.obs;
   final RxBool _showFriends = true.obs;
   final RxBool _showRequests = true.obs;
+  // v23.1.285 — Daniel : "améliore le menu de la pawmap comme la photo".
+  // Filtre catégories POI en CHECKLIST repliable (au lieu des puces qui
+  // défilaient horizontalement). _showCatFilter = panneau ouvert/fermé.
+  final RxBool _showCatFilter = false.obs;
 
   // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la trace".
   // Mode SUIVI LIVE : quand on tape un ami sur la carte (ou qu'on ouvre la map
@@ -1685,43 +1689,11 @@ class _PawMapScreenState extends State<PawMapScreen>
           // Layer toggle row (POIs / Reports)
           _buildLayerRow(),
 
-          // Category chips (POIs filter)
-          SizedBox(
-            height: 48.h,
-            child: Obx(() {
-              // `.toSet()` forces a synchronous read of the RxSet's contents
-              // inside the Obx builder. Without it, GetX reports "improper
-              // use of GetX" because the real lookups (.isEmpty / .contains)
-              // happen in the itemBuilder closure, which runs outside the
-              // builder's reactive scope.
-              final active = _poiController.enabledCategories.toSet();
-              return ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                itemCount: PoiCategories.all.length + 1,
-                separatorBuilder: (_, __) => SizedBox(width: 8.w),
-                itemBuilder: (_, i) {
-                  if (i == 0) {
-                    final isAll = active.isEmpty;
-                    return _Chip(
-                      // v23.1.147 — fix i18n : "Tous" hardcodé FR → .tr.
-                      label: 'paw_map_filter_all'.tr,
-                      emoji: '✨',
-                      selected: isAll,
-                      onTap: _poiController.clearFilters,
-                    );
-                  }
-                  final cat = PoiCategories.all[i - 1];
-                  return _Chip(
-                    label: PoiCategories.label(cat),
-                    emoji: PoiCategories.emoji(cat),
-                    selected: active.contains(cat),
-                    onTap: () => _poiController.toggleCategory(cat),
-                  );
-                },
-              );
-            }),
-          ),
+          // v23.1.285 — Daniel : "améliore le menu de la pawmap comme la photo".
+          // Filtre catégories POI : bouton « Lieux (N) » + bouton « Tous », qui
+          // ouvre une checklist 2 colonnes repliable (au lieu des puces qui
+          // défilaient horizontalement et qu'on ne voyait pas en entier).
+          _buildCategoryFilterBar(),
 
           // Map
           Expanded(
@@ -2868,6 +2840,238 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
       );
     });
+  }
+
+  // v23.1.285 — barre de filtre catégories POI + checklist 2 colonnes
+  // repliable (remplace les puces horizontales). Le panneau pousse la carte
+  // vers le bas (il est dans la Column, pas en overlay → pas de souci de z-index
+  // au-dessus de GoogleMap).
+  Widget _buildCategoryFilterBar() {
+    return Obx(() {
+      final selected = _poiController.enabledCategories
+          .where((c) => c != '__none__')
+          .toSet();
+      final total = PoiCategories.all.length;
+      // « toutes » = set vide ; sinon nb de catégories cochées.
+      final shownCount = selected.isEmpty ? total : selected.length;
+      final allShown = selected.isEmpty;
+      final open = _showCatFilter.value;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+            child: Row(
+              children: [
+                // Bouton principal : ouvre/ferme la checklist.
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14.r),
+                    onTap: () => _showCatFilter.value = !open,
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4324),
+                        borderRadius: BorderRadius.circular(14.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFEF4324).withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('📍', style: TextStyle(fontSize: 14.sp)),
+                          SizedBox(width: 7.w),
+                          InterText(
+                            text:
+                                '${'pawmap_filter_places'.tr} ($shownCount/$total)',
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 4.w),
+                          Icon(
+                            open
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: Colors.white,
+                            size: 20.sp,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                // Bouton « Tous » : tout afficher (set vide).
+                InkWell(
+                  borderRadius: BorderRadius.circular(14.r),
+                  onTap: _poiController.selectAllCategories,
+                  child: Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.card(context),
+                      borderRadius: BorderRadius.circular(14.r),
+                      border: Border.all(
+                        color: allShown
+                            ? const Color(0xFFEF4324)
+                            : AppColors.greyText.withValues(alpha: 0.35),
+                        width: 1.4,
+                      ),
+                    ),
+                    child: InterText(
+                      text: 'paw_map_filter_all'.tr,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                      color: allShown
+                          ? const Color(0xFFEF4324)
+                          : AppColors.textPrimary(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Checklist 2 colonnes (repliable).
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            child: open
+                ? _buildCategoryChecklist(selected)
+                : const SizedBox.shrink(),
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildCategoryChecklist(Set<String> selected) {
+    final cats = PoiCategories.all;
+    final allShown = selected.isEmpty;
+    bool isChecked(String c) => allShown || selected.contains(c);
+    return Container(
+      margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+        border: Border.all(color: AppColors.greyText.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Grille 2 colonnes.
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 4.6,
+            mainAxisSpacing: 2.h,
+            crossAxisSpacing: 6.w,
+            children: cats.map((cat) {
+              final checked = isChecked(cat);
+              return InkWell(
+                borderRadius: BorderRadius.circular(10.r),
+                onTap: () =>
+                    _poiController.setCategoryShown(cat, !checked, cats),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                  child: Row(
+                    children: [
+                      Text(PoiCategories.emoji(cat),
+                          style: TextStyle(fontSize: 15.sp)),
+                      SizedBox(width: 7.w),
+                      Expanded(
+                        child: InterText(
+                          text: PoiCategories.label(cat),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Case à cocher.
+                      Container(
+                        width: 20.w,
+                        height: 20.w,
+                        decoration: BoxDecoration(
+                          color: checked
+                              ? const Color(0xFFEF4324)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6.r),
+                          border: Border.all(
+                            color: checked
+                                ? const Color(0xFFEF4324)
+                                : AppColors.greyText.withValues(alpha: 0.5),
+                            width: 1.6,
+                          ),
+                        ),
+                        child: checked
+                            ? Icon(Icons.check_rounded,
+                                size: 14.sp, color: Colors.white)
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 6.h),
+          // Actions : Tout afficher / Fermer.
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _poiController.selectAllCategories,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color: AppColors.greyText.withValues(alpha: 0.4)),
+                    padding: EdgeInsets.symmetric(vertical: 8.h),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r)),
+                  ),
+                  child: InterText(
+                    text: 'paw_map_filter_all'.tr,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _showCatFilter.value = false,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4324),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: EdgeInsets.symmetric(vertical: 8.h),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r)),
+                  ),
+                  child: InterText(
+                    text: 'pawmap_filter_apply'.tr,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildLayerRow() {

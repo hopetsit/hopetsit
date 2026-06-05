@@ -13,6 +13,22 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+// v23.1.286 — Daniel : "un mail message m'a ouvert la page Signaler".
+// CAUSE : le deep-link routait vers des routes nommées NON enregistrées
+// (Get.toNamed('/chat'…)) → échec silencieux → l'app restait sur l'onglet par
+// défaut (PawMap + bouton Signaler). On pousse désormais le VRAI écran, par
+// rôle, comme le fait déjà /friends.
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/notifications/notifications_screen.dart';
+import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
+import 'package:hopetsit/views/pet_owner/booking/owner_bookings_screen.dart';
+import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/profile/sitter_profile_screen.dart';
+import 'package:hopetsit/views/pet_walker/booking/walker_bookings_screen.dart';
+import 'package:hopetsit/views/pet_walker/profile/walker_profile_screen.dart';
+import 'package:hopetsit/views/profile/profile_screen.dart';
 
 /// v18.8 — écoute les deep links `hopetsit://pay/:bookingId` envoyés dans
 /// les emails "Bonne nouvelle, votre demande de réservation vient d'être
@@ -204,38 +220,31 @@ class DeepLinkService {
       }
       await _openPayment(rawBookingId);
     } else if (first == 'chat') {
-      // Récupère ?conversationId ou /chat/:id. Pour l'instant on navigue vers
-      // le tab Chat — l'écran individuel sera ouvert via le badge si besoin.
-      Get.toNamed('/chat');
+      // v23.1.286 — ouvre la liste de chat (écran selon le rôle). Avant :
+      // Get.toNamed('/chat') = route non enregistrée → no-op → l'app restait
+      // sur la PawMap (bouton Signaler) → Daniel croyait ouvrir « Signaler ».
+      _openChatList();
     } else if (first == 'bookings') {
-      Get.toNamed('/bookings');
+      _openBookingsScreen();
     } else if (first == 'notifications') {
-      Get.toNamed('/notifications');
+      _openNotificationsScreen();
     } else if (first == 'walk') {
-      // v23.1.155 — Daniel : "connecte les boutons quon recois par mail
-      // a lapp ou le web". Les emails (walk_started / walk_finished)
-      // pointent vers https://hopetsit.com/walk/<bookingId>. Dans l'app
-      // on ouvre la fiche reservation (le live walk est integre dedans
-      // pour owner et walker).
-      Get.toNamed('/bookings');
+      // v23.1.155 — emails walk_started / walk_finished → fiche réservation
+      // (le live walk est intégré dedans pour owner et walker).
+      _openBookingsScreen();
     } else if (first == 'book' || first == 'post') {
-      // v23.1.155 — post (annonce owner) : on ouvre le home owner pour
-      // l'instant. L'app n'a pas encore d'ecran detail dedicate pour un
-      // post specifique cote sitter/walker — ils voient les posts dans
-      // leur home tab et peuvent y candidater.
-      Get.toNamed('/');
+      // post (annonce) : pas d'écran détail dédié → on ouvre les réservations
+      // (owner y voit ses demandes ; sitter/walker y voient leurs missions).
+      _openBookingsScreen();
     } else if (first == 'wallet') {
-      // v23.1.155 — emails payout_succeeded / payout_failed pointent
-      // vers /wallet. L'app navigue vers le tab profil ou le user voit
-      // son solde dans la carte Mes paiements.
-      Get.toNamed('/profile');
+      // emails payout / wallet → profil (le solde y est affiché).
+      _openProfileScreen();
     } else if (first == 'subscription' || first == 'paw-spot' ||
-               first == 'pawspot') {
-      // v23.1.155 — emails subscription / map_boost : on redirige vers
-      // la boutique (Paw Shop) ou ces achats vivent.
-      Get.toNamed('/shop');
+               first == 'pawspot' || first == 'shop') {
+      // emails subscription / map_boost → boutique (Paw Shop).
+      Get.to(() => const CoinShopScreen());
     } else if (first == 'profile') {
-      Get.toNamed('/profile');
+      _openProfileScreen();
     } else if (first == 'friends' || first == 'amis' ||
                first == 'family' || first == 'live') {
       // v23.1.254 — Daniel : "verifie tt les bouton quon recois sur mail
@@ -261,6 +270,59 @@ class DeepLinkService {
       AppLogger.logInfo(
         'DeepLink path not handled (no-op): "${uri.path}"',
       );
+    }
+  }
+
+  // v23.1.286 — navigation par rôle vers les VRAIS écrans (les routes nommées
+  // /chat, /bookings… n'étaient pas enregistrées → no-op). On pousse l'écran
+  // comme le fait /friends. Le rôle vient de AuthController.
+  String _currentRole() {
+    try {
+      return (Get.find<AuthController>().userRole.value ?? '').toLowerCase();
+    } catch (_) {
+      return 'owner';
+    }
+  }
+
+  void _openChatList() {
+    if (_currentRole() == 'owner') {
+      Get.to(() => const ChatScreen());
+    } else {
+      Get.to(() => const SitterChatScreen()); // sitter + walker partagent
+    }
+  }
+
+  void _openBookingsScreen() {
+    switch (_currentRole()) {
+      case 'walker':
+        Get.to(() => const WalkerBookingsScreen());
+        break;
+      case 'sitter':
+        Get.to(() => const SitterBookingsScreen());
+        break;
+      default:
+        Get.to(() => const OwnerBookingsScreen());
+    }
+  }
+
+  void _openNotificationsScreen() {
+    if (_currentRole() == 'owner') {
+      Get.to(() => const NotificationsScreen());
+    } else {
+      Get.to(() => const SitterNotificationsScreen()); // sitter + walker
+    }
+  }
+
+  void _openProfileScreen() {
+    switch (_currentRole()) {
+      case 'walker':
+        Get.to(() => const WalkerProfileScreen());
+        break;
+      case 'sitter':
+        Get.to(() => const SitterProfileScreen());
+        break;
+      default:
+        Get.to(() => const ProfileScreen());
     }
   }
 

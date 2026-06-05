@@ -1112,6 +1112,8 @@ const Map<String, String> esESTranslations = <String, String>{
           'Ningún paseador en tu zona por el momento. Puedes publicar una solicitud de paseo — será visible para los paseadores cercanos.',
       'paw_map_search_city_hint': 'Buscar una ciudad…',
       'paw_map_filter_all': 'Todos',
+      'pawmap_filter_places': 'Lugares',
+      'pawmap_filter_apply': 'Aplicar',
       // v23.1.147 — eliminar una tarea.
       'task_delete_button': 'Eliminar tarea',
       'task_delete_confirm_title': '¿Eliminar esta tarea?',
@@ -2764,7 +2766,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'report_section_free': 'Gratis',
     'report_section_free_hint': 'Disponible para todos, 1 toque.',
     'report_section_premium': 'Premium',
-    'report_section_premium_hint': 'Requiere plan PawFollow / PawPass.',
+    'report_section_premium_hint': 'Requiere plan PawFollow / PawFamily.',
     'report_what_to_report': '¿Qué quieres reportar?',
     'tracking_sheet_address': 'Dirección de partida',
     'tracking_sheet_available': 'Disponible',

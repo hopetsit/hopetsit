@@ -182,7 +182,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'report_section_free': 'Free',
       'report_section_free_hint': 'Available to everyone, 1 tap.',
       'report_section_premium': 'Premium',
-      'report_section_premium_hint': 'Requires PawFollow / PawPass plan.',
+      'report_section_premium_hint': 'Requires PawFollow / PawFamily plan.',
       'report_cat_water_active': 'Water point OK',
       'report_cat_found_pet': 'Found pet',
       'report_cat_trap': 'Trap spotted',
@@ -1229,6 +1229,8 @@ const Map<String, String> enUSTranslations = <String, String>{
           'No walker in your area at the moment. You can post a walk request — it will be visible to walkers nearby.',
       'paw_map_search_city_hint': 'Search a city…',
       'paw_map_filter_all': 'All',
+      'pawmap_filter_places': 'Places',
+      'pawmap_filter_apply': 'Apply',
       // v23.1.147 — task delete.
       'task_delete_button': 'Delete task',
       'task_delete_confirm_title': 'Delete this task?',

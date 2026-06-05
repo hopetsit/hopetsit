@@ -2094,18 +2094,48 @@ router.get('/conversations', requireAdmin, async (req, res) => {
       .sort({ lastMessageAt: -1, updatedAt: -1 })
       .limit(limit)
       .lean();
+    // v286 — Daniel : "dans le chat admin on ne voit pas les noms". On résout
+    // les noms des participants (owner + prestataire) en batch pour les
+    // afficher au lieu de simples IDs.
+    const ownerIds = [], sitterIds = [], walkerIds = [];
+    for (const c of rows) {
+      if (c.ownerId) ownerIds.push(c.ownerId);
+      if (c.sitterId) sitterIds.push(c.sitterId);
+      if (c.walkerId) walkerIds.push(c.walkerId);
+    }
+    const nameOf = (u) =>
+      [u.firstName, u.lastName].filter(Boolean).join(' ').trim() ||
+      (u.email ? String(u.email).split('@')[0] : '') ||
+      String(u._id);
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find({ _id: { $in: ownerIds } }).select('firstName lastName email').lean(),
+      Sitter.find({ _id: { $in: sitterIds } }).select('firstName lastName email').lean(),
+      Walker.find({ _id: { $in: walkerIds } }).select('firstName lastName email').lean(),
+    ]);
+    const oMap = new Map(owners.map((u) => [String(u._id), nameOf(u)]));
+    const sMap = new Map(sitters.map((u) => [String(u._id), nameOf(u)]));
+    const wMap = new Map(walkers.map((u) => [String(u._id), nameOf(u)]));
     res.json({
-      conversations: rows.map((c) => ({
-        id: c._id.toString(),
-        ownerId: c.ownerId ? c.ownerId.toString() : null,
-        sitterId: c.sitterId ? c.sitterId.toString() : null,
-        walkerId: c.walkerId ? c.walkerId.toString() : null,
-        lastMessage: c.lastMessage || '',
-        lastMessageAt: c.lastMessageAt || c.updatedAt,
-        ownerUnreadCount: c.ownerUnreadCount || 0,
-        sitterUnreadCount: c.sitterUnreadCount || 0,
-        walkerUnreadCount: c.walkerUnreadCount || 0,
-      })),
+      conversations: rows.map((c) => {
+        const providerRole = c.walkerId ? 'walker' : (c.sitterId ? 'sitter' : null);
+        const providerName = c.walkerId
+          ? (wMap.get(String(c.walkerId)) || null)
+          : (c.sitterId ? (sMap.get(String(c.sitterId)) || null) : null);
+        return {
+          id: c._id.toString(),
+          ownerId: c.ownerId ? c.ownerId.toString() : null,
+          sitterId: c.sitterId ? c.sitterId.toString() : null,
+          walkerId: c.walkerId ? c.walkerId.toString() : null,
+          ownerName: c.ownerId ? (oMap.get(String(c.ownerId)) || null) : null,
+          providerName,
+          providerRole,
+          lastMessage: c.lastMessage || '',
+          lastMessageAt: c.lastMessageAt || c.updatedAt,
+          ownerUnreadCount: c.ownerUnreadCount || 0,
+          sitterUnreadCount: c.sitterUnreadCount || 0,
+          walkerUnreadCount: c.walkerUnreadCount || 0,
+        };
+      }),
     });
   } catch (e) {
     logger.error('[admin/conversations]', e);
