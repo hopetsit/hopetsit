@@ -2852,9 +2852,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           .where((c) => c != '__none__')
           .toSet();
       final total = PoiCategories.all.length;
-      // v23.1.287 — Daniel : "le bouton doit être au contraire 'Rien' : si je
-      // clique dessus tous les lieux s'effacent". « Rien » = on éteint la
-      // couche POI (_showPois). « Tous » = on la rallume + on enlève le filtre.
+      // v23.1.288 — Daniel : retirer le bouton « Rien » (inutile). Pour tout
+      // masquer, on utilise le toggle 📍 de la rangée de couches. « Tous »
+      // rallume la couche POI + enlève le filtre. _showPois reste piloté par ce
+      // toggle maître ; on garde la logique de comptage ci-dessous.
       final poisOn = _showPois.value;
       final allShown = poisOn && selected.isEmpty;
       // 0 si la couche est éteinte (Rien), sinon nb affiché.
@@ -2939,48 +2940,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                       color: allShown
                           ? const Color(0xFFEF4324)
                           : AppColors.textPrimary(context),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8.w),
-                // Bouton « Rien » : éteint la couche POI → tous les lieux
-                // disparaissent de la carte (v23.1.287, demande Daniel).
-                InkWell(
-                  borderRadius: BorderRadius.circular(14.r),
-                  onTap: () => _showPois.value = false,
-                  child: Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-                    decoration: BoxDecoration(
-                      color: !poisOn
-                          ? const Color(0xFFEF4324)
-                          : AppColors.card(context),
-                      borderRadius: BorderRadius.circular(14.r),
-                      border: Border.all(
-                        color: !poisOn
-                            ? const Color(0xFFEF4324)
-                            : AppColors.greyText.withValues(alpha: 0.35),
-                        width: 1.4,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.block_rounded,
-                            size: 14.sp,
-                            color: !poisOn
-                                ? Colors.white
-                                : AppColors.greyText),
-                        SizedBox(width: 4.w),
-                        InterText(
-                          text: 'pawmap_filter_none'.tr,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w800,
-                          color: !poisOn
-                              ? Colors.white
-                              : AppColors.textPrimary(context),
-                        ),
-                      ],
                     ),
                   ),
                 ),
@@ -3079,7 +3038,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             }).toList(),
           ),
           SizedBox(height: 6.h),
-          // Actions : Tous (tout afficher) / Rien (tout cacher) / Appliquer.
+          // Actions : Tous (tout afficher) / Appliquer.
           Row(
             children: [
               Expanded(
@@ -3097,25 +3056,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                   ),
                   child: InterText(
                     text: 'paw_map_filter_all'.tr,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _showPois.value = false,
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                        color: AppColors.greyText.withValues(alpha: 0.4)),
-                    padding: EdgeInsets.symmetric(vertical: 8.h),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r)),
-                  ),
-                  child: InterText(
-                    text: 'pawmap_filter_none'.tr,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary(context),

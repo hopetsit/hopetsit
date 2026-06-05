@@ -7,6 +7,7 @@ const app = require('./app');
 const createSocketServer = require('./sockets');
 const { startPayoutScheduler } = require('./services/payoutScheduler');
 const { startMapTtlScheduler } = require('./services/mapReportTtlScheduler');
+const { startPostCleanupScheduler } = require('./services/postCleanupScheduler');
 const pricingService = require('./services/pricingService');
 const serviceCatalogService = require('./services/serviceCatalogService');
 const { seedAdmin } = require('./scripts/seedAdmin');
@@ -43,6 +44,8 @@ async function startServer() {
     });
     startPayoutScheduler();
     startMapTtlScheduler();
+    // v23.1.288 — supprime les annonces 48h après la fin du service.
+    startPostCleanupScheduler();
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);

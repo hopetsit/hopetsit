@@ -126,6 +126,24 @@ const postSchema = new mongoose.Schema(
     bannedReason: { type: String, default: '' },
     moderationNote: { type: String, default: '' },
 
+    // v23.1.288 — Daniel : "après 48h que le service soit FINI, les annonces
+    // publiées s'effacent automatiquement". Cycle de vie de l'annonce :
+    //   • status:'closed' + closedAt sont posés par completeBooking quand le
+    //     service est terminé (booking 'completed').
+    //   • postCleanupScheduler supprime ensuite l'annonce 48h après closedAt
+    //     (ou 48h après endDate pour les demandes dont la période est passée).
+    // ⚠️ SANS ces champs au schéma, le $set de completeBooking était
+    // SILENCIEUSEMENT ignoré (Mongoose strict mode) → l'annonce ne se
+    // fermait/effaçait jamais. C'est la cause du bug signalé.
+    status: {
+      type: String,
+      enum: ['open', 'closed'],
+      default: 'open',
+      index: true,
+    },
+    closedAt: { type: Date, default: null, index: true },
+    closedReason: { type: String, default: '' },
+
     // Session v17.1 — reservation marker. Set when the owner accepts an
     // Application for this post (respondToApplication) and a Booking is
     // created. Cleared when the resulting booking is cancelled. Frontend

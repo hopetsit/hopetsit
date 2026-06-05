@@ -449,7 +449,10 @@ const getRequestPosts = async (req, res) => {
     const { ownerId } = req.query;
     // hidden=true means an admin has banned/hidden the post — never surface
     // those on normal user feeds (admin has its own endpoint for that).
-    const filter = { postType: 'request', hidden: { $ne: true } };
+    // v23.1.288 — exclure les annonces 'closed' (service terminé) des feeds.
+    // status est absent sur les anciennes annonces → toujours affichées ; seules
+    // celles fermées par completeBooking sont masquées.
+    const filter = { postType: 'request', hidden: { $ne: true }, status: { $ne: 'closed' } };
     if (ownerId) {
       filter.ownerId = ownerId;
     }
@@ -630,7 +633,10 @@ const getNearbyRequestPosts = async (req, res) => {
         .json({ error: 'Valid lat and lng query params are required.' });
     }
 
-    const filter = { postType: 'request', hidden: { $ne: true } };
+    // v23.1.288 — exclure les annonces 'closed' (service terminé) des feeds.
+    // status est absent sur les anciennes annonces → toujours affichées ; seules
+    // celles fermées par completeBooking sont masquées.
+    const filter = { postType: 'request', hidden: { $ne: true }, status: { $ne: 'closed' } };
 
     // Sitter service-preference filter (mirrors getRequestPosts).
     if (req.user?.role === 'sitter') {
