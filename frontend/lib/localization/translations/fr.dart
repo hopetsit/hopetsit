@@ -2018,6 +2018,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'review_delete_failed': 'Impossible de supprimer l\'avis. Veuillez réessayer.',
       'reviews_delete_confirm_title': 'Supprimer l\'avis ?',
       'reviews_delete_confirm_body': 'Cette action est définitive et retirera votre note et votre commentaire.',
+      'review_prompt_title': 'Comment s\'est passé le service ?',
+      'review_prompt_cta': 'Noter le prestataire',
       'post_already_reserved_cta': 'Déjà réservé',
       'application_card_price_label': 'Rémunération de cette prestation',
       'application_card_you_receive': 'Tu touches @amount net',

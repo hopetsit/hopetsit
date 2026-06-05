@@ -2015,6 +2015,8 @@ const Map<String, String> enUSTranslations = <String, String>{
       'review_delete_failed': 'Unable to delete review. Please try again.',
       'reviews_delete_confirm_title': 'Delete review?',
       'reviews_delete_confirm_body': 'This action is permanent and will remove your rating and comment.',
+      'review_prompt_title': 'How was the service?',
+      'review_prompt_cta': 'Rate the provider',
       'post_already_reserved_cta': 'Already reserved',
       'application_card_price_label': 'Your earnings for this service',
       'application_card_you_receive': 'You receive @amount net',

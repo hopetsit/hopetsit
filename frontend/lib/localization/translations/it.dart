@@ -1800,6 +1800,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'review_delete_failed': 'Impossibile eliminare la recensione. Riprova.',
       'reviews_delete_confirm_title': 'Eliminare la recensione?',
       'reviews_delete_confirm_body': 'Questa azione è definitiva e rimuoverà la tua valutazione e il commento.',
+      'review_prompt_title': 'Com\'è andato il servizio?',
+      'review_prompt_cta': 'Valuta il prestatore',
       'post_already_reserved_cta': 'Già prenotato',
       'application_card_price_label': 'Compenso per questo servizio',
       'application_card_you_receive': 'Ricevi @amount netti',

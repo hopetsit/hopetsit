@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/views/reviews/reviews_screen.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -391,8 +392,91 @@ class _OwnerBookingsScreenState extends State<OwnerBookingsScreen> {
                 onConfirm: () => _onServiceConfirm(booking),
                 onDispute: () => _onServiceDispute(booking),
               ),
+            // v23.1.291 — Daniel : note inline directement sur la carte une
+            // fois le service confirmé/terminé (maquette owner). Taper une
+            // étoile ou le lien ouvre l'écran d'avis (note pré-sélectionnée).
+            if (booking.confirmationStatus == 'confirmed' ||
+                booking.status.toLowerCase() == 'completed')
+              _buildReviewPrompt(booking),
           ],
         ),
+      ),
+    );
+  }
+
+  // v23.1.291 — carte de note inline (maquette owner) : « Comment s'est passé
+  // le service ? » + 5 étoiles tappables + lien « Noter le prestataire ». Taper
+  // ouvre l'écran d'avis (qui gère création OU édition si déjà noté), avec la
+  // note pré-sélectionnée selon l'étoile touchée.
+  Widget _buildReviewPrompt(BookingModel booking) {
+    final serviceLower = (booking.serviceType ?? '').toLowerCase();
+    final resolvedRole = (serviceLower.contains('walking') ||
+            serviceLower.contains('dog_walking'))
+        ? 'walker'
+        : 'sitter';
+    void openReview(int rating) {
+      Get.to(
+        () => ReviewsScreen(
+          serviceProviderName: booking.sitter.name,
+          phoneNumber: booking.sitter.mobile,
+          email: booking.sitter.email,
+          profileImagePath: booking.sitter.avatar.url.isNotEmpty
+              ? booking.sitter.avatar.url
+              : null,
+          serviceProviderId: booking.sitter.id,
+          bookingId: booking.id,
+          revieweeRole: resolvedRole,
+          initialRating: rating,
+        ),
+      );
+    }
+
+    return Container(
+      margin: EdgeInsets.only(top: 12.h),
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4EF),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: const Color(0xFFFFD9CC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PoppinsText(
+            text: 'review_prompt_title'.tr,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 10.h),
+          Row(
+            children: List.generate(5, (i) {
+              return GestureDetector(
+                onTap: () => openReview(i + 1),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: EdgeInsets.only(right: 8.w),
+                  child: Icon(
+                    Icons.star_rounded,
+                    size: 34.sp,
+                    color: AppColors.grey300Color,
+                  ),
+                ),
+              );
+            }),
+          ),
+          SizedBox(height: 10.h),
+          GestureDetector(
+            onTap: () => openReview(0),
+            behavior: HitTestBehavior.opaque,
+            child: InterText(
+              text: 'review_prompt_cta'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryColor,
+            ),
+          ),
+        ],
       ),
     );
   }

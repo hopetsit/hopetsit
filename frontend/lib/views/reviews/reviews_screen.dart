@@ -20,6 +20,9 @@ class ReviewsScreen extends StatefulWidget {
   // sitter vs walker.
   final String? bookingId;
   final String? revieweeRole; // 'sitter' | 'walker'
+  // v23.1.291 — note pré-sélectionnée depuis la carte de réservation (l'owner
+  // tape une étoile sur la carte → l'écran s'ouvre avec cette note).
+  final int initialRating;
 
   const ReviewsScreen({
     super.key,
@@ -30,6 +33,7 @@ class ReviewsScreen extends StatefulWidget {
     this.serviceProviderId,
     this.bookingId,
     this.revieweeRole,
+    this.initialRating = 0,
   });
 
   @override
@@ -55,6 +59,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     if (!mounted) return;
     if (controller.isEditing.value) {
       descriptionController.text = controller.description.value;
+    } else if (widget.initialRating > 0) {
+      // Pré-sélection venue de la carte de réservation.
+      controller.setRating(widget.initialRating);
     }
   }
 

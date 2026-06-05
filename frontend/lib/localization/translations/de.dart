@@ -1821,6 +1821,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'review_delete_failed': 'Bewertung konnte nicht gelöscht werden. Bitte erneut versuchen.',
       'reviews_delete_confirm_title': 'Bewertung löschen?',
       'reviews_delete_confirm_body': 'Diese Aktion ist endgültig und entfernt deine Note und deinen Kommentar.',
+      'review_prompt_title': 'Wie war der Service?',
+      'review_prompt_cta': 'Anbieter bewerten',
       'post_already_reserved_cta': 'Bereits reserviert',
       'application_card_price_label': 'Vergütung für diese Leistung',
       'application_card_you_receive': 'Du erhältst @amount netto',
