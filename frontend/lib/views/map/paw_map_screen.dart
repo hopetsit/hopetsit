@@ -2943,6 +2943,49 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ),
                   ),
                 ),
+                SizedBox(width: 8.w),
+                // v23.1.289 — Daniel : remettre le bouton « Rien » à droite de
+                // « Tous ». « Rien » éteint la couche POI → tous les lieux
+                // disparaissent de la carte.
+                InkWell(
+                  borderRadius: BorderRadius.circular(14.r),
+                  onTap: () => _showPois.value = false,
+                  child: Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+                    decoration: BoxDecoration(
+                      color: !poisOn
+                          ? const Color(0xFFEF4324)
+                          : AppColors.card(context),
+                      borderRadius: BorderRadius.circular(14.r),
+                      border: Border.all(
+                        color: !poisOn
+                            ? const Color(0xFFEF4324)
+                            : AppColors.greyText.withValues(alpha: 0.35),
+                        width: 1.4,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.block_rounded,
+                            size: 14.sp,
+                            color: !poisOn
+                                ? Colors.white
+                                : AppColors.greyText),
+                        SizedBox(width: 4.w),
+                        InterText(
+                          text: 'pawmap_filter_none'.tr,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w800,
+                          color: !poisOn
+                              ? Colors.white
+                              : AppColors.textPrimary(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
