@@ -1231,6 +1231,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'paw_map_filter_all': 'All',
       'pawmap_filter_places': 'Places',
       'pawmap_filter_apply': 'Apply',
+      'pawmap_filter_none': 'None',
       // v23.1.147 — task delete.
       'task_delete_button': 'Delete task',
       'task_delete_confirm_title': 'Delete this task?',

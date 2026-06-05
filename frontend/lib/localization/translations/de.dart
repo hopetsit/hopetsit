@@ -1207,6 +1207,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'paw_map_filter_all': 'Alle',
       'pawmap_filter_places': 'Orte',
       'pawmap_filter_apply': 'Anwenden',
+      'pawmap_filter_none': 'Keine',
       // v23.1.147 — Aufgabe löschen.
       'task_delete_button': 'Aufgabe löschen',
       'task_delete_confirm_title': 'Diese Aufgabe löschen?',

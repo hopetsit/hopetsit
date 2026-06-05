@@ -62,14 +62,6 @@ class PawMapController extends GetxController {
   /// Tout afficher (équivalent « Tous »).
   void selectAllCategories() => enabledCategories.clear();
 
-  /// Ne rien afficher : set explicite avec une catégorie sentinelle
-  /// inexistante → aucun POI ne matche (categoryActive renvoie false partout).
-  void hideAllCategories() {
-    enabledCategories
-      ..clear()
-      ..add('__none__');
-  }
-
   /// Fetch POIs within `maxDistanceMeters` of the given point.
   Future<void> loadNearby(LatLng center, {String? category}) async {
     isLoading.value = true;

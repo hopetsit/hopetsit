@@ -1299,6 +1299,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'paw_map_filter_all': 'Tous',
       'pawmap_filter_places': 'Lieux',
       'pawmap_filter_apply': 'Appliquer',
+      'pawmap_filter_none': 'Rien',
       // v23.1.147 — supprimer une tâche.
       'task_delete_button': 'Supprimer la tâche',
       'task_delete_confirm_title': 'Supprimer cette tâche ?',

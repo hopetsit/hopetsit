@@ -1226,6 +1226,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'paw_map_filter_all': 'Tutti',
       'pawmap_filter_places': 'Luoghi',
       'pawmap_filter_apply': 'Applica',
+      'pawmap_filter_none': 'Niente',
       // v23.1.147 — eliminare un'attività.
       'task_delete_button': 'Elimina attività',
       'task_delete_confirm_title': 'Eliminare questa attività?',

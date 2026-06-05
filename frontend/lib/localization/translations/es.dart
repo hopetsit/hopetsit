@@ -1114,6 +1114,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'paw_map_filter_all': 'Todos',
       'pawmap_filter_places': 'Lugares',
       'pawmap_filter_apply': 'Aplicar',
+      'pawmap_filter_none': 'Nada',
       // v23.1.147 — eliminar una tarea.
       'task_delete_button': 'Eliminar tarea',
       'task_delete_confirm_title': '¿Eliminar esta tarea?',

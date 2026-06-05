@@ -2188,9 +2188,19 @@ router.get('/wallets', requireAdmin, async (req, res) => {
         .limit(200)
         .lean(),
     ]);
+    // v286 — Daniel : "le solde des portefeuilles est erroné" (0 par ligne
+    // alors que le total = 21). CAUSE : le dashboard lit w.balance / w.currency
+    // alors que la DB expose walletBalance / walletCurrency. On ajoute les alias
+    // balance / currency pour que chaque ligne affiche le bon solde.
     const rows = [
-      ...sitters.map((s) => ({ role: 'sitter', ...s, id: s._id.toString() })),
-      ...walkers.map((w) => ({ role: 'walker', ...w, id: w._id.toString() })),
+      ...sitters.map((s) => ({
+        role: 'sitter', ...s, id: s._id.toString(),
+        balance: s.walletBalance || 0, currency: s.walletCurrency || 'EUR',
+      })),
+      ...walkers.map((w) => ({
+        role: 'walker', ...w, id: w._id.toString(),
+        balance: w.walletBalance || 0, currency: w.walletCurrency || 'EUR',
+      })),
     ].sort((a, b) => (b.walletBalance || 0) - (a.walletBalance || 0));
 
     const totalBalance = rows.reduce((sum, r) => sum + (r.walletBalance || 0), 0);
