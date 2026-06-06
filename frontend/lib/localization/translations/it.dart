@@ -2797,7 +2797,6 @@ const Map<String, String> itITTranslations = <String, String>{
     'report_cat_food': 'Cibo',
     'live_share_notif_title': 'Condivisione posizione attiva',
     'live_share_notif_text': 'I tuoi amici vedono la tua posizione. Tocca per gestire.',
-    'review_report': 'Segnala',
     'review_report_confirm': 'Segnalare questa recensione come offensiva o abusiva?',
     'review_reported': 'Recensione segnalata — grazie.',
     'review_report_failed': 'Segnalazione non riuscita. Riprova.',

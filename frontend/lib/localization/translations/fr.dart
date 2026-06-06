@@ -188,7 +188,6 @@ const Map<String, String> frFRTranslations = <String, String>{
       'report_cat_food': 'Nourriture',
       'live_share_notif_title': 'Partage de position actif',
       'live_share_notif_text': 'Vos amis peuvent voir votre position. Touchez pour gérer.',
-      'review_report': 'Signaler',
       'review_report_confirm': 'Signaler cet avis comme insultant ou abusif ?',
       'review_reported': 'Avis signalé — merci.',
       'review_report_failed': 'Échec du signalement. Réessayez.',

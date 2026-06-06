@@ -2760,7 +2760,6 @@ const Map<String, String> esESTranslations = <String, String>{
     'report_cat_food': 'Comida',
     'live_share_notif_title': 'Compartir ubicación activo',
     'live_share_notif_text': 'Tus amigos pueden ver tu ubicación. Toca para gestionar.',
-    'review_report': 'Reportar',
     'review_report_confirm': '¿Reportar esta reseña como insultante o abusiva?',
     'review_reported': 'Reseña reportada — gracias.',
     'review_report_failed': 'Error al reportar. Inténtalo de nuevo.',

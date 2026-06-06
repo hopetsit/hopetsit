@@ -2634,7 +2634,6 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'report_cat_food': 'Comida',
     'live_share_notif_title': 'Partilha de localização ativa',
     'live_share_notif_text': 'Os teus amigos veem a tua localização. Toca para gerir.',
-    'review_report': 'Denunciar',
     'review_report_confirm': 'Denunciar esta avaliação como insultuosa ou abusiva?',
     'review_reported': 'Avaliação denunciada — obrigado.',
     'review_report_failed': 'Falha ao denunciar. Tente novamente.',

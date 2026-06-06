@@ -179,7 +179,6 @@ const Map<String, String> enUSTranslations = <String, String>{
       'report_cat_food': 'Food',
       'live_share_notif_title': 'Live location sharing on',
       'live_share_notif_text': 'Your friends can see your location. Tap to manage.',
-      'review_report': 'Report',
       'review_report_confirm': 'Report this review as insulting or abusive?',
       'review_reported': 'Review reported — thanks.',
       'review_report_failed': 'Report failed. Please retry.',

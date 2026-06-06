@@ -2801,7 +2801,6 @@ const Map<String, String> deDETranslations = <String, String>{
     'report_cat_food': 'Futter',
     'live_share_notif_title': 'Standortfreigabe aktiv',
     'live_share_notif_text': 'Deine Freunde sehen deinen Standort. Zum Verwalten tippen.',
-    'review_report': 'Melden',
     'review_report_confirm': 'Diese Bewertung als beleidigend oder missbräuchlich melden?',
     'review_reported': 'Bewertung gemeldet — danke.',
     'review_report_failed': 'Melden fehlgeschlagen. Bitte erneut versuchen.',
