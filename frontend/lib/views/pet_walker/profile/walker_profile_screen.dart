@@ -219,15 +219,9 @@ class WalkerProfileScreen extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             )),
-                        SizedBox(height: 4.h),
-                        Obx(() => InterText(
-                              text: controller.email.value,
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white.withValues(alpha: 0.85),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )),
+                        // v23.1.299 — Daniel : "le mail apparaît dans le profil
+                        // en haut, enlève-le". Email retiré du héros (owner,
+                        // sitter, walker) pour un en-tête épuré et cohérent.
                         // v23.1 part 109 — badges Boost / PawSpot / Premium.
                         const ActiveBenefitsRow(compact: true),
                         SizedBox(height: 6.h),

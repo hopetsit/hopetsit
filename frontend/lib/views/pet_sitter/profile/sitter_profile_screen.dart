@@ -45,7 +45,15 @@ class SitterProfileScreen extends StatelessWidget {
       case 'house_sitting':
         return 'choose_service_card_house_sitting_title'.tr;
       default:
-        return s;
+        // v23.1.299 — Daniel : "vérifie la traduction des petits badges".
+        // Filet de sécurité : une valeur de service inconnue ne s'affiche plus
+        // en brut (ex "house_sitting") mais prettifiée ("House Sitting").
+        return s
+            .replaceAll('_', ' ')
+            .split(' ')
+            .where((w) => w.isNotEmpty)
+            .map((w) => w[0].toUpperCase() + w.substring(1))
+            .join(' ');
     }
   }
 
@@ -188,13 +196,9 @@ class SitterProfileScreen extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         )),
-                        SizedBox(height: 4.h),
-                        Obx(() => InterText(
-                          text: controller.email.value,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.white.withValues(alpha: 0.85),
-                        )),
+                        // v23.1.299 — Daniel : "le mail apparaît dans le profil
+                        // en haut, enlève-le". Email retiré du héros (owner,
+                        // sitter, walker) pour un en-tête épuré et cohérent.
                         // v23.1 part 109 — badges Boost / PawSpot / Premium.
                         const ActiveBenefitsRow(compact: true),
                         SizedBox(height: 6.h),
