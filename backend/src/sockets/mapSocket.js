@@ -114,6 +114,29 @@ async function listPositionListeners(userId, role) {
       role: otherRole,
     });
   }
+
+  // v23.1.297 — Daniel : "jai 5 amis/famille en direct et le cercle compte 2 ;
+  // il faut compter famille ET amis". Les co-membres famille qui ne sont PAS
+  // aussi des amis acceptés n'apparaissaient jamais ici → leur position
+  // n'arrivait jamais (et inversement), donc le badge "Mon cercle" les
+  // ignorait. On fusionne les membres famille actifs (perk payé = partage
+  // auto, sans toggle par membre), en dédupliquant avec les amis déjà ajoutés.
+  try {
+    const { listFamilyMembers } = require('../models/UserSubscription');
+    const fam = await listFamilyMembers(userId);
+    if (fam.length) {
+      const seen = new Set(listeners.map((l) => String(l.userId)));
+      for (const m of fam) {
+        if (!seen.has(String(m.userId))) {
+          seen.add(String(m.userId));
+          listeners.push({ userId: m.userId, role: m.role });
+        }
+      }
+    }
+  } catch (e) {
+    logger.warn(`[mapSocket:listPositionListeners] family merge failed : ${e.message}`);
+  }
+
   return listeners;
 }
 

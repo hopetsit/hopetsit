@@ -503,6 +503,53 @@ async function hasActivePawFollow(userId) {
   return !!asMember;
 }
 
+// v23.1.297 — Daniel : "jai 5 amis/famille en direct et le cercle compte 2 ;
+// il faut compter famille ET amis". Le fanout position (mapSocket) ne se basait
+// QUE sur Friendship → un membre famille qui n'est pas aussi un ami accepté
+// n'était jamais listener, donc sa position n'arrivait jamais (et inversement),
+// et le badge "Mon cercle" l'ignorait. Ce helper liste tous les co-membres
+// famille ACTIFS d'un user (peu importe qui est le titulaire), retournés sous
+// la forme { userId, role } prête à pousser via emitToUser. Self exclu, dédupé.
+async function listFamilyMembers(userId) {
+  if (!userId) return [];
+  const Model = mongoose.model('UserSubscription');
+  const now = new Date();
+  const me = String(userId);
+  const isActive = (m) => !m.status || m.status === 'active';
+  const out = new Map(); // id -> { userId, role }
+
+  const add = (rawId, rawModel) => {
+    if (!rawId) return;
+    const id = String(rawId);
+    if (id === me || out.has(id)) return;
+    out.set(id, { userId: id, role: String(rawModel || 'owner').toLowerCase() });
+  };
+
+  try {
+    // 1) Je suis titulaire d'une sub famille active → mes membres actifs.
+    const mine = await Model.findOne({ userId: me, ...familyActiveMatch(now) }).lean();
+    if (mine && Array.isArray(mine.familyMembers)) {
+      for (const m of mine.familyMembers) {
+        if (isActive(m)) add(m.userId, m.userModel);
+      }
+    }
+
+    // 2) Subs famille actives où JE figure comme membre → titulaire + co-membres.
+    const containingMe = await Model.find({
+      'familyMembers.userId': me,
+      ...familyActiveMatch(now),
+    }).lean();
+    for (const sub of containingMe) {
+      add(sub.userId, sub.userModel); // le titulaire
+      for (const m of sub.familyMembers || []) {
+        if (isActive(m)) add(m.userId, m.userModel); // les co-membres
+      }
+    }
+  } catch (_) {/* best-effort : on renvoie ce qu'on a */}
+
+  return Array.from(out.values());
+}
+
 module.exports = mongoose.model('UserSubscription', userSubscriptionSchema);
 module.exports.PREMIUM_PLANS = PREMIUM_PLANS;
 module.exports.PREMIUM_PLAN_INTERVALS = PREMIUM_PLAN_INTERVALS;
@@ -510,6 +557,8 @@ module.exports.PREMIUM_PRICING = PREMIUM_PRICING;
 module.exports.PREMIUM_FEATURES_DEFAULT = PREMIUM_FEATURES_DEFAULT;
 module.exports.isInSameFamily = isInSameFamily;
 module.exports.hasActivePawFollow = hasActivePawFollow;
+// v23.1.297 — fanout position famille (mapSocket "Mon cercle").
+module.exports.listFamilyMembers = listFamilyMembers;
 // v23.1.283 — découplage famille / individuel.
 module.exports.familyExpiryOf = familyExpiryOf;
 module.exports.familyActiveMatch = familyActiveMatch;

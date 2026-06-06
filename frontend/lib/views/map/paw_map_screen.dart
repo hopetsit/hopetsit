@@ -1394,6 +1394,14 @@ class _PawMapScreenState extends State<PawMapScreen>
           .map((m) => ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
           .where((id) => id.isNotEmpty)
           .toSet();
+      // v23.1.297 — Daniel : "compter famille ET amis". Le backend pousse
+      // désormais aussi la position des membres famille (mapSocket). Lookup
+      // id->map pour dessiner leur pin même s'ils ne sont PAS aussi des amis
+      // (sinon ils comptent dans "Mon cercle" mais n'ont aucun marqueur).
+      final familyById = {
+        for (final m in _friendController.familyMembers)
+          ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase(): m,
+      };
       for (final pos in _liveMap.friendPositions.values) {
         final friend = friendById[pos.userId];
         // v23.1 part 240 — autorise aussi l'affichage du focusUserId (sitter
@@ -1401,13 +1409,26 @@ class _PawMapScreenState extends State<PawMapScreen>
         // d'amis. Sinon Daniel voit le halo sans le pin → confusion.
         final isFocus =
             (widget.focusUserId ?? '').isNotEmpty && pos.userId == widget.focusUserId;
-        if (friend == null && !isFocus) continue;
+        // v23.1.297 — fallback membre famille (pas forcément un ami) : on le
+        // dessine quand même pour qu'il apparaisse sur la carte ET dans le
+        // compteur "Mon cercle".
+        final famMember = friend == null
+            ? familyById[pos.userId.trim().toLowerCase()]
+            : null;
+        if (friend == null && famMember == null && !isFocus) continue;
+        final famName = (famMember?['name'] ?? '').toString();
         final displayName = friend?.other!.name ??
+            (famName.isNotEmpty ? famName : null) ??
             widget.focusUserName ??
             '—';
         // v249 — choix du role + avatar.
-        final role = (friend?.other?.model ?? pos.role).toLowerCase();
-        final avatarUrl = friend?.other?.avatar ?? '';
+        final famRole = (famMember?['role'] ?? '').toString();
+        final role = (friend?.other?.model ??
+                (famRole.isNotEmpty ? famRole : pos.role))
+            .toLowerCase();
+        final famAvatar = (famMember?['avatar'] ?? '').toString();
+        final avatarUrl = friend?.other?.avatar ??
+            (famAvatar.isNotEmpty ? famAvatar : '');
         final isFamily = familyMemberIds.contains(
           pos.userId.trim().toLowerCase(),
         );
