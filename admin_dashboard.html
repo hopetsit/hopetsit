@@ -2875,7 +2875,8 @@ function renderPaymentsTable(payments, total) {
             <td>
               <button class="action-btn" onclick="openPaymentDetail('${p._id}')" title="Manage" style="font-size:11px">⚙️</button>
               ${p.payoutStatus === 'failed' || p.payoutStatus === 'pending' ? `<button class="action-btn btn-verify" onclick="retryPayout('${p._id}')" title="Retry payout" style="font-size:11px">🔄</button>` : ''}
-              ${p.paymentStatus === 'paid' ? `<button class="action-btn" onclick="adminRefund('${p._id}')" title="Refund" style="font-size:11px;color:var(--red)">💸</button>` : ''}
+              ${p.paymentStatus === 'paid' ? `<button class="action-btn" onclick="adminRefund('${p._id}')" title="Rembourser le client" style="font-size:11px;color:var(--red)">💸</button>` : ''}
+              ${(p.paymentStatus === 'pending' || p.paymentStatus === 'failed') ? `<button class="action-btn" onclick="adminCancelPayment('${p._id}')" title="Annuler le paiement" style="font-size:11px;color:var(--red)">🚫</button>` : ''}
               ${p.payoutError ? `<span title="${escapeHtml(p.payoutError)}" style="cursor:help">⚠️</span>` : ''}
             </td>
           </tr>
@@ -2979,7 +2980,8 @@ function showPaymentModal(p) {
         <!-- Action buttons -->
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="action-btn btn-primary" onclick="savePaymentStatusOverride('${p._id}')" style="flex:1">💾 Save Status</button>
-          ${p.paymentStatus === 'paid' ? `<button class="action-btn" onclick="adminRefundFromModal('${p._id}')" style="flex:1;background:#ef4444;color:white;border-color:#ef4444">💸 Full Refund</button>` : ''}
+          ${p.paymentStatus === 'paid' ? `<button class="action-btn" onclick="adminRefundFromModal('${p._id}')" style="flex:1;background:#ef4444;color:white;border-color:#ef4444">💸 Rembourser le client</button>` : ''}
+          ${(p.paymentStatus === 'pending' || p.paymentStatus === 'failed') ? `<button class="action-btn" onclick="adminCancelPaymentFromModal('${p._id}')" style="flex:1;background:#ef4444;color:white;border-color:#ef4444">🚫 Annuler le paiement</button>` : ''}
           ${p.payoutStatus === 'failed' || p.payoutStatus === 'pending' ? `<button class="action-btn btn-verify" onclick="retryPayoutFromModal('${p._id}')" style="flex:1">🔄 Retry Payout</button>` : ''}
         </div>
       </div>
@@ -3001,26 +3003,74 @@ async function savePaymentStatusOverride(bookingId) {
   } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 
+// v23.1.298 — affiche les avertissements renvoyés par le backend (ex : refund
+// provider échoué, crédit wallet non repris) pour que l'admin sache si l'argent
+// est VRAIMENT revenu au client ou si une réconciliation manuelle est requise.
+function refundOutcomeToast(result) {
+  const warnings = result?.outcome?.warnings || [];
+  const msg = result?.message || 'Remboursement traité ✓';
+  if (warnings.length) {
+    showToast('⚠️ ' + msg + ' — ' + warnings.join(' | '), 'error');
+  } else {
+    showToast('✓ ' + msg, 'success');
+  }
+}
+
 async function adminRefund(bookingId) {
-  const reason = prompt('Reason for refund (optional):');
+  const reason = prompt('Raison du remboursement (optionnel) :');
   if (reason === null) return; // cancelled
-  if (!confirm('⚠️ Issue a FULL REFUND for this booking? This will refund the owner and cancel the sitter payout.')) return;
+  if (!confirm('⚠️ Rembourser INTÉGRALEMENT cette réservation ? Le client sera recrédité et le versement au prestataire annulé.')) return;
   try {
     const result = await api(`/admin/bookings/${bookingId}/refund`, 'POST', { reason: reason || 'admin_manual' });
-    showToast('Refund processed ✓ ' + (result.message || ''), 'success');
+    refundOutcomeToast(result);
     loadPayments();
-  } catch (e) { showToast('Refund error: ' + e.message, 'error'); }
+  } catch (e) { showToast('Erreur remboursement : ' + e.message, 'error'); }
 }
 
 async function adminRefundFromModal(bookingId) {
   const reason = document.getElementById('pm-reason')?.value || 'admin_manual';
-  if (!confirm('⚠️ Issue a FULL REFUND? The owner will be refunded and sitter payout cancelled.')) return;
+  if (!confirm('⚠️ Rembourser INTÉGRALEMENT ? Le client sera recrédité et le versement au prestataire annulé.')) return;
   try {
-    await api(`/admin/bookings/${bookingId}/refund`, 'POST', { reason });
+    const result = await api(`/admin/bookings/${bookingId}/refund`, 'POST', { reason });
     document.getElementById('payment-detail-modal')?.remove();
-    showToast('Refund processed ✓', 'success');
+    refundOutcomeToast(result);
     loadPayments();
-  } catch (e) { showToast('Refund error: ' + e.message, 'error'); }
+  } catch (e) { showToast('Erreur remboursement : ' + e.message, 'error'); }
+}
+
+// v23.1.298 — Daniel : "annuler paiement". Annule un paiement NON capturé
+// (en attente / échoué). Pour une booking déjà payée, le backend renvoie 409
+// et il faut utiliser le remboursement à la place.
+function cancelOutcomeToast(result) {
+  const warnings = result?.outcome?.warnings || [];
+  const msg = result?.message || 'Paiement annulé ✓';
+  if (warnings.length) {
+    showToast('⚠️ ' + msg + ' — ' + warnings.join(' | '), 'error');
+  } else {
+    showToast('✓ ' + msg, 'success');
+  }
+}
+
+async function adminCancelPayment(bookingId) {
+  const reason = prompt('Raison de l\'annulation (optionnel) :');
+  if (reason === null) return;
+  if (!confirm('⚠️ Annuler le paiement de cette réservation ? (uniquement si non payé)')) return;
+  try {
+    const result = await api(`/admin/bookings/${bookingId}/cancel-payment`, 'POST', { reason: reason || 'admin_cancel' });
+    cancelOutcomeToast(result);
+    loadPayments();
+  } catch (e) { showToast('Erreur annulation : ' + e.message, 'error'); }
+}
+
+async function adminCancelPaymentFromModal(bookingId) {
+  const reason = document.getElementById('pm-reason')?.value || 'admin_cancel';
+  if (!confirm('⚠️ Annuler le paiement de cette réservation ? (uniquement si non payé)')) return;
+  try {
+    const result = await api(`/admin/bookings/${bookingId}/cancel-payment`, 'POST', { reason });
+    document.getElementById('payment-detail-modal')?.remove();
+    cancelOutcomeToast(result);
+    loadPayments();
+  } catch (e) { showToast('Erreur annulation : ' + e.message, 'error'); }
 }
 
 async function retryPayoutFromModal(bookingId) {

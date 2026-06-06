@@ -270,33 +270,199 @@ router.post('/bookings/:id/refund', requireAdmin, async (req, res) => {
       return res.status(409).json({ error: `Cannot refund — payment status is "${booking.paymentStatus}".` });
     }
 
-    // Attempt provider-specific refund
+    const reason = req.body?.reason || 'admin_manual_refund';
+    const outcome = {
+      provider: booking.paymentProvider || 'unknown',
+      providerRefunded: false,
+      walletReversed: false,
+      warnings: [],
+    };
+
+    // 1) Remboursement côté PROVIDER (l'argent revient réellement au client).
     let refundResult = null;
     try {
-      // v21.1.1 — Stripe disabled (Airwallex only)
-      if (booking.paymentProvider === 'stripe') {
-        logger.warn('[admin/refund] Stripe refunds disabled (Airwallex only). Booking marked as refunded in DB only.');
+      if (booking.paymentProvider === 'airwallex') {
+        // v23.1.298 — Daniel : "rembourser client ... que tout soit bien
+        // connecté". AVANT : la branche airwallex n'existait pas → la booking
+        // était marquée "refunded" en DB SANS jamais rembourser sur Airwallex
+        // (le client ne récupérait pas son argent). On appelle maintenant le
+        // vrai endpoint Airwallex refunds/create.
+        const { createRefund } = require('../services/airwallexService');
+        if (booking.airwallexPaymentIntentId) {
+          refundResult = await createRefund({
+            paymentIntentId: booking.airwallexPaymentIntentId,
+            reason: 'requested_by_customer',
+          });
+          outcome.providerRefunded = true;
+        } else {
+          outcome.warnings.push('Aucun airwallexPaymentIntentId sur la booking — remboursement DB seulement.');
+        }
       } else if (booking.paymentProvider === 'paypal') {
         const { refundPaypalCapture } = require('../services/paypalService');
-        if (booking.paypalCaptureId) refundResult = await refundPaypalCapture(booking.paypalCaptureId);
+        if (booking.paypalCaptureId) {
+          refundResult = await refundPaypalCapture(booking.paypalCaptureId);
+          outcome.providerRefunded = true;
+        } else {
+          outcome.warnings.push('Aucun paypalCaptureId sur la booking — remboursement DB seulement.');
+        }
+      } else if (booking.paymentProvider === 'stripe') {
+        outcome.warnings.push('Stripe désactivé (Airwallex only) — remboursement DB seulement.');
+      } else {
+        outcome.warnings.push(`Provider inconnu "${booking.paymentProvider}" — remboursement DB seulement.`);
       }
     } catch (refundErr) {
       logger.error('[admin/refund] Provider refund failed', refundErr);
-      // Still mark as refunded in DB even if provider call fails — admin can reconcile manually
+      // On marque quand même remboursée en DB — l'admin réconcilie à la main.
+      outcome.warnings.push(`Échec remboursement provider : ${refundErr.message}. DB marquée remboursée — à réconcilier manuellement.`);
     }
 
+    // 2) Reprise du crédit wallet du provider SI l'argent y dort encore
+    //    (pas déjà versé). Best-effort : si le provider a déjà retiré son
+    //    solde, on ne peut pas reprendre → on le signale dans les warnings.
+    try {
+      const providerId = booking.sitterId || booking.walkerId;
+      const providerRole = booking.sitterId ? 'sitter' : (booking.walkerId ? 'walker' : null);
+      const net = Number(booking?.pricing?.netPayout) || 0;
+      const stillHeld =
+        providerId && providerRole && net > 0 &&
+        booking.payoutStatus !== 'completed' &&
+        booking.payoutStatus !== 'processing';
+      if (stillHeld) {
+        const { debitWallet } = require('../services/walletService');
+        await debitWallet({
+          userId: String(providerId),
+          userRole: providerRole,
+          amount: net,
+          currency: booking?.pricing?.currency || 'EUR',
+          type: 'admin_adjustment',
+          bookingId: String(booking._id),
+          meta: { reason: 'admin_refund_reversal' },
+        });
+        outcome.walletReversed = true;
+      }
+    } catch (walletErr) {
+      if (walletErr.code === 'INSUFFICIENT_BALANCE') {
+        outcome.warnings.push('Solde wallet provider insuffisant (déjà retiré ?) — crédit non repris.');
+      } else {
+        logger.error('[admin/refund] Wallet reversal failed', walletErr);
+        outcome.warnings.push(`Reprise du crédit wallet échouée : ${walletErr.message}`);
+      }
+    }
+
+    // 3) Marquage booking remboursée + annulation du payout.
     booking.paymentStatus = 'refunded';
     booking.status = 'cancelled';
     booking.payoutStatus = 'cancelled';
     booking.cancelledAt = new Date();
     booking.cancelledBy = 'admin';
-    booking.cancellationReason = req.body?.reason || 'admin_manual_refund';
+    booking.cancellationReason = reason;
     await booking.save();
 
-    logger.info(`[admin] Manual refund for booking ${req.params.id} by admin ${req.user?.id}`);
+    // 4) Trace d'audit immutable.
+    try {
+      const AdminAuditLog = require('../models/AdminAuditLog');
+      await AdminAuditLog.create({
+        adminId: req.user?.id,
+        adminEmail: req.user?.email || '',
+        action: 'refund',
+        targetType: 'Booking',
+        targetId: booking._id,
+        method: 'POST',
+        path: req.originalUrl,
+        ip: req.ip,
+        userAgent: req.get('user-agent') || '',
+        statusCode: 200,
+        params: { reason, outcome },
+        notes: outcome.warnings.join(' | '),
+      });
+    } catch (_) {/* audit best-effort, ne bloque jamais le refund */}
+
+    logger.info(`[admin] Manual refund for booking ${req.params.id} by admin ${req.user?.id} — provider=${outcome.providerRefunded} wallet=${outcome.walletReversed}`);
     res.json({
-      message: 'Refund processed.',
+      message: outcome.providerRefunded
+        ? 'Remboursement effectué — le client a été recrédité.'
+        : 'Booking marquée remboursée (voir avertissements).',
+      outcome,
       refundResult,
+      booking: { _id: booking._id, paymentStatus: booking.paymentStatus, status: booking.status },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── ADMIN CANCEL PENDING PAYMENT ────────────────────────────────────────────
+// v23.1.298 — Daniel : "annuler paiement". Annule un paiement NON capturé
+// (booking en attente / échouée) : on annule l'intent Airwallex côté provider
+// si possible, puis on marque la booking annulée. Pour une booking DÉJÀ payée,
+// on refuse ici → l'admin doit utiliser le remboursement (/refund).
+router.post('/bookings/:id/cancel-payment', requireAdmin, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+    if (booking.paymentStatus === 'paid') {
+      return res.status(409).json({ error: 'Booking déjà payée — utilisez le remboursement.' });
+    }
+    if (booking.paymentStatus === 'refunded' || booking.paymentStatus === 'cancelled') {
+      return res.status(409).json({ error: `Rien à annuler — statut paiement "${booking.paymentStatus}".` });
+    }
+
+    const reason = req.body?.reason || 'admin_cancel_payment';
+    const outcome = {
+      provider: booking.paymentProvider || 'unknown',
+      providerCancelled: false,
+      warnings: [],
+    };
+
+    try {
+      if (booking.paymentProvider === 'airwallex' && booking.airwallexPaymentIntentId) {
+        const { cancelPaymentIntent } = require('../services/airwallexService');
+        await cancelPaymentIntent(booking.airwallexPaymentIntentId, {
+          reason: 'requested_by_customer',
+        });
+        outcome.providerCancelled = true;
+      } else {
+        outcome.warnings.push('Aucun intent provider à annuler — annulation DB seulement.');
+      }
+    } catch (cancelErr) {
+      // Airwallex renvoie 400 si le PI n'est pas annulable (déjà SUCCEEDED /
+      // CANCELLED) → on traite comme un soft no-op.
+      logger.warn(`[admin/cancel-payment] provider cancel soft-fail : ${cancelErr.message}`);
+      outcome.warnings.push(`Annulation provider impossible (${cancelErr.message}) — DB annulée.`);
+    }
+
+    booking.paymentStatus = 'cancelled';
+    booking.status = 'cancelled';
+    booking.payoutStatus = 'cancelled';
+    booking.cancelledAt = new Date();
+    booking.cancelledBy = 'admin';
+    booking.cancellationReason = reason;
+    await booking.save();
+
+    try {
+      const AdminAuditLog = require('../models/AdminAuditLog');
+      await AdminAuditLog.create({
+        adminId: req.user?.id,
+        adminEmail: req.user?.email || '',
+        action: 'cancel_payment',
+        targetType: 'Booking',
+        targetId: booking._id,
+        method: 'POST',
+        path: req.originalUrl,
+        ip: req.ip,
+        userAgent: req.get('user-agent') || '',
+        statusCode: 200,
+        params: { reason, outcome },
+        notes: outcome.warnings.join(' | '),
+      });
+    } catch (_) {/* best-effort */}
+
+    logger.info(`[admin] Cancel payment for booking ${req.params.id} by admin ${req.user?.id} — provider=${outcome.providerCancelled}`);
+    res.json({
+      message: outcome.providerCancelled
+        ? 'Paiement annulé côté Airwallex.'
+        : 'Booking annulée (voir avertissements).',
+      outcome,
       booking: { _id: booking._id, paymentStatus: booking.paymentStatus, status: booking.status },
     });
   } catch (e) {
@@ -977,7 +1143,10 @@ router.delete('/privacy-policy/:lang', requireAdmin, async (req, res) => {
 router.get('/payments', requireAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 30, paymentStatus, payoutStatus, paymentProvider, from, to } = req.query;
-    const filter = { paymentStatus: { $in: ['paid', 'failed', 'refunded', 'refund'] } };
+    // v23.1.298 — Daniel : "annuler paiement". On inclut 'pending' + 'cancelled'
+    // pour que les paiements en attente / annulés soient visibles et que le
+    // bouton "Annuler le paiement" soit atteignable depuis l'onglet Paiements.
+    const filter = { paymentStatus: { $in: ['paid', 'failed', 'refunded', 'refund', 'pending', 'cancelled'] } };
     if (paymentStatus) filter.paymentStatus = paymentStatus;
     if (payoutStatus) filter.payoutStatus = payoutStatus;
     if (paymentProvider) filter.paymentProvider = paymentProvider;
