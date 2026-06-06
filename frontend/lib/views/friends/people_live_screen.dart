@@ -103,11 +103,11 @@ class PeopleLiveScreen extends StatelessWidget {
               // walker vert / sitter bleu est aussi le code halo de la
               // map quand on les suit.
               final roleColor = {
-                'Owner': const Color(0xFF8B5CF6),
+                'Owner': AppColors.primaryColor, // v23.1.295 — owner = ORANGE
                 'Sitter': AppColors.sitterAccent,
                 'Walker': AppColors.greenColor,
               }[other.model] ??
-                  const Color(0xFF8B5CF6);
+                  AppColors.primaryColor;
               return InkWell(
                 borderRadius: BorderRadius.circular(16.r),
                 // v23.1 part 239 — Daniel : "je clic sur witoulek qui est

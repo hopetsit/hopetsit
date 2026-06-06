@@ -14,7 +14,8 @@ class TopWalkerCard extends StatefulWidget {
   State<TopWalkerCard> createState() => _TopWalkerCardState();
 }
 
-class _TopWalkerCardState extends State<TopWalkerCard> {
+class _TopWalkerCardState extends State<TopWalkerCard>
+    with WidgetsBindingObserver {
   final ApiClient _api =
       Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : ApiClient();
   bool _loading = true;
@@ -25,7 +26,21 @@ class _TopWalkerCardState extends State<TopWalkerCard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // v23.1.295 — recharge le statut Top Walker au retour au premier plan
+    // (sinon stale après confirmation d'une prestation).
+    if (state == AppLifecycleState.resumed) _load();
   }
 
   Future<void> _load() async {

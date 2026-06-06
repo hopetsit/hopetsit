@@ -13,7 +13,8 @@ class TopSitterCard extends StatefulWidget {
   State<TopSitterCard> createState() => _TopSitterCardState();
 }
 
-class _TopSitterCardState extends State<TopSitterCard> {
+class _TopSitterCardState extends State<TopSitterCard>
+    with WidgetsBindingObserver {
   final ApiClient _api =
       Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : ApiClient();
   bool _loading = true;
@@ -24,7 +25,22 @@ class _TopSitterCardState extends State<TopSitterCard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // v23.1.295 — Daniel : "top sitter pas à jour après prestation". La carte
+    // ne se chargeait qu'au montage → stale après une confirmation de service.
+    // On recharge dès que l'app revient au premier plan.
+    if (state == AppLifecycleState.resumed) _load();
   }
 
   Future<void> _load() async {

@@ -1595,11 +1595,10 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   double _hueForRole(String role) {
     switch (role) {
-      // Owners get the rose/pink pin on the map to distinguish them
-      // visually from sitters (blue) and walkers (green). This also
-      // mirrors the "mon animal en rose" UX requested for owners.
+      // v23.1.295 — Daniel : owner = ORANGE partout (avant rose). Cohérent avec
+      // le badge owner et friend_marker_service.
       case 'owner':
-        return BitmapDescriptor.hueRose;
+        return BitmapDescriptor.hueOrange;
       case 'sitter':
         return BitmapDescriptor.hueBlue;
       case 'walker':

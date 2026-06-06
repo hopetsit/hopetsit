@@ -521,7 +521,7 @@ class _FriendTile extends StatelessWidget {
     final roleColor = isFamily
         ? const Color(0xFF8B5CF6)
         : ({
-            'Owner': const Color(0xFF8B5CF6),
+            'Owner': AppColors.primaryColor, // v23.1.295 — owner = ORANGE (était violet, confondu avec Famille)
             'Sitter': AppColors.sitterAccent,
             'Walker': AppColors.greenColor,
           }[other.model] ?? const Color(0xFF8B5CF6));
@@ -532,11 +532,11 @@ class _FriendTile extends StatelessWidget {
     //     l'option PawSpot active, sinon null.
     //   - avatarRing : PawSpot prioritaire, sinon violet famille, sinon rôle.
     final roleColorPure = ({
-          'Owner': const Color(0xFF8B5CF6),
+          'Owner': AppColors.primaryColor, // v23.1.295 — owner = ORANGE
           'Sitter': AppColors.sitterAccent,
           'Walker': AppColors.greenColor,
         }[other.model] ??
-        const Color(0xFF8B5CF6));
+        AppColors.primaryColor);
     Color? pawSpotRing;
     switch (other.pawSpotTier) {
       case 'gold':
@@ -1616,7 +1616,7 @@ class _FamilyTab extends StatelessWidget {
                   itemBuilder: (_, i) {
                     final other = candidates[i].other!;
                     final roleColor = {
-                          'Owner': const Color(0xFF8B5CF6),
+                          'Owner': AppColors.primaryColor, // v23.1.295 — owner = ORANGE (était violet, confondu avec Famille)
                           'Sitter': AppColors.sitterAccent,
                           'Walker': AppColors.greenColor,
                         }[other.model] ??
@@ -2064,11 +2064,11 @@ class _FamilyMemberTile extends StatelessWidget {
     // web : badge rôle (couleur métier) + badge FAMILLE, et anneau PawSpot
     // doré/bleu selon l'option". Parité avec _FriendTile + cartes web.
     final roleColorPure = ({
-          'owner': const Color(0xFF8B5CF6),
+          'owner': AppColors.primaryColor, // v23.1.295 — owner = ORANGE
           'sitter': AppColors.sitterAccent,
           'walker': AppColors.greenColor,
         }[role.toLowerCase()] ??
-        const Color(0xFF8B5CF6));
+        AppColors.primaryColor);
     final roleLabel = <String, String>{
           'walker': 'role_walker'.tr,
           'sitter': 'role_sitter'.tr,
@@ -2667,7 +2667,7 @@ class _PeopleLiveTab extends StatelessWidget {
             // v23.1.190 — code couleur role (Owner=violet, Walker=vert,
             // Sitter=bleu) pour le halo + accent.
             final roleColor = {
-              'Owner': const Color(0xFF8B5CF6),
+              'Owner': AppColors.primaryColor, // v23.1.295 — owner = ORANGE (était violet, confondu avec Famille)
               'Sitter': AppColors.sitterAccent,
               'Walker': AppColors.greenColor,
             }[other.model] ?? const Color(0xFF8B5CF6);
