@@ -70,6 +70,12 @@
 	<string>HopeTSIT uses your location to show pet sitters near you.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>HopeTSIT tracks walks in the background so owners can follow their pet in real time.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>location</string>
+			<string>fetch</string>
+			<string>remote-notification</string>
+		</array>
 	<key>NSCameraUsageDescription</key>
 	<string>HopeTSIT needs camera access to upload pet photos and profile pictures.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
