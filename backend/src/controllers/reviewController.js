@@ -275,17 +275,26 @@ const reportReview = async (req, res) => {
       id,
       { $inc: { reportedCount: 1 } },
       { new: true }
-    ).select('reportedCount hidden');
+    ).select('reportedCount hidden comment rating');
     if (!review) return res.status(404).json({ error: 'Review not found.' });
-    if (review.reportedCount >= 3 && !review.hidden) {
+    // v23.1.294 — Daniel : "bouton signaler en cas d'insulte, que je le reçoive
+    // par mail". On alerte l'admin DÈS le 1er signalement (pour attraper une
+    // insulte tout de suite), puis on escalade à 3+. Le commentaire incriminé
+    // est inclus dans l'email. La modération reste visible dans l'admin (onglet
+    // Signalés) via reportedCount.
+    if (!review.hidden && (review.reportedCount === 1 || review.reportedCount >= 3)) {
       try {
         const { sendEmail } = require('../services/emailService');
         const to = process.env.ADMIN_ALERT_EMAIL;
         if (to) {
+          const snippet = String(review.comment || '(aucun texte)').slice(0, 300);
           sendEmail(
             to,
-            `[HopeTSIT] Review flagged (${review.reportedCount} reports) — #${id}`,
-            `Review ${id} reached ${review.reportedCount} reports. Please review in the admin dashboard.`
+            `[HopeTSIT] Avis signalé (${review.reportedCount}) — #${id}`,
+            `Un avis a été signalé (${review.reportedCount} signalement(s)).\n\n` +
+              `Note : ${review.rating || 0}/5\n` +
+              `Commentaire : "${snippet}"\n\n` +
+              `Ouvre le dashboard admin → onglet Avis → Signalés pour le masquer ou le supprimer.`
           ).catch(() => {});
         }
       } catch (_) {}

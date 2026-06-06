@@ -2,6 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+// v23.1.294 — AndroidSettings.foregroundNotificationConfig pour garder le GPS
+// vivant en arrière-plan (foreground service + notif persistante). Les
+// permissions FOREGROUND_SERVICE(_LOCATION) + ACCESS_BACKGROUND_LOCATION sont
+// déjà dans AndroidManifest.xml.
+import 'package:geolocator_android/geolocator_android.dart' as gloc_android;
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -68,6 +73,17 @@ class LiveMapService extends GetxService {
   StreamSubscription<Position>? _gpsSub;
   LatLng? _lastKnownGps;
   bool _hookRegistered = false;
+
+  // v23.1.294 — position GPS live de l'utilisateur, observée par la PawMap pour
+  // faire suivre la caméra "à la trace" quand « Me suivre » est actif.
+  final Rxn<LatLng> myLivePosition = Rxn<LatLng>();
+  // Règle de session validée par Daniel : cap 2h + arrêt si immobile 30 min.
+  Timer? _sessionCapTimer;
+  Timer? _stationaryTimer;
+  LatLng? _stationaryAnchor;
+  static const Duration _sessionCap = Duration(hours: 2);
+  static const Duration _stationaryTimeout = Duration(minutes: 30);
+  static const double _stationaryRadiusM = 60; // bougé de >60m = toujours actif
 
   /// v23.1 part 240 — Daniel (3eme tentative) : "personne en live sa marche
   /// toujour pas sa me donne ma geolocalisation au lieu de la geolocalisation
@@ -163,17 +179,21 @@ class LiveMapService extends GetxService {
     // Init last known from the closure (typically _userPosition fresh).
     final initial = latestPosition();
     _lastKnownGps = initial;
+    myLivePosition.value = initial;
+    _stationaryAnchor = initial;
 
-    // Subscribe to Geolocator stream — pushes every 5m of movement.
+    // Subscribe to Geolocator stream — pushes every 5m of movement. Sur Android,
+    // foregroundNotificationConfig démarre un foreground service (notif
+    // persistante) → le GPS survit quand l'app passe en arrière-plan.
     _gpsSub?.cancel();
     try {
       _gpsSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 5, // notify every 5m moved
-        ),
+        locationSettings: _buildLocationSettings(),
       ).listen((pos) {
-        _lastKnownGps = LatLng(pos.latitude, pos.longitude);
+        final p = LatLng(pos.latitude, pos.longitude);
+        _lastKnownGps = p;
+        myLivePosition.value = p; // la PawMap suit la caméra « à la trace »
+        _onMovement(p);
       }, onError: (e) {
         debugPrint('[LiveMap] GPS stream error: $e');
       });
@@ -189,6 +209,61 @@ class LiveMapService extends GetxService {
       final pos = _lastKnownGps ?? latestPosition();
       _emitPosition(pos, city: city);
     });
+
+    // v23.1.294 — règle de session validée par Daniel : arrêt auto après 2h
+    // (sécurité batterie/vie privée) et si l'utilisateur reste immobile 30 min.
+    _sessionCapTimer?.cancel();
+    _sessionCapTimer = Timer(_sessionCap, stopBroadcasting);
+    _armStationaryTimer();
+  }
+
+  /// v23.1.294 — réglages GPS. Sur Android on attache un foreground service
+  /// (notif persistante) pour que le partage survive en arrière-plan.
+  LocationSettings _buildLocationSettings() {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return gloc_android.AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+        foregroundNotificationConfig: gloc_android.ForegroundNotificationConfig(
+          notificationTitle: 'live_share_notif_title'.tr,
+          notificationText: 'live_share_notif_text'.tr,
+          enableWakeLock: true,
+          setOngoing: true,
+        ),
+      );
+    }
+    return const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+    );
+  }
+
+  /// Réarme le minuteur d'immobilité (30 min sans mouvement → arrêt auto).
+  void _armStationaryTimer() {
+    _stationaryTimer?.cancel();
+    _stationaryTimer = Timer(_stationaryTimeout, stopBroadcasting);
+  }
+
+  /// À chaque mise à jour GPS : si l'utilisateur a bougé de plus de
+  /// [_stationaryRadiusM], on considère qu'il est toujours actif → on déplace
+  /// l'ancre et on réarme le minuteur d'immobilité.
+  void _onMovement(LatLng p) {
+    final anchor = _stationaryAnchor;
+    if (anchor == null) {
+      _stationaryAnchor = p;
+      _armStationaryTimer();
+      return;
+    }
+    final moved = Geolocator.distanceBetween(
+      anchor.latitude,
+      anchor.longitude,
+      p.latitude,
+      p.longitude,
+    );
+    if (moved >= _stationaryRadiusM) {
+      _stationaryAnchor = p;
+      _armStationaryTimer();
+    }
   }
 
   void stopBroadcasting() {
@@ -197,6 +272,13 @@ class LiveMapService extends GetxService {
     _gpsSub?.cancel();
     _gpsSub = null;
     _lastKnownGps = null;
+    // v23.1.294 — coupe la session + l'immobilité, libère la position live.
+    _sessionCapTimer?.cancel();
+    _sessionCapTimer = null;
+    _stationaryTimer?.cancel();
+    _stationaryTimer = null;
+    _stationaryAnchor = null;
+    myLivePosition.value = null;
     if (!broadcasting.value) return;
     broadcasting.value = false;
     final svc = Get.find<SocketService>();

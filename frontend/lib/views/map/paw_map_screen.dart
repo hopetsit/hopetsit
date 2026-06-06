@@ -131,6 +131,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   String _followName = '';
   bool _suppressFollowAutoStop = false;
   Worker? _followWorker;
+  // v23.1.294 — worker de suivi de MA position quand « Me suivre » est actif.
+  Worker? _myFollowWorker;
   static const double _followZoom = 18.0;
 
   // v23.1.266 — Daniel : "un bouton discret pour une vue satellite". Type de
@@ -286,6 +288,20 @@ class _PawMapScreenState extends State<PawMapScreen>
       },
     );
 
+    // v23.1.294 — « Me suivre » : suit MA position à la trace. Quand je diffuse
+    // (broadcasting), chaque mise à jour GPS recentre la caméra sur moi, comme
+    // une appli de navigation. On ne vole pas la caméra si on suit déjà un ami.
+    _myFollowWorker = ever<LatLng?>(
+      _liveMap.myLivePosition,
+      (pos) {
+        if (pos == null) return;
+        if (!_liveMap.broadcasting.value) return;
+        if ((_followUserId ?? '').isNotEmpty) return;
+        _userPosition = pos;
+        _animateFollowCamera(pos);
+      },
+    );
+
     // v23.1 part 240 — Daniel : "et tu sur que dans le chat qd je met voir
     // carte sa me met sur le map sur la geoloco du sitter ou walker ?".
     // PROBLEME TROUVE : meme en passant initialLat/Lng, le _bootstrap()
@@ -416,6 +432,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     _reloadDebounce?.cancel();
     _haloTimer?.cancel();
     _followWorker?.dispose();
+    _myFollowWorker?.dispose();
     _liveMap.stopBroadcasting();
     _cityCtrl.dispose();
     super.dispose();

@@ -1289,6 +1289,18 @@ class OwnerRepository {
     );
   }
 
+  /// v23.1.294 — signaler un avis abusif/insultant. Le backend alerte l'admin
+  /// par mail (dès le 1er signalement) et l'affiche dans l'onglet Signalés.
+  Future<void> reportReview({required String reviewId, String? reason}) async {
+    await _apiClient.post(
+      '${ApiEndpoints.reviews}/$reviewId/report',
+      body: {
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+      requiresAuth: true,
+    );
+  }
+
   /// Blocks any user (owner or sitter) via the generic /blocks endpoint.
   Future<Map<String, dynamic>> blockAnyUser({
     required String targetUserId,

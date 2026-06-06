@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// v23.1.292 — Daniel : "je puisse cliquer sur Avis et lire tous mes
 /// commentaires". Écran qui liste les avis reçus par un prestataire
@@ -24,6 +26,60 @@ class MyReviewsScreen extends StatelessWidget {
   });
 
   String _asStr(dynamic v) => v == null ? '' : v.toString();
+
+  // v23.1.294 — signaler un avis (insulte/abus) → POST /reviews/:id/report.
+  // Le backend alerte l'admin par mail + l'affiche dans l'onglet Signalés.
+  Future<void> _report(BuildContext context, String reviewId) async {
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: AppColors.card(context),
+        title: PoppinsText(
+          text: 'review_report'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary(context),
+        ),
+        content: InterText(
+          text: 'review_report_confirm'.tr,
+          fontSize: 14.sp,
+          color: AppColors.textPrimary(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: InterText(
+              text: 'common_cancel'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey500Color,
+            ),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: InterText(
+              text: 'review_report'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.red,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await Get.find<OwnerRepository>().reportReview(reviewId: reviewId);
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'review_reported'.tr,
+      );
+    } catch (_) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'review_report_failed'.tr,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +175,7 @@ class MyReviewsScreen extends StatelessWidget {
         : _asStr(reviewer['avatar']);
     final ratingVal = (r['rating'] as num?)?.toDouble() ?? 0.0;
     final comment = _asStr(r['comment']);
+    final id = _asStr(r['id']).isNotEmpty ? _asStr(r['id']) : _asStr(r['_id']);
     final displayName = name.trim().isNotEmpty
         ? name.trim()
         : 'sitter_detail_anonymous_reviewer'.tr;
@@ -177,6 +234,14 @@ class MyReviewsScreen extends StatelessWidget {
                         size: 14.sp,
                       );
                     }),
+                    SizedBox(width: 6.w),
+                    // v23.1.294 — signaler un avis insultant/abusif.
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: id.isEmpty ? null : () => _report(context, id),
+                      child: Icon(Icons.flag_outlined,
+                          size: 16.sp, color: AppColors.greyColor),
+                    ),
                   ],
                 ),
                 if (comment.isNotEmpty) ...[
