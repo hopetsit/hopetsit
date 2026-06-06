@@ -121,6 +121,19 @@ const getWalkerProfile = async (req, res) => {
     }));
     const payload = sanitizeUser(walker);
     payload.reviews = formattedReviews;
+    // v23.1.296 — self-heal : recalcule le statut Top Walker à la lecture du
+    // profil pour qu'il reflète toujours les prestations confirmées (même si le
+    // recompute à la confirmation n'a pas tourné).
+    try {
+      const { recomputeWalkerStatus } = require('../services/loyaltyService');
+      const loyalty = await recomputeWalkerStatus(req.params.id);
+      if (loyalty) {
+        payload.completedWalksCount = loyalty.count;
+        payload.completedServicesCount = loyalty.count;
+        payload.averageRating = loyalty.avgRating;
+        payload.isTopWalker = loyalty.isTopWalker ?? payload.isTopWalker;
+      }
+    } catch (_) {}
     res.json({ walker: payload });
   } catch (error) {
     logger.error('getWalkerProfile error', error);

@@ -391,6 +391,19 @@ const getSitterProfile = async (req, res) => {
       return res.status(404).json({ error: 'Sitter not found.' });
     }
 
+    // v23.1.296 — Daniel : "Top Sitter pas à jour après prestation". Double
+    // cause : (1) cette réponse était construite À LA MAIN sans
+    // completedServicesCount/averageRating/isTopSitter → la carte lisait
+    // toujours 0. (2) le recompute à la confirmation pouvait ne pas avoir
+    // tourné. On self-heal : on RECALCULE le statut Top Sitter à la lecture et
+    // on renvoie ces valeurs (count = services confirmés/terminés, moyenne des
+    // avis). Garantit que la carte affiche toujours le bon compteur.
+    let loyalty = null;
+    try {
+      const { recomputeSitterStatus } = require('../services/loyaltyService');
+      loyalty = await recomputeSitterStatus(id);
+    } catch (_) {}
+
     // Get reviews for this sitter from Review model
     // v23.1.290 — exclure les avis masqués par l'admin (modération). Sans ce
     // filtre, un avis "hidden" restait visible sur le profil sitter alors que
@@ -445,6 +458,12 @@ const getSitterProfile = async (req, res) => {
       // Rating information
       rating: sitter.rating || 0,
       reviewsCount: sitter.reviewsCount || 0,
+      // v23.1.296 — statut Top Sitter (manquait → carte bloquée à 0/20). Self-
+      // heal via recomputeSitterStatus ci-dessus, fallback sur le champ stocké.
+      completedServicesCount:
+          loyalty?.count ?? sitter.completedServicesCount ?? 0,
+      averageRating: loyalty?.avgRating ?? sitter.averageRating ?? 0,
+      isTopSitter: loyalty?.isTopSitter ?? sitter.isTopSitter ?? false,
       // About/Bio section
       bio: sitter.bio || '',
       // Skills array
