@@ -170,9 +170,12 @@ class MyReviewsScreen extends StatelessWidget {
     final name = _asStr(r['reviewerName']).isNotEmpty
         ? _asStr(r['reviewerName'])
         : _asStr(reviewer['name']);
+    // v23.1.296 — l'avatar peut être une string (profil sitter/walker) OU un
+    // objet {url} (endpoint public /reviews → sanitizeReview). On gère les deux.
+    final rawAvatar = reviewer['avatar'];
     final image = _asStr(r['reviewerImage']).isNotEmpty
         ? _asStr(r['reviewerImage'])
-        : _asStr(reviewer['avatar']);
+        : (rawAvatar is Map ? _asStr(rawAvatar['url']) : _asStr(rawAvatar));
     final ratingVal = (r['rating'] as num?)?.toDouble() ?? 0.0;
     final comment = _asStr(r['comment']);
     final id = _asStr(r['id']).isNotEmpty ? _asStr(r['id']) : _asStr(r['_id']);

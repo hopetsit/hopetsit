@@ -1289,6 +1289,30 @@ class OwnerRepository {
     );
   }
 
+  /// v23.1.296 — récupère les avis reçus par un prestataire (sitter/walker) via
+  /// l'endpoint public GET /reviews. Utilisé par l'écran « Mes avis » du profil
+  /// walker (dont le own-profile ne porte pas la liste d'avis).
+  Future<List<dynamic>> getProviderReviews({
+    required String revieweeId,
+    required String revieweeRole,
+  }) async {
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.reviews,
+        queryParameters: {
+          'revieweeId': revieweeId,
+          'revieweeRole': revieweeRole,
+        },
+        requiresAuth: true,
+      );
+      final map = response is Map ? Map<String, dynamic>.from(response) : null;
+      return (map?['reviews'] as List<dynamic>?) ?? const [];
+    } catch (e) {
+      AppLogger.logError('Failed to load provider reviews', error: e);
+      return const [];
+    }
+  }
+
   /// v23.1.294 — signaler un avis abusif/insultant. Le backend alerte l'admin
   /// par mail (dès le 1er signalement) et l'affiche dans l'onglet Signalés.
   Future<void> reportReview({required String reviewId, String? reason}) async {

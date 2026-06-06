@@ -10,6 +10,7 @@ import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/repositories/notifications_repository.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 class NotificationsController extends GetxController with WidgetsBindingObserver {
   NotificationsController({NotificationsRepository? repository})
@@ -270,6 +271,23 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
             unreadBookings.value = unreadBookings.value + 1;
             _storage.write(_kUnreadBookings, unreadBookings.value);
             _reloadBookingControllers();
+          }
+
+          // v23.1.296 — Daniel : "les notifs amis et famille, rajoute-les au
+          // bandeau sans que ça infecte le système de notif des paiements". On
+          // affiche un toast in-app UNIQUEMENT pour les types ami/famille
+          // (les paiements n'ont volontairement pas de bandeau). Le titre et le
+          // corps sont DÉJÀ localisés côté backend (notificationSender) → on les
+          // utilise tels quels, sans .tr.
+          if (lower.startsWith('friend') || lower.startsWith('family')) {
+            final bannerTitle = (map['title'] ?? '').toString();
+            final bannerBody = (map['body'] ?? '').toString();
+            if (bannerTitle.isNotEmpty) {
+              CustomSnackbar.showInfo(
+                title: bannerTitle,
+                message: bannerBody,
+              );
+            }
           }
         } catch (_) {}
       });

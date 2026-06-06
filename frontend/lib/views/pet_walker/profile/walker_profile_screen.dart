@@ -24,6 +24,10 @@ import 'package:hopetsit/views/profile/blocked_users_screen.dart';
 import 'package:hopetsit/views/profile/change_password_screen.dart';
 import 'package:hopetsit/views/pet_walker/profile/edit_walker_profile_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
+import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
+import 'package:hopetsit/repositories/owner_repository.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
@@ -679,6 +683,36 @@ class WalkerProfileScreen extends StatelessWidget {
         // progress vers 20 balades + 4.5★ → 15% commission.
         _sectionHeader('profile_section_my_services'.tr),
         const TopWalkerCard(),
+        // v23.1.296 — Daniel : avis cliquable sur le profil walker. Récupère les
+        // avis reçus (endpoint public /reviews) puis ouvre l'écran « Mes avis ».
+        _settingsTile(
+          'reviews_title'.tr,
+          Icons.rate_review_rounded,
+          () async {
+            final id = GetStorage()
+                    .read<Map<String, dynamic>>(StorageKeys.userProfile)?['id']
+                    ?.toString() ??
+                '';
+            if (id.isEmpty) return;
+            final reviews = await Get.find<OwnerRepository>()
+                .getProviderReviews(revieweeId: id, revieweeRole: 'walker');
+            double avg = 0;
+            if (reviews.isNotEmpty) {
+              final sum = reviews.fold<double>(0, (a, r) {
+                final v = (r is Map) ? r['rating'] : null;
+                return a + ((v is num) ? v.toDouble() : 0);
+              });
+              avg = sum / reviews.length;
+            }
+            Get.to(() => MyReviewsScreen(
+                  reviews: reviews,
+                  rating: avg,
+                  reviewsCount: reviews.length,
+                  accent: _accent,
+                ));
+          },
+          color: _accent,
+        ),
 
         _sectionHeader('profile_section_payments'.tr),
         // v19.0 — Mon portefeuille en tête des paiements : c'est le solde
