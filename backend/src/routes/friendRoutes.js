@@ -861,6 +861,21 @@ router.post('/request', requireAuth, async (req, res) => {
       //   3. Tout autre cas (accepted, blocked, pending de l'autre side) → 409.
       if (
         existing.status === 'pending' &&
+        iAmRequester &&
+        ageDays <= 7
+      ) {
+        // v23.1.295 — Daniel : "une demande une fois, pas 15". Une demande
+        // pending de MA part existe déjà (< 7j) → réponse idempotente SANS
+        // renvoyer une nouvelle notif (anti-spam). Au-delà de 7j (branche
+        // suivante) on nettoie + recrée, au cas où la 1re notif aurait été
+        // perdue.
+        return res.status(200).json({
+          ok: true,
+          alreadyPending: true,
+          friendshipId: String(existing._id),
+        });
+      } else if (
+        existing.status === 'pending' &&
         (ageDays > 7 || iAmRequester)
       ) {
         await Friendship.findByIdAndDelete(existing._id);

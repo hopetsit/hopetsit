@@ -40,6 +40,10 @@ const reviewSchema = new mongoose.Schema(
     hiddenReason: { type: String, default: '' },
     hiddenAt: { type: Date, default: null },
     reportedCount: { type: Number, default: 0, index: true },
+    // v23.1.295 — Daniel : "un signalement une fois, pas 15". On mémorise les
+    // userId ayant déjà signalé cet avis → un même user ne compte qu'une fois,
+    // et l'admin n'est alerté qu'au 1er signalement.
+    reportedBy: { type: [String], default: [] },
   },
   { timestamps: true }
 );

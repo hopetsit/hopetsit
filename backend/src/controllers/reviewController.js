@@ -271,18 +271,26 @@ const reportReview = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid review id.' });
     }
-    const review = await Review.findByIdAndUpdate(
-      id,
-      { $inc: { reportedCount: 1 } },
-      { new: true }
-    ).select('reportedCount hidden comment rating');
+    const userId = String(req.user?.id || '');
+    const review = await Review.findById(id).select(
+      'reportedCount reportedBy hidden comment rating'
+    );
     if (!review) return res.status(404).json({ error: 'Review not found.' });
-    // v23.1.294 — Daniel : "bouton signaler en cas d'insulte, que je le reçoive
-    // par mail". On alerte l'admin DÈS le 1er signalement (pour attraper une
-    // insulte tout de suite), puis on escalade à 3+. Le commentaire incriminé
-    // est inclus dans l'email. La modération reste visible dans l'admin (onglet
-    // Signalés) via reportedCount.
-    if (!review.hidden && (review.reportedCount === 1 || review.reportedCount >= 3)) {
+    // v23.1.295 — Daniel : "un signalement une fois, pas 15". Un même
+    // utilisateur ne peut signaler cet avis qu'une seule fois (idempotent).
+    if (userId && (review.reportedBy || []).map(String).includes(userId)) {
+      return res.json({
+        ok: true,
+        alreadyReported: true,
+        reportedCount: review.reportedCount,
+      });
+    }
+    if (userId) review.reportedBy = [...(review.reportedBy || []), userId];
+    review.reportedCount = (review.reportedCount || 0) + 1;
+    await review.save();
+    // v23.1.295 — l'admin n'est alerté qu'au 1er signalement (plus de spam).
+    // La suite reste visible dans l'admin (onglet Signalés) via reportedCount.
+    if (!review.hidden && review.reportedCount === 1) {
       try {
         const { sendEmail } = require('../services/emailService');
         const to = process.env.ADMIN_ALERT_EMAIL;
