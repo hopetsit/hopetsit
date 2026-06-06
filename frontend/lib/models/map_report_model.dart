@@ -105,6 +105,9 @@ class ReportTypes {
   static const String chemical = 'chemical';
   static const String wildlife = 'wildlife';
   static const String noDogsZone = 'no_dogs_zone';
+  // v23.1.293 — 2 nouveaux types GRATUITS (Daniel).
+  static const String food = 'food'; // nourriture laissée dans la rue
+  static const String trash = 'trash'; // détritus / poubelle abandonnés
 
   static const List<String> all = [
     // Gratuits
@@ -131,6 +134,9 @@ class ReportTypes {
     chemical,
     wildlife,
     noDogsZone,
+    // v23.1.293 — gratuits
+    food,
+    trash,
   ];
 
   /// Freemium whitelist — 3 signalements gratuits pour tous les profils
@@ -144,6 +150,9 @@ class ReportTypes {
     hazard,
     waterActive,
     deadAnimal,
+    // v23.1.293 — nouveaux gratuits.
+    food,
+    trash,
   ];
 
   /// Returns true if [type] is usable by a free user (no Premium required).
@@ -176,6 +185,9 @@ class ReportTypes {
       case chemical:      return 0xFFF57F17; // amber dark
       case wildlife:      return 0xFF5D4037; // brown
       case noDogsZone:    return 0xFF37474F; // dark blue grey
+      // FREE - v23.1.293
+      case food:          return 0xFF8BC34A; // light green
+      case trash:         return 0xFF607D8B; // blue grey
       case other:
       default:            return 0xFF9E9E9E; // neutral grey
     }
@@ -225,6 +237,11 @@ class ReportTypes {
         return '🦊';
       case noDogsZone:
         return '🚫';
+      // FREE - v23.1.293
+      case food:
+        return '🍖';
+      case trash:
+        return '🗑️';
       default:
         return '📍';
     }

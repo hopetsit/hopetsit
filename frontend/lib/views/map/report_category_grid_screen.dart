@@ -51,6 +51,19 @@ class ReportCategoryGridScreen extends StatelessWidget {
       icon: Icons.medical_services_rounded,
       color: Color(0xFFDC2626),
     ),
+    // v23.1.293 — 2 nouveaux signalements GRATUITS (Daniel).
+    _CategoryDef(
+      type: ReportTypes.food,
+      labelKey: 'report_cat_food',
+      icon: Icons.restaurant_rounded,
+      color: Color(0xFF8BC34A),
+    ),
+    _CategoryDef(
+      type: ReportTypes.trash,
+      labelKey: 'report_cat_trash',
+      icon: Icons.delete_rounded,
+      color: Color(0xFF607D8B),
+    ),
   ];
 
   // v23.1.192 — Categories PREMIUM (mockup bottom section).

@@ -185,6 +185,12 @@ const Map<String, String> frFRTranslations = <String, String>{
       'report_cat_hazard': 'Danger',
       'report_cat_aggressive_dog': 'Chien mechant',
       'report_cat_accident': 'Accident',
+      'report_cat_food': 'Nourriture',
+      'report_cat_trash': 'Détritus',
+      'map_report_label_food': 'Nourriture',
+      'map_report_label_trash': 'Détritus',
+      'map_report_hint_food': 'Nourriture laissée pour les animaux dans la rue',
+      'map_report_hint_trash': 'Détritus ou poubelle abandonnés',
       'report_cat_poison': 'Poison',
       'report_cat_other': 'Autre signalement',
       // v23.1.192 — Nouvelle structure Signaler (free + premium sections).

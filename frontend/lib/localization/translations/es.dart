@@ -2757,6 +2757,12 @@ const Map<String, String> esESTranslations = <String, String>{
     'pending_requests_banner_friends':
         '@n solicitud(es) de amistad pendiente(s)',
     'report_cat_accident': 'Accidente',
+    'report_cat_food': 'Comida',
+    'report_cat_trash': 'Basura',
+    'map_report_label_food': 'Comida',
+    'map_report_label_trash': 'Basura',
+    'map_report_hint_food': 'Comida dejada para animales en la calle',
+    'map_report_hint_trash': 'Basura o desechos abandonados',
     'report_cat_aggressive_dog': 'Perro agresivo',
     'report_cat_busy_traffic': 'Tráfico denso',
     'report_cat_chemical': 'Productos químicos',

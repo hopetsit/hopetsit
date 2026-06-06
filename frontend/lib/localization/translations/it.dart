@@ -2794,6 +2794,12 @@ const Map<String, String> itITTranslations = <String, String>{
     'pending_requests_banner_friends':
         '@n richiesta/e di amicizia in attesa',
     'report_cat_accident': 'Incidente',
+    'report_cat_food': 'Cibo',
+    'report_cat_trash': 'Rifiuti',
+    'map_report_label_food': 'Cibo',
+    'map_report_label_trash': 'Rifiuti',
+    'map_report_hint_food': 'Cibo lasciato per animali in strada',
+    'map_report_hint_trash': 'Rifiuti o immondizia abbandonati',
     'report_cat_aggressive_dog': 'Cane aggressivo',
     'report_cat_busy_traffic': 'Traffico intenso',
     'report_cat_chemical': 'Prodotti chimici',

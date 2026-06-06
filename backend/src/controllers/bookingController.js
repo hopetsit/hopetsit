@@ -4865,6 +4865,16 @@ const requestLiveTrackingByConversation = async (req, res) => {
         .json({ error: 'Not a conversation participant.' });
     }
 
+    // v23.1.293 — Daniel : "des fois la demande de suivi s'envoie à moi-même".
+    // Garde-fou : le destinataire doit exister ET être différent de l'émetteur
+    // (cas conversation à 1 participant, rôle dupliqué après switchRole, etc.).
+    if (!responderId || String(responderId) === String(userId)) {
+      return res.status(400).json({
+        error: 'Cannot request live tracking from yourself.',
+        code: 'SELF_TRACKING_REQUEST',
+      });
+    }
+
     // v23.1.256 — persiste la position GPS de l'appelant (si fournie) pour
     // que l'autre partie puisse réellement suivre (sinon /provider-location
     // renvoie NO_LOCATION_YET). Même logique que requestLiveTracking.

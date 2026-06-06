@@ -33,7 +33,8 @@ const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' 
 // (map_report_model.dart) : aggressive_dog, hazard, water_active, dead_animal.
 // Avant, hazard et dead_animal étaient présentés comme gratuits côté app mais
 // renvoyaient 402 côté backend → "Envío imposible" pour les free users.
-const FREE_REPORT_TYPES = ['aggressive_dog', 'hazard', 'water_active', 'dead_animal'];
+// v23.1.293 — 'food' + 'trash' ajoutés en GRATUIT (Daniel).
+const FREE_REPORT_TYPES = ['aggressive_dog', 'hazard', 'water_active', 'dead_animal', 'food', 'trash'];
 
 function parseFloatOr(value, fallback) {
   const n = parseFloat(value);

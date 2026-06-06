@@ -2631,6 +2631,12 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'pending_requests_banner_friends':
         '@n pedido(s) de amizade pendente(s)',
     'report_cat_accident': 'Acidente',
+    'report_cat_food': 'Comida',
+    'report_cat_trash': 'Lixo',
+    'map_report_label_food': 'Comida',
+    'map_report_label_trash': 'Lixo',
+    'map_report_hint_food': 'Comida deixada para animais na rua',
+    'map_report_hint_trash': 'Lixo ou detritos abandonados',
     'report_cat_aggressive_dog': 'Cão agressivo',
     'report_cat_busy_traffic': 'Trânsito intenso',
     'report_cat_chemical': 'Produtos químicos',

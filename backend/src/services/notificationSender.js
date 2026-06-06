@@ -36,9 +36,25 @@ const loadCatalog = (locale) => {
   }
 };
 
+// v23.1.293 — Daniel : "les notifs ne sont pas traduites". CAUSE : user.language
+// est souvent stocké en MOT COMPLET ("English", "German", "Português"…). Le
+// simple slice(0,2) donnait "ge"/"po"/"sp" → codes invalides → fallback FR pour
+// tout le monde. On mappe d'abord les noms complets (FR/EN/natifs) vers le code,
+// puis on retombe sur le préfixe 2 lettres (gère "fr-FR", "es_ES", "en").
+const LANGUAGE_NAME_TO_LOCALE = {
+  french: 'fr', francais: 'fr', 'français': 'fr', fr: 'fr',
+  english: 'en', anglais: 'en', en: 'en',
+  spanish: 'es', espanol: 'es', 'español': 'es', espagnol: 'es', es: 'es',
+  german: 'de', deutsch: 'de', allemand: 'de', de: 'de',
+  italian: 'it', italiano: 'it', italien: 'it', it: 'it',
+  portuguese: 'pt', portugues: 'pt', 'português': 'pt', portugais: 'pt', pt: 'pt',
+};
 const resolveLocale = (userLanguage) => {
-  const lang = String(userLanguage || '').toLowerCase().slice(0, 2);
-  return SUPPORTED_LOCALES.includes(lang) ? lang : FALLBACK_LOCALE;
+  const raw = String(userLanguage || '').toLowerCase().trim();
+  if (!raw) return FALLBACK_LOCALE;
+  if (LANGUAGE_NAME_TO_LOCALE[raw]) return LANGUAGE_NAME_TO_LOCALE[raw];
+  const short = raw.slice(0, 2);
+  return SUPPORTED_LOCALES.includes(short) ? short : FALLBACK_LOCALE;
 };
 
 const pickTemplate = (locale, type) => {

@@ -1031,7 +1031,9 @@ export type MapReportType =
   | "trap"
   | "poison"
   | "stray_pet"
-  | "construction";
+  | "construction"
+  | "food"
+  | "trash";
 
 export type MapReport = {
   _id: string;

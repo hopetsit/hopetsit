@@ -47,6 +47,11 @@ const REPORT_TYPES = [
   'chemical',          // produits chimiques / déversement
   'wildlife',          // faune sauvage (sanglier, serpent…)
   'no_dogs_zone',      // zone interdite aux chiens
+  // v23.1.293 — Daniel : 2 nouveaux signalements GRATUITS (cf
+  // mapReportRoutes.FREE_REPORT_TYPES). DOIT rester synchronisé avec
+  // frontend ReportTypes.all + website.
+  'food',              // nourriture laissée dans la rue (gamelle/croquettes) — FREE
+  'trash',             // détritus / poubelle abandonnés — FREE
 ];
 
 const REPORT_TTL_MS = 48 * 60 * 60 * 1000; // 48h

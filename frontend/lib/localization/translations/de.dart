@@ -2798,6 +2798,12 @@ const Map<String, String> deDETranslations = <String, String>{
     'pending_requests_banner_friends':
         '@n ausstehende Freundschaftsanfrage(n)',
     'report_cat_accident': 'Unfall',
+    'report_cat_food': 'Futter',
+    'report_cat_trash': 'Müll',
+    'map_report_label_food': 'Futter',
+    'map_report_label_trash': 'Müll',
+    'map_report_hint_food': 'Im Freien zurückgelassenes Tierfutter',
+    'map_report_hint_trash': 'Müll oder weggeworfener Abfall',
     'report_cat_aggressive_dog': 'Aggressiver Hund',
     'report_cat_busy_traffic': 'Dichter Verkehr',
     'report_cat_chemical': 'Chemikalien',

@@ -176,6 +176,12 @@ const Map<String, String> enUSTranslations = <String, String>{
       'report_cat_hazard': 'Hazard',
       'report_cat_aggressive_dog': 'Aggressive dog',
       'report_cat_accident': 'Accident',
+      'report_cat_food': 'Food',
+      'report_cat_trash': 'Trash',
+      'map_report_label_food': 'Food',
+      'map_report_label_trash': 'Trash',
+      'map_report_hint_food': 'Food left for animals in the street',
+      'map_report_hint_trash': 'Litter or dumped trash',
       'report_cat_poison': 'Poison',
       'report_cat_other': 'Other report',
       // v23.1.192 — Signaler free/premium sections.
