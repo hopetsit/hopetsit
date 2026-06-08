@@ -517,15 +517,27 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
           TextField(
             controller: _amountCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            // v23.1.314 — Daniel : "en dark mode l'écriture est blanche, on voit
+            // rien". Le style n'avait PAS de couleur -> texte invisible sur fond
+            // sombre. On force les couleurs thème-aware (texte, label, hint, fond).
+            cursorColor: widget.roleColor,
             decoration: InputDecoration(
               labelText: 'wallet_amount_label'.tr,
+              labelStyle: TextStyle(color: AppColors.textSecondary(context)),
               hintText: widget.minWithdrawal.toStringAsFixed(2),
+              hintStyle: TextStyle(color: AppColors.textSecondary(context)),
               prefixIcon: Icon(Icons.euro, color: widget.roleColor),
+              filled: true,
+              fillColor: AppColors.scaffold(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14.r),
               ),
             ),
-            style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary(context),
+            ),
           ),
           SizedBox(height: 16.h),
           _methodTile('iban', Icons.account_balance,

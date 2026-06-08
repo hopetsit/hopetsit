@@ -326,6 +326,10 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
               SizedBox(height: 6.h),
               TextFormField(
                 controller: _holderCtrl,
+                // v23.1.314 — Daniel : "en dark mode l'écriture est blanche, on
+                // voit rien". Le fond est blanc (fillColor) -> on force le texte
+                // saisi en noir, visible dans les 2 thèmes.
+                style: _inputTextStyle,
                 textCapitalization: TextCapitalization.words,
                 decoration: _inputDecoration('iban_holder_hint'.tr, Icons.person_outline),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'iban_holder_required'.tr : null,
@@ -337,6 +341,7 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
               SizedBox(height: 6.h),
               TextFormField(
                 controller: _ibanCtrl,
+                style: _inputTextStyle,
                 keyboardType: TextInputType.text,
                 textCapitalization: TextCapitalization.characters,
                 inputFormatters: [
@@ -363,6 +368,7 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
               SizedBox(height: 6.h),
               TextFormField(
                 controller: _bicCtrl,
+                style: _inputTextStyle,
                 textCapitalization: TextCapitalization.characters,
                 decoration: _inputDecoration('iban_bic_hint'.tr, Icons.code),
                 validator: (v) => (v == null || v.trim().length < 8) ? 'iban_bic_required'.tr : null,
@@ -465,6 +471,14 @@ class _IbanSetupScreenState extends State<IbanSetupScreen> {
       color: AppColors.blackColor,
     );
   }
+
+  // v23.1.314 — style du texte saisi : NOIR forcé (le fond des champs est
+  // toujours blanc via fillColor) → lisible en clair ET en sombre.
+  TextStyle get _inputTextStyle => TextStyle(
+        color: AppColors.blackColor,
+        fontSize: 15.sp,
+        fontWeight: FontWeight.w600,
+      );
 
   InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
