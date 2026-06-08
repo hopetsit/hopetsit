@@ -478,12 +478,18 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final media = MediaQuery.of(context);
+    // v23.1.316 — Daniel : "le menu du téléphone gêne + empêche de scroll". On
+    // rend la feuille scrollable ET on ajoute viewPadding.bottom (barre de
+    // navigation système) en plus du clavier (viewInsets.bottom) pour que le
+    // bouton "Confirmer le retrait" ne passe plus SOUS la barre du téléphone.
+    return SingleChildScrollView(
+      child: Padding(
       padding: EdgeInsets.only(
         left: 20.w,
         right: 20.w,
         top: 20.h,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20.h,
+        bottom: media.viewInsets.bottom + media.viewPadding.bottom + 24.h,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -569,6 +575,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

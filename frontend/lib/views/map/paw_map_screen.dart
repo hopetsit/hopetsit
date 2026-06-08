@@ -2284,12 +2284,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+  // v23.1.316 — Daniel : "le zoom de la PawMap tu peux améliorer ?". Avant :
+  // zoomIn()/zoomOut() sautaient d'UN niveau entier (×2 d'un coup) -> effet
+  // brusque/saccadé. On passe à un pas plus doux de ±0.8 niveau (zoomBy) pour
+  // un zoom progressif et fluide, toujours animé.
   Future<void> _zoomIn() async {
     if (!_mapCtl.isCompleted) return;
     final ctl = await _mapCtl.future;
     // Zoomer ne doit pas couper le suivi en cours.
     if (_followUserId != null) _suppressFollowAutoStop = true;
-    await ctl.animateCamera(CameraUpdate.zoomIn());
+    await ctl.animateCamera(CameraUpdate.zoomBy(0.8));
     if (_followUserId != null) {
       Future.delayed(const Duration(milliseconds: 800),
           () => _suppressFollowAutoStop = false);
@@ -2300,7 +2304,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (!_mapCtl.isCompleted) return;
     final ctl = await _mapCtl.future;
     if (_followUserId != null) _suppressFollowAutoStop = true;
-    await ctl.animateCamera(CameraUpdate.zoomOut());
+    await ctl.animateCamera(CameraUpdate.zoomBy(-0.8));
     if (_followUserId != null) {
       Future.delayed(const Duration(milliseconds: 800),
           () => _suppressFollowAutoStop = false);
