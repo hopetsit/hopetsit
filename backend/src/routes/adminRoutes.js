@@ -3566,12 +3566,32 @@ function explainPayoutError(e) {
   let msg = raw;
   if (fieldErrors) msg += ` — Champs : ${fieldErrors}`;
   else if (src) msg += ` (champ Airwallex : ${src})`;
+  else {
+    // v23.1.310 — DERNIER RECOURS : on dumpe le corps d'erreur Airwallex BRUT
+    // (la structure des champs varie selon la version d'API du compte ; on ne
+    // devine plus, on affiche tout). Tronqué à 700 car. + logué côté serveur.
+    try {
+      const dump = JSON.stringify(details);
+      if (dump && dump !== '{}' && dump !== 'null') {
+        msg += ` — Détail Airwallex : ${dump.slice(0, 700)}`;
+      }
+    } catch (_) {/* ignore */}
+  }
+  try {
+    logger.error('[admin/payout] Airwallex error détail', {
+      message: raw,
+      code: e && e.code,
+      status: e && e.status,
+      details,
+    });
+  } catch (_) {/* logger optional */}
   return {
     error: msg,
     code: (e && e.code) || 'AIRWALLEX_PAYOUT_FAILED',
     rawError: raw,
     airwallexSource: src,
     airwallexErrors: errs || null,
+    airwallexDetails: details || null,
   };
 }
 
