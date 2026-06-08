@@ -636,6 +636,14 @@ class ChatController extends GetxController {
       // Join conversation room for real-time updates
       _socketService.joinConversation(chatId);
 
+      // v23.1.301 — Daniel : "une fois lus, les badges reviennent quand je me
+      // reconnecte". On marque la conversation LUE côté serveur dès l'ouverture :
+      //  - socket conversation:read → temps réel (drop le badge de l'autre).
+      //  - HTTP POST /conversations/:id/read → PERSISTE le unread=0 en DB, donc
+      //    /conversations/list ne le ressort plus au reload/reconnexion.
+      _socketService.markConversationRead(chatId);
+      _chatRepository.markConversationRead(conversationId: chatId);
+
       // Fetch messages from API
       final response = await _chatRepository.getConversationMessages(
         conversationId: chatId,

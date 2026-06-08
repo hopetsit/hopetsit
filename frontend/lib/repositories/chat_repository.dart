@@ -189,6 +189,23 @@ class ChatRepository {
     return false;
   }
 
+  /// v23.1.301 — Daniel : "une fois lus, les badges message reviennent quand je
+  /// me reconnecte". CAUSE RACINE : aucune conversation n'était jamais marquée
+  /// lue CÔTÉ SERVEUR (le socket markConversationRead n'était appelé nulle
+  /// part), donc /conversations/list renvoyait toujours unread > 0 → le badge
+  /// réapparaissait à chaque reload/reconnexion. POST /conversations/:id/read
+  /// réinitialise le compteur unread en DB (durable, contrairement au socket).
+  Future<bool> markConversationRead({required String conversationId}) async {
+    try {
+      final endpoint = '${ApiEndpoints.sendMessage}/$conversationId/read';
+      final response = await _apiClient.post(endpoint, requiresAuth: true);
+      return response != null;
+    } catch (_) {
+      // Best-effort : le socket couvre le temps réel, l'HTTP la persistance.
+      return false;
+    }
+  }
+
   /// Sitter-only: share profile phone number as a special phone_share message.
   /// Backend gates by paymentStatus === 'paid'. Sprint 3 step 6.
   Future<Map<String, dynamic>> sharePhone({required String conversationId}) async {
