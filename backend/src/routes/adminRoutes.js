@@ -3547,14 +3547,31 @@ function explainPayoutError(e) {
       airwallexPermissionIssue: true,
     };
   }
-  // v23.1.306 — surface le champ exact pointé par Airwallex (e.details.source)
-  // pour diagnostiquer un éventuel field_required restant sans deviner.
-  const src = e && e.details && (e.details.source || e.details.field);
+  // v23.1.306/309 — surface le DÉTAIL exact d'Airwallex. validation_failed range
+  // les champs fautifs dans details.errors (tableau ou objet) → on les formate
+  // pour ne plus deviner.
+  const details = (e && e.details) || {};
+  let fieldErrors = '';
+  const errs = details.errors || null;
+  if (Array.isArray(errs)) {
+    fieldErrors = errs
+      .map((x) => `${x.source || x.field || x.parameter || '?'} → ${x.message || x.code || ''}`)
+      .join(' | ');
+  } else if (errs && typeof errs === 'object') {
+    fieldErrors = Object.entries(errs)
+      .map(([k, v]) => `${k} → ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+      .join(' | ');
+  }
+  const src = details.source || details.field || null;
+  let msg = raw;
+  if (fieldErrors) msg += ` — Champs : ${fieldErrors}`;
+  else if (src) msg += ` (champ Airwallex : ${src})`;
   return {
-    error: src ? `${raw} (champ Airwallex : ${src})` : raw,
+    error: msg,
     code: (e && e.code) || 'AIRWALLEX_PAYOUT_FAILED',
     rawError: raw,
-    airwallexSource: src || null,
+    airwallexSource: src,
+    airwallexErrors: errs || null,
   };
 }
 
