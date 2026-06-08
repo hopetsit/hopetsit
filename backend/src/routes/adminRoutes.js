@@ -108,6 +108,91 @@ router.get('/stats', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── ADMIN : RE-SYNCHRONISER LES PAIEMENTS EN ATTENTE ────────────────────────
+// v23.1.305 — Daniel : "des transactions de juin n'apparaissent pas". CAUSE :
+// le webhook Airwallex live n'a pas marqué certains paiements → bookings restées
+// "pending" → invisibles dans les stats "payées" et la boutique. Ce bouton
+// re-vérifie chaque booking en attente DIRECTEMENT auprès d'Airwallex
+// (retrievePaymentIntent) et, si le PaymentIntent est SUCCEEDED, la marque payée
+// avec la MÊME logique idempotente que le webhook / sync-path (status +
+// paymentStatus = 'paid', crédit wallet provider, payout programmé).
+router.post('/reconcile-pending-payments', requireAdmin, async (req, res) => {
+  try {
+    const airwallex = require('../services/airwallexService');
+    const { creditWallet } = require('../services/walletService');
+    let schedulePayoutForBooking = null;
+    try {
+      ({ schedulePayoutForBooking } = require('../controllers/bookingController'));
+    } catch (_) {/* defensive */}
+
+    const limit = Math.min(Number(req.body?.limit) || 200, 500);
+    const pending = await Booking.find({
+      paymentStatus: { $ne: 'paid' },
+      airwallexPaymentIntentId: { $exists: true, $nin: [null, ''] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    const summary = { checked: pending.length, reconciled: 0, stillPending: 0, errors: [] };
+    for (const booking of pending) {
+      try {
+        const pi = await airwallex.retrievePaymentIntent(booking.airwallexPaymentIntentId);
+        const piStatus = (pi?.status || '').toUpperCase();
+        if (piStatus !== 'SUCCEEDED') {
+          summary.stillPending += 1;
+          continue;
+        }
+        // Marque payée (idempotent : status + paymentStatus + paidAt).
+        booking.status = 'paid';
+        booking.paymentStatus = 'paid';
+        booking.paidAt = booking.paidAt || new Date();
+        booking.paymentProvider = 'airwallex';
+        await booking.save();
+
+        // Crédit wallet provider (idempotent via bookingId+type+withdrawable).
+        const providerId = booking.sitterId || booking.walkerId;
+        const providerRole = booking.sitterId ? 'sitter' : (booking.walkerId ? 'walker' : null);
+        const netPayout = Number(booking?.pricing?.netPayout) || 0;
+        if (providerId && providerRole && netPayout > 0) {
+          try {
+            await creditWallet({
+              userId: String(providerId),
+              userRole: providerRole,
+              amount: netPayout,
+              currency: (booking?.pricing?.currency || 'EUR').toUpperCase(),
+              type: 'credit_booking',
+              bookingId: String(booking._id),
+              meta: { source: 'admin_reconcile', autoPayout: false },
+              withdrawable: true,
+            });
+          } catch (we) {
+            logger.warn(`[admin/reconcile] wallet credit skipped ${booking._id}: ${we.message}`);
+          }
+        }
+        // Programme le payout (idempotent).
+        try {
+          if (typeof schedulePayoutForBooking === 'function') {
+            await schedulePayoutForBooking(booking);
+          }
+        } catch (pe) {
+          logger.warn(`[admin/reconcile] schedulePayout skipped ${booking._id}: ${pe.message}`);
+        }
+        summary.reconciled += 1;
+      } catch (e) {
+        summary.errors.push({ bookingId: String(booking._id), error: e.message });
+      }
+    }
+    logger.info(
+      `[admin/reconcile-pending-payments] checked=${summary.checked} ` +
+      `reconciled=${summary.reconciled} stillPending=${summary.stillPending}`,
+    );
+    res.json(summary);
+  } catch (e) {
+    logger.error('[admin/reconcile-pending-payments]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── LIST ALL BOOKINGS ────────────────────────────────────────────────────────
 router.get('/bookings', requireAdmin, async (req, res) => {
   try {

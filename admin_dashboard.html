@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v304</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v305</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -275,6 +275,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div class="section-title" style="margin:0">📊 <span data-i18n="dash_overview">Vue d'ensemble</span></div>
           <div style="display:flex;align-items:center;gap:10px">
             <span id="dashboard-last-update" style="font-size:12px;color:var(--text-muted)"></span>
+            <button class="action-btn" onclick="reconcilePendingPayments()" title="Re-vérifie chaque paiement en attente auprès d'Airwallex et marque payé ceux qui ont réussi (récupère les transactions non synchronisées par le webhook)" style="background:#F59E0B;color:#fff;border-color:#F59E0B">🔄 Re-synchroniser les paiements</button>
             <button class="action-btn btn-primary" onclick="loadDashboard()" title="Forcer le rafraîchissement">↻ Actualiser</button>
           </div>
         </div>
@@ -2273,6 +2274,26 @@ function stopDashboardAutoRefresh() {
   if (_dashboardAutoRefreshTimer) {
     clearInterval(_dashboardAutoRefreshTimer);
     _dashboardAutoRefreshTimer = null;
+  }
+}
+
+// v23.1.305 — Daniel : "des transactions de juin n'apparaissent pas". Bouton qui
+// re-vérifie chaque paiement en attente auprès d'Airwallex et marque payé ceux
+// dont le PaymentIntent a réussi (récupère ce que le webhook n'a pas synchronisé).
+async function reconcilePendingPayments() {
+  if (!confirm('Re-vérifier tous les paiements en attente auprès d\'Airwallex et marquer payés ceux qui ont réussi ?\n\n(Récupère les transactions que le webhook n\'a pas synchronisées. Sans risque : opération idempotente.)')) return;
+  showToast('⏳ Re-synchronisation en cours...', 'success');
+  try {
+    const r = await api('/admin/reconcile-pending-payments', 'POST', {});
+    const errCount = (r.errors && r.errors.length) ? r.errors.length : 0;
+    const msg = '✅ Vérifiées : ' + (r.checked || 0) +
+      ' · Récupérées (payées) : ' + (r.reconciled || 0) +
+      ' · Toujours en attente : ' + (r.stillPending || 0) +
+      (errCount ? ' · Erreurs : ' + errCount : '');
+    showToast(msg, errCount ? 'error' : 'success');
+    loadDashboard();
+  } catch (e) {
+    showToast('Erreur re-synchronisation : ' + e.message, 'error');
   }
 }
 
