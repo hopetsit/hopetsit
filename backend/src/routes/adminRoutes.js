@@ -91,6 +91,95 @@ router.get('/stats', requireAdmin, async (req, res) => {
           { $group: { _id: null, total: { $sum: '$pricing.totalPrice' } } },
         ]),
       ]);
+
+    // v23.1.312 — Daniel : "rajoute carte boutique bénéfice, à reverser aux
+    // prestataires, et le nombre d'abonnements + quel plan". Agrégations
+    // additionnelles (best-effort : si une échoue, les stats de base restent).
+    let commissionTotal = 0;
+    let boutiqueTotal = 0;
+    let providerWalletTotal = 0;
+    let subscriptions = { total: 0, totalRevenue: 0, byPlan: [] };
+    let chatAddon = { count: 0, total: 0 };
+    try {
+      const UserSubscription = require('../models/UserSubscription');
+      let UserChatAddon = null;
+      try { UserChatAddon = require('../models/UserChatAddon'); } catch (_) {}
+
+      const aggBoostKind = async (Model, kind) => {
+        const r = await Model.aggregate([
+          { $match: { 'boostPurchases.0': { $exists: true } } },
+          { $unwind: '$boostPurchases' },
+          { $match: { 'boostPurchases.kind': kind } },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$boostPurchases.amount', 0] } } } },
+        ]);
+        return r[0]?.t || 0;
+      };
+      const sumWallet = async (Model) => {
+        const r = await Model.aggregate([
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$walletBalance', 0] } } } },
+        ]);
+        return r[0]?.t || 0;
+      };
+
+      const [
+        commAgg, pO, pS, pW, mO, mS, mW, subPlanAgg, swSitter, swWalker,
+      ] = await Promise.all([
+        Booking.aggregate([
+          { $match: { paymentStatus: 'paid' } },
+          { $group: { _id: null, t: { $sum: { $ifNull: ['$pricing.commission', 0] } } } },
+        ]),
+        aggBoostKind(Owner, 'profile'), aggBoostKind(Sitter, 'profile'), aggBoostKind(Walker, 'profile'),
+        aggBoostKind(Owner, 'map'), aggBoostKind(Sitter, 'map'), aggBoostKind(Walker, 'map'),
+        UserSubscription.aggregate([
+          { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+          { $group: {
+            _id: '$payments.plan',
+            count: { $sum: 1 },
+            total: { $sum: { $ifNull: ['$payments.amount', 0] } },
+          } },
+        ]),
+        sumWallet(Sitter), sumWallet(Walker),
+      ]);
+
+      commissionTotal = commAgg[0]?.t || 0;
+      providerWalletTotal = (swSitter || 0) + (swWalker || 0);
+
+      let chatTotal = 0; let chatCount = 0;
+      if (UserChatAddon) {
+        try {
+          const cA = await UserChatAddon.aggregate([
+            { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+            { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $ifNull: ['$payments.amount', 0] } } } },
+          ]);
+          chatTotal = cA[0]?.total || 0;
+          chatCount = cA[0]?.count || 0;
+        } catch (_) {}
+      }
+      chatAddon = { count: chatCount, total: parseFloat(chatTotal.toFixed(2)) };
+
+      // Répartition abonnements par plan (monthly / yearly / famille...).
+      const byPlan = (subPlanAgg || []).map((r) => ({
+        plan: r._id || 'inconnu',
+        count: r.count || 0,
+        total: parseFloat((r.total || 0).toFixed(2)),
+      }));
+      const subsCount = byPlan.reduce((s, p) => s + p.count, 0);
+      const subsRevenue = byPlan.reduce((s, p) => s + p.total, 0);
+      subscriptions = {
+        total: subsCount,
+        totalRevenue: parseFloat(subsRevenue.toFixed(2)),
+        byPlan,
+      };
+
+      const boostProfile = (pO || 0) + (pS || 0) + (pW || 0);
+      const boostMap = (mO || 0) + (mS || 0) + (mW || 0);
+      boutiqueTotal = parseFloat(
+        (boostProfile + boostMap + subsRevenue + chatTotal).toFixed(2),
+      );
+    } catch (e) {
+      // best-effort : on n'empêche jamais le dashboard de charger.
+    }
+
     res.json({
       totalBookings,
       totalSitters,
@@ -102,6 +191,12 @@ router.get('/stats', requireAdmin, async (req, res) => {
       paidToday,
       totalRevenue: revenue[0]?.total ?? 0,
       todayRevenue: todayRevenueAgg[0]?.total ?? 0,
+      // v23.1.312 — nouveaux indicateurs dashboard.
+      commissionTotal: parseFloat((commissionTotal || 0).toFixed(2)),
+      boutiqueTotal,
+      providerWalletTotal: parseFloat((providerWalletTotal || 0).toFixed(2)),
+      subscriptions,
+      chatAddon,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

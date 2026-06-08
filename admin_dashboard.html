@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v311</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v312</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -2309,22 +2309,43 @@ async function loadDashboard() {
     // v18.9.6 — ajout tuile Pet Walkers manquante dans Overview. Backend
     // renvoie déjà totalWalkers depuis /admin/stats, il n'était juste pas
     // rendu dans la grid.
+    // v23.1.312 — Daniel : cartes Commission, Boutique bénéfice, À reverser aux
+    // prestataires (wallets), Abonnements (nombre + revenus).
     const stats = [
-      { label: 'Total Bookings', value: d.totalBookings, sub: `${d.pendingBookings} pending`, accent: colors[0] },
-      { label: 'Paid Bookings', value: d.paidBookings, sub: 'completed payments', accent: colors[1] },
-      { label: 'Total Revenue', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'platform earnings', accent: colors[2] },
-      { label: 'Pet Sitters', value: d.totalSitters, sub: 'registered', accent: colors[3] },
-      { label: 'Pet Walkers', value: d.totalWalkers || 0, sub: 'registered', accent: colors[5] },
-      { label: 'Pet Owners', value: d.totalOwners, sub: 'registered', accent: colors[4] },
-      { label: 'Total Pets', value: d.totalPets, sub: 'in system', accent: colors[6] },
+      { label: 'Réservations', value: d.totalBookings, sub: `${d.pendingBookings} en attente`, accent: colors[0] },
+      { label: 'Réservations payées', value: d.paidBookings, sub: 'paiements aboutis', accent: colors[1] },
+      { label: 'CA brut réservations', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'total payé par les owners', accent: colors[2] },
+      { label: '💰 Commission 20%', value: `€${(d.commissionTotal||0).toFixed(2)}`, sub: 'ta part sur les réservations', accent: colors[1] },
+      { label: '🛍️ Boutique bénéfice', value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'Boost + PawSpot + Premium + Chat', accent: colors[3] },
+      { label: '↩️ À reverser aux prestataires', value: `€${(d.providerWalletTotal||0).toFixed(2)}`, sub: 'solde wallets sitters + walkers', accent: colors[4] },
+      { label: '📦 Abonnements', value: d.subscriptions?.total || 0, sub: `€${(d.subscriptions?.totalRevenue||0).toFixed(2)} de revenus`, accent: colors[5] },
+      { label: 'Pet Sitters', value: d.totalSitters, sub: 'inscrits', accent: colors[3] },
+      { label: 'Pet Walkers', value: d.totalWalkers || 0, sub: 'inscrits', accent: colors[5] },
+      { label: 'Pet Owners', value: d.totalOwners, sub: 'inscrits', accent: colors[4] },
+      { label: 'Animaux', value: d.totalPets, sub: 'dans le système', accent: colors[6] },
     ];
+    // Répartition des abonnements par plan (quel plan les gens prennent).
+    const planLabel = (p) => ({
+      monthly: 'Mensuel', yearly: 'Annuel', famille: 'Famille', family: 'Famille',
+      solo: 'Solo', none: 'Aucun',
+    }[String(p||'').toLowerCase()] || (p || 'Inconnu'));
+    const byPlan = (d.subscriptions && d.subscriptions.byPlan) || [];
+    const subsHtml = byPlan.length
+      ? byPlan.map(p => `<b>${planLabel(p.plan)}</b> : ${p.count} &nbsp;(€${(p.total||0).toFixed(2)})`).join(' &nbsp;·&nbsp; ')
+      : 'Aucun abonnement souscrit pour le moment.';
     document.getElementById('stats-grid').innerHTML = stats.map(s => `
       <div class="stat-card" style="--accent:${s.accent}">
         <div class="stat-label">${s.label}</div>
         <div class="stat-value">${s.value}</div>
         <div class="stat-sub">${s.sub}</div>
       </div>
-    `).join('');
+    `).join('') + `
+      <div class="stat-card" style="--accent:var(--green);grid-column:1 / -1">
+        <div class="stat-label">📦 Abonnements — répartition par plan</div>
+        <div class="stat-value" style="font-size:15px;line-height:1.8;font-weight:500">${subsHtml}</div>
+        <div class="stat-sub">PawFollow / Premium — combien de personnes et quel plan</div>
+      </div>
+    `;
   } catch(e) {
     showToast('Failed to load stats: ' + e.message, 'error');
     if (tsEl) tsEl.textContent = '⚠ Échec : ' + e.message;
