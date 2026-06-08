@@ -141,8 +141,20 @@ const restoreLoyaltyDiscount = async (bookingId) => {
  * Recompute Sitter.isTopSitter + completedServicesCount + averageRating.
  * Fires TOP_SITTER_ACHIEVED when the sitter crosses the threshold.
  */
+// v23.1.322 — Daniel (scale) : le recompute Top tourne à CHAQUE lecture de
+// profil (self-heal) et était AWAITÉ → 1 lecture de profil = 2 agrégations + 1
+// write, même pour un profil populaire lu des centaines de fois/min. Throttle
+// mémoire : au plus 1 recalcul toutes les 5 min par prestataire (résultat mis en
+// cache process-local). À l'échelle, ça divise la charge d'écriture par 100+ sur
+// les profils chauds, sans changer le comportement fonctionnel.
+const _recalcCache = new Map(); // id -> { at, result }
+const RECALC_TTL_MS = 5 * 60 * 1000;
+
 const recomputeSitterStatus = async (sitterId) => {
   if (!sitterId) return null;
+  const _ck = 'S:' + String(sitterId);
+  const _cached = _recalcCache.get(_ck);
+  if (_cached && (Date.now() - _cached.at) < RECALC_TTL_MS) return _cached.result;
   const [count, agg] = await Promise.all([
     Booking.countDocuments({
       sitterId,
@@ -185,7 +197,9 @@ const recomputeSitterStatus = async (sitterId) => {
       data: { count, avgRating },
     }).catch(() => {});
   }
-  return { count, avgRating, isTopSitter: shouldBeTop };
+  const _result = { count, avgRating, isTopSitter: shouldBeTop };
+  _recalcCache.set(_ck, { at: Date.now(), result: _result });
+  return _result;
 };
 
 
@@ -196,6 +210,9 @@ const recomputeSitterStatus = async (sitterId) => {
  */
 const recomputeWalkerStatus = async (walkerId) => {
   if (!walkerId) return null;
+  const _ck = 'W:' + String(walkerId);
+  const _cached = _recalcCache.get(_ck);
+  if (_cached && (Date.now() - _cached.at) < RECALC_TTL_MS) return _cached.result;
   const [count, agg] = await Promise.all([
     Booking.countDocuments({
       walkerId,
@@ -235,7 +252,9 @@ const recomputeWalkerStatus = async (walkerId) => {
       data: { count, avgRating },
     }).catch(() => {});
   }
-  return { count, avgRating, isTopWalker: shouldBeTop };
+  const _result = { count, avgRating, isTopWalker: shouldBeTop };
+  _recalcCache.set(_ck, { at: Date.now(), result: _result });
+  return _result;
 };
 
 module.exports = { getOwnerStats, onBookingCompleted, consumeLoyaltyDiscount, restoreLoyaltyDiscount, recomputeSitterStatus, recomputeWalkerStatus };

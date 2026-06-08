@@ -43,6 +43,33 @@ const createSocketServer = (httpServer) => {
 
   setSocketServer(io);
 
+  // v23.1.322 — Daniel (scale) : adaptateur Redis pour le MULTI-INSTANCE. Quand
+  // l'app tourne sur PLUSIEURS instances Render, sans adaptateur un socket émis
+  // par l'instance A n'atteint pas un user connecté à l'instance B → chat, carte
+  // live et notifs cassés entre instances. Avec REDIS_URL défini, on branche
+  // @socket.io/redis-adapter (pub/sub). Sans REDIS_URL → mono-instance (comme
+  // aujourd'hui), aucun changement. Tout est en try/catch : si Redis/le package
+  // échoue, on dégrade proprement en mono-instance au lieu de crasher le backend.
+  const REDIS_URL = process.env.REDIS_URL || process.env.UPSTASH_REDIS_URL || '';
+  if (REDIS_URL) {
+    (async () => {
+      try {
+        const { createAdapter } = require('@socket.io/redis-adapter');
+        const Redis = require('ioredis');
+        const pubClient = new Redis(REDIS_URL, { lazyConnect: false, maxRetriesPerRequest: 3 });
+        const subClient = pubClient.duplicate();
+        pubClient.on('error', (e) => logger.warn(`[socket.redis] pub error: ${e.message}`));
+        subClient.on('error', (e) => logger.warn(`[socket.redis] sub error: ${e.message}`));
+        io.adapter(createAdapter(pubClient, subClient));
+        logger.info('[socket.redis] adaptateur Redis ACTIVÉ → sockets multi-instance OK');
+      } catch (e) {
+        logger.warn(`[socket.redis] Redis indisponible (${e.message}) — fallback mono-instance`);
+      }
+    })();
+  } else {
+    logger.info('[socket.redis] REDIS_URL absent → mode mono-instance (OK pour 1 instance Render)');
+  }
+
   // v23.1 part 130 — Phase 6 audit P6-1 (BLOCKER) :
   // AVANT : pas d'auth socket → un attaquant pouvait envoyer
   // `user:identify {role:'admin', userId:<anyone>}` puis recevoir tous
