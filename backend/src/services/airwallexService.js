@@ -79,7 +79,7 @@ async function getAccessToken() {
  * Tiny wrapper around fetch that re-uses the cached token, reads JSON,
  * normalises errors, and surfaces useful debug info.
  */
-async function awxFetch(path, { method = 'GET', body, query, _retry = false } = {}) {
+async function awxFetch(path, { method = 'GET', body, query, headers: extraHeaders, _retry = false } = {}) {
   const token = await getAccessToken();
   const url   = new URL(`${BASE_URL()}${path}`);
   if (query) {
@@ -92,6 +92,10 @@ async function awxFetch(path, { method = 'GET', body, query, _retry = false } = 
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      // v23.1.308 — en-têtes additionnels par appel (ex: x-api-version pour
+      // épingler le schéma Transfers documenté, indépendamment de la version
+      // par défaut du compte).
+      ...(extraHeaders || {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -100,7 +104,7 @@ async function awxFetch(path, { method = 'GET', body, query, _retry = false } = 
   if (res.status === 401 && !_retry) {
     _cachedToken = null;
     _cachedTokenExpiresAt = 0;
-    return awxFetch(path, { method, body, query, _retry: true });
+    return awxFetch(path, { method, body, query, headers: extraHeaders, _retry: true });
   }
 
   const text = await res.text();
@@ -771,17 +775,20 @@ async function createPayout({ beneficiaryId, amount, currency, reference, reason
   //   • `reason` DOIT appartenir à l'enum Airwallex — l'ancien 'service_charges'
   //     n'existe plus (→ rejet). Défaut : professional_business_services
   //     (versement prestataire) ; le sweep société passe 'transfer_to_own_account'.
-  // v23.1.307 — Airwallex (compte CARDELLI) attend le schéma `currency` +
-  // `amount` (champ exact pointé par l'erreur : "field [currency] is required").
-  // L'ancien `transfer_currency`/`transfer_amount` n'était pas reconnu par la
-  // version d'API par défaut du compte. On envoie donc le schéma simple.
+  // v23.1.308 — la version d'API PAR DÉFAUT du compte utilisait un schéma
+  // ancien (currency/amount/destination) qui réclamait des champs non
+  // documentés. On ÉPINGLE la version documentée 2024-09-27 (rename Payment →
+  // Transfer) via l'en-tête x-api-version → le schéma devient déterministe :
+  // beneficiary_id + transfer_method + transfer_currency + transfer_amount.
   return awxFetch('/api/v1/transfers/create', {
     method: 'POST',
+    headers: { 'x-api-version': '2024-09-27' },
     body: {
       request_id: genRequestId('transfer'),
       beneficiary_id: beneficiaryId,
-      amount: centsToMajor(amount),
-      currency: currency.toUpperCase(),
+      transfer_method: 'LOCAL',
+      transfer_currency: currency.toUpperCase(),
+      transfer_amount: centsToMajor(amount),
       reason: reason || 'professional_business_services',
       reference: (reference || 'HoPetSit payout').slice(0, 35),
       metadata: awxMetadata,
