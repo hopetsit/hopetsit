@@ -13,6 +13,7 @@ const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
 const {
   getRecommendedPriceRange,
   calculateTotalWithAddOns,
+  commissionRateForProvider,
   SERVICE_TYPES,
   LOCATION_TYPES,
 } = require('../utils/pricing');
@@ -358,6 +359,8 @@ const createBooking = async (req, res) => {
         name: walker.name,
         email: walker.email,
         mobile: walker.mobile,
+        // v23.1.302 — report le badge Top pour la commission réduite (#69).
+        isTopWalker: walker.isTopWalker === true,
       };
     } else {
       sitter = await Sitter.findById(sitterId);
@@ -499,7 +502,17 @@ const createBooking = async (req, res) => {
     });
 
     // Calculate pricing breakdown with commission in booking currency
-    const pricingBreakdown = calculateTotalWithAddOns(tierPricing.basePrice, addOns, bookingCurrency);
+    // v23.1.302 — commission Top (#69) : 15% au lieu de 20% si le prestataire a
+    // le badge Top Sitter / Top Walker (tarif net presta inchangé).
+    const isTopProvider = providerType === 'walker'
+        ? sitter?.isTopWalker === true
+        : sitter?.isTopSitter === true;
+    const pricingBreakdown = calculateTotalWithAddOns(
+      tierPricing.basePrice,
+      addOns,
+      bookingCurrency,
+      commissionRateForProvider(isTopProvider),
+    );
 
     const requestFingerprint = buildRequestFingerprint({
       ownerId,

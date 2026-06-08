@@ -10,7 +10,7 @@ const {
   sanitizeBooking,
 } = require('../utils/sanitize');
 const { isOwnerSitterInteractionBlocked } = require('../services/blockService');
-const { calculateTotalWithAddOns, SERVICE_TYPES, LOCATION_TYPES } = require('../utils/pricing');
+const { calculateTotalWithAddOns, SERVICE_TYPES, LOCATION_TYPES, commissionRateForProvider } = require('../utils/pricing');
 const { assertSupportedCurrency, DEFAULT_CURRENCY } = require('../utils/currency');
 const { normalizeServiceType } = require('../utils/bookingAgreementFields');
 const { createNotificationSafe } = require('../services/notificationService');
@@ -392,7 +392,18 @@ const createApplication = async (req, res) => {
       serviceDate: parsedDate || serviceDate,
       durationMinutes: effectiveDuration || duration,
     });
-    const pricingBreakdown = calculateTotalWithAddOns(tierPricing.basePrice, normalizedAddOns, bookingCurrency);
+    // v23.1.302 — commission Top (#69) : un Top Sitter / Top Walker est facturé
+    // 15% au lieu de 20%, comme promis sur le site. Le tarif net du presta est
+    // inchangé (= basePrice) ; seul le supplément payé par l'owner baisse.
+    const isTopProvider = providerRole === 'walker'
+        ? provider?.isTopWalker === true
+        : provider?.isTopSitter === true;
+    const pricingBreakdown = calculateTotalWithAddOns(
+      tierPricing.basePrice,
+      normalizedAddOns,
+      bookingCurrency,
+      commissionRateForProvider(isTopProvider),
+    );
 
     const requestFingerprint = buildRequestFingerprint({
       ownerId,

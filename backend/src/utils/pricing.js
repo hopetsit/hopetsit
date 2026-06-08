@@ -34,6 +34,15 @@ const SERVICE_TYPE_VALUES = {
 // Platform commission rate (20%)
 const PLATFORM_COMMISSION_RATE = 0.2; // 20%
 
+// v23.1.302 — Daniel (#69) : "Top Sitter / Top Walker → commission 20% → 15%"
+// (promesse affichée sur le site pricing). Un prestataire au badge "Top" est
+// facturé 15% au lieu de 20%. La commission reste payée PAR L'OWNER en plus du
+// tarif affiché ; seul le pourcentage change. Helper central pour ne jamais
+// désynchroniser les sites d'appel.
+const TOP_PROVIDER_COMMISSION_RATE = 0.15; // 15%
+const commissionRateForProvider = (isTopProvider) =>
+  isTopProvider === true ? TOP_PROVIDER_COMMISSION_RATE : PLATFORM_COMMISSION_RATE;
+
 /**
  * Recommended Price Ranges as per client requirements
  */
@@ -198,7 +207,11 @@ const getRecommendedPriceRange = (serviceType, locationType, duration = null, cu
  * @param {string} [currency=DEFAULT_CURRENCY] - Currency code (EUR or USD)
  * @returns {Object} Price breakdown with commission, netPayout and ownerTotal.
  */
-const calculatePricingBreakdown = (basePrice, currency = DEFAULT_CURRENCY) => {
+const calculatePricingBreakdown = (
+  basePrice,
+  currency = DEFAULT_CURRENCY,
+  commissionRate = PLATFORM_COMMISSION_RATE,
+) => {
   if (typeof basePrice !== 'number' || basePrice <= 0) {
     throw new Error('Base price must be a positive number');
   }
@@ -208,13 +221,20 @@ const calculatePricingBreakdown = (basePrice, currency = DEFAULT_CURRENCY) => {
     'Pricing breakdown supports only USD or EUR.'
   );
 
+  // v23.1.302 — taux paramétrable (20% par défaut, 15% pour un prestataire Top).
+  // Garde-fou : on retombe sur 20% si une valeur invalide est passée.
+  const rate =
+    typeof commissionRate === 'number' && commissionRate >= 0 && commissionRate <= 1
+      ? commissionRate
+      : PLATFORM_COMMISSION_RATE;
+
   // Commission is computed ON the provider base rate and ADDED to the owner
   // total. It is NOT subtracted from the provider's payout anymore.
   //   provider advertises : 10 €
-  //   commission (20%)    :  2 €   ← paid by owner
-  //   owner total         : 12 €
+  //   commission (20%/15%):  2 € / 1,50 €   ← paid by owner
+  //   owner total         : 12 € / 11,50 €
   //   provider net payout : 10 €   (= basePrice, unchanged)
-  const commission = basePrice * PLATFORM_COMMISSION_RATE;
+  const commission = basePrice * rate;
   const netPayout = basePrice; // provider receives full advertised rate
   const ownerTotal = basePrice + commission;
 
@@ -223,7 +243,7 @@ const calculatePricingBreakdown = (basePrice, currency = DEFAULT_CURRENCY) => {
     commission: parseFloat(commission.toFixed(2)),
     netPayout: parseFloat(netPayout.toFixed(2)),
     ownerTotal: parseFloat(ownerTotal.toFixed(2)),
-    commissionRate: PLATFORM_COMMISSION_RATE,
+    commissionRate: rate,
     currency: normalizedCurrency,
   };
 };
@@ -235,7 +255,12 @@ const calculatePricingBreakdown = (basePrice, currency = DEFAULT_CURRENCY) => {
  * @param {string} [currency=DEFAULT_CURRENCY] - Currency code (EUR or USD)
  * @returns {Object} Total pricing breakdown
  */
-const calculateTotalWithAddOns = (basePrice, addOns = [], currency = DEFAULT_CURRENCY) => {
+const calculateTotalWithAddOns = (
+  basePrice,
+  addOns = [],
+  currency = DEFAULT_CURRENCY,
+  commissionRate = PLATFORM_COMMISSION_RATE,
+) => {
   const normalizedCurrency = assertSupportedCurrency(
     currency,
     'Total with add-ons supports only USD or EUR.'
@@ -248,8 +273,13 @@ const calculateTotalWithAddOns = (basePrice, addOns = [], currency = DEFAULT_CUR
   // v18.9.8 — the provider gross (what the provider wants to receive) is
   // basePrice + addOns. The commission is computed on this amount and
   // ADDED on top. `totalPrice` = what the owner actually pays.
+  // v23.1.302 — commissionRate propagé (15% si prestataire Top).
   const providerGross = basePrice + addOnsTotal;
-  const breakdown = calculatePricingBreakdown(providerGross, normalizedCurrency);
+  const breakdown = calculatePricingBreakdown(
+    providerGross,
+    normalizedCurrency,
+    commissionRate,
+  );
 
   return {
     ...breakdown,
@@ -356,6 +386,9 @@ module.exports = {
   LOCATION_TYPES,
   SERVICE_TYPES,
   PLATFORM_COMMISSION_RATE,
+  // v23.1.302 — commission réduite Top (#69).
+  TOP_PROVIDER_COMMISSION_RATE,
+  commissionRateForProvider,
   RECOMMENDED_PRICE_RANGES,
   getRecommendedPriceRange,
   calculatePricingBreakdown,
