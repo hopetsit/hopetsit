@@ -3552,7 +3552,8 @@ function explainPayoutError(e) {
   // pour ne plus deviner.
   const details = (e && e.details) || {};
   let fieldErrors = '';
-  const errs = details.errors || null;
+  // v23.1.311 — Airwallex imbrique : details.details.errors (pas details.errors).
+  const errs = details.errors || (details.details && details.details.errors) || null;
   if (Array.isArray(errs)) {
     fieldErrors = errs
       .map((x) => `${x.source || x.field || x.parameter || '?'} → ${x.message || x.code || ''}`)

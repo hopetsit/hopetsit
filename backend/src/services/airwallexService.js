@@ -780,6 +780,10 @@ async function createPayout({ beneficiaryId, amount, currency, reference, reason
   // documentés. On ÉPINGLE la version documentée 2024-09-27 (rename Payment →
   // Transfer) via l'en-tête x-api-version → le schéma devient déterministe :
   // beneficiary_id + transfer_method + transfer_currency + transfer_amount.
+  // v23.1.311 — la version 2024-09-27 EXIGE `source_currency` (erreur Airwallex
+  // précédente : errors[{source: 'source_currency'}]). Virement même devise
+  // (EUR→EUR) : source_currency = transfer_currency, pas de conversion.
+  const cur = currency.toUpperCase();
   return awxFetch('/api/v1/transfers/create', {
     method: 'POST',
     headers: { 'x-api-version': '2024-09-27' },
@@ -787,7 +791,8 @@ async function createPayout({ beneficiaryId, amount, currency, reference, reason
       request_id: genRequestId('transfer'),
       beneficiary_id: beneficiaryId,
       transfer_method: 'LOCAL',
-      transfer_currency: currency.toUpperCase(),
+      source_currency: cur,
+      transfer_currency: cur,
       transfer_amount: centsToMajor(amount),
       reason: reason || 'professional_business_services',
       reference: (reference || 'HoPetSit payout').slice(0, 35),
