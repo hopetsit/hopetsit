@@ -65,8 +65,16 @@ const createPendingReferral = async ({ referralCode, referredUserId, referredRol
  */
 const onReferredFirstBookingCompleted = async ({ bookingId, userId, role }) => {
   // Count completed bookings for this user; act only on the first.
+  // v23.1.317 — Daniel : "vérifie les parrainages". BUG BLOQUANT : on comptait
+  // uniquement status:'completed', or le flux de confirmation owner ne pose PAS
+  // status='completed' (il pose confirmationStatus='confirmed'). Résultat : le
+  // crédit de parrainage n'était JAMAIS accordé pour la majorité des cas. On
+  // aligne sur le même $or que loyaltyService/owner stats.
   const field = role === 'sitter' ? 'sitterId' : 'ownerId';
-  const completedCount = await Booking.countDocuments({ [field]: userId, status: 'completed' });
+  const completedCount = await Booking.countDocuments({
+    [field]: userId,
+    $or: [{ status: 'completed' }, { confirmationStatus: 'confirmed' }],
+  });
   if (completedCount !== 1) return;
   const referral = await Referral.findOne({
     referredUserId: userId,

@@ -2,12 +2,9 @@
 
 import { useT } from "@/lib/i18n/LanguageProvider";
 
-const APK_URL = "/HoPetSit.apk"; // copied to public/ by BUILD_APK.bat (v23.1 part 146).
-
-// v23.1 part 146 — version courante de l'APK exposée sur le site.
-// Doit être mise à jour manuellement quand BUILD_APK.bat est relancé sur
-// une nouvelle version (ou automatisé plus tard via un /public/apk-info.json).
-const APK_VERSION = "v23.1.267";
+// v23.1.317 — Daniel : "enlever l'APK du site web" (avant lancement Play Store ;
+// Google déconseille la distribution du même APK hors store). Le téléchargement
+// direct est retiré, on affiche "bientôt sur Google Play / App Store".
 
 export default function DownloadPage() {
   const { t } = useT();
@@ -20,20 +17,16 @@ export default function DownloadPage() {
       <p className="mt-4 text-center text-lg text-ink-muted">{t("dl_sub")}</p>
 
       <div className="mt-12 grid gap-4">
-        <a
-          href={APK_URL}
-          download
-          className="flex items-center justify-between rounded-2xl bg-walker p-5 text-white shadow-cta hover:bg-walker-dark"
-        >
+        <div className="flex items-center justify-between rounded-2xl border border-ink/10 bg-white p-5 opacity-70">
           <span className="flex items-center gap-3">
             <span className="text-2xl">🤖</span>
             <span>
-              <span className="block text-xs uppercase tracking-wider opacity-80">Android · APK · {APK_VERSION}</span>
-              <span className="text-base font-bold">{t("dl_apk")}</span>
+              <span className="block text-xs uppercase tracking-wider text-ink-soft">Android · Google Play</span>
+              <span className="text-base font-bold text-ink">{t("dl_play")}</span>
             </span>
           </span>
-          <span className="text-xl">→</span>
-        </a>
+          <span className="text-xs text-ink-soft">soon</span>
+        </div>
 
         <div className="flex items-center justify-between rounded-2xl border border-ink/10 bg-white p-5 opacity-70">
           <span className="flex items-center gap-3">

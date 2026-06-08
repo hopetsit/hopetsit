@@ -130,12 +130,21 @@ const recomputeSitterStatus = async (sitterId) => {
       $or: [{ status: 'completed' }, { confirmationStatus: 'confirmed' }],
     }),
     Review.aggregate([
-      { $match: { revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(sitterId)) } },
+      // v23.1.317 — Daniel : "Top affiche 19 prestations + 0 étoile". CAUSE : le
+      // $match ne filtrait QUE revieweeId, sans revieweeModel ni hidden → la
+      // moyenne pouvait être faussée/0 (mélange Sitter/Walker même _id improbable,
+      // mais surtout incohérent avec recomputeRevieweeRating). On aligne.
+      { $match: {
+        revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(sitterId)),
+        revieweeModel: 'Sitter',
+        hidden: { $ne: true },
+      } },
       { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } },
     ]).catch(() => []),
   ]);
   const avgRating = (agg && agg[0]?.avg) ? Number(agg[0].avg.toFixed(2)) : 0;
-  const shouldBeTop = count >= 20 && avgRating > 4.5;
+  // v23.1.317 — Daniel : "note minimum de 4.5" → >= 4.5 (inclus), pas > 4.5.
+  const shouldBeTop = count >= 20 && avgRating >= 4.5;
   const sitter = await Sitter.findById(sitterId).select('isTopSitter').lean();
   if (!sitter) return null;
   const wasTop = sitter.isTopSitter === true;
@@ -174,12 +183,18 @@ const recomputeWalkerStatus = async (walkerId) => {
       $or: [{ status: 'completed' }, { confirmationStatus: 'confirmed' }],
     }),
     Review.aggregate([
-      { $match: { revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(walkerId)) } },
+      // v23.1.317 — même fix que sitter : filtre revieweeModel + hidden.
+      { $match: {
+        revieweeId: require('mongoose').Types.ObjectId.createFromHexString(String(walkerId)),
+        revieweeModel: 'Walker',
+        hidden: { $ne: true },
+      } },
       { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } },
     ]).catch(() => []),
   ]);
   const avgRating = (agg && agg[0]?.avg) ? Number(agg[0].avg.toFixed(2)) : 0;
-  const shouldBeTop = count >= 20 && avgRating > 4.5;
+  // v23.1.317 — Daniel : "note minimum de 4.5" → >= 4.5 (inclus), pas > 4.5.
+  const shouldBeTop = count >= 20 && avgRating >= 4.5;
   const walker = await Walker.findById(walkerId).select('isTopWalker').lean();
   if (!walker) return null;
   const wasTop = walker.isTopWalker === true;

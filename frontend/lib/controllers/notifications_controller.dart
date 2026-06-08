@@ -248,8 +248,12 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
           // NEW_REVIEW, BOOKING_COMPLETED : pas de badge dédié
           // (visibles dans unreadCount + écran Notifications).
           if (lower == 'new_message') {
-            unreadChat.value = unreadChat.value + 1;
-            _storage.write(_kUnreadChat, unreadChat.value);
+            // v23.1.317 — Daniel : "notifs en double / badges qui reviennent".
+            // Le badge chat est DÉJÀ incrémenté par l'event socket `message:new`
+            // (handler dédié plus haut). On re-bumpait ICI aussi sur le
+            // notification.new type new_message → +2 par message reçu. On ne
+            // bump plus ici : `message:new` est l'unique source de vérité du
+            // badge chat (le feed, lui, reste alimenté par notification.new).
           } else if (lower == 'payment_success' ||
               lower == 'payment_failed' ||
               lower == 'booking_paid' ||

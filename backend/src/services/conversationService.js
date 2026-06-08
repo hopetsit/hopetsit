@@ -346,6 +346,26 @@ const markConversationRead = async ({ conversationId, role, userId }) => {
 
   const conversation = await getConversationOrThrow(conversationId, { populate: true });
 
+  // v23.1.317 — Daniel : "les badges chat qui reviennent". CAUSE : pour un chat
+  // AMI/FAMILLE, l'unread est stocké dans participants[].unreadCount, PAS dans
+  // owner/sitterUnreadCount. markConversationRead ne le gérait pas → /:id/read
+  // ne remettait jamais à 0 → au reload/reconnexion le badge revenait.
+  // assertParticipant ne connaît pas participants[] non plus → on traite ce cas
+  // AVANT (et on évite le 403).
+  if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
+    let changed = false;
+    for (const p of conversation.participants) {
+      if (String(p.userId) === String(userId) && (p.unreadCount || 0) > 0) {
+        p.unreadCount = 0;
+        p.lastReadAt = new Date();
+        changed = true;
+      }
+    }
+    if (!changed) return { updated: false };
+    await conversation.save();
+    return { updated: true, conversation: sanitizeConversation(conversation) };
+  }
+
   assertParticipant(conversation, role, userId);
 
   let updated = false;

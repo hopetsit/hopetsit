@@ -6,7 +6,7 @@ const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const { sanitizeDoc, sanitizeReview } = require('../utils/sanitize');
 const { sendNotification } = require('../services/notificationSender');
-const { recomputeSitterStatus } = require('../services/loyaltyService');
+const { recomputeSitterStatus, recomputeWalkerStatus } = require('../services/loyaltyService');
 const logger = require('../utils/logger');
 
 // v18.6 — walker support ajouté.
@@ -347,7 +347,11 @@ const recomputeRevieweeRating = async (revieweeId, modelName) => {
   r.reviewsCount = count;
   if (r.averageRating !== undefined) r.averageRating = avg;
   await r.save();
+  // v23.1.317 — Daniel : "Top Walker pas à jour". AVANT, seul le Sitter était
+  // recalculé sur edit/delete d'avis → le flag isTopWalker restait périmé. On
+  // recalcule aussi le Walker.
   if (modelName === 'Sitter') recomputeSitterStatus(revieweeId).catch(() => {});
+  if (modelName === 'Walker') recomputeWalkerStatus(revieweeId).catch(() => {});
 };
 
 // GET /reviews/mine?bookingId=...  → l'avis de l'utilisateur connecté pour ce

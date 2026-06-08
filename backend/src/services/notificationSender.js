@@ -289,7 +289,23 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
 
   const results = await Promise.allSettled([
     Promise.resolve(inAppCreated),
-    sendPush(user.fcmTokens, title, body, { type, ...data }, { userId, role }),
+    // v23.1.317 — Daniel : "notifs pas en doublon". CAUSE : le payload FCM ne
+    // contenait PAS l'id de la notif → la dédup côté app (_markSeenOrDupe, qui
+    // lit data.notificationId) ne pouvait jamais rapprocher le push et l'event
+    // socket → badge compté 2×. On injecte notificationId dans le data push.
+    sendPush(
+      user.fcmTokens,
+      title,
+      body,
+      {
+        type,
+        ...data,
+        ...(inAppCreated && inAppCreated._id
+          ? { notificationId: String(inAppCreated._id) }
+          : {}),
+      },
+      { userId, role },
+    ),
     email ? sendEmail(email, emailSubject, body, emailBody) : Promise.resolve({ skipped: true }),
   ]);
 
