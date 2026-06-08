@@ -851,7 +851,7 @@ const isBookingPayoutDue = (booking) => {
 /**
  * Schedules or triggers the sitter payout for a booking that has just been paid.
  *
- * Business rule (HopeTSIT v23.1, aligned with Airwallex risk pack policy):
+ * Business rule (HoPetSit v23.1, aligned with Airwallex risk pack policy):
  *   The money stays in escrow until **24 hours after the service ENDS**.
  *   This gives the owner a dispute window after the booking is completed,
  *   while still releasing funds to the provider quickly (typically within

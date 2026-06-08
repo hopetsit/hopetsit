@@ -2,7 +2,7 @@ const logger = require('../utils/logger');
 /**
  * Payout scheduler.
  *
- * HopeTSIT business rule (v23.1 part 66 — Daniel) :
+ * HoPetSit business rule (v23.1 part 66 — Daniel) :
  *   The owner pays at booking time. The money is held in escrow until
  *   the DAY THE SERVICE STARTS, at which point we release it to the
  *   provider. Default offset is 0 hours (release at exact start time).

@@ -106,7 +106,7 @@ async function overpassQuery({ bbox, filter, category, attempt = 1 }) {
       'Content-Type': 'application/x-www-form-urlencoded',
       // Overpass returns 406 "Not Acceptable" for unidentified clients.
       // The User-Agent is required by their fair-use policy.
-      'User-Agent': 'HopeTSIT-POI-Seed/1.0 (contact: dadaciao84@gmail.com)',
+      'User-Agent': 'HoPetSit-POI-Seed/1.0 (contact: dadaciao84@gmail.com)',
       'Accept': 'application/json',
     },
     body: body.toString(),

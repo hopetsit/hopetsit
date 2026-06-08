@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v319</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v320</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -3544,8 +3544,9 @@ async function loadAdminPayouts() {
       '<h3 style="font-size:16px;margin:20px 0 10px">🛍️ Détail boutique</h3>' +
       '<table class="table"><thead><tr><th>Produit</th><th>Total</th><th>Achats</th></tr></thead><tbody>' +
       '<tr><td><strong>🚀 Boost profil</strong></td><td>'+(bb.profileBoost?.total||0).toFixed(2)+' EUR</td><td>'+(bb.profileBoost?.count||0)+'</td></tr>' +
-      '<tr><td><strong>🗺️ PawSpot (map boost)</strong></td><td>'+(bb.mapBoost?.total||0).toFixed(2)+' EUR</td><td>'+(bb.mapBoost?.count||0)+'</td></tr>' +
-      '<tr><td><strong>⭐ Premium / PawFollow</strong></td><td>'+(bb.premium?.total||0).toFixed(2)+' EUR</td><td>'+(bb.premium?.count||0)+'</td></tr>' +
+      '<tr><td><strong>🗺️ PawSpot</strong></td><td>'+(bb.mapBoost?.total||0).toFixed(2)+' EUR</td><td>'+(bb.mapBoost?.count||0)+'</td></tr>' +
+      '<tr><td><strong>⭐ PawFollow</strong></td><td>'+(bb.pawFollow?.total||0).toFixed(2)+' EUR</td><td>'+(bb.pawFollow?.count||0)+'</td></tr>' +
+      '<tr><td><strong>👨‍👩‍👧 PawFamily</strong></td><td>'+(bb.pawFamily?.total||0).toFixed(2)+' EUR</td><td>'+(bb.pawFamily?.count||0)+'</td></tr>' +
       '<tr><td><strong>💬 Chat add-on</strong></td><td>'+(bb.chatAddon?.total||0).toFixed(2)+' EUR</td><td>'+(bb.chatAddon?.count||0)+'</td></tr>' +
       '</tbody></table>' +
       // Détail commissions par période

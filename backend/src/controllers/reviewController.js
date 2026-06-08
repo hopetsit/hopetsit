@@ -300,7 +300,7 @@ const reportReview = async (req, res) => {
           const snippet = String(review.comment || '(aucun texte)').slice(0, 300);
           sendEmail(
             to,
-            `[HopeTSIT] Avis signalé (${review.reportedCount}) — #${id}`,
+            `[HoPetSit] Avis signalé (${review.reportedCount}) — #${id}`,
             `Un avis a été signalé (${review.reportedCount} signalement(s)).\n\n` +
               `Note : ${review.rating || 0}/5\n` +
               `Commentaire : "${snippet}"\n\n` +

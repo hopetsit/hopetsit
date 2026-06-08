@@ -155,7 +155,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // build is actually LIVE on Render (GET /__build). If /__build still returns an
 // old value after a push, Render did not redeploy (auto-deploy off / build
 // filter / failed deploy) — not a code problem.
-const ADMIN_BUILD = 'v319';
+const ADMIN_BUILD = 'v320';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -172,7 +172,7 @@ app.get(['/admin', '/admin.html', '/admin_dashboard.html'], noAdminCache, (req, 
 // build (v287) the new backend is live; if it 404s or shows an old value, the
 // deploy has not gone through yet.
 app.get('/__build', (req, res) => {
-  res.type('text').send(`HopeTSIT admin build ${ADMIN_BUILD}`);
+  res.type('text').send(`HoPetSit admin build ${ADMIN_BUILD}`);
 });
 // Sprint 8 step 5 — structured request logger (pino-http) with reqId + duration.
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
@@ -290,7 +290,7 @@ app.use(
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'HopeTSIT API v1 Documentation',
+    customSiteTitle: 'HoPetSit API v1 Documentation',
   })
 );
 

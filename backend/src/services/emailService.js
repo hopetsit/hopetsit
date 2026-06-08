@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
 
-const BRAND_NAME = process.env.EMAIL_BRAND_NAME || 'HopeTSIT';
+const BRAND_NAME = process.env.EMAIL_BRAND_NAME || 'HoPetSit';
 const SUPPORT_EMAIL = process.env.SMTP_FROM || process.env.SMTP_USER || 'hopetsit@gmail.com';
 
 const transporter = (() => {

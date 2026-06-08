@@ -1,5 +1,5 @@
 /**
- * HOPETSIT - PRICING & COMMISSION POLICY
+ * HoPetSit - PRICING & COMMISSION POLICY
  * 
  * This utility handles:
  * - Recommended price ranges based on service type, duration, and location

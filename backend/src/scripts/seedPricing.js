@@ -1,5 +1,5 @@
 /**
- * HOPETSIT - PRICING & COMMISSION POLICY SEED DATA
+ * HoPetSit - PRICING & COMMISSION POLICY SEED DATA
  * 
  * This script seeds the database with pricing data according to client requirements:
  * - Sitters with location types (standard/large_city)

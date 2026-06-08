@@ -539,16 +539,16 @@ const renderInvoiceHtml = async (req, res) => {
     </button>
   </div>
 
-  <!-- v23.1 part 65 — Bug 7 : downloadInvoice() prefers the Hopetsit JS
+  <!-- v23.1 part 65 — Bug 7 : downloadInvoice() prefers the HoPetSit JS
        channel (registered by Flutter InvoiceViewerScreen) which pops out
        to the system browser where Save-as-PDF / Share work reliably.
        Falls back to window.print() when the page is opened in a regular
-       browser (no Hopetsit channel registered). -->
+       browser (no HoPetSit channel registered). -->
   <script>
     function downloadInvoice() {
       try {
-        if (typeof Hopetsit !== 'undefined' && Hopetsit && typeof Hopetsit.postMessage === 'function') {
-          Hopetsit.postMessage('download');
+        if (typeof HoPetSit !== 'undefined' && HoPetSit && typeof HoPetSit.postMessage === 'function') {
+          HoPetSit.postMessage('download');
           return;
         }
       } catch (_) { /* fall through */ }

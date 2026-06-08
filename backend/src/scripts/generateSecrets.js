@@ -62,7 +62,7 @@ const main = () => {
   }
 
   logger.info('============================================================');
-  logger.info('HopeTSIT — generateSecrets');
+  logger.info('HoPetSit — generateSecrets');
   logger.info('============================================================');
   for (const [k, v] of Object.entries(kept)) logger.info(`• ${k}: ${v}`);
 

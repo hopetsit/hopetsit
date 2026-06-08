@@ -559,7 +559,7 @@ router.get(
       const payload = {
         exportedAt: new Date().toISOString(),
         role,
-        rgpdNotice: 'Cet export contient toutes vos données personnelles stockées par HopeTSIT (CARDELLI HERMANOS LIMITED). Article 15 + 20 RGPD.',
+        rgpdNotice: 'Cet export contient toutes vos données personnelles stockées par HoPetSit (CARDELLI HERMANOS LIMITED). Article 15 + 20 RGPD.',
         profile: user,
         pets,
         bookings,

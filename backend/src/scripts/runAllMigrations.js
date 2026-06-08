@@ -25,7 +25,7 @@ const logger = require('../utils/logger');
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     logger.info('============================================================');
-    logger.info('HopeTSIT — runAllMigrations starting');
+    logger.info('HoPetSit — runAllMigrations starting');
     logger.info('============================================================');
 
     const steps = [

@@ -2841,6 +2841,25 @@ router.get('/payouts', requireAdmin, async (req, res) => {
       { $group: { _id: null, total: { $sum: { $ifNull: ['$payments.amount', 0] } }, count: { $sum: 1 } } },
     ]);
 
+    // v23.1.320 — Daniel : "il n'y a pas PawFamily dans la compta boutique".
+    // On répartit les abonnements par plan : PawFollow (mensuel + annuel) vs
+    // PawFamily (famille). Le plan 'family'/'famille' = PawFamily.
+    const subByPlan = await Subscription.aggregate([
+      { $unwind: { path: '$payments', preserveNullAndEmptyArrays: false } },
+      { $group: {
+        _id: '$payments.plan',
+        total: { $sum: { $ifNull: ['$payments.amount', 0] } },
+        count: { $sum: 1 },
+      } },
+    ]);
+    const isFamilyPlan = (p) => ['family', 'famille'].includes(String(p || '').toLowerCase());
+    let pawFamilyTotal = 0; let pawFamilyCount = 0;
+    let pawFollowTotal = 0; let pawFollowCount = 0;
+    for (const r of (subByPlan || [])) {
+      if (isFamilyPlan(r._id)) { pawFamilyTotal += r.total || 0; pawFamilyCount += r.count || 0; }
+      else { pawFollowTotal += r.total || 0; pawFollowCount += r.count || 0; }
+    }
+
     let donationsTotal = 0; let donationsCount = 0;
     if (Donation) {
       try {
@@ -2926,7 +2945,11 @@ router.get('/payouts', requireAdmin, async (req, res) => {
         boutiqueBreakdown: {
           profileBoost: { total: profileBoostTotal, count: profileBoostCount },
           mapBoost:     { total: mapBoostTotal,     count: mapBoostCount },
+          // premium = total abonnements (rétro-compat) ; pawFollow + pawFamily
+          // = répartition demandée par Daniel.
           premium:      { total: subscriptionAllTime, count: subAgg[0]?.count || 0 },
+          pawFollow:    { total: pawFollowTotal, count: pawFollowCount },
+          pawFamily:    { total: pawFamilyTotal, count: pawFamilyCount },
           chatAddon:    { total: chatAddonTotal,    count: chatAddonCount },
         },
         cumulativeSwept,
