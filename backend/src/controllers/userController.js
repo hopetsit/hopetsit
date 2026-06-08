@@ -120,7 +120,9 @@ const buildProfileUpdate = ({ name, mobile, countryCode, language, address, avat
     if (typeof bio !== 'string') {
       throw new Error('Bio must be a string.');
     }
-    update.bio = bio.trim();
+    // v23.1.319 — auto-modération (gros mots/menaces) sur la bio de profil.
+    update.bio = require('../services/textModerationService')
+      .moderateText(bio.trim()).clean;
   }
   if (skills !== undefined) {
     if (typeof skills !== 'string') {

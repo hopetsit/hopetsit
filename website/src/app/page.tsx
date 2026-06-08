@@ -50,7 +50,7 @@ export default function HomePage() {
     },
   ] as const;
 
-  // v23.1.279 — Daniel : "mettre 4 façons d'utiliser HopeTSIT + l'onglet
+  // v23.1.279 — Daniel : "mettre 4 façons d'utiliser HoPetSit + l'onglet
   // PawFamily". La 4e carte (PawFamily) est en VIOLET = code couleur famille.
   const usageWays = [
     { emoji: "🔎", title: t("home_way1_title"), body: t("home_way1_body"), accent: "owner" },
@@ -207,7 +207,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* v23.1.279 — Daniel : "4 façons d'utiliser HopeTSIT + onglet PawFamily".
+      {/* v23.1.279 — Daniel : "4 façons d'utiliser HoPetSit + onglet PawFamily".
           4 cartes ; la 4e (PawFamily) en VIOLET = code couleur famille. */}
       <section className="bg-bg-soft py-20">
         <div className="mx-auto max-w-6xl px-4">

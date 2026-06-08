@@ -19,6 +19,9 @@ import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
+// v23.1.319 — Daniel (audit) : routage des notifs paiement/wallet/boutique.
+import 'package:hopetsit/views/wallet/wallet_screen.dart';
+import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/notifications/notification_application_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_post_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
@@ -444,6 +447,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           openCommentsOnOpen: true,
         );
       }
+      return;
+    }
+
+    // v23.1.319 — Daniel (audit) : ~30 types de notifs n'avaient AUCUNE
+    // destination au tap (cul-de-sac silencieux). On route les grandes
+    // catégories restantes vers l'écran pertinent.
+    // Paiement / wallet / retrait / payout → écran Wallet.
+    if (type.contains('wallet') ||
+        type.contains('payout') ||
+        type.contains('withdrawal') ||
+        type.contains('payment')) {
+      Get.to(() => const WalletScreen());
+      return;
+    }
+    // Boutique : boost profil/map, abonnement PawFollow, add-on chat → boutique.
+    if (type.contains('boost') ||
+        type.contains('subscription') ||
+        type.contains('addon') ||
+        type == 'premium_achieved') {
+      Get.to(() => const CoinShopScreen());
       return;
     }
 

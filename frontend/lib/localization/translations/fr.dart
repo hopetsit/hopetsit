@@ -2203,7 +2203,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'post_card_service_overnight_care': 'Garde de nuit',
       'post_card_service_pet_boarding': 'Pension',
     'report_dialog_title': 'Signaler',
-    'report_dialog_subtitle': 'Aidez-nous a garder HopeTsit sur en choisissant une raison.',
+    'report_dialog_subtitle': 'Aidez-nous a garder HoPetSit sur en choisissant une raison.',
     'report_dialog_details_hint': 'Details supplementaires (optionnel)',
     'report_submit_button': 'Envoyer le signalement',
     'report_submit_success': 'Merci, votre signalement a ete envoye.',

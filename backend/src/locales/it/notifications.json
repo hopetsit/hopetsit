@@ -2,20 +2,20 @@
   "BOOKING_MUTUALLY_ACCEPTED": {
     "title": "Prenotazione accettata",
     "body": "Ciao {{name}}, entrambe le parti hanno accettato la prenotazione. Completa il pagamento per iniziare a chattare.",
-    "emailSubject": "La tua prenotazione HopeTSIT è confermata",
-    "emailBody": "<p>Ciao {{name}},</p><p>La prenotazione è stata accettata da entrambe le parti. Completa il pagamento per sbloccare la chat e finalizzare la prenotazione.</p><p>— Il team HopeTSIT</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Paga ora</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
+    "emailSubject": "La tua prenotazione HoPetSit è confermata",
+    "emailBody": "<p>Ciao {{name}},</p><p>La prenotazione è stata accettata da entrambe le parti. Completa il pagamento per sbloccare la chat e finalizzare la prenotazione.</p><p>— Il team HoPetSit</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Paga ora</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
   },
   "new_request_nearby": {
     "title": "Nuovo annuncio vicino a te",
     "body": "{{ownerName}} cerca un servizio a {{city}}. Apri l'app per candidarti.",
-    "emailSubject": "Nuovo annuncio — HopeTSIT",
+    "emailSubject": "Nuovo annuncio — HoPetSit",
     "emailBody": "<p>È stato pubblicato un nuovo annuncio nella tua zona. Apri l'app HoPetSit per candidarti.</p>"
   },
   "booking_new": {
     "title": "Nuova richiesta di prenotazione",
     "body": "Hai ricevuto una nuova richiesta di prenotazione.",
-    "emailSubject": "Nuova richiesta di prenotazione — HopeTSIT",
-    "emailBody": "<p>Hai ricevuto una nuova richiesta di prenotazione su HopeTSIT. Apri l'app per visualizzarla.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi richiesta</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
+    "emailSubject": "Nuova richiesta di prenotazione — HoPetSit",
+    "emailBody": "<p>Hai ricevuto una nuova richiesta di prenotazione su HoPetSit. Apri l'app per visualizzarla.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi richiesta</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
   },
   "booking_accepted": {
     "title": "Prenotazione accettata",
@@ -26,74 +26,74 @@
   "booking_rejected": {
     "title": "Prenotazione rifiutata",
     "body": "La tua richiesta di prenotazione è stata rifiutata.",
-    "emailSubject": "La tua richiesta è stata rifiutata — HopeTSIT",
+    "emailSubject": "La tua richiesta è stata rifiutata — HoPetSit",
     "emailBody": "<p>La tua richiesta di prenotazione è stata rifiutata. Puoi inviarne una nuova a un altro prestatore.</p>"
   },
   "application_new": {
     "title": "Nuova candidatura",
     "body": "Un prestatore ti ha inviato una richiesta.",
-    "emailSubject": "Nuova candidatura — HopeTSIT",
+    "emailSubject": "Nuova candidatura — HoPetSit",
     "emailBody": "<p>Un prestatore si è candidato al tuo annuncio. Apri l'app per esaminarla.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi candidatura</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
   },
   "application_accepted": {
     "title": "Candidatura accettata",
     "body": "La tua candidatura è stata accettata.",
-    "emailSubject": "La tua candidatura è stata accettata — HopeTSIT",
+    "emailSubject": "La tua candidatura è stata accettata — HoPetSit",
     "emailBody": "<p>La tua candidatura è stata accettata. Apri l'app per vedere i dettagli.</p>"
   },
   "application_rejected": {
     "title": "Candidatura rifiutata",
     "body": "La tua candidatura è stata rifiutata.",
-    "emailSubject": "La tua candidatura è stata rifiutata — HopeTSIT",
+    "emailSubject": "La tua candidatura è stata rifiutata — HoPetSit",
     "emailBody": "<p>La tua candidatura è stata rifiutata dal proprietario. Continua a candidarti ad altri annunci.</p>"
   },
   "NEW_MESSAGE": {
     "title": "Nuovo messaggio da {{senderName}}",
     "body": "{{preview}}",
-    "emailSubject": "Nuovo messaggio su HopeTSIT",
+    "emailSubject": "Nuovo messaggio su HoPetSit",
     "emailBody": "<p><strong>{{senderName}}</strong> ti ha inviato un nuovo messaggio:</p><blockquote>{{preview}}</blockquote><p style=\"color:#666;margin-bottom:8px\">Apri l'app per rispondere.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#2563EB;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Apri conversazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link nel tuo browser: {{emailLink}}</p>"
   },
   "NEW_REVIEW": {
     "title": "Hai ricevuto una nuova recensione",
     "body": "Valutazione: {{rating}}/5 — {{comment}}",
-    "emailSubject": "Nuova recensione sul tuo profilo HopeTSIT",
+    "emailSubject": "Nuova recensione sul tuo profilo HoPetSit",
     "emailBody": "<p>Hai appena ricevuto una recensione <strong>{{rating}}/5</strong>:</p><blockquote>{{comment}}</blockquote>"
   },
   "PAYMENT_SUCCESS": {
     "title": "Pagamento ricevuto",
     "body": "Il pagamento di {{amount}} {{currency}} è andato a buon fine.",
-    "emailSubject": "Pagamento confermato — HopeTSIT",
+    "emailSubject": "Pagamento confermato — HoPetSit",
     "emailBody": "<p>Il tuo pagamento di <strong>{{amount}} {{currency}}</strong> è stato confermato. Prenotazione n. {{bookingId}}.</p>"
   },
   "PAYMENT_FAILED": {
     "title": "Pagamento fallito",
     "body": "Il tuo pagamento di {{amount}} {{currency}} non è andato a buon fine. Riprova.",
-    "emailSubject": "Pagamento fallito — HopeTSIT",
+    "emailSubject": "Pagamento fallito — HoPetSit",
     "emailBody": "<p>Il tuo pagamento di <strong>{{amount}} {{currency}}</strong> non è andato a buon fine. Apri l'app per riprovare.</p>"
   },
   "VISIT_REPORT": {
     "title": "Nuovo rapporto di visita",
     "body": "Il tuo sitter ha condiviso {{photoCount}} foto. Umore: {{mood}}.",
-    "emailSubject": "Nuovo rapporto di visita — HopeTSIT",
+    "emailSubject": "Nuovo rapporto di visita — HoPetSit",
     "emailBody": "<p>Il tuo sitter ha inviato un rapporto di visita con <strong>{{photoCount}}</strong> foto. Umore: <em>{{mood}}</em>. Apri l'app per consultarlo.</p>"
   },
   "PREMIUM_ACHIEVED": {
     "title": "Benvenuto Premium!",
     "body": "Hai completato {{count}} prenotazioni. Goditi i vantaggi esclusivi.",
-    "emailSubject": "Stato Premium sbloccato — HopeTSIT",
+    "emailSubject": "Stato Premium sbloccato — HoPetSit",
     "emailBody": "<p>Congratulazioni! Sei ora <strong>membro Premium</strong>. Goditi l'accesso prioritario ai migliori sitter.</p>"
   },
   "TOP_SITTER_ACHIEVED": {
     "title": "Sei Top Sitter! 🏆",
     "body": "{{count}} servizi · voto medio {{avgRating}}/5. Commissione ridotta al 15%.",
-    "emailSubject": "Stato Top Sitter sbloccato — HopeTSIT",
+    "emailSubject": "Stato Top Sitter sbloccato — HoPetSit",
     "emailBody": "<p>Congratulazioni! Sei ora <strong>Top Sitter</strong>. La nostra commissione scende dal 20% al <strong>15%</strong> sulle prossime prenotazioni.</p>"
   },
   "REFERRAL_CREDITED": {
     "title": "Ricompensa referral!",
     "body": "Il tuo referral ha appena completato la 1ª prenotazione. Credito di {{amount}} {{currency}} accreditato.",
-    "emailSubject": "Hai guadagnato {{amount}} {{currency}} — HopeTSIT",
-    "emailBody": "<p>Buone notizie! Il tuo referral ha appena completato la 1ª prenotazione su HopeTSIT.</p><p>Hai guadagnato <strong>{{amount}} {{currency}}</strong> di crediti, utilizzabili sulla prossima prenotazione.</p>"
+    "emailSubject": "Hai guadagnato {{amount}} {{currency}} — HoPetSit",
+    "emailBody": "<p>Buone notizie! Il tuo referral ha appena completato la 1ª prenotazione su HoPetSit.</p><p>Hai guadagnato <strong>{{amount}} {{currency}}</strong> di crediti, utilizzabili sulla prossima prenotazione.</p>"
   },
   "BOOKING_PAID_CHAT_UNLOCKED": {
     "title": "Pagamento ricevuto — chat sbloccata",
@@ -110,7 +110,7 @@
   "BOOKING_COMPLETED": {
     "title": "Prenotazione completata",
     "body": "La tua prenotazione è stata marcata come completata. Lascia una recensione!",
-    "emailSubject": "Prenotazione completata — HopeTSIT",
+    "emailSubject": "Prenotazione completata — HoPetSit",
     "emailBody": "<p>La tua prenotazione è ora <strong>completata</strong>. Lascia una recensione per aiutare la comunità.</p>"
   },
   "booking_paid": {

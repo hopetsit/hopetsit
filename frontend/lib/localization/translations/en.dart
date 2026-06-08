@@ -2252,7 +2252,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'post_card_service_overnight_care': 'Overnight care',
       'post_card_service_pet_boarding': 'Pet boarding',
     'report_dialog_title': 'Report',
-    'report_dialog_subtitle': 'Help us keep HopeTsit safe by selecting a reason.',
+    'report_dialog_subtitle': 'Help us keep HoPetSit safe by selecting a reason.',
     'report_dialog_details_hint': 'Additional details (optional)',
     'report_submit_button': 'Submit report',
     'report_submit_success': 'Thanks, your report has been submitted.',

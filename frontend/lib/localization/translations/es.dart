@@ -1984,7 +1984,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'post_card_service_overnight_care': 'Cuidado nocturno',
       'post_card_service_pet_boarding': 'Guardería',
     'report_dialog_title': 'Denunciar',
-    'report_dialog_subtitle': 'Ayudanos a mantener HopeTsit seguro eligiendo un motivo.',
+    'report_dialog_subtitle': 'Ayudanos a mantener HoPetSit seguro eligiendo un motivo.',
     'report_dialog_details_hint': 'Detalles adicionales (opcional)',
     'report_submit_button': 'Enviar denuncia',
     'report_submit_success': 'Gracias, tu denuncia ha sido enviada.',

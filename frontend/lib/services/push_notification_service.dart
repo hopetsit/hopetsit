@@ -9,6 +9,8 @@ import 'package:get/get.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_endpoints.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
+// v23.1.319 — Daniel (audit) : routage du tap PUSH vers l'écran Notifications.
+import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 
 /// Push notification service for HopeTSIT.
@@ -317,31 +319,15 @@ class PushNotificationService extends GetxService {
       // Defensive: never let a refresh failure crash the FCM handler.
     }
 
-    // Recognized types → just log; the actual screen routing is handled
-    // by `_navigateForNotification` in `notifications_screen.dart` when the
-    // user taps the badge / list entry. Adding the types here avoids any
-    // silent fallthrough that previously caused unexpected behaviour.
-    switch (type) {
-      case 'message':
-      case 'message_new':
-      case 'booking_new':
-      case 'booking_accepted':
-      case 'booking_rejected':
-      case 'booking_paid':
-      case 'application_new':
-      case 'application_accepted':
-      case 'application_rejected':
-      case 'post_like':
-      case 'post_comment':
-        if (kDebugMode) {
-          debugPrint('FCM tap routed (type=$type) → notifications list');
-        }
-        break;
-      default:
-        if (kDebugMode) {
-          debugPrint('FCM tap unknown type "$type" → no-op');
-        }
-        break;
+    // v23.1.319 — Daniel (audit) : AVANT, taper une notification PUSH ne
+    // naviguait vers RIEN (juste un debugPrint) → l'app s'ouvrait sur la home,
+    // cul-de-sac pour TOUS les types. On ouvre désormais l'écran Notifications
+    // (la cloche), d'où le tap sur l'item route vers le bon écran via
+    // _navigateForNotification (wallet / booking / chat / amis / boutique...).
+    try {
+      Get.to(() => const NotificationsScreen());
+    } catch (e) {
+      if (kDebugMode) debugPrint('FCM tap nav failed (type=$type): $e');
     }
   }
 

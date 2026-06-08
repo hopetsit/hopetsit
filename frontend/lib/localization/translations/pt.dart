@@ -1843,7 +1843,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'post_card_service_overnight_care': 'Cuidados noturnos',
       'post_card_service_pet_boarding': 'Hotel para animais',
       'report_dialog_title': 'Denunciar',
-      'report_dialog_subtitle': 'Ajude-nos a manter o HopeTsit seguro escolhendo um motivo.',
+      'report_dialog_subtitle': 'Ajude-nos a manter o HoPetSit seguro escolhendo um motivo.',
       'report_dialog_details_hint': 'Detalhes adicionais (opcional)',
       'report_submit_button': 'Enviar denuncia',
       'report_submit_success': 'Obrigado, sua denuncia foi enviada.',

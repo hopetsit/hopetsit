@@ -1991,7 +1991,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'post_card_service_overnight_care': 'Nachtbetreuung',
       'post_card_service_pet_boarding': 'Tierpension',
     'report_dialog_title': 'Melden',
-    'report_dialog_subtitle': 'Hilf uns, HopeTsit sicher zu halten, indem du einen Grund auswaehlst.',
+    'report_dialog_subtitle': 'Hilf uns, HoPetSit sicher zu halten, indem du einen Grund auswaehlst.',
     'report_dialog_details_hint': 'Zusaetzliche Details (optional)',
     'report_submit_button': 'Meldung senden',
     'report_submit_success': 'Danke, deine Meldung wurde gesendet.',

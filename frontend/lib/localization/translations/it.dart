@@ -1968,7 +1968,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'post_card_service_overnight_care': 'Cura notturna',
       'post_card_service_pet_boarding': 'Pensione',
     'report_dialog_title': 'Segnala',
-    'report_dialog_subtitle': 'Aiutaci a mantenere HopeTsit sicuro scegliendo un motivo.',
+    'report_dialog_subtitle': 'Aiutaci a mantenere HoPetSit sicuro scegliendo un motivo.',
     'report_dialog_details_hint': 'Dettagli aggiuntivi (opzionale)',
     'report_submit_button': 'Invia segnalazione',
     'report_submit_success': 'Grazie, la tua segnalazione e stata inviata.',

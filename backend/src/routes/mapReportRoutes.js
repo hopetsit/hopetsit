@@ -335,7 +335,8 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
     const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
     const report = new MapReport({
       type,
-      note: note || '',
+      // v23.1.319 — auto-modération (gros mots/menaces) sur la note du signalement.
+      note: require('../services/textModerationService').moderateText(note || '').clean,
       photoUrl: photoUrl || '',
       location: {
         type: 'Point',

@@ -123,7 +123,9 @@ const createReview = async (req, res) => {
         revieweeId,
         revieweeModel: ROLE_TO_MODEL[revieweeRole],
         rating: numericRating,
-        comment: String(comment || '').trim().slice(0, 500),
+        // v23.1.319 — Daniel : auto-modération (gros mots/menaces) sur l'avis.
+        comment: require('../services/textModerationService')
+          .moderateText(String(comment || '').trim().slice(0, 500)).clean,
         bookingId: booking._id,
       });
     } catch (e) {

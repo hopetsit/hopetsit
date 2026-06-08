@@ -251,7 +251,10 @@ const sendMessage = async ({ conversationId, senderRole, senderId, body, attachm
   const withPhoneMask = hasPaidBooking
     ? trimmedBody
     : maskPhonesInText(trimmedBody);
-  const effectiveBody = maskEmailsInText(withPhoneMask);
+  const emailMasked = maskEmailsInText(withPhoneMask);
+  // v23.1.319 — Daniel : auto-modération gros mots/menaces (multilingue). On
+  // masque insultes (***) et menaces dans le corps du message avant stockage.
+  const effectiveBody = require('./textModerationService').moderateText(emailMasked).clean;
 
   const message = await Message.create({
     conversationId: conversation._id,

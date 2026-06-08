@@ -67,7 +67,11 @@ const createPost = async (req, res) => {
       return res.status(403).json({ error: 'Owner context missing.' });
     }
 
-    const trimmedBody = typeof body === 'string' ? body.trim() : '';
+    // v23.1.319 — Daniel : auto-modération gros mots/menaces (multilingue) sur
+    // le corps de l'annonce. La détection email/tel ci-dessous reste valide
+    // (le filtre ne masque que les insultes, pas les emails/numéros).
+    const trimmedBody = require('../services/textModerationService')
+      .moderateText(typeof body === 'string' ? body.trim() : '').clean;
 
     if (!trimmedBody) {
       return res.status(400).json({ error: 'Post body is required.' });
@@ -162,7 +166,9 @@ const createPost = async (req, res) => {
     }
 
     if (typeof notes === 'string' && notes.trim()) {
-      postPayload.notes = notes.trim();
+      // v23.1.319 — auto-modération aussi sur les notes.
+      postPayload.notes = require('../services/textModerationService')
+        .moderateText(notes.trim()).clean;
     }
 
     // Sprint 5 step 2 — service location preference.
@@ -1175,7 +1181,9 @@ const createPostWithMedia = async (req, res) => {
     }
 
     // Body is optional - use empty string if not provided
-    const trimmedBody = typeof body === 'string' ? body.trim() : '';
+    // v23.1.319 — auto-modération (gros mots/menaces) sur le corps du post média.
+    const trimmedBody = require('../services/textModerationService')
+      .moderateText(typeof body === 'string' ? body.trim() : '').clean;
 
     const postPayload = {
       ownerId,
@@ -1249,7 +1257,9 @@ const createPostWithMedia = async (req, res) => {
     }
 
     if (typeof notes === 'string' && notes.trim()) {
-      postPayload.notes = notes.trim();
+      // v23.1.319 — auto-modération aussi sur les notes.
+      postPayload.notes = require('../services/textModerationService')
+        .moderateText(notes.trim()).clean;
     }
 
     // Create the post
