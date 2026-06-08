@@ -579,7 +579,13 @@ async function createBeneficiary({
       nickname: `provider_${providerId}`,
       transfer_methods: ['LOCAL'],
       beneficiary: {
-        type: 'INDIVIDUAL',
+        // v23.1.315 — Daniel : "pkoi le payout marche pas". CAUSE RACINE : on
+        // envoyait À LA FOIS `type: 'INDIVIDUAL'` ET `entity_type: 'PERSONAL'`.
+        // Airwallex rejette ce DOUBLON (invalid_argument) → le bénéficiaire du
+        // prestataire n'était JAMAIS créé → son retrait restait bloqué "pending"
+        // à vie. Le fix avait été fait pour le bénéficiaire SOCIÉTÉ (cf.
+        // createCompanyBeneficiary l.652) mais jamais reporté ici. On garde
+        // `entity_type` seul, comme le company qui fonctionne.
         entity_type: 'PERSONAL',
         bank_details: {
           account_currency: currency.toUpperCase(),
