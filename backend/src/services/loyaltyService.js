@@ -106,7 +106,10 @@ const onBookingCompleted = async (booking) => {
  */
 const consumeLoyaltyDiscount = async (ownerId, bookingId) => {
   const credit = await OwnerCredit.findOneAndUpdate(
-    { ownerId, used: false, type: 'loyalty_3rd' },
+    // v23.1.317 — Daniel (audit) : le crédit de parrainage (referral_5eur) était
+    // affiché dans le solde mais JAMAIS dépensable (filtre loyalty_3rd seul). On
+    // l'inclut : c'est aussi un montant fixe en euros, même mécanisme de déduction.
+    { ownerId, used: false, type: { $in: ['loyalty_3rd', 'referral_5eur'] } },
     { used: true, usedAt: new Date(), usedOnBookingId: bookingId },
     { new: true, sort: { createdAt: 1 } }
   );
@@ -116,6 +119,22 @@ const consumeLoyaltyDiscount = async (ownerId, bookingId) => {
     discountAmount: credit.amount,
     creditId: credit._id,
   };
+};
+
+/**
+ * v23.1.317 — Daniel (audit) : un crédit consommé (marqué used:true à la création
+ * du PaymentIntent) n'était JAMAIS restitué si le paiement échouait/était annulé
+ * → l'owner perdait sa réduction définitivement. Ce helper remet le crédit
+ * disponible (used:false) pour un booking dont le paiement n'a pas abouti.
+ * Idempotent : ne touche que les crédits effectivement liés à ce booking.
+ */
+const restoreLoyaltyDiscount = async (bookingId) => {
+  if (!bookingId) return { restored: 0 };
+  const res = await OwnerCredit.updateMany(
+    { usedOnBookingId: bookingId, used: true },
+    { $set: { used: false }, $unset: { usedAt: '', usedOnBookingId: '' } }
+  );
+  return { restored: res.modifiedCount || 0 };
 };
 
 /**
@@ -219,4 +238,4 @@ const recomputeWalkerStatus = async (walkerId) => {
   return { count, avgRating, isTopWalker: shouldBeTop };
 };
 
-module.exports = { getOwnerStats, onBookingCompleted, consumeLoyaltyDiscount, recomputeSitterStatus, recomputeWalkerStatus };
+module.exports = { getOwnerStats, onBookingCompleted, consumeLoyaltyDiscount, restoreLoyaltyDiscount, recomputeSitterStatus, recomputeWalkerStatus };

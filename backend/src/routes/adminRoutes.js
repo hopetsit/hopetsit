@@ -619,6 +619,13 @@ router.post('/bookings/:id/cancel-payment', requireAdmin, async (req, res) => {
     booking.cancellationReason = reason;
     await booking.save();
 
+    // v23.1.317 — Daniel (audit) : restituer le crédit fidélité/parrainage
+    // consommé (paiement jamais abouti, on annule).
+    try {
+      const { restoreLoyaltyDiscount } = require('../services/loyaltyService');
+      await restoreLoyaltyDiscount(booking._id);
+    } catch (_) { /* best-effort */ }
+
     try {
       const AdminAuditLog = require('../models/AdminAuditLog');
       await AdminAuditLog.create({

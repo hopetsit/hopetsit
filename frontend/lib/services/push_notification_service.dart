@@ -231,6 +231,18 @@ class PushNotificationService extends GetxService {
       // will still catch up when it arrives.
     }
 
+    // v23.1.317 — Daniel (audit) : éviter le DOUBLE bandeau ami/famille. En 1er
+    // plan, ces types affichent déjà un toast in-app (via le socket
+    // notification.new dans NotificationsController). On ne montre donc PAS en
+    // plus la notif système pour eux → un seul affichage. Le badge + le feed
+    // sont déjà mis à jour au-dessus, donc rien n'est perdu.
+    final fgType = (message.data['type'] ?? message.data['notificationType'] ?? '')
+        .toString()
+        .toLowerCase();
+    if (fgType.startsWith('friend') || fgType.startsWith('family')) {
+      return;
+    }
+
     final String payload = jsonEncode(message.data);
 
     await _localNotifications.show(

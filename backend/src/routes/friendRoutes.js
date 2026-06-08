@@ -233,17 +233,14 @@ async function fetchUserMini(id, modelName) {
   //   2) Indiquer cote UI que ce contact est PawFollow-actif.
   let hasPawFollow = false;
   try {
-    const UserSubscription = require('../models/UserSubscription');
-    const sub = await UserSubscription.findOne({
-      userId: u._id,
-      userModel: modelName,
-      status: 'active',
-    })
-      .select('status currentPeriodEnd')
-      .lean();
-    const now = new Date();
-    hasPawFollow =
-      !!sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now;
+    // v23.1.317 — Daniel (audit) : AVANT, ce calcul ne regardait que la sub
+    // PROPRE du user (status + currentPeriodEnd) et IGNORAIT familyExpiry +
+    // l'appartenance à une famille comme MEMBRE. Résultat : un membre/titulaire
+    // famille partageait bien sa position (le socket utilise hasActivePawFollow)
+    // mais apparaissait "non-PawFollow" dans la liste d'amis / "Personnes en
+    // live". On utilise désormais le MÊME helper que le socket → cohérent.
+    const { hasActivePawFollow } = require('../models/UserSubscription');
+    hasPawFollow = await hasActivePawFollow(u._id);
   } catch (_) {/* defensive — on continue sans le flag */}
   // v23.1 part 220 — Daniel : "juste le nom de l'utilisateur s'affiche
   // pas". Les users n'ont pas leur firstName/lastName populates dans
@@ -438,19 +435,11 @@ router.get('/diagnose', requireAuth, async (req, res) => {
         let otherHasPawFollow = false;
         if (otherDoc && otherModel) {
           try {
-            const UserSubscription = require('../models/UserSubscription');
-            const otherModelPascal = otherModel[0].toUpperCase()
-                + otherModel.slice(1).toLowerCase();
-            const sub = await UserSubscription.findOne({
-              userId: otherId,
-              userModel: otherModelPascal,
-              status: 'active',
-            })
-              .select('currentPeriodEnd')
-              .lean();
-            const now = new Date();
-            otherHasPawFollow = !!sub && sub.currentPeriodEnd
-                && new Date(sub.currentPeriodEnd) > now;
+            // v23.1.317 — Daniel (audit) : même fix que fetchUserMini. On utilise
+            // hasActivePawFollow (date-based, gère familyExpiry + membre famille)
+            // au lieu d'un check status/currentPeriodEnd qui ratait les familles.
+            const { hasActivePawFollow } = require('../models/UserSubscription');
+            otherHasPawFollow = await hasActivePawFollow(otherId);
           } catch (_) {/* defensive */}
         }
         // v23.1.280 — tier PawSpot actif de l'ami (anneau coloré sur l'avatar).

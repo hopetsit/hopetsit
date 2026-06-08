@@ -524,6 +524,12 @@ const handleAirwallexWebhook = async (req, res) => {
         if (!booking) break;
         booking.paymentStatus = eventName.endsWith('.failed') ? 'failed' : 'cancelled';
         await booking.save();
+        // v23.1.317 — Daniel (audit) : restituer le crédit fidélité/parrainage
+        // consommé si le paiement n'aboutit pas (sinon l'owner le perd).
+        try {
+          const { restoreLoyaltyDiscount } = require('../services/loyaltyService');
+          await restoreLoyaltyDiscount(booking._id);
+        } catch (_) { /* best-effort */ }
         logger.warn(`⚠️ [airwallex.webhook] booking ${booking._id} → ${booking.paymentStatus}`);
         break;
       }

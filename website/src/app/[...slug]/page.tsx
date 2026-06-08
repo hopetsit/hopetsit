@@ -27,8 +27,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-const APP_STORE_URL =
-  "https://apps.apple.com/app/hopetsit/id6740000000"; // placeholder until App Store live
+// v23.1.317 — Daniel (audit) : l'ID App Store était un placeholder (id6740000000)
+// → lien cassé 404. L'app iOS n'est pas encore publiée : on pointe vers la page
+// /download ("bientôt sur les stores") au lieu d'un lien mort. À remplacer par
+// la vraie URL App Store le jour de la publication iOS.
+const APP_STORE_URL = "/download";
 const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.hopetsit.app";
 
