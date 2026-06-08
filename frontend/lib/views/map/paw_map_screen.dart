@@ -352,18 +352,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// (Canvas → toImage → toByteData → fromBytes) donc on pre-warm le
   /// cache UNE FOIS au mount.
   Future<void> _prewarmEmojiMarkers() async {
-    const types = [
-      ReportTypes.lostPet,
-      ReportTypes.aggressiveDog,
-      ReportTypes.hazard,
-      ReportTypes.waterActive,
-      ReportTypes.waterBroken,
-      ReportTypes.foundPet,
-      ReportTypes.poop,
-      ReportTypes.deadAnimal,
-      ReportTypes.other,
-    ];
-    for (final t in types) {
+    // v23.1.300 — Daniel : "quand je mets pipi / nourriture etc, c'est un halo
+    // jaune au lieu de l'emoji". CAUSE : on ne pré-générait QUE 9 types ; tous
+    // les autres (pee, food, trash, poison, construction, wildlife...) tombaient
+    // sur le pin teardrop coloré par défaut. On pré-warme désormais TOUS les
+    // types (ReportTypes.all) → chaque signalement affiche bien son emoji.
+    for (final t in ReportTypes.all) {
       try {
         final bd = await _buildEmojiBitmap(ReportTypes.emoji(t));
         _reportEmojiMarkers[t] = bd;
@@ -374,6 +368,26 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (mounted) {
       setState(() => _emojiMarkersReady = true);
     }
+  }
+
+  /// v23.1.300 — filet de sécurité : génère à la volée l'emoji d'un type de
+  /// report pas encore en cache (pré-warm en cours, ou type renvoyé par le
+  /// serveur qui ne serait pas dans ReportTypes.all). Évite qu'un signalement
+  /// reste affiché avec le pin coloré par défaut au lieu de son emoji.
+  final Set<String> _emojiGenInProgress = {};
+  void _ensureEmojiMarker(String type) {
+    if (_reportEmojiMarkers.containsKey(type) ||
+        _emojiGenInProgress.contains(type)) {
+      return;
+    }
+    _emojiGenInProgress.add(type);
+    _buildEmojiBitmap(ReportTypes.emoji(type)).then((bd) {
+      _reportEmojiMarkers[type] = bd;
+      _emojiGenInProgress.remove(type);
+      if (mounted) setState(() {});
+    }).catchError((Object _) {
+      _emojiGenInProgress.remove(type);
+    });
   }
 
   /// Renders a circular white-bg marker with the emoji centered inside.
@@ -1172,13 +1186,22 @@ class _PawMapScreenState extends State<PawMapScreen>
         }
         // Halo UNIQUE — violet si famille, sinon couleur du role. Centre =
         // position LIVE -> il se deplace avec la personne (suivi a la trace).
+        // v23.1.300 — Daniel : "halo orange (owner) animé sur iOS mais figé
+        // sur Android". Avant : Circle STATIQUE (radius 60) → rien ne bougeait.
+        // Maintenant il RESPIRE avec _haloPhase (comme le halo bleu user) → il
+        // pulse identiquement sur Android ET iOS (effet beacon).
+        final roleHp = _haloPhase.value; // 0..1
         circles.add(
           Circle(
             circleId: CircleId('${tag}_halo_${pos.userId}'),
             center: LatLng(pos.latitude, pos.longitude),
-            radius: 60,
-            fillColor: color.withValues(alpha: 0.18),
-            strokeColor: color.withValues(alpha: 0.7),
+            radius: 45 + 35 * roleHp, // respiration 45 → 80m
+            fillColor: color.withValues(
+              alpha: (0.20 * (1 - roleHp)).clamp(0.0, 1.0),
+            ),
+            strokeColor: color.withValues(
+              alpha: (0.85 * (1 - roleHp) + 0.15).clamp(0.0, 1.0),
+            ),
             strokeWidth: 2,
           ),
         );
@@ -1226,6 +1249,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showPois.value ? 1 : 0,
       _showReports.value ? 1 : 0,
       _emojiMarkersReady ? 1 : 0,
+      // v23.1.300 — invalide le cache quand un nouvel emoji est généré à la
+      // volée (sinon le marqueur reste figé sur le pin coloré par défaut).
+      _reportEmojiMarkers.length,
       _liveMap.friendPositions.length,
       // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la
       // trace". La clé n'incluait que le NOMBRE d'amis → un ami qui se
@@ -1364,6 +1390,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         // pre-calcule, fallback sur le pin teardrop coloré si pas
         // encore pret (pendant le pre-warm initial).
         final emojiIcon = _reportEmojiMarkers[r.type];
+        // v23.1.300 — si l'emoji de ce type n'est pas (encore) en cache, on le
+        // génère à la volée → le marqueur passera du pin coloré à l'emoji dès
+        // que le bitmap est prêt (setState + clé cache inclut la taille du map).
+        if (emojiIcon == null) _ensureEmojiMarker(r.type);
         markers.add(
           Marker(
             markerId: MarkerId('report_${r.id}'),
@@ -1676,7 +1706,18 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // v23.1.300 — Daniel : "quand je fais retour, ça m'ouvre la page amis en
+    // direct au lieu de me remettre le menu". Quand on SUIT un ami à la trace
+    // (PawMap empilée par-dessus people-live), le 1er retour SORT du suivi et
+    // RESTE sur la carte (avec le menu) au lieu de dépiler vers l'écran
+    // précédent. Un 2e retour dépile normalement.
+    return PopScope(
+      canPop: _followUserId == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_followUserId != null) _stopFollow();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
@@ -1965,6 +2006,7 @@ class _PawMapScreenState extends State<PawMapScreen>
             ),
           ),
         ],
+      ),
       ),
     );
   }

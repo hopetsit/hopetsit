@@ -107,6 +107,16 @@ class LiveMapService extends GetxService {
       if (!_hookRegistered) {
         _hookRegistered = true;
         svc.addOnConnectedHook(attach);
+        // v23.1.300 — Daniel : "quand je me déco/reco, ça ne se réajoute pas
+        // automatiquement". À chaque (re)connexion socket, si je partage ma
+        // position, je la ré-émets IMMÉDIATEMENT (sans attendre le ticker 10s)
+        // → je réapparais tout de suite chez mes amis/famille. attach() (hook
+        // précédent, même liste, ordre garanti) a déjà ré-émis map:identify.
+        svc.addOnConnectedHook(() {
+          if (!broadcasting.value) return;
+          final pos = _lastKnownGps;
+          if (pos != null) _emitPosition(pos);
+        });
       }
       // Si la socket est deja connectee, addOnConnectedHook fire le
       // callback immediatement (cf SocketService.addOnConnectedHook).

@@ -207,7 +207,8 @@ class ReportTypes {
       case hazard:
         return '⚠️';
       case aggressiveDog:
-        return '😾';
+        // v23.1.300 — Daniel : un CHAT (😾) s'affichait pour "chien agressif".
+        return '🐕';
       case lostPet:
         return '🔎';
       case foundPet:
