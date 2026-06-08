@@ -231,6 +231,21 @@ bookingSchema.index({ ownerId: 1, sitterId: 1, status: 1, requestFingerprint: 1 
 // Session v16-owner-walker — mirror index for walker lookups.
 bookingSchema.index({ ownerId: 1, walkerId: 1, status: 1, requestFingerprint: 1 });
 
+// v23.1.321 — Daniel : "rends-le efficace pour des milliers d'utilisateurs".
+// CRITIQUE : le webhook Airwallex et le reconcile font findOne({ airwallexPaymentIntentId })
+// / findOne({ airwallexPayoutId }) — SANS index = scan COMPLET de la collection
+// à chaque paiement/payout. Sparse car la plupart des bookings n'ont pas encore
+// d'intent. Idem payout.
+bookingSchema.index({ airwallexPaymentIntentId: 1 }, { sparse: true });
+bookingSchema.index({ airwallexPayoutId: 1 }, { sparse: true });
+// Stats/revenus admin : sum des paiements payés par date.
+bookingSchema.index({ paymentStatus: 1, paidAt: -1 });
+// Fidélité / Top : countDocuments par prestataire + statut (self-heal à chaque
+// lecture de profil → requête chaude).
+bookingSchema.index({ sitterId: 1, status: 1 });
+bookingSchema.index({ walkerId: 1, status: 1 });
+bookingSchema.index({ ownerId: 1, status: 1 });
+
 // Session v16-owner-walker — enforce exactly one provider target. Without
 // this, a buggy caller could persist a booking with neither field set (the
 // booking would end up linked to nobody) or with both set (ambiguous which

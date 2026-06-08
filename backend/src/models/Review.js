@@ -54,5 +54,10 @@ reviewSchema.index(
   { unique: true, partialFilterExpression: { bookingId: { $type: 'objectId' } } }
 );
 
+// v23.1.321 — Daniel (scale) : l'agrégat de moyenne de note
+// (revieweeId + revieweeModel + hidden) tourne à CHAQUE lecture de profil
+// (self-heal Top) ET sur listReviews. Index composé pour éviter le scan.
+reviewSchema.index({ revieweeId: 1, revieweeModel: 1, hidden: 1 });
+
 module.exports = mongoose.model('Review', reviewSchema);
 

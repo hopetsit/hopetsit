@@ -47,6 +47,25 @@ const handleAirwallexWebhook = async (req, res) => {
   const eventName = event?.name || event?.type || '';
   const data      = event?.data || event;
 
+  // v23.1.321 — Daniel (scale) : IDEMPOTENCE. Airwallex peut re-livrer le même
+  // événement (retry réseau). On enregistre l'eventId AVANT de traiter ; si déjà
+  // vu → on renvoie 200 sans re-traiter (évite double crédit/notif/activation).
+  const eventId = event?.id || event?.event_id || data?.event_id || null;
+  if (eventId) {
+    try {
+      const ProcessedWebhook = require('../models/ProcessedWebhook');
+      await ProcessedWebhook.create({ eventId: String(eventId), source: 'airwallex', eventName });
+    } catch (dupErr) {
+      if (dupErr && dupErr.code === 11000) {
+        logger.info(`[airwallex.webhook] événement ${eventId} déjà traité → ignoré (idempotence)`);
+        return res.status(200).json({ received: true, duplicate: true });
+      }
+      // Autre erreur (DB momentanément indispo) : on logge mais on continue de
+      // traiter — mieux vaut un éventuel double que rater un paiement.
+      logger.warn(`[airwallex.webhook] idempotence non enregistrée (${dupErr.message}) — on traite quand même`);
+    }
+  }
+
   try {
     switch (eventName) {
       // ─── PaymentIntent ─────────────────────────────────────────────────
