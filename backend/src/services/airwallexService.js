@@ -771,20 +771,17 @@ async function createPayout({ beneficiaryId, amount, currency, reference, reason
   //   • `reason` DOIT appartenir à l'enum Airwallex — l'ancien 'service_charges'
   //     n'existe plus (→ rejet). Défaut : professional_business_services
   //     (versement prestataire) ; le sweep société passe 'transfer_to_own_account'.
-  // v23.1.306 — Airwallex renvoyait "field [currency] is required". CAUSE :
-  // on envoyait `source_currency` SANS `source_amount` → Airwallex le prenait
-  // pour une conversion FX incomplète. Pour un virement même devise (EUR→EUR,
-  // SEPA), on n'envoie QUE transfer_currency + transfer_amount + transfer_method
-  // LOCAL (clearing local, plus rapide/moins cher que SWIFT). Pas de
-  // source_currency (pas de conversion).
+  // v23.1.307 — Airwallex (compte CARDELLI) attend le schéma `currency` +
+  // `amount` (champ exact pointé par l'erreur : "field [currency] is required").
+  // L'ancien `transfer_currency`/`transfer_amount` n'était pas reconnu par la
+  // version d'API par défaut du compte. On envoie donc le schéma simple.
   return awxFetch('/api/v1/transfers/create', {
     method: 'POST',
     body: {
       request_id: genRequestId('transfer'),
       beneficiary_id: beneficiaryId,
-      transfer_method: 'LOCAL',
-      transfer_currency: currency.toUpperCase(),
-      transfer_amount: centsToMajor(amount),
+      amount: centsToMajor(amount),
+      currency: currency.toUpperCase(),
       reason: reason || 'professional_business_services',
       reference: (reference || 'HoPetSit payout').slice(0, 35),
       metadata: awxMetadata,
