@@ -3429,6 +3429,23 @@ router.get('/v2/revenue', requireAdmin, async (req, res) => {
 function explainPayoutError(e) {
   const raw = (e && e.message) || 'Erreur inconnue.';
   const blob = `${raw} ${(e && e.code) || ''} ${(e && e.status) || ''}`.toLowerCase();
+  // v23.1.304 — "Not Found" : soit l'endpoint (corrigé : transfers/create), soit
+  // le bénéficiaire société introuvable (souvent créé en DEMO, absent en LIVE).
+  const isNotFound = /not[_ ]?found|404|does not exist|no such|introuvable/.test(blob);
+  if (isNotFound) {
+    return {
+      error:
+        `Airwallex : ressource introuvable (« ${raw} »). Cause la plus fréquente : ` +
+        `le bénéficiaire société (COMPANY_AIRWALLEX_BENEFICIARY_ID) a été créé en ` +
+        `DEMO et n'existe pas dans ton compte LIVE. → Dans l'admin, clique « Voir ` +
+        `tous les bénéficiaires » : si ton IBAN société n'y est pas, recrée-le ` +
+        `(setup compte société), puis mets le NOUVEL id (live) dans Render et ` +
+        `redéploie.`,
+      rawError: raw,
+      code: (e && e.code) || 'AIRWALLEX_RESOURCE_NOT_FOUND',
+      airwallexBeneficiaryIssue: true,
+    };
+  }
   const isPerm = /permission|unauthorized|forbidden|not[_ ]?allowed|scope|denied|403|401/.test(blob);
   if (isPerm) {
     return {
@@ -3589,6 +3606,8 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
           beneficiaryId,
           amount: Math.round(partialAmount * 100),
           currency: partialCurrency,
+          // v23.1.304 — sweep = virement de MES bénéfices vers MON compte société.
+          reason: 'transfer_to_own_account',
           reference: `HoPetSit sweep ${new Date().toISOString().slice(0, 10)}`.slice(0, 35),
           metadata: { type: 'company_sweep', sweepId: String(sweepDoc._id) },
         });

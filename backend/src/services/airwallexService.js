@@ -753,7 +753,7 @@ async function deleteBeneficiary(id) {
  * @param {Object} [params.metadata]    — bookingId, sitterId, …
  * @returns {Promise<Object>}
  */
-async function createPayout({ beneficiaryId, amount, currency, reference, metadata = {} }) {
+async function createPayout({ beneficiaryId, amount, currency, reference, reason, metadata = {} }) {
   if (!beneficiaryId) throw new Error('beneficiaryId is required');
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error('Amount must be a positive integer in cents');
@@ -764,16 +764,23 @@ async function createPayout({ beneficiaryId, amount, currency, reference, metada
     if (v !== undefined && v !== null) awxMetadata[k] = String(v);
   }
 
-  return awxFetch('/api/v1/payouts/create', {
+  // v23.1.304 — Daniel : retrait société renvoyait "Not Found". CAUSE : Airwallex
+  // a DÉPRÉCIÉ /api/v1/payouts/create → 404. L'API actuelle est la ressource
+  // Transfers : POST /api/v1/transfers/create. Différences clés :
+  //   • transfer_currency / transfer_amount (au lieu de payment_currency / amount)
+  //   • `reason` DOIT appartenir à l'enum Airwallex — l'ancien 'service_charges'
+  //     n'existe plus (→ rejet). Défaut : professional_business_services
+  //     (versement prestataire) ; le sweep société passe 'transfer_to_own_account'.
+  return awxFetch('/api/v1/transfers/create', {
     method: 'POST',
     body: {
-      request_id: genRequestId('payout'),
+      request_id: genRequestId('transfer'),
       beneficiary_id: beneficiaryId,
-      amount: centsToMajor(amount),
       source_currency: currency.toUpperCase(),
-      payment_currency: currency.toUpperCase(),
-      reason: 'service_charges',
-      reference: (reference || 'HoPetSit booking payout').slice(0, 35),
+      transfer_currency: currency.toUpperCase(),
+      transfer_amount: centsToMajor(amount),
+      reason: reason || 'professional_business_services',
+      reference: (reference || 'HoPetSit payout').slice(0, 35),
       metadata: awxMetadata,
     },
   });
@@ -785,7 +792,8 @@ async function createPayout({ beneficiaryId, amount, currency, reference, metada
  */
 async function retrievePayout(id) {
   if (!id) throw new Error('payout id is required');
-  return awxFetch(`/api/v1/payouts/${encodeURIComponent(id)}`);
+  // v23.1.304 — ressource Transfers (l'ancien /api/v1/payouts/{id} est déprécié).
+  return awxFetch(`/api/v1/transfers/${encodeURIComponent(id)}`);
 }
 
 /**
@@ -909,6 +917,8 @@ async function sweepPlatformBalance({
         beneficiaryId,
         amount: amountInCents,
         currency,
+        // v23.1.304 — sweep = je vire MES bénéfices vers MON compte société.
+        reason: 'transfer_to_own_account',
         reference: `HoPetSit sweep ${new Date().toISOString().slice(0, 10)}`.slice(0, 35),
         metadata: { type: 'company_sweep' },
       });
