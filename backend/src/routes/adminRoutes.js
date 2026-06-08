@@ -3547,7 +3547,15 @@ function explainPayoutError(e) {
       airwallexPermissionIssue: true,
     };
   }
-  return { error: raw, code: (e && e.code) || 'AIRWALLEX_PAYOUT_FAILED' };
+  // v23.1.306 — surface le champ exact pointé par Airwallex (e.details.source)
+  // pour diagnostiquer un éventuel field_required restant sans deviner.
+  const src = e && e.details && (e.details.source || e.details.field);
+  return {
+    error: src ? `${raw} (champ Airwallex : ${src})` : raw,
+    code: (e && e.code) || 'AIRWALLEX_PAYOUT_FAILED',
+    rawError: raw,
+    airwallexSource: src || null,
+  };
 }
 
 router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
