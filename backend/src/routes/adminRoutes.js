@@ -3421,6 +3421,33 @@ router.get('/v2/revenue', requireAdmin, async (req, res) => {
   }
 });
 
+// v23.1.303 — Daniel : "je peux pas retirer alors que tout est bon". CAUSE :
+// Airwallex renvoie son message BRUT (« Admin permissions required ») quand la
+// clé API peut LIRE le solde mais n'a pas la permission d'ENVOYER un payout.
+// L'admin croyait que c'était un souci de droits HoPetSit. On traduit le message
+// pour expliquer que c'est un réglage Airwallex (scope clé API + produit Payouts).
+function explainPayoutError(e) {
+  const raw = (e && e.message) || 'Erreur inconnue.';
+  const blob = `${raw} ${(e && e.code) || ''} ${(e && e.status) || ''}`.toLowerCase();
+  const isPerm = /permission|unauthorized|forbidden|not[_ ]?allowed|scope|denied|403|401/.test(blob);
+  if (isPerm) {
+    return {
+      error:
+        `Airwallex REFUSE le virement (« ${raw} »). Le solde s'affiche car la ` +
+        `LECTURE est autorisée, mais l'ENVOI d'argent (payout) ne l'est pas. ` +
+        `À régler côté Airwallex : (1) active le produit « Payouts / Transfers » ` +
+        `sur ton compte (vérification KYB entreprise complète), (2) utilise une ` +
+        `clé API avec la permission « Payouts » dans AIRWALLEX_API_KEY (Render), ` +
+        `puis redéploie. ⚠️ Ce même blocage empêche aussi les virements vers les ` +
+        `prestataires.`,
+      rawError: raw,
+      code: (e && e.code) || 'AIRWALLEX_PAYOUT_PERMISSION',
+      airwallexPermissionIssue: true,
+    };
+  }
+  return { error: raw, code: (e && e.code) || 'AIRWALLEX_PAYOUT_FAILED' };
+}
+
 router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
   try {
     const CompanySweep = require('../models/CompanySweep');
@@ -3577,7 +3604,7 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
         sweepDoc.status = 'failed';
         sweepDoc.failureReason = e.message;
         await sweepDoc.save();
-        return res.status(502).json({ error: e.message });
+        return res.status(502).json(explainPayoutError(e));
       }
     }
     const minSweepAmount = Number(req.body?.minSweepAmount) || 10;
@@ -3606,7 +3633,7 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
     res.json(result);
   } catch (e) {
     logger.error('[admin/sweep-platform-balance]', e);
-    res.status(500).json({ error: e.message });
+    res.status(502).json(explainPayoutError(e));
   }
 });
 
