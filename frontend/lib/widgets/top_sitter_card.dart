@@ -98,10 +98,17 @@ class _TopSitterCardState extends State<TopSitterCard>
           Text(
             _isTop
                 ? 'top_sitter_commission_15'.tr
-                : 'top_sitter_need_more'.trParams({
-                    'bookings': (20 - _completed).clamp(0, 20).toString(),
-                    'rating': (4.5 - _avg > 0 ? (4.5 - _avg) : 0).toStringAsFixed(1),
-                  }),
+                // v23.1.323 — Daniel : "Top sitter étoile à 0". Quand la note est
+                // DÉJÀ ≥ 4.5 (condition remplie), on n'affiche plus "+ 0.0★"
+                // (trompeur) : il ne reste QUE des prestations à faire.
+                : (4.5 - _avg <= 0
+                    ? 'top_sitter_need_bookings'.trParams({
+                        'bookings': (20 - _completed).clamp(0, 20).toString(),
+                      })
+                    : 'top_sitter_need_more'.trParams({
+                        'bookings': (20 - _completed).clamp(0, 20).toString(),
+                        'rating': (4.5 - _avg).toStringAsFixed(1),
+                      })),
             style: TextStyle(
               color: _isTop ? Colors.green : Colors.grey[600],
               fontWeight: FontWeight.w600,

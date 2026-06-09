@@ -30,18 +30,7 @@ export default function DownloadPage() {
 
         <div className="flex items-center justify-between rounded-2xl border border-ink/10 bg-white p-5 opacity-70">
           <span className="flex items-center gap-3">
-            <span className="text-2xl">▶</span>
-            <span>
-              <span className="block text-xs uppercase tracking-wider text-ink-soft">Google Play</span>
-              <span className="text-base font-bold text-ink">{t("dl_play")}</span>
-            </span>
-          </span>
-          <span className="text-xs text-ink-soft">soon</span>
-        </div>
-
-        <div className="flex items-center justify-between rounded-2xl border border-ink/10 bg-white p-5 opacity-70">
-          <span className="flex items-center gap-3">
-            <span className="text-2xl"></span>
+            <span className="text-2xl">🍎</span>
             <span>
               <span className="block text-xs uppercase tracking-wider text-ink-soft">App Store</span>
               <span className="text-base font-bold text-ink">{t("dl_app_store")}</span>

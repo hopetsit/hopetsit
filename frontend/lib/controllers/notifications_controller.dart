@@ -8,6 +8,11 @@ import 'package:hopetsit/controllers/bookings_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/repositories/notifications_repository.dart';
+// v23.1.323 — Daniel : "7 messages badge à chaque ouverture". On cale le badge
+// chat sur le VRAI total non-lu serveur (somme des unreadCount des conversations)
+// au lieu d'un compteur local qui dérive / se ré-inflate à la reconnexion.
+import 'package:hopetsit/repositories/chat_repository.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -394,6 +399,8 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       notifications.assignAll(result.notifications);
       nextCursor.value = result.nextCursor;
       await refreshUnreadCount();
+      // v23.1.323 — recale le badge chat sur le vrai total serveur (fire-and-forget).
+      syncChatBadgeFromServer();
     } on ApiException catch (e) {
       errorMessage.value = e.message;
       notifications.clear();
@@ -402,6 +409,32 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       notifications.clear();
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// v23.1.323 — Daniel : "à chaque ouverture de l'app, 7 messages en badge".
+  /// Le badge chat était un compteur LOCAL (storage + bumps socket) jamais
+  /// réconcilié → il se ré-inflate à la reconnexion (replay) et reste collé.
+  /// Ici on le recale sur la VÉRITÉ serveur : somme des unreadCount des
+  /// conversations (POST /:id/read remet bien à 0 quand on lit). Fire-and-forget.
+  Future<void> syncChatBadgeFromServer() async {
+    try {
+      final chatRepo = ChatRepository(Get.find<ApiClient>());
+      final convs = await chatRepo.getChatList();
+      int total = 0;
+      for (final c in convs) {
+        final u = c['unreadCount'];
+        if (u is int) {
+          total += u;
+        } else if (u is num) {
+          total += u.toInt();
+        }
+      }
+      if (total < 0) total = 0;
+      unreadChat.value = total;
+      _storage.write(_kUnreadChat, total);
+    } catch (_) {
+      // best-effort : en cas d'échec réseau, on garde le badge courant.
     }
   }
 

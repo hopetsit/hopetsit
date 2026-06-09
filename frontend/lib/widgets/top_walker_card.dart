@@ -120,11 +120,15 @@ class _TopWalkerCardState extends State<TopWalkerCard>
           Text(
             _isTop
                 ? 'top_walker_commission_15'.tr
-                : 'top_walker_need_more'.trParams({
-                    'walks': (20 - _completed).clamp(0, 20).toString(),
-                    'rating': (4.5 - _avg > 0 ? (4.5 - _avg) : 0)
-                        .toStringAsFixed(1),
-                  }),
+                // v23.1.323 — Daniel : note déjà ≥ 4.5 → on n'affiche plus "+0.0★".
+                : (4.5 - _avg <= 0
+                    ? 'top_walker_need_walks'.trParams({
+                        'walks': (20 - _completed).clamp(0, 20).toString(),
+                      })
+                    : 'top_walker_need_more'.trParams({
+                        'walks': (20 - _completed).clamp(0, 20).toString(),
+                        'rating': (4.5 - _avg).toStringAsFixed(1),
+                      })),
             style: TextStyle(
               color: _isTop ? Colors.green : Colors.grey[600],
               fontWeight: FontWeight.w600,
