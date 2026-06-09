@@ -28,7 +28,8 @@ import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
-// v23.1.317 — parrainage masqué pour walker (import retiré, écran owner-only).
+// v23.1.332 — parrainage RÉACTIVÉ pour walker (récompense -10% PawFollow/Family).
+import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -725,8 +726,15 @@ class WalkerProfileScreen extends StatelessWidget {
           () => Get.to(() => const CoinShopScreen()),
           color: _accent,
         ),
-        // v23.1.317 — Daniel (audit) : parrainage MASQUÉ pour sitter/walker
-        // (seuls les owners reçoivent le crédit 5€ — cf referralService).
+        // v23.1.332 — Daniel : parrainage RÉACTIVÉ pour les 3 profils
+        // (récompense = -10% sur PawFollow/PawFamily).
+        _settingsTile(
+          'profile_referrals'.tr,
+          Icons.group_add_rounded,
+          () => Get.to(() => const MyReferralsScreen()),
+          subtitle: 'referrals_subtitle'.tr,
+          color: const Color(0xFFF59E0B),
+        ),
 
         _sectionHeader('profile_section_preferences'.tr),
         _settingsTile(

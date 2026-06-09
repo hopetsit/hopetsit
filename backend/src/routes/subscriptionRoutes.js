@@ -243,6 +243,34 @@ router.post('/subscribe', requireAuth, async (req, res) => {
       });
     }
 
+    // v23.1.332 — Daniel : nouveau parrainage = -10% sur un plan PawFollow ou
+    // PawFamily (au lieu de 5€), valable pour les 3 rôles. Si l'utilisateur a une
+    // réduction de parrainage DISPONIBLE (un filleul a complété sa 1ère
+    // réservation), on applique -10% sur CE plan et on consomme la réduction.
+    let referralDiscountApplied = false;
+    try {
+      const Referral = require('../models/Referral');
+      const avail = await Referral.findOne({
+        referrerId: userId,
+        status: 'completed',
+        creditAwarded: true,
+        rewardConsumed: { $ne: true },
+      });
+      if (avail) {
+        pricing.amount = Math.round(pricing.amount * 0.9 * 100) / 100;
+        avail.rewardConsumed = true;
+        avail.rewardConsumedAt = new Date();
+        await avail.save();
+        referralDiscountApplied = true;
+        logger.info(
+          `[subscription] parrainage -10% appliqué pour ${role} ${userId} `
+          + `(referral ${avail._id}) → nouveau montant ${pricing.amount} ${pricing.currency}`,
+        );
+      }
+    } catch (e) {
+      logger.warn(`[subscription] referral discount check failed: ${e.message}`);
+    }
+
     const amountCents = Math.round(pricing.amount * 100);
 
     // ─── v23.1 part 84 — pay-with-wallet (walker/sitter only)

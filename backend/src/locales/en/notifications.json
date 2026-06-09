@@ -91,9 +91,9 @@
   },
   "REFERRAL_CREDITED": {
     "title": "Referral reward!",
-    "body": "Your referral just completed their first booking. {{amount}} {{currency}} credit added.",
-    "emailSubject": "You earned {{amount}} {{currency}} — HoPetSit",
-    "emailBody": "<p>Great news! Your referral just completed their first booking on HoPetSit.</p><p>You have earned <strong>{{amount}} {{currency}}</strong> in credits, usable on your next reservation.</p>"
+    "body": "Your friend just completed their first booking. You get -10% off your next PawFollow or PawFamily plan 🎉",
+    "emailSubject": "You earned -10% on PawFollow/PawFamily — HoPetSit",
+    "emailBody": "<p>Great news! Your friend just completed their first booking on HoPetSit.</p><p>You get <strong>-10%</strong> off your next PawFollow or PawFamily plan.</p>"
   },
   "BOOKING_PAID_CHAT_UNLOCKED": {
     "title": "Payment received — chat unlocked",

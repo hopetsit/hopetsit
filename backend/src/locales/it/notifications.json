@@ -90,10 +90,10 @@
     "emailBody": "<p>Congratulazioni! Sei ora <strong>Top Sitter</strong>. La nostra commissione scende dal 20% al <strong>15%</strong> sulle prossime prenotazioni.</p>"
   },
   "REFERRAL_CREDITED": {
-    "title": "Ricompensa referral!",
-    "body": "Il tuo referral ha appena completato la 1ª prenotazione. Credito di {{amount}} {{currency}} accreditato.",
-    "emailSubject": "Hai guadagnato {{amount}} {{currency}} — HoPetSit",
-    "emailBody": "<p>Buone notizie! Il tuo referral ha appena completato la 1ª prenotazione su HoPetSit.</p><p>Hai guadagnato <strong>{{amount}} {{currency}}</strong> di crediti, utilizzabili sulla prossima prenotazione.</p>"
+    "title": "Ricompensa di referral!",
+    "body": "Il tuo amico ha appena completato la sua prima prenotazione. Ottieni -10% sul tuo prossimo piano PawFollow o PawFamily 🎉",
+    "emailSubject": "Hai ottenuto -10% su PawFollow/PawFamily — HoPetSit",
+    "emailBody": "<p>Ottime notizie! Il tuo amico ha appena completato la sua prima prenotazione su HoPetSit.</p><p>Ottieni <strong>-10%</strong> sul tuo prossimo piano PawFollow o PawFamily.</p>"
   },
   "BOOKING_PAID_CHAT_UNLOCKED": {
     "title": "Pagamento ricevuto — chat sbloccata",

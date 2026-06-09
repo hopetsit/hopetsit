@@ -91,9 +91,9 @@
   },
   "REFERRAL_CREDITED": {
     "title": "Récompense de parrainage !",
-    "body": "Votre filleul vient de compléter sa 1ère réservation. {{amount}} {{currency}} de crédit ajoutés.",
-    "emailSubject": "Vous avez gagné {{amount}} {{currency}} — HoPetSit",
-    "emailBody": "<p>Bonne nouvelle ! Votre filleul vient de compléter sa 1ère réservation sur HoPetSit.</p><p>Vous gagnez <strong>{{amount}} {{currency}}</strong> de crédits, utilisables sur votre prochaine réservation.</p>"
+    "body": "Ton filleul vient de compléter sa 1ère réservation. Tu reçois -10% sur ton prochain abonnement PawFollow ou PawFamily 🎉",
+    "emailSubject": "Tu as gagné -10% sur PawFollow/PawFamily — HoPetSit",
+    "emailBody": "<p>Bonne nouvelle ! Ton filleul vient de compléter sa 1ère réservation sur HoPetSit.</p><p>Tu reçois <strong>-10%</strong> sur ton prochain abonnement PawFollow ou PawFamily.</p>"
   },
   "BOOKING_PAID_CHAT_UNLOCKED": {
     "title": "Paiement reçu — chat débloqué",

@@ -83,27 +83,24 @@ const onReferredFirstBookingCompleted = async ({ bookingId, userId, role }) => {
   if (!referral) return;
   referral.status = 'completed';
   referral.completedAt = new Date();
-  // Only owners receive the 5€ credit (it's an OwnerCredit).
-  if (referral.referrerRole === 'owner') {
-    await OwnerCredit.create({
-      ownerId: referral.referrerId,
-      type: 'referral_5eur',
-      amount: 5,
-      currency: 'EUR',
-    });
-    referral.creditAwarded = true;
-  }
+  // v23.1.332 — Daniel : NOUVELLE récompense de parrainage = -10% sur un plan
+  // PawFollow ou PawFamily (PLUS de crédit 5€), valable pour les 3 rôles
+  // (owner/sitter/walker). On marque la récompense "gagnée" (creditAwarded=true) ;
+  // elle sera appliquée AUTOMATIQUEMENT au prochain achat d'abonnement
+  // PawFollow/PawFamily (cf subscriptionRoutes /subscribe) puis marquée
+  // rewardConsumed=true. (On ne crée plus d'OwnerCredit de 5€.)
+  referral.creditAwarded = true;
   await referral.save();
 
-  // Notify the referrer.
+  // Notify the referrer — réduction -10% disponible.
   sendNotification({
     userId: String(referral.referrerId),
     role: referral.referrerRole,
     type: 'REFERRAL_CREDITED',
     data: {
       referredUserId: String(userId),
-      amount: 5,
-      currency: 'EUR',
+      rewardType: 'sub_discount_10',
+      percent: 10,
     },
   }).catch(() => {});
 };
@@ -113,12 +110,13 @@ const getMyReferrals = async (ownerOrSitterId, role) => {
   const referrals = await Referral.find({ referrerId: ownerOrSitterId })
     .sort({ createdAt: -1 })
     .lean();
-  const credits = await OwnerCredit.find({
-    ownerId: ownerOrSitterId,
-    type: 'referral_5eur',
-  }).lean();
-  const totalCredits = credits.reduce((s, c) => s + (c.amount || 0), 0);
-  return { code, referrals, totalCredits };
+  // v23.1.332 — récompense = -10% sur PawFollow/PawFamily. Le nombre de
+  // réductions DISPONIBLES = parrainages complétés dont la récompense n'a pas
+  // encore été consommée à un achat d'abonnement.
+  const availableDiscounts = referrals.filter(
+    (r) => r.status === 'completed' && r.creditAwarded && !r.rewardConsumed,
+  ).length;
+  return { code, referrals, availableDiscounts, discountPercent: 10 };
 };
 
 module.exports = {

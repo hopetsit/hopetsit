@@ -24,7 +24,8 @@ import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.d
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
-// v23.1.317 — parrainage masqué pour sitter (import retiré, écran owner-only).
+// v23.1.332 — parrainage RÉACTIVÉ pour sitter (récompense -10% PawFollow/Family).
+import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
@@ -536,9 +537,16 @@ class SitterProfileScreen extends StatelessWidget {
           controller.navigateToBookings,
         ),
 
-        // v23.1.317 — Daniel (audit) : parrainage MASQUÉ pour sitter/walker
-        // (seuls les owners reçoivent le crédit 5€ — cf referralService). La
-        // section "Paiements & services" ne contenait que le parrainage → retirée.
+        // v23.1.332 — Daniel : parrainage RÉACTIVÉ pour les 3 profils
+        // (récompense = -10% sur PawFollow/PawFamily, dispo pour tous).
+        _sectionHeader('profile_section_payments'.tr),
+        _buildSettingsTile(
+          'referrals_title'.tr,
+          'referrals_subtitle'.tr,
+          Icons.group_add_rounded,
+          _paleOrange,
+          () => Get.to(() => const MyReferralsScreen()),
+        ),
 
         // ── PRÉFÉRENCES ───────────────────────────────────
         _sectionHeader('profile_section_preferences'.tr),
