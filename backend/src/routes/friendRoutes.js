@@ -1767,25 +1767,68 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
     // v23.1.281 — on UNIFIE avec resolveOwnFamilySub (même résolveur robuste
     // que l'ajout : oldId + docs même email + balayage email-titulaire). Ainsi
     // ajout ET retrait trouvent toujours la même sub titulaire.
-    const sub = await resolveOwnFamilySub(user);
-    if (!sub) {
-      return res.status(404).json({
-        error: 'No family subscription found.',
-        code: 'FAMILY_PLAN_REQUIRED',
-      });
+    // v23.1.334 — Daniel : "retirer famille bug tjr" (404 Member not in family).
+    // CAUSE RACINE : la LISTE affichée (GET /family/members) agrège les membres
+    // de PLUSIEURS subs (celle que je détiens via resolveOwnFamilySub + d'autres
+    // re-pointées / sur un autre de mes rôles). Mais le DELETE n'agissait que sur
+    // resolveOwnFamilySub → si le membre était dans une AUTRE sub que je détiens,
+    // 404 "Member not in family". FIX : on rassemble TOUTES mes identités de
+    // titulaire (id + oldId + docs même email owner/sitter/walker) et on retire
+    // le membre de TOUTE sub Famille que JE détiens qui le contient.
+    const UserSubscription = require('../models/UserSubscription');
+    const myHolderIds = new Set([String(user.id)]);
+    try {
+      const Model = MODEL_BY_NAME[user.model];
+      const meDoc = Model
+        ? await Model.findById(user.id).select('email oldId').lean()
+        : null;
+      if (meDoc && meDoc.oldId) myHolderIds.add(String(meDoc.oldId));
+      if (meDoc && meDoc.email) {
+        const [owners, sitters, walkers] = await Promise.all([
+          Owner.find({ email: meDoc.email }).select('_id oldId').lean(),
+          Sitter.find({ email: meDoc.email }).select('_id oldId').lean(),
+          Walker.find({ email: meDoc.email }).select('_id oldId').lean(),
+        ]);
+        for (const d of [...owners, ...sitters, ...walkers]) {
+          myHolderIds.add(String(d._id));
+          if (d.oldId) myHolderIds.add(String(d.oldId));
+        }
+      }
+    } catch (e) {
+      logger.warn('[family/member DELETE] holder-id resolution failed', e.message);
     }
-    const before = (sub.familyMembers || []).length;
-    sub.familyMembers = (sub.familyMembers || []).filter(
-      (m) => String(m.userId) !== String(targetId),
-    );
-    if (sub.familyMembers.length === before) {
+
+    const subs = await UserSubscription.find({
+      userId: { $in: Array.from(myHolderIds) },
+      'familyMembers.userId': targetId,
+    });
+    if (!subs.length) {
       return res.status(404).json({ error: 'Member not in family.' });
     }
-    await sub.save();
+    let removed = 0;
+    let lastSub = null;
+    for (const sub of subs) {
+      const before = (sub.familyMembers || []).length;
+      sub.familyMembers = (sub.familyMembers || []).filter(
+        (m) => String(m.userId) !== String(targetId),
+      );
+      if (sub.familyMembers.length !== before) {
+        await sub.save();
+        removed += before - sub.familyMembers.length;
+        lastSub = sub;
+      }
+    }
+    if (removed === 0 || !lastSub) {
+      return res.status(404).json({ error: 'Member not in family.' });
+    }
+    logger.info(
+      `[family/member DELETE] ${user.model}:${user.id} retiré ${targetId} `
+      + `de ${subs.length} sub(s) détenue(s)`,
+    );
     res.json({
       success: true,
-      familyMembersCount: sub.familyMembers.length,
-      remainingSlots: 5 - sub.familyMembers.length,
+      familyMembersCount: (lastSub.familyMembers || []).length,
+      remainingSlots: 5 - (lastSub.familyMembers || []).length,
     });
   } catch (e) {
     logger.error('[friends/family/member DELETE]', e);
