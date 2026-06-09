@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v330</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v331</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -214,10 +214,24 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   <div class="main-content">
     <!-- SIDEBAR — v23.1 part 105 : reorganisée par catégories logiques. -->
     <nav class="sidebar">
+      <!-- v23.1.331 — Daniel : "remets de l'ordre dans mes finances / vue
+           d'ensemble / mes revenus, pas tout mélangé". Vue d'ensemble = juste
+           le tableau de bord. Toutes les finances regroupées dans UNE section
+           "Mes finances" placée en haut, dans l'ordre logique : ce que JE gagne
+           d'abord (Revenus, Comptabilité), puis l'opérationnel (Paiements,
+           Factures, Virements, Portefeuilles). -->
       <!-- Vue d'ensemble -->
       <div class="nav-section" style="margin-top:8px">📊 <span data-i18n="navsec_overview">Vue d'ensemble</span></div>
       <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Tableau de bord</span></div>
+
+      <!-- Mes finances -->
+      <div class="nav-section" style="margin-top:18px">💰 <span data-i18n="navsec_finance">Mes finances</span></div>
       <div class="nav-item" onclick="showPage('payouts')"><span class="nav-icon">💰</span> <span data-i18n="nav_revenue">Mes revenus</span></div>
+      <div class="nav-item" onclick="showPage('accounting')"><span class="nav-icon">📒</span> <span data-i18n="nav_accounting">Comptabilité</span></div>
+      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💳</span> <span data-i18n="nav_payments">Paiements</span></div>
+      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Factures</span></div>
+      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">Virements IBAN</span></div>
+      <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> <span data-i18n="nav_wallets">Portefeuilles</span></div>
 
       <!-- Utilisateurs -->
       <div class="nav-section" style="margin-top:18px">👥 <span data-i18n="navsec_users">Utilisateurs</span></div>
@@ -235,14 +249,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('chat')"><span class="nav-icon">💬</span> <span data-i18n="nav_chat">Chat &amp; messages</span></div>
       <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">⭐</span> <span data-i18n="nav_reviews">Avis utilisateurs</span></div>
       <div class="nav-item" onclick="showPage('reports')"><span class="nav-icon">🚩</span> <span data-i18n="nav_reports">Signalements</span></div>
-
-      <!-- Finance -->
-      <div class="nav-section" style="margin-top:18px">💳 <span data-i18n="navsec_finance">Finance</span></div>
-      <div class="nav-item" onclick="showPage('payments')"><span class="nav-icon">💳</span> <span data-i18n="nav_payments">Paiements</span></div>
-      <div class="nav-item" onclick="showPage('invoices')"><span class="nav-icon">🧾</span> <span data-i18n="nav_invoices">Factures</span></div>
-      <div class="nav-item" onclick="showPage('iban')"><span class="nav-icon">🏦</span> <span data-i18n="nav_iban">Virements IBAN</span></div>
-      <div class="nav-item" onclick="showPage('wallets')"><span class="nav-icon">💼</span> <span data-i18n="nav_wallets">Portefeuilles</span></div>
-      <div class="nav-item" onclick="showPage('accounting')"><span class="nav-icon">📒</span> <span data-i18n="nav_accounting">Comptabilité</span></div>
 
       <!-- Boutique -->
       <div class="nav-section" style="margin-top:18px">🛍️ <span data-i18n="navsec_shop">Boutique</span></div>
@@ -4373,7 +4379,7 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Accéder au tableau de bord →",
         logout: "Déconnexion",
         loading: "Chargement...",
-        navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Finance", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
+        navsec_overview: "Vue d'ensemble", navsec_users: "Utilisateurs", navsec_activity: "Activité", navsec_finance: "Mes finances", navsec_shop: "Boutique", navsec_content: "Contenu", navsec_system: "Système",
         nav_dashboard: "Tableau de bord", nav_revenue: "Mes revenus", nav_owners: "Propriétaires", nav_sitters: "Pet-sitters", nav_walkers: "Promeneurs", nav_identity: "Vérifications ID", nav_moderation: "Modération users", nav_loyalty: "Avantages fidélité", nav_bookings: "Réservations", nav_listings: "Annonces", nav_chat: "Chat & messages", nav_reviews: "Avis utilisateurs", nav_reports: "Signalements", nav_payments: "Paiements", nav_invoices: "Factures", nav_iban: "Virements IBAN", nav_wallets: "Portefeuilles", nav_accounting: "Comptabilité", nav_shop_activity: "Activité boutique", nav_pricing: "Tarifs", nav_services: "Services", nav_terms: "CGU", nav_privacy: "Confidentialité", nav_pawmap: "PawMap", nav_bugs: "Bugs reportés",
         acc_title: "Comptabilité — Mon bilan", acc_export: "Exporter CSV",
         acc_desc: "Mes bénéfices HoPetSit uniquement : commissions plateforme sur les réservations + revenus boutique (Boost, PawSpot, Premium, Chat). Hors paiements reversés aux prestataires. Pour mon comptable.",
@@ -4390,7 +4396,7 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Access Dashboard →",
         logout: "Logout",
         loading: "Loading...",
-        navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "Finance", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
+        navsec_overview: "Overview", navsec_users: "Users", navsec_activity: "Activity", navsec_finance: "My finances", navsec_shop: "Shop", navsec_content: "Content", navsec_system: "System",
         nav_dashboard: "Dashboard", nav_revenue: "My revenue", nav_owners: "Owners", nav_sitters: "Pet-sitters", nav_walkers: "Walkers", nav_identity: "ID verifications", nav_moderation: "User moderation", nav_loyalty: "Loyalty benefits", nav_bookings: "Bookings", nav_listings: "Listings", nav_chat: "Chat & messages", nav_reviews: "User reviews", nav_reports: "Reports", nav_payments: "Payments", nav_invoices: "Invoices", nav_iban: "IBAN transfers", nav_wallets: "Wallets", nav_accounting: "Accounting", nav_shop_activity: "Shop activity", nav_pricing: "Pricing", nav_services: "Services", nav_terms: "Terms", nav_privacy: "Privacy", nav_pawmap: "PawMap", nav_bugs: "Bug reports",
         acc_title: "Accounting — My balance", acc_export: "Export CSV",
         acc_desc: "My HoPetSit profits only: platform commissions on bookings + shop revenue (Boost, PawSpot, Premium, Chat). Excludes payouts to providers. For my accountant.",
@@ -4407,7 +4413,7 @@ async function toggleStaff(role, userId, isStaff) {
         access_dashboard: "Acceder al panel →",
         logout: "Cerrar sesión",
         loading: "Cargando...",
-        navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
+        navsec_overview: "Resumen", navsec_users: "Usuarios", navsec_activity: "Actividad", navsec_finance: "Mis finanzas", navsec_shop: "Tienda", navsec_content: "Contenido", navsec_system: "Sistema",
         nav_dashboard: "Panel", nav_revenue: "Mis ingresos", nav_owners: "Propietarios", nav_sitters: "Cuidadores", nav_walkers: "Paseadores", nav_identity: "Verificaciones ID", nav_moderation: "Moderación usuarios", nav_loyalty: "Ventajas fidelidad", nav_bookings: "Reservas", nav_listings: "Anuncios", nav_chat: "Chat y mensajes", nav_reviews: "Opiniones", nav_reports: "Denuncias", nav_payments: "Pagos", nav_invoices: "Facturas", nav_iban: "Transferencias IBAN", nav_wallets: "Carteras", nav_accounting: "Contabilidad", nav_shop_activity: "Actividad tienda", nav_pricing: "Tarifas", nav_services: "Servicios", nav_terms: "Términos", nav_privacy: "Privacidad", nav_pawmap: "PawMap", nav_bugs: "Errores reportados",
         acc_title: "Contabilidad — Mi balance", acc_export: "Exportar CSV",
         acc_desc: "Solo mis beneficios HoPetSit: comisiones de la plataforma sobre las reservas + ingresos de tienda (Boost, PawSpot, Premium, Chat). Sin los pagos a los proveedores. Para mi contable.",
