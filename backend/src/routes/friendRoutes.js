@@ -1777,6 +1777,7 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
     // le membre de TOUTE sub Famille que JE détiens qui le contient.
     const UserSubscription = require('../models/UserSubscription');
     const myHolderIds = new Set([String(user.id)]);
+    let myEmail = null;
     try {
       const Model = MODEL_BY_NAME[user.model];
       const meDoc = Model
@@ -1784,6 +1785,7 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
         : null;
       if (meDoc && meDoc.oldId) myHolderIds.add(String(meDoc.oldId));
       if (meDoc && meDoc.email) {
+        myEmail = String(meDoc.email).toLowerCase();
         const [owners, sitters, walkers] = await Promise.all([
           Owner.find({ email: meDoc.email }).select('_id oldId').lean(),
           Sitter.find({ email: meDoc.email }).select('_id oldId').lean(),
@@ -1798,10 +1800,31 @@ router.delete('/family/member/:userId', requireAuth, async (req, res) => {
       logger.warn('[family/member DELETE] holder-id resolution failed', e.message);
     }
 
-    const subs = await UserSubscription.find({
-      userId: { $in: Array.from(myHolderIds) },
+    // v23.1.335 — Daniel : "tjr 404". CAUSE FINE : la sub Famille peut être
+    // rattachée à un holder dont l'ID n'est PAS dans mes identités (doc de rôle
+    // supprimé après switchRole / chaîne oldId cassée) → le filtre par ID seul
+    // la ratait. On garde donc les subs contenant le membre dont le TITULAIRE a
+    // mon email (même logique que resolveOwnFamilySub email-recovery).
+    const subsWithMember = await UserSubscription.find({
       'familyMembers.userId': targetId,
     });
+    const subs = [];
+    for (const sub of subsWithMember) {
+      if (myHolderIds.has(String(sub.userId))) { subs.push(sub); continue; }
+      if (myEmail) {
+        try {
+          const HolderModel = MODEL_BY_NAME[sub.userModel]
+            || MODEL_BY_NAME[ROLE_TO_MODEL_NAME[String(sub.userModel).toLowerCase()]];
+          const holderDoc = HolderModel
+            ? await HolderModel.findById(sub.userId).select('email').lean()
+            : null;
+          if (holderDoc && holderDoc.email
+              && String(holderDoc.email).toLowerCase() === myEmail) {
+            subs.push(sub);
+          }
+        } catch (_) {/* defensive */}
+      }
+    }
     if (!subs.length) {
       return res.status(404).json({ error: 'Member not in family.' });
     }
