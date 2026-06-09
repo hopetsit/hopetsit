@@ -224,7 +224,15 @@ const handleAirwallexWebhook = async (req, res) => {
               type: 'credit_booking',
               bookingId: booking._id.toString(),
               meta: { source: 'airwallex_webhook', autoPayout: false },
-              withdrawable: true,
+              // v23.1.330 — Daniel : "l'argent est venu direct dans mon wallet et
+              // j'ai pu retirer, alors qu'il doit attendre la confirmation de fin
+              // de service". CORRECTION : au PAIEMENT, le crédit est HISTORIQUE
+              // SEULEMENT (withdrawable:false → n'incrémente PAS le solde
+              // retirable). La libération (withdrawable:true) se fait UNIQUEMENT
+              // à la confirmation du service par l'owner (confirmService ->
+              // processProviderPayoutForBooking). Conforme au commentaire
+              // "history-only" ci-dessus (le true était un bug).
+              withdrawable: false,
             });
           }
         } catch (walletErr) {

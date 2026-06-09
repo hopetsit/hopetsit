@@ -2152,6 +2152,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'wallet_menu_title': 'Meine Brieftasche',
     'wallet_menu_subtitle': 'Verdiene, hebe ab oder gib dein Guthaben aus',
     'wallet_available_balance': 'Verfügbares Guthaben',
+    'wallet_held_funds_info': 'Deine Einnahmen aus einem Dienst sind gesperrt, bis der Besitzer das Ende des Dienstes bestätigt. Danach werden sie freigegeben und auszahlbar.',
     'wallet_earn_more_hint': 'Jede bezahlte Buchung wird automatisch gutgeschrieben',
     'wallet_withdraw_button': 'Abheben',
     'wallet_spend_button': 'Ausgeben',

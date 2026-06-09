@@ -2129,6 +2129,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'wallet_menu_title': 'Il mio portafoglio',
     'wallet_menu_subtitle': 'Guadagna, preleva o spendi il tuo saldo',
     'wallet_available_balance': 'Saldo disponibile',
+    'wallet_held_funds_info': 'I tuoi guadagni di un servizio restano bloccati finché il proprietario non conferma la fine del servizio. Poi vengono sbloccati e prelevabili.',
     'wallet_earn_more_hint': 'Ogni prenotazione pagata accredita automaticamente il portafoglio',
     'wallet_withdraw_button': 'Preleva',
     'wallet_spend_button': 'Spendi',

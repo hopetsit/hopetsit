@@ -3168,7 +3168,12 @@ const confirmBookingPayment = async (req, res) => {
               type: 'credit_booking',
               bookingId: booking._id.toString(),
               meta: { source: 'confirm_payment_sync', autoPayout: false },
-              withdrawable: true,
+              // v23.1.330 — Daniel : argent bloqué jusqu'à la confirmation de fin
+              // de service. Au PAIEMENT = HISTORIQUE SEULEMENT (withdrawable:false,
+              // n'incrémente pas le solde retirable). Le solde est libéré
+              // (withdrawable:true) uniquement à confirmService. Conforme au
+              // commentaire "only log for history" ci-dessus (le true était un bug).
+              withdrawable: false,
             });
           }
         } catch (walletErr) {

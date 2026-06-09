@@ -2125,6 +2125,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'wallet_menu_title': 'Mi monedero',
     'wallet_menu_subtitle': 'Gana, retira o gasta tu saldo',
     'wallet_available_balance': 'Saldo disponible',
+    'wallet_held_funds_info': 'Tus ganancias de un servicio quedan bloqueadas hasta que el propietario confirme que el servicio ha terminado. Luego se desbloquean y podrás retirarlas.',
     'wallet_earn_more_hint': 'Cada reserva pagada acredita tu monedero automáticamente',
     'wallet_withdraw_button': 'Retirar',
     'wallet_spend_button': 'Gastar',

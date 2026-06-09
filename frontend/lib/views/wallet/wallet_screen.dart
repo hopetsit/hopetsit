@@ -99,6 +99,37 @@ class _WalletScreenState extends State<WalletScreen> {
                 padding: EdgeInsets.all(16.w),
                 children: [
                   _balanceCard(),
+                  SizedBox(height: 10.h),
+                  // v23.1.330 — Daniel : message clair pour sitter/walker —
+                  // l'argent d'une prestation est BLOQUÉ jusqu'à ce que le
+                  // propriétaire confirme la fin du service.
+                  Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: _roleColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(
+                          color: _roleColor.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.lock_clock_rounded,
+                            color: _roleColor, size: 18.sp),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Text(
+                            'wallet_held_funds_info'.tr,
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              height: 1.4,
+                              color: AppColors.textSecondary(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   SizedBox(height: 14.h),
                   _actionsRow(),
                   if (_pendingWithdrawals > 0) ...[

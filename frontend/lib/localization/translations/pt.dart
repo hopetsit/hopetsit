@@ -1985,6 +1985,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'wallet_menu_title': 'A minha carteira',
     'wallet_menu_subtitle': 'Ganha, levanta ou gasta o teu saldo',
     'wallet_available_balance': 'Saldo disponível',
+    'wallet_held_funds_info': 'Os teus ganhos de um serviço ficam bloqueados até o dono confirmar o fim do serviço. Depois são desbloqueados e podes levantá-los.',
     'wallet_earn_more_hint': 'Cada reserva paga credita a tua carteira automaticamente',
     'wallet_withdraw_button': 'Levantar',
     'wallet_spend_button': 'Gastar',

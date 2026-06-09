@@ -2394,6 +2394,7 @@ const Map<String, String> enUSTranslations = <String, String>{
     'wallet_menu_title': 'My wallet',
     'wallet_menu_subtitle': 'Earn, withdraw or spend your balance',
     'wallet_available_balance': 'Available balance',
+    'wallet_held_funds_info': 'Your earnings from a service are held until the owner confirms the service is complete. They are then unlocked and available to withdraw.',
     'wallet_earn_more_hint': 'Every paid booking credits your wallet automatically',
     'wallet_withdraw_button': 'Withdraw',
     'wallet_spend_button': 'Spend',

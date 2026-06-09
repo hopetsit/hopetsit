@@ -2354,6 +2354,7 @@ const Map<String, String> frFRTranslations = <String, String>{
     'wallet_menu_title': 'Mon portefeuille',
     'wallet_menu_subtitle': 'Gagne, retire ou dépense ton solde',
     'wallet_available_balance': 'Solde disponible',
+    'wallet_held_funds_info': 'Vos gains d\'une prestation sont bloqués jusqu\'à ce que le propriétaire confirme la fin du service. Ils sont alors débloqués et retirables.',
     'wallet_earn_more_hint': 'Chaque booking payée te crédite automatiquement',
     'wallet_withdraw_button': 'Retirer',
     'wallet_spend_button': 'Dépenser',
