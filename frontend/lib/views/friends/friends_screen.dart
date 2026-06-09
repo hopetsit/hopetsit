@@ -2254,13 +2254,21 @@ class _FamilyMemberTile extends StatelessWidget {
                   color: AppColors.errorColor, size: 20.sp),
               tooltip: 'family_remove_member_tooltip'.tr,
               onPressed: () async {
-                final ok = await controller.removeFamilyMember(id);
+                // v23.1.329 — Daniel : "le bouton retirer membre marche pas".
+                // AVANT : échec silencieux (rien affiché si le retrait ratait).
+                // MAINTENANT : succès OU message d'erreur clair.
+                final err = await controller.removeFamilyMember(id);
                 if (!context.mounted) return;
-                if (ok) {
+                if (err == null) {
                   CustomSnackbar.showSuccess(
                     title: 'family_member_removed_title'.tr,
                     message: 'family_member_removed_msg'
                         .trParams({'name': name}),
+                  );
+                } else {
+                  CustomSnackbar.showError(
+                    title: 'common_error'.tr,
+                    message: err,
                   );
                 }
               },

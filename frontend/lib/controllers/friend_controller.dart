@@ -519,7 +519,12 @@ class FriendController extends GetxController {
   }
 
   /// Retire un ami de ma famille.
-  Future<bool> removeFamilyMember(String userId) async {
+  /// v23.1.329 — Daniel : "le bouton retirer membre famille marche pas". AVANT
+  /// on renvoyait juste un bool → en cas d'échec, ÉCHEC SILENCIEUX (aucun
+  /// message). Maintenant on renvoie l'erreur (null = succès, sinon message)
+  /// pour que l'UI l'affiche ET on guard l'id vide.
+  Future<String?> removeFamilyMember(String userId) async {
+    if (userId.trim().isEmpty) return 'ID du membre introuvable.';
     try {
       final api = Get.find<ApiClient>();
       await api.delete(
@@ -527,10 +532,10 @@ class FriendController extends GetxController {
         requiresAuth: true,
       );
       await loadFamily();
-      return true;
+      return null;
     } catch (e) {
       debugPrint('[Friends] removeFamilyMember error: $e');
-      return false;
+      return e.toString().replaceAll('ApiException:', '').trim();
     }
   }
 

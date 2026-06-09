@@ -288,7 +288,18 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
           // (les paiements n'ont volontairement pas de bandeau). Le titre et le
           // corps sont DÉJÀ localisés côté backend (notificationSender) → on les
           // utilise tels quels, sans .tr.
-          if (lower.startsWith('friend') || lower.startsWith('family')) {
+          // v23.1.329 — Daniel : "les demandes d'amis, je ne veux PAS de pop-up
+          // bleu, juste dans le bandeau notif (cloche) + voir le profil du
+          // demandeur". On SUPPRIME le toast pour les demandes REÇUES
+          // (friend_request_received / family_invitation_received /
+          // live_tracking_request_received) : elles restent dans le feed avec
+          // Accepter/Refuser + nom + photo. On garde le toast pour les AUTRES
+          // events ami/famille (ex. demande ACCEPTÉE = retour positif utile).
+          final isIncomingRequest = lower == 'friend_request_received' ||
+              lower == 'family_invitation_received' ||
+              lower == 'live_tracking_request_received';
+          if ((lower.startsWith('friend') || lower.startsWith('family')) &&
+              !isIncomingRequest) {
             final bannerTitle = (map['title'] ?? '').toString();
             final bannerBody = (map['body'] ?? '').toString();
             if (bannerTitle.isNotEmpty) {
