@@ -172,7 +172,7 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
               text: 'label_city'.tr,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-              color: AppColors.blackColor,
+              color: AppColors.textPrimary(context),
             ),
             Row(
               children: [
@@ -336,7 +336,10 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
           style: TextStyle(
             fontSize: 14.sp,
             fontWeight: FontWeight.w400,
-            color: AppColors.blackColor,
+            // v23.1.333 — Daniel : "en dark mode on ne voit pas le texte des
+            // adresses". Le texte saisi était noir codé en dur → invisible sur
+            // fond sombre. On utilise la couleur primaire adaptée au thème.
+            color: AppColors.textPrimary(context),
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
@@ -350,9 +353,11 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
           SizedBox(height: 6.h),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              // v23.1.333 — fond adapté au thème (était blanc fixe) pour que la
+              // suggestion reste lisible en dark mode.
+              color: AppColors.card(context),
               borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: AppColors.grey300Color, width: 1),
+              border: Border.all(color: AppColors.divider(context), width: 1),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.06),
@@ -405,14 +410,14 @@ class _CityLocationPickerState extends State<CityLocationPicker> {
                                 text: s.city,
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.blackColor,
+                                color: AppColors.textPrimary(context),
                               ),
                               if (s.country.isNotEmpty)
                                 InterText(
                                   text: s.country,
                                   fontSize: 12.sp,
                                   fontWeight: FontWeight.w400,
-                                  color: AppColors.greyColor,
+                                  color: AppColors.textSecondary(context),
                                 ),
                             ],
                           ),
