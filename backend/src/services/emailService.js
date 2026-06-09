@@ -44,10 +44,15 @@ const transporter = (() => {
 })();
 
 const fromAddress = () => {
-  const addr = process.env.SMTP_FROM || process.env.SMTP_USER;
-  if (!addr) return `${BRAND_NAME} <noreply@hopetsit.app>`;
-  // If already formatted "Name <addr>", keep as-is; otherwise prefix brand name.
-  return addr.includes('<') ? addr : `${BRAND_NAME} <${addr}>`;
+  const raw = process.env.SMTP_FROM || process.env.SMTP_USER;
+  if (!raw) return `${BRAND_NAME} <noreply@hopetsit.app>`;
+  // v23.1.328 — Daniel : "mets HoPetSit dans le mail". On FORCE le nom
+  // d'expediteur "HoPetSit" quel que soit le format de SMTP_FROM. Si la var
+  // contenait "hopetsit <...>" (minuscule du compte Gmail), le destinataire
+  // voyait "hopetsit". On extrait juste l'adresse et on remet "HoPetSit".
+  const m = raw.match(/<([^>]+)>/);
+  const email = (m ? m[1] : raw).trim();
+  return `${BRAND_NAME} <${email}>`;
 };
 
 // v18.9 — adresse Reply-To no-reply pour toutes les notifs sortantes.
