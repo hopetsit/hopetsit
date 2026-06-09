@@ -2060,6 +2060,11 @@ class _FamilyMemberTile extends StatelessWidget {
     // confondu avec un membre actif.
     final status = (member['status'] ?? 'active').toString();
     final isPending = status == 'pending';
+    // v23.1.336 — Daniel : "retirer famille bug 404 tjr". Le bouton retirer ne
+    // doit s'afficher QUE pour les membres de MA famille (removable=true côté
+    // backend). Les co-membres des familles où je suis juste MEMBRE ne sont pas
+    // retirables → masquer le bouton (sinon retrait → 404).
+    final removable = member['removable'] == true;
     // v23.1.280 — Daniel : "je veux ce design dans amis famille comme sur le
     // web : badge rôle (couleur métier) + badge FAMILLE, et anneau PawSpot
     // doré/bleu selon l'option". Parité avec _FriendTile + cartes web.
@@ -2248,7 +2253,7 @@ class _FamilyMemberTile extends StatelessWidget {
             ),
           if (id.isNotEmpty) SizedBox(width: 4.w),
           // v23.1.281 — bouton retirer réservé au titulaire de la famille.
-          if (isHolder)
+          if (isHolder && removable)
             IconButton(
               icon: Icon(Icons.person_remove_rounded,
                   color: AppColors.errorColor, size: 20.sp),

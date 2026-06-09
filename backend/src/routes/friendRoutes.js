@@ -1451,6 +1451,11 @@ router.get('/family/members', requireAuth, async (req, res) => {
           email: m.email || null,
           addedAt: m.addedAt,
           status: m.status || 'active',
+          // v23.1.336 — Daniel : "retirer famille bug 404 tjr". Ces membres
+          // appartiennent à MA famille (je suis titulaire) → RETIRABLES. Les
+          // autres (familles où je suis juste membre) ne le sont pas → le
+          // frontend ne montrera le bouton retirer que si removable=true.
+          removable: true,
         });
       }
     }
@@ -1530,6 +1535,9 @@ router.get('/family/members', requireAuth, async (req, res) => {
           addedAt: m.addedAt,
           email: m.email,
           status: m.status,
+          // v23.1.336 — true seulement pour les membres de MA famille (je suis
+          // titulaire). Le frontend masque le bouton retirer si false.
+          removable: m.removable === true,
           // v23.1.280 — tier PawSpot actif du membre → anneau doré/bleu sur
           // l'avatar dans l'onglet Famille de l'app (parité _FriendTile).
           pawSpotTier: mini?.pawSpotTier || null,
