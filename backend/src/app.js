@@ -155,7 +155,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // build is actually LIVE on Render (GET /__build). If /__build still returns an
 // old value after a push, Render did not redeploy (auto-deploy off / build
 // filter / failed deploy) — not a code problem.
-const ADMIN_BUILD = 'v324';
+const ADMIN_BUILD = 'v325';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -173,6 +173,13 @@ app.get(['/admin', '/admin.html', '/admin_dashboard.html'], noAdminCache, (req, 
 // deploy has not gone through yet.
 app.get('/__build', (req, res) => {
   res.type('text').send(`HoPetSit admin build ${ADMIN_BUILD}`);
+});
+// v23.1.325 — TEMPORAIRE (à retirer après vérification Sentry) : génère une
+// erreur volontaire (protégée par ?key=verify325) qui passe par le gestionnaire
+// d'erreurs global -> sentry.captureException -> doit apparaître dans Sentry.
+app.get('/__sentry-test', (req, res) => {
+  if (req.query.key !== 'verify325') return res.status(404).send('Not found');
+  throw new Error('Sentry test event — verification HoPetSit v325');
 });
 // Sprint 8 step 5 — structured request logger (pino-http) with reqId + duration.
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
