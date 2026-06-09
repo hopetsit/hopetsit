@@ -43,6 +43,9 @@ import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
+// v23.1.327 — écrans de chat pour le bouton "Discuter" du sheet Paiement.
+import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
@@ -616,6 +619,26 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     final amount = (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble();
     final currency = b.pricing?.currency ?? b.sitter.currency;
     final accent = a.color;
+    // v23.1.327 — Daniel : ce sheet est partagé owner ↔ prestataire. On l'adapte
+    // au PROFIL qui le regarde : le prestataire voit l'OWNER ("Paiement reçu"),
+    // l'owner voit le PRESTATAIRE ("Paiement effectué"). Le bouton "Discuter"
+    // pointe vers la bonne contrepartie + le bon écran de chat.
+    final bool isOwnerView = widget.role == 'owner';
+    final bool isWalkerSvc =
+        (b.serviceType ?? '').toLowerCase().contains('walking');
+    final String cpName = isOwnerView
+        ? (b.sitter.name.trim().isNotEmpty ? b.sitter.name : '—')
+        : ownerName;
+    final String cpAvatar = isOwnerView ? b.sitter.avatar.url : ownerAvatar;
+    final String cpRoleKey = isOwnerView
+        ? (isWalkerSvc ? 'role_walker' : 'role_sitter')
+        : 'role_pet_owner';
+    final String titleKey = isOwnerView
+        ? 'payment_made_banner_title'
+        : 'payment_received_banner_title';
+    final String chatBtnKey = isOwnerView
+        ? (isWalkerSvc ? 'chat_with_walker_button' : 'chat_with_sitter_button')
+        : 'chat_with_owner_button';
 
     showModalBottomSheet(
       context: context,
@@ -642,6 +665,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
               // conventional location and lets us add the same to the
               // other action sheets without bloating the action row.
               Stack(
+                // v23.1.327 — Daniel : "le X de fermeture est coupé". Le Stack
+                // clippe par défaut (Clip.hardEdge) → l'icône positionnée
+                // débordait et se faisait rogner. Clip.none la rend entière.
+                clipBehavior: Clip.none,
                 children: [
                   Center(
                     child: Container(
@@ -655,7 +682,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                   ),
                   Positioned(
                     right: 0,
-                    top: -4,
+                    top: -2,
                     child: GestureDetector(
                       onTap: () => Navigator.of(ctx).pop(),
                       behavior: HitTestBehavior.opaque,
@@ -685,7 +712,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
               SizedBox(height: 12.h),
               Center(
                 child: PoppinsText(
-                  text: 'payment_received_banner_title'.tr,
+                  text: titleKey.tr,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w800,
                   color: accent,
@@ -706,10 +733,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                     radius: 22.r,
                     backgroundColor: accent.withValues(alpha: 0.15),
                     // v23.1 part 231 — perf : CachedNetworkImageProvider 150.
-                    backgroundImage: ownerAvatar.isNotEmpty
-                        ? CachedNetworkImageProvider(ownerAvatar, maxWidth: 150)
+                    backgroundImage: cpAvatar.isNotEmpty
+                        ? CachedNetworkImageProvider(cpAvatar, maxWidth: 150)
                         : null,
-                    child: ownerAvatar.isEmpty
+                    child: cpAvatar.isEmpty
                         ? Icon(Icons.person, color: accent, size: 22.sp)
                         : null,
                   ),
@@ -719,12 +746,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         PoppinsText(
-                          text: ownerName,
+                          text: cpName,
                           fontSize: 14.sp, fontWeight: FontWeight.w700,
                         ),
                         SizedBox(height: 2.h),
                         InterText(
-                          text: 'role_pet_owner'.tr,
+                          text: cpRoleKey.tr,
                           fontSize: 11.sp,
                           color: Colors.grey,
                         ),
@@ -757,6 +784,40 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                     'view_my_invoices_button'.tr,
                     style: TextStyle(
                       color: Colors.white,
+                      fontSize: 14.sp, fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 10.h),
+              // v23.1.327 — Daniel : 2e action "Discuter avec [contrepartie]".
+              // Ouvre le chat du bon profil (owner -> ChatScreen ;
+              // sitter/walker -> SitterChatScreen). La conversation avec la
+              // contrepartie y est en tête (chat débloqué au paiement).
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    if (isOwnerView) {
+                      Get.to(() => const ChatScreen());
+                    } else {
+                      Get.to(() => const SitterChatScreen());
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: accent, width: 1.5),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                  ),
+                  icon: Icon(Icons.chat_bubble_outline_rounded,
+                      color: accent, size: 20.sp),
+                  label: Text(
+                    chatBtnKey.tr,
+                    style: TextStyle(
+                      color: accent,
                       fontSize: 14.sp, fontWeight: FontWeight.w700,
                     ),
                   ),
