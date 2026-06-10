@@ -111,7 +111,10 @@ class FriendMarkerService extends GetxService {
     required String role,
     required bool isFamily,
   }) async {
-    const double size = 120.0;
+    // v23.1.350 — Daniel : "réduire un peu la taille des ronds amis et
+    // famille" (ils dominaient la carte). 120 → 96 px (-20%), toutes les
+    // couches (ring famille, disque rôle, photo) sont dérivées de `size`.
+    const double size = 96.0;
     const double cx = size / 2;
     const double cy = size / 2;
     final recorder = ui.PictureRecorder();
@@ -199,7 +202,8 @@ class FriendMarkerService extends GetxService {
     final tp = TextPainter(
       text: const TextSpan(
         text: '👤',
-        style: TextStyle(fontSize: 56),
+        // v23.1.350 — mis à l'échelle avec le marqueur 120→96 px.
+        style: TextStyle(fontSize: 45),
       ),
       textDirection: TextDirection.ltr,
     );
