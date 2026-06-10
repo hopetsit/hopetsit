@@ -19,7 +19,6 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
-import 'package:intl/intl.dart';
 
 class SitterApplicationScreen extends StatefulWidget {
   const SitterApplicationScreen({super.key});

@@ -142,7 +142,9 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     // Cap the cache to avoid unbounded memory.
     if (_seenNotifIds.length > 200) {
       final drop = _seenNotifIds.take(100).toList();
-      for (final k in drop) _seenNotifIds.remove(k);
+      for (final k in drop) {
+        _seenNotifIds.remove(k);
+      }
     }
     return false;
   }
@@ -166,7 +168,7 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
         // chat s'allumer (Daniel : "badge message doit aparaitre
         // uniquement qd on recoi d message").
         try {
-          final map = data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
+          final map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
           final triggered = map['triggeredBy'];
           final triggeredId = triggered is Map ? triggered['userId']?.toString() : null;
           final profile = _storage.read<Map<String, dynamic>>('user_profile');

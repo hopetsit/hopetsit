@@ -60,7 +60,7 @@ class ApiClient {
         'No internet connection',
         cause: e,
       );
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw ApiTimeoutException(
         '$method ${uri.path} timed out',
         elapsed: DateTime.now().difference(start),

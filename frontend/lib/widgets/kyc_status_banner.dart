@@ -151,10 +151,10 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
           child: Container(
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12.r),
               border: Border.all(
-                color: color.withOpacity(0.3),
+                color: color.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -163,7 +163,7 @@ class _KycStatusBannerState extends State<KycStatusBanner> {
                 Container(
                   padding: EdgeInsets.all(8.w),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.18),
+                    color: color.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 18.sp),

@@ -34,7 +34,6 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
   bool _loading = true;
   List<Map<String, dynamic>> _methods = const [];
   List<Map<String, dynamic>> _history = const [];
-  bool _addingCard = false;
 
   @override
   void initState() {
@@ -63,54 +62,6 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
         title: 'common_error'.tr,
         message: e.toString(),
       );
-    }
-  }
-
-  /// v18.5 — #4 fix : retry fetch jusqu'à voir une nouvelle PaymentMethod
-  /// apparaître côté Stripe (webhook async). Utilisé juste après un
-  /// Stripe PaymentSheet réussi. Backoff : 300 → 600 → 900 → 1200 → 1500ms
-  /// (total ~4.5s max). Dès que methods.length augmente, on s'arrête.
-  Future<void> _loadWithRetry() async {
-    final int previousCount = _methods.length;
-    await _load();
-    if (_methods.length > previousCount) return;
-    for (int i = 1; i <= 5; i++) {
-      await Future.delayed(Duration(milliseconds: 300 * i));
-      try {
-        final methods = await _repo.getOwnerPaymentMethods();
-        if (!mounted) return;
-        if (methods.length > previousCount) {
-          setState(() {
-            _methods = methods;
-          });
-          return;
-        }
-      } catch (_) {
-        // Ignore transient errors, continue retrying.
-      }
-    }
-  }
-
-  Future<void> _addCard() async {
-    if (_addingCard) return;
-    setState(() => _addingCard = true);
-    try {
-      // v21.1.1 — Stripe purgé. Avec Airwallex la carte est enregistrée
-      // automatiquement lors du premier vrai paiement (HPP), pas besoin
-      // d'un flow "ajouter carte" séparé. PaymentConsent à venir v22.
-      CustomSnackbar.showWarning(
-        title: 'common_info'.tr,
-        message:
-            'Tes cartes sont enregistrées automatiquement lors du premier paiement. Plus besoin de les ajouter manuellement !',
-      );
-    } catch (e) {
-      AppLogger.logError('Add card failed', error: e);
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.toString(),
-      );
-    } finally {
-      if (mounted) setState(() => _addingCard = false);
     }
   }
 
@@ -394,42 +345,6 @@ class _OwnerPaymentsScreenState extends State<OwnerPaymentsScreen> {
             : 'owner_payments_empty_cards'.tr,
         fontSize: 13.sp,
         color: AppColors.grey700Color,
-      ),
-    );
-  }
-
-  Widget _addCardButton() {
-    return SizedBox(
-      height: 48.h,
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _addingCard ? null : _addCard,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryColor,
-          foregroundColor: AppColors.whiteColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14.r),
-          ),
-        ),
-        icon: _addingCard
-            ? SizedBox(
-                width: 18.w,
-                height: 18.w,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.whiteColor),
-                ),
-              )
-            : Icon(Icons.add_rounded, size: 22.sp),
-        label: InterText(
-          text: 'owner_payments_add_card'.tr ==
-                  'owner_payments_add_card'
-              ? 'Ajouter une carte'
-              : 'owner_payments_add_card'.tr,
-          fontSize: 15.sp,
-          fontWeight: FontWeight.w600,
-          color: AppColors.whiteColor,
-        ),
       ),
     );
   }

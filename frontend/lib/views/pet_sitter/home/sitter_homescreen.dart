@@ -24,12 +24,9 @@ import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dia
 import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
-// v23.1 — HomeHeader Container-based, remplace AppBar pour fix grey rectangle.
-import 'package:hopetsit/widgets/home_header.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // Comments removed from publications
-import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';

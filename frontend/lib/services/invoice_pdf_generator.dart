@@ -18,20 +18,8 @@ import 'package:printing/printing.dart';
 class InvoicePdfGenerator {
   InvoicePdfGenerator._();
 
-  // Resolve a 2-letter locale from Get (defaults to 'en' if missing).
-  static String _currentLang() {
-    try {
-      final code = Get.locale?.languageCode.toLowerCase() ?? 'en';
-      const supported = ['en', 'fr', 'es', 'de', 'it', 'pt'];
-      return supported.contains(code) ? code : 'en';
-    } catch (_) {
-      return 'en';
-    }
-  }
-
   static Future<List<int>> build(InvoiceModel inv) async {
     final doc = pw.Document();
-    final lang = _currentLang();
 
     // v23.1.168 — Noto Sans contient le € + accents. On charge regular + bold
     // une seule fois et on les réutilise via le pw.Theme global.
@@ -50,13 +38,13 @@ class InvoicePdfGenerator {
     final isRefunded = inv.status.toLowerCase() == 'refunded';
     final accent = isRefunded ? PdfColor.fromInt(0xFFC62828) : orange;
     final symbol = _symbolFor(inv.currency);
-    final fmtAmount = (double v) => '$symbol${v.toStringAsFixed(2)}';
-    final fmtDate = (DateTime? d) {
+    String fmtAmount(double v) => '$symbol${v.toStringAsFixed(2)}';
+    String fmtDate(DateTime? d) {
       if (d == null) return '—';
       final mm = d.month.toString().padLeft(2, '0');
       final dd = d.day.toString().padLeft(2, '0');
       return '$dd/$mm/${d.year}';
-    };
+    }
 
     doc.addPage(
       pw.MultiPage(

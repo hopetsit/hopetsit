@@ -41,6 +41,10 @@ class CustomNavigationBar extends StatelessWidget {
     // automatique sur les BottomNavigationBar / NavigationBar.
     return Theme(
       data: Theme.of(context).copyWith(
+        // Pas de migration possible sans changer le rendu : il faut hériter
+        // du Theme ambiant ET forcer Material 2 ; un constructeur ThemeData
+        // (.from/.light/.dark) perdrait les propriétés héritées.
+        // ignore: deprecated_member_use
         useMaterial3: false,
         splashFactory: NoSplash.splashFactory,
         splashColor: Colors.transparent,

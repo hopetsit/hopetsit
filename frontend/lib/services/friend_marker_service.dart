@@ -90,7 +90,7 @@ class FriendMarkerService extends GetxService {
         role: role,
         isFamily: isFamily,
       );
-      _cache[key] = BitmapDescriptor.fromBytes(bytes);
+      _cache[key] = BitmapDescriptor.bytes(bytes);
       rev.value++;
     } catch (e) {
       // Si meme le paint plante, on laisse le placeholder default.

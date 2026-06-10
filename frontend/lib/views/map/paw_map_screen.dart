@@ -1644,21 +1644,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  double _hueForRole(String role) {
-    switch (role) {
-      // v23.1.295 — Daniel : owner = ORANGE partout (avant rose). Cohérent avec
-      // le badge owner et friend_marker_service.
-      case 'owner':
-        return BitmapDescriptor.hueOrange;
-      case 'sitter':
-        return BitmapDescriptor.hueBlue;
-      case 'walker':
-        return BitmapDescriptor.hueGreen;
-      default:
-        return BitmapDescriptor.hueMagenta;
-    }
-  }
-
   String _timeAgo(DateTime at) {
     final diff = DateTime.now().difference(at);
     if (diff.inMinutes < 1) return 'pawmap_time_just_now'.tr;
@@ -1808,16 +1793,16 @@ class _PawMapScreenState extends State<PawMapScreen>
                           ? Get.find<FriendController>()
                           : null;
                       // ignore: unused_local_variable
-                      final _famLen = fc?.familyMembers.length ?? 0;
+                      final famLen = fc?.familyMembers.length ?? 0;
                       // ignore: unused_local_variable
-                      final _friLen = fc?.friends.length ?? 0;
+                      final friLen = fc?.friends.length ?? 0;
                     } catch (_) {/* defensive */}
                     // v23.1 part 249 — rebuild quand un nouveau marker
                     // custom (photo profil) finit de generer. Sans cette
                     // dependance Obx, le marker reste sur le placeholder
                     // par defaut jusqu'a la prochaine vraie data change.
                     // ignore: unused_local_variable
-                    final _markerRev = _friendMarkerService.rev.value;
+                    final markerRev = _friendMarkerService.rev.value;
                     return GoogleMap(
                       initialCameraPosition: CameraPosition(
                         target: _currentCenter,
@@ -2166,22 +2151,6 @@ class _PawMapScreenState extends State<PawMapScreen>
       height: 1,
       margin: EdgeInsets.symmetric(horizontal: 8.w),
       color: AppColors.greyText.withValues(alpha: 0.15),
-    );
-  }
-
-  Widget _buildZoomBtn(IconData icon, VoidCallback onTap) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 4,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.all(8.w),
-          child: Icon(icon, color: AppColors.primaryColor, size: 22.sp),
-        ),
-      ),
     );
   }
 
@@ -2623,11 +2592,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// comprene et que ce sois traducible ds tte les langue". On supprime
   /// le sublabel (deuxieme ligne grisee en dessous) qui faisait double
   /// emploi avec le label principal et compliquait les traductions.
-  /// Le param sublabel est conserve mais ignore — retro-compat des appels.
   Widget _quickActionCard({
     required IconData icon,
     required String label,
-    String? sublabel,
     required Color color,
     required VoidCallback onTap,
     // v23.1.255 — Daniel : "badge 1 sur le quick bouton" pour les demandes
@@ -2737,192 +2704,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         ),
       ],
     );
-  }
-
-  Widget _buildQuickSignalRow() {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-      child: Row(
-        children: [
-          Expanded(
-            child: _quickSignalChip(
-              emoji: '🔎',
-              label: 'pawmap_filter_lost'.tr,
-              type: ReportTypes.lostPet,
-              color: const Color(0xFFEC407A), // rose/pink for lost_pet
-            ),
-          ),
-          SizedBox(width: 8.w),
-          // Session v3.2 — "Trouvé" remplacé par "Chien méchant" dans les
-          // quick-signals (found_pet passé Premium, aggressive_dog en free).
-          Expanded(
-            child: _quickSignalChip(
-              emoji: '😾',
-              label: 'pawmap_filter_aggressive_dog'.tr,
-              type: ReportTypes.aggressiveDog,
-              color: const Color(0xFFE53935), // red for aggressive_dog
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: _quickSignalChip(
-              emoji: '🚰',
-              label: 'pawmap_filter_water_point'.tr,
-              type: ReportTypes.waterActive,
-              color: const Color(0xFF26C6DA), // cyan for water_active
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _quickSignalChip({
-    required String emoji,
-    required String label,
-    required String type,
-    required Color color,
-  }) {
-    return GestureDetector(
-      onTap: () async {
-            final created = await CreateReportSheet.show(
-          context,
-          initialPoint: _currentCenter,
-          preselectedType: type,
-        );
-        if (created) await _reloadAtCenter();
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: color.withValues(alpha: 0.30), width: 1),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(emoji, style: TextStyle(fontSize: 16.sp)),
-            SizedBox(width: 6.w),
-            Flexible(
-              child: InterText(
-                text: label,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700,
-                color: color,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Session v3.3 — Emergency quick-access row.
-  ///
-  /// Gros boutons colorés qui filtrent la PawMap sur une catégorie POI en
-  /// un seul tap (utile quand on cherche un véto / une animalerie en
-  /// urgence). Tap bascule le filtre ; retap = reset.
-  Widget _buildEmergencyRow() {
-    return Container(
-      padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
-      child: Row(
-        children: [
-          Expanded(
-            child: _emergencyChip(
-              emoji: '🏥',
-              label: 'map_emergency_vet'.tr,
-              category: PoiCategories.vet,
-              color: const Color(0xFFE53935), // red — urgent medical
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: _emergencyChip(
-              emoji: '🛍️',
-              label: 'map_emergency_shop'.tr,
-              category: PoiCategories.shop,
-              color: const Color(0xFF8E24AA), // purple — pet supplies
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: _emergencyChip(
-              emoji: '🌳',
-              label: 'map_emergency_park'.tr,
-              category: PoiCategories.park,
-              color: const Color(0xFF2E7D32), // green — parks
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Single emergency chip — tap toggles a single-category filter on the
-  /// PawMap (so only those POIs remain visible) and ensures the POI layer
-  /// is shown. Retap the active chip to clear the filter.
-  Widget _emergencyChip({
-    required String emoji,
-    required String label,
-    required String category,
-    required Color color,
-  }) {
-    return Obx(() {
-      final active = _poiController.enabledCategories.length == 1 &&
-          _poiController.enabledCategories.contains(category);
-      return GestureDetector(
-        onTap: () async {
-          if (active) {
-            _poiController.clearFilters();
-          } else {
-            _poiController.enabledCategories
-              ..clear()
-              ..add(category);
-          }
-          // Ensure the POI layer itself is on so the filter takes effect.
-          _showPois.value = true;
-          // Reload nearby POIs at the current center for this category so
-          // the user sees results even before panning the map.
-          {
-            await _poiController.loadNearby(
-              _currentCenter,
-              category: active ? null : category,
-            );
-          }
-        },
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
-          decoration: BoxDecoration(
-            color: active ? color : color.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(
-              color: active ? color : color.withValues(alpha: 0.35),
-              width: 1.2,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(emoji, style: TextStyle(fontSize: 16.sp)),
-              SizedBox(width: 6.w),
-              Flexible(
-                child: InterText(
-                  text: label,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                  color: active ? Colors.white : color,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    });
   }
 
   // v23.1.285 — barre de filtre catégories POI + checklist 2 colonnes
@@ -3705,50 +3486,6 @@ class _PawMapScreenState extends State<PawMapScreen>
 // Helper widgets
 // ════════════════════════════════════════════════════════════════════════════
 
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.emoji,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final String emoji;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryColor : AppColors.card(context),
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(
-            color: selected ? AppColors.primaryColor : AppColors.divider(context),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: TextStyle(fontSize: 14.sp)),
-            SizedBox(width: 6.w),
-            InterText(
-              text: label,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : AppColors.textPrimary(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _LayerToggle extends StatelessWidget {
   const _LayerToggle({
     required this.label,
@@ -3897,163 +3634,3 @@ class _TtlBadgeState extends State<_TtlBadge> {
   }
 }
 
-/// Premium upsell banner shown at the bottom of the PawMap for users who
-/// haven't subscribed yet. Tapping opens the coin shop.
-///
-/// v18.9.8 — ancien design gold gradient remplacé par un vert vibrant avec
-/// double glow (vert vif + halo blanc) pour matcher l'identité Premium =
-/// accès vert-brillant selon spec Daniel.
-class _PremiumUpsell extends StatelessWidget {
-  const _PremiumUpsell();
-
-  // Palette vert brillant (emerald) — saturé, lumineux, effet "shiny".
-  static const Color _greenLight = Color(0xFF34D399); // emerald-400
-  static const Color _greenMid = Color(0xFF10B981);   // emerald-500
-  static const Color _greenDark = Color(0xFF059669);  // emerald-600
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      // Land directly on the Premium tab (index 1) since this banner is
-      // specifically a Premium upsell. The default tab (0) is generic Boost.
-      onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [_greenLight, _greenMid, _greenDark],
-            stops: [0.0, 0.55, 1.0],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: [
-            // Glow principal vert saturé.
-            BoxShadow(
-              color: _greenMid.withValues(alpha: 0.55),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-            // Halo intérieur blanc pour l'effet "brillant".
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.25),
-              blurRadius: 4,
-              offset: const Offset(0, -1),
-            ),
-          ],
-          // Léger liseré clair en haut pour accentuer le brillant.
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.35),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 24.sp),
-            SizedBox(width: 10.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: 'pawmap_premium_title'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: 'pawmap_premium_subtitle'.tr,
-                    fontSize: 12.sp,
-                    color: Colors.white.withValues(alpha: 0.95),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16.sp),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Session v15-4 — Map Boost CTA on the PawMap, distinct from the Premium
-/// banner (bleu vs vert) so the user sees they are two different products.
-/// Tapping opens the shop directly on the Map Boost tab (index 2).
-///
-/// v18.9.8 — bleu rendu plus brillant (tricolor gradient + double shadow)
-/// pour matcher la demande "bleu brillant" à côté du Signaler rouge.
-class _MapBoostUpsell extends StatelessWidget {
-  const _MapBoostUpsell();
-
-  // Palette bleu vibrant — lumière sky-400 → blue-500 → indigo-600 pour
-  // un effet "brillant/shiny" sans tomber dans le violet.
-  static const Color _blueLight = Color(0xFF38BDF8); // sky-400
-  static const Color _blueMid = Color(0xFF3B82F6);   // blue-500
-  static const Color _blueDark = Color(0xFF1D4ED8);  // blue-700
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [_blueLight, _blueMid, _blueDark],
-            stops: [0.0, 0.55, 1.0],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: [
-            // Glow principal bleu saturé.
-            BoxShadow(
-              color: _blueMid.withValues(alpha: 0.55),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-            // Halo intérieur blanc pour l'effet "brillant".
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.25),
-              blurRadius: 4,
-              offset: const Offset(0, -1),
-            ),
-          ],
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.35),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.push_pin_rounded, color: Colors.white, size: 22.sp),
-            SizedBox(width: 10.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: 'pawmap_boost_title'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: 'pawmap_boost_subtitle'.tr,
-                    fontSize: 12.sp,
-                    color: Colors.white.withValues(alpha: 0.95),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded,
-                color: Colors.white, size: 16.sp),
-          ],
-        ),
-      ),
-    );
-  }
-}

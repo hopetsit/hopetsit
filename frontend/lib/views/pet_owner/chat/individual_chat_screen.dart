@@ -11,7 +11,6 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/models/booking_model.dart';
-import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/tracking_request_sheet.dart';
 // v23.1 part 240 — LiveWalkMapScreen import retire : "Voir la carte" du
@@ -47,18 +46,9 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   late TextEditingController _localMessageController;
   VoidCallback? _sharedControllerListener;
 
-  // v23.1.170 — Daniel : "il faut changer le bouton tu met suivre walker
-  // ou sitter". On résout le rôle au moment du premier load (async) puis
-  // on rebuild l'AppBar pour afficher "Suivre walker" / "Suivre sitter".
-  // Avant la résolution, on garde "Suivre" générique.
-  String? _providerRole;
-
   @override
   void initState() {
     super.initState();
-    // Résolution async du rôle pour le bouton dynamique.
-    _resolveProviderRole();
-
     // Ensure ChatController is properly initialized
     if (!Get.isRegistered<ChatController>()) {
       final chatRepository = Get.find<ChatRepository>();
@@ -207,7 +197,6 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     // balade explicite). Fix : on passe AUSSI le snapshot lat/lng du
     // metadata du message → LiveWalkMapScreen fait du fallback (cf v209
     // dans live_walk_map_screen.dart).
-    final bookingId = message.pawfollowBookingId;
     final fallbackLat = message.pawfollowLastLat;
     final fallbackLng = message.pawfollowLastLng;
     // v23.1 part 239 — Daniel : "voir la carte sa mouvre la carte google
@@ -322,38 +311,6 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     }
   }
 
-  // v23.1.170 — résout le rôle du provider à partir des bookings actifs
-  // pour pouvoir afficher dynamiquement "Suivre walker" / "Suivre sitter".
-  Future<void> _resolveProviderRole() async {
-    try {
-      final repo = Get.find<OwnerRepository>();
-      final bookings = await repo.getMyBookings();
-      String norm(String s) =>
-          s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
-      final wantedName = norm(widget.contactName);
-      final match = bookings.firstWhereOrNull((b) {
-        final pay = (b.paymentStatus ?? '').toLowerCase();
-        if (pay != 'paid') return false;
-        return norm(b.sitter.name) == wantedName ||
-            norm(b.sitter.name).contains(wantedName) ||
-            wantedName.contains(norm(b.sitter.name));
-      });
-      final role = match?.providerRole;
-      if (mounted && role != null && role.isNotEmpty) {
-        setState(() => _providerRole = role);
-      }
-    } catch (_) {
-      // silently fail — generic "Suivre" label remains
-    }
-  }
-
-  String _followLabel() {
-    final role = (_providerRole ?? '').toLowerCase();
-    if (role == 'walker') return 'follow_button_walker'.tr;
-    if (role == 'sitter') return 'follow_button_sitter'.tr;
-    return 'follow_button_generic'.tr;
-  }
-
   Future<void> _onSuivreTap() async {
     try {
       final repo = Get.find<OwnerRepository>();
@@ -376,7 +333,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       final candidate = bookings
           .where((b) {
             final pay = (b.paymentStatus ?? '').toLowerCase();
-            final st  = (b.status ?? '').toLowerCase();
+            final st  = b.status.toLowerCase();
             if (pay != 'paid') return false;
             if (st == 'cancelled' || st == 'refunded' || st == 'completed') {
               return false;

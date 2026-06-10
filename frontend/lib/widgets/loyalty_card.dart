@@ -1,19 +1,68 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/loyalty_controller.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 
 /// Sprint 7 step 1 — compact loyalty card for owner profile.
-class LoyaltyCard extends StatelessWidget {
+///
+/// v23.1.344 — Daniel : "avantages fidélité owner ne se met pas à jour".
+/// AVANT : StatelessWidget qui appelait ctrl.load() dans build() → comme le
+/// profil vit dans l'IndexedStack de la nav (jamais re-buildé au changement
+/// d'onglet), la carte restait FIGÉE sur les valeurs du lancement de l'app.
+/// MAINTENANT (même pattern éprouvé que TopSitterCard + la bande d'accueil) :
+///   - load au montage,
+///   - reload au retour de l'app au premier plan,
+///   - reload à chaque notification reçue (une confirmation de service envoie
+///     une notif → le compteur se met à jour dans la seconde),
+///   - filet périodique 60s tant que la carte est montée.
+class LoyaltyCard extends StatefulWidget {
   const LoyaltyCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final ctrl = Get.isRegistered<LoyaltyController>()
+  State<LoyaltyCard> createState() => _LoyaltyCardState();
+}
+
+class _LoyaltyCardState extends State<LoyaltyCard>
+    with WidgetsBindingObserver {
+  late final LoyaltyController ctrl;
+  Worker? _notifWorker;
+  Timer? _refresh;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    ctrl = Get.isRegistered<LoyaltyController>()
         ? Get.find<LoyaltyController>()
         : Get.put(LoyaltyController());
     ctrl.load();
+    if (Get.isRegistered<NotificationsController>()) {
+      final notifs = Get.find<NotificationsController>();
+      _notifWorker = ever<int>(notifs.unreadCount, (_) => ctrl.load());
+    }
+    _refresh = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) ctrl.load();
+    });
+  }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notifWorker?.dispose();
+    _refresh?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) ctrl.load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Obx(() {
       return Container(
         margin: const EdgeInsets.only(bottom: 12),

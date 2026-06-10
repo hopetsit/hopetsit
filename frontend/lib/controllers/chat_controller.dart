@@ -766,9 +766,9 @@ class ChatController extends GetxController {
     // v20.0.19 — comparison tolérante (trim + lowercase) pour éviter qu'un
     // mismatch de casse/whitespace fasse croire que le message n'est pas
     // à l'utilisateur → long-press désactivé → "effacer marche pas".
-    final _sid = senderId.trim().toLowerCase();
-    final _cid = currentUserId.trim().toLowerCase();
-    final isFromCurrentUser = _sid.isNotEmpty && _sid == _cid;
+    final sid = senderId.trim().toLowerCase();
+    final cid = currentUserId.trim().toLowerCase();
+    final isFromCurrentUser = sid.isNotEmpty && sid == cid;
 
     // Extract sender name - check multiple possible fields
     String senderName = '';

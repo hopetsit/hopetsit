@@ -31,27 +31,34 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/controllers/bookings_controller.dart';
+import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
 import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/models/booking_model.dart';
+import 'package:hopetsit/models/friendship_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart' as snack;
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
+import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/invoices/invoices_screen.dart';
 // v23.1.327 — écrans de chat pour le bouton "Discuter" du sheet Paiement.
 import 'package:hopetsit/views/pet_owner/chat/chat_screen.dart';
+import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
+import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/service_confirmation_card.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -123,10 +130,31 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           Get.put(ApplicationsController());
         } catch (_) { /* noop */ }
       }
+      // v23.1.337 — Daniel : "je veux que la demande d'amis s'affiche dans
+      // la bande et qu'on puisse voir le profil de celui qui me demande".
+      // On enregistre FriendController ici (s'il ne l'est pas déjà) → son
+      // onInit() charge incomingRequests ET attache les listeners socket
+      // (friend_request:received) → la bande réagit en temps réel sur les
+      // 3 home screens (owner/sitter/walker). Si déjà enregistré, on force
+      // un loadRequests() pour rafraîchir au mount.
+      try {
+        if (!Get.isRegistered<FriendController>()) {
+          Get.put(FriendController());
+        } else {
+          Get.find<FriendController>().loadRequests();
+        }
+      } catch (_) { /* noop */ }
       _refreshBookings();
       if (Get.isRegistered<NotificationsController>()) {
         final notifs = Get.find<NotificationsController>();
-        _notifWorker = ever<int>(notifs.unreadCount, (_) => _refreshBookings());
+        _notifWorker = ever<int>(notifs.unreadCount, (_) {
+          _refreshBookings();
+          // v23.1.338 — une notif (demande d'ami OU invitation famille) arrive
+          // → on rafraîchit aussi le social pour que la bande la surface en
+          // temps réel. (le friend_request socket couvre déjà les demandes,
+          // mais les invitations famille n'ont pas de listener dédié.)
+          _refreshSocial();
+        });
       }
       _startPeriodicRefresh();
     });
@@ -239,14 +267,16 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       final nowDateMs = DateTime.now().millisecondsSinceEpoch;
       const grace3DaysMs = 3 * 24 * 60 * 60 * 1000;
       final acceptedToPay = bookings.where((b) {
-        final status = (b.status ?? '').toLowerCase();
+        final status = b.status.toLowerCase();
         final pay    = (b.paymentStatus ?? '').toLowerCase();
         if (pay == 'paid') return false;
         if (_dismissedIds.contains(b.id)) return false;
         // Exclude cancelled / refunded / completed bookings.
         if (status == 'cancelled' || status == 'refunded' ||
             status == 'completed' || status == 'rejected' ||
-            status == 'expired') return false;
+            status == 'expired') {
+          return false;
+        }
         // Exclude stale bookings — service date already > 3 days past.
         final serviceMs = DateTime.tryParse(b.date)?.millisecondsSinceEpoch;
         if (serviceMs != null && (nowDateMs - serviceMs) > grace3DaysMs) {
@@ -291,6 +321,28 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           allBookingIds: acceptedToPay.map((bk) => bk.id).toList(),
         );
       }
+      // v23.1.341 — Daniel : "la fin du service passe par le bandeau, plus
+      // simple". Le prestataire a marqué "J'ai rendu l'animal" → l'owner doit
+      // confirmer (c'est CE clic qui libère le paiement). Priorité haute :
+      // juste après le paiement dû, avant les bannières d'information.
+      for (final b in bookings) {
+        if ((b.paymentStatus ?? '').toLowerCase() != 'paid') continue;
+        if (b.confirmationStatus != 'awaiting_confirmation') continue;
+        final providerName = b.sitter.name.trim().isNotEmpty
+            ? b.sitter.name
+            : 'role_sitter'.tr;
+        return _QuickAction(
+          kind: _Kind.serviceAction,
+          color: const Color(0xFFEF4324), // orange owner
+          icon: Icons.task_alt_rounded,
+          title: 'band_owner_confirm_title'.tr,
+          subtitle:
+              'band_owner_confirm_subtitle'.trParams({'name': providerName}),
+          ctaLabel: 'band_cta_confirm'.tr,
+          booking: b,
+          pulse: true,
+        );
+      }
       // v23.1 part 49 — owner-side "Paiement effectué" banner.
       // v23.1 part 65 — Bug 2 : aggregate ALL recently-paid bookings into
       // allBookingIds so a single tap on X dismisses every paid banner at
@@ -301,7 +353,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       const ownerMaxAgeMs = 24 * 60 * 60 * 1000; // 24h
       final ownerPaidRecent = bookings.where((b) {
         final pay = (b.paymentStatus ?? '').toLowerCase();
-        final st  = (b.status ?? '').toLowerCase();
+        final st  = b.status.toLowerCase();
         if (_dismissedIds.contains(b.id)) return false;
         if (pay != 'paid' || st == 'completed') return false;
         final paidAtMs =
@@ -357,7 +409,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
     // Priority 1 — a new booking request awaiting accept/refuse.
     for (final b in bookings) {
-      final status = (b.status ?? '').toLowerCase();
+      final status = b.status.toLowerCase();
       if (status == 'pending' || status == 'requested') {
         final isWalker = widget.role == 'walker';
         final estimated = (b.pricing?.netAmount ?? b.pricing?.basePrice ?? 0).toDouble();
@@ -379,6 +431,56 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       }
     }
 
+    // v23.1.341 — Daniel : "le début et la fin de service passent par le
+    // bandeau, plus simple". Côté prestataire (sitter/walker) :
+    //   a) C'EST L'HEURE : réservation payée, pas encore démarrée, heure de
+    //      début atteinte → "Confirme le début du service" (🐾).
+    //   b) SERVICE EN COURS : démarré → "Confirme la fin du service" (✅).
+    // Tap → sheet avec la ServiceConfirmationCard (mêmes boutons que l'écran
+    // Réservations). Priorité : après une nouvelle demande, avant les infos.
+    {
+      final svcNow = DateTime.now();
+      const svcMaxAgeMs = 7 * 24 * 60 * 60 * 1000; // anti-stale 7 jours
+      final isWalkerRole = widget.role == 'walker';
+      final svcAccent =
+          isWalkerRole ? const Color(0xFF16A34A) : const Color(0xFF2563EB);
+      // a) début dû.
+      for (final b in bookings) {
+        if ((b.paymentStatus ?? '').toLowerCase() != 'paid') continue;
+        if (b.confirmationStatus != 'awaiting_start') continue;
+        final startAt = _serviceStartAt(b);
+        if (startAt == null || startAt.isAfter(svcNow)) continue;
+        if (svcNow.difference(startAt).inMilliseconds > svcMaxAgeMs) continue;
+        return _QuickAction(
+          kind: _Kind.serviceAction,
+          color: svcAccent,
+          icon: Icons.pets_rounded,
+          title: 'band_service_start_title'.tr,
+          subtitle: 'band_service_start_subtitle'
+              .trParams({'pet': b.petName.isNotEmpty ? b.petName : '—'}),
+          ctaLabel: 'band_cta_start'.tr,
+          booking: b,
+          pulse: true,
+        );
+      }
+      // b) fin à confirmer (service démarré).
+      for (final b in bookings) {
+        if ((b.paymentStatus ?? '').toLowerCase() != 'paid') continue;
+        if (b.confirmationStatus != 'in_progress') continue;
+        return _QuickAction(
+          kind: _Kind.serviceAction,
+          color: svcAccent,
+          icon: Icons.flag_circle_rounded,
+          title: 'band_service_end_title'.tr,
+          subtitle: 'band_service_end_subtitle'
+              .trParams({'pet': b.petName.isNotEmpty ? b.petName : '—'}),
+          ctaLabel: 'band_cta_end'.tr,
+          booking: b,
+          pulse: false,
+        );
+      }
+    }
+
     // Priority 2 — payment received → confirmation banner.
     //
     // v23.1 part 44/49 — uses `paidAt` (canonical payment timestamp) NOT
@@ -393,7 +495,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     const maxBannerAgeMs = 24 * 60 * 60 * 1000; // 24h
     final providerPaidRecent = bookings.where((b) {
       final pay = (b.paymentStatus ?? '').toLowerCase();
-      final st  = (b.status ?? '').toLowerCase();
+      final st  = b.status.toLowerCase();
       if (_dismissedIds.contains(b.id)) return false;
       if (pay != 'paid' || st == 'completed') return false;
       final paidAtMs =
@@ -458,12 +560,6 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   @override
   Widget build(BuildContext context) {
     final rx = _bookingsRxForRole();
-    // v21.1.1 — même si le controller n'est pas registered, on affiche le
-    // neutral state (au lieu d'un SizedBox invisible). Daniel veut TOUJOURS
-    // voir la barre sur les 3 home screens.
-    if (rx == null) {
-      return _NeutralBar(role: widget.role, onTap: _onNeutralTap);
-    }
 
     return Obx(() {
       // v23.1 part 20 — owner banner now also reacts to ApplicationsController.
@@ -471,10 +567,24 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       // "Demander" on a publication. The Booking only exists *after* the owner
       // accepts. So if we only watch BookingsController for owner, the banner
       // stays on "Tout est à jour" — bug Daniel reported.
-      _QuickAction? action = _pickAction(rx.toList());
+      // v23.1.337 — rx peut être null si le BookingsController du rôle n'est
+      // pas encore registered : dans ce cas on saute directement au fallback
+      // demande d'ami / neutre (avant on retournait un _NeutralBar fixe, ce
+      // qui empêchait la demande d'ami de s'afficher).
+      _QuickAction? action = rx != null ? _pickAction(rx.toList()) : null;
       if (action == null && widget.role == 'owner') {
         action = _pickOwnerApplicationAction();
       }
+      // v23.1.337 — Daniel : la demande d'amis doit apparaître dans LA BANDE
+      // (pas seulement la cloche). On la surface dès qu'aucune action booking/
+      // candidature plus urgente n'est en attente. Tap → sheet avec le profil
+      // du demandeur (avatar/nom/rôle/ville) + Accepter / Refuser. Le widget
+      // est partagé → couvre owner + sitter + walker, et tout rôle de demandeur.
+      action ??= _pickFriendRequestAction();
+      // v23.1.338 — Daniel : "et famille aussi". Invitation PawFollow Famille
+      // dans la bande (violet), même logique que la demande d'ami : tap →
+      // sheet profil du titulaire + Accepter / Refuser.
+      action ??= _pickFamilyInvitationAction();
       // Neutral fallback : rien d'urgent → barre soft "tout est à jour".
       if (action == null) {
         return _NeutralBar(role: widget.role, onTap: _onNeutralTap);
@@ -566,6 +676,148 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     });
   }
 
+  /// v23.1.337 — Daniel : "la demande d'amis avec vue profil sur la bande ne
+  /// fonctionne pas". On lit la 1re demande d'ami PENDING reçue (FriendController.
+  /// incomingRequests, déjà rempli + temps réel via socket) et on en fait une
+  /// action de bande. Couvre les 3 rôles de demandeur (owner/sitter/walker) et
+  /// s'affiche sur les 3 home screens (le widget est partagé). Retourne null
+  /// si FriendController absent ou aucune demande valide.
+  _QuickAction? _pickFriendRequestAction() {
+    if (!Get.isRegistered<FriendController>()) return null;
+    final fc = Get.find<FriendController>();
+    final reqs = fc.incomingRequests; // lecture réactive → Obx rebuild
+    if (reqs.isEmpty) return null;
+    Friendship? pick;
+    for (final f in reqs) {
+      if (f.status == 'pending' && (f.other?.id ?? '').isNotEmpty) {
+        pick = f;
+        break;
+      }
+    }
+    if (pick == null) return null;
+    final other = pick.other!;
+    final role = other.roleLowercase; // 'owner' | 'sitter' | 'walker'
+    final name = other.name.trim().isNotEmpty
+        ? other.name
+        : _friendRoleLabel(role);
+    return _QuickAction(
+      kind: _Kind.friendRequest,
+      // Couleur par rôle du DEMANDEUR (owner orange · sitter bleu · walker
+      // vert) — cohérent avec le code couleur de l'app.
+      color: _friendRoleAccent(role),
+      icon: Icons.person_add_alt_1_rounded,
+      title: 'friend_request_banner_title'.tr,
+      subtitle: 'friend_request_banner_subtitle'.trParams({'name': name}),
+      ctaLabel: 'friend_request_view_profile'.tr,
+      // booking obligatoire non-null : stub jamais lu pour ce kind.
+      booking: _friendStubBooking(pick),
+      pulse: true,
+      friendship: pick,
+    );
+  }
+
+  Color _friendRoleAccent(String role) {
+    switch (role) {
+      case 'walker':
+        return const Color(0xFF16A34A);
+      case 'sitter':
+        return const Color(0xFF2563EB);
+      case 'owner':
+      default:
+        return const Color(0xFFEF4324);
+    }
+  }
+
+  String _friendRoleLabel(String role) {
+    switch (role) {
+      case 'walker':
+        return 'role_walker'.tr;
+      case 'sitter':
+        return 'role_sitter'.tr;
+      case 'owner':
+      default:
+        return 'role_pet_owner'.tr;
+    }
+  }
+
+  /// Placeholder BookingModel pour garder _QuickAction.booking non-null sur le
+  /// kind friendRequest (les chemins de rendu booking ne tournent jamais ici).
+  BookingModel _friendStubBooking(Friendship f) {
+    return BookingModel.fromJson(<String, dynamic>{
+      'id': f.id,
+      'status': 'pending',
+      'paymentStatus': '',
+      'serviceType': '',
+      'petName': '',
+      'date': '',
+      'timeSlot': '',
+      'totalAmount': 0,
+      'owner': <String, dynamic>{},
+      'sitter': <String, dynamic>{},
+    });
+  }
+
+  /// v23.1.338 — Daniel : "et famille aussi". 1re invitation Famille PawFollow
+  /// PENDING reçue (FriendController.incomingFamilyInvitations) → action de
+  /// bande violette. Tap → sheet profil du titulaire + Accepter / Refuser.
+  _QuickAction? _pickFamilyInvitationAction() {
+    if (!Get.isRegistered<FriendController>()) return null;
+    final fc = Get.find<FriendController>();
+    final invs = fc.incomingFamilyInvitations; // lecture réactive → Obx rebuild
+    if (invs.isEmpty) return null;
+    Map<String, dynamic>? pick;
+    for (final i in invs) {
+      final id = (i['invitationId'] ?? i['id'] ?? '').toString();
+      if (id.isNotEmpty) {
+        pick = i;
+        break;
+      }
+    }
+    if (pick == null) return null;
+    final role = (pick['familyOwnerRole'] ?? 'owner').toString().toLowerCase();
+    final name = (pick['familyOwnerName'] ?? '').toString().trim();
+    final displayName = name.isNotEmpty ? name : _friendRoleLabel(role);
+    return _QuickAction(
+      kind: _Kind.familyInvitation,
+      color: const Color(0xFF8B5CF6), // violet Famille PawFollow
+      icon: Icons.diversity_3_rounded,
+      title: 'family_invitation_received_title'.tr,
+      subtitle:
+          'family_invitation_banner_subtitle'.trParams({'name': displayName}),
+      ctaLabel: 'friend_request_view_profile'.tr,
+      booking: _familyStubBooking(pick),
+      pulse: true,
+      familyInvitation: pick,
+    );
+  }
+
+  BookingModel _familyStubBooking(Map<String, dynamic> i) {
+    return BookingModel.fromJson(<String, dynamic>{
+      'id': (i['invitationId'] ?? i['id'] ?? '').toString(),
+      'status': 'pending',
+      'paymentStatus': '',
+      'serviceType': '',
+      'petName': '',
+      'date': '',
+      'timeSlot': '',
+      'totalAmount': 0,
+      'owner': <String, dynamic>{},
+      'sitter': <String, dynamic>{},
+    });
+  }
+
+  /// v23.1.338 — rafraîchit les demandes d'amis + invitations famille (appelé
+  /// quand une notif arrive → la bande surface l'item en temps réel).
+  void _refreshSocial() {
+    try {
+      if (Get.isRegistered<FriendController>()) {
+        final fc = Get.find<FriendController>();
+        fc.loadRequests();
+        fc.loadFamilyInvitations();
+      }
+    } catch (_) { /* noop */ }
+  }
+
   void _onNeutralTap() {
     // En l'absence d'action urgente, on emmène vers l'historique des bookings
     // (l'écran le plus utile pour comprendre l'état général).
@@ -604,7 +856,300 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       _showProviderPaidSheet(a);
       return;
     }
+    // v23.1.337 — demande d'ami : sheet avec le profil du demandeur
+    // (avatar / nom / rôle / ville) + Accepter / Refuser + (pour un
+    // prestataire) bouton "Voir le profil complet".
+    if (a.kind == _Kind.friendRequest) {
+      _showFriendRequestSheet(a);
+      return;
+    }
+    // v23.1.338 — invitation famille : sheet profil titulaire + Accepter/Refuser.
+    if (a.kind == _Kind.familyInvitation) {
+      _showFamilyInvitationSheet(a);
+      return;
+    }
+    // v23.1.341 — début / fin de service via le bandeau : sheet avec la
+    // ServiceConfirmationCard (mêmes boutons que l'écran Réservations).
+    if (a.kind == _Kind.serviceAction) {
+      _showServiceActionSheet(a);
+      return;
+    }
     Get.to(() => const BookingsHistoryScreen());
+  }
+
+  /// v23.1.341 — heure de début du service côté app (miroir de
+  /// resolveBookingStartDate backend) : date + heure du timeSlot si la date
+  /// ne porte pas déjà l'heure ; sinon début de journée.
+  DateTime? _serviceStartAt(BookingModel b) {
+    final raw = b.date;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return null;
+    final hasTimePart = RegExp(r'T\d{2}:').hasMatch(raw);
+    if (hasTimePart) return parsed;
+    final m = RegExp(r'(\d{1,2})[:hH](\d{2})').firstMatch(b.timeSlot);
+    if (m != null) {
+      return DateTime(parsed.year, parsed.month, parsed.day,
+          int.parse(m.group(1)!), int.parse(m.group(2)!));
+    }
+    return DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
+  /// v23.1.341 — sheet "Début / fin de service" du bandeau. Embarque la
+  /// ServiceConfirmationCard existante (déjà traduite 6 langues, role-aware) :
+  ///   prestataire : 🐾 J'ai récupéré l'animal / ✅ J'ai rendu l'animal
+  ///   owner       : Tout est ok ✅ (libère le paiement) / Signaler un problème
+  void _showServiceActionSheet(_QuickAction a) {
+    final b = a.booking;
+    final accent = a.color;
+    final isOwner = widget.role == 'owner';
+    final cpName = isOwner
+        ? (b.sitter.name.trim().isNotEmpty ? b.sitter.name : '—')
+        : (b.owner.name.trim().isNotEmpty ? b.owner.name : '—');
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          20.w, 12.h, 20.w, 24.h + MediaQuery.of(ctx).padding.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              Center(
+                child: PoppinsText(
+                  text: a.title,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              if (b.petName.isNotEmpty) _sheetRow(Icons.pets, b.petName),
+              _sheetRow(Icons.person_outline, cpName),
+              if (_dateLabel(b).isNotEmpty)
+                _sheetRow(Icons.event_outlined, _dateLabel(b)),
+              SizedBox(height: 8.h),
+              ServiceConfirmationCard(
+                confirmationStatus: b.confirmationStatus,
+                role: widget.role,
+                isPaid: (b.paymentStatus ?? '').toLowerCase() == 'paid',
+                busy: false,
+                onStart: () async {
+                  Navigator.pop(ctx);
+                  await _svcStart(b);
+                },
+                onComplete: () async {
+                  Navigator.pop(ctx);
+                  await _svcComplete(b);
+                },
+                onConfirm: () async {
+                  Navigator.pop(ctx);
+                  await _svcConfirm(b);
+                },
+                onDispute: () async {
+                  Navigator.pop(ctx);
+                  await _svcDispute(b);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // v23.1.341 — actions service depuis le bandeau. Mêmes endpoints + mêmes
+  // snackbars que les écrans Réservations, puis refresh → le bandeau passe
+  // automatiquement à l'étape suivante.
+  Future<void> _svcStart(BookingModel b) async {
+    try {
+      if (widget.role == 'walker') {
+        final repo = Get.isRegistered<WalkerRepository>()
+            ? Get.find<WalkerRepository>()
+            : WalkerRepository(Get.find<ApiClient>());
+        await repo.startService(bookingId: b.id);
+      } else {
+        final repo = Get.isRegistered<SitterRepository>()
+            ? Get.find<SitterRepository>()
+            : SitterRepository(Get.find<ApiClient>());
+        await repo.startService(bookingId: b.id);
+      }
+      snack.CustomSnackbar.showSuccess(
+        title: 'service_started_snack_title'.tr,
+        message: 'service_started_snack_msg'.tr,
+      );
+    } catch (e) {
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
+    _refreshBookings();
+  }
+
+  Future<void> _svcComplete(BookingModel b) async {
+    try {
+      if (widget.role == 'walker') {
+        final repo = Get.isRegistered<WalkerRepository>()
+            ? Get.find<WalkerRepository>()
+            : WalkerRepository(Get.find<ApiClient>());
+        await repo.completeService(bookingId: b.id);
+      } else {
+        final repo = Get.isRegistered<SitterRepository>()
+            ? Get.find<SitterRepository>()
+            : SitterRepository(Get.find<ApiClient>());
+        await repo.completeService(bookingId: b.id);
+      }
+      snack.CustomSnackbar.showSuccess(
+        title: 'service_completed_snack_title'.tr,
+        message: 'service_completed_snack_msg'.tr,
+      );
+    } catch (e) {
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
+    _refreshBookings();
+  }
+
+  Future<void> _svcConfirm(BookingModel b) async {
+    try {
+      final repo = Get.isRegistered<OwnerRepository>()
+          ? Get.find<OwnerRepository>()
+          : OwnerRepository(Get.find<ApiClient>());
+      await repo.confirmService(bookingId: b.id);
+      snack.CustomSnackbar.showSuccess(
+        title: 'service_confirmed_snack_title'.tr,
+        message: 'service_confirmed_snack_msg'.tr,
+      );
+    } catch (e) {
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
+    _refreshBookings();
+  }
+
+  Future<void> _svcDispute(BookingModel b) async {
+    try {
+      final repo = Get.isRegistered<OwnerRepository>()
+          ? Get.find<OwnerRepository>()
+          : OwnerRepository(Get.find<ApiClient>());
+      await repo.disputeService(bookingId: b.id);
+      snack.CustomSnackbar.showWarning(
+        title: 'service_disputed_snack_title'.tr,
+        message: 'service_disputed_snack_msg'.tr,
+      );
+    } catch (e) {
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString().replaceAll('ApiException:', '').trim(),
+      );
+    }
+    _refreshBookings();
+  }
+
+  /// v23.1.339 — Daniel : "le message auto sort après au lieu de de suite".
+  /// Ouvre DIRECTEMENT la conversation de la réservation (où le message système
+  /// "Paiement confirmé / Discutons du lieu et de l'heure" est déjà posté) au
+  /// lieu de la liste des chats. Owner -> IndividualChatScreen ; prestataire ->
+  /// SitterIndividualChatScreen. La conversation existe déjà (créée au paiement)
+  /// et l'endpoint /conversations/start* est idempotent (renvoie l'existante).
+  /// Fallback : la liste des chats si la résolution échoue.
+  Future<void> _openBookingChat(BookingModel b, bool isOwnerView) async {
+    try {
+      final api = Get.find<ApiClient>();
+      if (isOwnerView) {
+        final providerId = b.sitter.id;
+        if (providerId.isEmpty) {
+          _openChatListFallback(true);
+          return;
+        }
+        final isWalkerSvc =
+            (b.serviceType ?? '').toLowerCase().contains('walking');
+        final qp =
+            isWalkerSvc ? 'walkerId=$providerId' : 'sitterId=$providerId';
+        final res = await api.post(
+          '/conversations/start?$qp',
+          body: {'message': 'payment_chat_opener_message'.tr},
+          requiresAuth: true,
+        );
+        final convId = _extractConversationId(res);
+        if (convId.isEmpty) {
+          _openChatListFallback(true);
+          return;
+        }
+        Get.to(() => IndividualChatScreen(
+              conversationId: convId,
+              contactName: b.sitter.name,
+              contactImage: b.sitter.avatar.url,
+            ));
+      } else {
+        final ownerId = b.owner.id;
+        if (ownerId.isEmpty) {
+          _openChatListFallback(false);
+          return;
+        }
+        final endpoint = widget.role == 'walker'
+            ? '/conversations/start-by-walker'
+            : '/conversations/start-by-sitter';
+        final res = await api.post(
+          '$endpoint?ownerId=$ownerId',
+          body: const <String, dynamic>{},
+          requiresAuth: true,
+        );
+        final convId = _extractConversationId(res);
+        if (convId.isEmpty) {
+          _openChatListFallback(false);
+          return;
+        }
+        Get.to(() => SitterIndividualChatScreen(
+              conversationId: convId,
+              contactName: b.owner.name,
+              contactImage: b.owner.avatar.url,
+            ));
+      }
+    } catch (e) {
+      AppLogger.logError('open booking chat failed', error: e);
+      _openChatListFallback(isOwnerView);
+    }
+  }
+
+  String _extractConversationId(dynamic res) {
+    if (res is Map && res['conversation'] is Map) {
+      final c = res['conversation'] as Map;
+      return (c['id'] ?? c['_id'] ?? '').toString();
+    }
+    return '';
+  }
+
+  void _openChatListFallback(bool isOwnerView) {
+    if (isOwnerView) {
+      Get.to(() => const ChatScreen());
+    } else {
+      Get.to(() => const SitterChatScreen());
+    }
   }
 
   /// v23.1 part 34 — bottom sheet pour le banner "Paiement reçu" côté provider.
@@ -799,11 +1344,13 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                 child: OutlinedButton.icon(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    if (isOwnerView) {
-                      Get.to(() => const ChatScreen());
-                    } else {
-                      Get.to(() => const SitterChatScreen());
-                    }
+                    // v23.1.339 — Daniel : "le message auto sort après au lieu
+                    // de de suite". Avant, ce bouton ouvrait la LISTE des chats
+                    // → il fallait encore taper la conversation pour voir le
+                    // message auto (paiement confirmé). Maintenant on ouvre
+                    // DIRECTEMENT la conversation de la réservation → le message
+                    // auto est visible de suite.
+                    _openBookingChat(b, isOwnerView);
                   },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: accent, width: 1.5),
@@ -1272,34 +1819,82 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     );
   }
 
-  /// v23.1 part 22 — popup riche pour le profil walker (en attendant un
-  /// WalkerDetailScreen public dédié qui appelle /walkers/:id).
-  void _showWalkerInfoDialog(ApplicationModel app) {
-    final accent = const Color(0xFF16A34A);
-    final w = app.sitter; // ApplicationSitter contient les data walker quand providerRole='walker'
-    showDialog(
+  /// v23.1.337 — Daniel : "je veux que la demande d'amis s'affiche dans la
+  /// bande et qu'on puisse voir le profil de celui qui me demande, corrige
+  /// sur les 3 profils owner/sitter/walker avec traduction". Sheet riche :
+  /// avatar + nom + badge rôle + ville du DEMANDEUR (= voir son profil), avec
+  /// Accepter / Refuser. Pour un demandeur prestataire (sitter/walker) on
+  /// ajoute "Voir le profil complet" → écran détail public dédié. Pour un
+  /// demandeur owner (pas d'écran public) la carte fait office de profil.
+  void _showFriendRequestSheet(_QuickAction a) {
+    final f = a.friendship;
+    if (f == null || f.other == null) return;
+    final other = f.other!;
+    final role = other.roleLowercase; // owner | sitter | walker
+    final accent = a.color;
+    final name = other.name.trim().isNotEmpty
+        ? other.name
+        : _friendRoleLabel(role);
+    final avatar = other.avatar;
+    final city = other.city;
+    final roleLabel = _friendRoleLabel(role);
+    final isWalker = role == 'walker';
+    final isSitter = role == 'sitter';
+    final isProvider = isWalker || isSitter;
+    final otherId = other.id;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.r),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        contentPadding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 12.h),
-        content: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20.w,
+          12.h,
+          20.w,
+          24.h + MediaQuery.of(ctx).padding.bottom,
+        ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              // En-tête : "Nouvelle demande d'ami".
+              Center(
+                child: PoppinsText(
+                  text: 'friend_request_banner_title'.tr,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              // Carte profil du demandeur.
               Row(
                 children: [
                   CircleAvatar(
                     radius: 28.r,
                     backgroundColor: accent.withValues(alpha: 0.15),
-                    // v23.1 part 231 — perf.
-                    backgroundImage: w.avatar.url.isNotEmpty
-                        ? CachedNetworkImageProvider(w.avatar.url, maxWidth: 200)
+                    backgroundImage: avatar.isNotEmpty
+                        ? CachedNetworkImageProvider(avatar, maxWidth: 200)
                         : null,
-                    child: w.avatar.url.isEmpty
+                    child: avatar.isEmpty
                         ? Icon(Icons.person, color: accent, size: 28.sp)
                         : null,
                   ),
@@ -1309,24 +1904,234 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         PoppinsText(
-                          text: w.name.isNotEmpty ? w.name : 'role_walker'.tr,
+                          text: name,
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w700,
                         ),
-                        SizedBox(height: 4.h),
-                        Row(
-                          children: [
-                            Icon(Icons.star_rounded,
-                                color: const Color(0xFFFFB400), size: 16.sp),
-                            SizedBox(width: 4.w),
-                            InterText(
-                              text: w.rating > 0
-                                  ? '${w.rating.toStringAsFixed(1)} (${w.reviewsCount})'
-                                  : '—',
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ],
+                        SizedBox(height: 6.h),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8.w, vertical: 3.h),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6.r),
+                          ),
+                          child: InterText(
+                            text: roleLabel,
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12.h),
+              if (city.trim().isNotEmpty)
+                _sheetRow(Icons.location_on_outlined, city),
+              SizedBox(height: 16.h),
+              // Accepter / Refuser.
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _acceptFriendRequest(a);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      icon: Icon(Icons.check_rounded,
+                          color: Colors.white, size: 18.sp),
+                      label: Text(
+                        'pawfollow_accept'.tr,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _declineFriendRequest(a);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE53935)),
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      icon: Icon(Icons.close_rounded,
+                          color: const Color(0xFFE53935), size: 18.sp),
+                      label: Text(
+                        'pawfollow_refuse'.tr,
+                        style: TextStyle(
+                          color: const Color(0xFFE53935),
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // Pour un prestataire : "Voir le profil complet" → écran détail.
+              if (isProvider && otherId.isNotEmpty) ...[
+                SizedBox(height: 8.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      if (isWalker) {
+                        Get.to(() => WalkerDetailScreen(walkerId: otherId));
+                      } else {
+                        Get.to(() => ServiceProviderDetailScreen(
+                              sitterId: otherId,
+                              status: 'pending',
+                            ));
+                      }
+                    },
+                    icon: Icon(Icons.person_outline,
+                        color: accent, size: 18.sp),
+                    label: Text(
+                      isWalker
+                          ? 'view_walker_profile'.tr
+                          : 'view_sitter_profile'.tr,
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// v23.1.338 — Daniel : "et famille aussi". Sheet d'invitation Famille
+  /// PawFollow (violet) : profil du TITULAIRE qui invite (avatar / nom / badge
+  /// rôle) + Accepter / Refuser. Pour un titulaire prestataire on ajoute
+  /// "Voir le profil complet". Couvre les 3 rôles d'inviteur.
+  void _showFamilyInvitationSheet(_QuickAction a) {
+    final inv = a.familyInvitation;
+    if (inv == null) return;
+    final accent = a.color; // violet 0xFF8B5CF6
+    final role = (inv['familyOwnerRole'] ?? 'owner').toString().toLowerCase();
+    final rawName = (inv['familyOwnerName'] ?? '').toString().trim();
+    final name = rawName.isNotEmpty ? rawName : _friendRoleLabel(role);
+    final avatar = (inv['familyOwnerAvatar'] ?? '').toString();
+    final roleLabel = _friendRoleLabel(role);
+    final isWalker = role == 'walker';
+    final isSitter = role == 'sitter';
+    final isProvider = isWalker || isSitter;
+    final ownerId = (inv['familyOwnerId'] ?? '').toString();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          20.w,
+          12.h,
+          20.w,
+          24.h + MediaQuery.of(ctx).padding.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              Center(
+                child: PoppinsText(
+                  text: 'family_invitation_received_title'.tr,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+              ),
+              SizedBox(height: 6.h),
+              Center(
+                child: InterText(
+                  text: 'family_invitation_banner_subtitle'
+                      .trParams({'name': name}),
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28.r,
+                    backgroundColor: accent.withValues(alpha: 0.15),
+                    backgroundImage: avatar.isNotEmpty
+                        ? CachedNetworkImageProvider(avatar, maxWidth: 200)
+                        : null,
+                    child: avatar.isEmpty
+                        ? Icon(Icons.person, color: accent, size: 28.sp)
+                        : null,
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PoppinsText(
+                          text: name,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        SizedBox(height: 6.h),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8.w, vertical: 3.h),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6.r),
+                          ),
+                          child: InterText(
+                            text: roleLabel,
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
                         ),
                       ],
                     ),
@@ -1334,34 +2139,95 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
                 ],
               ),
               SizedBox(height: 16.h),
-              if ((w.bio ?? '').isNotEmpty) ...[
-                _sheetRow(Icons.info_outline, w.bio!),
-              ],
-              if (w.skills.isNotEmpty) _sheetRow(Icons.workspace_premium, w.skills),
-              if ((w.city ?? '').isNotEmpty) _sheetRow(Icons.location_on_outlined, w.city!),
-              if (w.address.isNotEmpty && w.address != w.city) _sheetRow(Icons.home_outlined, w.address),
-              if (w.language.isNotEmpty) _sheetRow(Icons.language, w.language),
-              if (w.hourlyRate > 0)
-                _sheetRow(
-                  Icons.payments_outlined,
-                  '${CurrencyHelper.format(w.currency, w.hourlyRate)} / h',
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _acceptFamilyInvitation(a);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      icon: Icon(Icons.check_rounded,
+                          color: Colors.white, size: 18.sp),
+                      label: Text(
+                        'pawfollow_accept'.tr,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _refuseFamilyInvitation(a);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE53935)),
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                      ),
+                      icon: Icon(Icons.close_rounded,
+                          color: const Color(0xFFE53935), size: 18.sp),
+                      label: Text(
+                        'pawfollow_refuse'.tr,
+                        style: TextStyle(
+                          color: const Color(0xFFE53935),
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (isProvider && ownerId.isNotEmpty) ...[
+                SizedBox(height: 8.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      if (isWalker) {
+                        Get.to(() => WalkerDetailScreen(walkerId: ownerId));
+                      } else {
+                        Get.to(() => ServiceProviderDetailScreen(
+                              sitterId: ownerId,
+                              status: 'pending',
+                            ));
+                      }
+                    },
+                    icon: Icon(Icons.person_outline,
+                        color: accent, size: 18.sp),
+                    label: Text(
+                      isWalker
+                          ? 'view_walker_profile'.tr
+                          : 'view_sitter_profile'.tr,
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
-              if (w.verified)
-                _sheetRow(Icons.verified_outlined, 'verified'.tr.isNotEmpty
-                    ? 'verified'.tr
-                    : 'Vérifié'),
+              ],
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              'common_close'.tr.isNotEmpty ? 'common_close'.tr : 'Fermer',
-              style: TextStyle(color: accent, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1415,6 +2281,16 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   }
 
   Future<void> _onAccept(_QuickAction a) async {
+    // v23.1.337 — demande d'ami (au cas où un bouton inline appellerait ce
+    // handler) → on accepte la friendship, pas un booking.
+    if (a.kind == _Kind.friendRequest) {
+      await _acceptFriendRequest(a);
+      return;
+    }
+    if (a.kind == _Kind.familyInvitation) {
+      await _acceptFamilyInvitation(a);
+      return;
+    }
     // v23.1 — bug #3 fix : really call POST /bookings/:id/respond instead of
     // navigating to the details screen. Same endpoint works for sitter AND
     // walker (no role middleware on the route).
@@ -1422,8 +2298,100 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
   }
 
   Future<void> _onRefuse(_QuickAction a) async {
+    if (a.kind == _Kind.friendRequest) {
+      await _declineFriendRequest(a);
+      return;
+    }
+    if (a.kind == _Kind.familyInvitation) {
+      await _refuseFamilyInvitation(a);
+      return;
+    }
     // v23.1 — bug #2 fix : really call POST /bookings/:id/respond reject.
     await _respondToBooking(a, 'reject');
+  }
+
+  // v23.1.338 — onglets de FriendsScreen : 0=Amis · 1=Demandes · 2=Ajouter ·
+  // 3=Famille. Daniel : "quand on accepte ou on refuse ça nous envoie dans
+  // l'onglet amis ou famille".
+  static const int _friendsTabFriends = 0;
+  static const int _friendsTabFamily = 3;
+
+  void _openFriendsTab(int index) {
+    Get.to(() => FriendsScreen(initialIndex: index));
+  }
+
+  /// v23.1.337 — accepte la demande d'ami depuis la bande/sheet, puis refresh
+  /// (FriendController.accept appelle déjà refresh() → la bande se met à jour)
+  /// et redirige vers l'onglet Amis (v23.1.338).
+  Future<void> _acceptFriendRequest(_QuickAction a) async {
+    final f = a.friendship;
+    if (f == null || f.id.isEmpty) return;
+    if (!Get.isRegistered<FriendController>()) return;
+    final ok = await Get.find<FriendController>().accept(f.id);
+    if (ok) {
+      snack.CustomSnackbar.showSuccess(
+        title: 'snackbar_text_request_accepted'.tr,
+        message: 'friend_request_accepted_msg'.tr,
+      );
+      _openFriendsTab(_friendsTabFriends);
+    } else {
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'friends_invite_err_title'.tr,
+      );
+    }
+  }
+
+  Future<void> _declineFriendRequest(_QuickAction a) async {
+    final f = a.friendship;
+    if (f == null || f.id.isEmpty) return;
+    if (!Get.isRegistered<FriendController>()) return;
+    final ok = await Get.find<FriendController>().decline(f.id);
+    if (ok) {
+      snack.CustomSnackbar.showSuccess(
+        title: 'snackbar_text_request_refused'.tr,
+        message: 'friend_request_declined_msg'.tr,
+      );
+      _openFriendsTab(_friendsTabFriends);
+    }
+  }
+
+  /// v23.1.338 — accepte l'invitation Famille puis redirige vers l'onglet
+  /// Famille (FriendController.acceptFamilyInvitation recharge déjà loadFamily
+  /// + loadFamilyInvitations → la bande se met à jour).
+  Future<void> _acceptFamilyInvitation(_QuickAction a) async {
+    final inv = a.familyInvitation;
+    final id = (inv?['invitationId'] ?? inv?['id'] ?? '').toString();
+    if (id.isEmpty) return;
+    if (!Get.isRegistered<FriendController>()) return;
+    final ok = await Get.find<FriendController>().acceptFamilyInvitation(id);
+    if (ok) {
+      snack.CustomSnackbar.showSuccess(
+        title: 'snackbar_text_request_accepted'.tr,
+        message: 'family_invitation_accepted_msg'.tr,
+      );
+      _openFriendsTab(_friendsTabFamily);
+    } else {
+      snack.CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'friends_invite_err_title'.tr,
+      );
+    }
+  }
+
+  Future<void> _refuseFamilyInvitation(_QuickAction a) async {
+    final inv = a.familyInvitation;
+    final id = (inv?['invitationId'] ?? inv?['id'] ?? '').toString();
+    if (id.isEmpty) return;
+    if (!Get.isRegistered<FriendController>()) return;
+    final ok = await Get.find<FriendController>().refuseFamilyInvitation(id);
+    if (ok) {
+      snack.CustomSnackbar.showSuccess(
+        title: 'snackbar_text_request_refused'.tr,
+        message: 'family_invitation_declined_msg'.tr,
+      );
+      _openFriendsTab(_friendsTabFamily);
+    }
   }
 
   Future<void> _respondToBooking(_QuickAction a, String action) async {
@@ -1465,10 +2433,6 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         message: e.toString(),
       );
     }
-  }
-
-  void _dismissBanner(String bookingId) {
-    _dismissBannerMulti(<String>[bookingId]);
   }
 
   void _dismissBannerMulti(List<String> bookingIds) {
@@ -1797,7 +2761,18 @@ class _NeutralBar extends StatelessWidget {
 
 // ─── Internal action descriptor ─────────────────────────────────────────────
 
-enum _Kind { ownerPay, providerAccept, providerPaid, ownerCandidate }
+enum _Kind {
+  ownerPay,
+  providerAccept,
+  providerPaid,
+  ownerCandidate,
+  friendRequest,
+  familyInvitation,
+  // v23.1.341 — Daniel : "les notifications de début et fin de service
+  // passent par le bandeau, plus simple". Action de service (début / fin /
+  // confirmation owner) : tap → sheet avec ServiceConfirmationCard.
+  serviceAction,
+}
 
 class _QuickAction {
   final _Kind kind;
@@ -1818,6 +2793,13 @@ class _QuickAction {
   // multi-candidates UI in MyPostsScreen.
   final String? candidateApplicationId;
   final List<String> allCandidateApplicationIds;
+  // v23.1.337 — friendRequest variant : on porte la Friendship pending pour
+  // que le tap ouvre la sheet profil du demandeur + Accepter/Refuser.
+  final Friendship? friendship;
+  // v23.1.338 — familyInvitation variant : on porte l'invitation famille
+  // pending (Map renvoyée par /friends/family/invitations) pour la sheet +
+  // accept/refuse.
+  final Map<String, dynamic>? familyInvitation;
   const _QuickAction({
     required this.kind,
     required this.color,
@@ -1830,5 +2812,7 @@ class _QuickAction {
     this.allBookingIds = const <String>[],
     this.candidateApplicationId,
     this.allCandidateApplicationIds = const <String>[],
+    this.friendship,
+    this.familyInvitation,
   });
 }

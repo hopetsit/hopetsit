@@ -1083,14 +1083,14 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // /me/benefits (un user peut avoir un abo individuel ET être dans une
     // famille). Fallback sur le plan unique de la sub si le backend n'est pas
     // encore déployé (pawFollowActive/familyActive absents du payload).
-    DateTime? _toDate(dynamic v) =>
+    DateTime? toDate(dynamic v) =>
         (v is String && v.isNotEmpty) ? DateTime.tryParse(v) : null;
-    int _daysUntil(DateTime? d) => d == null
+    int daysUntil(DateTime? d) => d == null
         ? 0
         : d.difference(DateTime.now()).inDays.clamp(0, 999999);
     final b = _benefits;
-    final pfExpiry = _toDate(b['pawFollowExpiry']);
-    final famExpiry = _toDate(b['familyExpiry']);
+    final pfExpiry = toDate(b['pawFollowExpiry']);
+    final famExpiry = toDate(b['familyExpiry']);
     final pawFollowActive = b.containsKey('pawFollowActive')
         ? b['pawFollowActive'] == true
         : (isPremium && !isFamilyPlan);
@@ -1100,9 +1100,9 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // Jours par moitié : expiration dédiée si dispo, sinon les jours du plan
     // courant (ex: staff sans sub individuel → statusDays côté PawFollow).
     final pawFollowDays =
-        pfExpiry != null ? _daysUntil(pfExpiry) : (pawFollowActive ? statusDays : 0);
+        pfExpiry != null ? daysUntil(pfExpiry) : (pawFollowActive ? statusDays : 0);
     final familyDays =
-        famExpiry != null ? _daysUntil(famExpiry) : (familyActive && isFamilyPlan ? statusDays : 0);
+        famExpiry != null ? daysUntil(famExpiry) : (familyActive && isFamilyPlan ? statusDays : 0);
 
     // v23.1.278 — Daniel : "la page PawFollow a disparu". BUG : un Row avec
     // CrossAxisAlignment.stretch dans un Column/SingleChildScrollView reçoit
@@ -1604,10 +1604,10 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
                   child: Container(
                     padding: EdgeInsets.all(12.w),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withOpacity(0.10),
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(10.r),
                       border: Border.all(
-                        color: const Color(0xFF3B82F6).withOpacity(0.3),
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),

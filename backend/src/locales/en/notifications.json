@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Payment received!",
-    "body": "The owner has paid for your booking. You can now chat to agree on the details.",
+    "body": "The owner has paid for your booking. You can now chat to agree on the details. On the day of the service, tap \"🐾 I picked up the pet\" to confirm the start of the service.",
     "emailSubject": "Payment received — HoPetSit",
     "emailBody": "<p>Great news! The payment for the booking has just been confirmed. You can now chat with the owner to agree on the place and time of the service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link into your browser: {{emailLink}}</p>"
   },
@@ -304,5 +304,11 @@
     "body": "The owner reported an issue with this service. Payment is on hold pending resolution.",
     "emailSubject": "Issue reported — HoPetSit",
     "emailBody": "<p>The owner reported an issue with this service. Payment is on hold pending resolution. Contact them via chat to resolve it.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+  },
+  "service_start_due": {
+    "title": "It's time! 🐾",
+    "body": "Your service is starting. Tap \"🐾 I picked up the pet\" in your bookings to confirm the start of the service.",
+    "emailSubject": "Confirm the start of your service — HoPetSit",
+    "emailBody": "<p>Your service is starting! Open the HoPetSit app and tap <b>🐾 I picked up the pet</b> in your bookings to confirm the start of the service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
   }
 }

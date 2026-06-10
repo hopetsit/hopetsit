@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Paiement reçu !",
-    "body": "Le propriétaire a payé votre réservation. Vous pouvez désormais discuter dans le chat pour convenir des détails.",
+    "body": "Le propriétaire a payé votre réservation. Vous pouvez désormais discuter dans le chat pour convenir des détails. Le jour J, appuie sur « 🐾 J'ai récupéré l'animal » pour confirmer le début du service.",
     "emailSubject": "Paiement reçu — HoPetSit",
     "emailBody": "<p>Bonne nouvelle ! Le paiement de la réservation vient d'être confirmé. Vous pouvez désormais échanger avec le propriétaire dans le chat pour convenir du lieu et de l'heure de la prestation.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur : {{emailLink}}</p>"
   },
@@ -304,5 +304,11 @@
     "body": "Le propriétaire a signalé un problème sur ce service. Le paiement est en attente de résolution.",
     "emailSubject": "Problème signalé — HoPetSit",
     "emailBody": "<p>Le propriétaire a signalé un problème sur ce service. Le paiement est suspendu en attendant une résolution. Contacte-le via le chat pour trouver un accord.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
+  },
+  "service_start_due": {
+    "title": "C'est l'heure ! 🐾",
+    "body": "Ton service commence. Appuie sur « 🐾 J'ai récupéré l'animal » dans tes réservations pour confirmer le début du service.",
+    "emailSubject": "Confirme le début du service — HoPetSit",
+    "emailBody": "<p>Ton service commence ! Ouvre l'app HoPetSit et appuie sur <b>🐾 J'ai récupéré l'animal</b> dans tes réservations pour confirmer le début du service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Voir la réservation</a></p><p style=\"color:#666;font-size:12px;\">Si le bouton ne fonctionne pas, copiez-collez ce lien : {{emailLink}}</p>"
   }
 }

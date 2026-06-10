@@ -83,6 +83,7 @@ class UnifiedNotificationController extends GetxController {
   /// Ne déclenche PAS de fetch backend — pour ça, on délègue aux controllers
   /// sous-jacents (NotificationsController.refreshAll, BookingsController.
   /// loadBookings, etc.).
+  @override
   void refresh() {
     _syncUnreadCount();
     _syncAllNotifications();
@@ -161,7 +162,7 @@ class UnifiedNotificationController extends GetxController {
     final List<PendingAction> next = [];
     if (role == 'owner') {
       for (final b in bookings) {
-        final status = (b.status ?? '').toLowerCase();
+        final status = b.status.toLowerCase();
         final pay = (b.paymentStatus ?? '').toLowerCase();
         if (pay == 'paid') continue;
         if (status == 'accepted' ||
@@ -178,7 +179,7 @@ class UnifiedNotificationController extends GetxController {
       }
     } else if (role == 'sitter' || role == 'walker') {
       for (final b in bookings) {
-        final status = (b.status ?? '').toLowerCase();
+        final status = b.status.toLowerCase();
         if (status == 'pending' || status == 'requested') {
           next.add(
             PendingAction(

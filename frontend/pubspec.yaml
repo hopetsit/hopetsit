@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.336+336
+version: 23.1.345+345
 
 environment:
   sdk: ^3.9.2
@@ -47,6 +47,12 @@ dependencies:
   pinput: ^5.0.2
   get_storage: ^2.1.1
   webview_flutter: ^4.13.1
+  # depend_on_referenced_packages — ces implémentations plateforme sont
+  # importées directement dans lib/ (live_map_service, bug_report_screen,
+  # kyc_verification_screen) : elles doivent être des dépendances explicites.
+  webview_flutter_android: ^4.10.11
+  webview_flutter_wkwebview: ^3.23.5
+  package_info_plus: ^9.0.0
   photo_view: ^0.14.0
   # v21.1.1 — flutter_stripe SUPPRIMÉ. Pure Airwallex via webview HPP.
   # v20.1 — Airwallex Payment SDK officiel (drop-in UI + Apple Pay + Google Pay).
@@ -61,6 +67,7 @@ dependencies:
   flutter_dotenv: ^6.0.0
   country_code_picker: ^3.4.1
   geolocator: ^14.0.2
+  geolocator_android: ^5.0.2
   google_maps_flutter: ^2.14.0
   geocoding: ^4.0.0
   google_places_flutter: ^2.1.1

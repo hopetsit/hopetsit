@@ -93,11 +93,11 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
         final bytes = await InvoicePdfGenerator.build(widget.invoice!);
         final file = File('${dir.path}/HoPetSit-$safeNumber.pdf');
         await file.writeAsBytes(bytes);
-        await Share.shareXFiles(
-          [XFile(file.path, mimeType: 'application/pdf')],
+        await SharePlus.instance.share(ShareParams(
+          files: [XFile(file.path, mimeType: 'application/pdf')],
           subject: '${'invoice_pdf_subject'.tr} $safeNumber',
           text: 'invoice_pdf_subject'.tr,
-        );
+        ));
         return;
       }
       // Fallback : legacy HTML download for callers that haven't yet
@@ -113,11 +113,11 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
       }
       final file = File('${dir.path}/HoPetSit-$safeNumber.html');
       await file.writeAsBytes(res.bodyBytes);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'text/html')],
+      await SharePlus.instance.share(ShareParams(
+        files: [XFile(file.path, mimeType: 'text/html')],
         subject: '${'invoice_pdf_subject'.tr} $safeNumber',
         text: 'invoice_pdf_subject'.tr,
-      );
+      ));
     } catch (e) {
       try {
         await _controller.runJavaScript('window.print();');

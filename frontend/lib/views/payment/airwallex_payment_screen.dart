@@ -217,7 +217,7 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
     }
     if (duration != null && duration > 0) {
       if (buf.isNotEmpty) buf.write(' · ');
-      buf.write('${duration} min');
+      buf.write('$duration min');
     }
     return buf.toString();
   }
@@ -226,7 +226,7 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
   // pop = user-cancel (→ void the PI) vs payment-screen replaced by
   // PaymentResultScreen on success (→ no cleanup needed, controller did
   // the work).
-  bool _paymentSucceeded = false;
+  final bool _paymentSucceeded = false;
 
   Future<void> _voidIntentIfNeeded() async {
     if (_paymentSucceeded) return;

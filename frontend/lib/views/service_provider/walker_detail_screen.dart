@@ -8,7 +8,6 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 
 /// v23.1 part 37 — WalkerDetailScreen équivalent de ServiceProviderDetailScreen

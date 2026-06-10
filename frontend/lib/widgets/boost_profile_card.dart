@@ -6,7 +6,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -14,17 +13,6 @@ class BoostProfileCard extends StatelessWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
 
   const BoostProfileCard({super.key, required this.role});
-
-  Color get _accent {
-    switch (role) {
-      case 'walker':
-        return const Color(0xFF16A34A);
-      case 'sitter':
-        return const Color(0xFF2563EB);
-      default:
-        return AppColors.primaryColor;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

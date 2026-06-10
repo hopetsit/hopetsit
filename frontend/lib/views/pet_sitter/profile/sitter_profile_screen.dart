@@ -14,7 +14,6 @@ import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
-import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — sitter peut payer un PawSpot/PawFollow.
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -22,16 +25,32 @@ class _TopSitterCardState extends State<TopSitterCard>
   int _completed = 0;
   double _avg = 0;
 
+  // v23.1.344 — Daniel : "vérifie aussi top sitter". Le reload ne se faisait
+  // qu'au retour au premier plan (v295) → stale si on reste DANS l'app après
+  // une confirmation de service. Ajout : reload à chaque notification reçue
+  // + filet périodique 60s (même pattern que LoyaltyCard / bande d'accueil).
+  Worker? _notifWorker;
+  Timer? _refresh;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _load();
+    if (Get.isRegistered<NotificationsController>()) {
+      final notifs = Get.find<NotificationsController>();
+      _notifWorker = ever<int>(notifs.unreadCount, (_) => _load());
+    }
+    _refresh = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) _load();
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _notifWorker?.dispose();
+    _refresh?.cancel();
     super.dispose();
   }
 

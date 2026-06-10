@@ -687,9 +687,9 @@ class SitterChatController extends GetxController {
     // qui faisaient croire que le message n'appartenait pas à l'utilisateur.
     // Conséquence du bug : le sitter/walker ne pouvait plus long-press son
     // propre message → pas de menu Effacer → "le bouton effacer marche pas".
-    final _sid = senderId.trim().toLowerCase();
-    final _cid = currentUserId.trim().toLowerCase();
-    final isFromCurrentUser = _sid.isNotEmpty && _sid == _cid;
+    final sid = senderId.trim().toLowerCase();
+    final cid = currentUserId.trim().toLowerCase();
+    final isFromCurrentUser = sid.isNotEmpty && sid == cid;
 
     // Extract sender name - check multiple possible fields
     String senderName = '';

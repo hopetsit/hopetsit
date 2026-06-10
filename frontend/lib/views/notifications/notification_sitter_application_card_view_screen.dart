@@ -13,7 +13,6 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_sitter_application_card.dart';
-import 'package:intl/intl.dart';
 import 'package:hopetsit/utils/booking_date_format.dart';
 import 'package:hopetsit/views/booking/bookings_history_screen.dart';
 

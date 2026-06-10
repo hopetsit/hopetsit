@@ -258,7 +258,16 @@ router.post('/reconcile-pending-payments', requireAdmin, async (req, res) => {
               type: 'credit_booking',
               bookingId: String(booking._id),
               meta: { source: 'admin_reconcile', autoPayout: false },
-              withdrawable: true,
+              // v23.1.341 — Daniel : "le paiement se débloque APRÈS la
+              // confirmation de fin du service". Cette route rejoue la logique
+              // du webhook pour les paiements manqués → comme le webhook, le
+              // crédit au PAIEMENT est HISTORIQUE SEULEMENT (withdrawable:false,
+              // n'incrémente pas le solde retirable). La libération passe par le
+              // chokepoint gated processProviderPayoutForBooking (confirmation
+              // owner / auto-release 48h) via le schedulePayoutForBooking appelé
+              // juste en dessous. Le `true` ici était la même faille que
+              // confirmBookingPayment, corrigée en v339.
+              withdrawable: false,
             });
           } catch (we) {
             logger.warn(`[admin/reconcile] wallet credit skipped ${booking._id}: ${we.message}`);

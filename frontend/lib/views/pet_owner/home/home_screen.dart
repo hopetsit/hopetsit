@@ -16,7 +16,6 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
-import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/sitter_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
@@ -28,8 +27,6 @@ import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
-// v23.1 — HomeHeader Container-based, remplace AppBar pour fix grey rectangle.
-import 'package:hopetsit/widgets/home_header.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_segmented_control.dart';
 import 'package:hopetsit/widgets/expandable_post_input.dart';

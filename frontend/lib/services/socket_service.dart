@@ -307,7 +307,7 @@ class SocketService {
       );
       // Hint pour ne pas confondre : la callback est ignorée volontairement.
       // ignore: unused_local_variable
-      final _ignored = callback;
+      final ignored = callback;
     }
   }
 

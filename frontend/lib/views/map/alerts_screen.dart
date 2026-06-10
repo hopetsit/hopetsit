@@ -663,8 +663,11 @@ class _AlertsListState extends State<_AlertsList>
       }
       final r = await api.get(path, requiresAuth: true);
       List raw = const [];
-      if (r is Map && r['reports'] is List) raw = r['reports'] as List;
-      else if (r is List) raw = r;
+      if (r is Map && r['reports'] is List) {
+        raw = r['reports'] as List;
+      } else if (r is List) {
+        raw = r;
+      }
       _reports.assignAll(
         raw
             .whereType<Map>()

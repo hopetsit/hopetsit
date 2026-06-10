@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Pagamento recebido!",
-    "body": "O proprietário pagou a sua reserva. Já pode conversar no chat para combinar os detalhes.",
+    "body": "O proprietário pagou a sua reserva. Já pode conversar no chat para combinar os detalhes. No dia do serviço, toca em «🐾 Recolhi o animal» para confirmar o início do serviço.",
     "emailSubject": "Pagamento recebido — HoPetSit",
     "emailBody": "<p>Boas notícias! O pagamento da reserva acabou de ser confirmado. Já pode conversar com o proprietário para combinar o local e a hora do serviço.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link no teu navegador: {{emailLink}}</p>"
   },
@@ -304,5 +304,11 @@
     "body": "O dono reportou um problema neste serviço. O pagamento está retido até resolução.",
     "emailSubject": "Problema reportado — HoPetSit",
     "emailBody": "<p>O dono reportou um problema neste serviço. O pagamento está retido até resolução. Contacta-o pelo chat.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
+  },
+  "service_start_due": {
+    "title": "Está na hora! 🐾",
+    "body": "O teu serviço vai começar. Toca em «🐾 Recolhi o animal» nas tuas reservas para confirmar o início do serviço.",
+    "emailSubject": "Confirma o início do serviço — HoPetSit",
+    "emailBody": "<p>O teu serviço vai começar! Abre a app HoPetSit e toca em <b>🐾 Recolhi o animal</b> nas tuas reservas para confirmar o início do serviço.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia este link: {{emailLink}}</p>"
   }
 }

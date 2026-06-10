@@ -1,8 +1,6 @@
-import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
@@ -13,7 +11,6 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 import 'package:hopetsit/widgets/city_location_picker.dart';
-import 'package:hopetsit/utils/currency_helper.dart';
 
 class EditSitterProfileScreen extends StatelessWidget {
   const EditSitterProfileScreen({super.key});

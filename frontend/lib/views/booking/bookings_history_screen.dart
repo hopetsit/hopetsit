@@ -75,7 +75,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
       return _bookingsController.bookings;
     }
     return _bookingsController.bookings.where((booking) {
-      final s = (booking.status ?? '').toLowerCase();
+      final s = booking.status.toLowerCase();
       final p = (booking.paymentStatus ?? '').toLowerCase();
       switch (_selectedStatus) {
         case 'pending':

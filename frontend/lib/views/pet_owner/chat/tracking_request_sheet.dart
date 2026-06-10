@@ -54,7 +54,7 @@ class TrackingRequestSheet extends StatelessWidget {
     final providerName = b?.sitter.name ?? fallbackContactName;
     final providerAvatar = b?.sitter.avatar.url ?? fallbackContactImage;
     final providerPhone = (b != null && b.sitter.mobile.isNotEmpty)
-        ? '${b.sitter.mobile}'
+        ? b.sitter.mobile
         : '';
     final providerAddress = b?.sitter.address ?? '';
     final petName = b != null

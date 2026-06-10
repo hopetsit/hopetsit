@@ -12,7 +12,6 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
-import 'package:hopetsit/views/pet_sitter/payment/earnings_history_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — walker peut payer un PawSpot/PawFollow.
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';

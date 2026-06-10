@@ -53,6 +53,9 @@ function startPayoutScheduler({
     // v18.5 — #3 hold admin : release les bookings mises en hold quand le
     // provider avait rien configuré, et qui ont depuis ajouté IBAN/PayPal.
     processHeldPayouts,
+    // v23.1.340 — Daniel : notification au sitter/walker quand l'heure du
+    // service arrive → "C'est l'heure ! Confirme le début du service 🐾".
+    processServiceStartReminders,
   } = require('../controllers/bookingController');
 
   // v23.1 part 78 — Daniel : "payout walker reste en attente". Auto-
@@ -77,6 +80,12 @@ function startPayoutScheduler({
       await processPendingWithdrawals();
     } catch (error) {
       logger.error('❌ Payout scheduler tick (withdrawals) failed', error);
+    }
+    try {
+      // v23.1.340 — rappel "Début de service" au prestataire à l'heure H.
+      await processServiceStartReminders();
+    } catch (error) {
+      logger.error('❌ Payout scheduler tick (start reminders) failed', error);
     }
   };
 

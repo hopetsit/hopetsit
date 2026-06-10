@@ -524,35 +524,6 @@ class PetPostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton({
-    required BuildContext context,
-    required String icon,
-    required String label,
-    bool isActive = false,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Image.asset(
-            icon,
-            width: 20.w,
-            height: 20.h,
-            color: isActive ? AppColors.primaryColor : AppColors.textSecondary(context),
-          ),
-          SizedBox(height: 4.h),
-          InterText(
-            text: label,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w400,
-            color: isActive ? AppColors.primaryColor : AppColors.textSecondary(context),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// v23.1 — bouton action moderne : gradient subtil, ombre douce, état
   /// "actif" (liké/partagé) avec rempli plein couleur, "inactif" avec
   /// fond très clair et bordure légère. Animation tactile via InkWell.
@@ -1337,7 +1308,7 @@ class PetPostCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [bg, bg.withOpacity(0.85)],
+          colors: [bg, bg.withValues(alpha: 0.85)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),

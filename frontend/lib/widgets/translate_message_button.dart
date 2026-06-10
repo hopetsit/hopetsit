@@ -138,7 +138,7 @@ class _TranslateMessageButtonState extends State<TranslateMessageButton> {
                 color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(
-                  color: accent.withOpacity(0.25),
+                  color: accent.withValues(alpha: 0.25),
                   width: 1,
                 ),
               ),

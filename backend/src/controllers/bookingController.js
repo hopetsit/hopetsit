@@ -933,6 +933,44 @@ const processProviderPayoutForBooking = async (booking) => {
       return;
     }
 
+    // v23.1.339 — ESCROW STRICT (Daniel : "le paiement est libre, j'ai pu
+    // retirer sans aucune confirmation" ; "via publication, demande directe
+    // sitter/walker, owner->walker, owner->sitter : les sous ne se bloquent
+    // pas"). Ce helper est le POINT DE PASSAGE UNIQUE de toute libération de
+    // payout (wallet withdrawable + virement IBAN/PayPal). On REFUSE de
+    // libérer tant que :
+    //   - l'owner n'a pas confirmé la fin du service (confirmationStatus ===
+    //     'confirmed', posé par confirmService), OU
+    //   - l'auto-release programmé n'est pas atteint (scheduledPayoutAt <= now,
+    //     géré par le scheduler 48h après la fin).
+    // Jamais sur 'disputed'. Les bookings legacy (confirmationStatus 'none',
+    // antérieurs au flux de confirmation) gardent l'ancien comportement.
+    // Sans ce gate, confirmBookingPayment / les appelants au moment du paiement
+    // libéraient l'argent immédiatement car le seul contrôle était status==='paid'.
+    {
+      const cs = booking.confirmationStatus || 'none';
+      if (cs === 'disputed') {
+        logger.info(
+          `⛔ Payout bloqué (litige) booking ${booking._id.toString()}`,
+        );
+        return;
+      }
+      if (cs !== 'none') {
+        const schedAt = booking.scheduledPayoutAt
+          ? new Date(booking.scheduledPayoutAt).getTime()
+          : null;
+        const autoReleaseReached = schedAt !== null && schedAt <= Date.now();
+        if (cs !== 'confirmed' && !autoReleaseReached) {
+          logger.info(
+            `⏳ Payout RETENU (escrow) booking ${booking._id.toString()} — ` +
+            `confirmationStatus=${cs}, scheduledPayoutAt=${booking.scheduledPayoutAt}. ` +
+            `Libération à la confirmation owner ou à l'auto-release 48h.`,
+          );
+          return;
+        }
+      }
+    }
+
     // Stripe destination-charge payments are auto-transferred to the
     // provider's connected account at capture time — no manual payout needed.
     if (booking.paymentProvider === 'stripe' && booking.petsitterConnectedAccountId) {
@@ -3182,13 +3220,24 @@ const confirmBookingPayment = async (req, res) => {
           );
         }
 
-        // Trigger payout (best-effort, le webhook fait le même boulot).
+        // v23.1.339 — Daniel : "l'argent est libre, j'ai pu retirer sans
+        // aucune confirmation". On NE LIBÈRE PLUS le payout au paiement.
+        // À la place on initialise l'ESCROW (flux de confirmation) via
+        // schedulePayoutForBooking : confirmationStatus='awaiting_start',
+        // autoReleaseAt = fin du service + 48h, payoutStatus='scheduled'.
+        // L'argent ne devient retirable QUE :
+        //   - à la confirmation de fin de service par l'owner (confirmService), OU
+        //   - à l'auto-release 48h via le scheduler (processScheduledSitterPayouts).
+        // (Le webhook Airwallex fait déjà ce schedulePayoutForBooking ; ici on
+        // couvre le chemin de confirmation synchrone qui, avant, libérait tout
+        // de suite. Le gate escrow dans processProviderPayoutForBooking bloque
+        // de toute façon toute libération prématurée — double sécurité.)
         try {
-          if (typeof processProviderPayoutForBooking === 'function') {
-            await processProviderPayoutForBooking(booking);
+          if (typeof schedulePayoutForBooking === 'function') {
+            await schedulePayoutForBooking(booking);
           }
         } catch (e) {
-          logger.error(`[confirmBookingPayment] payout trigger failed: ${e.message}`);
+          logger.error(`[confirmBookingPayment] escrow schedule failed: ${e.message}`);
         }
 
         // v23.1 — push notif (bell + FCM + email) to BOTH the provider and
@@ -3296,13 +3345,34 @@ const confirmBookingPayment = async (req, res) => {
             });
             logger.info(`[confirmBookingPayment] conversation created ${conversation._id} for booking ${booking._id}`);
           }
-          // v23.1 part 40 — fix Daniel : on enlève le check existingSysMsg
-          // qui bloquait les notifs au 2e paiement entre les MÊMES parties.
-          // confirmBookingPayment n'est appelé qu'UNE fois par paiement
-          // (synchronously par le frontend après HPP success), donc pas de
-          // risque de double-fire. Chaque paiement déclenche son propre
-          // system message + sendNotification.
-          const existingSysMsg = false;
+          // v23.1 part 40 — on ne bloque PAS le 2e paiement entre les MÊMES
+          // parties : la dédup est scopée PAR PAIEMENT (bookingId/intentId),
+          // pas par conversation.
+          // v23.1.342 — Daniel : "vérifie que l'auto message se déclenche bien
+          // instantanément". Le chemin sync reste instantané (création +
+          // socket dans la même requête), MAIS il courait en DOUBLE avec le
+          // webhook : le webhook déduplique par metadata.bookingId/intentId
+          // alors qu'ici on ne vérifiait rien (existingSysMsg=false) et on ne
+          // stampait pas le metadata → selon l'ordre webhook/sync, les 2
+          // messages partaient 2 fois. Fix : même requête de dédup que le
+          // webhook (scopée à CE paiement → un 2e paiement refire bien ses
+          // propres messages) + stamps bookingId/intentId ci-dessous.
+          const existingSysMsg = await Message.findOne({
+            conversationId: conversation._id,
+            senderRole: 'system',
+            $or: [
+              { 'metadata.bookingId': booking._id.toString() },
+              {
+                'metadata.kind': 'payment_confirmed',
+                'metadata.intentId': paymentIntentId,
+              },
+            ],
+          }).lean();
+          if (existingSysMsg) {
+            logger.info(
+              `[confirmBookingPayment] system messages already posted for booking ${booking._id} — skipping duplicates (webhook won the race).`,
+            );
+          }
           if (!existingSysMsg) {
             // v23.1.255 — metadata.kind ajouté pour que le frontend localise
             // le texte dans la langue de CHAQUE viewer (le body FR n'est plus
@@ -3314,7 +3384,13 @@ const confirmBookingPayment = async (req, res) => {
               senderId: ownerId2,
               body: '✅ Paiement confirmé. La réservation est active — vous pouvez désormais discuter ici.',
               type: 'text',
-              metadata: { kind: 'payment_confirmed' },
+              // v23.1.342 — stamps bookingId/intentId alignés sur le webhook :
+              // c'est la clé de dédup croisée sync ↔ webhook (anti-doublons).
+              metadata: {
+                kind: 'payment_confirmed',
+                bookingId: booking._id.toString(),
+                intentId: paymentIntentId,
+              },
             });
             // v23.1 part 37 — 2e system message "discutons du lieu de rencontre"
             const rendezvousMessage = await Message.create({
@@ -3323,7 +3399,11 @@ const confirmBookingPayment = async (req, res) => {
               senderId: ownerId2,
               body: '👋 Bonjour ! Discutons ici pour convenir du lieu et de l\'heure de rencontre.',
               type: 'text',
-              metadata: { kind: 'rendezvous_prompt' },
+              metadata: {
+                kind: 'rendezvous_prompt',
+                bookingId: booking._id.toString(),
+                intentId: paymentIntentId,
+              },
             });
             // v23.1 part 41 — fix Daniel "badge message marche pas" :
             // increment ownerUnreadCount + sitterUnreadCount (schema uses
@@ -4139,6 +4219,27 @@ const processScheduledSitterPayouts = async () => {
         } catch (e) {
           logger.warn(`[scheduler] Top recompute failed booking ${booking._id}: ${e?.message || e}`);
         }
+        // v23.1.344 — Daniel : "avantages fidélité ne se met pas à jour".
+        // L'auto-release 48h auto-confirmait le service SANS déclencher
+        // onBookingCompleted → le crédit -10% (chaque 3e réservation) et le
+        // Premium owner (10e) sautaient quand le seuil était franchi par
+        // auto-release. On le déclenche ici avec les ids EXTRAITS (booking est
+        // populé : String(doc) imprimerait tout le document → cast cassé,
+        // même bug que v276).
+        try {
+          const oid = booking.ownerId && (booking.ownerId._id || booking.ownerId);
+          const sid2 = booking.sitterId && (booking.sitterId._id || booking.sitterId);
+          const wid2 = booking.walkerId && (booking.walkerId._id || booking.walkerId);
+          await onBookingCompleted({
+            _id: booking._id,
+            ownerId: oid,
+            sitterId: sid2,
+            walkerId: wid2,
+            pricing: booking.pricing,
+          });
+        } catch (e) {
+          logger.warn(`[scheduler] loyalty hook failed booking ${booking._id}: ${e?.message || e}`);
+        }
       }
     } catch (err) {
       logger.error(`⚠️  processScheduledSitterPayouts: failed for booking ${booking._id}`, err);
@@ -4348,6 +4449,29 @@ const cancelBookingPaymentIntent = async (req, res) => {
  * (existing endpoint used by the nearby map). Future iteration : push
  * realtime via socket emit('provider:location-update', { lat, lng }).
  */
+// v23.1.343 — Daniel : "vérifie bien que le follow se termine une fois le
+// service terminé". Fenêtre de suivi de service = du paiement à la FIN :
+//   - le prestataire a marqué "J'ai rendu l'animal" (awaiting_confirmation),
+//     l'owner a confirmé (confirmed) ou litige (disputed) → suivi CLOS ;
+//   - booking completed / cancelled / refunded → CLOS ;
+//   - garde-fou : fin prévue du service + 12h (prestataire qui oublie de
+//     marquer "rendu") → CLOS.
+// Sans ça, l'owner pouvait suivre la position RÉELLE du walker/sitter
+// indéfiniment après le service (Walker.location = sa position courante,
+// rafraîchie par la map) → fuite de vie privée.
+const SERVICE_TRACKING_GRACE_MS = 12 * 60 * 60 * 1000;
+const isServiceTrackingClosed = (booking) => {
+  const cs = booking.confirmationStatus || 'none';
+  if (['awaiting_confirmation', 'confirmed', 'disputed'].includes(cs)) return true;
+  const st = (booking.status || '').toLowerCase();
+  if (['completed', 'cancelled', 'refunded'].includes(st)) return true;
+  try {
+    const endAt = resolveBookingEndDate(booking);
+    if (Date.now() > endAt.getTime() + SERVICE_TRACKING_GRACE_MS) return true;
+  } catch (_) { /* defensive */ }
+  return false;
+};
+
 const getProviderLocation = async (req, res) => {
   try {
     const ownerId = req.user.id;
@@ -4362,32 +4486,18 @@ const getProviderLocation = async (req, res) => {
       return res.status(409).json({ error: 'Tracking only available for paid bookings.' });
     }
 
-    // PawFollow subscription check.
-    // v23.1 part 74 — read both currentPeriodEnd (canonical) and
-    // expiresAt (legacy alias) so existing subs that may carry only
-    // one of them still authorize tracking.
-    let hasPawFollow = false;
-    try {
-      const UserSubscription = require('../models/UserSubscription');
-      const sub = await UserSubscription.findOne({
-        userId: ownerId,
-        userModel: 'Owner',
-        status: 'active',
-      }).lean();
-      if (sub) {
-        const expiry = sub.currentPeriodEnd || sub.expiresAt;
-        if (expiry && new Date(expiry) > new Date()) {
-          hasPawFollow = true;
-        }
-      }
-    } catch (_) { /* fall through */ }
-
-    if (!hasPawFollow) {
-      return res.status(402).json({
-        error: 'PawFollow subscription required to track your provider live.',
-        code: 'PAWFOLLOW_REQUIRED',
+    // v23.1.343 — le suivi s'arrête à la fin du service (cf helper ci-dessus).
+    if (isServiceTrackingClosed(booking)) {
+      return res.status(410).json({
+        error: 'Service is over — live tracking is closed.',
+        code: 'TRACKING_ENDED',
       });
     }
+
+    // v23.1.343 — Daniel (décision business) : le suivi PENDANT un service
+    // payé est GRATUIT (inclus dans la commission) — c'est PawFollow qui est
+    // payant pour le suivi hors service (amis/famille). L'ancien gate 402
+    // PAWFOLLOW_REQUIRED ici contredisait ce modèle : supprimé.
 
     // Resolve provider model + id.
     let provider = null;
@@ -4470,6 +4580,16 @@ const requestLiveTracking = async (req, res) => {
       return res.status(409).json({
         error: 'Live tracking only available for paid bookings.',
         code: 'BOOKING_NOT_PAID',
+      });
+    }
+
+    // v23.1.343 — Daniel : "le follow se termine une fois le service
+    // terminé". On refuse aussi d'ENVOYER une demande de suivi quand la
+    // fenêtre de service est close (rendu / confirmé / litige / fin+12h).
+    if (isServiceTrackingClosed(booking)) {
+      return res.status(410).json({
+        error: 'Service is over — live tracking is closed.',
+        code: 'TRACKING_ENDED',
       });
     }
 
@@ -5107,6 +5227,17 @@ const completeService = async (req, res) => {
       booking.payoutStatus = 'scheduled';
     }
     await booking.save();
+    // v23.1.343 — Daniel : "le follow se termine une fois le service terminé".
+    // On clôt toute session de balade encore active sur ce booking → le relais
+    // walk.position refuse les positions suivantes (status !== 'active') même
+    // si le prestataire a oublié de terminer la balade dans l'app.
+    try {
+      const WalkSession = require('../models/WalkSession');
+      await WalkSession.updateMany(
+        { bookingId: booking._id, status: 'active' },
+        { $set: { status: 'ended', endedAt: new Date() } },
+      );
+    } catch (e) { logger.warn('[completeService] walk session close failed', e); }
     try {
       const { sendNotification } = require('../services/notificationSender');
       const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
@@ -5130,6 +5261,81 @@ const completeService = async (req, res) => {
     logger.error('[completeService]', e);
     return res.status(500).json({ error: 'Unable to complete service.' });
   }
+};
+
+// v23.1.340 — Daniel : "le sitter ou walker doit avoir une notification pour
+// confirmer le début du service, pour qu'il puisse cliquer Début de service.
+// Simple et compréhensible." Appelé par le payoutScheduler (tick 5 min) :
+// pour chaque réservation PAYÉE dont l'heure de début est arrivée et que le
+// prestataire n'a pas encore démarrée, on lui envoie UNE SEULE notification
+// 'service_start_due' (cloche + push + email, 6 langues) : "C'est l'heure !
+// Appuie sur 🐾 J'ai récupéré l'animal pour confirmer le début du service."
+// Le tap sur la notif ouvre l'écran Réservations où se trouve le bouton.
+const SERVICE_START_REMINDER_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const processServiceStartReminders = async () => {
+  const now = new Date();
+  let sent = 0;
+  try {
+    // Bornage requête : payé + pas démarré + rappel jamais envoyé + la date
+    // (jour) de début est passée. L'heure exacte (date + timeSlot) est
+    // affinée en JS via resolveBookingStartDate.
+    const candidates = await Booking.find({
+      paymentStatus: 'paid',
+      status: 'paid',
+      confirmationStatus: 'awaiting_start',
+      serviceStartedAt: null,
+      serviceStartReminderSentAt: null,
+      $or: [
+        { startDate: { $lte: now } },
+        { date: { $lte: now } },
+      ],
+    }).limit(200);
+
+    for (const booking of candidates) {
+      try {
+        const startAt = resolveBookingStartDate(booking);
+        if (startAt.getTime() > now.getTime()) continue; // pas encore l'heure
+        // Réclamation atomique : 2 ticks concurrents ne doublent jamais l'envoi.
+        const claimed = await Booking.findOneAndUpdate(
+          { _id: booking._id, serviceStartReminderSentAt: null },
+          { $set: { serviceStartReminderSentAt: now } },
+          { new: true },
+        );
+        if (!claimed) continue; // un autre tick l'a prise
+        // Anti-spam legacy : réservation dont le début date de plus de 7 jours
+        // (données d'avant la feature) → on marque sans notifier.
+        if (now.getTime() - startAt.getTime() > SERVICE_START_REMINDER_MAX_AGE_MS) {
+          continue;
+        }
+        const provider = _resolveConfirmProvider(booking);
+        if (!provider.id || !provider.role) continue;
+        const { sendNotification } = require('../services/notificationSender');
+        const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+        await sendNotification({
+          userId: provider.id,
+          role: provider.role,
+          type: 'service_start_due',
+          data: {
+            bookingId: String(booking._id),
+            providerRole: provider.role,
+            emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
+          },
+          actor: { role: 'owner', id: booking.ownerId ? String(booking.ownerId) : null },
+        });
+        sent += 1;
+      } catch (e) {
+        logger.warn(
+          `[serviceStartReminder] failed for booking ${booking._id}: ${e?.message || e}`,
+        );
+      }
+    }
+  } catch (e) {
+    logger.error('[serviceStartReminder] outer error', e);
+  }
+  if (sent > 0) {
+    logger.info(`🐾 [serviceStartReminder] sent ${sent} start-service reminder(s).`);
+  }
+  return { sent };
 };
 
 // POST /bookings/:id/service/confirm — owner confirme → libère le paiement.
@@ -5156,6 +5362,15 @@ const confirmService = async (req, res) => {
       booking.payoutStatus = 'scheduled';
     }
     await booking.save();
+    // v23.1.343 — fin de service confirmée → clôt les sessions de balade
+    // actives (le suivi live s'arrête, cf completeService).
+    try {
+      const WalkSession = require('../models/WalkSession');
+      await WalkSession.updateMany(
+        { bookingId: booking._id, status: 'active' },
+        { $set: { status: 'ended', endedAt: new Date() } },
+      );
+    } catch (e) { logger.warn('[confirmService] walk session close failed', e); }
     // Release now (best-effort ; le scheduler rattrape sinon). IMPORTANT : le
     // payout exige booking.status='paid' (cf processProviderPayoutForBooking),
     // donc on le fait AVANT le hook de complétion.
@@ -5276,6 +5491,7 @@ module.exports = {
   // v23.1.259 — Confirmation de service + libération paiement.
   startService,
   completeService,
+  processServiceStartReminders,
   confirmService,
   disputeService,
 };

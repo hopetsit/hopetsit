@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 import 'package:hopetsit/data/static/privacy_policy.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -18,8 +19,11 @@ class PrivacyPolicyScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
         centerTitle: true,
+        // v23.1.345 — Daniel : "politique de confidentialité pas traduite".
+        // Le CORPS était déjà localisé 6 langues (privacyPolicyForLocale) mais
+        // le TITRE restait en anglais codé en dur → clé 6/6 'profile_privacy'.
         title: PoppinsText(
-          text: 'Privacy policy',
+          text: 'profile_privacy'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary(context),

@@ -115,7 +115,7 @@
   },
   "booking_paid": {
     "title": "Zahlung erhalten!",
-    "body": "Der Eigentümer hat deine Buchung bezahlt. Du kannst jetzt im Chat die Details besprechen.",
+    "body": "Der Eigentümer hat deine Buchung bezahlt. Du kannst jetzt im Chat die Details besprechen. Am Tag des Services tippe auf „🐾 Tier abgeholt\", um den Start zu bestätigen.",
     "emailSubject": "Zahlung erhalten — HoPetSit",
     "emailBody": "<p>Gute Nachricht! Die Zahlung für die Buchung wurde gerade bestätigt. Du kannst jetzt mit dem Eigentümer chatten, um Ort und Zeit des Services zu vereinbaren.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, öffne die HoPetSit-App manuell.</p>"
   },
@@ -304,5 +304,11 @@
     "body": "Der Besitzer hat ein Problem mit diesem Service gemeldet. Die Zahlung ist bis zur Klärung zurückgehalten.",
     "emailSubject": "Problem gemeldet — HoPetSit",
     "emailBody": "<p>Der Besitzer hat ein Problem mit diesem Service gemeldet. Die Zahlung ist bis zur Klärung zurückgehalten. Kontaktiere ihn über den Chat.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EF4324;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "service_start_due": {
+    "title": "Es ist soweit! 🐾",
+    "body": "Dein Service beginnt. Tippe in deinen Buchungen auf „🐾 Tier abgeholt\", um den Start des Services zu bestätigen.",
+    "emailSubject": "Bestätige den Start deines Services — HoPetSit",
+    "emailBody": "<p>Dein Service beginnt! Öffne die HoPetSit-App und tippe in deinen Buchungen auf <b>🐾 Tier abgeholt</b>, um den Start des Services zu bestätigen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   }
 }

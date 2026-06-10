@@ -22,13 +22,16 @@ import 'package:hopetsit/views/friends/friends_screen.dart';
 // v23.1.319 — Daniel (audit) : routage des notifs paiement/wallet/boutique.
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
-import 'package:hopetsit/views/notifications/notification_application_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_post_view_screen.dart';
 import 'package:hopetsit/views/notifications/notification_sitter_application_card_view_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/booking-application/owner_booking_detail_screen.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
+// v23.1.340 — Daniel : routage de la notif "C'est l'heure ! confirme le début
+// du service" vers l'écran Réservations du prestataire (bouton 🐾).
+import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
+import 'package:hopetsit/views/pet_walker/booking/walker_bookings_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
@@ -219,6 +222,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // directly). Using the sitter screens since they are role-agnostic at
     // the data level.
     if (role == 'sitter' || role == 'walker') {
+      // v23.1.340 — Daniel : "le sitter/walker doit pouvoir cliquer Début de
+      // service". La notif 'service_start_due' (C'est l'heure ! 🐾) ouvre
+      // DIRECTEMENT l'écran Réservations du prestataire, où se trouve le
+      // bouton « 🐾 J'ai récupéré l'animal » qui confirme le début du service.
+      if (type == 'service_start_due') {
+        if (role == 'walker') {
+          Get.to(() => const WalkerBookingsScreen());
+        } else {
+          Get.to(() => const SitterBookingsScreen());
+        }
+        return;
+      }
+
       final bookingId = _dataString(data, 'bookingId');
 
       if (bookingId != null && bookingId.isNotEmpty) {
@@ -767,10 +783,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ? 'walker'
           : 'sitter';
     }
-    final Color accent = resolvedProviderType == 'walker'
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF2563EB);
-
     final String status = (appJson['status'] as String? ?? '').toLowerCase();
 
     // 3) Already-accepted path → jump straight to AirwallexPaymentScreen.
