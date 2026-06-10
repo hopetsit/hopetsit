@@ -2771,6 +2771,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'band_payment_released_title': '💰 Zahlung freigegeben!',
     'band_payment_released_subtitle': '@amount in deinem Wallet verfügbar',
     'band_cta_wallet': 'Wallet ansehen',
+    'pawmap_me_label': 'Ich',
     'wallet_held_funds_amount': '🔒 @amount einbehalten — freigegeben, sobald der Service beendet und bestätigt ist.',
     'tracking_service_over_title': 'Tracking nicht verfügbar',
     'tracking_service_over_msg': 'Der Service ist beendet. Buche einen neuen Service oder hole dir ein PawFollow / PawFamily-Abo, um dein Tier durchgehend zu verfolgen.',

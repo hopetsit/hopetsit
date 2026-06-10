@@ -2768,6 +2768,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'band_payment_released_title': '💰 Pagamento sbloccato!',
     'band_payment_released_subtitle': '@amount disponibile nel tuo wallet',
     'band_cta_wallet': 'Vedi wallet',
+    'pawmap_me_label': 'Io',
     'wallet_held_funds_amount': '🔒 @amount trattenuti — sbloccati una volta che il servizio è terminato e confermato.',
     'tracking_service_over_title': 'Tracciamento non disponibile',
     'tracking_service_over_msg': 'Il servizio è terminato. Prenota un nuovo servizio o sottoscrivi PawFollow / PawFamily per seguire il tuo animale in continuo.',

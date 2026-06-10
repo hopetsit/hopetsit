@@ -99,6 +99,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'band_payment_released_title': '💰 Paiement débloqué !',
       'band_payment_released_subtitle': '@amount disponible dans ton wallet',
       'band_cta_wallet': 'Voir le wallet',
+      'pawmap_me_label': 'Moi',
       'wallet_held_funds_amount': '🔒 @amount bloqués — débloqués une fois le service terminé et confirmé.',
       'tracking_service_over_title': 'Suivi indisponible',
       'tracking_service_over_msg': 'Le service est terminé. Réserve un nouveau service ou prends un abonnement PawFollow / PawFamily pour suivre ton animal en continu.',

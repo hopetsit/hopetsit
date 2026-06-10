@@ -2735,6 +2735,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'band_payment_released_title': '💰 ¡Pago liberado!',
     'band_payment_released_subtitle': '@amount disponible en tu wallet',
     'band_cta_wallet': 'Ver wallet',
+    'pawmap_me_label': 'Yo',
     'wallet_held_funds_amount': '🔒 @amount retenidos — se liberan cuando el servicio termina y se confirma.',
     'tracking_service_over_title': 'Seguimiento no disponible',
     'tracking_service_over_msg': 'El servicio ha terminado. Reserva un nuevo servicio o contrata PawFollow / PawFamily para seguir a tu mascota de forma continua.',

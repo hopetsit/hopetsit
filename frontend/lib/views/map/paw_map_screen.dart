@@ -15,10 +15,12 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_poi_model.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/models/nearby_request_model.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/services/friend_marker_service.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/friends/people_live_screen.dart';
@@ -678,6 +680,23 @@ class _PawMapScreenState extends State<PawMapScreen>
       }
 
       await _reloadAtCenter();
+
+      // v23.1.352 — Daniel : "je dois mettre Rien puis Tous pour que les
+      // points apparaissent au lieu que ça apparaisse direct". Watchdog du
+      // 1er chargement : si 4s après le bootstrap les couches sont toujours
+      // vides (fetch initial raté : permission GPS tout juste accordée,
+      // réseau lent, course au boot), on relance UNE fois le chargement —
+      // plus besoin de toggler le filtre pour forcer l'affichage.
+      Future.delayed(const Duration(seconds: 4), () {
+        if (!mounted) return;
+        final nothingLoaded = _poiController.pois.isEmpty &&
+            _reportController.reports.isEmpty &&
+            _nearbyProviders.isEmpty;
+        if (nothingLoaded) {
+          debugPrint('[PawMap] first-load watchdog → retry reload');
+          unawaited(_reloadAtCenter());
+        }
+      });
     } catch (e) {
       debugPrint('[PawMap] bootstrap error: $e');
     }
@@ -927,25 +946,28 @@ class _PawMapScreenState extends State<PawMapScreen>
       final phase = _haloPhase.value;
       final userRadius = 25.0 + 75.0 * phase; // 25 → 100 m
       final userOpacity = (0.55 * (1.0 - phase)).clamp(0.0, 1.0);
-      const userBlue = Color(0xFF1A73E8);
+      // v23.1.352 — Daniel : "tu as mis un petit point bleu au lieu de me
+      // laisser mon halo selon rôle". Le halo perso prend la couleur du RÔLE
+      // (owner orange / sitter bleu / walker vert) au lieu du bleu générique.
+      final userColor = AppColors.roleAccent(_role);
       circles.add(
         Circle(
           circleId: const CircleId('user_halo_outer'),
           center: userPos,
           radius: userRadius,
-          fillColor: userBlue.withValues(alpha: userOpacity * 0.4),
-          strokeColor: userBlue.withValues(alpha: userOpacity),
+          fillColor: userColor.withValues(alpha: userOpacity * 0.4),
+          strokeColor: userColor.withValues(alpha: userOpacity),
           strokeWidth: 2,
         ),
       );
-      // Solid inner dot (radius 8m) so on est sûr de voir un point bleu
-      // même quand le pulse est à son apex (opacity faible).
+      // Solid inner dot (radius 8m) — couleur rôle, visible même quand le
+      // pulse est à son apex (opacity faible).
       circles.add(
         Circle(
           circleId: const CircleId('user_halo_dot'),
           center: userPos,
           radius: 8,
-          fillColor: userBlue,
+          fillColor: userColor,
           strokeColor: Colors.white,
           strokeWidth: 2,
         ),
@@ -1284,6 +1306,38 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   Set<Marker> _buildMarkers() {
     final Set<Marker> markers = {};
+    // v23.1.352 — Daniel : "au dézoom je ne me vois plus / petit point au
+    // lieu de mon halo". Mon PROPRE marqueur photo (même style que les amis :
+    // cercle couleur rôle + avatar), taille écran fixe → je me vois à
+    // n'importe quel zoom, en plus du halo rôle (cercles en mètres).
+    final myPos = _userPosition;
+    if (myPos != null) {
+      try {
+        final profile = GetStorage()
+            .read<Map<String, dynamic>>(StorageKeys.userProfile);
+        final myId = (profile?['id'] ?? 'me').toString();
+        final rawAvatar = profile?['avatar'];
+        final myAvatar = rawAvatar is Map
+            ? (rawAvatar['url'] ?? '').toString()
+            : (rawAvatar ?? '').toString();
+        final icon = _friendMarkerService.getOrPlaceholder(
+          userId: 'me_$myId',
+          avatarUrl: myAvatar,
+          role: _role,
+          isFamily: false,
+        );
+        markers.add(
+          Marker(
+            markerId: const MarkerId('me'),
+            position: myPos,
+            icon: icon,
+            anchor: const Offset(0.5, 0.5),
+            zIndexInt: 10,
+            infoWindow: InfoWindow(title: '📍 ${'pawmap_me_label'.tr}'),
+          ),
+        );
+      } catch (_) {/* defensive — le halo rôle reste visible */}
+    }
     // v23.1 part 72 — Bug 10 : render nearby providers (owner side).
     // Boosted (isMapBoosted) get gold hue ; non-boosted get role color.
     if (_showProviders.value && !_isSitterOrWalker) {
@@ -1434,18 +1488,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       };
       for (final pos in _liveMap.friendPositions.values) {
         final friend = friendById[pos.userId];
-        // v23.1 part 240 — autorise aussi l'affichage du focusUserId (sitter
-        // ou walker depuis un chat) meme s'il n'est pas dans la liste
-        // d'amis. Sinon Daniel voit le halo sans le pin → confusion.
-        final isFocus =
-            (widget.focusUserId ?? '').isNotEmpty && pos.userId == widget.focusUserId;
         // v23.1.297 — fallback membre famille (pas forcément un ami) : on le
         // dessine quand même pour qu'il apparaisse sur la carte ET dans le
         // compteur "Mon cercle".
         final famMember = friend == null
             ? familyById[pos.userId.trim().toLowerCase()]
             : null;
-        if (friend == null && famMember == null && !isFocus) continue;
+        // v23.1.352 — Daniel : "quand je dézoome je vois pas mes amis". On ne
+        // SAUTE plus les positions non encore matchées dans les listes amis/
+        // famille (chargées en async) : toute FriendPosition reçue (elle a
+        // déjà passé les règles d'accès côté serveur) a son marqueur PHOTO —
+        // taille écran fixe, donc visible à N'IMPORTE quel zoom, contrairement
+        // aux halos (cercles en mètres) qui disparaissent au dézoom.
         final famName = (famMember?['name'] ?? '').toString();
         final displayName = friend?.other!.name ??
             (famName.isNotEmpty ? famName : null) ??

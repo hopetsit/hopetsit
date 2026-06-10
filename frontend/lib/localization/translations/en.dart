@@ -99,6 +99,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'band_payment_released_title': '💰 Payment released!',
       'band_payment_released_subtitle': '@amount available in your wallet',
       'band_cta_wallet': 'View wallet',
+      'pawmap_me_label': 'Me',
       'wallet_held_funds_amount': '🔒 @amount on hold — released once the service is finished and confirmed.',
       'tracking_service_over_title': 'Tracking unavailable',
       'tracking_service_over_msg': 'The service is over. Book a new service or get a PawFollow / PawFamily subscription to track your pet continuously.',
