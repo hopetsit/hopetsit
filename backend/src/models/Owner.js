@@ -19,6 +19,12 @@ const ownerSchema = new mongoose.Schema(
     country: { type: String, default: '', uppercase: true, trim: true }, // ISO 3166-1 alpha-2, e.g. "FR"
     password: { type: String, required: true, minlength: 8 },
     language: { type: String, default: '' },
+    // v23.1.348 — Daniel : 'la langue doit suivre le système dès l'installation'.
+    // Code de langue UI de l'app ('fr'|'en'|'es'|'de'|'it'|'pt'), synchronisé
+    // par l'app (PATCH /users/me/app-locale) au login + à chaque changement.
+    // PRIORITAIRE sur 'language' pour la locale des notifications/emails —
+    // 'language' reste le champ libre 'langues parlées' affiché sur les profils.
+    appLocale: { type: String, default: '' },
     currency: { type: String, enum: ['EUR', 'USD'], default: 'EUR' },
     address: { type: String, default: '' },
     bio: { type: String, default: '' },

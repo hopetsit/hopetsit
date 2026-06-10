@@ -1239,6 +1239,33 @@ const acceptTerms = async (req, res) => {
   }
 };
 
+// v23.1.348 — Daniel : "la langue doit suivre le système dès l'installation".
+// PATCH /users/me/app-locale { locale: 'fr'|'en'|'es'|'de'|'it'|'pt' }.
+// L'app synchronise sa langue UI (choisie ou héritée du téléphone) → le champ
+// appLocale pilote la locale des notifications/emails (prioritaire sur le
+// champ libre 'language' = langues parlées affichées sur les profils).
+const APP_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt'];
+const updateAppLocale = async (req, res) => {
+  try {
+    const Model = resolveUserModel(req.user?.role);
+    if (!Model) return res.status(403).json({ error: 'Unsupported role.' });
+    const locale = String(req.body?.locale || '').toLowerCase().trim().slice(0, 2);
+    if (!APP_LOCALES.includes(locale)) {
+      return res.status(400).json({ error: 'Unsupported locale.', supported: APP_LOCALES });
+    }
+    const result = await Model.findByIdAndUpdate(
+      req.user.id,
+      { appLocale: locale },
+      { new: true },
+    ).select('appLocale');
+    if (!result) return res.status(404).json({ error: 'User not found.' });
+    return res.json({ appLocale: result.appLocale });
+  } catch (e) {
+    logger.error('updateAppLocale error', e);
+    return res.status(500).json({ error: 'Unable to update app locale.' });
+  }
+};
+
 const registerFcmToken = async (req, res) => {
   try {
     const { token } = req.body || {};
@@ -1294,6 +1321,7 @@ module.exports = {
   registerFcmToken,
   unregisterFcmToken,
   acceptTerms,
+  updateAppLocale,
   getMyLoyalty,
   getMyReferralsRoute,
 };

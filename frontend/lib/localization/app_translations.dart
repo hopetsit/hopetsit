@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
+import '../data/network/api_client.dart';
 import '../utils/storage_keys.dart';
 import 'translations/en.dart';
 import 'translations/fr.dart';
@@ -69,6 +70,42 @@ class LocalizationService {
     final locale = _supportedLocaleMap[languageCode] ?? fallbackLocale;
     await storage.write(_languageCodeKey, languageCode);
     Get.updateLocale(locale);
+    // v23.1.348 — Daniel : "la langue doit suivre le système dès
+    // l'installation". On synchronise la langue UI vers le backend
+    // (user.appLocale) pour que notifications + emails partent dans la
+    // bonne langue. Fire-and-forget : un échec réseau ne bloque jamais
+    // le changement de langue local.
+    _syncedThisSession = false; // re-sync après un changement manuel
+    syncToBackend();
+  }
+
+  // v23.1.348 — garde anti-spam : 1 synchro par session app (plus une à
+  // chaque changement manuel de langue via updateLocale ci-dessus).
+  static bool _syncedThisSession = false;
+
+  /// Pousse la langue UI courante (choisie OU héritée du téléphone) vers le
+  /// backend (PATCH /users/me/app-locale) — silencieux et best-effort :
+  ///   - pas de token → utilisateur pas connecté → no-op,
+  ///   - ApiClient pas enregistré (boot précoce) → no-op,
+  ///   - erreur réseau → ignorée (retentée à la prochaine session).
+  static Future<void> syncToBackend() async {
+    if (_syncedThisSession) return;
+    try {
+      final token = GetStorage().read<String>(StorageKeys.authToken);
+      if (token == null || token.isEmpty) return;
+      if (!Get.isRegistered<ApiClient>()) return;
+      final code = getCurrentLanguageCode();
+      _syncedThisSession = true;
+      await Get.find<ApiClient>().patch(
+        '/users/me/app-locale',
+        body: {'locale': code},
+        requiresAuth: true,
+      );
+      debugPrint('[i18n] appLocale synced to backend: $code');
+    } catch (e) {
+      _syncedThisSession = false; // retentera plus tard
+      debugPrint('[i18n] appLocale sync failed (non-bloquant): $e');
+    }
   }
 
   /// Returns the simple language code currently persisted, or the fallback.

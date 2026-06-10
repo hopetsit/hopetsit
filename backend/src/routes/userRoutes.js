@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
-const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, getMyLoyalty, getMyReferralsRoute } = require('../controllers/userController');
+const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, updateAppLocale, getMyLoyalty, getMyReferralsRoute } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -491,6 +491,8 @@ router.delete('/fcm-token', requireAuth, unregisterFcmToken);
 
 // Sprint 5 step 4 — accept current T&C (records date + version)
 router.patch('/accept-terms', requireAuth, acceptTerms);
+// v23.1.348 — la langue suit le système : l'app synchronise sa locale UI.
+router.patch('/me/app-locale', requireAuth, updateAppLocale);
 
 // Sprint 7 step 1 — owner loyalty stats
 router.get('/me/loyalty', requireAuth, requireRole('owner'), getMyLoyalty);

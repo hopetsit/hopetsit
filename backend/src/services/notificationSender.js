@@ -74,7 +74,7 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  const primary = await Model.findById(userId).select('email language fcmTokens name').lean();
+  const primary = await Model.findById(userId).select('email language appLocale fcmTokens name').lean();
   if (primary) return primary;
 
   // v23.1 part 49 — cross-collection fallback. The destructive switchRole
@@ -95,7 +95,7 @@ const resolveUser = async (role, userId) => {
   const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
   for (const Fb of fallbackModels) {
     try {
-      const found = await Fb.findById(userId).select('email language fcmTokens name').lean();
+      const found = await Fb.findById(userId).select('email language appLocale fcmTokens name').lean();
       if (found) {
         logger.warn(
           `[notif.fallback] user ${userId} expected in ${role} collection but ` +
@@ -211,7 +211,10 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
     );
     return;
   }
-  const locale = resolveLocale(user.language);
+  // v23.1.348 — Daniel : la langue suit le système. appLocale (code UI synchronisé
+  // par l'app : choix manuel OU langue du téléphone) est PRIORITAIRE sur le champ
+  // libre language (langues parlées affichées sur les profils prestataires).
+  const locale = resolveLocale(user.appLocale || user.language);
   const tmpl = pickTemplate(locale, type);
   if (!tmpl) {
     logger.warn(`[notif.skip] template missing type=${type} locale=${locale}`);

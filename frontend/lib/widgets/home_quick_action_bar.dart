@@ -35,6 +35,7 @@ import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/sitter_bookings_controller.dart';
 import 'package:hopetsit/controllers/walker_bookings_controller.dart';
+import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/models/application_model.dart';
 import 'package:hopetsit/models/booking_model.dart';
 import 'package:hopetsit/models/friendship_model.dart';
@@ -144,6 +145,12 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           Get.find<FriendController>().loadRequests();
         }
       } catch (_) { /* noop */ }
+      // v23.1.348 — Daniel : "la langue doit suivre le système dès
+      // l'installation". La bande est montée sur les 3 home screens juste
+      // après le login → on synchronise la langue UI (choisie ou héritée du
+      // téléphone) vers le backend pour les notifications/emails. Best-effort,
+      // 1 fois par session (garde interne).
+      LocalizationService.syncToBackend();
       _refreshBookings();
       if (Get.isRegistered<NotificationsController>()) {
         final notifs = Get.find<NotificationsController>();
