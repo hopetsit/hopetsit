@@ -194,9 +194,18 @@ class _SitterIndividualChatScreenState
       );
     } catch (e) {
       if (!mounted) return;
+      // v23.1.349 — service fini → message clair traduit (cf côté owner).
+      final raw = e.toString();
+      if (raw.contains('TRACKING_ENDED') || raw.contains('Service is over')) {
+        CustomSnackbar.showWarning(
+          title: 'tracking_service_over_title'.tr,
+          message: 'tracking_service_over_msg'.tr,
+        );
+        return;
+      }
       CustomSnackbar.showError(
         title: 'follow_unavailable_title'.tr,
-        message: e.toString().replaceAll('ApiException:', '').trim(),
+        message: raw.replaceAll('ApiException:', '').trim(),
       );
     }
   }

@@ -37,6 +37,10 @@ class _WalletScreenState extends State<WalletScreen> {
   String _currency = 'EUR';
   int _pendingWithdrawals = 0;
   double _pendingAmount = 0;
+  // v23.1.349 — Daniel : "mettre un message AVEC LE MONTANT bloqué : sera
+  // débloqué une fois le service fini et confirmé". Somme des gains en
+  // séquestre (réservations payées pas encore confirmées), calculée backend.
+  double _pendingEscrowTotal = 0;
   double _minWithdrawal = 5.0;
   List<dynamic> _transactions = [];
 
@@ -55,6 +59,8 @@ class _WalletScreenState extends State<WalletScreen> {
         _currency = (w['currency'] as String?) ?? 'EUR';
         _pendingWithdrawals = (w['pendingWithdrawals'] as num?)?.toInt() ?? 0;
         _pendingAmount = (w['pendingAmount'] as num?)?.toDouble() ?? 0;
+        _pendingEscrowTotal =
+            (w['pendingEscrowTotal'] as num?)?.toDouble() ?? 0;
         _minWithdrawal = (w['minWithdrawal'] as num?)?.toDouble() ?? 5.0;
       }
       final t = await _api.get('/wallet/transactions?limit=30',
@@ -118,13 +124,36 @@ class _WalletScreenState extends State<WalletScreen> {
                             color: _roleColor, size: 18.sp),
                         SizedBox(width: 8.w),
                         Expanded(
-                          child: Text(
-                            'wallet_held_funds_info'.tr,
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              height: 1.4,
-                              color: AppColors.textSecondary(context),
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // v23.1.349 — Daniel : afficher LE MONTANT bloqué
+                              // ("sera débloqué une fois le service fini et
+                              // confirmé"). Ligne mise en avant quand > 0.
+                              if (_pendingEscrowTotal > 0) ...[
+                                Text(
+                                  'wallet_held_funds_amount'.trParams({
+                                    'amount': CurrencyHelper.format(
+                                        _currency, _pendingEscrowTotal),
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w700,
+                                    color: _roleColor,
+                                  ),
+                                ),
+                                SizedBox(height: 4.h),
+                              ],
+                              Text(
+                                'wallet_held_funds_info'.tr,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  height: 1.4,
+                                  color: AppColors.textSecondary(context),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

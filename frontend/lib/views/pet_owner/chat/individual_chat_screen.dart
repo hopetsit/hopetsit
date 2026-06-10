@@ -373,11 +373,24 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                   );
                 } catch (e) {
                   if (mounted) {
-                    CustomSnackbar.showError(
-                      title: 'follow_unavailable_title'.tr,
-                      message: e.toString()
-                          .replaceAll('ApiException:', '').trim(),
-                    );
+                    // v23.1.349 — Daniel (bug grave) : "service fini, la
+                    // demande de suivi doit être bloquée avec un message
+                    // 'refaites un service ou prenez PawFollow/PawFamily'".
+                    // Le backend renvoie 410 TRACKING_ENDED → message clair
+                    // traduit au lieu de l'erreur brute.
+                    final raw = e.toString();
+                    if (raw.contains('TRACKING_ENDED') ||
+                        raw.contains('Service is over')) {
+                      CustomSnackbar.showWarning(
+                        title: 'tracking_service_over_title'.tr,
+                        message: 'tracking_service_over_msg'.tr,
+                      );
+                    } else {
+                      CustomSnackbar.showError(
+                        title: 'follow_unavailable_title'.tr,
+                        message: raw.replaceAll('ApiException:', '').trim(),
+                      );
+                    }
                   }
                   return;
                 }

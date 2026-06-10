@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/repositories/post_repository.dart';
+import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -37,6 +38,35 @@ class PostsController extends GetxController {
     // Session v15-6 — the authenticated endpoint that filters by role.
     // Needed so Sitter/Walker see owner reservation requests in their feed.
     loadReservationRequests();
+    // v23.1.349 — Daniel : "après paiement j'ai dû rafraîchir pour voir ma
+    // publication 'réservée', c'est pas instantané". Le backend émet
+    // booking:paid aux 2 parties → on recharge les posts dès réception (le
+    // statut reservedBy apparaît sans action manuelle). Attaché via
+    // addOnConnectedHook (pattern v242) pour survivre aux reconnexions.
+    _attachSocketListeners();
+  }
+
+  // Handler nommé : off ciblé (off('booking:paid') global retirerait AUSSI
+  // le listener du BookingsController qui partage cet event).
+  void _onBookingPaid(dynamic _) {
+    refreshPosts();
+    loadReservationRequests();
+  }
+
+  void _attachSocketListeners() {
+    try {
+      if (!Get.isRegistered<SocketService>()) return;
+      final s = Get.find<SocketService>();
+      void wire() {
+        s.socket?.off('booking:paid', _onBookingPaid);
+        s.socket?.on('booking:paid', _onBookingPaid);
+      }
+
+      wire();
+      s.addOnConnectedHook(wire);
+    } catch (e) {
+      debugPrint('[Posts] socket listeners failed: $e');
+    }
   }
 
   /// Session v15-6 — P0 fix from recap v15 that was pending.

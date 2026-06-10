@@ -36,23 +36,38 @@ class BookingsController extends GetxController {
     try {
       if (!Get.isRegistered<SocketService>()) return;
       final s = Get.find<SocketService>();
-      s.socket?.off('booking:paid');
-      s.socket?.on('booking:paid', (_) {
-        // Reload silently; the bandeau Obx will react when bookings update.
-        loadBookings();
-      });
-      s.socket?.off('booking:cancelled');
-      s.socket?.on('booking:cancelled', (_) {
-        loadBookings();
-      });
+      // v23.1.349 — Daniel : "bandeau à payer, légère attente". Les listeners
+      // étaient attachés UNE FOIS : si la socket n'était pas encore connectée
+      // (cold start) ou après une reconnexion background→fg, ils étaient
+      // perdus → on retombait sur le timer 30s. Même fix que sitter/walker
+      // (v242) : ré-attache automatiquement à chaque (re)connexion.
+      s.addOnConnectedHook(_rewireSocketListeners);
+      _rewireSocketListeners();
+    } catch (e) {
+      AppLogger.logError('BookingsController socket hook failed', error: e);
+    }
+  }
+
+  // v23.1.349 — handler nommé : off CIBLÉ par handler. Un off('booking:paid')
+  // global retirerait aussi le listener du PostsController (publication
+  // "réservée" instantanée) qui partage cet event.
+  void _onBookingEvent(dynamic _) => loadBookings();
+
+  void _rewireSocketListeners() {
+    try {
+      if (!Get.isRegistered<SocketService>()) return;
+      final s = Get.find<SocketService>();
+      // Reload silently; the bandeau Obx will react when bookings update.
+      s.socket?.off('booking:paid', _onBookingEvent);
+      s.socket?.on('booking:paid', _onBookingEvent);
+      s.socket?.off('booking:cancelled', _onBookingEvent);
+      s.socket?.on('booking:cancelled', _onBookingEvent);
       // v23.1 part 41 — fix Daniel "owner ne recoi pas notif walker accepté".
       // When the walker/sitter accepts a direct booking, refresh immediately
       // so the owner home banner switches from "Tout est à jour" to
       // "X a accepté ! Payer maintenant" without waiting for the 30s tick.
-      s.socket?.off('booking:accepted');
-      s.socket?.on('booking:accepted', (_) {
-        loadBookings();
-      });
+      s.socket?.off('booking:accepted', _onBookingEvent);
+      s.socket?.on('booking:accepted', _onBookingEvent);
     } catch (e) {
       AppLogger.logError('BookingsController socket bind failed', error: e);
     }

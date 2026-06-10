@@ -55,6 +55,7 @@ import 'package:hopetsit/views/pet_sitter/chat/sitter_chat_screen.dart';
 import 'package:hopetsit/views/pet_sitter/chat/sitter_individual_chat_screen.dart';
 import 'package:hopetsit/views/payment/airwallex_payment_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/my_posts_screen.dart';
+import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_sheet.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
@@ -508,6 +509,50 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       }
     }
 
+    // v23.1.349 — Daniel : "service fini → notification bandeau paiement reçu
+    // pour sitter/walker". L'owner a confirmé la fin du service → l'argent
+    // vient d'être DÉBLOQUÉ dans le wallet. Fenêtre 24h sur updatedAt (bump à
+    // la confirmation), dismissible via X, tap → WalletScreen.
+    {
+      final relNowMs = DateTime.now().millisecondsSinceEpoch;
+      const relMaxAgeMs = 24 * 60 * 60 * 1000;
+      final released = bookings.where((b) {
+        if (_dismissedIds.contains('rel_${b.id}')) return false;
+        if ((b.paymentStatus ?? '').toLowerCase() != 'paid') return false;
+        if (b.confirmationStatus != 'confirmed') return false;
+        final updMs = DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch;
+        if (updMs == null) return false;
+        return (relNowMs - updMs) <= relMaxAgeMs;
+      }).toList();
+      if (released.isNotEmpty) {
+        final b = released.first;
+        final isWalkerRole = widget.role == 'walker';
+        double total = 0;
+        String? cur;
+        for (final bk in released) {
+          total += (bk.pricing?.netAmount ??
+                  bk.pricing?.totalPrice ??
+                  bk.totalAmount ??
+                  0)
+              .toDouble();
+          cur ??= bk.pricing?.currency ?? 'EUR';
+        }
+        return _QuickAction(
+          kind: _Kind.providerReleased,
+          color: isWalkerRole ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+          icon: Icons.account_balance_wallet_rounded,
+          title: 'band_payment_released_title'.tr,
+          subtitle: 'band_payment_released_subtitle'.trParams({
+            'amount': CurrencyHelper.format(cur ?? 'EUR', total),
+          }),
+          ctaLabel: 'band_cta_wallet'.tr,
+          booking: b,
+          pulse: true,
+          allBookingIds: released.map((bk) => 'rel_${bk.id}').toList(),
+        );
+      }
+    }
+
     // Priority 2 — payment received → confirmation banner.
     //
     // v23.1 part 44/49 — uses `paidAt` (canonical payment timestamp) NOT
@@ -625,7 +670,8 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         // v23.1 — PART 2 : X dismiss callback. Owner-pay AND provider-paid
         // banners (sitter/walker side after payment received).
         onDismiss: (action.kind == _Kind.ownerPay ||
-                action.kind == _Kind.providerPaid)
+                action.kind == _Kind.providerPaid ||
+                action.kind == _Kind.providerReleased)
             ? () => _dismissBannerMulti(
                   action!.allBookingIds.isNotEmpty
                       ? action.allBookingIds
@@ -899,6 +945,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
     // ServiceConfirmationCard (mêmes boutons que l'écran Réservations).
     if (a.kind == _Kind.serviceAction) {
       _showServiceActionSheet(a);
+      return;
+    }
+    // v23.1.349 — paiement débloqué (service confirmé) → ouvre le wallet.
+    if (a.kind == _Kind.providerReleased) {
+      Get.to(() => const WalletScreen());
       return;
     }
     Get.to(() => const BookingsHistoryScreen());
@@ -2799,6 +2850,10 @@ enum _Kind {
   // passent par le bandeau, plus simple". Action de service (début / fin /
   // confirmation owner) : tap → sheet avec ServiceConfirmationCard.
   serviceAction,
+  // v23.1.349 — Daniel : "lorsque le service est fini, je veux la notification
+  // bandeau pour sitter et walker : paiement reçu". L'owner a confirmé la fin
+  // → l'argent vient d'être DÉBLOQUÉ dans le wallet. Tap → WalletScreen.
+  providerReleased,
 }
 
 class _QuickAction {

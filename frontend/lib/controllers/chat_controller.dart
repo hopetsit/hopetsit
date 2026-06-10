@@ -228,6 +228,17 @@ class ChatController extends GetxController {
         _socketService.onMessageDeleted((payload) {
           _handleMessageDeleted(payload);
         });
+        // v23.1.349 — Daniel : "j'ai accepté la demande de suivi, j'ai dû
+        // mettre à jour la page pour voir 'accepté'". Le backend émet
+        // `message:updated` quand la carte pawfollow_request change de statut,
+        // mais l'app l'ignorait (et la dédup par id de message:new bloquait la
+        // mise à jour) → REMPLACE le message existant par sa version à jour.
+        _socketService.socket?.off('message:updated');
+        _socketService.socket?.on('message:updated', (data) {
+          if (data is Map) {
+            _handleMessageUpdated(Map<String, dynamic>.from(data));
+          }
+        });
       }
 
       wireListeners(); // immediate si socket deja UP
@@ -277,6 +288,32 @@ class ChatController extends GetxController {
       currentChatMessages.refresh();
     } catch (e) {
       AppLogger.logError('Error handling message deleted', error: e);
+    }
+  }
+
+  // v23.1.349 — remplace un message existant par sa version mise à jour
+  // (changement de statut d'une carte pawfollow_request, etc.) → la carte
+  // passe de "en attente" à "accepté/refusé" instantanément, sans refresh.
+  void _handleMessageUpdated(Map<String, dynamic> messageData) {
+    try {
+      final conversationId =
+          messageData['conversationId']?.toString() ??
+          messageData['conversation']?['id']?.toString() ??
+          '';
+      if (conversationId != currentChatId.value) return;
+      final raw = messageData['message'] is Map
+          ? Map<String, dynamic>.from(messageData['message'] as Map)
+          : messageData;
+      final userProfile =
+          _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final userId = userProfile?['id']?.toString() ?? '';
+      final updated = _mapToChatMessage(raw, userId);
+      final idx = currentChatMessages.indexWhere((m) => m.id == updated.id);
+      if (idx < 0) return; // pas encore affiché → message:new s'en charge
+      currentChatMessages[idx] = updated;
+      currentChatMessages.refresh();
+    } catch (e) {
+      AppLogger.logError('Error handling message updated', error: e);
     }
   }
 

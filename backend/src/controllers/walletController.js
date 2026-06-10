@@ -57,11 +57,35 @@ exports.getWallet = async (req, res) => {
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
 
+    // v23.1.349 — Daniel : "pour l'argent bloqué dans le wallet il faut un
+    // message AVEC LE MONTANT : 'sera débloqué une fois le service fini et
+    // confirmé'". Montant en séquestre = somme des netPayout des réservations
+    // payées de ce prestataire dont le paiement n'a pas encore été libéré
+    // (libération = confirmation owner / auto-release 48h → payoutStatus
+    // 'completed'). Les annulées/remboursées sont exclues.
+    const Booking = require('../models/Booking');
+    const providerField = role === 'walker' ? 'walkerId' : 'sitterId';
+    const escrowAgg = await Booking.aggregate([
+      {
+        $match: {
+          [providerField]: require('mongoose').Types.ObjectId.createFromHexString(String(req.user.id)),
+          paymentStatus: 'paid',
+          payoutStatus: { $ne: 'completed' },
+          status: { $nin: ['cancelled', 'refunded'] },
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$pricing.netPayout' } } },
+    ]).catch(() => []);
+    const pendingEscrowTotal =
+      Math.round(((escrowAgg[0]?.total || 0)) * 100) / 100;
+
     res.json({
       balance: data.balance,
       currency: data.currency,
       pendingWithdrawals,
       pendingAmount: pendingAmount[0]?.total || 0,
+      // v23.1.349 — montant bloqué (séquestre) affiché dans le bandeau cadenas.
+      pendingEscrowTotal,
       minWithdrawal: MIN_WITHDRAWAL,
     });
   } catch (e) {

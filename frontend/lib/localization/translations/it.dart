@@ -2765,6 +2765,12 @@ const Map<String, String> itITTranslations = <String, String>{
     'band_cta_pay_now': 'Paga ora',
     'band_new_request_title': 'Nuova richiesta!',
     'band_new_request_subtitle': '@owner • @pet • @date → @amount stimato',
+    'band_payment_released_title': '💰 Pagamento sbloccato!',
+    'band_payment_released_subtitle': '@amount disponibile nel tuo wallet',
+    'band_cta_wallet': 'Vedi wallet',
+    'wallet_held_funds_amount': '🔒 @amount trattenuti — sbloccati una volta che il servizio è terminato e confermato.',
+    'tracking_service_over_title': 'Tracciamento non disponibile',
+    'tracking_service_over_msg': 'Il servizio è terminato. Prenota un nuovo servizio o sottoscrivi PawFollow / PawFamily per seguire il tuo animale in continuo.',
     'friends_add_btn': 'Invita',
     'friends_add_no_results':
         'Nessun risultato. Invitalo tramite il link sopra.',

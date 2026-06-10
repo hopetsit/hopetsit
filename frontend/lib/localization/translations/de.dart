@@ -2768,6 +2768,12 @@ const Map<String, String> deDETranslations = <String, String>{
     'band_cta_pay_now': 'Jetzt zahlen',
     'band_new_request_title': 'Neue Anfrage!',
     'band_new_request_subtitle': '@owner • @pet • @date → @amount geschätzt',
+    'band_payment_released_title': '💰 Zahlung freigegeben!',
+    'band_payment_released_subtitle': '@amount in deinem Wallet verfügbar',
+    'band_cta_wallet': 'Wallet ansehen',
+    'wallet_held_funds_amount': '🔒 @amount einbehalten — freigegeben, sobald der Service beendet und bestätigt ist.',
+    'tracking_service_over_title': 'Tracking nicht verfügbar',
+    'tracking_service_over_msg': 'Der Service ist beendet. Buche einen neuen Service oder hole dir ein PawFollow / PawFamily-Abo, um dein Tier durchgehend zu verfolgen.',
     'friends_add_btn': 'Einladen',
     'friends_add_no_results':
         'Keine Ergebnisse. Lade ihn/sie mit dem Link oben ein.',

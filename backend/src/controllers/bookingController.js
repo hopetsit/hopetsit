@@ -4459,6 +4459,31 @@ const cancelBookingPaymentIntent = async (req, res) => {
 // Sans ça, l'owner pouvait suivre la position RÉELLE du walker/sitter
 // indéfiniment après le service (Walker.location = sa position courante,
 // rafraîchie par la map) → fuite de vie privée.
+// v23.1.349 — Daniel : "ça a peut-être marché car j'ai un abonnement qui a
+// continué à tourner" — règle métier confirmée : un abonnement PawFollow /
+// PawFamily ACTIF autorise le suivi continu MÊME hors fenêtre de service
+// (c'est le produit vendu). Helper partagé par les 3 gates de suivi.
+const hasActiveTrackingSubscription = async (userId, role) => {
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const userModel =
+      role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';
+    const sub = await UserSubscription.findOne({
+      userId,
+      userModel,
+      status: 'active',
+    }).lean();
+    if (!sub) return false;
+    const now = new Date();
+    const expiry = sub.currentPeriodEnd || sub.expiresAt;
+    if (expiry && new Date(expiry) > now) return true;
+    if (sub.familyExpiry && new Date(sub.familyExpiry) > now) return true;
+    return false;
+  } catch (_) {
+    return false; // défensif : traité comme sans abonnement
+  }
+};
+
 const SERVICE_TRACKING_GRACE_MS = 12 * 60 * 60 * 1000;
 const isServiceTrackingClosed = (booking) => {
   const cs = booking.confirmationStatus || 'none';
@@ -4487,11 +4512,15 @@ const getProviderLocation = async (req, res) => {
     }
 
     // v23.1.343 — le suivi s'arrête à la fin du service (cf helper ci-dessus).
+    // v23.1.349 — SAUF abonnement PawFollow/PawFamily actif (suivi continu).
     if (isServiceTrackingClosed(booking)) {
-      return res.status(410).json({
-        error: 'Service is over — live tracking is closed.',
-        code: 'TRACKING_ENDED',
-      });
+      const subscribed = await hasActiveTrackingSubscription(ownerId, 'owner');
+      if (!subscribed) {
+        return res.status(410).json({
+          error: 'Service is over — live tracking is closed.',
+          code: 'TRACKING_ENDED',
+        });
+      }
     }
 
     // v23.1.343 — Daniel (décision business) : le suivi PENDANT un service
@@ -4586,11 +4615,15 @@ const requestLiveTracking = async (req, res) => {
     // v23.1.343 — Daniel : "le follow se termine une fois le service
     // terminé". On refuse aussi d'ENVOYER une demande de suivi quand la
     // fenêtre de service est close (rendu / confirmé / litige / fin+12h).
+    // v23.1.349 — SAUF abonnement PawFollow/PawFamily actif du demandeur.
     if (isServiceTrackingClosed(booking)) {
-      return res.status(410).json({
-        error: 'Service is over — live tracking is closed.',
-        code: 'TRACKING_ENDED',
-      });
+      const subscribed = await hasActiveTrackingSubscription(userId, userRole);
+      if (!subscribed) {
+        return res.status(410).json({
+          error: 'Service is over — live tracking is closed.',
+          code: 'TRACKING_ENDED',
+        });
+      }
     }
 
     const ownerId = booking.ownerId;
@@ -5011,6 +5044,49 @@ const requestLiveTrackingByConversation = async (req, res) => {
         error: 'Cannot request live tracking from yourself.',
         code: 'SELF_TRACKING_REQUEST',
       });
+    }
+
+    // v23.1.349 — Daniel (BUG GRAVE) : "une fois le service fini j'ai renvoyé
+    // une demande de suivi et ça a marché — ça doit être bloqué avec un message
+    // 'service fini, refaites un service ou prenez un abonnement PawFollow /
+    // PawFamily'". Puis précision Daniel : "ça a peut-être marché car j'ai un
+    // abonnement qui a continué à tourner" — EXACT, et c'est la bonne règle :
+    // un abonnement PawFollow/PawFamily ACTIF autorise le suivi continu hors
+    // service (c'est précisément ce que vend l'abonnement). Règle finale :
+    //   - conversation amis/famille (friendChat) → autorisé (produit PawFollow,
+    //     gaté par l'acceptation de l'autre partie) ;
+    //   - conversation booking + fenêtre de service OUVERTE → autorisé ;
+    //   - conversation booking + service fini : autorisé SI le demandeur a un
+    //     abonnement actif, sinon 410 + message d'upsell.
+    if (conversation.friendChat !== true) {
+      const convOwnerId = idStr(conversation.ownerId);
+      const convProviderField = conversation.walkerId ? 'walkerId' : 'sitterId';
+      const convProviderId = idStr(conversation.walkerId) || idStr(conversation.sitterId);
+      let hasOpenServiceWindow = false;
+      if (convOwnerId && convProviderId) {
+        const recent = await Booking.find({
+          ownerId: convOwnerId,
+          [convProviderField]: convProviderId,
+          paymentStatus: 'paid',
+          status: { $nin: ['cancelled', 'refunded'] },
+        })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .lean();
+        hasOpenServiceWindow = recent.some((b) => !isServiceTrackingClosed(b));
+      }
+      if (!hasOpenServiceWindow) {
+        // Abonnement PawFollow / PawFamily actif du DEMANDEUR → autorisé
+        // (suivi continu = le produit). Sinon : blocage + message d'upsell.
+        const subscribed = await hasActiveTrackingSubscription(userId, userRole);
+        if (!subscribed) {
+          return res.status(410).json({
+            error:
+              'Service is over — book a new service or subscribe to PawFollow / PawFamily for continuous tracking.',
+            code: 'TRACKING_ENDED',
+          });
+        }
+      }
     }
 
     // v23.1.256 — persiste la position GPS de l'appelant (si fournie) pour

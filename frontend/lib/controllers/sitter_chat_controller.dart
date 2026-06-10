@@ -207,6 +207,15 @@ class SitterChatController extends GetxController {
         _socketService.onMessageDeleted((payload) {
           _handleMessageDeleted(payload);
         });
+        // v23.1.349 — Daniel : statut de la carte pawfollow_request pas
+        // instantané (cf chat_controller pour le détail) → on applique
+        // message:updated en remplaçant le message par sa version à jour.
+        _socketService.socket?.off('message:updated');
+        _socketService.socket?.on('message:updated', (data) {
+          if (data is Map) {
+            _handleMessageUpdated(Map<String, dynamic>.from(data));
+          }
+        });
       }
 
       wireListeners();
@@ -257,6 +266,31 @@ class SitterChatController extends GetxController {
       currentChatMessages.refresh();
     } catch (e) {
       AppLogger.logError('Error handling message deleted', error: e);
+    }
+  }
+
+  // v23.1.349 — remplace un message existant par sa version mise à jour
+  // (statut de carte pawfollow_request, etc.) — instantané, sans refresh.
+  void _handleMessageUpdated(Map<String, dynamic> messageData) {
+    try {
+      final conversationId =
+          messageData['conversationId']?.toString() ??
+          messageData['conversation']?['id']?.toString() ??
+          '';
+      if (conversationId != currentChatId.value) return;
+      final raw = messageData['message'] is Map
+          ? Map<String, dynamic>.from(messageData['message'] as Map)
+          : messageData;
+      final userProfile =
+          _storage.read<Map<String, dynamic>>(StorageKeys.userProfile);
+      final userId = userProfile?['id']?.toString() ?? '';
+      final updated = _mapToSitterChatMessage(raw, userId, 'sitter');
+      final idx = currentChatMessages.indexWhere((m) => m.id == updated.id);
+      if (idx < 0) return; // pas encore affiché → message:new s'en charge
+      currentChatMessages[idx] = updated;
+      currentChatMessages.refresh();
+    } catch (e) {
+      AppLogger.logError('Error handling message updated', error: e);
     }
   }
 
