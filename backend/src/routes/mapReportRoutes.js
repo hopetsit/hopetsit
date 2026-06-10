@@ -372,6 +372,17 @@ router.post('/:id/confirm', requireAuth, requirePremium, async (req, res) => {
     );
     if (!already) {
       report.confirmations.push({ userId: req.user.id, userModel });
+      // v23.1.353 — système PawPoints : +1 pt au REPORTER quand son
+      // signalement est confirmé par un voisin ("signalement correct").
+      try {
+        const pawPoints = require('../services/pawPointsService');
+        pawPoints.awardPoints({
+          userId: report.reporterId,
+          role: String(report.reporterModel || 'Owner').toLowerCase(),
+          points: pawPoints.POINTS.correctReport,
+          reason: 'map report confirmed',
+        });
+      } catch (_) {/* non-critique */}
       // extend by 12h, cap at 96h from creation
       const MAX_TTL = 96 * 60 * 60 * 1000;
       const creationTime = new Date(report.createdAt).getTime();

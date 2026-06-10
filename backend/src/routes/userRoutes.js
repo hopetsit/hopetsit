@@ -142,12 +142,29 @@ router.get(
       // coexister sans se calculer ensemble.
       const pawFollowActive = !!user.isPremium || subscriptionActive;
 
+      // v23.1.353 — refonte PawSpot : abo communautaire actif ? (+ essai 7 j)
+      let pawspotActive = false;
+      let pawspotExpiry = null;
+      try {
+        const psSub = await UserSubscription.findOne({
+          userId: req.user.id,
+          userModel: role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner',
+        }).select('pawspotExpiry').lean();
+        if (psSub?.pawspotExpiry && new Date(psSub.pawspotExpiry) > now) {
+          pawspotActive = true;
+          pawspotExpiry = psSub.pawspotExpiry;
+        }
+      } catch (_) {/* défensif */}
+
       const payload = {
         role,
         boostExpiry: user.boostExpiry || null,
         boostTier: user.boostTier || null,
         mapBoostExpiry: user.mapBoostExpiry || null,
         mapBoostTier: user.mapBoostTier || null,
+        pawspotActive,
+        pawspotExpiry,
+        pawPoints: user.pawPoints || 0,
         mapBoostLocation: user.mapBoostLocation || null,
         kycStatus: user.kycStatus || 'none',
         kycVerifiedAt: user.kycVerifiedAt || null,

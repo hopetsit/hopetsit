@@ -245,19 +245,19 @@ export default function BoutiquePage() {
           onClick={() => setSection("premium")}
         />
         {isProvider && (
-          <>
-            <SectionTab
-              label={t("shop_tab_boost")}
-              active={section === "boost"}
-              onClick={() => setSection("boost")}
-            />
-            <SectionTab
-              label={t("shop_tab_mapboost")}
-              active={section === "mapboost"}
-              onClick={() => setSection("mapboost")}
-            />
-          </>
+          <SectionTab
+            label={t("shop_tab_boost")}
+            active={section === "boost"}
+            onClick={() => setSection("boost")}
+          />
         )}
+        {/* v23.1.353 — PawSpot communautaire : pour TOUS les rôles (plus
+            seulement les prestataires comme l'ancien map boost). */}
+        <SectionTab
+          label={t("shop_tab_mapboost")}
+          active={section === "mapboost"}
+          onClick={() => setSection("mapboost")}
+        />
       </div>
 
       {section === "premium" && (
@@ -284,16 +284,40 @@ export default function BoutiquePage() {
         />
       )}
 
-      {section === "mapboost" && isProvider && (
-        <BoostSection
-          title={t("shop_mapboost_title")}
-          subtitle={t("shop_mapboost_subtitle")}
-          packages={mapBoostPkgs}
-          status={mapBoostStatus}
-          purposeKey="mapboost"
-          onBuy={handleBuyMapBoost}
-          purchasing={purchasing}
-        />
+      {/* v23.1.353 — refonte PawSpot (Daniel) : fini les paliers de halos sur
+          la carte. PawSpot = abonnement communautaire (taguer des spots
+          pet-friendly, PawPoints, badges 🥉🥈🥇👑, empreinte dorée 🐾,
+          classements, récompenses) — 4,99 €/mois · 39,99 €/an · essai 7 j.
+          L'abonnement se prend DANS L'APP (boutique → onglet PawSpot). */}
+      {section === "mapboost" && (
+        <section className="rounded-3xl border border-ink/5 bg-white p-8 shadow-card">
+          <h2 className="font-display text-2xl font-extrabold text-ink">
+            🐾 {t("shop_mapboost_title")}
+          </h2>
+          <p className="mt-2 max-w-2xl text-ink-muted">{t("shop_mapboost_subtitle")}</p>
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-ink/5 bg-amber-50 p-6">
+              <h3 className="text-lg font-bold text-ink">{t("pawspot_monthly_name")}</h3>
+              <p className="mt-2 text-3xl font-extrabold text-amber-600">4,99 €</p>
+              <p className="mt-2 text-sm text-ink-muted">{t("pawspot_monthly_details")}</p>
+            </div>
+            <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-6">
+              <h3 className="text-lg font-bold text-ink">
+                {t("pawspot_yearly_name")}{" "}
+                <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-white">-33%</span>
+              </h3>
+              <p className="mt-2 text-3xl font-extrabold text-amber-600">39,99 €</p>
+              <p className="mt-2 text-sm text-ink-muted">{t("pawspot_yearly_details")}</p>
+            </div>
+          </div>
+          <p className="mt-5 text-sm text-ink-muted">{t("pawspot_footer_note")}</p>
+          <a
+            href="/download"
+            className="mt-6 inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white hover:bg-amber-600"
+          >
+            {t("nav_download")} →
+          </a>
+        </section>
       )}
     </div>
   );

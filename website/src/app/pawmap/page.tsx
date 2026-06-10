@@ -83,11 +83,11 @@ export default function PawMapPage() {
     },
   ];
 
+  // v23.1.353 — refonte PawSpot : abonnement communautaire (spots tagués,
+  // PawPoints, badges, empreinte dorée 🐾) — 2 plans + essai 7 jours.
   const pawspotOffers: Offer[] = [
-    { name: t("pawspot_24h_name"), price: "1,99 €", details: t("pawspot_24h_details") },
-    { name: t("pawspot_7d_name"), price: "8,99 €", details: t("pawspot_7d_details") },
-    { name: t("pawspot_15d_name"), price: "14,99 €", details: t("pawspot_15d_details") },
-    { name: t("pawspot_30d_name"), price: "24,99 €", details: t("pawspot_30d_details") },
+    { name: t("pawspot_monthly_name"), price: "4,99 €", details: t("pawspot_monthly_details") },
+    { name: t("pawspot_yearly_name"), price: "39,99 €", details: t("pawspot_yearly_details") },
   ];
 
   return (
@@ -222,7 +222,7 @@ export default function PawMapPage() {
           {t("pawspot_desc")}
         </p>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
           {pawspotOffers.map((o) => (
             <div key={o.name} className="rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
               <h3 className="text-lg font-bold text-ink">{o.name}</h3>

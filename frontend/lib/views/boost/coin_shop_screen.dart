@@ -1,33 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/chat_addon_controller.dart';
-import 'package:hopetsit/controllers/map_boost_controller.dart';
 import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/services/airwallex_payment_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_purchase_refresh.dart';
-import 'package:hopetsit/views/auth/location_picker_map_screen.dart';
-import 'package:hopetsit/views/boost/widgets/map_boost_pin_icon.dart';
+import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// Boutique screen — 3 tabs:
-///   1. Boost     — one-time profile boost (existing feature)
-///   2. Premium   — PawMap Premium subscription (€3.90/mo or €30/yr)
-///   3. Map Boost — placeholder for Phase 5 (map visibility boost)
+///   1. Boost   — one-time profile boost (existing feature)
+///   2. PawPass — PawFollow / PawFamily subscription
+///   3. PawSpot — community subscription (tag pet-friendly spots on the
+///                PawMap, PawPoints + badges, leaderboards, rewards)
 ///
 /// Available for the 3 roles: Owner, Sitter, Walker.
 class CoinShopScreen extends StatefulWidget {
   const CoinShopScreen({super.key, this.initialTab = 0});
 
   /// Index of the tab to show first. 0 = Boost (default), 1 = Premium,
-  /// 2 = Map Boost. Used by the PawMap "Passer Premium" banner to land
+  /// 2 = PawSpot. Used by the PawMap "Passer Premium" banner to land
   /// directly on the Premium offers rather than the Boost page.
   final int initialTab;
 
@@ -77,10 +76,12 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             labelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700),
             unselectedLabelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w500),
             // v21.1.1 — rebrand : Premium → PawPass, Map Boost → PawSpot.
+            // Refonte PawSpot — l'identité passe du pin bleu à l'empreinte
+            // dorée (abonnement communautaire, plus un map boost).
             tabs: [
               Tab(icon: const Icon(Icons.trending_up, size: 20), text: 'shop_tab_boost'.tr),
               Tab(icon: const Icon(Icons.star_rounded, size: 22), text: 'shop_tab_pawpass'.tr),
-              Tab(icon: const Icon(Icons.location_on_outlined, size: 20), text: 'shop_tab_pawspot'.tr),
+              Tab(icon: const Icon(Icons.pets_rounded, size: 20), text: 'shop_tab_pawspot'.tr),
             ],
           ),
         ),
@@ -88,7 +89,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
           children: [
             _BoostTab(),
             _PremiumTab(),
-            _MapBoostTab(),
+            _PawSpotTab(),
           ],
         ),
       ),
@@ -1555,132 +1556,472 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  TAB 3 — MAP BOOST (PawMap pin highlight)
+//  TAB 3 — PAWSPOT (community subscription)
+//  Refonte : l'ancien "map boost" à tiers (bronze→platinum, halos sur la
+//  carte) est remplacé par l'abonnement communautaire PawSpot : taguer des
+//  spots pet-friendly sur la PawMap, PawPoints + badges, classements et
+//  récompenses. 4,99 €/mois · 39,99 €/an · essai gratuit 7 jours.
 // ═══════════════════════════════════════════════════════════════════════════
-class _MapBoostTab extends StatefulWidget {
-  const _MapBoostTab();
+class _PawSpotTab extends StatefulWidget {
+  const _PawSpotTab();
 
   @override
-  State<_MapBoostTab> createState() => _MapBoostTabState();
+  State<_PawSpotTab> createState() => _PawSpotTabState();
 }
 
-class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClientMixin {
+class _PawSpotTabState extends State<_PawSpotTab>
+    with AutomaticKeepAliveClientMixin {
+  // Identité PawSpot : empreinte sur dégradé doré.
+  static const Color _gold = Color(0xFFE8A00A);
+  static const Color _goldLight = Color(0xFFFFD700);
+
+  static const double _monthlyPrice = 4.99;
+  static const double _yearlyPrice = 39.99;
+
+  bool _loading = true;
+  bool _trialLoading = false;
+  String? _purchasingPlan; // 'monthly' | 'yearly' pendant un achat
+  String? _redeemingReward; // 'badge_color' | 'gold_frame' | 'banner'
+
+  /// Payload brut de GET /pawspots/me/points.
+  Map<String, dynamic> _me = const {};
+
   @override
   bool get wantKeepAlive => true;
 
   @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final MapBoostController controller = Get.isRegistered<MapBoostController>()
-        ? Get.find<MapBoostController>()
-        : Get.put(MapBoostController());
-
-    return Obx(() {
-      if (controller.isLoading.value && controller.status.value == null) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      return RefreshIndicator(
-        onRefresh: controller.refresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.all(16.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildMapBoostStatus(context, controller),
-              SizedBox(height: 12.h),
-              // v23.1 part 108 — section PawSpot location custom.
-              _buildPawSpotLocationCard(context, controller),
-              // v23.1 part 120 — Daniel : "le paw sport ne saffiche pas sur
-              // la carte". En réalité ton propre marker n'est visible que
-              // pour les OWNERS regardant la map. En walker/sitter mode,
-              // tu ne vois pas les autres walkers/sitters (par design).
-              // On rajoute une note pour clarifier.
-              Obx(() {
-                final isActive = controller.status.value?.isActive ?? false;
-                if (!isActive) return const SizedBox.shrink();
-                return Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.h),
-                  child: Container(
-                    padding: EdgeInsets.all(12.w),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(10.r),
-                      border: Border.all(
-                        color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded,
-                            color: const Color(0xFF3B82F6), size: 16.sp),
-                        SizedBox(width: 8.w),
-                        Expanded(
-                          child: InterText(
-                            text: 'mapboost_info_visibility'.tr,
-                            fontSize: 11.sp,
-                            color: AppColors.textPrimary(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              SizedBox(height: 16.h),
-              _buildPremiumCreditCard(context, controller),
-              SizedBox(height: 20.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InterText(
-                          text: 'mapboost_header_title'.tr,
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
-                        ),
-                        SizedBox(height: 4.h),
-                        InterText(
-                          text: 'mapboost_header_subtitle'.tr,
-                          fontSize: 12.sp,
-                          color: AppColors.greyText,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _buildCurrencyChip(context, controller),
-                ],
-              ),
-              SizedBox(height: 16.h),
-              ...controller.packages.map((p) => _buildPackageCard(context, controller, p)),
-              SizedBox(height: 24.h),
-              _buildHowItWorks(context),
-              SizedBox(height: 40.h),
-            ],
-          ),
-        ),
-      );
-    });
+  void initState() {
+    super.initState();
+    _loadPoints();
   }
 
-  Widget _buildMapBoostStatus(BuildContext context, MapBoostController controller) {
-    final status = controller.status.value;
-    final isActive = status?.isActive ?? false;
+  Future<void> _loadPoints() async {
+    try {
+      final api = Get.find<ApiClient>();
+      final data = await api.get('/pawspots/me/points', requiresAuth: true);
+      if (!mounted) return;
+      if (data is Map) {
+        setState(() => _me = Map<String, dynamic>.from(data));
+      }
+    } catch (_) {
+      // Best-effort : on garde l'état précédent si l'appel échoue.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ── Accès payload ─────────────────────────────────────────────────────────
+  bool get _subscribed => _me['subscribed'] == true;
+  bool get _trialUsed => _me['trialUsed'] == true;
+  bool get _isGoldCreator => _me['isGoldCreator'] == true;
+  int get _points => (_me['points'] as num?)?.toInt() ?? 0;
+
+  Map<String, dynamic>? get _badge =>
+      _me['badge'] is Map ? Map<String, dynamic>.from(_me['badge'] as Map) : null;
+
+  Map<String, dynamic>? get _nextBadge => _me['nextBadge'] is Map
+      ? Map<String, dynamic>.from(_me['nextBadge'] as Map)
+      : null;
+
+  int get _remainingDays {
+    final raw = _me['pawspotExpiry'];
+    if (raw is! String || raw.isEmpty) return 0;
+    final expiry = DateTime.tryParse(raw);
+    if (expiry == null) return 0;
+    final diff = expiry.difference(DateTime.now()).inDays;
+    return diff < 0 ? 0 : diff;
+  }
+
+  /// Mapping key backend → libellé traduit (qui inclut déjà emoji + seuil).
+  String _badgeLabel(String key) {
+    switch (key) {
+      case 'explorer':
+        return 'pawspot_badge_explorer'.tr;
+      case 'expert':
+        return 'pawspot_badge_expert'.tr;
+      case 'ambassador':
+        return 'pawspot_badge_ambassador'.tr;
+      case 'pawmaster':
+        return 'pawspot_badge_pawmaster'.tr;
+      default:
+        return key;
+    }
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  Future<void> _startTrial() async {
+    if (_trialLoading) return;
+    setState(() => _trialLoading = true);
+    try {
+      final api = Get.find<ApiClient>();
+      await api.post('/pawspots/trial', requiresAuth: true);
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'pawspot_trial_started'.tr,
+      );
+      await _loadPoints();
+      await refreshAfterPurchase();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 409) {
+        // 409 TRIAL_USED → on grise le bouton localement sans attendre
+        // le prochain GET.
+        setState(() => _me = {..._me, 'trialUsed': true});
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'pawspot_trial_used'.tr,
+        );
+      } else {
+        CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString(),
+      );
+    } finally {
+      if (mounted) setState(() => _trialLoading = false);
+    }
+  }
+
+  /// Long-press sur une carte plan : payer avec le wallet (sitter/walker).
+  /// Même pattern que le Boost tab — confirm dialog puis payWithWallet:true ;
+  /// le backend rejette les owners avec un message clair.
+  Future<void> _confirmPayWithWallet(String plan) async {
+    final amount = plan == 'yearly' ? _yearlyPrice : _monthlyPrice;
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('coin_shop_pay_wallet_dialog_title'.tr),
+        content: Text(
+          'coin_shop_boost_wallet_confirm_msg'.trParams({
+            'amount': '${amount.toStringAsFixed(2)} EUR',
+          }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('common_cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text('coin_shop_pay_wallet_btn'.tr),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _subscribe(plan, payWithWallet: true);
+    }
+  }
+
+  Future<void> _subscribe(String plan, {bool payWithWallet = false}) async {
+    if (_purchasingPlan != null) return;
+    final price = plan == 'yearly' ? _yearlyPrice : _monthlyPrice;
+    final planLabel = plan == 'yearly'
+        ? 'pawspot_plan_yearly'.tr
+        : 'pawspot_plan_monthly'.tr;
+
+    // Confirm dialog AVANT l'appel — même garde-fou que le Boost tab :
+    // le backend active immédiatement les comptes staff dès le POST
+    // /pawspots/subscribe, sans page de paiement.
+    if (!payWithWallet) {
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('PawSpot'),
+          content: Text('$planLabel · ${CurrencyHelper.format('EUR', price)}'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text('common_cancel'.tr),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('common_confirm'.tr),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    setState(() => _purchasingPlan = plan);
+    try {
+      final api = Get.find<ApiClient>();
+      final currency = Get.isRegistered<SubscriptionController>()
+          ? Get.find<SubscriptionController>().currency.value
+          : 'EUR';
+      final data = await api.post(
+        '/pawspots/subscribe',
+        body: {
+          'plan': plan,
+          'currency': currency,
+          'payWithWallet': payWithWallet,
+        },
+        requiresAuth: true,
+      );
+      final map = data as Map<String, dynamic>;
+
+      // Staff (gratuit) ou wallet (débit direct) → activation immédiate,
+      // pas de HPP Airwallex.
+      if (map['activated'] == true &&
+          (map['staffFree'] == true ||
+              map['staff'] == true ||
+              map['paidFromWallet'] == true)) {
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: map['paidFromWallet'] == true
+              ? 'coin_shop_boost_wallet_success'.tr
+              : 'premium_activated_msg'.tr,
+        );
+        await _loadPoints();
+        await refreshAfterPurchase();
+        return;
+      }
+
+      final clientSecret = map['clientSecret'] as String?;
+      final paymentIntentId = map['paymentIntentId'] as String?;
+      if (clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Failed to create payment intent.');
+      }
+
+      final displayAmount = (map['amount'] as num?)?.toDouble() ?? price;
+      final displayCurrency = (map['currency'] as String?) ?? currency;
+
+      // Même flux HPP Airwallex que les autres achats du shop.
+      AppLogger.logInfo(
+          '[pawspot] AIRWALLEX flow ($displayAmount $displayCurrency, $plan)');
+      final result = await AirwallexPaymentService.confirmPaymentIntent(
+        intentId: paymentIntentId ?? '',
+        clientSecret: clientSecret,
+        amount: displayAmount,
+        currency: displayCurrency,
+      );
+      if (!mounted) return;
+      if (result.isSuccess) {
+        // Activation sync après le retour HPP.
+        await api.post(
+          '/pawspots/confirm',
+          body: {'paymentIntentId': paymentIntentId, 'plan': plan},
+          requiresAuth: true,
+        );
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'premium_activated_msg'.tr,
+        );
+        await _loadPoints();
+        await refreshAfterPurchase();
+      } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: result.errorMessage ?? 'boost_purchase_error'.tr,
+        );
+      }
+      // cancelled → silencieux (même comportement que les autres onglets).
+    } catch (e) {
+      if (!mounted) return;
+      String msg = e is ApiException ? e.message : e.toString();
+      if (msg.contains('<!DOCTYPE') || msg.contains('<html') || msg.contains('404')) {
+        msg = 'boost_service_unavailable'.tr;
+      }
+      CustomSnackbar.showError(title: 'common_error'.tr, message: msg);
+    } finally {
+      if (mounted) setState(() => _purchasingPlan = null);
+    }
+  }
+
+  Future<void> _redeem(String reward, {String? color, String? bannerUrl}) async {
+    if (_redeemingReward != null) return;
+    setState(() => _redeemingReward = reward);
+    try {
+      final api = Get.find<ApiClient>();
+      await api.post(
+        '/pawspots/rewards/redeem',
+        body: {
+          'reward': reward,
+          if (color != null) 'color': color,
+          if (bannerUrl != null) 'bannerUrl': bannerUrl,
+        },
+        requiresAuth: true,
+      );
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'pawspot_reward_redeemed'.tr,
+      );
+      await _loadPoints();
+    } on ApiException catch (e) {
+      // 402 INSUFFICIENT_POINTS / PAWSPOT_REQUIRED → message backend.
+      if (!mounted) return;
+      CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: e.toString(),
+      );
+    } finally {
+      if (mounted) setState(() => _redeemingReward = null);
+    }
+  }
+
+  /// Mini picker de 6 couleurs prédéfinies pour la récompense badge_color.
+  Future<void> _pickBadgeColor() async {
+    const swatches = <String>[
+      '#E8472A', // rouge HopeTSIT
+      '#F59E0B', // ambre
+      '#10B981', // émeraude
+      '#3B82F6', // bleu
+      '#8B5CF6', // violet
+      '#EC4899', // rose
+    ];
+    final picked = await Get.dialog<String>(
+      AlertDialog(
+        title: Text('pawspot_reward_badge_color'.tr),
+        content: Wrap(
+          spacing: 12.w,
+          runSpacing: 12.h,
+          children: swatches.map((hex) {
+            final color = Color(
+                0xFF000000 | int.parse(hex.substring(1), radix: 16));
+            return GestureDetector(
+              onTap: () => Get.back(result: hex),
+              child: Container(
+                width: 44.w,
+                height: 44.w,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('common_cancel'.tr),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) {
+      await _redeem('badge_color', color: picked);
+    }
+  }
+
+  /// Dialog avec champ URL simple pour la récompense bannière.
+  Future<void> _askBannerUrl() async {
+    final controller = TextEditingController();
+    final url = await Get.dialog<String>(
+      AlertDialog(
+        title: Text('pawspot_reward_banner'.tr),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            hintText: 'https://…',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('common_cancel'.tr),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: controller.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _gold,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('common_confirm'.tr),
+          ),
+        ],
+      ),
+    );
+    if (url != null && url.isNotEmpty) {
+      await _redeem('banner', bannerUrl: url);
+    }
+  }
+
+  // ── UI ────────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return RefreshIndicator(
+      onRefresh: _loadPoints,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.all(16.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context),
+            SizedBox(height: 14.h),
+            _buildStatusCard(context),
+            SizedBox(height: 14.h),
+            _buildPlanCards(context),
+            SizedBox(height: 12.h),
+            _buildPlanFeatures(context),
+            SizedBox(height: 20.h),
+            _buildPointsCard(context),
+            SizedBox(height: 14.h),
+            _buildHowToEarnCard(context),
+            SizedBox(height: 14.h),
+            _buildBadgesCard(context),
+            if (_subscribed) ...[
+              SizedBox(height: 14.h),
+              _buildRewardsCard(context),
+            ],
+            SizedBox(height: 18.h),
+            _buildLeaderboardButton(context),
+            SizedBox(height: 40.h),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// a. Header doré : empreinte 🐾 sur dégradé doré.
+  Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isActive
-              ? const [Color(0xFF43E97B), Color(0xFF38F9D7)]
-              : [Colors.grey.shade300, Colors.grey.shade200],
+        gradient: const LinearGradient(
+          colors: [_gold, _goldLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: _gold.withValues(alpha: 0.30),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -1692,10 +2033,7 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Center(
-              child: Text(
-                isActive ? '🗺️' : '📍',
-                style: TextStyle(fontSize: 28.sp),
-              ),
+              child: Text('🐾', style: TextStyle(fontSize: 28.sp)),
             ),
           ),
           SizedBox(width: 14.w),
@@ -1703,40 +2041,19 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InterText(
-                  text: isActive ? 'mapboost_active'.tr : 'mapboost_inactive'.tr,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w700,
-                  color: isActive ? Colors.white : AppColors.blackColor,
+                PoppinsText(
+                  text: 'PawSpot',
+                  fontSize: 19.sp,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
                 ),
-                SizedBox(height: 4.h),
+                SizedBox(height: 3.h),
                 InterText(
-                  text: isActive
-                      ? 'mapboost_remaining_days'.trParams({
-                          'days': '${status!.remainingDays}',
-                        })
-                      : 'mapboost_pin_default'.tr,
+                  text: 'pawspot_shop_subtitle'.tr,
                   fontSize: 12.sp,
-                  color: isActive
-                      ? Colors.white.withValues(alpha: 0.9)
-                      : AppColors.greyText,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  maxLines: 2,
                 ),
-                if (isActive && status!.tier != null) ...[
-                  SizedBox(height: 4.h),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: InterText(
-                      text: status.tier!.toUpperCase(),
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -1745,492 +2062,206 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     );
   }
 
-  // v23.1 part 108 — Daniel : "les pawspot ne marchent toujours pas".
-  // Le PawSpot avait besoin d'une position spécifique sur la carte (pas
-  // l'adresse perso du user). Ce widget permet à l'user de :
-  //   - voir la position actuelle de son PawSpot (custom ou fallback)
-  //   - choisir un nouveau spot (ouvre le LocationPickerMapScreen)
-  //   - revenir au fallback (= adresse perso) en supprimant le custom
-  // Au 1er affichage, on charge la location courante.
-  Widget _buildPawSpotLocationCard(
-    BuildContext context,
-    MapBoostController controller,
-  ) {
-    if (!_locLoaded) {
-      _locLoaded = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.loadCurrentLocation();
-      });
-    }
-    return Obx(() {
-      final loc = controller.currentLocation.value;
-      if (loc == null) return const SizedBox.shrink();
-      final hasCustom = loc['hasCustomLocation'] == true;
-      final isFallback = loc['isFallback'] == true;
-      final hasFallback = loc['hasFallback'] == true;
-      final lat = loc['lat'] is num ? (loc['lat'] as num).toDouble() : null;
-      final lng = loc['lng'] is num ? (loc['lng'] as num).toDouble() : null;
-      final label = (loc['label'] as String?) ?? '';
-
-      String summary;
-      Color borderColor;
-      if (hasCustom) {
-        summary = label.isNotEmpty
-            ? 'coin_shop_pawspot_summary_custom'.trParams({'label': label})
-            : 'coin_shop_pawspot_summary_custom_coords'.trParams({
-                'lat': lat?.toStringAsFixed(4) ?? '?',
-                'lng': lng?.toStringAsFixed(4) ?? '?',
-              });
-        borderColor = const Color(0xFF10B981);
-      } else if (isFallback) {
-        summary = 'coin_shop_pawspot_summary_fallback'.tr;
-        borderColor = const Color(0xFFF39C12);
-      } else if (!hasFallback) {
-        summary = 'coin_shop_pawspot_summary_none'.tr;
-        borderColor = const Color(0xFFE74C3C);
-      } else {
-        summary = 'coin_shop_pawspot_summary_loading'.tr;
-        borderColor = AppColors.divider(context);
-      }
-
+  /// b. Carte statut : abonné (jours restants) ou bouton essai gratuit.
+  Widget _buildStatusCard(BuildContext context) {
+    if (_subscribed) {
       return Container(
         padding: EdgeInsets.all(14.w),
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: borderColor, width: 1.5),
+          border: Border.all(color: _gold, width: 1.5),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Icon(Icons.place, color: AppColors.primaryColor, size: 20.sp),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: InterText(
-                    text: 'coin_shop_pawspot_location_title'.tr,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8.h),
-            InterText(
-              text: summary,
-              fontSize: 12.sp,
-              color: AppColors.textSecondary(context),
-            ),
-            SizedBox(height: 12.h),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _pickPawSpotLocation(context, controller),
-                    icon: const Icon(Icons.map),
-                    label: Text(hasCustom
-                        ? 'coin_shop_pawspot_change_btn'.tr
-                        : 'coin_shop_pawspot_choose_btn'.tr),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 10.h),
-                    ),
-                  ),
-                ),
-                if (hasCustom) ...[
-                  SizedBox(width: 8.w),
-                  IconButton(
-                    onPressed: () => _clearPawSpotLocation(context, controller),
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: 'coin_shop_pawspot_reset_tooltip'.tr,
-                  ),
-                ],
-              ],
-            ),
-            // v23.1 part 115 — Daniel : "pkoi ne pas joindre ma position a
-            // paw spot cest plus facile non ?". Bouton shortcut qui prend
-            // la position GPS actuelle et l'affecte directement, sans
-            // ouvrir le picker carte.
-            SizedBox(height: 8.h),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: () => _useCurrentLocationAsPawSpot(context, controller),
-                icon: Icon(Icons.my_location_rounded, color: AppColors.primaryColor, size: 18.sp),
-                label: Text(
-                  'pawspot_use_my_position'.tr,
-                  style: TextStyle(
-                    color: AppColors.primaryColor,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 8.h),
-                ),
+            Icon(Icons.check_circle_rounded, color: _gold, size: 24.sp),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: InterText(
+                text: 'pawspot_active_until'
+                    .trParams({'days': '$_remainingDays'}),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
               ),
             ),
           ],
         ),
       );
-    });
-  }
-
-  // v23.1 part 115 — récupère la position GPS du device et la set comme
-  // PawSpot directement, sans passer par le picker carte.
-  Future<void> _useCurrentLocationAsPawSpot(
-    BuildContext context,
-    MapBoostController controller,
-  ) async {
-    try {
-      // Demande la permission de localisation si pas déjà OK.
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.deniedForever ||
-          perm == LocationPermission.denied) {
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'pawspot_perm_denied'.tr,
-        );
-        return;
-      }
-      // Snackbar de chargement (la lecture GPS peut prendre 2-5s).
-      CustomSnackbar.showSuccess(
-        title: 'pawspot_use_loading_title'.tr,
-        message: 'pawspot_use_loading_msg'.tr,
-      );
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+    }
+    if (_trialUsed) {
+      // 409 TRIAL_USED (ou flag du payload) → texte grisé non cliquable.
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 12.h),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14.r),
+        ),
+        child: Center(
+          child: InterText(
+            text: 'pawspot_trial_used'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.greyText,
+          ),
         ),
       );
-      final ok = await controller.setCustomLocation(
-        lat: pos.latitude,
-        lng: pos.longitude,
-        label: 'pawspot_use_my_position_label'.tr,
-      );
-      if (!mounted) return;
-      if (ok) {
-        CustomSnackbar.showSuccess(
-          title: 'common_success'.tr,
-          message: 'pawspot_use_success_msg'.tr,
-        );
-      } else {
-        CustomSnackbar.showError(
-          title: 'common_error'.tr,
-          message: 'pawspot_use_fail_msg'.tr,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: 'pawspot_gps_error'.trParams({'error': e.toString()}),
-      );
     }
-  }
-
-  bool _locLoaded = false;
-
-  Future<void> _pickPawSpotLocation(
-    BuildContext context,
-    MapBoostController controller,
-  ) async {
-    // Réutilise le LocationPickerMapScreen existant (utilisé déjà au signup).
-    // Il retourne { city, latitude, longitude } via Get.back(result: ...).
-    final result = await Get.to<Map<String, dynamic>?>(
-      () => const LocationPickerMapScreen(),
-    );
-    if (result == null) return;
-    final lat = (result['latitude'] as num?)?.toDouble();
-    final lng = (result['longitude'] as num?)?.toDouble();
-    final label = (result['city'] as String?) ?? '';
-    if (lat == null || lng == null) return;
-    final ok = await controller.setCustomLocation(lat: lat, lng: lng, label: label);
-    if (!mounted) return;
-    if (ok) {
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: 'mapboost_location_updated'.trParams({'label': label}),
-      );
-    } else {
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: 'Échec de mise à jour du PawSpot.',
-      );
-    }
-  }
-
-  Future<void> _clearPawSpotLocation(
-    BuildContext context,
-    MapBoostController controller,
-  ) async {
-    final ok = await controller.clearCustomLocation();
-    if (!mounted) return;
-    if (ok) {
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: 'PawSpot supprimé. Ton adresse perso est utilisée.',
-      );
-    }
-  }
-
-  Widget _buildPremiumCreditCard(BuildContext context, MapBoostController controller) {
-    final credits = controller.status.value?.mapBoostCreditsRemaining ?? 0;
-    if (credits <= 0) return const SizedBox.shrink();
-    return Container(
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFD700), Color(0xFFFF9500)],
-        ),
-        borderRadius: BorderRadius.circular(14.r),
-      ),
-      child: Row(
-        children: [
-          Text('⭐', style: TextStyle(fontSize: 22.sp)),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InterText(
-                  text: '$credits crédit(s) Premium disponible(s)',
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _trialLoading ? null : _startTrial,
+        icon: _trialLoading
+            ? SizedBox(
+                width: 16.w,
+                height: 16.w,
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
                   color: Colors.white,
                 ),
-                SizedBox(height: 2.h),
+              )
+            : Icon(Icons.card_giftcard_rounded, size: 18.sp),
+        label: Text(
+          'pawspot_trial_btn'.tr,
+          style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _gold,
+          foregroundColor: Colors.white,
+          padding: EdgeInsets.symmetric(vertical: 12.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// c. 2 cartes plans côte à côte (Mensuel / Annuel).
+  Widget _buildPlanCards(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _planCard(
+              context,
+              plan: 'monthly',
+              title: 'pawspot_plan_monthly'.tr,
+              price: _monthlyPrice,
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: _planCard(
+              context,
+              plan: 'yearly',
+              title: 'pawspot_plan_yearly'.tr,
+              price: _yearlyPrice,
+              saveBadge: 'pawspot_save_badge'.tr,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _planCard(
+    BuildContext context, {
+    required String plan,
+    required String title,
+    required double price,
+    String? saveBadge,
+  }) {
+    final isPurchasing = _purchasingPlan != null;
+    final isThisPlan = _purchasingPlan == plan;
+    final isYearly = plan == 'yearly';
+    return GestureDetector(
+      onTap: isPurchasing ? null : () => _subscribe(plan),
+      // Wallet (sitter/walker) — même raccourci long-press que le Boost tab.
+      onLongPress: isPurchasing ? null : () => _confirmPayWithWallet(plan),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(12.w, 18.h, 12.w, 14.h),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(
+                color: isYearly ? _gold : AppColors.divider(context),
+                width: isYearly ? 2 : 1,
+              ),
+              boxShadow: isYearly
+                  ? [
+                      BoxShadow(
+                        color: _gold.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 InterText(
-                  text: '1 crédit = 3 jours gratuits de Map Boost',
+                  text: title,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+                SizedBox(height: 6.h),
+                isThisPlan
+                    ? SizedBox(
+                        width: 22.w,
+                        height: 22.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _gold,
+                        ),
+                      )
+                    : PoppinsText(
+                        text: CurrencyHelper.format('EUR', price),
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.w800,
+                        color: _gold,
+                      ),
+                SizedBox(height: 4.h),
+                InterText(
+                  text: isYearly
+                      ? '/ ${'pawspot_plan_yearly'.tr.toLowerCase()}'
+                      : '/ ${'pawspot_plan_monthly'.tr.toLowerCase()}',
                   fontSize: 11.sp,
-                  color: Colors.white.withValues(alpha: 0.95),
+                  color: AppColors.greyText,
                 ),
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final ok = await controller.claimPremiumCredit();
-              if (!mounted) return;
-              if (ok) {
-                CustomSnackbar.showSuccess(
-                  title: 'Crédit utilisé',
-                  message: '+3 jours de Map Boost appliqués.',
-                );
-              } else {
-                CustomSnackbar.showError(
-                  title: 'common_error'.tr,
-                  message: 'Impossible d\'utiliser le crédit.',
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFFFF9500),
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-            ),
-            child: InterText(
-              text: 'Utiliser',
-              fontSize: 11.sp,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFFFF9500),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrencyChip(BuildContext context, MapBoostController controller) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.divider(context)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: controller.currency.value,
-          isDense: true,
-          icon: Icon(Icons.arrow_drop_down, size: 18.sp, color: AppColors.greyText),
-          items: const ['EUR', 'GBP', 'CHF', 'USD']
-              .map((c) => DropdownMenuItem<String>(
-                    value: c,
-                    child: Text(c, style: TextStyle(fontSize: 12.sp)),
-                  ))
-              .toList(),
-          onChanged: (v) {
-            if (v != null) controller.setCurrency(v);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPackageCard(
-    BuildContext context,
-    MapBoostController controller,
-    MapBoostPackage pkg,
-  ) {
-    // Session v15-4 — identité visuelle distincte du Boost :
-    //   • pin cartographique animé (MapBoostPinIcon) au lieu des médailles
-    //   • accent bleu-map (+ or sur gold/platinum) au lieu du rouge primaryColor
-    //   • titres "Découverte / Visible / Pin Doré / Map Premium"
-    //   • badge "Top map" sur gold
-    //   • sous-titre descriptif sous le titre pour clarifier la valeur
-    final tierAccent = _mapBoostTierAccent(pkg.tier);
-    final isPopular = pkg.tier == 'gold';
-    // v23.1 part 63 — Bug G : show spinner only on the tapped tier, not
-    // every package row at once. Disable taps on ALL rows during a purchase
-    // (we don't want concurrent attempts) but ONLY this row spins.
-    final isPurchasing = controller.isPurchasing.value;
-    final isThisTier = controller.purchasingTier.value == pkg.tier;
-    final sym = CurrencyHelper.symbol(pkg.currency);
-    final pricePerDay = pkg.days > 0 ? (pkg.amount / pkg.days) : pkg.amount;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 12.h),
-      child: Stack(
-        children: [
-          GestureDetector(
-            onTap: isPurchasing
-                ? null
-                : () => _handlePurchase(context, controller, pkg.tier),
-            child: Container(
-              padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(
-                // v23.1.276 — fond adaptatif (dark mode lisible).
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(16.r),
-                border: isPopular
-                    ? Border.all(color: AppColors.mapBoostGold, width: 2)
-                    : null,
-                boxShadow: isPopular
-                    ? [
-                        BoxShadow(
-                          color: AppColors.mapBoostGold
-                              .withValues(alpha: 0.18),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 54.w,
-                    height: 54.w,
-                    decoration: BoxDecoration(
-                      color: tierAccent.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(14.r),
-                    ),
-                    child: Center(
-                      child: MapBoostPinIcon(tier: pkg.tier, size: 48),
-                    ),
-                  ),
-                  SizedBox(width: 14.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InterText(
-                          text: _mapBoostTierLabel(pkg.tier),
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
-                        ),
-                        SizedBox(height: 2.h),
-                        InterText(
-                          text: _mapBoostTierDescription(pkg.tier),
-                          fontSize: 11.sp,
-                          color: AppColors.greyText,
-                          maxLines: 2,
-                        ),
-                        SizedBox(height: 4.h),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 8.w, vertical: 2.h),
-                          decoration: BoxDecoration(
-                            color: tierAccent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: InterText(
-                            text:
-                                'mapboost_days_count'.trParams({'count': pkg.days.toString()}),
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.w600,
-                            color: tierAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      PoppinsText(
-                        text: '$sym${pkg.amount.toStringAsFixed(2)}',
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.w700,
-                        color: tierAccent,
-                      ),
-                      InterText(
-                        text:
-                            '$sym${pricePerDay.toStringAsFixed(2)}/${'boost_per_day'.tr}',
-                        fontSize: 10.sp,
-                        color: AppColors.greyText,
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 8.w),
-                  (isPurchasing && isThisTier)
-                      ? SizedBox(
-                          width: 20.w,
-                          height: 20.w,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: tierAccent),
-                        )
-                      : Icon(Icons.arrow_forward_ios,
-                          size: 16.sp, color: AppColors.greyText),
-                ],
-              ),
-            ),
-          ),
-          if (isPopular)
+          if (saveBadge != null)
             Positioned(
-              top: 0,
-              right: 16.w,
+              top: -8.h,
+              right: 10.w,
               child: Container(
-                padding:
-                    EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
                 decoration: BoxDecoration(
-                  color: AppColors.mapBoostGold,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(8.r),
-                    bottomRight: Radius.circular(8.r),
+                  gradient: const LinearGradient(
+                    colors: [_gold, _goldLight],
                   ),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: InterText(
-                  text: 'Top map',
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w700,
+                  text: saveBadge,
+                  fontSize: 9.sp,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
               ),
@@ -2240,67 +2271,163 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
     );
   }
 
-  /// Colour accent used on the Map Boost package card per tier. Blue for
-  /// the entry tiers, gold for the premium tiers so there's a gentle
-  /// progression that doesn't look like the Boost tab's medals.
-  Color _mapBoostTierAccent(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'bronze':
-        return const Color(0xFF60A5FA);
-      case 'silver':
-        return AppColors.mapBoostBlue;
-      case 'gold':
-        return AppColors.mapBoostGold;
-      case 'platinum':
-      case 'diamond':
-        return AppColors.mapBoostGoldDeep;
-      default:
-        return AppColors.mapBoostBlue;
-    }
+  /// c (suite). Les 4 features incluses, check doré.
+  Widget _buildPlanFeatures(BuildContext context) {
+    final features = <String>[
+      'pawspot_feature_unlimited'.tr,
+      'pawspot_feature_all'.tr,
+      'pawspot_feature_top'.tr,
+      'pawspot_feature_rewards'.tr,
+    ];
+    return Column(
+      children: features
+          .map(
+            (f) => Padding(
+              padding: EdgeInsets.only(bottom: 6.h),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: _gold, size: 16.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: InterText(
+                      text: f,
+                      fontSize: 13.sp,
+                      color: AppColors.textPrimary(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
 
-  /// Short value-prop shown under the tier title. Helps the user pick
-  /// without having to scroll through the "Comment fonctionne" section.
-  String _mapBoostTierDescription(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'bronze':
-        return 'mapboost_desc_bronze'.tr;
-      case 'silver':
-        return 'mapboost_desc_silver'.tr;
-      case 'gold':
-        return 'mapboost_desc_gold'.tr;
-      case 'platinum':
-      case 'diamond':
-        return 'mapboost_desc_platinum'.tr;
-      default:
-        return '';
+  /// d. Compteur de points + badge actuel + progression vers le suivant.
+  Widget _buildPointsCard(BuildContext context) {
+    final badge = _badge;
+    final next = _nextBadge;
+    double progress = 1.0;
+    if (next != null) {
+      final base = (badge?['min'] as num?)?.toDouble() ?? 0;
+      final target = (next['min'] as num?)?.toDouble() ?? 0;
+      progress = target > base
+          ? ((_points - base) / (target - base)).clamp(0.0, 1.0)
+          : 0.0;
     }
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: 'pawspot_points_title'.tr,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 10.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              PoppinsText(
+                text: '$_points',
+                fontSize: 34.sp,
+                fontWeight: FontWeight.w800,
+                color: _gold,
+              ),
+              SizedBox(width: 6.w),
+              Padding(
+                padding: EdgeInsets.only(bottom: 6.h),
+                child: InterText(
+                  text: 'pts',
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.greyText,
+                ),
+              ),
+              const Spacer(),
+              if (badge != null)
+                Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                  decoration: BoxDecoration(
+                    color: _gold.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: InterText(
+                    // Le libellé traduit inclut déjà l'emoji + le seuil.
+                    text: _badgeLabel((badge['key'] ?? '').toString()),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                    color: _gold,
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8.r),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8.h,
+              backgroundColor: _gold.withValues(alpha: 0.15),
+              valueColor: const AlwaysStoppedAnimation<Color>(_gold),
+            ),
+          ),
+          if (next != null) ...[
+            SizedBox(height: 8.h),
+            InterText(
+              text: 'pawspot_next_badge'.trParams({
+                'badge': (next['emoji'] ?? '').toString(),
+                'points': '${(next['min'] as num?)?.toInt() ?? 0}',
+              }),
+              fontSize: 12.sp,
+              color: AppColors.greyText,
+            ),
+          ],
+          if (_isGoldCreator) ...[
+            SizedBox(height: 10.h),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.workspace_premium_rounded,
+                    color: _gold, size: 18.sp),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: InterText(
+                    text: 'pawspot_badge_gold_creator'.tr,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                    color: _gold,
+                    maxLines: 2,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
-  Widget _buildHowItWorks(BuildContext context) {
-    // Session v15 — icônes plus parlantes + textes raccourcis / clarifiés.
-    // L'ancien set utilisait 4 icônes très proches visuellement (rond plein,
-    // tiret montant, étoile…), ce qui brouillait la lecture. Passage à un
-    // pin + œil + courbe + flèche de recyclage pour mieux différencier.
-    // v19.1.5 — i18n so the "How Map Boost works" list is translated instead
-    // of staying in French.
-    final steps = [
+  /// e. Comment gagner des points — 6 lignes.
+  Widget _buildHowToEarnCard(BuildContext context) {
+    final rows = <Map<String, dynamic>>[
+      {'icon': Icons.add_location_alt_rounded, 'text': 'pawspot_points_add'.tr},
+      {'icon': Icons.photo_camera_rounded, 'text': 'pawspot_points_photo'.tr},
+      {'icon': Icons.verified_rounded, 'text': 'pawspot_points_validated'.tr},
       {
-        'icon': Icons.push_pin_rounded,
-        'text': 'mapboost_how_step_1'.tr,
+        'icon': Icons.chat_bubble_outline_rounded,
+        'text': 'pawspot_points_comment'.tr,
       },
-      {
-        'icon': Icons.remove_red_eye_rounded,
-        'text': 'mapboost_how_step_2'.tr,
-      },
-      {
-        'icon': Icons.query_stats_rounded,
-        'text': 'mapboost_how_step_3'.tr,
-      },
-      {
-        'icon': Icons.autorenew_rounded,
-        'text': 'mapboost_how_step_4'.tr,
-      },
+      {'icon': Icons.flag_rounded, 'text': 'pawspot_points_report'.tr},
+      {'icon': Icons.favorite_rounded, 'text': 'pawspot_points_popular'.tr},
     ];
     return Container(
       padding: EdgeInsets.all(16.w),
@@ -2313,135 +2440,243 @@ class _MapBoostTabState extends State<_MapBoostTab> with AutomaticKeepAliveClien
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InterText(
-            text: 'mapboost_how_title'.tr,
-            fontSize: 14.sp,
+            text: 'pawspot_points_how_title'.tr,
+            fontSize: 15.sp,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary(context),
           ),
           SizedBox(height: 12.h),
-          ...steps.map((s) => Padding(
-                padding: EdgeInsets.only(bottom: 10.h),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 28.w,
-                      height: 28.w,
-                      decoration: BoxDecoration(
-                        color:
-                            AppColors.mapBoostBlue.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Icon(
-                        s['icon'] as IconData,
-                        size: 16.sp,
-                        color: AppColors.mapBoostBlue,
-                      ),
+          ...rows.map(
+            (r) => Padding(
+              padding: EdgeInsets.only(bottom: 10.h),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28.w,
+                    height: 28.w,
+                    decoration: BoxDecoration(
+                      color: _gold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8.r),
                     ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: InterText(
-                        text: s['text'] as String,
-                        fontSize: 13.sp,
-                        color: AppColors.textPrimary(context),
-                      ),
+                    child: Icon(
+                      r['icon'] as IconData,
+                      size: 15.sp,
+                      color: _gold,
                     ),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-
-  /// Session v15-4 — tier labels renamed to drop the medal metaphor
-  /// (bronze/silver/gold/diamond) and sound like a map visibility progression.
-  /// The tier *keys* stay bronze/silver/gold/platinum for backend compat;
-  /// only the display label changes here.
-  String _mapBoostTierLabel(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'bronze':
-        return 'mapboost_tier_bronze'.tr;
-      case 'silver':
-        return 'mapboost_tier_silver'.tr;
-      case 'gold':
-        return 'mapboost_tier_gold'.tr;
-      case 'platinum':
-      case 'diamond':
-        return 'mapboost_tier_platinum'.tr;
-      default:
-        return tier;
-    }
-  }
-
-  Future<void> _handlePurchase(
-    BuildContext context,
-    MapBoostController controller,
-    String tier,
-  ) async {
-    // v23.1 part 120 — Daniel : "qd on va pour acheter mais on met retour
-    // sa met paw spot activer alors que c pas payer". Cause : si Daniel est
-    // staff dans la DB (isStaff=true), le backend active gratuitement
-    // dès le POST /map-boost/purchase, SANS confirmation. Donc Daniel
-    // active accidentellement chaque fois qu'il clique sur un tier.
-    //
-    // Fix : ajoute un confirm dialog AVANT d'appeler controller.purchase().
-    // Le dialog affiche le prix et la durée pour que Daniel sache ce qu'il
-    // active.
-    final pkg = controller.packages.firstWhereOrNull((p) => p.tier == tier);
-    final priceLabel = pkg != null
-        ? '${pkg.amount.toStringAsFixed(2)} ${pkg.currency}'
-        : '?';
-    final daysLabel = pkg != null ? 'mapboost_days_count'.trParams({'count': pkg.days.toString()}) : '?';
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: Text('mapboost_confirm_title'.trParams({'tier': tier.toUpperCase()})),
-        content: Text(
-          '${'mapboost_confirm_tier_label'.tr} : ${tier.toUpperCase()}\n'
-          '${'mapboost_confirm_duration_label'.tr} : $daysLabel\n'
-          '${'mapboost_confirm_price_label'.tr} : $priceLabel\n\n'
-          '${'mapboost_confirm_description'.tr}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            // v23.1 part 243 — i18n. Was hardcoded FR 'Annuler'.
-            child: Text('common_cancel'.tr),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              foregroundColor: Colors.white,
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: InterText(
+                      text: r['text'] as String,
+                      fontSize: 13.sp,
+                      color: AppColors.textPrimary(context),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            // v23.1 part 243 — i18n. Was hardcoded FR 'Confirmer'.
-            child: Text('common_confirm'.tr),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
-    try {
-      // v23.1 part 122 — Daniel : "Si jarrive sur la page de paiement et
-      // je met retour sa met paw spot activer". Le bug : on affichait
-      // TOUJOURS Success même quand purchase() retournait false (annul
-      // ou échec silencieux). Maintenant on check la valeur de retour.
-      final ok = await controller.purchase(tier);
-      if (!mounted) return;
-      if (ok == true) {
-        CustomSnackbar.showSuccess(
-          title: 'common_success'.tr,
-          message: 'map_boost_purchase_success'.tr,
-        );
-      }
-      // Sinon : annulation ou échec silencieux → pas de snackbar.
-    } catch (e) {
-      debugPrint('MapBoost purchase failed: $e');
-      if (!mounted) return;
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: 'map_boost_purchase_failed'.tr,
-      );
-    }
+  }
+
+  /// f. Liste des 4 badges — atteints en couleur, le reste grisé.
+  Widget _buildBadgesCard(BuildContext context) {
+    // Seuils alignés sur le backend (et sur les libellés traduits).
+    final rows = <Map<String, dynamic>>[
+      {'label': 'pawspot_badge_explorer'.tr, 'min': 100},
+      {'label': 'pawspot_badge_expert'.tr, 'min': 500},
+      {'label': 'pawspot_badge_ambassador'.tr, 'min': 1500},
+      {'label': 'pawspot_badge_pawmaster'.tr, 'min': 5000},
+    ];
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: 'pawspot_badges_title'.tr,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 12.h),
+          ...rows.map((r) {
+            final reached = _points >= (r['min'] as int);
+            return Padding(
+              padding: EdgeInsets.only(bottom: 10.h),
+              child: Row(
+                children: [
+                  Icon(
+                    reached
+                        ? Icons.check_circle_rounded
+                        : Icons.lock_outline_rounded,
+                    size: 16.sp,
+                    color: reached ? _gold : AppColors.greyText,
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: InterText(
+                      text: r['label'] as String,
+                      fontSize: 13.sp,
+                      fontWeight:
+                          reached ? FontWeight.w700 : FontWeight.w500,
+                      color: reached
+                          ? AppColors.textPrimary(context)
+                          : AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// g. Récompenses à points (abonnés uniquement).
+  Widget _buildRewardsCard(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: _gold.withValues(alpha: 0.4), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: 'pawspot_rewards_title'.tr,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 12.h),
+          _rewardRow(
+            context,
+            reward: 'badge_color',
+            icon: Icons.palette_rounded,
+            label: 'pawspot_reward_badge_color'.tr,
+            onTap: _pickBadgeColor,
+          ),
+          _rewardRow(
+            context,
+            reward: 'gold_frame',
+            icon: Icons.filter_frames_rounded,
+            label: 'pawspot_reward_gold_frame'.tr,
+            onTap: () => _redeem('gold_frame'),
+          ),
+          _rewardRow(
+            context,
+            reward: 'banner',
+            icon: Icons.panorama_rounded,
+            label: 'pawspot_reward_banner'.tr,
+            onTap: _askBannerUrl,
+          ),
+          SizedBox(height: 4.h),
+          // Mise en avant d'un spot : se fait depuis la fiche d'un de tes
+          // spots sur la carte — simple ligne info ici.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  size: 15.sp, color: AppColors.greyText),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: 'pawspot_reward_feature'.tr,
+                  fontSize: 12.sp,
+                  color: AppColors.greyText,
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rewardRow(
+    BuildContext context, {
+    required String reward,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final isRedeeming = _redeemingReward == reward;
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8.h),
+      child: GestureDetector(
+        onTap: _redeemingReward != null ? null : onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            color: _gold.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: _gold.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18.sp, color: _gold),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: InterText(
+                  text: label,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              isRedeeming
+                  ? SizedBox(
+                      width: 16.w,
+                      height: 16.w,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: _gold,
+                      ),
+                    )
+                  : Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14.sp, color: _gold),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// h. Bouton classement (outline doré).
+  Widget _buildLeaderboardButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => Get.to(() => const PawspotLeaderboardScreen()),
+        icon: Icon(Icons.emoji_events_rounded, color: _gold, size: 20.sp),
+        label: Text(
+          'pawspot_leaderboard_title'.tr,
+          style: TextStyle(
+            color: _gold,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: _gold, width: 1.5),
+          padding: EdgeInsets.symmetric(vertical: 12.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+        ),
+      ),
+    );
   }
 }

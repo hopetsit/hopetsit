@@ -26,6 +26,12 @@ const sitterSchema = new mongoose.Schema(
     // PRIORITAIRE sur 'language' pour la locale des notifications/emails —
     // 'language' reste le champ libre 'langues parlées' affiché sur les profils.
     appLocale: { type: String, default: '' },
+    // v23.1.353 — PawSpot communautaire : PawPoints (+badges 🥉🥈🥇👑) et
+    // récompenses premium (couleur badge, cadre doré, bannière).
+    pawPoints: { type: Number, default: 0, index: true },
+    pawBadgeColor: { type: String, default: '' },
+    pawGoldFrame: { type: Boolean, default: false },
+    pawBannerUrl: { type: String, default: '' },
     currency: { type: String, enum: ['EUR', 'USD'], default: 'EUR' },
     address: { type: String, default: '' },
     rate: { type: String, default: '' },

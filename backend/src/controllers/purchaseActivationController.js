@@ -389,9 +389,39 @@ async function activateChatAddonFromWebhook({ piId, metadata }) {
   return { activated: true, intervalDays, expiresAt: newExpiry };
 }
 
+/**
+ * v23.1.353 — refonte PawSpot (Daniel) : active/étend l'abonnement PawSpot
+ * communautaire (4,99 €/mois · 39,99 €/an). Idempotent par paymentId via
+ * UserSubscription.history (kind 'pawspot').
+ */
+async function activatePawSpotFromWebhook({ piId, metadata }) {
+  const UserSubscription = require('../models/UserSubscription');
+  const userId = metadata?.userId;
+  const role = String(metadata?.role || 'owner').toLowerCase();
+  const days = Number(metadata?.days || 0) || (metadata?.plan === 'yearly' ? 365 : 30);
+  if (!userId || !days) {
+    throw new Error(`Invalid pawspot metadata (userId=${userId}, days=${days})`);
+  }
+  const userModel = role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';
+  let sub = await UserSubscription.findOne({ userId, userModel });
+  if (!sub) sub = new UserSubscription({ userId, userModel });
+  sub.pawspotHistory = sub.pawspotHistory || [];
+  if (piId && sub.pawspotHistory.some((h) => h.paymentId === piId)) {
+    return { pawspotExpiry: sub.pawspotExpiry, deduplicated: true };
+  }
+  const now = new Date();
+  const base = sub.pawspotExpiry && new Date(sub.pawspotExpiry) > now
+    ? new Date(sub.pawspotExpiry) : now;
+  sub.pawspotExpiry = new Date(base.getTime() + days * 86400000);
+  sub.pawspotHistory.push({ paymentId: piId || '', at: now, days });
+  await sub.save();
+  return { pawspotExpiry: sub.pawspotExpiry };
+}
+
 module.exports = {
   activateMapBoostFromWebhook,
   activateSubscriptionFromWebhook,
   activateBoostFromWebhook,
   activateChatAddonFromWebhook,
+  activatePawSpotFromWebhook,
 };

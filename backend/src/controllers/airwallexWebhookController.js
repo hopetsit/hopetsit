@@ -116,6 +116,18 @@ const handleAirwallexWebhook = async (req, res) => {
           break;
         }
 
+        // v23.1.353 — abonnement PawSpot communautaire.
+        if (purchaseType === 'pawspot_purchase') {
+          try {
+            const { activatePawSpotFromWebhook } = require('./purchaseActivationController');
+            await activatePawSpotFromWebhook({ piId, metadata: piMetadata });
+            logger.info(`✅ [airwallex.webhook] pawspot activated from PI ${piId} for user ${piMetadata.userId}`);
+          } catch (e) {
+            logger.error(`[airwallex.webhook] pawspot activation failed for PI ${piId} : ${e.message}`);
+          }
+          break;
+        }
+
         if (purchaseType === 'chat_addon_purchase') {
           try {
             const { activateChatAddonFromWebhook } = require('./purchaseActivationController');

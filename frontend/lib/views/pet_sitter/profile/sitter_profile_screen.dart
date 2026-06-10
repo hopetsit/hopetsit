@@ -19,6 +19,7 @@ import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart
 import 'package:hopetsit/views/pet_owner/payments/saved_cards_screen.dart';
 import 'package:hopetsit/views/kyc/kyc_verification_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/views/pet_sitter/profile/availability_calendar_screen.dart';
 import 'package:hopetsit/views/wallet/wallet_screen.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
@@ -545,6 +546,14 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.group_add_rounded,
           _paleOrange,
           () => Get.to(() => const MyReferralsScreen()),
+        ),
+        // Refonte PawSpot — accès direct au classement PawPoints (doré).
+        _buildSettingsTile(
+          'pawspot_profile_tile'.tr,
+          'pawspot_profile_tile_sub'.tr,
+          Icons.emoji_events_rounded,
+          const Color(0xFFE8A00A),
+          () => Get.to(() => const PawspotLeaderboardScreen()),
         ),
 
         // ── PRÉFÉRENCES ───────────────────────────────────

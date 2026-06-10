@@ -216,6 +216,19 @@ const userSubscriptionSchema = new mongoose.Schema(
     // jours famille.
     currentPeriodStart: { type: Date, default: null },
     currentPeriodEnd: { type: Date, default: null, index: true },
+    // v23.1.353 — refonte PawSpot (Daniel) : abonnement PawSpot communautaire
+    // (4,99 €/mois · 39,99 €/an · essai 7 j). Fenêtre indépendante de
+    // currentPeriodEnd (PawFollow) et familyExpiry (PawFamily).
+    pawspotExpiry: { type: Date, default: null, index: true },
+    pawspotTrialUsedAt: { type: Date, default: null },
+    // Historique des paiements PawSpot (idempotence webhook ↔ confirm sync).
+    pawspotHistory: [
+      {
+        paymentId: String,
+        days: Number,
+        at: { type: Date, default: Date.now },
+      },
+    ],
 
     // v23.1.283 — Daniel : "prendre PawFollow ou PawFamily désactive l'autre".
     // Timer DÉDIÉ au plan Famille (titulaire), indépendant de l'abo individuel.

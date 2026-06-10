@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v352</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v353</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -725,14 +725,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-boosts" class="page">
         <div class="section-title">🚀 Activité boutique</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Tous les achats boutique (Boost profil, Map Boost, Premium, Chat add-on) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
+          Tous les achats boutique (Boost profil, PawSpot, PawFollow/PawFamily, Chat add-on) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
         </p>
         <div class="stats-grid" id="boosts-stats-grid"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
           <select class="filter-select" id="boost-product-filter" onchange="loadBoosts()">
             <option value="">Tous les produits</option>
             <option value="profile_boost">🚀 Boost profil</option>
-            <option value="map_boost">🗺️ PawSpot</option>
+            <option value="map_boost">🗺️ Map Boost (ancien)</option>
             <option value="premium">⭐ PawFollow</option>
             <option value="chat_addon">💬 Chat add-on</option>
           </select>
@@ -866,7 +866,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-pricing" class="page">
         <div class="section-title">💶 Tarifs boutique</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px">
-          Modifie la grille tarifaire live pour Boost, Map Boost et abonnements Premium dans les 4 devises supportées.
+          Modifie la grille tarifaire live : Boost, PawSpot (abonnement communautaire), PawFollow / PawFamily et Chat add-on, dans les 4 devises supportées.
           Changes take effect immediately in the mobile app — no server restart required.
           Utilise « Valeurs par défaut » pour restaurer les valeurs initiales du code.
         </p>
@@ -1879,7 +1879,10 @@ async function resetServices() {
 let _pricingState = null;          // current server snapshot + local edits
 const PRICING_CATS = [
   { key: 'boost',    label: '🚀 Boost',     tiers: ['bronze','silver','gold','platinum'] },
-  { key: 'mapBoost', label: '🗺️ PawSpot', tiers: ['bronze','silver','gold','platinum'] },
+  // v23.1.353 — refonte PawSpot (Daniel) : fini les halos par paliers, place
+  // à l'abonnement communautaire (spots + PawPoints + badges + classements) :
+  // 4,99 €/mois · 39,99 €/an (essai gratuit 7 jours géré dans l'app).
+  { key: 'pawspot',  label: '🐾 PawSpot', tiers: ['monthly','yearly'] },
   // v23.1.278 — Daniel : "sépare PawFollow et PawFamily dans l'admin". 2
   // cartes distinctes qui partagent la MÊME clé data `premium` (donc le
   // backend /admin/pricing est inchangé) : PawFollow = mensuel + annuel,
@@ -1902,10 +1905,8 @@ function tierLabel(catKey, tier) {
     'boost.silver':      '🥈 Silver',
     'boost.gold':        '🥇 Gold',
     'boost.platinum':    '💎 Platinum',
-    'mapBoost.bronze':   '⏱️ PawSpot 24h',
-    'mapBoost.silver':   '📆 PawSpot 7 jours',
-    'mapBoost.gold':     '✨ PawSpot intermédiaire',
-    'mapBoost.platinum': '🗺️ PawSpot 30 jours',
+    'pawspot.monthly':   '📆 Mensuel (4,99 €)',
+    'pawspot.yearly':    '📅 Annuel (39,99 € · -33%)',
     'premium.monthly':   '📆 Mensuel',
     'premium.yearly':    '📅 Annuel',
     'premium.family':    '👨‍👩‍👧 Famille',

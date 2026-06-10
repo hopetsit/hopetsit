@@ -11,6 +11,7 @@ import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 import 'package:hopetsit/views/pet_sitter/payment/payment_management_screen.dart';
 // v23.1 — Mes cartes (Airwallex saved payment_consents) — walker peut payer un PawSpot/PawFollow.
@@ -733,6 +734,14 @@ class WalkerProfileScreen extends StatelessWidget {
           () => Get.to(() => const MyReferralsScreen()),
           subtitle: 'referrals_subtitle'.tr,
           color: const Color(0xFFF59E0B),
+        ),
+        // Refonte PawSpot — accès direct au classement PawPoints (doré).
+        _settingsTile(
+          'pawspot_profile_tile'.tr,
+          Icons.emoji_events_rounded,
+          () => Get.to(() => const PawspotLeaderboardScreen()),
+          subtitle: 'pawspot_profile_tile_sub'.tr,
+          color: const Color(0xFFE8A00A),
         ),
 
         _sectionHeader('profile_section_preferences'.tr),

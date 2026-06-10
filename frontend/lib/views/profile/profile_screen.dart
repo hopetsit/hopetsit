@@ -14,6 +14,7 @@ import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
+import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
 // v18.2 — Mes paiements entry point.
@@ -446,6 +447,14 @@ class ProfileScreen extends StatelessWidget {
           Icons.group_add_rounded,
           _paleOrange,
           () => Get.to(() => const MyReferralsScreen()),
+        ),
+        // Refonte PawSpot — accès direct au classement PawPoints (doré).
+        _buildSettingsTile(
+          'pawspot_profile_tile'.tr,
+          'pawspot_profile_tile_sub'.tr,
+          Icons.emoji_events_rounded,
+          const Color(0xFFE8A00A),
+          () => Get.to(() => const PawspotLeaderboardScreen()),
         ),
 
         // ── PRÉFÉRENCES ───────────────────────────────────

@@ -8,8 +8,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
-import 'package:hopetsit/controllers/map_boost_controller.dart';
 import 'package:hopetsit/controllers/paw_map_controller.dart';
+import 'package:hopetsit/controllers/pawspot_controller.dart';
 import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_poi_model.dart';
@@ -25,6 +25,7 @@ import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
+import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/map/report_category_grid_screen.dart';
 import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -114,6 +115,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   // pins teardrop colorés.
   final Map<String, BitmapDescriptor> _reportEmojiMarkers = {};
   bool _emojiMarkersReady = false;
+  // v23.1.353 — refonte PawSpot : les POIs passent aussi en marqueurs EMOJI
+  // (même générateur canvas que les reports) avec un fond teinté couleur
+  // catégorie. Cache séparé par catégorie POI.
+  final Map<String, BitmapDescriptor> _poiEmojiMarkers = {};
+  // v23.1.353 — marqueurs emoji des spots communautaires PawSpot. Clé =
+  // type de spot ('path_walk'...) ou '__golden__' (empreinte dorée 🐾).
+  final Map<String, BitmapDescriptor> _spotEmojiMarkers = {};
   final RxBool _showReports = true.obs;
   final RxBool _showFriends = true.obs;
   final RxBool _showRequests = true.obs;
@@ -150,6 +158,19 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// (PawSpot) so paying actually translates to map visibility.
   final RxList<Map<String, dynamic>> _nearbyProviders = <Map<String, dynamic>>[].obs;
   final RxBool _showProviders = true.obs;
+
+  /// v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
+  /// OFF par défaut ; le chip doré « PawSpot 🐾 » de la barre de filtres
+  /// la toggle (gated par le flag benefits.pawspotActive).
+  late final PawSpotController _pawSpotController;
+  final RxBool _showPawSpots = false.obs;
+
+  /// v23.1.353 — itinéraire "Y aller" (GET /pawspots/directions). La
+  /// polyline orange est dessinée sur la carte ; le bandeau bas affiche la
+  /// distance + un bouton pour l'effacer.
+  Set<Polyline> _routePolylines = {};
+  int? _routeDistanceMeters;
+  bool _directionsLoading = false;
 
   /// Debounce the `onCameraIdle` callback so panning/zooming quickly doesn't
   /// fire 5+ POI/report requests in a row. 500 ms is short enough to feel
@@ -315,18 +336,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (widget.initialLat != null && widget.initialLng != null) {
       _currentCenter = LatLng(widget.initialLat!, widget.initialLng!);
     }
-    // v23.1.163 — Daniel : "halo ne change pas de couleur selon option
-    // pawspot". 2eme cause potentielle : MapBoostController n'etait
-    // initialise QUE lors de la 1re visite de la boutique. Donc le
-    // self-halo (qui lit mapBoostCtl.status.value.tier dans
-    // _buildHaloCircles) ne fonctionnait pas tant que Daniel n'avait
-    // pas ouvert la boutique → l'utilisateur ne voyait jamais son
-    // propre halo PawSpot. Maintenant on force l'init au mount de
-    // PawMap + on appelle loadStatus pour avoir le tier a jour.
-    if (!Get.isRegistered<MapBoostController>()) {
-      Get.put(MapBoostController());
-    }
-    Get.find<MapBoostController>().loadStatus();
+    // v23.1.353 — refonte PawSpot : les anciens halos "map boost" (tier
+    // bronze/silver/gold/platinum + self-halo) sont SUPPRIMÉS de la carte.
+    // PawSpot = désormais les spots communautaires 🐾 (couche dédiée,
+    // chip doré dans la barre de filtres). Le MapBoostController n'est
+    // donc plus initialisé ici.
+    _pawSpotController = Get.isRegistered<PawSpotController>()
+        ? Get.find<PawSpotController>()
+        : Get.put(PawSpotController());
+    // Pré-charge le flag benefits.pawspotActive (gate du chip PawSpot).
+    unawaited(_pawSpotController.refreshBenefits());
 
     // v23.1 part 123 — halo pulse pour Platinum.
     // v23.1 part 231 — Daniel : "app lag sur Oppo / petits ecrans".
@@ -367,6 +386,20 @@ class _PawMapScreenState extends State<PawMapScreen>
         debugPrint('[PawMap] emoji marker $t failed: $e');
       }
     }
+    // v23.1.353 — refonte PawSpot : pré-warm aussi les marqueurs emoji des
+    // POIs (fond teinté couleur catégorie au lieu du pin teardrop).
+    for (final c in PoiCategories.all) {
+      try {
+        final color = _colorForPoi(c);
+        _poiEmojiMarkers[c] = await _buildEmojiBitmap(
+          PoiCategories.emoji(c),
+          bgColor: color.withValues(alpha: 0.30),
+          ringColor: color,
+        );
+      } catch (e) {
+        debugPrint('[PawMap] poi emoji marker $c failed: $e');
+      }
+    }
     if (mounted) {
       setState(() => _emojiMarkersReady = true);
     }
@@ -392,10 +425,78 @@ class _PawMapScreenState extends State<PawMapScreen>
     });
   }
 
+  /// v23.1.353 — pendant du _ensureEmojiMarker pour les POIs : génère à la
+  /// volée le marqueur emoji d'une catégorie pas encore en cache (catégorie
+  /// inconnue renvoyée par le serveur, pré-warm en cours...).
+  void _ensurePoiEmojiMarker(String category) {
+    final key = 'poi_$category';
+    if (_poiEmojiMarkers.containsKey(category) ||
+        _emojiGenInProgress.contains(key)) {
+      return;
+    }
+    _emojiGenInProgress.add(key);
+    final color = _colorForPoi(category);
+    _buildEmojiBitmap(
+      PoiCategories.emoji(category),
+      bgColor: color.withValues(alpha: 0.30),
+      ringColor: color,
+    ).then((bd) {
+      _poiEmojiMarkers[category] = bd;
+      _emojiGenInProgress.remove(key);
+      if (mounted) setState(() {});
+    }).catchError((Object _) {
+      _emojiGenInProgress.remove(key);
+    });
+  }
+
+  /// v23.1.353 — marqueurs emoji des spots PawSpot. Un spot GOLDEN (validé
+  /// communauté / 50+ ❤️ / créateur Gold) affiche l'empreinte 🐾 sur fond
+  /// doré avec un anneau plus épais ; sinon emoji du type sur fond teinté.
+  void _ensureSpotEmojiMarker(String cacheKey) {
+    final genKey = 'spot_$cacheKey';
+    if (_spotEmojiMarkers.containsKey(cacheKey) ||
+        _emojiGenInProgress.contains(genKey)) {
+      return;
+    }
+    _emojiGenInProgress.add(genKey);
+    final bool golden = cacheKey == '__golden__';
+    final future = golden
+        ? _buildEmojiBitmap(
+            '🐾',
+            bgColor: const Color(0xFFFFD700),
+            ringColor: const Color(0xFFE8A00A),
+            ringWidth: 4.0,
+          )
+        : _buildEmojiBitmap(
+            PawSpotTypes.emoji(cacheKey),
+            bgColor: PawSpotTypes.color(cacheKey).withValues(alpha: 0.35),
+            ringColor: PawSpotTypes.color(cacheKey),
+          );
+    future.then((bd) {
+      _spotEmojiMarkers[cacheKey] = bd;
+      _emojiGenInProgress.remove(genKey);
+      if (mounted) setState(() {});
+    }).catchError((Object _) {
+      _emojiGenInProgress.remove(genKey);
+    });
+  }
+
   /// Renders a circular white-bg marker with the emoji centered inside.
   /// 120x120 pixels gives a crisp icon on retina screens. Returns a
   /// BitmapDescriptor ready to assign to Marker(icon: ...).
-  Future<BitmapDescriptor> _buildEmojiBitmap(String emoji) async {
+  ///
+  /// v23.1.353 — refonte PawSpot : le générateur accepte désormais un fond
+  /// teinté ([bgColor], dessiné PAR-DESSUS la base blanche pour rester
+  /// lisible), une couleur d'anneau ([ringColor]) et une épaisseur
+  /// ([ringWidth]) pour les POIs (couleur catégorie) et les spots PawSpot
+  /// (couleur type / doré). Les valeurs par défaut préservent le rendu
+  /// historique des reports (blanc + anneau orange brand).
+  Future<BitmapDescriptor> _buildEmojiBitmap(
+    String emoji, {
+    Color? bgColor,
+    Color ringColor = const Color(0xFFEF4324),
+    double ringWidth = 2.0,
+  }) async {
     // v23.1.193 — Daniel : "emoji du chat en enorme sur la carte". On
     // reduit encore : 80 → 56px bitmap, emoji fontSize 40 → 28. Resultat
     // un marker compact comparable aux pins Google Maps natifs.
@@ -409,14 +510,19 @@ class _PawMapScreenState extends State<PawMapScreen>
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     canvas.drawCircle(const Offset(size / 2, size / 2 + 1.5), size / 2 - 2, shadowPaint);
 
-    // Cercle blanc.
+    // Cercle blanc (base) + voile teinté optionnel par-dessus.
     final bgPaint = Paint()..color = Colors.white;
     canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 2, bgPaint);
-    // Anneau orange brand fin.
+    if (bgColor != null) {
+      final tintPaint = Paint()..color = bgColor;
+      canvas.drawCircle(
+          const Offset(size / 2, size / 2), size / 2 - 2, tintPaint);
+    }
+    // Anneau (orange brand par défaut, couleur catégorie/type sinon).
     final ringPaint = Paint()
-      ..color = const Color(0xFFEF4324)
+      ..color = ringColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+      ..strokeWidth = ringWidth;
     canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 3, ringPaint);
 
     // Emoji compact 28px.
@@ -770,6 +876,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     final futures = <Future<void>>[
       _poiController.loadNearby(_currentCenter),
       _reportController.loadNearby(_currentCenter),
+      // v23.1.353 — refonte PawSpot : recharge aussi les spots 🐾 quand la
+      // couche est active (pan/zoom → nouveaux spots autour du centre).
+      if (_showPawSpots.value) _pawSpotController.loadNearby(_currentCenter),
     ];
     // Demandes layer is sitter/walker only — don't waste a round-trip on
     // owner sessions.
@@ -974,72 +1083,27 @@ class _PawMapScreenState extends State<PawMapScreen>
       );
     }
 
-    // v23.1.154 — Daniel : "les couleurs du halo pour pawspot marche pas".
-    // 1) On affiche maintenant le halo de l'utilisateur lui-meme s'il a
-    //    un map_boost actif (avant, il ne voyait que les halos des AUTRES
-    //    providers — son halo n'apparaissait jamais sur sa propre carte).
-    // 2) Tous les tiers ont desormais un halo distinct (pas seulement
-    //    Platinum), avec une couleur ET un rayon specifiques au tier :
-    //      bronze   → cuivre  (40m, petit)
-    //      silver   → argent  (80m, moyen)
-    //      gold     → dore    (120m, grand)
-    //      platinum → ambre   (160m, le plus large) + halo le plus
-    //                          intense (toujours l'effet "premium")
-    final phase = _haloPhase.value; // 0..1
+    // v23.1.353 — refonte PawSpot : les halos "map boost" (self-halo +
+    // halos tier bronze/silver/gold/platinum des providers) sont SUPPRIMÉS.
+    // PawSpot = désormais les spots communautaires 🐾 (couche dédiée).
+    // On garde : halo user, anneau ROLE des providers, halos amis/famille.
 
-    Color tierColor(String tier) {
-      switch (tier) {
-        case 'bronze':
-          return const Color(0xFFB87333); // cuivre
-        case 'silver':
-          return const Color(0xFFB0B0B0); // argent
-        case 'gold':
-          return const Color(0xFFFFD700); // dore jaune
-        case 'platinum':
-        default:
-          return const Color(0xFFFFAA00); // ambre chaud
+    // v23.1.353 — mini halo statique par POI affiché (radius 18 m, couleur
+    // catégorie) : matérialise la zone du lieu sans pulser (perf).
+    if (_showPois.value) {
+      for (final poi in _poiController.visiblePois) {
+        final catColor = _colorForPoi(poi.category);
+        circles.add(
+          Circle(
+            circleId: CircleId('poi_halo_${poi.id}'),
+            center: LatLng(poi.latitude, poi.longitude),
+            radius: 18,
+            fillColor: catColor.withValues(alpha: 0.15),
+            strokeColor: catColor.withValues(alpha: 0.5),
+            strokeWidth: 1,
+          ),
+        );
       }
-    }
-
-    double tierMaxRadius(String tier) {
-      switch (tier) {
-        case 'bronze':
-          return 40.0;
-        case 'silver':
-          return 80.0;
-        case 'gold':
-          return 120.0;
-        case 'platinum':
-        default:
-          return 160.0;
-      }
-    }
-
-    // — Self-halo : le user voit son propre halo s'il a un map_boost actif.
-    final mapBoostCtl = Get.isRegistered<MapBoostController>()
-        ? Get.find<MapBoostController>()
-        : null;
-    final mapBoostStatus = mapBoostCtl?.status.value;
-    final selfTier = mapBoostStatus?.tier?.toLowerCase();
-    if (userPos != null &&
-        mapBoostStatus != null &&
-        mapBoostStatus.isActive &&
-        selfTier != null &&
-        selfTier.isNotEmpty) {
-      final selfColor = tierColor(selfTier);
-      final selfMax = tierMaxRadius(selfTier);
-      final selfRadius = 30.0 + (selfMax - 30.0) * phase;
-      final selfOpacity = (0.55 * (1.0 - phase)).clamp(0.0, 1.0);
-      circles.add(
-        Circle(
-          circleId: const CircleId('self_pawspot_halo'),
-          center: userPos,
-          radius: selfRadius,
-          fillColor: selfColor.withValues(alpha: selfOpacity * 0.5),
-          strokeColor: selfColor.withValues(alpha: selfOpacity),
-          strokeWidth: 2,
-        ),
-      );
     }
 
     // v23.1.276 — Daniel : "unifie les halos des utilisateurs pour que tout
@@ -1088,28 +1152,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           strokeWidth: 3,
         ),
       );
-
-      // Halo tier (pulsant) - couleur + rayon depend du tier - seulement
-      // pour les providers avec PawSpot actif (par-dessus l'anneau role).
-      final isMapBoosted = p['isMapBoosted'] == true;
-      if (!isMapBoosted) continue;
-      final mapTier = (p['mapBoostTier'] ?? '').toString();
-      final color = tierColor(mapTier);
-      final maxRadius = tierMaxRadius(mapTier);
-      final radius = 30.0 + (maxRadius - 30.0) * phase;
-      final opacity = (0.45 * (1.0 - phase)).clamp(0.0, 1.0);
-      final fill = color.withValues(alpha: opacity * 0.55);
-      final stroke = color.withValues(alpha: opacity);
-      circles.add(
-        Circle(
-          circleId: CircleId('halo_$id'),
-          center: LatLng(lat, lng),
-          radius: radius,
-          fillColor: fill,
-          strokeColor: stroke,
-          strokeWidth: 2,
-        ),
-      );
+      // v23.1.353 — refonte PawSpot : le halo TIER pulsant (`halo_$id`,
+      // bronze/silver/gold/platinum) des providers map-boostés est supprimé.
       }
     }
 
@@ -1274,6 +1318,12 @@ class _PawMapScreenState extends State<PawMapScreen>
       // v23.1.300 — invalide le cache quand un nouvel emoji est généré à la
       // volée (sinon le marqueur reste figé sur le pin coloré par défaut).
       _reportEmojiMarkers.length,
+      // v23.1.353 — refonte PawSpot : invalidation pour les caches emoji
+      // POI/spots et pour la couche des spots communautaires 🐾.
+      _poiEmojiMarkers.length,
+      _spotEmojiMarkers.length,
+      _showPawSpots.value ? 1 : 0,
+      _pawSpotController.spots.length,
       _liveMap.friendPositions.length,
       // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la
       // trace". La clé n'incluait que le NOMBRE d'amis → un ami qui se
@@ -1418,13 +1468,19 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     if (_showPois.value) {
       for (final poi in _poiController.visiblePois) {
+        // v23.1.353 — refonte PawSpot : marqueur EMOJI (même générateur que
+        // les reports) avec fond teinté couleur catégorie, au lieu du pin
+        // teardrop. Fallback pin coloré le temps que le bitmap se génère.
+        final poiIcon = _poiEmojiMarkers[poi.category];
+        if (poiIcon == null) _ensurePoiEmojiMarker(poi.category);
         markers.add(
           Marker(
             markerId: MarkerId('poi_${poi.id}'),
             position: LatLng(poi.latitude, poi.longitude),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              _hueForPoi(poi.category),
-            ),
+            icon: poiIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(
+                  _hueForPoi(poi.category),
+                ),
             infoWindow: InfoWindow(
               title: '${PoiCategories.emoji(poi.category)} ${poi.title}',
               snippet: poi.address.isNotEmpty
@@ -1432,6 +1488,32 @@ class _PawMapScreenState extends State<PawMapScreen>
                   : PoiCategories.label(poi.category),
             ),
             onTap: () => _showPoiBottomSheet(poi),
+          ),
+        );
+      }
+    }
+    // v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
+    // Marqueur emoji du type (fond couleur type) ; spot GOLDEN → empreinte
+    // 🐾 sur fond doré avec anneau plus épais. Tap → sheet détail.
+    if (_showPawSpots.value) {
+      for (final spot in _pawSpotController.spots) {
+        final cacheKey = spot.isGolden ? '__golden__' : spot.type;
+        final spotIcon = _spotEmojiMarkers[cacheKey];
+        if (spotIcon == null) _ensureSpotEmojiMarker(cacheKey);
+        markers.add(
+          Marker(
+            markerId: MarkerId('pawspot_${spot.id}'),
+            position: LatLng(spot.lat, spot.lng),
+            icon: spotIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueYellow,
+                ),
+            infoWindow: InfoWindow(
+              title:
+                  '${spot.isGolden ? '🐾' : PawSpotTypes.emoji(spot.type)} ${spot.name}',
+              snippet: PawSpotTypes.label(spot.type),
+            ),
+            onTap: () => _showPawSpotDetail(spot),
           ),
         );
       }
@@ -1723,6 +1805,26 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
   }
 
+  /// v23.1.353 — couleur pleine par catégorie POI, alignée sur _hueForPoi
+  /// (vet rouge, park vert, water cyan, shop violet, groomer magenta,
+  /// reste azure). Sert au fond/anneau du marqueur emoji + au mini halo.
+  Color _colorForPoi(String category) {
+    switch (category) {
+      case PoiCategories.vet:
+        return const Color(0xFFDC2626); // rouge
+      case PoiCategories.park:
+        return const Color(0xFF16A34A); // vert
+      case PoiCategories.water:
+        return const Color(0xFF06B6D4); // cyan
+      case PoiCategories.shop:
+        return const Color(0xFF8B5CF6); // violet
+      case PoiCategories.groomer:
+        return const Color(0xFFD946EF); // magenta
+      default:
+        return const Color(0xFF3B82F6); // azure
+    }
+  }
+
   double _hueForReport(String type) {
     switch (type) {
       case ReportTypes.poop:
@@ -1836,6 +1938,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                     // forcer le rebuild a chaque assignAll().
                     _nearbyProviders.length;
                     _showProviders.value;
+                    // v23.1.353 — refonte PawSpot : rebuild quand la couche
+                    // spots 🐾 se toggle ou que les spots chargent.
+                    _showPawSpots.value;
+                    _pawSpotController.spots.length;
                     // v23.1 part 248 — Daniel : "ds lapp sa marche tjr pas"
                     // (halo violet famille). On declare explicitement
                     // familyMembers.length comme dependance Obx pour que
@@ -1911,6 +2017,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                       mapType: _mapType,
                       markers: _getMarkersFromCache(),
                       circles: _buildHaloCircles(),
+                      // v23.1.353 — polyline orange de l'itinéraire "Y aller"
+                      // (GET /pawspots/directions).
+                      polylines: _routePolylines,
                     );
                   }),
 
@@ -1972,6 +2081,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // v23.1 part 40 — Daniel : déplace PawFollow/PawSpot du
                 // BOTTOM-LEFT vers le HAUT-LEFT (sous la barre de recherche)
                 // pour libérer la zone du bas.
+                // v23.1.353 — refonte PawSpot : le pill bleu « PawSpot »
+                // (raccourci boutique map-boost) est SUPPRIMÉ — la couche
+                // spots communautaires 🐾 vit dans la barre de filtres.
                 Positioned(
                   left: 12.w,
                   top: 80.h,
@@ -1987,16 +2099,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                           onTap: () =>
                               Get.to(() => const CoinShopScreen(initialTab: 1)),
                         ),
-                      if (!_isUserPremium()) SizedBox(height: 8.h),
-                      _buildMapCornerButton(
-                        // v23.1.346 — audit codes couleur : PawSpot = bleu
-                        // produit mapBoostBlue 0xFF3B82F6 (cohérent boutique).
-                        color: const Color(0xFF3B82F6),
-                        icon: Icons.location_on_rounded,
-                        tooltip: 'PawSpot',
-                        onTap: () =>
-                            Get.to(() => const CoinShopScreen(initialTab: 2)),
-                      ),
                     ],
                   ),
                 ),
@@ -2034,15 +2136,38 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: _buildReportFab(),
                 ),
 
+                // v23.1.353 — refonte PawSpot : mini FAB doré « 🐾 + »
+                // au-dessus du FAB Signaler, visible uniquement quand la
+                // couche spots est ON → ouvre la sheet de création.
+                Positioned(
+                  right: 12.w,
+                  bottom: 86.h,
+                  child: Obx(
+                    () => _showPawSpots.value
+                        ? _buildPawSpotFab()
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+
                 // v23.1.187 — Daniel mockup : carte "Autour de vous" flottante
                 // en bas de la PawMap. Liste compacte des 3 signalements les
                 // plus proches avec badge severite + tap → AlertsScreen.
-                Positioned(
-                  left: 12.w,
-                  right: 12.w,
-                  bottom: 12.h,
-                  child: _buildAroundYouCard(),
-                ),
+                // v23.1.353 — masquée pendant qu'un itinéraire est affiché
+                // (le bandeau distance + "Effacer" prend sa place).
+                if (_routePolylines.isEmpty)
+                  Positioned(
+                    left: 12.w,
+                    right: 12.w,
+                    bottom: 12.h,
+                    child: _buildAroundYouCard(),
+                  )
+                else
+                  Positioned(
+                    left: 12.w,
+                    right: 12.w,
+                    bottom: 12.h,
+                    child: Center(child: _buildDirectionsBanner()),
+                  ),
               ],
             ),
           ),
@@ -2786,11 +2911,16 @@ class _PawMapScreenState extends State<PawMapScreen>
         children: [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            child: Row(
+            // v23.1.353 — refonte PawSpot : la rangée (Lieux ▾ / Tous / Rien /
+            // PawSpot 🐾) doit tenir sur UNE ligne → scroll horizontal si la
+            // langue/l'écran la fait déborder. Le bouton « Lieux » n'est plus
+            // Expanded (largeur intrinsèque dans le scroll).
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
               children: [
                 // Bouton principal : ouvre/ferme la checklist.
-                Expanded(
-                  child: InkWell(
+                InkWell(
                     borderRadius: BorderRadius.circular(14.r),
                     onTap: () => _showCatFilter.value = !open,
                     child: Container(
@@ -2808,6 +2938,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                         ],
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text('📍', style: TextStyle(fontSize: 14.sp)),
@@ -2830,7 +2961,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                         ],
                       ),
                     ),
-                  ),
                 ),
                 SizedBox(width: 8.w),
                 // Bouton « Tous » : rallume la couche POI + enlève le filtre.
@@ -2906,7 +3036,50 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ),
                   ),
                 ),
+                SizedBox(width: 8.w),
+                // v23.1.353 — refonte PawSpot : chip doré « PawSpot 🐾 » qui
+                // toggle la couche des spots communautaires (gated par le
+                // flag benefits.pawspotActive, voir _togglePawSpotLayer).
+                Builder(builder: (context) {
+                  final spotsOn = _showPawSpots.value;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14.r),
+                    onTap: _togglePawSpotLayer,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 12.w, vertical: 10.h),
+                      decoration: BoxDecoration(
+                        color: spotsOn
+                            ? const Color(0xFFE8A00A)
+                            : AppColors.card(context),
+                        borderRadius: BorderRadius.circular(14.r),
+                        border: Border.all(
+                          color: spotsOn
+                              ? const Color(0xFFE8A00A)
+                              : AppColors.greyText.withValues(alpha: 0.35),
+                          width: 1.4,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InterText(
+                            text: 'PawSpot',
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w800,
+                            color: spotsOn
+                                ? Colors.white
+                                : AppColors.textPrimary(context),
+                          ),
+                          SizedBox(width: 4.w),
+                          Text('🐾', style: TextStyle(fontSize: 13.sp)),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
               ],
+              ),
             ),
           ),
           // Checklist 2 colonnes (repliable).
@@ -3311,6 +3484,230 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+  // ─── PawSpot — couche spots communautaires 🐾 (v23.1.353) ────────────────
+
+  /// Mini FAB doré « 🐾 + » (au-dessus du FAB Signaler) → sheet de création.
+  Widget _buildPawSpotFab() {
+    return FloatingActionButton.small(
+      heroTag: 'pawspot_create_fab',
+      backgroundColor: const Color(0xFFE8A00A),
+      elevation: 6,
+      onPressed: _openPawSpotCreate,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text('🐾', style: TextStyle(fontSize: 18.sp)),
+          Positioned(
+            right: 2.w,
+            top: 2.h,
+            child: Icon(Icons.add_circle_rounded,
+                size: 13.sp, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Toggle du chip « PawSpot 🐾 » de la barre de filtres. Au passage à ON,
+  /// vérifie le flag benefits.pawspotActive : inactif → reste OFF + boutique
+  /// PawSpot (CoinShop onglet 2) ; actif → charge les spots autour du centre.
+  Future<void> _togglePawSpotLayer() async {
+    if (_showPawSpots.value) {
+      _showPawSpots.value = false;
+      return;
+    }
+    final active = _pawSpotController.pawspotActive.value ||
+        await _pawSpotController.refreshBenefits();
+    if (!active) {
+      CustomSnackbar.showWarning(
+        title: 'pawspot_subscribe_required'.tr,
+        message: 'pawspot_shop_subtitle'.tr,
+      );
+      Get.to(() => const CoinShopScreen(initialTab: 2));
+      return;
+    }
+    _showPawSpots.value = true;
+    await _pawSpotController.loadNearby(_currentCenter);
+  }
+
+  /// Ouvre la sheet de création — la position du spot est figée au centre
+  /// de la carte au moment de l'ouverture.
+  Future<void> _openPawSpotCreate() async {
+    final created = await showPawSpotCreateSheet(
+      context,
+      controller: _pawSpotController,
+      position: _currentCenter,
+    );
+    if (created == true) {
+      await _pawSpotController.loadNearby(_currentCenter);
+    }
+  }
+
+  /// Sheet détail d'un spot (photo, stats, like/valider/itinéraire,
+  /// commentaires, actions créateur).
+  void _showPawSpotDetail(PawSpotModel spot) {
+    showPawSpotDetailSheet(
+      context,
+      spot: spot,
+      controller: _pawSpotController,
+      onDirections: (s) {
+        // 👣 visite best-effort + même flux itinéraire que les POIs.
+        unawaited(_pawSpotController.visit(s.id));
+        _startDirections(LatLng(s.lat, s.lng));
+      },
+      onChanged: () =>
+          unawaited(_pawSpotController.loadNearby(_currentCenter)),
+    );
+  }
+
+  /// Itinéraire "Y aller" (POIs + spots PawSpot) : GET /pawspots/directions
+  /// → polyline orange + caméra englobant le trajet + bandeau distance.
+  /// 402 PAWFOLLOW_REQUIRED → upsell PawFollow (CoinShop onglet 1).
+  Future<void> _startDirections(LatLng dest) async {
+    final from = _userPosition;
+    if (from == null) {
+      CustomSnackbar.showError(
+        title: 'pawmap_snack_no_loc_title'.tr,
+        message: 'pawmap_snack_no_loc_msg'.tr,
+      );
+      return;
+    }
+    if (_directionsLoading) return;
+    _directionsLoading = true;
+    try {
+      final route = await _pawSpotController.fetchDirections(
+        from: from,
+        to: dest,
+      );
+      if (!mounted) return;
+      if (route.points.length < 2) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'pawmap_snack_search_failed_msg'.tr,
+        );
+        return;
+      }
+      setState(() {
+        _routePolylines = {
+          Polyline(
+            polylineId: const PolylineId('pawspot_route'),
+            points: route.points,
+            color: const Color(0xFFEF4324),
+            width: 5,
+          ),
+        };
+        _routeDistanceMeters = route.distanceMeters;
+      });
+      // Caméra : englobe tout le trajet.
+      double minLat = route.points.first.latitude;
+      double maxLat = minLat;
+      double minLng = route.points.first.longitude;
+      double maxLng = minLng;
+      for (final p in route.points) {
+        if (p.latitude < minLat) minLat = p.latitude;
+        if (p.latitude > maxLat) maxLat = p.latitude;
+        if (p.longitude < minLng) minLng = p.longitude;
+        if (p.longitude > maxLng) maxLng = p.longitude;
+      }
+      try {
+        final ctl = await _mapCtl.future;
+        await ctl.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat, minLng),
+              northeast: LatLng(maxLat, maxLng),
+            ),
+            60,
+          ),
+        );
+      } catch (_) {/* map pas prête */}
+    } catch (e) {
+      if (PawSpotController.errorCode(e) == 'PAWFOLLOW_REQUIRED' ||
+          PawSpotController.statusCode(e) == 402) {
+        CustomSnackbar.showWarning(
+          title: 'follow_pawfollow_required_title'.tr,
+          message: 'directions_subscription_required'.tr,
+        );
+        Get.to(() => const CoinShopScreen(initialTab: 1));
+      } else {
+        debugPrint('[PawMap] directions error: $e');
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: 'pawmap_snack_search_failed_msg'.tr,
+        );
+      }
+    } finally {
+      _directionsLoading = false;
+    }
+  }
+
+  /// Efface l'itinéraire en cours (bouton du bandeau).
+  void _clearRoute() {
+    setState(() {
+      _routePolylines = {};
+      _routeDistanceMeters = null;
+    });
+  }
+
+  /// Bandeau flottant bas : distance du trajet + bouton "Effacer".
+  Widget _buildDirectionsBanner() {
+    final meters = _routeDistanceMeters;
+    final distanceLabel = meters == null
+        ? '—'
+        : meters >= 1000
+            ? '${(meters / 1000).toStringAsFixed(1)} km'
+            : '$meters m';
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24.r),
+        border: Border.all(
+          color: const Color(0xFFEF4324).withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.directions_walk_rounded,
+              size: 16.sp, color: const Color(0xFFEF4324)),
+          SizedBox(width: 6.w),
+          InterText(
+            text: distanceLabel,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF1F2937),
+          ),
+          SizedBox(width: 12.w),
+          GestureDetector(
+            onTap: _clearRoute,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+              child: InterText(
+                text: 'directions_clear'.tr,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFFEF4324),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── POI details sheet ───────────────────────────────────────────────────
   void _showPoiBottomSheet(MapPOI poi) {
     showModalBottomSheet(
@@ -3375,6 +3772,34 @@ class _PawMapScreenState extends State<PawMapScreen>
             if (poi.openingHours.isNotEmpty)
               _iconLine(Icons.schedule_outlined, poi.openingHours),
             SizedBox(height: 16.h),
+            // v23.1.353 — refonte PawSpot : bouton « Y aller » plein-largeur
+            // (itinéraire piéton inclus dans PawFollow / PawFamily).
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(sheetCtx).pop();
+                  _startDirections(LatLng(poi.latitude, poi.longitude));
+                },
+                icon: Icon(Icons.directions_rounded,
+                    color: Colors.white, size: 18.sp),
+                label: InterText(
+                  text: 'pawspot_go_btn'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ],
         ),
       ),

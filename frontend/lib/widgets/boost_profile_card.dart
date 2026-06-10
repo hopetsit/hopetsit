@@ -44,11 +44,11 @@ class BoostProfileCard extends StatelessWidget {
           SizedBox(width: 10.w),
           Expanded(
             child: _BoostChip(
-              // v23.1.346 — audit codes couleur : PawSpot = bleu produit
-              // mapBoostBlue 0xFF3B82F6 (2196F3 se confondait avec un bleu
-              // rôle et ne matchait pas la boutique PawSpot).
-              accent: const Color(0xFF3B82F6),
-              icon: Icons.location_on_rounded,
+              // Refonte PawSpot — l'identité passe du pin bleu à
+              // l'empreinte DORÉE (abonnement communautaire : spots
+              // pet-friendly, PawPoints, classements, récompenses).
+              accent: const Color(0xFFE8A00A),
+              icon: Icons.pets_rounded,
               label: 'shop_tile_map_boost'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
             ),

@@ -96,6 +96,16 @@ const PawFollowCurrencyBucketSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// v23.1.353 — abonnement PawSpot communautaire : { monthly, yearly } par devise.
+const PawSpotCurrencySchema = new mongoose.Schema(
+  { monthly: Number, yearly: Number },
+  { _id: false },
+);
+const PawSpotBucketSchema = new mongoose.Schema(
+  { EUR: PawSpotCurrencySchema, GBP: PawSpotCurrencySchema, CHF: PawSpotCurrencySchema, USD: PawSpotCurrencySchema },
+  { _id: false },
+);
+
 const PricingConfigSchema = new mongoose.Schema(
   {
     key: {
@@ -106,6 +116,8 @@ const PricingConfigSchema = new mongoose.Schema(
     },
     boost: CurrencyBucketSchema,
     mapBoost: CurrencyBucketSchema,
+    // v23.1.353 — abonnement PawSpot communautaire (monthly/yearly).
+    pawspot: PawSpotBucketSchema,
     premium: PremiumCurrencyBucketSchema,
     chat: ChatCurrencyBucketSchema, // session v3.2 add-on
     pawfollow: PawFollowCurrencyBucketSchema, // v23.1

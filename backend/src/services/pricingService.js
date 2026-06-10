@@ -41,6 +41,14 @@ const DEFAULTS = Object.freeze({
     CHF: { bronze: 1.99,  silver: 8.99,  gold: 14.99, platinum: 24.99 },
     USD: { bronze: 2.19,  silver: 9.89,  gold: 16.49, platinum: 27.49 },
   },
+  // v23.1.353 — abonnement PawSpot communautaire (doc Daniel) :
+  // 4,99 €/mois · 39,99 €/an (essai gratuit 7 jours géré côté route).
+  pawspot: {
+    EUR: { monthly: 4.99, yearly: 39.99 },
+    GBP: { monthly: 4.39, yearly: 34.99 },
+    CHF: { monthly: 4.99, yearly: 39.99 },
+    USD: { monthly: 5.49, yearly: 43.99 },
+  },
   premium: {
     // v23.1 — family added to admin/api so it can be edited from the dashboard.
     EUR: { monthly: 6.99, yearly: 49.99, family: 9.99 },
@@ -62,7 +70,7 @@ const DEFAULTS = Object.freeze({
   },
 });
 
-const CATEGORIES = ['boost', 'mapBoost', 'premium', 'chat', 'pawfollow'];
+const CATEGORIES = ['boost', 'mapBoost', 'premium', 'chat', 'pawfollow', 'pawspot'];
 const CURRENCIES = ['EUR', 'GBP', 'CHF', 'USD'];
 
 // Deep clone of DEFAULTS used as the live in-memory state. Mutated in place
@@ -84,7 +92,7 @@ function mergeInto(target, patch) {
 // v23.1 — la version courante des tarifs. Bumper cette valeur force une
 // remise à jour de la DB depuis DEFAULTS au prochain boot (admin perd ses
 // éventuelles édits manuelles, c'est intentionnel sur un version bump).
-const PRICING_VERSION = 'v23.1';
+const PRICING_VERSION = 'v23.1.353';
 
 async function init() {
   try {
@@ -117,6 +125,7 @@ async function init() {
             premium: DEFAULTS.premium,
             chat: DEFAULTS.chat,
             pawfollow: DEFAULTS.pawfollow,
+            pawspot: DEFAULTS.pawspot,
             version: PRICING_VERSION,
           },
         },
@@ -165,6 +174,7 @@ function getAll() {
     premium: cache.premium,
     chat: cache.chat,
     pawfollow: cache.pawfollow,
+    pawspot: cache.pawspot,
   };
 }
 
