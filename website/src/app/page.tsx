@@ -155,6 +155,48 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* v23.1.355 — Daniel : "parle du PawSpot sur la 1re page du site".
+          Section dédiée au nouveau PawSpot communautaire (spots tagués,
+          PawPoints, badges, empreinte dorée) — identité DORÉE. */}
+      <section className="bg-gradient-to-br from-amber-50 via-white to-amber-100/60 py-20">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+            🐾 {t("home_pawspot_title")}
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base text-ink-muted">
+            {t("home_pawspot_sub")}
+          </p>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            <div className="rounded-2xl border border-amber-200 bg-white p-6 shadow-card">
+              <div className="text-3xl">📍</div>
+              <h3 className="mt-3 text-base font-bold text-ink">{t("home_pawspot_b1_title")}</h3>
+              <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b1_body")}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-white p-6 shadow-card">
+              <div className="text-3xl">🏆</div>
+              <h3 className="mt-3 text-base font-bold text-ink">{t("home_pawspot_b2_title")}</h3>
+              <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b2_body")}</p>
+            </div>
+            <div className="rounded-2xl border-2 border-amber-400 bg-white p-6 shadow-card">
+              <div className="text-3xl">🐾</div>
+              <h3 className="mt-3 text-base font-bold text-ink">{t("home_pawspot_b3_title")}</h3>
+              <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b3_body")}</p>
+            </div>
+          </div>
+          <p className="mt-8 text-center text-sm font-semibold text-amber-700">
+            {t("home_pawspot_price_line")}
+          </p>
+          <div className="mt-5 text-center">
+            <Link
+              href="/pawmap"
+              className="inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white shadow-cta hover:bg-amber-600"
+            >
+              {t("home_pawspot_cta")} →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Trust grid */}
       <section className="bg-bg-soft py-20">
         <div className="mx-auto max-w-6xl px-4">
