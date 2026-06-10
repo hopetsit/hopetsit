@@ -747,6 +747,24 @@ const parseTimeSlotToHoursMinutes = (timeSlot) => {
   return { h, m };
 };
 
+/**
+ * v23.1.354 — heure de FIN d'un timeSlot type "10:00 - 12:00" / "14h-18h".
+ * Retourne le DERNIER couple heure/minute si le créneau en contient >= 2,
+ * sinon null (créneau mono-heure : la fin vient de duration / endDate).
+ */
+const parseTimeSlotEndToHoursMinutes = (timeSlot) => {
+  if (!timeSlot || typeof timeSlot !== 'string') return null;
+  const cleaned = timeSlot.trim().toLowerCase().replace(/\s+/g, '');
+  const all = [...cleaned.matchAll(/(\d{1,2})[:h](\d{2})/g)];
+  if (all.length < 2) return null;
+  const last = all[all.length - 1];
+  const h = Number(last[1]);
+  const m = Number(last[2]);
+  if (!Number.isInteger(h) || h < 0 || h > 23) return null;
+  if (!Number.isInteger(m) || m < 0 || m > 59) return null;
+  return { h, m };
+};
+
 const resolveBookingStartDate = (booking) => {
   const raw = booking?.startDate || booking?.date || null;
   if (raw) {
@@ -784,13 +802,29 @@ const resolveBookingEndDate = (booking) => {
     if (!Number.isNaN(parsed.getTime())) {
       const hasTimePart = typeof rawEnd === 'string' && /T\d{2}:/.test(rawEnd);
       if (hasTimePart) return parsed;
-      // No time component → assume end of that day (23:59).
-      parsed.setHours(23, 59, 0, 0);
+      // v23.1.354 — si le créneau porte une heure de fin ("10:00 - 12:00"),
+      // on l'applique au jour de endDate. Sinon : fin de journée (23:59).
+      const hmEnd = parseTimeSlotEndToHoursMinutes(booking?.timeSlot);
+      if (hmEnd) {
+        parsed.setHours(hmEnd.h, hmEnd.m, 0, 0);
+      } else {
+        parsed.setHours(23, 59, 0, 0);
+      }
       return parsed;
     }
   }
-  // Fallback : startDate + duration (minutes) for short services like dog walking.
+  // v23.1.354 — pas de endDate : heure de FIN du timeSlot sur le jour de
+  // début ("10:00 - 12:00" → 12:00). Si la fin "précède" le début (créneau
+  // de nuit "22:00 - 06:00"), on bascule au lendemain.
   const start = resolveBookingStartDate(booking);
+  const hmEnd2 = parseTimeSlotEndToHoursMinutes(booking?.timeSlot);
+  if (hmEnd2) {
+    const end = new Date(start);
+    end.setHours(hmEnd2.h, hmEnd2.m, 0, 0);
+    if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
+    return end;
+  }
+  // Fallback : startDate + duration (minutes) for short services like dog walking.
   const durationMinutes = Number.isFinite(booking?.duration)
     ? Number(booking.duration)
     : null;
@@ -5414,6 +5448,77 @@ const processServiceStartReminders = async () => {
   return { sent };
 };
 
+/**
+ * v23.1.354 — Daniel : "la 2e confirmation du sitter/walker sort sur le
+ * bandeau pas de suite après la 1re, mais 30 min avant la fin du service,
+ * avec notification mail et téléphone."
+ * Tick scheduler : pour chaque service DÉMARRÉ (in_progress) dont la fin
+ * (resolveBookingEndDate) est à <= 30 min, on envoie UNE fois au prestataire
+ * la notif 'service_end_soon' (push FCM + e-mail via notificationSender).
+ * Le bandeau app applique le même gate de son côté (_serviceEndAt - 30 min).
+ */
+const SERVICE_END_REMINDER_LEAD_MS = 30 * 60 * 1000;
+const SERVICE_END_REMINDER_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const processServiceEndReminders = async () => {
+  const now = new Date();
+  let sent = 0;
+  try {
+    const candidates = await Booking.find({
+      paymentStatus: 'paid',
+      status: 'paid',
+      confirmationStatus: 'in_progress',
+      serviceEndReminderSentAt: null,
+      $or: [
+        { startDate: { $lte: now } },
+        { date: { $lte: now } },
+      ],
+    }).limit(200);
+
+    for (const booking of candidates) {
+      try {
+        const endAt = resolveBookingEndDate(booking);
+        // Pas encore dans la fenêtre des 30 dernières minutes.
+        if (endAt.getTime() - SERVICE_END_REMINDER_LEAD_MS > now.getTime()) continue;
+        // Réclamation atomique : 2 ticks concurrents ne doublent jamais l'envoi.
+        const claimed = await Booking.findOneAndUpdate(
+          { _id: booking._id, serviceEndReminderSentAt: null },
+          { $set: { serviceEndReminderSentAt: now } },
+          { new: true },
+        );
+        if (!claimed) continue;
+        // Anti-spam legacy : fin passée depuis plus de 7 jours → marque sans notifier.
+        if (now.getTime() - endAt.getTime() > SERVICE_END_REMINDER_MAX_AGE_MS) continue;
+        const provider = _resolveConfirmProvider(booking);
+        if (!provider.id || !provider.role) continue;
+        const { sendNotification } = require('../services/notificationSender');
+        const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+        await sendNotification({
+          userId: provider.id,
+          role: provider.role,
+          type: 'service_end_soon',
+          data: {
+            bookingId: String(booking._id),
+            providerRole: provider.role,
+            emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
+          },
+          actor: { role: 'owner', id: booking.ownerId ? String(booking.ownerId) : null },
+        });
+        sent += 1;
+      } catch (e) {
+        logger.warn(
+          `[serviceEndReminder] failed for booking ${booking._id}: ${e?.message || e}`,
+        );
+      }
+    }
+  } catch (e) {
+    logger.error('[serviceEndReminder] outer error', e);
+  }
+  if (sent > 0) {
+    logger.info(`🏁 [serviceEndReminder] sent ${sent} end-service reminder(s).`);
+  }
+  return { sent };
+};
+
 // POST /bookings/:id/service/confirm — owner confirme → libère le paiement.
 const confirmService = async (req, res) => {
   try {
@@ -5568,6 +5673,7 @@ module.exports = {
   startService,
   completeService,
   processServiceStartReminders,
+  processServiceEndReminders,
   confirmService,
   disputeService,
 };

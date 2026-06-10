@@ -35,7 +35,7 @@ class BoostProfileCard extends StatelessWidget {
           SizedBox(width: 10.w),
           Expanded(
             child: _BoostChip(
-              accent: const Color(0xFFF5A623),
+              accent: const Color(0xFF7C3AED), // v354 — PawFollow = violet (Daniel)
               icon: Icons.star_rounded,
               label: 'shop_tile_premium'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),

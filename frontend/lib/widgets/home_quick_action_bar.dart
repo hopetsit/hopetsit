@@ -492,9 +492,16 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         );
       }
       // b) fin à confirmer (service démarré).
+      // v23.1.354 — Daniel : "la 2e confirmation ne sort pas de suite après
+      // la 1re mais 30 min avant la fin du service". On masque l'action tant
+      // que la fin (heure de fin du timeSlot / duration) est à plus de 30 min.
+      // Fin indéterminable (données legacy) → comportement d'avant (affichée).
+      // Le backend envoie la notif push+mail 'service_end_soon' au même moment.
       for (final b in bookings) {
         if ((b.paymentStatus ?? '').toLowerCase() != 'paid') continue;
         if (b.confirmationStatus != 'in_progress') continue;
+        final endAt = _serviceEndAt(b);
+        if (endAt != null && endAt.difference(svcNow).inMinutes > 30) continue;
         return _QuickAction(
           kind: _Kind.serviceAction,
           color: svcAccent,
@@ -970,6 +977,30 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           int.parse(m.group(1)!), int.parse(m.group(2)!));
     }
     return DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
+  /// v23.1.354 — heure de FIN du service (miroir de resolveBookingEndDate
+  /// backend) : 2e heure du timeSlot ("10:00 - 12:00" → 12:00, créneau de
+  /// nuit → lendemain) → sinon duration (minutes) → sinon null (le bandeau
+  /// affiche alors l'action sans gate, comme avant).
+  DateTime? _serviceEndAt(BookingModel b) {
+    final startAt = _serviceStartAt(b);
+    if (startAt == null) return null;
+    final matches =
+        RegExp(r'(\d{1,2})[:hH](\d{2})').allMatches(b.timeSlot).toList();
+    if (matches.length >= 2) {
+      final last = matches.last;
+      final h = int.parse(last.group(1)!);
+      final min = int.parse(last.group(2)!);
+      if (h <= 23 && min <= 59) {
+        var end = DateTime(startAt.year, startAt.month, startAt.day, h, min);
+        if (!end.isAfter(startAt)) end = end.add(const Duration(days: 1));
+        return end;
+      }
+    }
+    final dur = b.duration;
+    if (dur != null && dur > 0) return startAt.add(Duration(minutes: dur));
+    return null;
   }
 
   /// v23.1.341 — sheet "Début / fin de service" du bandeau. Embarque la

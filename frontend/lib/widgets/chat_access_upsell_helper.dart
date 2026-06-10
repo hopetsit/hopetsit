@@ -68,7 +68,7 @@ class ChatAccessUpsellHelper {
             _bullet(
               dialogContext,
               icon: Icons.star_rounded,
-              color: const Color(0xFFFF9500),
+              color: const Color(0xFF7C3AED), // v354 — PawFollow = violet
               title: 'chat_locked_dialog_premium_title'.tr,
               subtitle: 'chat_locked_dialog_premium_sub'.tr,
             ),

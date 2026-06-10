@@ -310,5 +310,11 @@
     "body": "Your service is starting. Tap \"🐾 I picked up the pet\" in your bookings to confirm the start of the service.",
     "emailSubject": "Confirm the start of your service — HoPetSit",
     "emailBody": "<p>Your service is starting! Open the HoPetSit app and tap <b>🐾 I picked up the pet</b> in your bookings to confirm the start of the service.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy this link: {{emailLink}}</p>"
+  },
+  "service_end_soon": {
+    "title": "Service ending soon 🏁",
+    "body": "Your service ends in 30 minutes. Tap “✅ I returned the pet” to confirm the end of service.",
+    "emailSubject": "Confirm the end of service — HoPetSit",
+    "emailBody": "<p>Your service ends in about 30 minutes! Open the HoPetSit app and tap <b>✅ I returned the pet</b> to confirm the end of service (payment is released after the owner's confirmation).</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy-paste this link: {{emailLink}}</p>"
   }
 }

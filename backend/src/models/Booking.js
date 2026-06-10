@@ -157,6 +157,9 @@ const bookingSchema = new mongoose.Schema(
     // 🐾 appuie sur J'ai récupéré l'animal" envoyé au prestataire par le
     // scheduler quand l'heure de début arrive. Non-null = déjà envoyé (1 fois).
     serviceStartReminderSentAt: { type: Date, default: null },
+    // v23.1.354 — Daniel : la 2e confirmation (fin de service) ne sort sur le
+    // bandeau que 30 min avant la fin + rappel push/mail au prestataire.
+    serviceEndReminderSentAt: { type: Date, default: null },
     // Date à laquelle le paiement est auto-libéré si l'owner ne confirme pas
     // (= fin de service + 48h ; recalculée quand le provider marque "rendu").
     autoReleaseAt: { type: Date, default: null },

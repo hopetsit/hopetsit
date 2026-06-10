@@ -310,5 +310,11 @@
     "body": "Dein Service beginnt. Tippe in deinen Buchungen auf „🐾 Tier abgeholt\", um den Start des Services zu bestätigen.",
     "emailSubject": "Bestätige den Start deines Services — HoPetSit",
     "emailBody": "<p>Dein Service beginnt! Öffne die HoPetSit-App und tippe in deinen Buchungen auf <b>🐾 Tier abgeholt</b>, um den Start des Services zu bestätigen.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Wenn der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "service_end_soon": {
+    "title": "Service endet bald 🏁",
+    "body": "Dein Service endet in 30 Minuten. Tippe auf „✅ Tier zurückgegeben“, um das Ende des Services zu bestätigen.",
+    "emailSubject": "Bestätige das Service-Ende — HoPetSit",
+    "emailBody": "<p>Dein Service endet in etwa 30 Minuten! Öffne die HoPetSit-App und tippe auf <b>✅ Tier zurückgegeben</b>, um das Ende des Services zu bestätigen (die Zahlung wird nach der Bestätigung des Besitzers freigegeben).</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
   }
 }

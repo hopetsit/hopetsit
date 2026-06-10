@@ -56,6 +56,7 @@ function startPayoutScheduler({
     // v23.1.340 — Daniel : notification au sitter/walker quand l'heure du
     // service arrive → "C'est l'heure ! Confirme le début du service 🐾".
     processServiceStartReminders,
+    processServiceEndReminders,
   } = require('../controllers/bookingController');
 
   // v23.1 part 78 — Daniel : "payout walker reste en attente". Auto-
@@ -86,6 +87,12 @@ function startPayoutScheduler({
       await processServiceStartReminders();
     } catch (error) {
       logger.error('❌ Payout scheduler tick (start reminders) failed', error);
+    }
+    try {
+      // v23.1.354 — rappel "Fin de service" au prestataire 30 min avant la fin.
+      await processServiceEndReminders();
+    } catch (error) {
+      logger.error('❌ Payout scheduler tick (end reminders) failed', error);
     }
   };
 

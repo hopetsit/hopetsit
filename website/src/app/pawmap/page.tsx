@@ -136,9 +136,9 @@ export default function PawMapPage() {
           {t("pawfollow_desc")}
         </p>
 
-        {/* v23.1.278 — Daniel : "sépare bien + couleur". Section 1 :
-            Suis ton animal (PawFollow individuel — vert walker). */}
-        <h3 className="mt-10 text-center font-display text-xl font-extrabold text-walker-dark">
+        {/* v23.1.354 — Daniel : "PawFollow = VIOLET partout" (app + map +
+            site). Section 1 : Suis ton animal (PawFollow individuel). */}
+        <h3 className="mt-10 text-center font-display text-xl font-extrabold text-violet-700">
           🐾 {t("pawfollow_section_solo")}
         </h3>
         <div className="mt-6 grid grid-cols-1 gap-5 md:mx-auto md:max-w-3xl md:grid-cols-2">
@@ -149,16 +149,16 @@ export default function PawMapPage() {
                 key={p.name}
                 className={
                   "relative rounded-2xl border bg-white p-6 shadow-card transition " +
-                  (p.highlighted ? "border-walker ring-2 ring-walker scale-[1.02]" : "border-ink/5")
+                  (p.highlighted ? "border-violet-600 ring-2 ring-violet-600 scale-[1.02]" : "border-ink/5")
                 }
               >
                 {p.badge ? (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white">
                     {p.badge}
                   </span>
                 ) : null}
                 <h4 className="text-lg font-bold text-ink">{p.name}</h4>
-                <p className="mt-3 text-3xl font-extrabold text-walker-dark">
+                <p className="mt-3 text-3xl font-extrabold text-violet-700">
                   {p.price}
                   <span className="ml-1 text-sm font-medium text-ink-muted">{p.period}</span>
                 </p>
@@ -166,7 +166,7 @@ export default function PawMapPage() {
                 <ul className="mt-5 space-y-2">
                   {p.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm text-ink">
-                      <span className="mt-0.5 text-walker">✓</span>
+                      <span className="mt-0.5 text-violet-600">✓</span>
                       <span>{f}</span>
                     </li>
                   ))}
@@ -226,7 +226,7 @@ export default function PawMapPage() {
           {pawspotOffers.map((o) => (
             <div key={o.name} className="rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
               <h3 className="text-lg font-bold text-ink">{o.name}</h3>
-              <p className="mt-3 text-3xl font-extrabold text-walker-dark">{o.price}</p>
+              <p className="mt-3 text-3xl font-extrabold text-amber-600">{o.price}</p>
               <p className="mt-2 text-sm text-ink-muted">{o.details}</p>
             </div>
           ))}

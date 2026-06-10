@@ -868,7 +868,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 emoji: '🐾',
                 title: 'pawfollow_section_solo'.tr,
                 subtitle: 'pawfollow_section_solo_sub'.tr,
-                color: const Color(0xFFFF9500),
+                color: const Color(0xFF7C3AED),
               ),
               SizedBox(height: 12.h),
               ...controller.plans
@@ -1121,7 +1121,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               title: 'PawFollow',
               active: pawFollowActive,
               days: pawFollowDays,
-              activeColors: const [Color(0xFFFFD700), Color(0xFFFF9500)],
+              activeColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)], // v354 — PawFollow violet
             ),
           ),
           SizedBox(width: 10.w),
@@ -1344,7 +1344,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                         // v23.1.276 — prix violet pour PawFollow Famille.
                         color: isFamily
                             ? const Color(0xFF7C3AED)
-                            : const Color(0xFFFF9500),
+                            : const Color(0xFF7C3AED),
                       ),
                       InterText(
                         text: '${CurrencyHelper.format(plan.currency, plan.amountPerDay)}${'pawfollow_per_day_suffix'.tr}',
@@ -1366,7 +1366,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                         height: 20.w,
                         child: const CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFFFF9500),
+                          color: Color(0xFF7C3AED),
                         ),
                       );
                     }
@@ -1386,7 +1386,8 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFD700),
+                  // v354 — PawFollow = violet (Daniel), plus de ruban doré.
+                  color: const Color(0xFF7C3AED),
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(8.r),
                     bottomRight: Radius.circular(8.r),
@@ -1396,7 +1397,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                   text: 'MEILLEUR PRIX',
                   fontSize: 9.sp,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -1471,7 +1472,7 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
             // tap affordance. Other rows stay flat with Premium orange.
             final accent = isShortcut
                 ? AppColors.mapBoostBlue
-                : const Color(0xFFFF9500);
+                : const Color(0xFF7C3AED);
             final row = Padding(
               padding: EdgeInsets.only(bottom: 10.h),
               child: Row(

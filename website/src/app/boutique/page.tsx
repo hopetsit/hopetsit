@@ -386,7 +386,7 @@ function PremiumSection({
       {status && (
         <div
           className={`rounded-2xl p-5 shadow-card ${
-            isPremium ? "bg-gradient-to-br from-amber-100 to-amber-50" : "bg-white border border-ink/5"
+            isPremium ? "bg-gradient-to-br from-violet-100 to-violet-50" : "bg-white border border-ink/5"
           }`}
         >
           {isPremium ? (
@@ -394,7 +394,7 @@ function PremiumSection({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-2xl">🌟</span>
                 <h3 className="text-lg font-bold text-ink">Premium actif</h3>
-                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                <span className="rounded-full bg-violet-200 px-2 py-0.5 text-xs font-semibold text-violet-900">
                   {status.plan}
                 </span>
               </div>
@@ -415,7 +415,7 @@ function PremiumSection({
                     type="button"
                     onClick={onResume}
                     disabled={cancelling}
-                    className="rounded-full bg-walker px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    className="rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
                   >
                     {cancelling ? "…" : "Réactiver le renouvellement"}
                   </button>

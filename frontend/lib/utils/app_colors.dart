@@ -49,7 +49,8 @@ class AppColors {
   // Session v15-4 — Map Boost theme palette. Distinct from Boost (red) and
   // Premium (orange) so the user immediately sees Map Boost = "carte".
   // Blue for the entry tiers + gold for the premium tiers.
-  static const Color mapBoostBlue = Color(0xFF3B82F6);
+  // v354 — refonte PawSpot : l'identité produit passe du bleu au DORÉ.
+  static const Color mapBoostBlue = Color(0xFFE8A00A);
   static const Color mapBoostGold = Color(0xFFF59E0B);
   static const Color mapBoostGoldDeep = Color(0xFFD97706);
 

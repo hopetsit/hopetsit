@@ -2093,7 +2093,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     children: [
                       if (!_isUserPremium())
                         _buildMapCornerButton(
-                          color: const Color(0xFFF5A623),
+                          color: const Color(0xFF7C3AED), // v354 — PawFollow = violet (Daniel)
                           icon: Icons.star_rounded,
                           tooltip: 'PawFollow',
                           onTap: () =>

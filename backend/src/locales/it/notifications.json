@@ -310,5 +310,11 @@
     "body": "Il tuo servizio inizia. Tocca «🐾 Ho preso l'animale» nelle tue prenotazioni per confermare l'inizio del servizio.",
     "emailSubject": "Conferma l'inizio del servizio — HoPetSit",
     "emailBody": "<p>Il tuo servizio inizia! Apri l'app HoPetSit e tocca <b>🐾 Ho preso l'animale</b> nelle tue prenotazioni per confermare l'inizio del servizio.</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi prenotazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia questo link: {{emailLink}}</p>"
+  },
+  "service_end_soon": {
+    "title": "Il servizio termina presto 🏁",
+    "body": "Il tuo servizio termina tra 30 minuti. Tocca «✅ Ho restituito l'animale» per confermare la fine del servizio.",
+    "emailSubject": "Conferma la fine del servizio — HoPetSit",
+    "emailBody": "<p>Il tuo servizio termina tra circa 30 minuti! Apri l'app HoPetSit e tocca <b>✅ Ho restituito l'animale</b> per confermare la fine del servizio (il pagamento viene sbloccato dopo la conferma del proprietario).</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi la prenotazione</a></p><p style=\"color:#666;font-size:12px;\">Se il pulsante non funziona, copia e incolla questo link: {{emailLink}}</p>"
   }
 }

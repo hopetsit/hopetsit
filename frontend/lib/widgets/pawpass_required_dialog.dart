@@ -49,7 +49,7 @@ class PawPassRequiredDialog {
                 text: 'pawpass_discover_button'.tr,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFF5A623),
+                color: const Color(0xFF7C3AED),
               ),
             ),
           ],
