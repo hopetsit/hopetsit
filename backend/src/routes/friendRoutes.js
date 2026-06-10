@@ -1393,6 +1393,87 @@ router.get('/:id/last-position', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /friends/live-positions
+ *
+ * v23.1.351 — Daniel : "vérifie que quand on se connecte sur la PawMap la
+ * 1re fois, tous les points, signalements ET amis/famille apparaissent".
+ * AVANT : les positions amis n'arrivaient QUE par le live socket
+ * (map:friend-position) → à la 1re ouverture la carte était vide d'amis
+ * jusqu'au prochain tick GPS de LEUR téléphone, et un ami qui ne diffuse
+ * pas n'apparaissait jamais (alors que sa dernière position est en base,
+ * persistée toutes les 10s par mapSocket).
+ *
+ * Ce endpoint renvoie EN UNE FOIS la dernière position connue (< 24h) de
+ * tous mes amis/famille TRAÇABLES, avec exactement les mêmes règles que
+ * /:id/last-position : opt-out explicite prioritaire → famille → PawFollow
+ * (le mien OU le sien) → flag de partage par amitié.
+ */
+router.get('/live-positions', requireAuth, async (req, res) => {
+  try {
+    const user = me(req);
+    const friendships = await Friendship.find({
+      status: 'accepted',
+      $or: [{ requesterId: user.id }, { addresseeId: user.id }],
+    }).lean();
+
+    const Owner = require('../models/Owner');
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+    const { hasActivePawFollow } = require('../models/UserSubscription');
+    let minePawFollow = false;
+    try { minePawFollow = await hasActivePawFollow(user.id); } catch (_) {/* */}
+
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000; // fraîcheur : 24h max
+    const now = Date.now();
+    const positions = [];
+
+    for (const f of friendships) {
+      const iAmRequester = String(f.requesterId) === String(user.id);
+      const otherId = iAmRequester ? String(f.addresseeId) : String(f.requesterId);
+      const otherModel = iAmRequester ? f.addresseeModel : f.requesterModel;
+
+      // Opt-out explicite de L'AUTRE → jamais visible (prime sur tout).
+      const otherShareFlag = iAmRequester
+        ? f.addresseeSharesPosition
+        : f.requesterSharesPosition;
+      if (otherShareFlag === false) continue;
+
+      let canTrack = false;
+      try { if (await isInSameFamily(user.id, otherId)) canTrack = true; } catch (_) {/* */}
+      if (!canTrack && minePawFollow) canTrack = true;
+      if (!canTrack) {
+        try { if (await hasActivePawFollow(otherId)) canTrack = true; } catch (_) {/* */}
+      }
+      if (!canTrack && otherShareFlag === true) canTrack = true;
+      if (!canTrack) continue;
+
+      const Model =
+        otherModel === 'Walker' ? Walker : otherModel === 'Sitter' ? Sitter : Owner;
+      let doc = null;
+      try { doc = await Model.findById(otherId).select('location').lean(); } catch (_) {/* */}
+      const coords = doc?.location?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+      const at = doc.location?.updatedAt ? new Date(doc.location.updatedAt) : null;
+      if (at && now - at.getTime() > MAX_AGE_MS) continue; // trop vieille
+
+      positions.push({
+        userId: otherId,
+        role: String(otherModel || 'Owner').toLowerCase(),
+        lat: Number(coords[1]),
+        lng: Number(coords[0]),
+        at: at ? at.toISOString() : null,
+        city: doc.location?.city || '',
+      });
+    }
+
+    res.json({ positions });
+  } catch (e) {
+    logger.error('[friends/live-positions]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * GET /friends/family/members
  * Liste les membres de MA famille PawFollow + retourne mon statut titulaire.
  * Format de réponse :

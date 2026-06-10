@@ -10,6 +10,7 @@ import 'package:geolocator_android/geolocator_android.dart' as gloc_android;
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 
@@ -147,6 +148,13 @@ class LiveMapService extends GetxService {
       socket.emit('map:identify', {'role': role, 'userId': userId});
     }
 
+    // v23.1.351 — Daniel : "à la 1re connexion sur la PawMap, tous les amis/
+    // famille doivent apparaître". Avant : friendPositions n'était rempli QUE
+    // par les events live map:friend-position → carte vide d'amis tant que
+    // LEUR téléphone n'émettait pas. On hydrate maintenant avec la dernière
+    // position connue (<24h, mêmes règles d'accès que le live) en un appel.
+    _hydrateLastKnownPositions();
+
     socket.off('map:friend-position');
     socket.on('map:friend-position', (raw) {
       try {
@@ -166,6 +174,38 @@ class LiveMapService extends GetxService {
         if (uid != null) friendPositions.remove(uid);
       } catch (_) {}
     });
+  }
+
+  // v23.1.351 — garde anti-spam : 1 hydratation par session (attach() est
+  // ré-appelé à chaque reconnexion socket ; le live prend le relais ensuite).
+  bool _hydratedOnce = false;
+
+  /// Hydrate `friendPositions` avec la DERNIÈRE position connue (<24h) de
+  /// chaque ami/famille traçable — GET /friends/live-positions (mêmes règles
+  /// d'accès que le live : opt-out > famille > PawFollow > partage). On
+  /// n'écrase JAMAIS une position live déjà reçue (plus fraîche par nature).
+  Future<void> _hydrateLastKnownPositions() async {
+    if (_hydratedOnce) return;
+    _hydratedOnce = true;
+    try {
+      if (!Get.isRegistered<ApiClient>()) return;
+      final r = await Get.find<ApiClient>()
+          .get('/friends/live-positions', requiresAuth: true);
+      final list = (r is Map && r['positions'] is List)
+          ? r['positions'] as List
+          : const [];
+      for (final item in list) {
+        if (item is! Map) continue;
+        final fp = FriendPosition.fromJson(item.cast<String, dynamic>());
+        if (fp.userId.isEmpty) continue;
+        if (friendPositions.containsKey(fp.userId)) continue; // live > snapshot
+        friendPositions[fp.userId] = fp;
+      }
+      debugPrint('[LiveMap] hydrated ${list.length} last-known position(s)');
+    } catch (e) {
+      _hydratedOnce = false; // retentera à la prochaine (re)connexion
+      debugPrint('[LiveMap] hydrate last-known failed: $e');
+    }
   }
 
   /// Start broadcasting my position to friends. Call [stopBroadcasting] when
