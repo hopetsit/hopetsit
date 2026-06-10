@@ -78,6 +78,17 @@ class LocalizationService {
     if (storedCode != null && _supportedLocaleMap.containsKey(storedCode)) {
       return storedCode;
     }
+    // v23.1.347 — Daniel : "CGU et confidentialité toujours en anglais ?!".
+    // L'UI (getInitialLocale) suit la LANGUE DU TÉLÉPHONE quand l'utilisateur
+    // n'a jamais choisi de langue dans le profil, mais ce getter retombait
+    // directement sur l'anglais → app affichée en français MAIS pages légales
+    // (CGU, confidentialité) et autres lecteurs de ce code en anglais. On
+    // applique la MÊME cascade : langue choisie → langue du téléphone → EN.
+    final deviceLocale = Get.deviceLocale;
+    if (deviceLocale != null &&
+        _supportedLocaleMap.containsKey(deviceLocale.languageCode)) {
+      return deviceLocale.languageCode;
+    }
     return fallbackLocale.languageCode;
   }
 }
