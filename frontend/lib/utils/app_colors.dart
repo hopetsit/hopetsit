@@ -18,9 +18,10 @@ class AppColors {
   static const chatFieldColor = Color(0xFFF3F2EF);
   static const greenColor = Color(0xFF008000);
   // Role accents — used on SignUp cards and per-role profile screens.
-  // Sitter accent = blue (matches the blue palette already used in
-  // sitter_profile_screen). Walker accent = the existing greenColor above.
-  static const sitterAccent = Color(0xFF1A73E8);
+  // v23.1.346 — audit codes couleur (Daniel) : canon = sitter 0xFF2563EB.
+  // L'ancien 0xFF1A73E8 (bleu Google) fragmentait la charte : marqueurs map,
+  // bande d'accueil et boutons service utilisaient déjà 2563EB.
+  static const sitterAccent = Color(0xFF2563EB);
 
   // v18.9.8 — constantes rôle centralisées. Remplacer progressivement les
   // const Color(0xFF1A73E8) / Color(0xFF2563EB) / greenColor éparpillés

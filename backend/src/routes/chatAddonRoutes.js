@@ -96,6 +96,35 @@ router.post('/subscribe', requireAuth, async (req, res) => {
     const role = req.user.role;
     const amountCents = Math.round(pricing.amount * 100);
 
+    // ─── v23.1.346 — audit boutique : staff bypass (gratuit), aligné sur
+    // boost/subscriptions/map-boost qui l'avaient déjà. Sans lui, les comptes
+    // staff devaient payer le chat add-on pour tester.
+    try {
+      const Model = role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
+      const staffUser = await Model.findById(userId).select('isStaff').lean();
+      if (staffUser && staffUser.isStaff) {
+        const { activateChatAddonFromWebhook } = require('../controllers/purchaseActivationController');
+        await activateChatAddonFromWebhook({
+          piId: `staff_free_${Date.now()}_chatAddon`,
+          metadata: {
+            userId: String(userId),
+            role,
+            intervalDays: String(pricing.intervalDays),
+            currency: pricing.currency,
+          },
+        });
+        return res.json({
+          activated: true,
+          staffFree: true,
+          intervalDays: pricing.intervalDays,
+          amount: 0,
+          currency: pricing.currency,
+        });
+      }
+    } catch (e) {
+      logger.warn('[chatAddon] staff bypass check failed (continuing paid flow)', e);
+    }
+
     // ─── v23.1 part 84 — pay-with-wallet shortcut (walker/sitter only)
     const payWithWallet = req.body?.payWithWallet === true;
     if (payWithWallet && (role === 'walker' || role === 'sitter')) {

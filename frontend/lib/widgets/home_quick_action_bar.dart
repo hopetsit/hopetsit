@@ -289,14 +289,19 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         // v22.2 — Bug 16b : fallback "Le prestataire" si sitter.name vide
         // (cas où l'API ne populate pas le champ sitter/walker correctement).
         final b = acceptedToPay.first;
+        // v23.1.346 — audit traductions : ces labels étaient codés en dur en
+        // FRANÇAIS (affichés tels quels en UI es/de/it/pt/en) → clés 6 langues.
         final providerName = b.sitter.name.trim().isNotEmpty
             ? b.sitter.name
-            : 'Le prestataire';
+            : 'band_provider_fallback'.tr;
         final isWalker = (b.serviceType ?? '').toLowerCase().contains('walking');
         final extraCount = acceptedToPay.length - 1;
         final title = extraCount > 0
-            ? '$providerName a accepté ! (+$extraCount autre${extraCount > 1 ? 's' : ''})'
-            : '$providerName a accepté !';
+            ? 'band_owner_pay_title_extra'.trParams({
+                'name': providerName,
+                'count': extraCount.toString(),
+              })
+            : 'band_owner_pay_title'.trParams({'name': providerName});
         // Total agrégé si plusieurs bookings.
         double totalToPay = 0;
         String? aggCurrency;
@@ -306,11 +311,18 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           aggCurrency ??= bk.pricing?.currency ?? bk.sitter.currency;
         }
         final ctaLabel = extraCount > 0
-            ? 'Tout payer ${CurrencyHelper.format(aggCurrency ?? 'EUR', totalToPay)}'
-            : 'Payer ${CurrencyHelper.format(b.pricing?.currency ?? b.sitter.currency, (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble())}';
+            ? 'band_cta_pay_all'.trParams({
+                'amount': CurrencyHelper.format(aggCurrency ?? 'EUR', totalToPay),
+              })
+            : 'band_cta_pay'.trParams({
+                'amount': CurrencyHelper.format(
+                  b.pricing?.currency ?? b.sitter.currency,
+                  (b.pricing?.totalPrice ?? b.totalAmount ?? 0).toDouble(),
+                ),
+              });
         return _QuickAction(
           kind: _Kind.ownerPay,
-          color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+          color: isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
           icon: Icons.celebration_rounded,
           title: title,
           subtitle: '${_serviceLabel(b.serviceType)} ${b.petName} — '
@@ -365,13 +377,15 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
 
       if (ownerPaidRecent.isNotEmpty) {
         final b = ownerPaidRecent.first;
+        // v23.1.346 — audit traductions : labels FR codés en dur → clés 6 langues
+        // (réutilise payment_made_banner_title déjà existante pour le singulier).
         final providerName = b.sitter.name.trim().isNotEmpty
             ? b.sitter.name
-            : 'Le prestataire';
+            : 'band_provider_fallback'.tr;
         final extra = ownerPaidRecent.length - 1;
         final title = extra > 0
-            ? 'Paiement effectué (+$extra autre${extra > 1 ? 's' : ''})'
-            : 'Paiement effectué';
+            ? 'band_payment_made_title_extra'.trParams({'count': extra.toString()})
+            : 'payment_made_banner_title'.tr;
         return _QuickAction(
           kind: _Kind.providerPaid,
           color: const Color(0xFF16A34A), // green = success
@@ -396,9 +410,10 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
             kind: _Kind.ownerPay,
             color: const Color(0xFFFF9800),
             icon: Icons.timer_rounded,
-            title: 'Paiement en attente !',
-            subtitle: 'Confirme ton paiement avant l\'expiration.',
-            ctaLabel: 'Payer maintenant',
+            // v23.1.346 — audit traductions : FR codé en dur → clés 6 langues.
+            title: 'band_payment_pending_title'.tr,
+            subtitle: 'band_payment_pending_subtitle'.tr,
+            ctaLabel: 'band_cta_pay_now'.tr,
             booking: b,
             pulse: true,
           );
@@ -416,14 +431,19 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         final ownerName = b.owner.name.isNotEmpty ? b.owner.name : '—';
         return _QuickAction(
           kind: _Kind.providerAccept,
-          color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+          color: isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
           icon: Icons.notifications_active_rounded,
-          title: 'Nouvelle demande !',
-          subtitle: '$ownerName • ${b.petName} • ${_dateLabel(b)} → '
-              '${CurrencyHelper.format(
-                b.pricing?.currency ?? 'EUR',
-                estimated,
-              )} estimé',
+          // v23.1.346 — audit traductions : FR codé en dur → clés 6 langues.
+          title: 'band_new_request_title'.tr,
+          subtitle: 'band_new_request_subtitle'.trParams({
+            'owner': ownerName,
+            'pet': b.petName,
+            'date': _dateLabel(b),
+            'amount': CurrencyHelper.format(
+              b.pricing?.currency ?? 'EUR',
+              estimated,
+            ),
+          }),
           ctaLabel: '',
           booking: b,
           pulse: true,
@@ -517,7 +537,7 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
           : 'payment_received_banner_title'.tr;
       return _QuickAction(
         kind: _Kind.providerPaid,
-        color: isWalker ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+        color: isWalker ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
         icon: Icons.check_circle_rounded,
         title: title,
         // v23.1.162 — subtitle hardcoded FR avant ('$ownerName a payé X').

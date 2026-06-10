@@ -22,10 +22,15 @@ const logger = require('../utils/logger');
 
 const DEFAULTS = Object.freeze({
   boost: {
-    EUR: { bronze: 6.99,  silver: 12.99, gold: 19.99, platinum: 34.99 },
-    GBP: { bronze: 6.19,  silver: 11.59, gold: 17.79, platinum: 31.19 },
-    CHF: { bronze: 6.99,  silver: 12.99, gold: 19.99, platinum: 34.99 },
-    USD: { bronze: 7.69,  silver: 14.29, gold: 21.99, platinum: 38.49 },
+    // v23.1.346 — audit boutique (Daniel) : ces DEFAULTS étaient restés sur
+    // l'ancienne grille (6.99→34.99) alors que boostRoutes.BOOST_PRICING a été
+    // volontairement baissé en avril 2026 ("phase-1 price cut", gamme .99
+    // psychologique 4.99→24.99). Les deux fallbacks divergeaient → prix affiché
+    // ≠ prix facturé si la DB pricing est vide. Alignés sur la grille voulue.
+    EUR: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
+    GBP: { bronze: 4.39,  silver: 8.79,  gold: 13.29, platinum: 21.99 },
+    CHF: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
+    USD: { bronze: 5.49,  silver: 10.99, gold: 16.49, platinum: 27.49 },
   },
   mapBoost: {
     // v23.1 — aligned with website PawMap pricing:

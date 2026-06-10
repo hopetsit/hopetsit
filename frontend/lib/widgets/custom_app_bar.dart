@@ -317,11 +317,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       String badgeKey;
       switch (lower) {
         case 'walker':
-          badgeColor = AppColors.greenColor;
+          // v23.1.346 — audit codes couleur : canon walker 0xFF16A34A /
+          // sitter 0xFF2563EB (le badge utilisait vert foncé + bleu Material).
+          badgeColor = AppColors.walkerAccent;
           badgeKey = 'role_pet_walker';
           break;
         case 'sitter':
-          badgeColor = const Color(0xFF2196F3); // bleu
+          badgeColor = AppColors.sitterAccent; // bleu canon 0xFF2563EB
           badgeKey = 'role_pet_sitter';
           break;
         case 'owner':

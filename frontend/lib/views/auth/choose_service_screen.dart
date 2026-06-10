@@ -36,10 +36,12 @@ class ChooseServiceScreen extends StatelessWidget {
   /// marqueurs PawMap et les cartes Boost.
   Color _serviceColor(String value) {
     switch (value) {
+      // v23.1.346 — audit codes couleur : canon walker 0xFF16A34A /
+      // sitter 0xFF2563EB (anciens verts/bleus Material remplacés).
       case 'dog_walking':
-        return const Color(0xFF4CAF50); // vert — walker
+        return const Color(0xFF16A34A); // vert — walker
       case 'pet_sitting':
-        return const Color(0xFF1A73E8); // bleu — sitter premium
+        return const Color(0xFF2563EB); // bleu — sitter
       case 'day_care':
         return const Color(0xFFFF9800); // orange — jour
       default:

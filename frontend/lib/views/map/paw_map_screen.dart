@@ -1935,7 +1935,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                         ),
                       if (!_isUserPremium()) SizedBox(height: 8.h),
                       _buildMapCornerButton(
-                        color: const Color(0xFF2196F3),
+                        // v23.1.346 — audit codes couleur : PawSpot = bleu
+                        // produit mapBoostBlue 0xFF3B82F6 (cohérent boutique).
+                        color: const Color(0xFF3B82F6),
                         icon: Icons.location_on_rounded,
                         tooltip: 'PawSpot',
                         onTap: () =>
