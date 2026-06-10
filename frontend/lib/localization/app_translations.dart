@@ -91,9 +91,12 @@ class LocalizationService {
   static Future<void> syncToBackend() async {
     if (_syncedThisSession) return;
     try {
-      final token = GetStorage().read<String>(StorageKeys.authToken);
-      if (token == null || token.isEmpty) return;
       if (!Get.isRegistered<ApiClient>()) return;
+      // v23.1.348 — le JWT vit dans le secure storage (Keychain/Keystore)
+      // depuis v125, avec GetStorage en legacy : ApiClient.authToken combine
+      // les deux sources — on l'utilise au lieu de lire GetStorage direct.
+      final token = Get.find<ApiClient>().authToken;
+      if (token == null || token.isEmpty) return;
       final code = getCurrentLanguageCode();
       _syncedThisSession = true;
       await Get.find<ApiClient>().patch(
