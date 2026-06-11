@@ -39,6 +39,38 @@ async function startServer() {
     } catch (e) {
       logger.error('[boot] seedAdmin failed (non-fatal)', e);
     }
+    // v23.1.367 — Daniel : badge Staff ⭐ automatique sur les comptes
+    // fondateurs (emails ci-dessous ; chiffrés en DB → scan + decrypt).
+    // Idempotent : ne touche que les comptes pas encore flaggés. Effet :
+    // boutique gratuite + spots PawSpot DORÉS (Gold Creator d'office).
+    try {
+      const { decrypt } = require('./utils/encryption');
+      const STAFF_EMAILS = ['dadaciao84@gmail.com', 'hopetsit@gmail.com'];
+      let flagged = 0;
+      for (const modelName of ['Owner', 'Sitter', 'Walker']) {
+        const Model = require(`./models/${modelName}`);
+        const candidates = await Model.find({ isStaff: { $ne: true } })
+          .select('email').limit(5000).lean();
+        for (const u of candidates) {
+          let email = '';
+          try {
+            email = (decrypt(u.email || '') || '').toLowerCase().trim();
+          } catch (_) { continue; }
+          if (STAFF_EMAILS.includes(email)) {
+            await Model.updateOne({ _id: u._id }, { $set: { isStaff: true } });
+            flagged += 1;
+            logger.info(
+              `[boot] ensureStaff: ${modelName} ${u._id} → isStaff=true (${email})`,
+            );
+          }
+        }
+      }
+      if (flagged > 0) {
+        logger.info(`⭐ [boot] ensureStaff: ${flagged} compte(s) flaggé(s) staff.`);
+      }
+    } catch (e) {
+      logger.error('[boot] ensureStaff failed (non-fatal)', e);
+    }
     server.listen(PORT, () => {
       logger.info(`PetsInsta backend listening at http://localhost:${PORT}`);
     });
