@@ -202,19 +202,21 @@ function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
   if (isGolden) {
     return new L.DivIcon({
       className: "",
-      html: `<div style="width:38px;height:38px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
-      iconSize: [38, 38],
-      iconAnchor: [19, 19],
-      popupAnchor: [0, -19],
+      // v23.1.369 — pièces agrandies (avatars amis = 48 px → or 46).
+      html: `<div style="width:46px;height:46px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
+      iconSize: [46, 46],
+      iconAnchor: [23, 23],
+      popupAnchor: [0, -23],
     });
   }
   const bg = SPOT_COLOR[type] || SPOT_COLOR.other;
   return new L.DivIcon({
     className: "",
-    html: `<div style="width:34px;height:34px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${makeTypeCoinSvg(bg)}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
-    popupAnchor: [0, -17],
+    // v23.1.369 — pièces type 42 px (légèrement sous les avatars 48).
+    html: `<div style="width:42px;height:42px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${makeTypeCoinSvg(bg)}</div>`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -21],
   });
 }
 

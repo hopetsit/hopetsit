@@ -660,10 +660,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     final img =
         await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    // Or légèrement plus gros (38) que les pièces type (34) : le doré ressort.
+    // v23.1.369 — Daniel : "l'emoji plus grand, comme la taille des
+    // utilisateurs, légèrement moins grand" — avatars amis = 96 px →
+    // pièces type 64, pièce OR 70 (le doré ressort toujours un peu).
     return BitmapDescriptor.bytes(
       bytes!.buffer.asUint8List(),
-      width: base == null ? 38 : 34,
+      width: base == null ? 70 : 64,
     );
   }
 
