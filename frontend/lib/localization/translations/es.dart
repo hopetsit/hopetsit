@@ -2742,7 +2742,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'pawspot_type_short_swimming': 'Baño',
     'pawspot_type_short_food_cafe': 'Restauración',
     'pawspot_type_short_other': 'Otro',
-    'pawspot_pick_hint': 'Mueve el mapa para colocar tu spot 📍',
+    'pawspot_pick_hint': 'Toca el mapa (o arrastra el pin) para colocar tu spot 📍',
     'pawspot_pick_confirm': 'Confirmar posición',
     'pawspot_pick_cancel': 'Cancelar',
     'pawfollow_feature_directions': 'Rutas a los lugares gratuitos del PawMap (fuentes, parques, restaurantes…) incluidas',

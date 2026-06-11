@@ -82,7 +82,12 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             tabs: [
               Tab(icon: const Icon(Icons.trending_up, size: 20), text: 'shop_tab_boost'.tr),
               Tab(icon: const Icon(Icons.star_rounded, size: 22), text: 'shop_tab_pawpass'.tr),
-              Tab(icon: const Icon(Icons.pets_rounded, size: 20), text: 'shop_tab_pawspot'.tr),
+              // v23.1.363 — Daniel : le logo PawSpot = la pièce DORÉE
+              // officielle (emoji fourni) partout dans la boutique.
+              Tab(
+                icon: const GoldenPawCoin(size: 22),
+                text: 'shop_tab_pawspot'.tr,
+              ),
             ],
           ),
         ),

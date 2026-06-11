@@ -176,6 +176,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// position exacte (Daniel : "je ne peux pas sélectionner l'endroit").
   final RxBool _pickingSpotPos = false.obs;
 
+  /// v23.1.363 — position choisie en TAPANT la carte pendant le mode viseur
+  /// (marqueur réel ancré au sol — bien plus précis que le centre écran).
+  LatLng? _pickedSpotPos;
+
   /// v23.1.353 — itinéraire "Y aller" (GET /pawspots/directions). La
   /// polyline orange est dessinée sur la carte ; le bandeau bas affiche la
   /// distance + un bouton pour l'effacer.
@@ -1498,6 +1502,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showPawSpots.value ? 1 : 0,
       // v23.1.356 — switch PawFollow (couche live ON/OFF).
       _showLiveLayer.value ? 1 : 0,
+      // v23.1.363 — mode viseur (pin de placement tap/drag).
+      _pickingSpotPos.value ? 1 : 0,
+      _pickedSpotPos == null
+          ? ''
+          : '${_pickedSpotPos!.latitude.toStringAsFixed(5)},${_pickedSpotPos!.longitude.toStringAsFixed(5)}',
       _pawSpotController.spots.length,
       _liveMap.friendPositions.length,
       // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la
@@ -1667,6 +1676,20 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         );
       }
+    }
+    // v23.1.363 — mode viseur : VRAI marqueur rose ancré au sol, déplacé
+    // au TAP sur la carte ou par DRAG du pin (précision maximale).
+    if (_pickingSpotPos.value && _pickedSpotPos != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('spot_picker'),
+          position: _pickedSpotPos!,
+          draggable: true,
+          onDragEnd: (p) => setState(() => _pickedSpotPos = p),
+          icon: BitmapDescriptor.defaultMarkerWithHue(330),
+          zIndexInt: 20,
+        ),
+      );
     }
     // v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
     // Marqueur emoji du type (fond couleur type) ; spot GOLDEN → empreinte
@@ -2083,8 +2106,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           // doublon avec le FAB et chargeaient l'ecran.
           _buildQuickActionsRow(),
 
-          // Layer toggle row (POIs / Reports)
-          _buildLayerRow(),
+          // v23.1.363 — Daniel : Signalements/Mon cercle fusionnés sur LA
+          // MÊME ligne que Lieux/Tous/Rien (voir _buildCategoryFilterBar).
 
           // v23.1.285 — Daniel : "améliore le menu de la pawmap comme la photo".
           // Filtre catégories POI : bouton « Lieux (N) » + bouton « Tous », qui
@@ -2164,6 +2187,14 @@ class _PawMapScreenState extends State<PawMapScreen>
                               CameraPosition(target: LatLng(lat, lng), zoom: z),
                             ),
                           );
+                        }
+                      },
+                      // v23.1.363 — mode viseur : TAPER la carte place le
+                      // pin du futur spot exactement là (Daniel : "je ne
+                      // peux pas bien choisir ma position").
+                      onTap: (latLng) {
+                        if (_pickingSpotPos.value) {
+                          setState(() => _pickedSpotPos = latLng);
                         }
                       },
                       onCameraMove: _onCameraMove,
@@ -2678,17 +2709,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Positioned.fill(
       child: Stack(
         children: [
-          // Pin viseur : IgnorePointer pour laisser la carte se déplacer.
-          IgnorePointer(
-            child: Center(
-              child: Transform.translate(
-                // La POINTE du pin (bas de l'icône) doit toucher le centre.
-                offset: Offset(0, -19.h),
-                child: Icon(Icons.location_on_rounded,
-                    size: 38.sp, color: const Color(0xFFEC4899)),
-              ),
-            ),
-          ),
+          // v23.1.363 — le faux pin central est remplacé par un VRAI
+          // marqueur rose ancré au sol (tap sur la carte / drag du pin).
           // Bulle d'aide.
           Positioned(
             top: 10.h,
@@ -2753,8 +2775,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14.r),
                     onTap: () {
+                      final at = _pickedSpotPos;
                       _pickingSpotPos.value = false;
-                      unawaited(_openPawSpotCreate());
+                      unawaited(_openPawSpotCreate(at: at));
                     },
                     child: Container(
                       padding: EdgeInsets.symmetric(vertical: 12.h),
@@ -3217,63 +3240,56 @@ class _PawMapScreenState extends State<PawMapScreen>
                 child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Bouton principal : ouvre/ferme la checklist.
+                // v23.1.363 — Daniel : "même taille, cadres FINS" pour
+                // toute la ligne (Lieux / Tous / Rien / Signalements /
+                // Cercle). Bouton principal : ouvre/ferme la checklist.
                 InkWell(
-                    borderRadius: BorderRadius.circular(14.r),
-                    onTap: () => _showCatFilter.value = !open,
-                    // v23.1.357 — Daniel : "modernise juste le bouton" (rangée
-                    // Lieux/Tous/Rien conservée). Pill dégradée + ombre colorée.
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                  borderRadius: BorderRadius.circular(12.r),
+                  onTap: () => _showCatFilter.value = !open,
+                  child: Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 11.w, vertical: 9.h),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4324).withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(
+                          color: const Color(0xFFEF4324), width: 1.3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
                         ),
-                        borderRadius: BorderRadius.circular(14.r),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFEF4324).withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('📍', style: TextStyle(fontSize: 14.sp)),
-                          SizedBox(width: 7.w),
-                          InterText(
-                            text:
-                                '${'pawmap_filter_places'.tr} ($shownCount/$total)',
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 4.w),
-                          Icon(
-                            open
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            color: Colors.white,
-                            size: 20.sp,
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('📍', style: TextStyle(fontSize: 12.sp)),
+                        SizedBox(width: 5.w),
+                        InterText(
+                          text:
+                              '${'pawmap_filter_places'.tr} ($shownCount/$total)',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFEF4324),
+                        ),
+                        SizedBox(width: 2.w),
+                        Icon(
+                          open
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: const Color(0xFFEF4324),
+                          size: 16.sp,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 SizedBox(width: 8.w),
-                // Bouton « Tous » : rallume la couche POI + enlève le filtre.
+                // « Tous » : rallume la couche POI + enlève le filtre.
                 InkWell(
-                  borderRadius: BorderRadius.circular(14.r),
+                  borderRadius: BorderRadius.circular(12.r),
                   onTap: () {
                     _showPois.value = true;
                     _poiController.selectAllCategories();
@@ -3281,77 +3297,61 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     padding:
-                        EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                        EdgeInsets.symmetric(horizontal: 11.w, vertical: 9.h),
                     decoration: BoxDecoration(
-                      gradient: allShown
-                          ? const LinearGradient(
-                              colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : null,
-                      color: allShown ? null : Colors.white,
-                      borderRadius: BorderRadius.circular(14.r),
+                      color: allShown
+                          ? const Color(0xFFEF4324).withValues(alpha: 0.10)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
                         color: allShown
-                            ? Colors.white.withValues(alpha: 0.25)
+                            ? const Color(0xFFEF4324)
                             : const Color(0xFFE0E0E0),
-                        width: 1.2,
+                        width: 1.3,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: allShown
-                              ? const Color(0xFFEF4324).withValues(alpha: 0.35)
-                              : Colors.black.withValues(alpha: 0.08),
-                          blurRadius: allShown ? 10 : 6,
-                          offset: const Offset(0, 3),
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: InterText(
                       text: 'paw_map_filter_all'.tr,
-                      fontSize: 13.sp,
+                      fontSize: 12.sp,
                       fontWeight: FontWeight.w800,
                       color: allShown
-                          ? Colors.white
+                          ? const Color(0xFFEF4324)
                           : const Color(0xFF1F2937),
                     ),
                   ),
                 ),
                 SizedBox(width: 8.w),
-                // v23.1.289 — Daniel : remettre le bouton « Rien » à droite de
-                // « Tous ». « Rien » éteint la couche POI → tous les lieux
-                // disparaissent de la carte.
+                // « Rien » : éteint la couche POI.
                 InkWell(
-                  borderRadius: BorderRadius.circular(14.r),
+                  borderRadius: BorderRadius.circular(12.r),
                   onTap: () => _showPois.value = false,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     padding:
-                        EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                        EdgeInsets.symmetric(horizontal: 11.w, vertical: 9.h),
                     decoration: BoxDecoration(
-                      gradient: !poisOn
-                          ? const LinearGradient(
-                              colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : null,
-                      color: !poisOn ? null : Colors.white,
-                      borderRadius: BorderRadius.circular(14.r),
+                      color: !poisOn
+                          ? const Color(0xFFEF4324).withValues(alpha: 0.10)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
                         color: !poisOn
-                            ? Colors.white.withValues(alpha: 0.25)
+                            ? const Color(0xFFEF4324)
                             : const Color(0xFFE0E0E0),
-                        width: 1.2,
+                        width: 1.3,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: !poisOn
-                              ? const Color(0xFFEF4324).withValues(alpha: 0.35)
-                              : Colors.black.withValues(alpha: 0.08),
-                          blurRadius: !poisOn ? 10 : 6,
-                          offset: const Offset(0, 3),
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -3359,23 +3359,60 @@ class _PawMapScreenState extends State<PawMapScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.block_rounded,
-                            size: 14.sp,
+                            size: 13.sp,
                             color: !poisOn
-                                ? Colors.white
+                                ? const Color(0xFFEF4324)
                                 : AppColors.greyText),
                         SizedBox(width: 4.w),
                         InterText(
                           text: 'pawmap_filter_none'.tr,
-                          fontSize: 13.sp,
+                          fontSize: 12.sp,
                           fontWeight: FontWeight.w800,
                           color: !poisOn
-                              ? Colors.white
+                              ? const Color(0xFFEF4324)
                               : const Color(0xFF1F2937),
                         ),
                       ],
                     ),
                   ),
                 ),
+                // v23.1.363 — Daniel : Signalements + Mon cercle (+ Demandes)
+                // sur la MÊME ligne que Lieux/Tous/Rien, même taille, cadres
+                // fins — le scroll horizontal de la rangée absorbe le surplus.
+                SizedBox(width: 8.w),
+                Obx(() => _LayerToggle(
+                      label: 'pawmap_filter_reports_48h'.tr,
+                      emoji: '⚠️',
+                      active: _showReports.value,
+                      count: _reportController.reports
+                          .where((r) => !r.isExpired)
+                          .length,
+                      onTap: () => _showReports.value = !_showReports.value,
+                    )),
+                SizedBox(width: 8.w),
+                Obx(() {
+                  final active = _showFriends.value;
+                  final count = _liveMap.friendPositions.length;
+                  return _LayerToggle(
+                    label: 'pawmap_filter_friends'.tr,
+                    emoji: '👥',
+                    active: active,
+                    premiumBadge: true,
+                    count: count,
+                    onTap: () => _showFriends.value = !_showFriends.value,
+                  );
+                }),
+                if (_isSitterOrWalker) ...[
+                  SizedBox(width: 8.w),
+                  Obx(() => _LayerToggle(
+                        label: 'pawmap_filter_requests'.tr,
+                        emoji: '📣',
+                        active: _showRequests.value,
+                        count: _requests.length,
+                        onTap: () =>
+                            _showRequests.value = !_showRequests.value,
+                      )),
+                ],
               ],
               ),
               ),
@@ -3525,70 +3562,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLayerRow() {
-    // Session v3.3 — single horizontal scroll with the active-reports count
-    // now living inside the "Signalements" toggle so nothing overflows on
-    // small screens (the old side-badge was clipping on a Galaxy device).
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      // v23.1.360 — maquette : chips CENTRÉS quand la rangée tient (le
-      // ConstrainedBox force la largeur mini = écran → mainAxisAlignment
-      // center agit) ; scroll horizontal conservé en secours.
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.of(context).size.width - 24.w,
-          ),
-          child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // v23.1.358 — Daniel : "enlève POIs, y a déjà Lieux/Tous/Rien".
-            // Le chip POIs était redondant avec la rangée de filtres lieux.
-            Obx(() => _LayerToggle(
-                  label: 'pawmap_filter_reports_48h'.tr,
-                  emoji: '⚠️',
-                  active: _showReports.value,
-                  // Inline active-count pill — replaces the old side badge
-                  // that was overflowing the row on narrow screens.
-                  count: _reportController.reports
-                      .where((r) => !r.isExpired)
-                      .length,
-                  onTap: () => _showReports.value = !_showReports.value,
-                )),
-            SizedBox(width: 8.w),
-            Obx(() {
-              // Read the RxBool explicitly to guarantee Obx registers a
-              // reactive dependency (accessing .length on an RxMap doesn't
-              // always trigger tracking).
-              final active = _showFriends.value;
-              final count = _liveMap.friendPositions.length;
-              return _LayerToggle(
-                label: 'pawmap_filter_friends'.tr,
-                emoji: '👥',
-                active: active,
-                premiumBadge: true,
-                count: count,
-                onTap: () => _showFriends.value = !_showFriends.value,
-              );
-            }),
-            if (_isSitterOrWalker) ...[
-              SizedBox(width: 8.w),
-              Obx(() => _LayerToggle(
-                    label: 'pawmap_filter_requests'.tr,
-                    emoji: '📣',
-                    active: _showRequests.value,
-                    count: _requests.length,
-                    onTap: () => _showRequests.value = !_showRequests.value,
-                  )),
-            ],
-          ],
-          ),
-        ),
       ),
     );
   }
@@ -3843,30 +3816,32 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               ],
             ),
-            SizedBox(height: 6.h),
-            Row(
-              children: [
-                Expanded(
-                  child: _quickActionChip(
-                    label: 'pawmap_tag_spot_btn'.tr,
-                    icon: Icons.add_location_alt_rounded,
-                    accent: const Color(0xFFEC4899),
-                    onTap: _startSpotPicking,
-                  ),
-                ),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: _quickActionChip(
-                    label: 'pawmap_view_spots_btn'.tr,
-                    icon: Icons.list_rounded,
-                    accent: const Color(0xFF2563EB),
-                    onTap: () => unawaited(_openSpotsList()),
-                  ),
-                ),
-              ],
-            ),
-            // Légende des types (maquette) — visible quand la couche est ON.
+            // v23.1.363 — Daniel : "Taguer un lieu et Voir les spots
+            // n'apparaissent que si PawSpot est en mode ON".
             if (_showPawSpots.value) ...[
+              SizedBox(height: 6.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: _quickActionChip(
+                      label: 'pawmap_tag_spot_btn'.tr,
+                      icon: Icons.add_location_alt_rounded,
+                      accent: const Color(0xFFEC4899),
+                      onTap: _startSpotPicking,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: _quickActionChip(
+                      label: 'pawmap_view_spots_btn'.tr,
+                      icon: Icons.list_rounded,
+                      accent: const Color(0xFF2563EB),
+                      onTap: () => unawaited(_openSpotsList()),
+                    ),
+                  ),
+                ],
+              ),
+              // Légende des types (maquette).
               SizedBox(height: 6.h),
               _buildSpotLegend(),
             ],
@@ -3930,7 +3905,11 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// valide → la sheet de création s'ouvre avec cette position exacte.
   void _startSpotPicking() {
     if (!_showPawSpots.value) _showPawSpots.value = true;
+    // v23.1.363 — pin de départ au centre, puis TAP sur la carte pour le
+    // déplacer (le marqueur est aussi draggable).
+    _pickedSpotPos = _currentCenter;
     _pickingSpotPos.value = true;
+    if (mounted) setState(() {});
   }
 
   /// Chip avec Switch compact (PawFollow / PawSpot), pleine largeur
@@ -3946,7 +3925,8 @@ class _PawMapScreenState extends State<PawMapScreen>
   }) {
     final Color tone = subscribed ? accent : AppColors.greyText;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
+      // v23.1.363 — plus petits (Daniel : pas de slide sur cette ligne).
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 1.h),
       decoration: BoxDecoration(
         color: subscribed
             ? accent.withValues(alpha: 0.08)
@@ -3964,17 +3944,17 @@ class _PawMapScreenState extends State<PawMapScreen>
       child: Row(
         children: [
           Container(
-            width: 24.w,
-            height: 24.w,
+            width: 20.w,
+            height: 20.w,
             decoration: BoxDecoration(
               color: subscribed ? accent : AppColors.greyText.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
             child: emoji != null
-                ? Center(child: Text(emoji, style: TextStyle(fontSize: 12.sp)))
-                : Icon(icon, size: 15.sp, color: Colors.white),
+                ? Center(child: Text(emoji, style: TextStyle(fontSize: 10.sp)))
+                : Icon(icon, size: 13.sp, color: Colors.white),
           ),
-          SizedBox(width: 6.w),
+          SizedBox(width: 5.w),
           Expanded(
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -3982,7 +3962,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 Flexible(
                   child: InterText(
                     text: label,
-                    fontSize: 12.sp,
+                    fontSize: 11.sp,
                     fontWeight: FontWeight.w800,
                     color: subscribed ? accent : const Color(0xFF1F2937),
                     maxLines: 1,
@@ -3991,13 +3971,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
                 if (subscribed) ...[
                   SizedBox(width: 3.w),
-                  Text('👑', style: TextStyle(fontSize: 11.sp)),
+                  Text('👑', style: TextStyle(fontSize: 9.sp)),
                 ],
               ],
             ),
           ),
           Transform.scale(
-            scale: 0.7,
+            scale: 0.62,
             child: Switch(
               value: value,
               onChanged: onChanged,
@@ -4112,13 +4092,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     await _pawSpotController.loadNearby(_currentCenter);
   }
 
-  /// Ouvre la sheet de création — la position du spot est figée au centre
-  /// de la carte au moment de l'ouverture.
-  Future<void> _openPawSpotCreate() async {
+  /// Ouvre la sheet de création — position = pin du viseur (tap/drag) si
+  /// fourni, sinon le centre de la carte.
+  Future<void> _openPawSpotCreate({LatLng? at}) async {
     final created = await showPawSpotCreateSheet(
       context,
       controller: _pawSpotController,
-      position: _currentCenter,
+      position: at ?? _currentCenter,
     );
     if (created == true) {
       await _pawSpotController.loadNearby(_currentCenter);
@@ -4577,54 +4557,38 @@ class _LayerToggle extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        // v23.1.358 — padding réduit ("pas de slide" sur la rangée).
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+        // v23.1.363 — Daniel : "même taille, cadres FINS" — style unifié
+        // avec Lieux/Tous/Rien : fond blanc, bordure fine ; actif = teinte
+        // brand légère + bordure brand (le slide absorbe le surplus).
+        padding: EdgeInsets.symmetric(horizontal: 11.w, vertical: 9.h),
         decoration: BoxDecoration(
-          // v23.1.357/358 — Daniel : boutons modernisés, RECTANGLE ARRONDI
-          // (14.r — "c'est plus beau") : dégradé brand quand actif (texte
-          // blanc), surface claire sinon ; ombre colorée douce, transition
-          // animée. (Surfaces fixes CLAIRES dans les 2 modes — la GoogleMap
-          // reste claire, cf v23.1.278.)
-          gradient: active
-              ? LinearGradient(
-                  colors: [
-                    AppColors.primaryColor,
-                    AppColors.primaryColor.withValues(alpha: 0.82),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: active ? null : Colors.white,
-          borderRadius: BorderRadius.circular(14.r),
+          color: active
+              ? AppColors.primaryColor.withValues(alpha: 0.10)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: active
-                ? Colors.white.withValues(alpha: 0.25)
-                : const Color(0xFFE0E0E0),
-            width: 1.2,
+            color: active ? AppColors.primaryColor : const Color(0xFFE0E0E0),
+            width: 1.3,
           ),
           boxShadow: [
             BoxShadow(
-              color: active
-                  ? AppColors.primaryColor.withValues(alpha: 0.35)
-                  : Colors.black.withValues(alpha: 0.10),
-              blurRadius: active ? 10 : 6,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // v23.1.358 — Daniel : "réduit la police pour qu'il n'y ait pas
-            // de slide" (rangée Signalements / Mon cercle / Demandes).
             Text(emoji, style: TextStyle(fontSize: 12.sp)),
             SizedBox(width: 5.w),
             InterText(
               text: label,
-              fontSize: 10.sp,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w800,
-              color: active ? Colors.white : const Color(0xFF1F2937),
+              color:
+                  active ? AppColors.primaryColor : const Color(0xFF1F2937),
             ),
             if (premiumBadge) ...[
               SizedBox(width: 4.w),
@@ -4635,15 +4599,15 @@ class _LayerToggle extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
                 decoration: BoxDecoration(
-                  // Inversé quand le chip est actif (fond dégradé brand).
-                  color: active ? Colors.white : AppColors.primaryColor,
+                  // v23.1.363 — chip clair (cadre fin) → pastille brand fixe.
+                  color: AppColors.primaryColor,
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: InterText(
                   text: '$count',
                   fontSize: 10.sp,
                   fontWeight: FontWeight.w800,
-                  color: active ? AppColors.primaryColor : Colors.white,
+                  color: Colors.white,
                 ),
               ),
             ],

@@ -258,6 +258,7 @@ export default function BoutiquePage() {
           label={t("shop_tab_mapboost")}
           active={section === "mapboost"}
           onClick={() => setSection("mapboost")}
+          icon={<PawSpotGoldCoin size={18} />}
         />
       </div>
 
@@ -344,19 +345,23 @@ function SectionTab({
   label,
   active,
   onClick,
+  icon,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
+  /** v23.1.363 — icône custom (ex. pièce dorée PawSpot) avant le label. */
+  icon?: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
         active ? "bg-white text-ink shadow-sm" : "text-ink-muted hover:text-ink"
       }`}
     >
+      {icon}
       {label}
     </button>
   );

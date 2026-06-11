@@ -2775,7 +2775,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'pawspot_type_short_swimming': 'Balneazione',
     'pawspot_type_short_food_cafe': 'Ristoro',
     'pawspot_type_short_other': 'Altro',
-    'pawspot_pick_hint': 'Sposta la mappa per posizionare il tuo spot 📍',
+    'pawspot_pick_hint': 'Tocca la mappa (o trascina il pin) per posizionare il tuo spot 📍',
     'pawspot_pick_confirm': 'Conferma posizione',
     'pawspot_pick_cancel': 'Annulla',
     'pawfollow_feature_directions': 'Itinerari verso i luoghi gratuiti della PawMap (fontanelle, parchi, ristoranti…) inclusi',

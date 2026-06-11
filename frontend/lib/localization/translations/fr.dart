@@ -106,7 +106,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawspot_type_short_swimming': 'Baignade',
       'pawspot_type_short_food_cafe': 'Restauration',
       'pawspot_type_short_other': 'Autre',
-      'pawspot_pick_hint': 'Déplace la carte pour placer ton spot 📍',
+      'pawspot_pick_hint': 'Touche la carte (ou fais glisser le pin) pour placer ton spot 📍',
       'pawspot_pick_confirm': 'Valider la position',
       'pawspot_pick_cancel': 'Annuler',
       'pawfollow_feature_directions': 'Itinéraires vers les lieux gratuits de la PawMap (points d\'eau, parcs, restos…) inclus',

@@ -8,6 +8,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/golden_paw_coin.dart';
 
 class BoostProfileCard extends StatelessWidget {
   final String role; // 'owner' | 'sitter' | 'walker'
@@ -44,11 +45,11 @@ class BoostProfileCard extends StatelessWidget {
           SizedBox(width: 10.w),
           Expanded(
             child: _BoostChip(
-              // Refonte PawSpot — l'identité passe du pin bleu à
-              // l'empreinte DORÉE (abonnement communautaire : spots
-              // pet-friendly, PawPoints, classements, récompenses).
+              // v23.1.363 — Daniel : le logo PawSpot = la pièce DORÉE
+              // officielle (emoji fourni), aussi sur le chip du profil.
               accent: const Color(0xFFE8A00A),
               icon: Icons.pets_rounded,
+              iconWidget: const GoldenPawCoin(size: 40),
               label: 'shop_tile_map_boost'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
             ),
@@ -65,12 +66,17 @@ class _BoostChip extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.iconWidget,
   });
 
   final Color accent;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
+  /// v23.1.363 — icône custom (ex. pièce dorée PawSpot) à la place de
+  /// l'IconData.
+  final Widget? iconWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +120,9 @@ class _BoostChip extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(icon, color: Colors.white, size: 28.sp),
+              child: iconWidget != null
+                  ? Center(child: iconWidget)
+                  : Icon(icon, color: Colors.white, size: 28.sp),
             ),
             SizedBox(height: 8.h),
             PoppinsText(

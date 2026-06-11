@@ -2778,7 +2778,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'pawspot_type_short_swimming': 'Baden',
     'pawspot_type_short_food_cafe': 'Gastro',
     'pawspot_type_short_other': 'Sonstiges',
-    'pawspot_pick_hint': 'Bewege die Karte, um deinen Spot zu platzieren 📍',
+    'pawspot_pick_hint': 'Tippe auf die Karte (oder ziehe den Pin), um deinen Spot zu platzieren 📍',
     'pawspot_pick_confirm': 'Position bestätigen',
     'pawspot_pick_cancel': 'Abbrechen',
     'pawfollow_feature_directions': 'Routen zu den kostenlosen PawMap-Orten (Wasserstellen, Parks, Restaurants…) inklusive',
