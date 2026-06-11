@@ -10,7 +10,6 @@ import 'package:hopetsit/controllers/friend_controller.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
 import 'package:hopetsit/controllers/paw_map_controller.dart';
 import 'package:hopetsit/controllers/pawspot_controller.dart';
-import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/map_poi_model.dart';
 import 'package:hopetsit/models/map_report_model.dart';
@@ -224,16 +223,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// Controller for the "Chercher une ville" search bar displayed at the
   /// top of the map. On submit, geocodes the city and recenters.
   final TextEditingController _cityCtrl = TextEditingController();
-
-  /// Synchronous premium check — reads the current subscription status if
-  /// the controller is registered. Used to gate the _PremiumUpsell banner
-  /// without an Obx wrapper (which was firing the "improper use of GetX"
-  /// warning on first render).
-  bool _isUserPremium() {
-    if (!Get.isRegistered<SubscriptionController>()) return false;
-    final sub = Get.find<SubscriptionController>();
-    return sub.status.value?.isPremium ?? false;
-  }
 
   @override
   void initState() {
@@ -2293,24 +2282,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // v23.1.353 — refonte PawSpot : le pill bleu « PawSpot »
                 // (raccourci boutique map-boost) est SUPPRIMÉ — la couche
                 // spots communautaires 🐾 vit dans la barre de filtres.
-                Positioned(
-                  left: 12.w,
-                  top: 80.h,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (!_isUserPremium())
-                        _buildMapCornerButton(
-                          color: const Color(0xFF7C3AED), // v354 — PawFollow = violet (Daniel)
-                          icon: Icons.star_rounded,
-                          tooltip: 'PawFollow',
-                          onTap: () =>
-                              Get.to(() => const CoinShopScreen(initialTab: 1)),
-                        ),
-                    ],
-                  ),
-                ),
+                // v23.1.364 — Daniel : "le badge bouton PawFollow sur la
+                // PawMap a réapparu, vire-le" — le pill flottant violet est
+                // SUPPRIMÉ : le switch PawFollow de la rangée rapide suffit.
 
                 // Barre de recherche ville (gauche) + bouton géoloc (droite)
                 // en haut de la map. Les deux sont visibles en permanence
@@ -3575,78 +3549,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// moderne et jolie". Pastille glassy : fond blanc translucide, accent
   /// vif a gauche (pastille couleur ronde + icone blanche dessus), label
   /// en gras a droite, ombre douce + halo coloré soft.
-  Widget _buildMapCornerButton({
-    required Color color,
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(26.r),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(5.w, 5.h, 14.w, 5.h),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(26.r),
-            border: Border.all(
-              color: color.withValues(alpha: 0.30),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.25),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32.w,
-                height: 32.w,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [color, color.withValues(alpha: 0.80)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.50),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(icon, color: Colors.white, size: 17.sp),
-              ),
-              SizedBox(width: 8.w),
-              InterText(
-                text: tooltip,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// v21.1.1 — Banner "Live actif" qui apparaît au-dessus de la map quand
-  /// l'user broadcast sa position. Met en valeur le PawFollow temps réel
   /// pour que le user comprenne qu'il est visible par ses amis.
   Widget _buildLiveBroadcastBanner() {
     return Obx(() {

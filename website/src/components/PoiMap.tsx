@@ -53,12 +53,13 @@ function LiveFriendMarker({
   p,
   isFamily,
   roleLabel,
+  onFocus,
 }: {
   p: FriendLivePosition;
   isFamily: boolean;
   roleLabel: string;
+  onFocus?: () => void;
 }) {
-  const map = useMap();
   return (
     <span>
       <Circle
@@ -89,17 +90,9 @@ function LiveFriendMarker({
         icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
         zIndexOffset={800}
         eventHandlers={{
-          // v23.1.360 — fix "le zoom sur l'utilisateur ne marche pas" :
-          // l'autoPan de la popup interrompait le flyTo. On désactive
-          // l'autoPan (Popup ci-dessous) et on lance le flyTo APRÈS
-          // l'ouverture de la popup (tick suivant).
-          click: () => {
-            window.setTimeout(() => {
-              map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 16), {
-                duration: 0.8,
-              });
-            }, 60);
-          },
+          // v23.1.364 — le clic notifie la PAGE (focusTarget) → FlyToFocus
+          // zoome ; le remount mapKey n'écrase plus rien (cf plus haut).
+          click: () => onFocus?.(),
         }}
       >
         <Tooltip
@@ -126,6 +119,26 @@ function LiveFriendMarker({
       </Marker>
     </span>
   );
+}
+
+/**
+ * v23.1.364 — vole vers la cible quand la page met à jour focusTarget
+ * (clic sur un marqueur ami OU sur un chip nom·rôle de la rangée).
+ */
+function FlyToFocus({
+  target,
+}: {
+  target: { lat: number; lng: number; ts: number } | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target) return;
+    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 16), {
+      duration: 0.8,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.ts]);
+  return null;
 }
 
 // Fix global icones Leaflet (sinon path cassé en bundler).
@@ -239,6 +252,8 @@ export default function PoiMap({
   familyIds = [],
   roleLabels,
   userHaloColor,
+  focusTarget = null,
+  onFriendFocus,
   routePoints = null,
   onDirections,
   directionsLabel = "→",
@@ -263,6 +278,9 @@ export default function PoiMap({
   /** v23.1.359 — couleur du halo animé "ma position" (couleur du rôle de
       l'utilisateur connecté ; bleu par défaut). */
   userHaloColor?: string;
+  /** v23.1.364 — cible de zoom (clic marqueur ami / chip nom·rôle). */
+  focusTarget?: { lat: number; lng: number; ts: number } | null;
+  onFriendFocus?: (p: FriendLivePosition) => void;
   /** v23.1 carte unique — polyline itinéraire (orange #EF4324). */
   routePoints?: { lat: number; lng: number }[] | null;
   /** Bouton "Itinéraire" des popups (spots + POI). */
@@ -276,10 +294,20 @@ export default function PoiMap({
     [userHaloColor],
   );
   // Re-mount la carte si le centre change radicalement (>10km).
+  // v23.1.364 — BUG Daniel ("1er clic dézoome, 2e clic zoome") : le mapKey
+  // changeait à CHAQUE recentrage (>500 m) → la carte se REMONTAIT au zoom
+  // par défaut, écrasant le flyTo du clic ami. On ne remonte plus que pour
+  // un saut radical (~>11 km : recherche de ville), comme prévu à l'origine.
   const [mapKey, setMapKey] = useState(() => `${center[0]},${center[1]}`);
   useEffect(() => {
-    setMapKey(`${center[0]},${center[1]}`);
-  }, [center]);
+    const [plat, plng] = mapKey.split(",").map(Number);
+    if (
+      Math.abs(center[0] - plat) > 0.1 ||
+      Math.abs(center[1] - plng) > 0.1
+    ) {
+      setMapKey(`${center[0]},${center[1]}`);
+    }
+  }, [center, mapKey]);
 
   const categoryIcons = useMemo(() => {
     const map: Partial<Record<PoiCategory, L.DivIcon>> = {};
@@ -451,12 +479,14 @@ export default function PoiMap({
         {/* v23.1 carte unique — couche PawFollow amis/famille en direct :
             halo couleur rôle + anneau violet famille + avatar (icônes
             partagées avec FriendsLiveMap). */}
+        <FlyToFocus target={focusTarget} />
         {friendPositions.map((p) => (
           <LiveFriendMarker
             key={`live-${p.userId}`}
             p={p}
             isFamily={familySet.has(p.userId)}
             roleLabel={roleLabels?.[p.role] ?? p.role}
+            onFocus={() => onFriendFocus?.(p)}
           />
         ))}
 

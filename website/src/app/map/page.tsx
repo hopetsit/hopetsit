@@ -48,6 +48,7 @@ import {
   getStoredUser,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
+import { haloColor } from "@/components/FriendsLiveMap";
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 
 // v23.1.147 — note : PoiMap est dynamic pour éviter le SSR de Leaflet.
@@ -158,6 +159,14 @@ export default function MapPage() {
   // v23.1.359 — halo "ma position" couleur du RÔLE (canon : owner orange /
   // sitter bleu / walker vert), résolu au mount depuis le user stocké.
   const [myRoleColor, setMyRoleColor] = useState("#2563EB");
+
+  // v23.1.364 — cible de zoom : clic sur un marqueur ami OU sur un chip
+  // « nom · rôle » de la rangée → FlyToFocus (PoiMap) vole dessus.
+  const [focusTarget, setFocusTarget] = useState<{
+    lat: number;
+    lng: number;
+    ts: number;
+  } | null>(null);
 
   // Auth + géolocalisation au mount.
   useEffect(() => {
@@ -533,6 +542,26 @@ export default function MapPage() {
                 )}
           </span>
         )}
+        {/* v23.1.364 — Daniel : "à côté d'amis en direct, les noms avec
+            rôle ; un clic sur la personne zoome sur elle". */}
+        {showFriends &&
+          livePositionsList.map((p) => (
+            <button
+              key={`chip-${p.userId}`}
+              type="button"
+              onClick={() =>
+                setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })
+              }
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border bg-white px-2 py-1 text-[11px] font-semibold transition hover:shadow"
+              style={{ borderColor: `${haloColor(p.role)}88`, color: haloColor(p.role) }}
+            >
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ backgroundColor: haloColor(p.role) }}
+              />
+              {p.name} · {t(`role_${p.role}`)}
+            </button>
+          ))}
         {routeLoading && (
           <span className="shrink-0 text-xs text-ink-muted">⌛</span>
         )}
@@ -631,6 +660,10 @@ export default function MapPage() {
             walker: t("role_walker"),
           }}
           userHaloColor={myRoleColor}
+          focusTarget={focusTarget}
+          onFriendFocus={(p) =>
+            setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })
+          }
           routePoints={route?.points ?? null}
           onDirections={handleDirections}
           directionsLabel={t("map_directions_btn")}
