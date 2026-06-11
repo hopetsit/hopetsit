@@ -474,13 +474,16 @@ class _PawMapScreenState extends State<PawMapScreen>
       return;
     }
     _emojiGenInProgress.add(genKey);
-    final bool golden = cacheKey == '__golden__';
-    // v23.1.357 — maquette Daniel : pin « goutte » couleur du type avec
-    // patte BLANCHE (comme la photo).
-    // v23.1.361 — golden = la PIÈCE DORÉE officielle (emoji PawSpot fourni
-    // par Daniel) : médaille or, patte dorée, pointe-pin dans le coussinet.
+    final bool golden = cacheKey.startsWith('__golden__');
+    // v23.1.361/373 — LA pièce-médaille officielle : dorée pour les spots
+    // golden (avec un ANNEAU à la couleur du TYPE, comme la légende —
+    // Daniel : "la pièce dorée juste avec le cercle de couleur"), sinon
+    // déclinée dans la couleur du type.
     final future = golden
-        ? _buildCoinBitmap()
+        ? _buildCoinBitmap(
+            typeRing: PawSpotTypes.color(
+                cacheKey.substring('__golden__'.length)),
+          )
         : _buildCoinBitmap(base: PawSpotTypes.color(cacheKey));
     future.then((bd) {
       _spotEmojiMarkers[cacheKey] = bd;
@@ -562,7 +565,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// LA pièce-médaille officielle (emoji fourni : anneau brillant, patte en
   /// relief, pointe-pin dans le coussinet, étincelles) déclinée dans la
   /// COULEUR DU TYPE — sans `base` : la version OR (spots golden).
-  Future<BitmapDescriptor> _buildCoinBitmap({Color? base}) async {
+  Future<BitmapDescriptor> _buildCoinBitmap({
+    Color? base,
+    Color? typeRing,
+  }) async {
     // Palette : or officiel par défaut, sinon nuances dérivées du type.
     final Color ringStart = base == null
         ? const Color(0xFFFFE989)
@@ -591,6 +597,18 @@ class _PawMapScreenState extends State<PawMapScreen>
         ..color = Colors.black.withValues(alpha: 0.25)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
+    // v23.1.373 — anneau couleur du TYPE autour de la pièce OR (Daniel :
+    // "comme dans la légende — vert chemin, turquoise baignade...").
+    if (typeRing != null) {
+      canvas.drawCircle(
+        c,
+        30.4,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3.2
+          ..color = typeRing,
+      );
+    }
     // Anneau extérieur brillant.
     canvas.drawCircle(
       c,
@@ -1460,6 +1478,11 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showPawSpots.value ? 1 : 0,
       // v23.1.356 — switch PawFollow (couche live ON/OFF).
       _showLiveLayer.value ? 1 : 0,
+      // v23.1.373 — Daniel : "baignade pack traduction" — après un
+      // changement de langue en cours de session, les InfoWindows gardaient
+      // l'ancien libellé (cache marqueurs aveugle à la locale). La locale
+      // entre dans la clé de cache → re-render des snippets traduits.
+      Get.locale?.languageCode ?? '',
       // v23.1.363 — mode viseur (pin de placement tap/drag).
       _pickingSpotPos.value ? 1 : 0,
       _pickedSpotPos == null
@@ -1654,7 +1677,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     // 🐾 sur fond doré avec anneau plus épais. Tap → sheet détail.
     if (_showPawSpots.value) {
       for (final spot in _pawSpotController.spots) {
-        final cacheKey = spot.isGolden ? '__golden__' : spot.type;
+        // v23.1.373 — pièce OR avec ANNEAU couleur du type → cache par type.
+        final cacheKey =
+            spot.isGolden ? '__golden__${spot.type}' : spot.type;
         final spotIcon = _spotEmojiMarkers[cacheKey];
         if (spotIcon == null) _ensureSpotEmojiMarker(cacheKey);
         markers.add(

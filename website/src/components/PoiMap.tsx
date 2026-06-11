@@ -200,10 +200,13 @@ const SPOT_COLOR: Record<PawSpotType, string> = {
 // couleur du type ; la version OR reste celle des spots golden.
 function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
   if (isGolden) {
+    // v23.1.373 — Daniel : "la pièce dorée avec le cercle de couleur du
+    // thème" — anneau couleur du TYPE autour de la pièce OR, comme la
+    // légende (vert chemin, turquoise baignade…).
+    const ring = SPOT_COLOR[type] || SPOT_COLOR.other;
     return new L.DivIcon({
       className: "",
-      // v23.1.369 — pièces agrandies (avatars amis = 48 px → or 46).
-      html: `<div style="width:46px;height:46px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
+      html: `<div style="width:46px;height:46px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
       iconSize: [46, 46],
       iconAnchor: [23, 23],
       popupAnchor: [0, -23],
