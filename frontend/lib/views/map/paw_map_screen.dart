@@ -472,11 +472,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     _emojiGenInProgress.add(genKey);
     final bool golden = cacheKey == '__golden__';
     // v23.1.357 — maquette Daniel : pin « goutte » couleur du type avec
-    // patte BLANCHE (comme la photo), golden → goutte dorée.
-    final future = _buildPawPinBitmap(
-      color: golden ? const Color(0xFFFFD700) : PawSpotTypes.color(cacheKey),
-      golden: golden,
-    );
+    // patte BLANCHE (comme la photo).
+    // v23.1.361 — golden = la PIÈCE DORÉE officielle (emoji PawSpot fourni
+    // par Daniel) : médaille or, patte dorée, pointe-pin dans le coussinet.
+    final future = golden
+        ? _buildGoldenCoinBitmap()
+        : _buildPawPinBitmap(color: PawSpotTypes.color(cacheKey));
     future.then((bd) {
       _spotEmojiMarkers[cacheKey] = bd;
       _emojiGenInProgress.remove(genKey);
@@ -610,6 +611,110 @@ class _PawMapScreenState extends State<PawMapScreen>
     return BitmapDescriptor.bytes(
       bytes!.buffer.asUint8List(),
       width: 34,
+    );
+  }
+
+  /// v23.1.361 — l'emoji PawSpot DORÉ officiel (visuel fourni par Daniel) :
+  /// médaille or (anneau brillant + fond bronze doré), PATTE dorée en
+  /// relief avec une POINTE-PIN découpée dans le coussinet, étincelles.
+  /// Dessiné au canvas → transparence parfaite, pas d'asset à embarquer.
+  Future<BitmapDescriptor> _buildGoldenCoinBitmap() async {
+    const double size = 64.0;
+    const Offset c = Offset(32, 32);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Ombre douce.
+    canvas.drawCircle(
+      const Offset(32, 34),
+      29,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.25)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+    // Anneau extérieur brillant (dégradé or clair → or).
+    canvas.drawCircle(
+      c,
+      29,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          const Offset(10, 8),
+          const Offset(54, 58),
+          [const Color(0xFFFFE989), const Color(0xFFD99800)],
+        ),
+    );
+    // Fond intérieur bronze doré.
+    canvas.drawCircle(c, 24.5, Paint()..color = const Color(0xFF9A6B00));
+    canvas.drawCircle(
+      c,
+      24.5,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = const Color(0xFFFFE989).withValues(alpha: 0.7),
+    );
+
+    // Patte dorée en relief (4 doigts + coussinet), dégradé or.
+    final pawPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        const Offset(18, 14),
+        const Offset(46, 52),
+        [const Color(0xFFFFE066), const Color(0xFFE8A00A)],
+      );
+    canvas.drawOval(
+        Rect.fromCenter(center: const Offset(20.5, 22), width: 9, height: 12),
+        pawPaint);
+    canvas.drawOval(
+        Rect.fromCenter(center: const Offset(28.5, 17.5), width: 9.5, height: 13),
+        pawPaint);
+    canvas.drawOval(
+        Rect.fromCenter(center: const Offset(38, 18.5), width: 9.5, height: 13),
+        pawPaint);
+    canvas.drawOval(
+        Rect.fromCenter(center: const Offset(45.5, 24.5), width: 9, height: 11.5),
+        pawPaint);
+    // Coussinet (forme arrondie large).
+    final pad = Path()
+      ..moveTo(20, 38)
+      ..cubicTo(20, 29, 26, 26, 32.5, 26)
+      ..cubicTo(39, 26, 45, 29, 45, 38)
+      ..cubicTo(45, 44, 40, 48.5, 32.5, 48.5)
+      ..cubicTo(25, 48.5, 20, 44, 20, 38)
+      ..close();
+    canvas.drawPath(pad, pawPaint);
+
+    // Pointe-PIN découpée dans le coussinet (couleur du fond = "trou").
+    final hole = Paint()..color = const Color(0xFF9A6B00);
+    canvas.drawCircle(const Offset(32.5, 36), 4.2, hole);
+    final tip = Path()
+      ..moveTo(27.8, 38.5)
+      ..lineTo(37.2, 38.5)
+      ..lineTo(32.5, 47)
+      ..close();
+    canvas.drawPath(tip, hole);
+    // Petit point doré au centre du trou (comme le visuel).
+    canvas.drawCircle(const Offset(32.5, 36), 1.8,
+        Paint()..color = const Color(0xFFFFE066));
+
+    // Étincelles ✨ (croix blanches).
+    void sparkle(Offset p, double r) {
+      final sp = Paint()
+        ..color = Colors.white.withValues(alpha: 0.95)
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(p.dx - r, p.dy), Offset(p.dx + r, p.dy), sp);
+      canvas.drawLine(Offset(p.dx, p.dy - r), Offset(p.dx, p.dy + r), sp);
+    }
+    sparkle(const Offset(50, 13), 4);
+    sparkle(const Offset(13, 49), 3);
+
+    final img =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    // Légèrement plus gros que les pins type (38 vs 34) : le doré se voit.
+    return BitmapDescriptor.bytes(
+      bytes!.buffer.asUint8List(),
+      width: 38,
     );
   }
 

@@ -2816,7 +2816,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'pawspot_comment_hint': 'Kommentar hinzufügen…',
     'pawspot_delete_confirm': 'Diesen PawSpot löschen?',
     'pawspot_subscribe_required': 'PawSpot-Abo erforderlich',
-    'directions_subscription_required': 'Die Route ist in PawFollow / PawFamily enthalten.',
+    'directions_subscription_required': 'Die Route ist in PawFollow, PawFamily und PawSpot enthalten.',
     'directions_loading': 'Route wird berechnet…',
     'directions_clear': 'Route löschen',
     'pawspot_shop_subtitle': 'Tagge, teile und entdecke die besten Tier-Spots',

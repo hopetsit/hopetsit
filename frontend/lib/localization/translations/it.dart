@@ -2813,7 +2813,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'pawspot_comment_hint': 'Aggiungi un commento…',
     'pawspot_delete_confirm': 'Eliminare questo PawSpot?',
     'pawspot_subscribe_required': 'Abbonamento PawSpot richiesto',
-    'directions_subscription_required': 'L\'itinerario è incluso in PawFollow / PawFamily.',
+    'directions_subscription_required': 'L\'itinerario è incluso in PawFollow, PawFamily e PawSpot.',
     'directions_loading': 'Calcolo itinerario…',
     'directions_clear': 'Cancella itinerario',
     'pawspot_shop_subtitle': 'Tagga, condividi e scopri i migliori spot per animali',

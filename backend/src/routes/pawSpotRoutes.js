@@ -284,10 +284,15 @@ router.get('/directions', requireAuth, async (req, res) => {
     if (![fromLat, fromLng, toLat, toLng].every(Number.isFinite)) {
       return res.status(400).json({ error: 'fromLat/fromLng/toLat/toLng required.' });
     }
-    const allowed = await hasTrackingSubscription(req.user.id, req.user.role);
+    // v23.1.361 — décision Daniel : l'itinéraire n'est PAS gratuit mais il
+    // est inclus dans les TROIS abonnements (PawFollow, PawFamily ET
+    // PawSpot) — chaque produit carte y donne droit.
+    const allowed =
+      (await hasTrackingSubscription(req.user.id, req.user.role)) ||
+      (await hasActivePawSpot(req.user.id, req.user.role));
     if (!allowed) {
       return res.status(402).json({
-        error: 'PawFollow / PawFamily subscription required for directions.',
+        error: 'PawFollow / PawFamily / PawSpot subscription required for directions.',
         code: 'PAWFOLLOW_REQUIRED',
       });
     }

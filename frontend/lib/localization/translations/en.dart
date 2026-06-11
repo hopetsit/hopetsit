@@ -144,7 +144,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawspot_comment_hint': 'Add a comment…',
       'pawspot_delete_confirm': 'Delete this PawSpot?',
       'pawspot_subscribe_required': 'PawSpot subscription required',
-      'directions_subscription_required': 'Directions are included in PawFollow / PawFamily.',
+      'directions_subscription_required': 'Directions are included in PawFollow, PawFamily and PawSpot.',
       'directions_loading': 'Calculating route…',
       'directions_clear': 'Clear route',
       'pawspot_shop_subtitle': 'Tag, share and discover the best pet-friendly spots',

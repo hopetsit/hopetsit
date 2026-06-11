@@ -180,17 +180,51 @@ const SPOT_COLOR: Record<PawSpotType, string> = {
   other: "#EC4899",
 };
 
+// v23.1.361 — l'emoji PawSpot DORÉ officiel (visuel fourni par Daniel) :
+// médaille or + patte dorée avec pointe-pin dans le coussinet, en SVG
+// inline (transparence parfaite, zéro asset).
+const GOLDEN_COIN_SVG = `<svg width="38" height="38" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hpsRing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE989"/><stop offset="1" stop-color="#D99800"/>
+    </linearGradient>
+    <linearGradient id="hpsPaw" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE066"/><stop offset="1" stop-color="#E8A00A"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="29" fill="url(#hpsRing)"/>
+  <circle cx="32" cy="32" r="24.5" fill="#9A6B00" stroke="#FFE989" stroke-opacity="0.7" stroke-width="1.5"/>
+  <ellipse cx="20.5" cy="22" rx="4.5" ry="6" fill="url(#hpsPaw)"/>
+  <ellipse cx="28.5" cy="17.5" rx="4.75" ry="6.5" fill="url(#hpsPaw)"/>
+  <ellipse cx="38" cy="18.5" rx="4.75" ry="6.5" fill="url(#hpsPaw)"/>
+  <ellipse cx="45.5" cy="24.5" rx="4.5" ry="5.75" fill="url(#hpsPaw)"/>
+  <path d="M20 38c0-9 6-12 12.5-12S45 29 45 38c0 6-5 10.5-12.5 10.5S20 44 20 38Z" fill="url(#hpsPaw)"/>
+  <circle cx="32.5" cy="36" r="4.2" fill="#9A6B00"/>
+  <path d="M27.8 38.5h9.4L32.5 47Z" fill="#9A6B00"/>
+  <circle cx="32.5" cy="36" r="1.8" fill="#FFE066"/>
+  <g stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.95">
+    <line x1="46" y1="13" x2="54" y2="13"/><line x1="50" y1="9" x2="50" y2="17"/>
+    <line x1="10" y1="49" x2="16" y2="49"/><line x1="13" y1="46" x2="13" y2="52"/>
+  </g>
+</svg>`;
+
 function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
-  const bg = isGolden ? "#FFD700" : SPOT_COLOR[type] || SPOT_COLOR.other;
-  const ring = isGolden
-    ? "border: 3px solid white; box-shadow: 0 0 0 2px #B45309, 0 2px 6px rgba(0,0,0,0.35);"
-    : "border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);";
+  if (isGolden) {
+    return new L.DivIcon({
+      className: "",
+      html: `<div style="width:38px;height:38px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
+      iconSize: [38, 38],
+      iconAnchor: [19, 19],
+      popupAnchor: [0, -19],
+    });
+  }
+  const bg = SPOT_COLOR[type] || SPOT_COLOR.other;
   return new L.DivIcon({
     className: "",
     html: `<div style="
       width: 34px; height: 34px; border-radius: 50%;
       background: ${bg};
-      ${ring}
+      border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       display: flex; align-items: center; justify-content: center;
       font-size: 17px; line-height: 1;
     ">🐾</div>`,

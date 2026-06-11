@@ -2780,7 +2780,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'pawspot_comment_hint': 'Añadir un comentario…',
     'pawspot_delete_confirm': '¿Eliminar este PawSpot?',
     'pawspot_subscribe_required': 'Se requiere suscripción PawSpot',
-    'directions_subscription_required': 'La ruta está incluida en PawFollow / PawFamily.',
+    'directions_subscription_required': 'La ruta está incluida en PawFollow, PawFamily y PawSpot.',
     'directions_loading': 'Calculando la ruta…',
     'directions_clear': 'Borrar ruta',
     'pawspot_shop_subtitle': 'Marca, comparte y descubre los mejores spots para mascotas',
