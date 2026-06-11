@@ -198,31 +198,42 @@ router.get('/top', requireAuth, async (req, res) => {
 });
 
 // GET /pawspots/leaderboard?scope=city|country|europe — classements.
+// v23.1.365 — Daniel : "dans Pays rien n'apparaît, les pays ne sont pas
+// configurés". Le PAYS est désormais DÉRIVÉ de l'indicatif téléphonique
+// (countryCode "+34" → 🇪🇸 España) : le scope 'country' matche tous les
+// formats ("+34"/"34"/"+34 ") via regex sur les chiffres, et chaque ligne
+// embarque { flag, name } pour l'affichage.
 router.get('/leaderboard', requireAuth, async (req, res) => {
   try {
+    const { countryFromPhone } = require('../utils/countryFromPhone');
     const scope = String(req.query.scope || 'europe').toLowerCase();
     // Ville/pays du demandeur (best-effort sur les champs profil existants).
     let myCity = '';
-    let myCountry = '';
+    let myCountryDigits = '';
     try {
       const Model = modelForRole(req.user.role);
       const meDoc = await Model.findById(req.user.id)
         .select('location countryCode address').lean();
       myCity = (meDoc?.location?.city || '').trim();
-      myCountry = (meDoc?.countryCode || '').trim();
+      myCountryDigits = String(meDoc?.countryCode || '').replace(/[^0-9]/g, '');
     } catch (_) {/* */}
+    const myCountry = countryFromPhone(myCountryDigits);
 
     const rows = [];
     for (const [Model, role] of [[Owner, 'owner'], [Sitter, 'sitter'], [Walker, 'walker']]) {
       const filter = { pawPoints: { $gt: 0 } };
       if (scope === 'city' && myCity) filter['location.city'] = myCity;
-      if (scope === 'country' && myCountry) filter.countryCode = myCountry;
+      if (scope === 'country' && myCountryDigits) {
+        // "+34", "34", "+34 " → même pays. Regex tolérante aux formats.
+        filter.countryCode = new RegExp(`^\\s*\\+?\\s*${myCountryDigits}\\s*$`);
+      }
       const docs = await Model.find(filter)
         .sort({ pawPoints: -1 })
         .limit(50)
-        .select('name avatar pawPoints pawBadgeColor pawGoldFrame location.city')
+        .select('name avatar pawPoints pawBadgeColor pawGoldFrame location.city countryCode')
         .lean();
       for (const d of docs) {
+        const c = countryFromPhone(d.countryCode);
         rows.push({
           userId: String(d._id),
           role,
@@ -233,11 +244,20 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
           badgeColor: d.pawBadgeColor || '',
           goldFrame: d.pawGoldFrame === true,
           city: d.location?.city || '',
+          countryFlag: c?.flag || '',
+          countryName: c?.name || '',
         });
       }
     }
     rows.sort((a, b) => b.points - a.points);
-    res.json({ scope, city: myCity, country: myCountry, leaderboard: rows.slice(0, 50) });
+    res.json({
+      scope,
+      city: myCity,
+      country: myCountry?.iso || '',
+      countryFlag: myCountry?.flag || '',
+      countryName: myCountry?.name || '',
+      leaderboard: rows.slice(0, 50),
+    });
   } catch (e) {
     logger.error('[pawspots/leaderboard]', e);
     res.status(500).json({ error: e.message });

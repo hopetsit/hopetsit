@@ -374,13 +374,40 @@ class _LeaderboardListState extends State<_LeaderboardList>
           ),
           SizedBox(width: 10.w),
           Expanded(
-            child: InterText(
-              text: name,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary(context),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InterText(
+                  text: name,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // v23.1.365 — Daniel : "dans Pays/Europe rien n'apparaît,
+                // juste les points". Le pays (dérivé de l'indicatif tél. à
+                // l'inscription) + la ville sous le nom : 🇪🇸 España · Madrid.
+                Builder(builder: (context) {
+                  final flag = (row['countryFlag'] as String?) ?? '';
+                  final country = (row['countryName'] as String?) ?? '';
+                  final city = (row['city'] as String?) ?? '';
+                  final parts = <String>[
+                    if (flag.isNotEmpty || country.isNotEmpty)
+                      '$flag $country'.trim(),
+                    if (city.isNotEmpty) city,
+                  ];
+                  if (parts.isEmpty) return const SizedBox.shrink();
+                  return InterText(
+                    text: parts.join(' · '),
+                    fontSize: 11.sp,
+                    color: AppColors.greyText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                }),
+              ],
             ),
           ),
           if (badge.isNotEmpty) ...[

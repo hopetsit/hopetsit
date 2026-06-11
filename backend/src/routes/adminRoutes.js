@@ -3921,4 +3921,144 @@ router.post('/sweep-platform-balance', requireAdmin, async (req, res) => {
   }
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// v23.1.365 — Daniel : onglets admin PawFollow & PawSpot.
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /admin/pawfollow-subscriptions — abos PawFollow (mensuel/annuel) et
+// PawFamily ACTIFS, par type de compte (owner/sitter/walker). Compteurs
+// rôle × plan + liste détaillée.
+router.get('/pawfollow-subscriptions', requireAdmin, async (req, res) => {
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const { familyActiveMatch, familyExpiryOf } = require('../models/UserSubscription');
+    const now = new Date();
+    const subs = await UserSubscription.find({
+      $or: [
+        { currentPeriodEnd: { $gt: now } },
+        familyActiveMatch(now),
+      ],
+    }).select('userId userModel plan currentPeriodEnd familyExpiry status').lean();
+
+    const Models = {
+      Owner: require('../models/Owner'),
+      Sitter: require('../models/Sitter'),
+      Walker: require('../models/Walker'),
+    };
+    const rows = [];
+    const counts = {
+      owner: { monthly: 0, yearly: 0, family: 0 },
+      sitter: { monthly: 0, yearly: 0, family: 0 },
+      walker: { monthly: 0, yearly: 0, family: 0 },
+    };
+    for (const sub of subs) {
+      const role = String(sub.userModel || 'Owner').toLowerCase();
+      const Model = Models[sub.userModel] || Models.Owner;
+      let name = '';
+      let email = '';
+      try {
+        const u = await Model.findById(sub.userId).select('name email').lean();
+        name = u?.name || '';
+        try { email = decrypt(u?.email || '') || ''; } catch (_) { email = ''; }
+      } catch (_) {/* */}
+
+      const indivActive =
+        sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now &&
+        sub.plan !== 'famille' && sub.plan !== 'family';
+      if (indivActive) {
+        const plan = sub.plan === 'yearly' ? 'yearly' : 'monthly';
+        if (counts[role]) counts[role][plan] += 1;
+        rows.push({ name, email, role, plan, expiry: sub.currentPeriodEnd });
+      }
+      const famExp = familyExpiryOf(sub);
+      if (famExp && new Date(famExp) > now) {
+        if (counts[role]) counts[role].family += 1;
+        rows.push({ name, email, role, plan: 'family', expiry: famExp });
+      }
+    }
+    rows.sort((a, b) => new Date(b.expiry) - new Date(a.expiry));
+    res.json({ counts, rows });
+  } catch (e) {
+    logger.error('[admin/pawfollow-subscriptions]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /admin/pawspot-subscriptions — abos PawSpot actifs (mensuel/annuel/
+// essai, plan inféré du dernier paiement) par type de compte + CLASSEMENT
+// PawPoints (pays dérivé de l'indicatif téléphonique).
+router.get('/pawspot-subscriptions', requireAdmin, async (req, res) => {
+  try {
+    const UserSubscription = require('../models/UserSubscription');
+    const { countryFromPhone } = require('../utils/countryFromPhone');
+    const now = new Date();
+    const subs = await UserSubscription.find({
+      pawspotExpiry: { $gt: now },
+    }).select('userId userModel pawspotExpiry pawspotHistory pawspotTrialUsedAt').lean();
+
+    const Models = {
+      Owner: require('../models/Owner'),
+      Sitter: require('../models/Sitter'),
+      Walker: require('../models/Walker'),
+    };
+    const rows = [];
+    const counts = {
+      owner: { monthly: 0, yearly: 0, trial: 0 },
+      sitter: { monthly: 0, yearly: 0, trial: 0 },
+      walker: { monthly: 0, yearly: 0, trial: 0 },
+    };
+    for (const sub of subs) {
+      const role = String(sub.userModel || 'Owner').toLowerCase();
+      const hist = Array.isArray(sub.pawspotHistory) ? sub.pawspotHistory : [];
+      const last = hist.length ? hist[hist.length - 1] : null;
+      const plan = !last
+        ? 'trial'
+        : Number(last.days) >= 300
+          ? 'yearly'
+          : Number(last.days) >= 25
+            ? 'monthly'
+            : 'trial';
+      if (counts[role]) counts[role][plan] += 1;
+      let name = '';
+      let email = '';
+      try {
+        const Model = Models[sub.userModel] || Models.Owner;
+        const u = await Model.findById(sub.userId).select('name email').lean();
+        name = u?.name || '';
+        try { email = decrypt(u?.email || '') || ''; } catch (_) { email = ''; }
+      } catch (_) {/* */}
+      rows.push({ name, email, role, plan, expiry: sub.pawspotExpiry });
+    }
+    rows.sort((a, b) => new Date(b.expiry) - new Date(a.expiry));
+
+    // Classement PawPoints global (top 100, pays + ville).
+    const leaderboard = [];
+    for (const [modelName, role] of [['Owner', 'owner'], ['Sitter', 'sitter'], ['Walker', 'walker']]) {
+      const docs = await Models[modelName]
+        .find({ pawPoints: { $gt: 0 } })
+        .sort({ pawPoints: -1 })
+        .limit(100)
+        .select('name pawPoints countryCode location.city isStaff')
+        .lean();
+      for (const d of docs) {
+        const c = countryFromPhone(d.countryCode);
+        leaderboard.push({
+          name: d.name || '',
+          role,
+          points: d.pawPoints || 0,
+          countryFlag: c?.flag || '',
+          countryName: c?.name || '',
+          city: d.location?.city || '',
+          isStaff: d.isStaff === true,
+        });
+      }
+    }
+    leaderboard.sort((a, b) => b.points - a.points);
+    res.json({ counts, rows, leaderboard: leaderboard.slice(0, 100) });
+  } catch (e) {
+    logger.error('[admin/pawspot-subscriptions]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

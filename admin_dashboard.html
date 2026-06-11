@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v364</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v365</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -241,6 +241,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('identity')"><span class="nav-icon">🪪</span> <span data-i18n="nav_identity">Vérifications ID</span></div>
       <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
       <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages fidélité</span></div>
+      <div class="nav-item" onclick="showPage('pawfollow')"><span class="nav-icon">⭐</span> <span data-i18n="nav_pawfollow">PawFollow</span></div>
+      <div class="nav-item" onclick="showPage('pawspot')"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
 
       <!-- Activité -->
       <div class="nav-section" style="margin-top:18px">📅 <span data-i18n="navsec_activity">Activité</span></div>
@@ -674,6 +676,40 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </p>
         <div class="stats-grid" id="loyalty-summary"></div>
         <div style="margin-top:20px" id="loyalty-tables"></div>
+      </div>
+
+      <!-- v23.1.365 — PAWFOLLOW (abos mensuel/annuel/famille par rôle) -->
+      <div id="page-pawfollow" class="page">
+        <div class="section-title">⭐ <span data-i18n="pawfollow_admin_title">PawFollow — abonnements</span></div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+          Abonnements PawFollow (mensuel 6,99 € / annuel 49,99 €) et PawFamily (9,99 €/mois) ACTIFS, par type de compte.
+        </p>
+        <div class="stats-grid" id="pawfollow-summary"></div>
+        <div style="margin-top:20px;overflow-x:auto">
+          <table class="data-table"><thead><tr>
+            <th>Nom</th><th>Email</th><th>Rôle</th><th>Plan</th><th>Expire le</th>
+          </tr></thead><tbody id="pawfollow-rows"><tr><td colspan="5" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- v23.1.365 — PAWSPOT (abos + classement PawPoints) -->
+      <div id="page-pawspot" class="page">
+        <div class="section-title">🐾 <span data-i18n="pawspot_admin_title">PawSpot — abonnements &amp; classement</span></div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
+          Abonnements PawSpot (mensuel 4,99 € / annuel 39,99 € / essai 7 j) ACTIFS par type de compte, et classement PawPoints (pays dérivé de l'indicatif téléphonique).
+        </p>
+        <div class="stats-grid" id="pawspot-summary"></div>
+        <div style="margin-top:20px;overflow-x:auto">
+          <table class="data-table"><thead><tr>
+            <th>Nom</th><th>Email</th><th>Rôle</th><th>Plan</th><th>Expire le</th>
+          </tr></thead><tbody id="pawspot-rows"><tr><td colspan="5" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
+        </div>
+        <div class="section-title" style="margin-top:28px">🏆 Classement PawPoints</div>
+        <div style="overflow-x:auto">
+          <table class="data-table"><thead><tr>
+            <th>#</th><th>Nom</th><th>Rôle</th><th>Pays</th><th>Ville</th><th>Points</th>
+          </tr></thead><tbody id="pawspot-leaderboard"><tr><td colspan="6" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
+        </div>
       </div>
 
       <!-- PAYOUTS / REVENUE (v20.0.8 → v23.1 part 99) -->
@@ -1248,6 +1284,68 @@ function escapeHtml(s) {
 }
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
+// v23.1.365 — onglet PawFollow : compteurs rôle × plan + liste.
+async function loadPawFollowSubs() {
+  try {
+    const d = await api('/admin/pawfollow-subscriptions');
+    const c = d.counts || {};
+    const cell = (r) => c[r] || { monthly: 0, yearly: 0, family: 0 };
+    const card = (label, v, accent) =>
+      `<div class="stat-card" style="--accent:${accent}"><div class="stat-label">${label}</div><div class="stat-value" style="color:${accent}">${v}</div></div>`;
+    document.getElementById('pawfollow-summary').innerHTML =
+      card('🐶 Owners — mensuel', cell('owner').monthly, '#EF4324') +
+      card('🐶 Owners — annuel', cell('owner').yearly, '#EF4324') +
+      card('🐶 Owners — famille', cell('owner').family, '#8B5CF6') +
+      card('🏠 Sitters — mensuel', cell('sitter').monthly, '#2563EB') +
+      card('🏠 Sitters — annuel', cell('sitter').yearly, '#2563EB') +
+      card('🏠 Sitters — famille', cell('sitter').family, '#8B5CF6') +
+      card('🐕 Walkers — mensuel', cell('walker').monthly, '#16A34A') +
+      card('🐕 Walkers — annuel', cell('walker').yearly, '#16A34A') +
+      card('🐕 Walkers — famille', cell('walker').family, '#8B5CF6');
+    const planLabel = { monthly: '📆 Mensuel', yearly: '📅 Annuel', family: '👨‍👩‍👧 Famille' };
+    const rows = (d.rows || []).map((r) =>
+      `<tr><td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.role}</td><td>${planLabel[r.plan] || r.plan}</td><td>${r.expiry ? new Date(r.expiry).toLocaleDateString() : '—'}</td></tr>`).join('');
+    document.getElementById('pawfollow-rows').innerHTML =
+      rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun abonnement actif.</td></tr>';
+  } catch (e) {
+    document.getElementById('pawfollow-rows').innerHTML =
+      `<tr><td colspan="5" style="color:#E53935">Erreur : ${e.message}</td></tr>`;
+  }
+}
+
+// v23.1.365 — onglet PawSpot : compteurs + liste + classement PawPoints.
+async function loadPawSpotSubs() {
+  try {
+    const d = await api('/admin/pawspot-subscriptions');
+    const c = d.counts || {};
+    const cell = (r) => c[r] || { monthly: 0, yearly: 0, trial: 0 };
+    const card = (label, v, accent) =>
+      `<div class="stat-card" style="--accent:${accent}"><div class="stat-label">${label}</div><div class="stat-value" style="color:${accent}">${v}</div></div>`;
+    document.getElementById('pawspot-summary').innerHTML =
+      card('🐶 Owners — mensuel', cell('owner').monthly, '#E8A00A') +
+      card('🐶 Owners — annuel', cell('owner').yearly, '#E8A00A') +
+      card('🐶 Owners — essai 7j', cell('owner').trial, '#9CA3AF') +
+      card('🏠 Sitters — mensuel', cell('sitter').monthly, '#E8A00A') +
+      card('🏠 Sitters — annuel', cell('sitter').yearly, '#E8A00A') +
+      card('🏠 Sitters — essai 7j', cell('sitter').trial, '#9CA3AF') +
+      card('🐕 Walkers — mensuel', cell('walker').monthly, '#E8A00A') +
+      card('🐕 Walkers — annuel', cell('walker').yearly, '#E8A00A') +
+      card('🐕 Walkers — essai 7j', cell('walker').trial, '#9CA3AF');
+    const planLabel = { monthly: '📆 Mensuel', yearly: '📅 Annuel', trial: '🎁 Essai 7 j' };
+    const rows = (d.rows || []).map((r) =>
+      `<tr><td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.role}</td><td>${planLabel[r.plan] || r.plan}</td><td>${r.expiry ? new Date(r.expiry).toLocaleDateString() : '—'}</td></tr>`).join('');
+    document.getElementById('pawspot-rows').innerHTML =
+      rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun abonnement actif.</td></tr>';
+    const lb = (d.leaderboard || []).map((r, i) =>
+      `<tr><td>${i < 3 ? ['🥇','🥈','🥉'][i] : i + 1}</td><td>${r.name || '—'}${r.isStaff ? ' <span style="color:#16A34A;font-weight:700">⭐</span>' : ''}</td><td>${r.role}</td><td>${r.countryFlag ? r.countryFlag + ' ' + r.countryName : '—'}</td><td>${r.city || '—'}</td><td style="font-weight:700;color:#E8A00A">${r.points}</td></tr>`).join('');
+    document.getElementById('pawspot-leaderboard').innerHTML =
+      lb || '<tr><td colspan="6" style="color:var(--text-muted)">Personne n\'a encore de PawPoints.</td></tr>';
+  } catch (e) {
+    document.getElementById('pawspot-rows').innerHTML =
+      `<tr><td colspan="5" style="color:#E53935">Erreur : ${e.message}</td></tr>`;
+  }
+}
+
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1280,6 +1378,8 @@ function showPage(name) {
   if (name === 'pricing') loadPricing();
   if (name === 'services') loadServices();
   if (name === 'pawmap') { loadPawmapStats(); loadFlaggedReports(); }
+  if (name === 'pawfollow') loadPawFollowSubs();
+  if (name === 'pawspot') loadPawSpotSubs();
   if (name === 'annonces') loadAnnonces();
 }
 
