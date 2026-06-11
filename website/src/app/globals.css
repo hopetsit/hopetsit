@@ -25,3 +25,12 @@ details > summary {
   cursor: pointer;
 }
 details > summary::-webkit-details-marker { display: none; }
+
+/* v23.1.359 — halo ANIMÉ sur la carte unique (ma position + amis/famille),
+   miroir du halo qui "respire" dans l'app. Utilisé par les DivIcon Leaflet
+   de PoiMap/FriendsLiveMap (inline animation: hps-pulse). */
+@keyframes hps-pulse {
+  0%   { transform: scale(1);   opacity: 0.65; }
+  70%  { transform: scale(2.1); opacity: 0; }
+  100% { transform: scale(2.1); opacity: 0; }
+}

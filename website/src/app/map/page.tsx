@@ -155,12 +155,24 @@ export default function MapPage() {
     });
   });
 
+  // v23.1.359 — halo "ma position" couleur du RÔLE (canon : owner orange /
+  // sitter bleu / walker vert), résolu au mount depuis le user stocké.
+  const [myRoleColor, setMyRoleColor] = useState("#2563EB");
+
   // Auth + géolocalisation au mount.
   useEffect(() => {
-    if (!getStoredUser()) {
+    const me = getStoredUser();
+    if (!me) {
       router.replace("/login");
       return;
     }
+    setMyRoleColor(
+      me.role === "owner"
+        ? "#EF4324"
+        : me.role === "walker"
+          ? "#16A34A"
+          : "#2563EB",
+    );
     if (!("geolocation" in navigator)) {
       // Pas de géoloc dispo → on reste sur Paris.
       setLoading(false);
@@ -618,6 +630,7 @@ export default function MapPage() {
             sitter: t("role_sitter"),
             walker: t("role_walker"),
           }}
+          userHaloColor={myRoleColor}
           routePoints={route?.points ?? null}
           onDirections={handleDirections}
           directionsLabel={t("map_directions_btn")}

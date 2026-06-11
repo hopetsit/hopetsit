@@ -193,18 +193,23 @@ function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
   });
 }
 
-// Pin "ma position".
-const userIcon = new L.DivIcon({
-  className: "",
-  html: `<div style="
-    width: 16px; height: 16px; border-radius: 50%;
-    background: #2563EB;
-    border: 3px solid white;
-    box-shadow: 0 0 0 4px rgba(37,99,235,0.3), 0 2px 6px rgba(0,0,0,0.3);
-  "></div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
+// Pin "ma position" — v23.1.359 : HALO ANIMÉ (pulse hps-pulse, comme le
+// halo qui respire dans l'app), teinté couleur du RÔLE de l'utilisateur.
+function makeUserIcon(color: string): L.DivIcon {
+  return new L.DivIcon({
+    className: "",
+    html: `<div style="position:relative;width:18px;height:18px;">
+      <div style="position:absolute;inset:-2px;border-radius:50%;
+        background:${color}55;border:2px solid ${color};
+        animation:hps-pulse 1.8s ease-out infinite;"></div>
+      <div style="position:absolute;inset:0;border-radius:50%;
+        background:${color};border:3px solid white;
+        box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>
+    </div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
 
 export default function PoiMap({
   center,
@@ -218,6 +223,7 @@ export default function PoiMap({
   friendPositions = [],
   familyIds = [],
   roleLabels,
+  userHaloColor,
   routePoints = null,
   onDirections,
   directionsLabel = "→",
@@ -239,6 +245,9 @@ export default function PoiMap({
   /** v23.1.358 — libellés i18n des rôles (owner/sitter/walker) pour le
       tooltip permanent « nom · rôle » sous chaque ami en direct. */
   roleLabels?: Partial<Record<Role, string>>;
+  /** v23.1.359 — couleur du halo animé "ma position" (couleur du rôle de
+      l'utilisateur connecté ; bleu par défaut). */
+  userHaloColor?: string;
   /** v23.1 carte unique — polyline itinéraire (orange #EF4324). */
   routePoints?: { lat: number; lng: number }[] | null;
   /** Bouton "Itinéraire" des popups (spots + POI). */
@@ -246,6 +255,11 @@ export default function PoiMap({
   directionsLabel?: string;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
+  // v23.1.359 — halo "ma position" pulsant, couleur du rôle.
+  const userIcon = useMemo(
+    () => makeUserIcon(userHaloColor || "#2563EB"),
+    [userHaloColor],
+  );
   // Re-mount la carte si le centre change radicalement (>10km).
   const [mapKey, setMapKey] = useState(() => `${center[0]},${center[1]}`);
   useEffect(() => {
