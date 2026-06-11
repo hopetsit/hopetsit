@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v374</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v375</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -694,7 +694,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- v23.1.365 — PAWSPOT (abos + classement PawPoints) -->
       <div id="page-pawspot" class="page">
-        <div class="section-title">🐾 <span data-i18n="pawspot_admin_title">PawSpot — abonnements &amp; classement</span></div>
+        <div class="section-title">🐾 <span data-i18n="pawspot_admin_title">PawSpot — abonnements &amp; classement</span>
+          <button class="action-btn" style="margin-left:12px;background:#E8A00A;color:#fff" onclick="exportPawSpots()">⬇️ Exporter les spots (JSON)</button>
+        </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
           Abonnements PawSpot (mensuel 4,99 € / annuel 39,99 € / essai 7 j) ACTIFS par type de compte, et classement PawPoints (pays dérivé de l'indicatif téléphonique).
         </p>
@@ -1285,6 +1287,28 @@ function escapeHtml(s) {
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
 // v23.1.365 — onglet PawFollow : compteurs rôle × plan + liste.
+// v23.1.375 — sauvegarde de sécurité des lieux : télécharge un JSON
+// complet de tous les PawSpots (réimportable en cas de pépin).
+async function exportPawSpots() {
+  try {
+    const r = await fetch(`${API_URL}/admin/export/pawspots`, {
+      headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` },
+    });
+    if (!r.ok) throw new Error('Export impossible (' + r.status + ')');
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const aEl = document.createElement('a');
+    aEl.href = url;
+    aEl.download = 'hopetsit-pawspots-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(aEl);
+    aEl.click();
+    aEl.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Erreur export : ' + e.message);
+  }
+}
+
 async function loadPawFollowSubs() {
   try {
     const d = await api('/admin/pawfollow-subscriptions');

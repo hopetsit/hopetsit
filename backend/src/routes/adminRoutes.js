@@ -4061,4 +4061,28 @@ router.get('/pawspot-subscriptions', requireAdmin, async (req, res) => {
   }
 });
 
+// v23.1.375 — Daniel : "y a-t-il une sauvegarde de sécurité de tous les
+// lieux ?" Export JSON COMPLET des PawSpots (tous champs, y compris
+// likes/validations/commentaires) pour sauvegarde manuelle depuis l'admin.
+// En cas de pépin, ce fichier permet de réimporter les lieux.
+router.get('/export/pawspots', requireAdmin, async (req, res) => {
+  try {
+    const PawSpot = require('../models/PawSpot');
+    const spots = await PawSpot.find({}).lean();
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="hopetsit-pawspots-backup.json"',
+    );
+    res.send(JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      count: spots.length,
+      spots,
+    }, null, 2));
+  } catch (e) {
+    logger.error('[admin/export/pawspots]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
