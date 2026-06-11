@@ -1032,17 +1032,36 @@ const processProviderPayoutForBooking = async (booking) => {
     const provider = getBookingProvider(booking);
     if (!provider.id || !provider.Model) {
       logger.error('❌ Unable to process payout: provider missing on booking', booking._id.toString());
-      booking.payoutStatus = 'failed';
-      booking.payoutError = 'Provider missing on booking (no sitterId nor walkerId).';
-      await booking.save();
+      // v23.1.374 — BOUCLE D'ERREUR RENDER (Daniel) : booking.save() sur un
+      // doc SANS sitter/walker re-déclenchait la validation pre-save
+      // ("Booking must target either a sitter or a walker") → l'état
+      // 'failed' n'était JAMAIS persisté → la réservation corrompue était
+      // re-tentée à CHAQUE tick du scheduler. updateOne atomique = pas de
+      // hooks/validators → le doc sort définitivement de la file.
+      await Booking.updateOne(
+        { _id: booking._id },
+        {
+          $set: {
+            payoutStatus: 'failed',
+            payoutError: 'Provider missing on booking (no sitterId nor walkerId).',
+          },
+        },
+      );
       return;
     }
     const sitter = await provider.Model.findById(provider.id);
     if (!sitter) {
       logger.error(`❌ Unable to process payout: ${provider.type} not found for booking`, booking._id.toString());
-      booking.payoutStatus = 'failed';
-      booking.payoutError = `${provider.type === 'walker' ? 'Walker' : 'Sitter'} not found for payout.`;
-      await booking.save();
+      // v23.1.374 — updateOne atomique (cf. provider missing ci-dessus).
+      await Booking.updateOne(
+        { _id: booking._id },
+        {
+          $set: {
+            payoutStatus: 'failed',
+            payoutError: `${provider.type === 'walker' ? 'Walker' : 'Sitter'} not found for payout.`,
+          },
+        },
+      );
       return;
     }
 
@@ -1333,9 +1352,16 @@ const processProviderPayoutForBooking = async (booking) => {
     }
 
     logger.warn('⚠️ Unknown payout method for sitter', { payoutMethod, sitterId: sitter._id.toString() });
-    booking.payoutStatus = 'failed';
-    booking.payoutError = `Unknown payout method: ${payoutMethod}`;
-    await booking.save();
+    // v23.1.374 — updateOne atomique (pas de validators, cf. plus haut).
+    await Booking.updateOne(
+      { _id: booking._id },
+      {
+        $set: {
+          payoutStatus: 'failed',
+          payoutError: `Unknown payout method: ${payoutMethod}`,
+        },
+      },
+    );
   } catch (error) {
     // v23.1 part 46 — fix Daniel "logs Render disent juste Error while
     // processing sitter payout sans détail". Pino ignores 2nd/3rd args
@@ -1347,12 +1373,26 @@ const processProviderPayoutForBooking = async (booking) => {
       `❌ Error while processing payout for booking ${booking._id.toString()} : ` +
       `${error?.message || String(error)} | stack=${(error?.stack || '').split('\n').slice(0, 3).join(' | ')}`,
     );
-    booking.payoutStatus = 'failed';
-    booking.payoutError = error.message || String(error);
+    // v23.1.374 — BOUCLE D'ERREUR RENDER (Daniel) : booking.save() pouvait
+    // RE-THROW la même erreur de validation (doc corrompu sans provider) →
+    // l'état 'failed' n'était jamais persisté → re-tentative à chaque tick
+    // du scheduler, à l'infini. updateOne atomique = pas de hooks → le doc
+    // sort définitivement de la file des payouts.
     try {
-      await booking.save();
+      await Booking.updateOne(
+        { _id: booking._id },
+        {
+          $set: {
+            payoutStatus: 'failed',
+            payoutError: error.message || String(error),
+          },
+        },
+      );
     } catch (saveError) {
-      logger.error('❌ Failed to persist payout failure state for booking', booking._id.toString(), saveError);
+      logger.error(
+        `❌ Failed to persist payout failure state for booking ${booking._id.toString()} : ` +
+        `${saveError?.message || String(saveError)}`,
+      );
     }
   }
 };
@@ -4228,6 +4268,22 @@ const processScheduledSitterPayouts = async () => {
   for (const booking of dueBookings) {
     try {
       await processProviderPayoutForBooking(booking);
+      // v23.1.374 — BOUCLE D'ERREUR RENDER (Daniel) : si le payout a ÉCHOUÉ
+      // (ex. booking corrompu sans provider → payoutStatus='failed' posé en
+      // updateOne), il ne faut NI le compter "released" NI auto-confirmer le
+      // service (le save() de l'auto-confirm re-throwait la validation du
+      // modèle à chaque tick). On relit le statut frais en DB : seul un
+      // payout réellement 'completed' continue.
+      const fresh = await Booking.findById(booking._id)
+        .select('payoutStatus').lean();
+      if (fresh?.payoutStatus !== 'completed'
+          && fresh?.payoutStatus !== 'processing') {
+        logger.warn(
+          `[scheduler] payout not completed for booking ${booking._id} ` +
+          `(status=${fresh?.payoutStatus || '?'}) — skipped auto-confirm.`,
+        );
+        continue;
+      }
       released += 1;
       // v23.1.271 — auto-release 48h (owner n'a pas confirmé dans les temps) :
       // on AUTO-CONFIRME le service pour qu'il compte vers le statut Top (les
