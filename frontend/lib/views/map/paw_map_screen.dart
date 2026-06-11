@@ -2976,7 +2976,7 @@ class _PawMapScreenState extends State<PawMapScreen>
               children: [
                 // Bouton principal : ouvre/ferme la checklist.
                 InkWell(
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(14.r),
                     onTap: () => _showCatFilter.value = !open,
                     // v23.1.357 — Daniel : "modernise juste le bouton" (rangée
                     // Lieux/Tous/Rien conservée). Pill dégradée + ombre colorée.
@@ -2989,7 +2989,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(14.r),
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.25),
                           width: 1.2,
@@ -3030,7 +3030,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 SizedBox(width: 8.w),
                 // Bouton « Tous » : rallume la couche POI + enlève le filtre.
                 InkWell(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(14.r),
                   onTap: () {
                     _showPois.value = true;
                     _poiController.selectAllCategories();
@@ -3048,7 +3048,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                             )
                           : null,
                       color: allShown ? null : Colors.white,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(14.r),
                       border: Border.all(
                         color: allShown
                             ? Colors.white.withValues(alpha: 0.25)
@@ -3080,7 +3080,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // « Tous ». « Rien » éteint la couche POI → tous les lieux
                 // disparaissent de la carte.
                 InkWell(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(14.r),
                   onTap: () => _showPois.value = false,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
@@ -3095,7 +3095,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                             )
                           : null,
                       color: !poisOn ? null : Colors.white,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(14.r),
                       border: Border.all(
                         color: !poisOn
                             ? Colors.white.withValues(alpha: 0.25)
@@ -3295,13 +3295,8 @@ class _PawMapScreenState extends State<PawMapScreen>
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            Obx(() => _LayerToggle(
-                  label: 'pawmap_filter_pois'.tr,
-                  emoji: '📍',
-                  active: _showPois.value,
-                  onTap: () => _showPois.value = !_showPois.value,
-                )),
-            SizedBox(width: 8.w),
+            // v23.1.358 — Daniel : "enlève POIs, y a déjà Lieux/Tous/Rien".
+            // Le chip POIs était redondant avec la rangée de filtres lieux.
             Obx(() => _LayerToggle(
                   label: 'pawmap_filter_reports_48h'.tr,
                   emoji: '⚠️',
@@ -3740,7 +3735,16 @@ class _PawMapScreenState extends State<PawMapScreen>
         title: 'pawspot_subscribe_required'.tr,
         message: 'pawspot_shop_subtitle'.tr,
       );
-      Get.to(() => const CoinShopScreen(initialTab: 2));
+      // v23.1.358 — Daniel : "je prends un abonnement mais ça ne passe pas
+      // en ON". Au RETOUR de la boutique, on re-vérifie les benefits : si
+      // l'abo (ou l'essai 7 j) vient d'être activé → switch ON automatique
+      // + chargement des spots, sans que l'utilisateur ait à re-taper.
+      await Get.to(() => const CoinShopScreen(initialTab: 2));
+      final nowActive = await _pawSpotController.refreshBenefits();
+      if (nowActive && mounted) {
+        _showPawSpots.value = true;
+        await _pawSpotController.loadNearby(_currentCenter);
+      }
       return;
     }
     _showPawSpots.value = true;
@@ -4212,10 +4216,11 @@ class _LayerToggle extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
+        // v23.1.358 — padding réduit ("pas de slide" sur la rangée).
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
         decoration: BoxDecoration(
-          // v23.1.357 — Daniel : "modernise les boutons POIs, Signalements
-          // et Mon cercle". Pill arrondie : dégradé brand quand actif (texte
+          // v23.1.357/358 — Daniel : boutons modernisés, RECTANGLE ARRONDI
+          // (14.r — "c'est plus beau") : dégradé brand quand actif (texte
           // blanc), surface claire sinon ; ombre colorée douce, transition
           // animée. (Surfaces fixes CLAIRES dans les 2 modes — la GoogleMap
           // reste claire, cf v23.1.278.)
@@ -4230,7 +4235,7 @@ class _LayerToggle extends StatelessWidget {
                 )
               : null,
           color: active ? null : Colors.white,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(14.r),
           border: Border.all(
             color: active
                 ? Colors.white.withValues(alpha: 0.25)
@@ -4250,11 +4255,13 @@ class _LayerToggle extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(emoji, style: TextStyle(fontSize: 13.sp)),
-            SizedBox(width: 6.w),
+            // v23.1.358 — Daniel : "réduit la police pour qu'il n'y ait pas
+            // de slide" (rangée Signalements / Mon cercle / Demandes).
+            Text(emoji, style: TextStyle(fontSize: 12.sp)),
+            SizedBox(width: 5.w),
             InterText(
               text: label,
-              fontSize: 11.sp,
+              fontSize: 10.sp,
               fontWeight: FontWeight.w800,
               color: active ? Colors.white : const Color(0xFF1F2937),
             ),

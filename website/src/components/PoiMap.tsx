@@ -23,6 +23,8 @@ import {
   Polyline,
   Popup,
   TileLayer,
+  Tooltip,
+  useMap,
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -39,7 +41,84 @@ import {
   haloColor,
   makeAvatarIcon,
 } from "@/components/FriendsLiveMap";
-import type { FriendLivePosition } from "@/components/FriendsLiveMap";
+import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
+
+/**
+ * v23.1.358 — Daniel : "mets le nom et le rôle des amis en direct sur la
+ * PawMap, et quand on clique sur eux ça zoome dessus". Marker ami avec
+ * tooltip PERMANENT « nom · rôle » sous l'avatar + clic → flyTo zoom 16.
+ */
+function LiveFriendMarker({
+  p,
+  isFamily,
+  roleLabel,
+}: {
+  p: FriendLivePosition;
+  isFamily: boolean;
+  roleLabel: string;
+}) {
+  const map = useMap();
+  return (
+    <span>
+      <Circle
+        center={[p.lat, p.lng]}
+        radius={70}
+        pathOptions={{
+          color: haloColor(p.role),
+          fillColor: haloColor(p.role),
+          fillOpacity: 0.18,
+          weight: 2,
+          opacity: 0.7,
+        }}
+      />
+      {isFamily && (
+        <Circle
+          center={[p.lat, p.lng]}
+          radius={95}
+          pathOptions={{
+            color: FAMILY_VIOLET,
+            fillOpacity: 0,
+            weight: 3,
+            opacity: 0.95,
+          }}
+        />
+      )}
+      <Marker
+        position={[p.lat, p.lng]}
+        icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
+        zIndexOffset={800}
+        eventHandlers={{
+          click: () =>
+            map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 16), {
+              duration: 0.8,
+            }),
+        }}
+      >
+        <Tooltip
+          permanent
+          direction="bottom"
+          offset={[0, 16]}
+          className="!rounded-lg !border-0 !bg-white/95 !px-2 !py-0.5 !text-[11px] !font-semibold !shadow"
+        >
+          {p.name} · {roleLabel}
+        </Tooltip>
+        <Popup>
+          <div className="text-sm">
+            <strong>{p.name}</strong>
+            <br />
+            <span className="text-xs uppercase tracking-wider opacity-70">
+              {roleLabel}
+            </span>
+            <br />
+            <span className="text-xs opacity-70">
+              {new Date(p.at).toLocaleString()}
+            </span>
+          </div>
+        </Popup>
+      </Marker>
+    </span>
+  );
+}
 
 // Fix global icones Leaflet (sinon path cassé en bundler).
 // @ts-expect-error — Leaflet stocke ses defaults via _getIconUrl interne.
@@ -138,6 +217,7 @@ export default function PoiMap({
   spotTypeLabels,
   friendPositions = [],
   familyIds = [],
+  roleLabels,
   routePoints = null,
   onDirections,
   directionsLabel = "→",
@@ -156,6 +236,9 @@ export default function PoiMap({
   /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
   friendPositions?: FriendLivePosition[];
   familyIds?: string[];
+  /** v23.1.358 — libellés i18n des rôles (owner/sitter/walker) pour le
+      tooltip permanent « nom · rôle » sous chaque ami en direct. */
+  roleLabels?: Partial<Record<Role, string>>;
   /** v23.1 carte unique — polyline itinéraire (orange #EF4324). */
   routePoints?: { lat: number; lng: number }[] | null;
   /** Bouton "Itinéraire" des popups (spots + POI). */
@@ -339,55 +422,14 @@ export default function PoiMap({
         {/* v23.1 carte unique — couche PawFollow amis/famille en direct :
             halo couleur rôle + anneau violet famille + avatar (icônes
             partagées avec FriendsLiveMap). */}
-        {friendPositions.map((p) => {
-          const isFamily = familySet.has(p.userId);
-          return (
-            <span key={`live-${p.userId}`}>
-              <Circle
-                center={[p.lat, p.lng]}
-                radius={70}
-                pathOptions={{
-                  color: haloColor(p.role),
-                  fillColor: haloColor(p.role),
-                  fillOpacity: 0.18,
-                  weight: 2,
-                  opacity: 0.7,
-                }}
-              />
-              {isFamily && (
-                <Circle
-                  center={[p.lat, p.lng]}
-                  radius={95}
-                  pathOptions={{
-                    color: FAMILY_VIOLET,
-                    fillOpacity: 0,
-                    weight: 3,
-                    opacity: 0.95,
-                  }}
-                />
-              )}
-              <Marker
-                position={[p.lat, p.lng]}
-                icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
-                zIndexOffset={800}
-              >
-                <Popup>
-                  <div className="text-sm">
-                    <strong>{p.name}</strong>
-                    <br />
-                    <span className="text-xs uppercase tracking-wider opacity-70">
-                      {p.role}
-                    </span>
-                    <br />
-                    <span className="text-xs opacity-70">
-                      {new Date(p.at).toLocaleString()}
-                    </span>
-                  </div>
-                </Popup>
-              </Marker>
-            </span>
-          );
-        })}
+        {friendPositions.map((p) => (
+          <LiveFriendMarker
+            key={`live-${p.userId}`}
+            p={p}
+            isFamily={familySet.has(p.userId)}
+            roleLabel={roleLabels?.[p.role] ?? p.role}
+          />
+        ))}
 
         {/* v23.1 carte unique — itinéraire piéton (polyline orange). */}
         {routePoints && routePoints.length > 1 && (

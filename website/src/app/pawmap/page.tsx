@@ -117,14 +117,8 @@ export default function PawMapPage() {
           <span>Ouvrir la PawMap interactive</span>
           <span>→</span>
         </Link>
-        <Link
-          href="/map"
-          className="inline-flex items-center gap-2 rounded-full border border-walker bg-white px-6 py-3 text-sm font-semibold text-walker-dark hover:bg-walker-light"
-        >
-          <span>🐾</span>
-          <span>Mes amis en direct</span>
-          <span>→</span>
-        </Link>
+        {/* v23.1.358 — Daniel : "efface amis en direct" — CTA supprimé,
+            la couche amis vit dans la carte unique (chip PawFollow). */}
       </div>
 
       <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3">

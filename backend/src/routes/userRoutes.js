@@ -143,18 +143,26 @@ router.get(
       const pawFollowActive = !!user.isPremium || subscriptionActive;
 
       // v23.1.353 — refonte PawSpot : abo communautaire actif ? (+ essai 7 j)
+      // v23.1.358 — BUG (Daniel : "je prends un abonnement PawSpot mais ça
+      // ne passe pas en ON") : `UserSubscription` et `now` étaient déclarés
+      // DANS le try{} PawFollow plus haut → hors de portée ici →
+      // ReferenceError avalé par le catch → pawspotActive TOUJOURS false.
+      // Fix : require local + new Date() direct + warn loggé.
       let pawspotActive = false;
       let pawspotExpiry = null;
       try {
-        const psSub = await UserSubscription.findOne({
+        const UserSubscriptionPs = require('../models/UserSubscription');
+        const psSub = await UserSubscriptionPs.findOne({
           userId: req.user.id,
-          userModel: role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner',
+          userModel: modelName,
         }).select('pawspotExpiry').lean();
-        if (psSub?.pawspotExpiry && new Date(psSub.pawspotExpiry) > now) {
+        if (psSub?.pawspotExpiry && new Date(psSub.pawspotExpiry) > new Date()) {
           pawspotActive = true;
           pawspotExpiry = psSub.pawspotExpiry;
         }
-      } catch (_) {/* défensif */}
+      } catch (e) {
+        logger.warn(`[users/me/benefits] pawspot lookup failed : ${e.message}`);
+      }
 
       const payload = {
         role,

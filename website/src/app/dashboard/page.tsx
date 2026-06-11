@@ -266,17 +266,9 @@ export default function DashboardPage() {
           title="PawMap"
           subtitle="Vétos, parcs, plages pet-friendly"
         />
-        {/* v23.1 part 243 round 3 — Daniel : "tout le paw follow suivre les
-            utilisateurs rien nest fais". Nouveau lien dashboard vers la
-            page live des amis.
-            v23.1 carte unique — /friends/live est fusionnée dans /map
-            (couche PawFollow de la carte unique). */}
-        <NavCard
-          href="/map"
-          emoji="🐾"
-          title="Mes amis en direct"
-          subtitle="Suivi PawFollow en temps réel"
-        />
+        {/* v23.1.358 — Daniel : "efface amis en direct" — la carte « Mes
+            amis en direct » est supprimée : la couche PawFollow vit dans la
+            carte unique /map (chip PawFollow), déjà accessible via PawMap. */}
         <NavCard
           href="/boutique"
           emoji="🛍️"

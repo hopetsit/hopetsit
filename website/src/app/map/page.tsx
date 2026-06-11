@@ -613,6 +613,11 @@ export default function MapPage() {
           spotTypeLabels={spotTypeLabels}
           friendPositions={showFriends ? livePositionsList : []}
           familyIds={familyIds}
+          roleLabels={{
+            owner: t("role_owner"),
+            sitter: t("role_sitter"),
+            walker: t("role_walker"),
+          }}
           routePoints={route?.points ?? null}
           onDirections={handleDirections}
           directionsLabel={t("map_directions_btn")}
@@ -738,7 +743,7 @@ function LayerChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition"
+      className="inline-flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition"
       style={
         active
           ? { backgroundColor: color, borderColor: color, color: "#FFFFFF" }
