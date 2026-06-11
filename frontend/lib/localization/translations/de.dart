@@ -2772,6 +2772,7 @@ const Map<String, String> deDETranslations = <String, String>{
     'band_payment_released_subtitle': '@amount in deinem Wallet verfügbar',
     'band_cta_wallet': 'Wallet ansehen',
     'pawmap_me_label': 'Ich',
+    'pawfollow_feature_directions': 'Routen zu den kostenlosen PawMap-Orten (Wasserstellen, Parks, Restaurants…) inklusive',
     'pawmap_tag_spot_btn': 'Ort taggen',
     'pawmap_view_spots_btn': 'Spots ansehen',
     'pawspot_list_title': 'PawSpots in der Nähe',

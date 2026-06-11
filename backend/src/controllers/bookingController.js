@@ -5450,14 +5450,15 @@ const processServiceStartReminders = async () => {
 
 /**
  * v23.1.354 — Daniel : "la 2e confirmation du sitter/walker sort sur le
- * bandeau pas de suite après la 1re, mais 30 min avant la fin du service,
+ * bandeau pas de suite après la 1re, mais 5 min avant la fin du service,
  * avec notification mail et téléphone."
  * Tick scheduler : pour chaque service DÉMARRÉ (in_progress) dont la fin
  * (resolveBookingEndDate) est à <= 30 min, on envoie UNE fois au prestataire
  * la notif 'service_end_soon' (push FCM + e-mail via notificationSender).
  * Le bandeau app applique le même gate de son côté (_serviceEndAt - 30 min).
  */
-const SERVICE_END_REMINDER_LEAD_MS = 30 * 60 * 1000;
+// v23.1.357 — Daniel : 5 min avant la fin (et plus 30).
+const SERVICE_END_REMINDER_LEAD_MS = 5 * 60 * 1000;
 const SERVICE_END_REMINDER_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const processServiceEndReminders = async () => {
   const now = new Date();
@@ -5477,7 +5478,7 @@ const processServiceEndReminders = async () => {
     for (const booking of candidates) {
       try {
         const endAt = resolveBookingEndDate(booking);
-        // Pas encore dans la fenêtre des 30 dernières minutes.
+        // Pas encore dans la fenêtre des 5 dernières minutes.
         if (endAt.getTime() - SERVICE_END_REMINDER_LEAD_MS > now.getTime()) continue;
         // Réclamation atomique : 2 ticks concurrents ne doublent jamais l'envoi.
         const claimed = await Booking.findOneAndUpdate(

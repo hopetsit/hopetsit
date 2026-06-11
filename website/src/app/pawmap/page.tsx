@@ -18,6 +18,10 @@ type Offer = {
   name: string;
   price: string;
   details: string;
+  // v23.1.357 — Daniel : "le PawSpot annuel avec un cadre jaune, ça donne
+  // envie de l'acheter".
+  highlighted?: boolean;
+  badge?: string;
 };
 
 export default function PawMapPage() {
@@ -76,6 +80,8 @@ export default function PawMapPage() {
         t("pawfollow_family_f2"),
         t("pawfollow_family_f3"),
         t("pawfollow_family_f4"),
+        // v23.1.357 — itinéraires vers les lieux gratuits inclus aussi.
+        t("pawfollow_monthly_f4"),
       ],
       highlighted: false,
       badge: t("pawfollow_family_badge"),
@@ -87,7 +93,7 @@ export default function PawMapPage() {
   // PawPoints, badges, empreinte dorée 🐾) — 2 plans + essai 7 jours.
   const pawspotOffers: Offer[] = [
     { name: t("pawspot_monthly_name"), price: "4,99 €", details: t("pawspot_monthly_details") },
-    { name: t("pawspot_yearly_name"), price: "39,99 €", details: t("pawspot_yearly_details") },
+    { name: t("pawspot_yearly_name"), price: "39,99 €", details: t("pawspot_yearly_details"), highlighted: true, badge: t("pawspot_save_badge_site") },
   ];
 
   return (
@@ -226,7 +232,19 @@ export default function PawMapPage() {
 
         <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
           {pawspotOffers.map((o) => (
-            <div key={o.name} className="rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
+            <div
+              key={o.name}
+              className={
+                o.highlighted
+                  ? "relative rounded-2xl border-4 border-amber-400 bg-amber-50 p-6 shadow-card ring-2 ring-amber-200 md:scale-[1.03]"
+                  : "rounded-2xl border border-ink/5 bg-white p-6 shadow-card"
+              }
+            >
+              {o.badge ? (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-white">
+                  {o.badge}
+                </span>
+              ) : null}
               <h3 className="text-lg font-bold text-ink">{o.name}</h3>
               <p className="mt-3 text-3xl font-extrabold text-amber-600">{o.price}</p>
               <p className="mt-2 text-sm text-ink-muted">{o.details}</p>

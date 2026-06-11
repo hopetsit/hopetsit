@@ -301,7 +301,7 @@ export default function BoutiquePage() {
               <p className="mt-2 text-3xl font-extrabold text-amber-600">4,99 €</p>
               <p className="mt-2 text-sm text-ink-muted">{t("pawspot_monthly_details")}</p>
             </div>
-            <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-6">
+            <div className="rounded-2xl border-4 border-amber-400 bg-amber-50 p-6 ring-2 ring-amber-200 shadow-lg">
               <h3 className="text-lg font-bold text-ink">
                 {t("pawspot_yearly_name")}{" "}
                 <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-white">-33%</span>

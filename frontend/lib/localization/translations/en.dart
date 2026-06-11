@@ -100,6 +100,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'band_payment_released_subtitle': '@amount available in your wallet',
       'band_cta_wallet': 'View wallet',
       'pawmap_me_label': 'Me',
+      'pawfollow_feature_directions': 'Directions to the free PawMap places (water points, parks, restaurants…) included',
       'pawmap_tag_spot_btn': 'Tag a spot',
       'pawmap_view_spots_btn': 'View spots',
       'pawspot_list_title': 'Nearby PawSpots',

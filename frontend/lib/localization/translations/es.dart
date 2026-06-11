@@ -2736,6 +2736,7 @@ const Map<String, String> esESTranslations = <String, String>{
     'band_payment_released_subtitle': '@amount disponible en tu wallet',
     'band_cta_wallet': 'Ver wallet',
     'pawmap_me_label': 'Yo',
+    'pawfollow_feature_directions': 'Rutas a los lugares gratuitos del PawMap (fuentes, parques, restaurantes…) incluidas',
     'pawmap_tag_spot_btn': 'Marcar un lugar',
     'pawmap_view_spots_btn': 'Ver spots',
     'pawspot_list_title': 'PawSpots cercanos',

@@ -1433,6 +1433,12 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
         'icon': Icons.people_outline,
         'text': 'premium_feature_friends_tracking'.tr,
       },
+      // v23.1.357 — Daniel : "précise qu'avec PawFollow/PawFamily tu as les
+      // itinéraires vers les lieux GRATUITS de la PawMap (eau, parcs, restos)".
+      {
+        'icon': Icons.directions_walk_rounded,
+        'text': 'pawfollow_feature_directions'.tr,
+      },
       // v21.1.1 — Forfait Famille mis en évidence (jusqu'à 5 personnes).
       {
         'icon': Icons.family_restroom,

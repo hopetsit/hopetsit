@@ -524,6 +524,12 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
     setState(() => _sendingComment = false);
     if (ok) {
       _commentCtrl.clear();
+      // v23.1.357 — Daniel : "que ça comptabilise les points sur la PawMap".
+      // Feedback immédiat : +2 PawPoints pour un commentaire utile.
+      CustomSnackbar.showSuccess(
+        title: 'pawspot_reward_redeemed'.tr,
+        message: 'pawspot_points_comment'.tr,
+      );
       setState(() => _commentsLoading = true);
       await _loadComments();
     }

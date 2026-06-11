@@ -466,22 +466,12 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     _emojiGenInProgress.add(genKey);
     final bool golden = cacheKey == '__golden__';
-    final future = golden
-        ? _buildEmojiBitmap(
-            '🐾',
-            bgColor: const Color(0xFFFFD700),
-            ringColor: const Color(0xFFE8A00A),
-            ringWidth: 4.0,
-          )
-        // v23.1.356 — maquette Daniel : TOUS les spots affichent la patte
-        // 🐾 sur une pastille pleine couleur du type (légende : vert/bleu/
-        // rouge/teal/doré/rose), liseré blanc pour détacher de la carte.
-        : _buildEmojiBitmap(
-            '🐾',
-            bgColor: PawSpotTypes.color(cacheKey),
-            ringColor: Colors.white,
-            ringWidth: 3.0,
-          );
+    // v23.1.357 — maquette Daniel : pin « goutte » couleur du type avec
+    // patte BLANCHE (comme la photo), golden → goutte dorée.
+    final future = _buildPawPinBitmap(
+      color: golden ? const Color(0xFFFFD700) : PawSpotTypes.color(cacheKey),
+      golden: golden,
+    );
     future.then((bd) {
       _spotEmojiMarkers[cacheKey] = bd;
       _emojiGenInProgress.remove(genKey);
@@ -555,6 +545,66 @@ class _PawMapScreenState extends State<PawMapScreen>
     return BitmapDescriptor.bytes(
       bytes!.buffer.asUint8List(),
       width: 36,
+    );
+  }
+
+  /// v23.1.357 — maquette Daniel : pin « goutte » (tête ronde + pointe,
+  /// comme les pins Google Maps de la photo) rempli de la COULEUR DU TYPE
+  /// avec une PATTE BLANCHE dessinée à la main (coussinet + 4 doigts).
+  /// Golden → goutte dorée FFD700 avec liseré E8A00A. Ancre du Marker =
+  /// défaut (0.5, 1.0) → la pointe touche la position exacte du spot.
+  Future<BitmapDescriptor> _buildPawPinBitmap({
+    required Color color,
+    bool golden = false,
+  }) async {
+    const double w = 56.0;
+    const double h = 74.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Ombre douce sous la pointe.
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.22)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawOval(
+        Rect.fromCenter(center: const Offset(28, 69), width: 18, height: 7),
+        shadowPaint);
+
+    // Goutte = union (cercle tête + triangle pointe) → contour sans couture.
+    final head = Path()
+      ..addOval(Rect.fromCircle(center: const Offset(28, 26), radius: 20));
+    final tail = Path()
+      ..moveTo(15, 40)
+      ..lineTo(41, 40)
+      ..lineTo(28, 68)
+      ..close();
+    final pin = Path.combine(PathOperation.union, head, tail);
+
+    canvas.drawPath(pin, Paint()..color = golden ? const Color(0xFFFFD700) : color);
+    canvas.drawPath(
+      pin,
+      Paint()
+        ..color = golden ? const Color(0xFFE8A00A) : Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0,
+    );
+
+    // Patte blanche : coussinet + 4 doigts (sur la tête du pin).
+    final pawPaint = Paint()..color = Colors.white;
+    canvas.drawOval(
+        Rect.fromCenter(center: const Offset(28, 31), width: 14, height: 11),
+        pawPaint);
+    canvas.drawCircle(const Offset(19.5, 22.5), 3.1, pawPaint);
+    canvas.drawCircle(const Offset(25.0, 19.0), 3.3, pawPaint);
+    canvas.drawCircle(const Offset(31.0, 19.0), 3.3, pawPaint);
+    canvas.drawCircle(const Offset(36.5, 22.5), 3.1, pawPaint);
+
+    final img = await recorder.endRecording().toImage(w.toInt(), h.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    // width 34 → rendu compact aligné sur les pins natifs (cf _buildEmojiBitmap).
+    return BitmapDescriptor.bytes(
+      bytes!.buffer.asUint8List(),
+      width: 34,
     );
   }
 
@@ -2926,18 +2976,28 @@ class _PawMapScreenState extends State<PawMapScreen>
               children: [
                 // Bouton principal : ouvre/ferme la checklist.
                 InkWell(
-                    borderRadius: BorderRadius.circular(14.r),
+                    borderRadius: BorderRadius.circular(999),
                     onTap: () => _showCatFilter.value = !open,
+                    // v23.1.357 — Daniel : "modernise juste le bouton" (rangée
+                    // Lieux/Tous/Rien conservée). Pill dégradée + ombre colorée.
                     child: Container(
                       padding:
                           EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4324),
-                        borderRadius: BorderRadius.circular(14.r),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1.2,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFEF4324).withValues(alpha: 0.25),
-                            blurRadius: 8,
+                            color: const Color(0xFFEF4324).withValues(alpha: 0.35),
+                            blurRadius: 10,
                             offset: const Offset(0, 3),
                           ),
                         ],
@@ -2970,31 +3030,48 @@ class _PawMapScreenState extends State<PawMapScreen>
                 SizedBox(width: 8.w),
                 // Bouton « Tous » : rallume la couche POI + enlève le filtre.
                 InkWell(
-                  borderRadius: BorderRadius.circular(14.r),
+                  borderRadius: BorderRadius.circular(999),
                   onTap: () {
                     _showPois.value = true;
                     _poiController.selectAllCategories();
                   },
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
                     padding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+                        EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
                     decoration: BoxDecoration(
-                      color: AppColors.card(context),
-                      borderRadius: BorderRadius.circular(14.r),
+                      gradient: allShown
+                          ? const LinearGradient(
+                              colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: allShown ? null : Colors.white,
+                      borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: allShown
-                            ? const Color(0xFFEF4324)
-                            : AppColors.greyText.withValues(alpha: 0.35),
-                        width: 1.4,
+                            ? Colors.white.withValues(alpha: 0.25)
+                            : const Color(0xFFE0E0E0),
+                        width: 1.2,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: allShown
+                              ? const Color(0xFFEF4324).withValues(alpha: 0.35)
+                              : Colors.black.withValues(alpha: 0.08),
+                          blurRadius: allShown ? 10 : 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: InterText(
                       text: 'paw_map_filter_all'.tr,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w800,
                       color: allShown
-                          ? const Color(0xFFEF4324)
-                          : AppColors.textPrimary(context),
+                          ? Colors.white
+                          : const Color(0xFF1F2937),
                     ),
                   ),
                 ),
@@ -3003,22 +3080,37 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // « Tous ». « Rien » éteint la couche POI → tous les lieux
                 // disparaissent de la carte.
                 InkWell(
-                  borderRadius: BorderRadius.circular(14.r),
+                  borderRadius: BorderRadius.circular(999),
                   onTap: () => _showPois.value = false,
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
                     padding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+                        EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
                     decoration: BoxDecoration(
-                      color: !poisOn
-                          ? const Color(0xFFEF4324)
-                          : AppColors.card(context),
-                      borderRadius: BorderRadius.circular(14.r),
+                      gradient: !poisOn
+                          ? const LinearGradient(
+                              colors: [Color(0xFFEF4324), Color(0xFFFF6B4A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: !poisOn ? null : Colors.white,
+                      borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: !poisOn
-                            ? const Color(0xFFEF4324)
-                            : AppColors.greyText.withValues(alpha: 0.35),
-                        width: 1.4,
+                            ? Colors.white.withValues(alpha: 0.25)
+                            : const Color(0xFFE0E0E0),
+                        width: 1.2,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: !poisOn
+                              ? const Color(0xFFEF4324).withValues(alpha: 0.35)
+                              : Colors.black.withValues(alpha: 0.08),
+                          blurRadius: !poisOn ? 10 : 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -3035,7 +3127,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                           fontWeight: FontWeight.w800,
                           color: !poisOn
                               ? Colors.white
-                              : AppColors.textPrimary(context),
+                              : const Color(0xFF1F2937),
                         ),
                       ],
                     ),
@@ -4117,27 +4209,41 @@ class _LayerToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
         decoration: BoxDecoration(
-          // v23.1.278 — Daniel : "en mode dark on voit mal la barre sur la
-          // PawMap". La GoogleMap reste TOUJOURS claire (pas de style sombre),
-          // donc on FIXE les chips en surface CLAIRE (blanc + texte sombre)
-          // dans les 2 modes, avec une ombre douce pour bien les détacher de
-          // la carte — au lieu de couleurs adaptatives qui devenaient sombres
-          // et incohérentes en dark mode.
-          color: active
-              ? AppColors.primaryColor.withValues(alpha: 0.14)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(12.r),
+          // v23.1.357 — Daniel : "modernise les boutons POIs, Signalements
+          // et Mon cercle". Pill arrondie : dégradé brand quand actif (texte
+          // blanc), surface claire sinon ; ombre colorée douce, transition
+          // animée. (Surfaces fixes CLAIRES dans les 2 modes — la GoogleMap
+          // reste claire, cf v23.1.278.)
+          gradient: active
+              ? LinearGradient(
+                  colors: [
+                    AppColors.primaryColor,
+                    AppColors.primaryColor.withValues(alpha: 0.82),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: active ? null : Colors.white,
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: active ? AppColors.primaryColor : const Color(0xFFE0E0E0),
+            color: active
+                ? Colors.white.withValues(alpha: 0.25)
+                : const Color(0xFFE0E0E0),
+            width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+              color: active
+                  ? AppColors.primaryColor.withValues(alpha: 0.35)
+                  : Colors.black.withValues(alpha: 0.10),
+              blurRadius: active ? 10 : 6,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -4149,10 +4255,8 @@ class _LayerToggle extends StatelessWidget {
             InterText(
               text: label,
               fontSize: 11.sp,
-              fontWeight: FontWeight.w700,
-              color: active
-                  ? AppColors.primaryColor
-                  : const Color(0xFF1F2937),
+              fontWeight: FontWeight.w800,
+              color: active ? Colors.white : const Color(0xFF1F2937),
             ),
             if (premiumBadge) ...[
               SizedBox(width: 4.w),
@@ -4163,14 +4267,15 @@ class _LayerToggle extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
+                  // Inversé quand le chip est actif (fond dégradé brand).
+                  color: active ? Colors.white : AppColors.primaryColor,
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: InterText(
                   text: '$count',
                   fontSize: 10.sp,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: active ? AppColors.primaryColor : Colors.white,
                 ),
               ),
             ],

@@ -2769,6 +2769,7 @@ const Map<String, String> itITTranslations = <String, String>{
     'band_payment_released_subtitle': '@amount disponibile nel tuo wallet',
     'band_cta_wallet': 'Vedi wallet',
     'pawmap_me_label': 'Io',
+    'pawfollow_feature_directions': 'Itinerari verso i luoghi gratuiti della PawMap (fontanelle, parchi, ristoranti…) inclusi',
     'pawmap_tag_spot_btn': 'Tagga un luogo',
     'pawmap_view_spots_btn': 'Vedi spot',
     'pawspot_list_title': 'PawSpot nelle vicinanze',

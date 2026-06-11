@@ -493,15 +493,16 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       }
       // b) fin à confirmer (service démarré).
       // v23.1.354 — Daniel : "la 2e confirmation ne sort pas de suite après
-      // la 1re mais 30 min avant la fin du service". On masque l'action tant
-      // que la fin (heure de fin du timeSlot / duration) est à plus de 30 min.
+      // la 1re mais 5 min avant la fin du service". On masque l'action tant
+      // que la fin (heure de fin du timeSlot / duration) est à plus de 5 min.
       // Fin indéterminable (données legacy) → comportement d'avant (affichée).
       // Le backend envoie la notif push+mail 'service_end_soon' au même moment.
       for (final b in bookings) {
         if ((b.paymentStatus ?? '').toLowerCase() != 'paid') continue;
         if (b.confirmationStatus != 'in_progress') continue;
         final endAt = _serviceEndAt(b);
-        if (endAt != null && endAt.difference(svcNow).inMinutes > 30) continue;
+        // v23.1.357 — Daniel : 5 min avant la fin (et plus 30).
+        if (endAt != null && endAt.difference(svcNow).inMinutes > 5) continue;
         return _QuickAction(
           kind: _Kind.serviceAction,
           color: svcAccent,

@@ -2605,6 +2605,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'band_payment_released_subtitle': '@amount disponível no teu wallet',
     'band_cta_wallet': 'Ver wallet',
     'pawmap_me_label': 'Eu',
+    'pawfollow_feature_directions': 'Itinerários para os locais gratuitos do PawMap (bebedouros, parques, restaurantes…) incluídos',
     'pawmap_tag_spot_btn': 'Marcar um local',
     'pawmap_view_spots_btn': 'Ver spots',
     'pawspot_list_title': 'PawSpots por perto',

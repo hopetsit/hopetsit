@@ -32,6 +32,8 @@ const modelForRole = (role) =>
   role === 'walker' ? Walker : role === 'sitter' ? Sitter : Owner;
 
 const FREE_SPOT_LIMIT = 3;
+// v23.1.357 — Daniel : "spot validé par la communauté au bout de 10 likes".
+const LIKES_FOR_VALIDATION = 10;
 const PAWSPOT_PLAN_DAYS = { monthly: 30, yearly: 365 };
 const TRIAL_DAYS = 7;
 const REWARD_COSTS = Object.freeze({
@@ -388,6 +390,17 @@ router.post('/:id/like', requireAuth, async (req, res) => {
       spot.likedBy.push(uid);
     }
     spot.likesCount = spot.likedBy.length;
+    // v23.1.357 — validé par la communauté à 10 ❤️ : +10 pts créateur (1 fois).
+    if (spot.likesCount >= LIKES_FOR_VALIDATION && !spot.communityValidated) {
+      spot.communityValidated = true;
+      if (!spot.validationAwarded) {
+        spot.validationAwarded = true;
+        await pawPoints.awardPoints({
+          userId: spot.creatorId, role: spot.creatorModel.toLowerCase(),
+          points: pawPoints.POINTS.spotValidated, reason: 'spot validated (10 likes)',
+        });
+      }
+    }
     // Très populaire : 50 likes → +25 pts créateur (une seule fois).
     if (spot.likesCount >= 50 && !spot.popularAwarded) {
       spot.popularAwarded = true;
