@@ -349,7 +349,18 @@ class _PawMapScreenState extends State<PawMapScreen>
         ? Get.find<PawSpotController>()
         : Get.put(PawSpotController());
     // Pré-charge le flag benefits.pawspotActive (gate du chip PawSpot).
-    unawaited(_pawSpotController.refreshBenefits());
+    // v23.1.371 — Daniel : "laisse PawSpot en ON quand j'ai l'abonnement,
+    // OFF seulement si je l'éteins manuellement". Abonné + pas d'OFF
+    // mémorisé → la couche s'allume toute seule à chaque ouverture de la
+    // carte ; le choix manuel (ON/OFF) est persisté dans GetStorage.
+    unawaited(_pawSpotController.refreshBenefits().then((active) {
+      if (!mounted || !active || _showPawSpots.value) return;
+      final stored = GetStorage().read('pawspot_layer_on');
+      if (stored != false) {
+        _showPawSpots.value = true;
+        unawaited(_pawSpotController.loadNearby(_currentCenter));
+      }
+    }));
 
     // v23.1 part 123 — halo pulse pour Platinum.
     // v23.1 part 231 — Daniel : "app lag sur Oppo / petits ecrans".
@@ -3665,13 +3676,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                     accent: const Color(0xFFE8A00A),
                     subscribed: spotSub,
                     value: _showPawSpots.value,
-                    onChanged: (v) {
-                      if (v) {
-                        unawaited(_togglePawSpotLayer());
-                      } else {
-                        _showPawSpots.value = false;
-                      }
-                    },
+                    // v23.1.371 — un seul chemin (toggle) : l'OFF manuel y
+                    // est mémorisé pour ne pas se rallumer tout seul.
+                    onChanged: (_) => unawaited(_togglePawSpotLayer()),
                   ),
                 ),
               ],
@@ -3764,7 +3771,11 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// bandeau Valider/Annuler — on déplace la CARTE sous le pin, puis on
   /// valide → la sheet de création s'ouvre avec cette position exacte.
   void _startSpotPicking() {
-    if (!_showPawSpots.value) _showPawSpots.value = true;
+    if (!_showPawSpots.value) {
+      _showPawSpots.value = true;
+      // v23.1.371 — choix ON mémorisé (cohérent avec le switch).
+      GetStorage().write('pawspot_layer_on', true);
+    }
     // v23.1.363 — pin de départ au centre, puis TAP sur la carte pour le
     // déplacer (le marqueur est aussi draggable).
     _pickedSpotPos = _currentCenter;
@@ -3927,6 +3938,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _togglePawSpotLayer() async {
     if (_showPawSpots.value) {
       _showPawSpots.value = false;
+      // v23.1.371 — OFF MANUEL mémorisé : la couche ne se rallumera pas
+      // toute seule à la prochaine ouverture de la carte.
+      GetStorage().write('pawspot_layer_on', false);
       return;
     }
     final active = _pawSpotController.pawspotActive.value ||
@@ -3944,11 +3958,13 @@ class _PawMapScreenState extends State<PawMapScreen>
       final nowActive = await _pawSpotController.refreshBenefits();
       if (nowActive && mounted) {
         _showPawSpots.value = true;
+        GetStorage().write('pawspot_layer_on', true);
         await _pawSpotController.loadNearby(_currentCenter);
       }
       return;
     }
     _showPawSpots.value = true;
+    GetStorage().write('pawspot_layer_on', true);
     await _pawSpotController.loadNearby(_currentCenter);
   }
 
