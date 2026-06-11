@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 export default function HomePage() {
@@ -161,7 +162,8 @@ export default function HomePage() {
       <section className="bg-gradient-to-br from-amber-50 via-white to-amber-100/60 py-20">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-            🐾 {t("home_pawspot_title")}
+            <PawSpotGoldCoin size={40} className="mr-2 -mt-1" />
+            {t("home_pawspot_title")}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-base text-ink-muted">
             {t("home_pawspot_sub")}
@@ -178,7 +180,7 @@ export default function HomePage() {
               <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b2_body")}</p>
             </div>
             <div className="rounded-2xl border-2 border-amber-400 bg-white p-6 shadow-card">
-              <div className="text-3xl">🐾</div>
+              <PawSpotGoldCoin size={34} />
               <h3 className="mt-3 text-base font-bold text-ink">{t("home_pawspot_b3_title")}</h3>
               <p className="mt-2 text-sm text-ink-muted">{t("home_pawspot_b3_body")}</p>
             </div>

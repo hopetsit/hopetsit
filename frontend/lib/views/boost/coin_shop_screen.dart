@@ -14,6 +14,7 @@ import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
+import 'package:hopetsit/widgets/golden_paw_coin.dart';
 
 /// Boutique screen — 3 tabs:
 ///   1. Boost   — one-time profile boost (existing feature)
@@ -2032,6 +2033,8 @@ class _PawSpotTabState extends State<_PawSpotTab>
       ),
       child: Row(
         children: [
+          // v23.1.362 — Daniel : l'emoji PawSpot DORÉ officiel (pièce or +
+          // patte + pointe-pin) dans la description de la page PawSpot.
           Container(
             width: 56.w,
             height: 56.w,
@@ -2040,7 +2043,7 @@ class _PawSpotTabState extends State<_PawSpotTab>
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Center(
-              child: Text('🐾', style: TextStyle(fontSize: 28.sp)),
+              child: GoldenPawCoin(size: 46.w),
             ),
           ),
           SizedBox(width: 14.w),

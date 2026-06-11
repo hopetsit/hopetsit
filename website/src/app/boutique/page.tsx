@@ -14,6 +14,7 @@
 // l'app pour finaliser l'achat".
 
 import Link from "next/link";
+import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -292,7 +293,8 @@ export default function BoutiquePage() {
       {section === "mapboost" && (
         <section className="rounded-3xl border border-ink/5 bg-white p-8 shadow-card">
           <h2 className="font-display text-2xl font-extrabold text-ink">
-            🐾 {t("shop_mapboost_title")}
+            <PawSpotGoldCoin size={32} className="mr-2 -mt-1" />
+            {t("shop_mapboost_title")}
           </h2>
           <p className="mt-2 max-w-2xl text-ink-muted">{t("shop_mapboost_subtitle")}</p>
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">

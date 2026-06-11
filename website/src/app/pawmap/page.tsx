@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 type Plan = {
@@ -218,6 +219,8 @@ export default function PawMapPage() {
 
       <div className="mt-20">
         <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+          {/* v23.1.362 — l'emoji PawSpot doré officiel dans la description. */}
+          <PawSpotGoldCoin size={42} className="mr-2 -mt-1" />
           {t("pawspot_title")}
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-base text-ink-muted">
