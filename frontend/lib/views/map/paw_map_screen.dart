@@ -165,6 +165,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   late final PawSpotController _pawSpotController;
   final RxBool _showPawSpots = false.obs;
 
+  /// v23.1.356 — maquette Daniel : switch « PawFollow » de la rangée de
+  /// boutons rapides. ON par défaut ; OFF masque la couche LIVE (markers +
+  /// halos amis/famille et mon marqueur/halo). POIs, signalements et
+  /// prestataires ne sont pas affectés.
+  final RxBool _showLiveLayer = true.obs;
+
   /// v23.1.353 — itinéraire "Y aller" (GET /pawspots/directions). La
   /// polyline orange est dessinée sur la carte ; le bandeau bas affiche la
   /// distance + un bouton pour l'effacer.
@@ -467,10 +473,14 @@ class _PawMapScreenState extends State<PawMapScreen>
             ringColor: const Color(0xFFE8A00A),
             ringWidth: 4.0,
           )
+        // v23.1.356 — maquette Daniel : TOUS les spots affichent la patte
+        // 🐾 sur une pastille pleine couleur du type (légende : vert/bleu/
+        // rouge/teal/doré/rose), liseré blanc pour détacher de la carte.
         : _buildEmojiBitmap(
-            PawSpotTypes.emoji(cacheKey),
-            bgColor: PawSpotTypes.color(cacheKey).withValues(alpha: 0.35),
-            ringColor: PawSpotTypes.color(cacheKey),
+            '🐾',
+            bgColor: PawSpotTypes.color(cacheKey),
+            ringColor: Colors.white,
+            ringWidth: 3.0,
           );
     future.then((bd) {
       _spotEmojiMarkers[cacheKey] = bd;
@@ -1051,7 +1061,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // résolue (indépendant de myLocationEnabled qui peut échouer
     // silencieusement selon la permission OS).
     final userPos = _userPosition;
-    if (userPos != null) {
+    // v23.1.356 — switch PawFollow OFF → couche live masquée (mon halo aussi).
+    if (userPos != null && _showLiveLayer.value) {
       final phase = _haloPhase.value;
       final userRadius = 25.0 + 75.0 * phase; // 25 → 100 m
       final userOpacity = (0.55 * (1.0 - phase)).clamp(0.0, 1.0);
@@ -1214,6 +1225,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       const familyViolet = Color(0xFF8B5CF6);
 
       for (final pos in _liveMap.friendPositions.values) {
+        // v23.1.356 — switch PawFollow OFF → halos amis/famille masqués.
+        if (!_showLiveLayer.value) break;
         // v23.1 part 240 — fallback sur FriendPosition.role quand le peer
         // n'est pas dans la liste d'amis (ex: ouverture depuis un chat
         // sitter/walker non-ami). Sinon halo neutre alors qu'on a le metier.
@@ -1323,6 +1336,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       _poiEmojiMarkers.length,
       _spotEmojiMarkers.length,
       _showPawSpots.value ? 1 : 0,
+      // v23.1.356 — switch PawFollow (couche live ON/OFF).
+      _showLiveLayer.value ? 1 : 0,
       _pawSpotController.spots.length,
       _liveMap.friendPositions.length,
       // v23.1.263 — Daniel : "le follow géolocalise mais ne suit pas à la
@@ -1361,7 +1376,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // cercle couleur rôle + avatar), taille écran fixe → je me vois à
     // n'importe quel zoom, en plus du halo rôle (cercles en mètres).
     final myPos = _userPosition;
-    if (myPos != null) {
+    // v23.1.356 — switch PawFollow OFF → mon marqueur photo masqué aussi.
+    if (myPos != null && _showLiveLayer.value) {
       try {
         final profile = GetStorage()
             .read<Map<String, dynamic>>(StorageKeys.userProfile);
@@ -1569,6 +1585,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase(): m,
       };
       for (final pos in _liveMap.friendPositions.values) {
+        // v23.1.356 — switch PawFollow OFF → markers amis/famille masqués.
+        if (!_showLiveLayer.value) break;
         final friend = friendById[pos.userId];
         // v23.1.297 — fallback membre famille (pas forcément un ami) : on le
         // dessine quand même pour qu'il apparaisse sur la carte ET dans le
@@ -2134,19 +2152,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                   right: 12.w,
                   bottom: 24.h,
                   child: _buildReportFab(),
-                ),
-
-                // v23.1.353 — refonte PawSpot : mini FAB doré « 🐾 + »
-                // au-dessus du FAB Signaler, visible uniquement quand la
-                // couche spots est ON → ouvre la sheet de création.
-                Positioned(
-                  right: 12.w,
-                  bottom: 86.h,
-                  child: Obx(
-                    () => _showPawSpots.value
-                        ? _buildPawSpotFab()
-                        : const SizedBox.shrink(),
-                  ),
                 ),
 
                 // v23.1.187 — Daniel mockup : carte "Autour de vous" flottante
@@ -3036,52 +3041,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                     ),
                   ),
                 ),
-                SizedBox(width: 8.w),
-                // v23.1.353 — refonte PawSpot : chip doré « PawSpot 🐾 » qui
-                // toggle la couche des spots communautaires (gated par le
-                // flag benefits.pawspotActive, voir _togglePawSpotLayer).
-                Builder(builder: (context) {
-                  final spotsOn = _showPawSpots.value;
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(14.r),
-                    onTap: _togglePawSpotLayer,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 12.w, vertical: 10.h),
-                      decoration: BoxDecoration(
-                        color: spotsOn
-                            ? const Color(0xFFE8A00A)
-                            : AppColors.card(context),
-                        borderRadius: BorderRadius.circular(14.r),
-                        border: Border.all(
-                          color: spotsOn
-                              ? const Color(0xFFE8A00A)
-                              : AppColors.greyText.withValues(alpha: 0.35),
-                          width: 1.4,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          InterText(
-                            text: 'PawSpot',
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w800,
-                            color: spotsOn
-                                ? Colors.white
-                                : AppColors.textPrimary(context),
-                          ),
-                          SizedBox(width: 4.w),
-                          Text('🐾', style: TextStyle(fontSize: 13.sp)),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
               ],
               ),
             ),
           ),
+          // v23.1.356 — maquette Daniel : rangée « boutons rapides » sur UNE
+          // seule ligne (PawFollow ⭐ / PawSpot 🐾 avec switch ON-OFF +
+          // couronne 👑 si abonnement actif, Taguer un lieu, Voir les spots).
+          // Remplace l'ancien chip PawSpot de la barre et le mini-FAB 🐾+.
+          _buildQuickTogglesRow(),
           // Checklist 2 colonnes (repliable).
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
@@ -3487,24 +3455,181 @@ class _PawMapScreenState extends State<PawMapScreen>
   // ─── PawSpot — couche spots communautaires 🐾 (v23.1.353) ────────────────
 
   /// Mini FAB doré « 🐾 + » (au-dessus du FAB Signaler) → sheet de création.
-  Widget _buildPawSpotFab() {
-    return FloatingActionButton.small(
-      heroTag: 'pawspot_create_fab',
-      backgroundColor: const Color(0xFFE8A00A),
-      elevation: 6,
-      onPressed: _openPawSpotCreate,
-      child: Stack(
-        alignment: Alignment.center,
+  /// v23.1.356 — maquette Daniel : rangée « boutons rapides » une-ligne sous
+  /// la barre de filtres. PawFollow (switch couche live, VIOLET + 👑 si abo
+  /// PawFollow/PawFamily actif) · PawSpot (switch couche spots, DORÉ + 👑 si
+  /// abo actif) · Taguer un lieu · Voir les spots.
+  Widget _buildQuickTogglesRow() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Obx(() {
+          final followSub = _pawSpotController.followActive.value;
+          final spotSub = _pawSpotController.pawspotActive.value;
+          return Row(
+            children: [
+              _quickSwitchChip(
+                label: 'PawFollow',
+                icon: Icons.star_rounded,
+                accent: const Color(0xFF7C3AED),
+                subscribed: followSub,
+                value: _showLiveLayer.value,
+                onChanged: (v) => _showLiveLayer.value = v,
+              ),
+              SizedBox(width: 8.w),
+              _quickSwitchChip(
+                label: 'PawSpot',
+                emoji: '🐾',
+                accent: const Color(0xFFE8A00A),
+                subscribed: spotSub,
+                value: _showPawSpots.value,
+                onChanged: (v) {
+                  if (v) {
+                    unawaited(_togglePawSpotLayer());
+                  } else {
+                    _showPawSpots.value = false;
+                  }
+                },
+              ),
+              SizedBox(width: 8.w),
+              _quickActionChip(
+                label: 'pawmap_tag_spot_btn'.tr,
+                icon: Icons.add_location_alt_rounded,
+                accent: const Color(0xFFEC4899),
+                onTap: () {
+                  // La création gratuite (3 spots max) est gérée par le 402
+                  // serveur — pas de gate abo ici. On allume la couche pour
+                  // voir le spot publié.
+                  if (!_showPawSpots.value) _showPawSpots.value = true;
+                  unawaited(_openPawSpotCreate());
+                },
+              ),
+              SizedBox(width: 8.w),
+              _quickActionChip(
+                label: 'pawmap_view_spots_btn'.tr,
+                icon: Icons.list_rounded,
+                accent: const Color(0xFF2563EB),
+                onTap: () => unawaited(_openSpotsList()),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  /// Chip avec Switch compact (PawFollow / PawSpot). `subscribed` pilote la
+  /// teinte (violet/doré) + la couronne 👑 ; sinon gris neutre.
+  Widget _quickSwitchChip({
+    required String label,
+    IconData? icon,
+    String? emoji,
+    required Color accent,
+    required bool subscribed,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final Color tone = subscribed ? accent : AppColors.greyText;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: subscribed
+            ? accent.withValues(alpha: 0.12)
+            : AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: tone.withValues(alpha: 0.55), width: 1.4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text('🐾', style: TextStyle(fontSize: 18.sp)),
-          Positioned(
-            right: 2.w,
-            top: 2.h,
-            child: Icon(Icons.add_circle_rounded,
-                size: 13.sp, color: Colors.white),
+          if (emoji != null)
+            Text(emoji, style: TextStyle(fontSize: 14.sp))
+          else
+            Icon(icon, size: 16.sp, color: tone),
+          SizedBox(width: 5.w),
+          InterText(
+            text: label,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w800,
+            color: subscribed ? accent : AppColors.textPrimary(context),
+          ),
+          if (subscribed) ...[
+            SizedBox(width: 3.w),
+            Text('👑', style: TextStyle(fontSize: 11.sp)),
+          ],
+          SizedBox(width: 2.w),
+          Transform.scale(
+            scale: 0.72,
+            child: Switch(
+              value: value,
+              onChanged: onChanged,
+              activeTrackColor: accent,
+              activeThumbColor: Colors.white,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Bouton d'action simple de la rangée rapide (Taguer / Voir les spots).
+  Widget _quickActionChip({
+    required String label,
+    required IconData icon,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14.r),
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16.sp, color: accent),
+            SizedBox(width: 5.w),
+            InterText(
+              text: label,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// « Voir les spots » : active la couche (même gating abo que le switch)
+  /// puis ouvre la liste des spots à proximité avec mes PawPoints en tête.
+  Future<void> _openSpotsList() async {
+    if (!_showPawSpots.value) {
+      await _togglePawSpotLayer();
+      if (!_showPawSpots.value) return; // gating abo → boutique déjà ouverte
+    } else if (_pawSpotController.spots.isEmpty) {
+      await _pawSpotController.loadNearby(_currentCenter);
+    }
+    if (!mounted) return;
+    await showPawSpotListSheet(
+      context,
+      controller: _pawSpotController,
+      onOpenSpot: (spot) async {
+        if (_mapCtl.isCompleted) {
+          final ctl = await _mapCtl.future;
+          unawaited(ctl.animateCamera(
+            CameraUpdate.newLatLngZoom(LatLng(spot.lat, spot.lng), 16),
+          ));
+        }
+        _showPawSpotDetail(spot);
+      },
     );
   }
 

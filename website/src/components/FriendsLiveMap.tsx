@@ -35,7 +35,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-type Role = "walker" | "sitter" | "owner" | "family";
+// v23.1 carte unique — Role/haloColor/FAMILY_VIOLET/makeAvatarIcon sont
+// désormais exportés : PoiMap (la carte unique /map) réutilise exactement
+// les mêmes markers avatars pour la couche PawFollow amis/famille.
+export type Role = "walker" | "sitter" | "owner" | "family";
 
 function roleFromModel(model: string): "walker" | "sitter" | "owner" {
   const m = (model || "").toLowerCase();
@@ -48,7 +51,7 @@ function roleFromModel(model: string): "walker" | "sitter" | "owner" {
 // le role determine la couleur principale, famille ajoute un anneau
 // violet par-dessus. La fonction haloColor donne la couleur metier ;
 // FAMILY_VIOLET est utilise pour le ring exterieur.
-function haloColor(role: Role): string {
+export function haloColor(role: Role): string {
   if (role === "walker") return "#16A34A";
   if (role === "sitter") return "#2563EB";
   // family = owner orange par defaut (l'anneau violet signale la famille
@@ -57,9 +60,9 @@ function haloColor(role: Role): string {
   return "#EF4324";
 }
 
-const FAMILY_VIOLET = "#8B5CF6";
+export const FAMILY_VIOLET = "#8B5CF6";
 
-function makeAvatarIcon(
+export function makeAvatarIcon(
   role: Role,
   name: string,
   avatar?: string,

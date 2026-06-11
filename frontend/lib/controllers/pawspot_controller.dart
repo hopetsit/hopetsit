@@ -112,20 +112,22 @@ class PawSpotTypes {
     }
   }
 
+  // v23.1.356 — couleurs alignées sur la légende de la maquette Daniel
+  // (« exemple de spots tagués ») : vert / bleu / rouge / teal / doré / rose.
   static Color color(String t) {
     switch (t) {
       case 'path_walk':
         return const Color(0xFF16A34A);
       case 'chill':
-        return const Color(0xFF8B5CF6);
-      case 'playground':
-        return const Color(0xFFF59E0B);
-      case 'swimming':
         return const Color(0xFF2563EB);
+      case 'playground':
+        return const Color(0xFFEF4444);
+      case 'swimming':
+        return const Color(0xFF14B8A6);
       case 'food_cafe':
-        return const Color(0xFFEF4324);
+        return const Color(0xFFE8A00A);
       default:
-        return const Color(0xFF64748B);
+        return const Color(0xFFEC4899);
     }
   }
 
@@ -156,6 +158,10 @@ class PawSpotController extends GetxController {
   /// essai 7 j en cours ou staff).
   final RxBool pawspotActive = false.obs;
 
+  /// v23.1.356 — abo suivi actif (PawFollow OU PawFamily) : pilote l'état
+  /// violet + couronne 👑 du chip PawFollow de la PawMap.
+  final RxBool followActive = false.obs;
+
   ApiClient? get _api =>
       Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
 
@@ -176,7 +182,11 @@ class PawSpotController extends GetxController {
   Future<bool> refreshBenefits() async {
     try {
       final r = await _api?.get('/users/me/benefits', requiresAuth: true);
-      if (r is Map) pawspotActive.value = r['pawspotActive'] == true;
+      if (r is Map) {
+        pawspotActive.value = r['pawspotActive'] == true;
+        followActive.value =
+            r['pawFollowActive'] == true || r['familyActive'] == true;
+      }
     } catch (e) {
       debugPrint('[PawSpot] refreshBenefits error: $e');
     }

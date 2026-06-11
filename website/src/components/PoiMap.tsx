@@ -4,12 +4,23 @@
 // Affiche tous les POI proches d'un centre donné, avec markers colorés par
 // catégorie. Popup au click → détails + action "Voir" qui scrolle vers le
 // panneau latéral.
+//
+// v23.1 carte unique — Daniel : "sur le site web, UNE SEULE carte". PoiMap
+// devient LA carte du site : en plus des POI + position user, elle sait
+// afficher (couches optionnelles pilotées par /map) :
+//   1. la couche PawFollow amis/famille en direct (markers avatars + halos,
+//      mêmes icônes que FriendsLiveMap — helpers importés de là) ;
+//   2. les PawSpots communautaires (patte 🐾 colorée par type, dorée si
+//      isGolden) avec popup likes/qualité/photo + bouton Itinéraire ;
+//   3. une polyline d'itinéraire orange (#EF4324) renvoyée par le backend.
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Circle,
   LayersControl,
   MapContainer,
   Marker,
+  Polyline,
   Popup,
   TileLayer,
   useMapEvents,
@@ -18,9 +29,17 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import {
   POI_CATEGORY_LABELS,
+  PawSpot,
+  PawSpotType,
   Poi,
   PoiCategory,
 } from "@/lib/api";
+import {
+  FAMILY_VIOLET,
+  haloColor,
+  makeAvatarIcon,
+} from "@/components/FriendsLiveMap";
+import type { FriendLivePosition } from "@/components/FriendsLiveMap";
 
 // Fix global icones Leaflet (sinon path cassé en bundler).
 // @ts-expect-error — Leaflet stocke ses defaults via _getIconUrl interne.
@@ -64,6 +83,37 @@ function makeCategoryIcon(category: PoiCategory): L.DivIcon {
   });
 }
 
+// v23.1 carte unique — marker patte 🐾 PawSpot coloré par type ; les spots
+// dorés (isGolden) passent en #FFD700 avec un liseré ambre.
+const SPOT_COLOR: Record<PawSpotType, string> = {
+  path_walk: "#16A34A",
+  chill: "#2563EB",
+  playground: "#EF4444",
+  swimming: "#14B8A6",
+  food_cafe: "#E8A00A",
+  other: "#EC4899",
+};
+
+function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
+  const bg = isGolden ? "#FFD700" : SPOT_COLOR[type] || SPOT_COLOR.other;
+  const ring = isGolden
+    ? "border: 3px solid white; box-shadow: 0 0 0 2px #B45309, 0 2px 6px rgba(0,0,0,0.35);"
+    : "border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);";
+  return new L.DivIcon({
+    className: "",
+    html: `<div style="
+      width: 34px; height: 34px; border-radius: 50%;
+      background: ${bg};
+      ${ring}
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; line-height: 1;
+    ">🐾</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -17],
+  });
+}
+
 // Pin "ma position".
 const userIcon = new L.DivIcon({
   className: "",
@@ -84,6 +134,13 @@ export default function PoiMap({
   selectedPoi,
   onSelectPoi,
   onMapMove,
+  spots = [],
+  spotTypeLabels,
+  friendPositions = [],
+  familyIds = [],
+  routePoints = null,
+  onDirections,
+  directionsLabel = "→",
 }: {
   center: [number, number];
   pois: Poi[];
@@ -92,7 +149,20 @@ export default function PoiMap({
   onSelectPoi?: (poi: Poi) => void;
   /** Fired when the user finishes panning/zooming the map. */
   onMapMove?: (center: { lat: number; lng: number }) => void;
+  /** v23.1 carte unique — PawSpots communautaires (couche optionnelle). */
+  spots?: PawSpot[];
+  /** Labels i18n des types de spot (fournis par la page via t()). */
+  spotTypeLabels?: Partial<Record<PawSpotType, string>>;
+  /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
+  friendPositions?: FriendLivePosition[];
+  familyIds?: string[];
+  /** v23.1 carte unique — polyline itinéraire (orange #EF4324). */
+  routePoints?: { lat: number; lng: number }[] | null;
+  /** Bouton "Itinéraire" des popups (spots + POI). */
+  onDirections?: (target: { lat: number; lng: number }) => void;
+  directionsLabel?: string;
 }) {
+  const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   // Re-mount la carte si le centre change radicalement (>10km).
   const [mapKey, setMapKey] = useState(() => `${center[0]},${center[1]}`);
   useEffect(() => {
@@ -195,11 +265,139 @@ export default function PoiMap({
                       🕐 {poi.openingHours}
                     </div>
                   )}
+                  {/* v23.1 carte unique — bouton Itinéraire aussi sur les
+                      popups POI existants. */}
+                  {onDirections && (
+                    <button
+                      type="button"
+                      onClick={() => onDirections({ lat, lng })}
+                      className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
+                      style={{ backgroundColor: "#EF4324" }}
+                    >
+                      🧭 {directionsLabel}
+                    </button>
+                  )}
                 </div>
               </Popup>
             </Marker>
           );
         })}
+
+        {/* v23.1 carte unique — couche PawSpots communautaires : patte 🐾
+            colorée par type (dorée + liseré si isGolden). Popup : nom, type,
+            ❤️ likes, ⭐ qualité, photo + bouton Itinéraire. */}
+        {spots.map((spot) => (
+          <Marker
+            key={`spot-${spot.id}`}
+            position={[spot.lat, spot.lng]}
+            icon={makeSpotIcon(spot.type, spot.isGolden)}
+            zIndexOffset={spot.isGolden ? 600 : 300}
+          >
+            <Popup>
+              <div className="text-sm" style={{ minWidth: 170 }}>
+                <div className="mb-1 font-bold">
+                  {spot.isGolden ? "🐾✨ " : ""}
+                  {spot.name}
+                </div>
+                <div className="mb-1 text-xs text-gray-600">
+                  {spotTypeLabels?.[spot.type] || spot.type}
+                </div>
+                <div className="mb-1 text-xs text-gray-700">
+                  ❤️ {spot.likesCount} · ⭐{" "}
+                  {Number(spot.quality || 0).toFixed(1)}
+                </div>
+                {spot.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={spot.photoUrl}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      maxHeight: 110,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                    }}
+                  />
+                ) : null}
+                {onDirections && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onDirections({ lat: spot.lat, lng: spot.lng })
+                    }
+                    className="mt-2 rounded-full px-3 py-1 text-xs font-bold text-white"
+                    style={{ backgroundColor: "#EF4324" }}
+                  >
+                    🧭 {directionsLabel}
+                  </button>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* v23.1 carte unique — couche PawFollow amis/famille en direct :
+            halo couleur rôle + anneau violet famille + avatar (icônes
+            partagées avec FriendsLiveMap). */}
+        {friendPositions.map((p) => {
+          const isFamily = familySet.has(p.userId);
+          return (
+            <span key={`live-${p.userId}`}>
+              <Circle
+                center={[p.lat, p.lng]}
+                radius={70}
+                pathOptions={{
+                  color: haloColor(p.role),
+                  fillColor: haloColor(p.role),
+                  fillOpacity: 0.18,
+                  weight: 2,
+                  opacity: 0.7,
+                }}
+              />
+              {isFamily && (
+                <Circle
+                  center={[p.lat, p.lng]}
+                  radius={95}
+                  pathOptions={{
+                    color: FAMILY_VIOLET,
+                    fillOpacity: 0,
+                    weight: 3,
+                    opacity: 0.95,
+                  }}
+                />
+              )}
+              <Marker
+                position={[p.lat, p.lng]}
+                icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
+                zIndexOffset={800}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <strong>{p.name}</strong>
+                    <br />
+                    <span className="text-xs uppercase tracking-wider opacity-70">
+                      {p.role}
+                    </span>
+                    <br />
+                    <span className="text-xs opacity-70">
+                      {new Date(p.at).toLocaleString()}
+                    </span>
+                  </div>
+                </Popup>
+              </Marker>
+            </span>
+          );
+        })}
+
+        {/* v23.1 carte unique — itinéraire piéton (polyline orange). */}
+        {routePoints && routePoints.length > 1 && (
+          <Polyline
+            positions={routePoints.map(
+              (p) => [p.lat, p.lng] as [number, number],
+            )}
+            pathOptions={{ color: "#EF4324", weight: 5, opacity: 0.9 }}
+          />
+        )}
       </MapContainer>
     </div>
   );

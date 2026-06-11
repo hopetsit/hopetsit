@@ -1071,6 +1071,116 @@ export async function getNearbyReports(opts: {
   };
 }
 
+// ─── Carte unique /map : PawSpots communautaires + itinéraire + benefits ────
+// Daniel : "sur le site web, UNE SEULE carte". La page /map fusionne la
+// couche amis/famille en direct (ex /friends/live), les spots communautaires
+// PawSpot et l'itinéraire piéton (inclus PawFollow / PawFamily).
+
+export type PawSpotType =
+  | "path_walk"
+  | "chill"
+  | "playground"
+  | "swimming"
+  | "food_cafe"
+  | "other";
+
+export type PawSpot = {
+  id: string;
+  type: PawSpotType;
+  name: string;
+  description?: string;
+  photoUrl?: string;
+  lat: number;
+  lng: number;
+  city?: string;
+  creatorName?: string;
+  likesCount: number;
+  validationsCount: number;
+  visitsCount: number;
+  commentsCount: number;
+  communityValidated: boolean;
+  isGolden: boolean;
+  featured: boolean;
+  quality: number;
+};
+
+export async function getNearbyPawSpots(opts: {
+  lat: number;
+  lng: number;
+  radius?: number;
+}): Promise<PawSpot[]> {
+  const qs = new URLSearchParams({
+    lat: String(opts.lat),
+    lng: String(opts.lng),
+  });
+  if (opts.radius) qs.set("radius", String(opts.radius));
+  const raw = await request<{ spots?: PawSpot[] }>(
+    `/pawspots/nearby?${qs.toString()}`,
+  );
+  // Défensif : on écarte les spots sans coordonnées exploitables.
+  return (raw.spots || []).filter(
+    (s) => typeof s.lat === "number" && typeof s.lng === "number",
+  );
+}
+
+export type RouteResult = {
+  points: { lat: number; lng: number }[];
+  distanceMeters: number | null;
+  durationSeconds: number | null;
+};
+
+// GET /pawspots/directions — itinéraire piéton (OSRM côté backend, fallback
+// ligne droite avec distanceMeters/durationSeconds null). 402 + code
+// PAWFOLLOW_REQUIRED si pas d'abonnement PawFollow / PawFamily : on laisse
+// l'ApiError remonter pour que la page affiche le message + lien /boutique.
+export async function getPawSpotDirections(opts: {
+  fromLat: number;
+  fromLng: number;
+  toLat: number;
+  toLng: number;
+}): Promise<RouteResult> {
+  const qs = new URLSearchParams({
+    fromLat: String(opts.fromLat),
+    fromLng: String(opts.fromLng),
+    toLat: String(opts.toLat),
+    toLng: String(opts.toLng),
+  });
+  const raw = await request<RouteResult>(
+    `/pawspots/directions?${qs.toString()}`,
+  );
+  return {
+    points: Array.isArray(raw?.points) ? raw.points : [],
+    distanceMeters: raw?.distanceMeters ?? null,
+    durationSeconds: raw?.durationSeconds ?? null,
+  };
+}
+
+// GET /users/me/benefits — flags d'avantages actifs pour colorer les chips
+// de la carte unique (PawFollow violet + 👑, PawSpot doré + 👑).
+export type MyBenefits = {
+  pawFollowActive: boolean;
+  familyActive: boolean;
+  pawspotActive: boolean;
+};
+
+export async function getMyBenefits(): Promise<MyBenefits | null> {
+  try {
+    const raw = await request<{
+      pawFollowActive?: boolean;
+      familyActive?: boolean;
+      pawspotActive?: boolean;
+    }>(`/users/me/benefits`);
+    return {
+      pawFollowActive: !!raw?.pawFollowActive,
+      familyActive: !!raw?.familyActive,
+      pawspotActive: !!raw?.pawspotActive,
+    };
+  } catch {
+    // Défensif : les chips restent grises (pas de crash de la carte).
+    return null;
+  }
+}
+
 // ─── Subscriptions (PawFollow Premium) ──────────────────────────────────────
 
 export type SubscriptionPlan = {

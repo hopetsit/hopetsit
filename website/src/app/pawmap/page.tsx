@@ -100,6 +100,8 @@ export default function PawMapPage() {
 
       {/* v23.1 part 146 — CTA vers la carte interactive (auth required). */}
       {/* v23.1 part 243 round 3 — second CTA vers /friends/live. */}
+      {/* v23.1 carte unique — /friends/live fusionnée dans /map : le second
+          CTA pointe désormais aussi vers la carte unique. */}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Link
           href="/map"
@@ -110,7 +112,7 @@ export default function PawMapPage() {
           <span>→</span>
         </Link>
         <Link
-          href="/friends/live"
+          href="/map"
           className="inline-flex items-center gap-2 rounded-full border border-walker bg-white px-6 py-3 text-sm font-semibold text-walker-dark hover:bg-walker-light"
         >
           <span>🐾</span>

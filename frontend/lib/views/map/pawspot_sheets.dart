@@ -1034,3 +1034,178 @@ class _PawSpotDetailSheetState extends State<_PawSpotDetailSheet> {
     );
   }
 }
+
+/// v23.1.356 — maquette Daniel : « Voir les spots ». Liste des PawSpots
+/// chargés autour du centre courant, avec mes PawPoints en tête (relus à
+/// chaque ouverture, pas de cache). Tap sur une ligne → le caller centre la
+/// carte et ouvre la sheet détail.
+Future<void> showPawSpotListSheet(
+  BuildContext context, {
+  required PawSpotController controller,
+  required void Function(PawSpotModel spot) onOpenSpot,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.card(context),
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    useSafeArea: true,
+    builder: (ctx) {
+      final spots = controller.spots.toList();
+      return SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 16.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42.w,
+                  height: 4.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.greyText.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              Row(
+                children: [
+                  Text('🐾', style: TextStyle(fontSize: 20.sp)),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: PoppinsText(
+                      text: 'pawspot_list_title'.tr,
+                      fontSize: 17.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(ctx),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+              // Mes PawPoints — relus à CHAQUE ouverture ("que ça
+              // comptabilise les points", Daniel).
+              FutureBuilder<Map<String, dynamic>?>(
+                future: controller.myPoints(),
+                builder: (c, snap) {
+                  final pts = (snap.data?['points'] as num?)?.toInt();
+                  final badge = snap.data?['badge'];
+                  final badgeEmoji =
+                      badge is Map ? (badge['emoji'] ?? '').toString() : '';
+                  return Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: _kGold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border:
+                          Border.all(color: _kGold.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.emoji_events_rounded,
+                            size: 16.sp, color: _kGold),
+                        SizedBox(width: 6.w),
+                        InterText(
+                          text: 'pawmap_my_points_chip'
+                              .trParams({'points': pts?.toString() ?? '…'}),
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(ctx),
+                        ),
+                        if (badgeEmoji.isNotEmpty) ...[
+                          SizedBox(width: 5.w),
+                          Text(badgeEmoji, style: TextStyle(fontSize: 14.sp)),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 12.h),
+              if (spots.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 28.h),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Text('🐾', style: TextStyle(fontSize: 34.sp)),
+                        SizedBox(height: 8.h),
+                        InterText(
+                          text: 'pawspot_list_empty'.tr,
+                          fontSize: 13.sp,
+                          color: AppColors.greyText,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: spots.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: AppColors.greyText.withValues(alpha: 0.15),
+                    ),
+                    itemBuilder: (c, i) {
+                      final s = spots[i];
+                      final color = PawSpotTypes.color(s.type);
+                      return ListTile(
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 2.w),
+                        leading: Container(
+                          width: 38.w,
+                          height: 38.w,
+                          decoration: BoxDecoration(
+                            color: s.isGolden ? _kGoldPaw : color,
+                            shape: BoxShape.circle,
+                            border:
+                                Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Center(
+                            child: Text('🐾',
+                                style: TextStyle(fontSize: 16.sp)),
+                          ),
+                        ),
+                        title: InterText(
+                          text: s.name,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(ctx),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: InterText(
+                          text:
+                              '${PawSpotTypes.label(s.type)}  ·  ❤️ ${s.likesCount}'
+                              '${s.isGolden ? '  ·  🐾✨' : ''}',
+                          fontSize: 12.sp,
+                          color: AppColors.greyText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Icon(Icons.chevron_right_rounded,
+                            size: 20.sp, color: AppColors.greyText),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          onOpenSpot(s);
+                        },
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}

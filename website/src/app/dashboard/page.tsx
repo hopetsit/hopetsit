@@ -268,9 +268,11 @@ export default function DashboardPage() {
         />
         {/* v23.1 part 243 round 3 — Daniel : "tout le paw follow suivre les
             utilisateurs rien nest fais". Nouveau lien dashboard vers la
-            page live des amis. */}
+            page live des amis.
+            v23.1 carte unique — /friends/live est fusionnée dans /map
+            (couche PawFollow de la carte unique). */}
         <NavCard
-          href="/friends/live"
+          href="/map"
           emoji="🐾"
           title="Mes amis en direct"
           subtitle="Suivi PawFollow en temps réel"
