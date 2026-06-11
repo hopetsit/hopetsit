@@ -1641,8 +1641,12 @@ class _PawSpotTabState extends State<_PawSpotTab>
     if (raw is! String || raw.isEmpty) return 0;
     final expiry = DateTime.tryParse(raw);
     if (expiry == null) return 0;
-    final diff = expiry.difference(DateTime.now()).inDays;
-    return diff < 0 ? 0 : diff;
+    // v23.1.370 — Daniel : "le badge jours ne correspond pas à
+    // l'abonnement". inDays TRONQUE (29 j 23 h → 29) → on arrondit au
+    // PLAFOND pour coller au plan acheté (mensuel → 30, essai → 7).
+    final hours = expiry.difference(DateTime.now()).inHours;
+    if (hours <= 0) return 0;
+    return (hours / 24).ceil();
   }
 
   /// Mapping key backend → libellé traduit (qui inclut déjà emoji + seuil).

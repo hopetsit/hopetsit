@@ -154,7 +154,15 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     final mapBoostExpiry = _toDate(p['mapBoostExpiry']);
     final isPremium = p['isPremium'] == true;
     final boostActive = boostExpiry != null && boostExpiry.isAfter(now);
-    final pawSpotActive = mapBoostExpiry != null && mapBoostExpiry.isAfter(now);
+    // v23.1.370 — Daniel : "le badge jours PawSpot ne correspond pas à
+    // l'abonnement". Le badge lisait l'ANCIEN mapBoostExpiry (halos
+    // map-boost morts) → jamais à jour. Il lit désormais le VRAI abo
+    // communautaire (pawspotActive/pawspotExpiry du backend), fallback
+    // legacy mapBoost si le backend n'expose pas encore ces champs.
+    final pawspotExpiry = _toDate(p['pawspotExpiry']) ?? mapBoostExpiry;
+    final pawSpotActive = p.containsKey('pawspotActive')
+        ? p['pawspotActive'] == true
+        : (mapBoostExpiry != null && mapBoostExpiry.isAfter(now));
 
     // v23.1.276 — Daniel : "change premium à PawFollow avec les jours restant
     // et rajoute badge Family avec les jours, pour une vraie distinction".
@@ -205,9 +213,12 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
           context, '🚀', withDays('Boost', days), const Color(0xFFE8472A)));
     }
     if (pawSpotActive) {
-      final days = mapBoostExpiry.difference(now).inDays;
+      // Jours au PLAFOND (29,9 j → 30) pour coller à l'abonnement acheté.
+      final days = pawspotExpiry != null
+          ? (pawspotExpiry.difference(now).inHours / 24).ceil()
+          : 0;
       children.add(_badge(
-          context, '📍', withDays('PawSpot', days), const Color(0xFF10B981)));
+          context, '🐾', withDays('PawSpot', days), const Color(0xFFE8A00A)));
     }
     if (children.isEmpty) return const SizedBox.shrink();
     // v23.1.282 — Daniel : "plus aucun badge n'apparaît". RÉGRESSION v281 : la
