@@ -39,6 +39,7 @@ import {
   PoiCategory,
   RouteResult,
   getFriendLastPosition,
+  getFriendsLivePositions,
   getMyBenefits,
   getMyFamily,
   getMyFriends,
@@ -48,6 +49,7 @@ import {
   getStoredUser,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
+import { getSocket } from "@/lib/socket";
 // v23.1.365 — FIX build Vercel : importer haloColor depuis FriendsLiveMap
 // chargeait Leaflet AU PRERENDER ("window is not defined" sur /map). Les
 // couleurs rôle vivent ici en local (l'import type est erased, lui OK).
@@ -118,7 +120,18 @@ export default function MapPage() {
   const [directionsError, setDirectionsError] = useState(false);
 
   // Connecte le socket pour recevoir les events temps réel amis/famille.
-  useSocket();
+  const { connected: socketConnected } = useSocket();
+
+  // v23.1.366 — Daniel : "aucun ami/famille sur la PawMap du site". Sans
+  // map:identify, le serveur ne joint jamais ce socket à la room user →
+  // AUCUN map:friend-position ne lui est poussé. On s'identifie à chaque
+  // (re)connexion, comme l'app mobile.
+  useEffect(() => {
+    if (!socketConnected) return;
+    const me = getStoredUser();
+    if (!me) return;
+    getSocket()?.emit("map:identify", { userId: me.id, role: me.role });
+  }, [socketConnected]);
 
   // Index id → FriendItem pour résoudre nom/avatar/role des events socket
   // (porté de FriendsLiveMap — la résolution vit désormais côté page).
@@ -350,7 +363,29 @@ export default function MapPage() {
           avatar: m.avatar || "",
         });
       }
-      const idArr = Array.from(infoById.keys());
+      // v23.1.366 — Daniel : "sur la PawMap du site n'apparaît aucun ami ou
+      // famille". On s'hydrate d'abord via le BULK /friends/live-positions —
+      // la MÊME source que l'app mobile (qui marche) : règles d'accès et
+      // fraîcheur < 24 h encapsulées serveur. Fallback par-ami pour les ids
+      // (ex. membres famille hors liste d'amis) absents du bulk.
+      const bulk = await getFriendsLivePositions();
+      const bulkRows: FriendLivePosition[] = [];
+      const seen = new Set<string>();
+      for (const b of bulk) {
+        if (b.lat == null || b.lng == null) continue;
+        const info = infoById.get(b.userId);
+        seen.add(b.userId);
+        bulkRows.push({
+          userId: b.userId,
+          role: roleFromModel(info ? info.role : b.role),
+          name: info?.name || "Ami",
+          avatar: info?.avatar,
+          lat: b.lat,
+          lng: b.lng,
+          at: b.at || new Date().toISOString(),
+        });
+      }
+      const idArr = Array.from(infoById.keys()).filter((id) => !seen.has(id));
       const posResults: (FriendLivePosition | null)[] = await Promise.all(
         idArr.map(async (id): Promise<FriendLivePosition | null> => {
           try {
@@ -374,7 +409,7 @@ export default function MapPage() {
       );
       setLivePositions((prev) => {
         const next = new Map(prev);
-        for (const p of posResults) {
+        for (const p of [...bulkRows, ...posResults]) {
           // Les events socket déjà reçus (plus frais) gardent la priorité.
           if (p && !next.has(p.userId)) next.set(p.userId, p);
         }

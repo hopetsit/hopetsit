@@ -661,6 +661,30 @@ export type FriendLastPosition = {
   city?: string;
 };
 
+/**
+ * v23.1.366 — bulk "dernières positions amis/famille" : MÊME source que
+ * l'app mobile (règles d'accès opt-out > famille > PawFollow > share flag,
+ * fraîcheur < 24 h encapsulées côté serveur).
+ */
+export type FriendBulkPosition = {
+  userId: string;
+  role: string;
+  lat: number;
+  lng: number;
+  at?: string;
+  city?: string;
+};
+export async function getFriendsLivePositions(): Promise<FriendBulkPosition[]> {
+  try {
+    const raw = await request<{ positions?: FriendBulkPosition[] }>(
+      `/friends/live-positions`,
+    );
+    return Array.isArray(raw?.positions) ? raw.positions : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getFriendLastPosition(
   friendUserId: string,
 ): Promise<FriendLastPosition | null> {
