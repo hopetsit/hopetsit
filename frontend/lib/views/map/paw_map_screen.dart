@@ -171,6 +171,11 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// prestataires ne sont pas affectés.
   final RxBool _showLiveLayer = true.obs;
 
+  /// v23.1.360 — mode VISEUR « Taguer un lieu » : pin rose fixe au centre,
+  /// on déplace la carte dessous puis Valider → sheet de création à cette
+  /// position exacte (Daniel : "je ne peux pas sélectionner l'endroit").
+  final RxBool _pickingSpotPos = false.obs;
+
   /// v23.1.353 — itinéraire "Y aller" (GET /pawspots/directions). La
   /// polyline orange est dessinée sur la carte ; le bandeau bas affiche la
   /// distance + un bouton pour l'effacer.
@@ -2204,6 +2209,13 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: _buildReportFab(),
                 ),
 
+                // v23.1.360 — mode VISEUR « Taguer un lieu » : pin central
+                // fixe + bandeau Valider/Annuler (Daniel : "je ne peux pas
+                // sélectionner l'endroit"). La carte bouge SOUS le pin.
+                Obx(() => _pickingSpotPos.value
+                    ? _buildSpotPickerOverlay()
+                    : const SizedBox.shrink()),
+
                 // v23.1.187 — Daniel mockup : carte "Autour de vous" flottante
                 // en bas de la PawMap. Liste compacte des 3 signalements les
                 // plus proches avec badge severite + tap → AlertsScreen.
@@ -2554,6 +2566,126 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// de la PawMap. Liste compacte des 3 signalements les plus proches
   /// du centre courant, avec un badge severite + un tap "Voir tout" qui
   /// ouvre AlertsScreen. Auto-cache si aucune alerte autour.
+  /// v23.1.360 — overlay du mode viseur : pin rose centré (pointe sur le
+  /// centre exact de la carte), bulle d'aide en haut, bandeau bas
+  /// Valider (ouvre la sheet de création à _currentCenter) / Annuler.
+  Widget _buildSpotPickerOverlay() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          // Pin viseur : IgnorePointer pour laisser la carte se déplacer.
+          IgnorePointer(
+            child: Center(
+              child: Transform.translate(
+                // La POINTE du pin (bas de l'icône) doit toucher le centre.
+                offset: Offset(0, -19.h),
+                child: Icon(Icons.location_on_rounded,
+                    size: 38.sp, color: const Color(0xFFEC4899)),
+              ),
+            ),
+          ),
+          // Bulle d'aide.
+          Positioned(
+            top: 10.h,
+            left: 24.w,
+            right: 24.w,
+            child: IgnorePointer(
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(12.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: InterText(
+                  text: 'pawspot_pick_hint'.tr,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1F2937),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+          // Bandeau Valider / Annuler.
+          Positioned(
+            left: 16.w,
+            right: 16.w,
+            bottom: 16.h,
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14.r),
+                    onTap: () => _pickingSpotPos.value = false,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14.r),
+                        border: Border.all(
+                            color: AppColors.greyText.withValues(alpha: 0.5)),
+                      ),
+                      child: Center(
+                        child: InterText(
+                          text: 'pawspot_pick_cancel'.tr,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1F2937),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  flex: 2,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14.r),
+                    onTap: () {
+                      _pickingSpotPos.value = false;
+                      unawaited(_openPawSpotCreate());
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                        ),
+                        borderRadius: BorderRadius.circular(14.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFEC4899)
+                                .withValues(alpha: 0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: InterText(
+                          text: 'pawspot_pick_confirm'.tr,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAroundYouCard() {
     return Obx(() {
       // v23.1.189 — bouton X dans la card cache la card pour cette
@@ -2972,7 +3104,13 @@ class _PawMapScreenState extends State<PawMapScreen>
             // Expanded (largeur intrinsèque dans le scroll).
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Row(
+              // v23.1.360 — maquette : rangée CENTRÉE quand elle tient.
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: MediaQuery.of(context).size.width - 24.w,
+                ),
+                child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Bouton principal : ouvre/ferme la checklist.
                 InkWell(
@@ -3135,6 +3273,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                 ),
               ],
               ),
+              ),
             ),
           ),
           // v23.1.356 — maquette Daniel : rangée « boutons rapides » sur UNE
@@ -3291,9 +3430,17 @@ class _PawMapScreenState extends State<PawMapScreen>
     // small screens (the old side-badge was clipping on a Galaxy device).
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      // v23.1.360 — maquette : chips CENTRÉS quand la rangée tient (le
+      // ConstrainedBox force la largeur mini = écran → mainAxisAlignment
+      // center agit) ; scroll horizontal conservé en secours.
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: MediaQuery.of(context).size.width - 24.w,
+          ),
+          child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // v23.1.358 — Daniel : "enlève POIs, y a déjà Lieux/Tous/Rien".
             // Le chip POIs était redondant avec la rangée de filtres lieux.
@@ -3335,6 +3482,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   )),
             ],
           ],
+          ),
         ),
       ),
     );
@@ -3546,68 +3694,142 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// la barre de filtres. PawFollow (switch couche live, VIOLET + 👑 si abo
   /// PawFollow/PawFamily actif) · PawSpot (switch couche spots, DORÉ + 👑 si
   /// abo actif) · Taguer un lieu · Voir les spots.
+  /// v23.1.360 — maquette Daniel : grille 2×2 PLEINE LARGEUR (fini le
+  /// scroll horizontal) — ligne 1 : PawFollow ⭐ | PawSpot 🐾 (switch +
+  /// couronne 👑 si abonné) ; ligne 2 : Taguer un lieu | Voir les spots.
+  /// + LÉGENDE des 6 types de spots quand la couche PawSpot est ON.
   Widget _buildQuickTogglesRow() {
     return Padding(
       padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
+      child: Obx(() {
+        final followSub = _pawSpotController.followActive.value;
+        final spotSub = _pawSpotController.pawspotActive.value;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _quickSwitchChip(
+                    label: 'PawFollow',
+                    icon: Icons.star_rounded,
+                    accent: const Color(0xFF7C3AED),
+                    subscribed: followSub,
+                    value: _showLiveLayer.value,
+                    onChanged: (v) => _showLiveLayer.value = v,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: _quickSwitchChip(
+                    label: 'PawSpot',
+                    emoji: '🐾',
+                    accent: const Color(0xFFE8A00A),
+                    subscribed: spotSub,
+                    value: _showPawSpots.value,
+                    onChanged: (v) {
+                      if (v) {
+                        unawaited(_togglePawSpotLayer());
+                      } else {
+                        _showPawSpots.value = false;
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 6.h),
+            Row(
+              children: [
+                Expanded(
+                  child: _quickActionChip(
+                    label: 'pawmap_tag_spot_btn'.tr,
+                    icon: Icons.add_location_alt_rounded,
+                    accent: const Color(0xFFEC4899),
+                    onTap: _startSpotPicking,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: _quickActionChip(
+                    label: 'pawmap_view_spots_btn'.tr,
+                    icon: Icons.list_rounded,
+                    accent: const Color(0xFF2563EB),
+                    onTap: () => unawaited(_openSpotsList()),
+                  ),
+                ),
+              ],
+            ),
+            // Légende des types (maquette) — visible quand la couche est ON.
+            if (_showPawSpots.value) ...[
+              SizedBox(height: 6.h),
+              _buildSpotLegend(),
+            ],
+          ],
+        );
+      }),
+    );
+  }
+
+  /// Légende des 6 types de spots (pastille couleur + libellé court ×6).
+  Widget _buildSpotLegend() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: AppColors.greyText.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Obx(() {
-          final followSub = _pawSpotController.followActive.value;
-          final spotSub = _pawSpotController.pawspotActive.value;
-          return Row(
-            children: [
-              _quickSwitchChip(
-                label: 'PawFollow',
-                icon: Icons.star_rounded,
-                accent: const Color(0xFF7C3AED),
-                subscribed: followSub,
-                value: _showLiveLayer.value,
-                onChanged: (v) => _showLiveLayer.value = v,
+        child: Row(
+          children: [
+            for (final t in PawSpotTypes.all) ...[
+              Container(
+                width: 16.w,
+                height: 16.w,
+                decoration: BoxDecoration(
+                  color: PawSpotTypes.color(t),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: PawSpotTypes.color(t).withValues(alpha: 0.4),
+                      blurRadius: 3,
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(width: 8.w),
-              _quickSwitchChip(
-                label: 'PawSpot',
-                emoji: '🐾',
-                accent: const Color(0xFFE8A00A),
-                subscribed: spotSub,
-                value: _showPawSpots.value,
-                onChanged: (v) {
-                  if (v) {
-                    unawaited(_togglePawSpotLayer());
-                  } else {
-                    _showPawSpots.value = false;
-                  }
-                },
+              SizedBox(width: 4.w),
+              InterText(
+                text: 'pawspot_type_short_$t'.tr,
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1F2937),
               ),
-              SizedBox(width: 8.w),
-              _quickActionChip(
-                label: 'pawmap_tag_spot_btn'.tr,
-                icon: Icons.add_location_alt_rounded,
-                accent: const Color(0xFFEC4899),
-                onTap: () {
-                  // La création gratuite (3 spots max) est gérée par le 402
-                  // serveur — pas de gate abo ici. On allume la couche pour
-                  // voir le spot publié.
-                  if (!_showPawSpots.value) _showPawSpots.value = true;
-                  unawaited(_openPawSpotCreate());
-                },
-              ),
-              SizedBox(width: 8.w),
-              _quickActionChip(
-                label: 'pawmap_view_spots_btn'.tr,
-                icon: Icons.list_rounded,
-                accent: const Color(0xFF2563EB),
-                onTap: () => unawaited(_openSpotsList()),
-              ),
+              if (t != PawSpotTypes.all.last) SizedBox(width: 12.w),
             ],
-          );
-        }),
+          ],
+        ),
       ),
     );
   }
 
-  /// Chip avec Switch compact (PawFollow / PawSpot). `subscribed` pilote la
-  /// teinte (violet/doré) + la couronne 👑 ; sinon gris neutre.
+  /// v23.1.360 — Daniel : "le tag ne marche pas, je ne peux pas sélectionner
+  /// l'endroit". Mode VISEUR : un pin rose fixe au centre de la carte +
+  /// bandeau Valider/Annuler — on déplace la CARTE sous le pin, puis on
+  /// valide → la sheet de création s'ouvre avec cette position exacte.
+  void _startSpotPicking() {
+    if (!_showPawSpots.value) _showPawSpots.value = true;
+    _pickingSpotPos.value = true;
+  }
+
+  /// Chip avec Switch compact (PawFollow / PawSpot), pleine largeur
+  /// (maquette : fond blanc, bordure couleur, couronne 👑 si abonné).
   Widget _quickSwitchChip({
     required String label,
     IconData? icon,
@@ -3619,35 +3841,58 @@ class _PawMapScreenState extends State<PawMapScreen>
   }) {
     final Color tone = subscribed ? accent : AppColors.greyText;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
       decoration: BoxDecoration(
         color: subscribed
-            ? accent.withValues(alpha: 0.12)
-            : AppColors.card(context),
+            ? accent.withValues(alpha: 0.08)
+            : Colors.white,
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: tone.withValues(alpha: 0.55), width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          if (emoji != null)
-            Text(emoji, style: TextStyle(fontSize: 14.sp))
-          else
-            Icon(icon, size: 16.sp, color: tone),
-          SizedBox(width: 5.w),
-          InterText(
-            text: label,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w800,
-            color: subscribed ? accent : AppColors.textPrimary(context),
+          Container(
+            width: 24.w,
+            height: 24.w,
+            decoration: BoxDecoration(
+              color: subscribed ? accent : AppColors.greyText.withValues(alpha: 0.5),
+              shape: BoxShape.circle,
+            ),
+            child: emoji != null
+                ? Center(child: Text(emoji, style: TextStyle(fontSize: 12.sp)))
+                : Icon(icon, size: 15.sp, color: Colors.white),
           ),
-          if (subscribed) ...[
-            SizedBox(width: 3.w),
-            Text('👑', style: TextStyle(fontSize: 11.sp)),
-          ],
-          SizedBox(width: 2.w),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: InterText(
+                    text: label,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                    color: subscribed ? accent : const Color(0xFF1F2937),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (subscribed) ...[
+                  SizedBox(width: 3.w),
+                  Text('👑', style: TextStyle(fontSize: 11.sp)),
+                ],
+              ],
+            ),
+          ),
           Transform.scale(
-            scale: 0.72,
+            scale: 0.7,
             child: Switch(
               value: value,
               onChanged: onChanged,
@@ -3661,7 +3906,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  /// Bouton d'action simple de la rangée rapide (Taguer / Voir les spots).
+  /// Bouton d'action pleine largeur de la grille rapide (Taguer / Voir).
   Widget _quickActionChip({
     required String label,
     required IconData icon,
@@ -3674,20 +3919,31 @@ class _PawMapScreenState extends State<PawMapScreen>
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         decoration: BoxDecoration(
-          color: AppColors.card(context),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14.r),
           border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 16.sp, color: accent),
-            SizedBox(width: 5.w),
-            InterText(
-              text: label,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary(context),
+            SizedBox(width: 6.w),
+            Flexible(
+              child: InterText(
+                text: label,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF1F2937),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),

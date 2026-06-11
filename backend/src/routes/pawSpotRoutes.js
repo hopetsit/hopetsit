@@ -88,6 +88,32 @@ async function hasTrackingSubscription(userId, role) {
   }
 }
 
+/**
+ * v23.1.360 — Daniel : "les emoji pawspot dorés n'apparaissent pas".
+ * Recalcule creatorIsGold à la LECTURE pour les spots existants : créateur
+ * staff OU >= 1 000 PawPoints → empreinte dorée, même pour les spots créés
+ * avant ce changement. Batch (3 requêtes max) sur les creatorIds distincts.
+ */
+async function enrichGoldenCreators(spots) {
+  try {
+    const ids = [...new Set(spots.map((s) => String(s.creatorId)))];
+    if (!ids.length) return;
+    const goldIds = new Set();
+    for (const Model of [Owner, Sitter, Walker]) {
+      const docs = await Model.find({
+        _id: { $in: ids },
+        $or: [{ isStaff: true }, { pawPoints: { $gte: 1000 } }],
+      }).select('_id').lean();
+      for (const d of docs) goldIds.add(String(d._id));
+    }
+    for (const s of spots) {
+      if (goldIds.has(String(s.creatorId))) s.creatorIsGold = true;
+    }
+  } catch (e) {
+    logger.warn(`[pawspots] enrichGoldenCreators failed: ${e?.message || e}`);
+  }
+}
+
 const spotJson = (s) => ({
   id: String(s._id),
   type: s.type,
@@ -141,6 +167,7 @@ router.get('/nearby', requireAuth, async (req, res) => {
       const fb = b.featuredUntil && new Date(b.featuredUntil) > new Date() ? 1 : 0;
       return fb - fa;
     });
+    await enrichGoldenCreators(spots);
     res.json({ spots: spots.map(spotJson) });
   } catch (e) {
     logger.error('[pawspots/nearby]', e);
@@ -162,6 +189,7 @@ router.get('/top', requireAuth, async (req, res) => {
       .sort({ likesCount: -1, validationsCount: -1 })
       .limit(50)
       .lean();
+    await enrichGoldenCreators(spots);
     res.json({ spots: spots.map(spotJson) });
   } catch (e) {
     logger.error('[pawspots/top]', e);
@@ -353,7 +381,11 @@ router.post('/', requireAuth, async (req, res) => {
         coordinates: [nLng, nLat],
         city: String(city || '').slice(0, 80),
       },
-      creatorIsGold: pawPoints.isGoldCreator(meDoc?.pawPoints),
+      // v23.1.360 — Daniel : "les emoji pawspot dorés n'apparaissent pas".
+      // Le STAFF est Gold Creator d'office (démo/marketing : ses spots
+      // portent l'empreinte dorée), en plus du seuil 1 000 PawPoints.
+      creatorIsGold:
+        pawPoints.isGoldCreator(meDoc?.pawPoints) || meDoc?.isStaff === true,
     });
 
     // Points : +10 création, +5 photo.

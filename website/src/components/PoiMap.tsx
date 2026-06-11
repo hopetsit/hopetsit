@@ -88,10 +88,17 @@ function LiveFriendMarker({
         icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
         zIndexOffset={800}
         eventHandlers={{
-          click: () =>
-            map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 16), {
-              duration: 0.8,
-            }),
+          // v23.1.360 — fix "le zoom sur l'utilisateur ne marche pas" :
+          // l'autoPan de la popup interrompait le flyTo. On désactive
+          // l'autoPan (Popup ci-dessous) et on lance le flyTo APRÈS
+          // l'ouverture de la popup (tick suivant).
+          click: () => {
+            window.setTimeout(() => {
+              map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 16), {
+                duration: 0.8,
+              });
+            }, 60);
+          },
         }}
       >
         <Tooltip
@@ -102,7 +109,7 @@ function LiveFriendMarker({
         >
           {p.name} · {roleLabel}
         </Tooltip>
-        <Popup>
+        <Popup autoPan={false}>
           <div className="text-sm">
             <strong>{p.name}</strong>
             <br />
