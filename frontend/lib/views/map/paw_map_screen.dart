@@ -469,8 +469,8 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v23.1.361 — golden = la PIÈCE DORÉE officielle (emoji PawSpot fourni
     // par Daniel) : médaille or, patte dorée, pointe-pin dans le coussinet.
     final future = golden
-        ? _buildGoldenCoinBitmap()
-        : _buildPawPinBitmap(color: PawSpotTypes.color(cacheKey));
+        ? _buildCoinBitmap()
+        : _buildCoinBitmap(base: PawSpotTypes.color(cacheKey));
     future.then((bd) {
       _spotEmojiMarkers[cacheKey] = bd;
       _emojiGenInProgress.remove(genKey);
@@ -547,71 +547,26 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
-  /// v23.1.357 — maquette Daniel : pin « goutte » (tête ronde + pointe,
-  /// comme les pins Google Maps de la photo) rempli de la COULEUR DU TYPE
-  /// avec une PATTE BLANCHE dessinée à la main (coussinet + 4 doigts).
-  /// Golden → goutte dorée FFD700 avec liseré E8A00A. Ancre du Marker =
-  /// défaut (0.5, 1.0) → la pointe touche la position exacte du spot.
-  Future<BitmapDescriptor> _buildPawPinBitmap({
-    required Color color,
-    bool golden = false,
-  }) async {
-    const double w = 56.0;
-    const double h = 74.0;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
+  /// v23.1.368 — Daniel : "colore mon emoji selon le thème du spot".
+  /// LA pièce-médaille officielle (emoji fourni : anneau brillant, patte en
+  /// relief, pointe-pin dans le coussinet, étincelles) déclinée dans la
+  /// COULEUR DU TYPE — sans `base` : la version OR (spots golden).
+  Future<BitmapDescriptor> _buildCoinBitmap({Color? base}) async {
+    // Palette : or officiel par défaut, sinon nuances dérivées du type.
+    final Color ringStart = base == null
+        ? const Color(0xFFFFE989)
+        : Color.lerp(base, Colors.white, 0.55)!;
+    final Color ringEnd = base == null
+        ? const Color(0xFFD99800)
+        : Color.lerp(base, Colors.black, 0.10)!;
+    final Color inner = base == null
+        ? const Color(0xFF9A6B00)
+        : Color.lerp(base, Colors.black, 0.38)!;
+    final Color pawStart = base == null
+        ? const Color(0xFFFFE066)
+        : Color.lerp(base, Colors.white, 0.45)!;
+    final Color pawEnd = base ?? const Color(0xFFE8A00A);
 
-    // Ombre douce sous la pointe.
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.22)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-    canvas.drawOval(
-        Rect.fromCenter(center: const Offset(28, 69), width: 18, height: 7),
-        shadowPaint);
-
-    // Goutte = union (cercle tête + triangle pointe) → contour sans couture.
-    final head = Path()
-      ..addOval(Rect.fromCircle(center: const Offset(28, 26), radius: 20));
-    final tail = Path()
-      ..moveTo(15, 40)
-      ..lineTo(41, 40)
-      ..lineTo(28, 68)
-      ..close();
-    final pin = Path.combine(PathOperation.union, head, tail);
-
-    canvas.drawPath(pin, Paint()..color = golden ? const Color(0xFFFFD700) : color);
-    canvas.drawPath(
-      pin,
-      Paint()
-        ..color = golden ? const Color(0xFFE8A00A) : Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0,
-    );
-
-    // Patte blanche : coussinet + 4 doigts (sur la tête du pin).
-    final pawPaint = Paint()..color = Colors.white;
-    canvas.drawOval(
-        Rect.fromCenter(center: const Offset(28, 31), width: 14, height: 11),
-        pawPaint);
-    canvas.drawCircle(const Offset(19.5, 22.5), 3.1, pawPaint);
-    canvas.drawCircle(const Offset(25.0, 19.0), 3.3, pawPaint);
-    canvas.drawCircle(const Offset(31.0, 19.0), 3.3, pawPaint);
-    canvas.drawCircle(const Offset(36.5, 22.5), 3.1, pawPaint);
-
-    final img = await recorder.endRecording().toImage(w.toInt(), h.toInt());
-    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    // width 34 → rendu compact aligné sur les pins natifs (cf _buildEmojiBitmap).
-    return BitmapDescriptor.bytes(
-      bytes!.buffer.asUint8List(),
-      width: 34,
-    );
-  }
-
-  /// v23.1.361 — l'emoji PawSpot DORÉ officiel (visuel fourni par Daniel) :
-  /// médaille or (anneau brillant + fond bronze doré), PATTE dorée en
-  /// relief avec une POINTE-PIN découpée dans le coussinet, étincelles.
-  /// Dessiné au canvas → transparence parfaite, pas d'asset à embarquer.
-  Future<BitmapDescriptor> _buildGoldenCoinBitmap() async {
     const double size = 64.0;
     const Offset c = Offset(32, 32);
     final recorder = ui.PictureRecorder();
@@ -625,7 +580,7 @@ class _PawMapScreenState extends State<PawMapScreen>
         ..color = Colors.black.withValues(alpha: 0.25)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
-    // Anneau extérieur brillant (dégradé or clair → or).
+    // Anneau extérieur brillant.
     canvas.drawCircle(
       c,
       29,
@@ -633,40 +588,41 @@ class _PawMapScreenState extends State<PawMapScreen>
         ..shader = ui.Gradient.linear(
           const Offset(10, 8),
           const Offset(54, 58),
-          [const Color(0xFFFFE989), const Color(0xFFD99800)],
+          [ringStart, ringEnd],
         ),
     );
-    // Fond intérieur bronze doré.
-    canvas.drawCircle(c, 24.5, Paint()..color = const Color(0xFF9A6B00));
+    // Fond intérieur + liseré clair.
+    canvas.drawCircle(c, 24.5, Paint()..color = inner);
     canvas.drawCircle(
       c,
       24.5,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5
-        ..color = const Color(0xFFFFE989).withValues(alpha: 0.7),
+        ..color = ringStart.withValues(alpha: 0.7),
     );
 
-    // Patte dorée en relief (4 doigts + coussinet), dégradé or.
+    // Patte en relief (4 doigts + coussinet), dégradé.
     final pawPaint = Paint()
       ..shader = ui.Gradient.linear(
         const Offset(18, 14),
         const Offset(46, 52),
-        [const Color(0xFFFFE066), const Color(0xFFE8A00A)],
+        [pawStart, pawEnd],
       );
     canvas.drawOval(
         Rect.fromCenter(center: const Offset(20.5, 22), width: 9, height: 12),
         pawPaint);
     canvas.drawOval(
-        Rect.fromCenter(center: const Offset(28.5, 17.5), width: 9.5, height: 13),
+        Rect.fromCenter(
+            center: const Offset(28.5, 17.5), width: 9.5, height: 13),
         pawPaint);
     canvas.drawOval(
         Rect.fromCenter(center: const Offset(38, 18.5), width: 9.5, height: 13),
         pawPaint);
     canvas.drawOval(
-        Rect.fromCenter(center: const Offset(45.5, 24.5), width: 9, height: 11.5),
+        Rect.fromCenter(
+            center: const Offset(45.5, 24.5), width: 9, height: 11.5),
         pawPaint);
-    // Coussinet (forme arrondie large).
     final pad = Path()
       ..moveTo(20, 38)
       ..cubicTo(20, 29, 26, 26, 32.5, 26)
@@ -676,8 +632,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       ..close();
     canvas.drawPath(pad, pawPaint);
 
-    // Pointe-PIN découpée dans le coussinet (couleur du fond = "trou").
-    final hole = Paint()..color = const Color(0xFF9A6B00);
+    // Pointe-PIN découpée dans le coussinet.
+    final hole = Paint()..color = inner;
     canvas.drawCircle(const Offset(32.5, 36), 4.2, hole);
     final tip = Path()
       ..moveTo(27.8, 38.5)
@@ -685,11 +641,10 @@ class _PawMapScreenState extends State<PawMapScreen>
       ..lineTo(32.5, 47)
       ..close();
     canvas.drawPath(tip, hole);
-    // Petit point doré au centre du trou (comme le visuel).
-    canvas.drawCircle(const Offset(32.5, 36), 1.8,
-        Paint()..color = const Color(0xFFFFE066));
+    canvas.drawCircle(
+        const Offset(32.5, 36), 1.8, Paint()..color = pawStart);
 
-    // Étincelles ✨ (croix blanches).
+    // Étincelles ✨.
     void sparkle(Offset p, double r) {
       final sp = Paint()
         ..color = Colors.white.withValues(alpha: 0.95)
@@ -698,16 +653,17 @@ class _PawMapScreenState extends State<PawMapScreen>
       canvas.drawLine(Offset(p.dx - r, p.dy), Offset(p.dx + r, p.dy), sp);
       canvas.drawLine(Offset(p.dx, p.dy - r), Offset(p.dx, p.dy + r), sp);
     }
+
     sparkle(const Offset(50, 13), 4);
     sparkle(const Offset(13, 49), 3);
 
     final img =
         await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    // Légèrement plus gros que les pins type (38 vs 34) : le doré se voit.
+    // Or légèrement plus gros (38) que les pièces type (34) : le doré ressort.
     return BitmapDescriptor.bytes(
       bytes!.buffer.asUint8List(),
-      width: 38,
+      width: base == null ? 38 : 34,
     );
   }
 

@@ -42,7 +42,7 @@ import {
   makeAvatarIcon,
 } from "@/components/FriendsLiveMap";
 import type { FriendLivePosition, Role } from "@/components/FriendsLiveMap";
-import { GOLDEN_COIN_SVG } from "@/components/PawSpotGoldCoin";
+import { GOLDEN_COIN_SVG, makeTypeCoinSvg } from "@/components/PawSpotGoldCoin";
 
 /**
  * v23.1.358 — Daniel : "mets le nom et le rôle des amis en direct sur la
@@ -195,6 +195,9 @@ const SPOT_COLOR: Record<PawSpotType, string> = {
 };
 
 
+// v23.1.368 — Daniel : "colore mon emoji selon le thème du spot". TOUS les
+// spots affichent désormais LA pièce-médaille officielle, déclinée dans la
+// couleur du type ; la version OR reste celle des spots golden.
 function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
   if (isGolden) {
     return new L.DivIcon({
@@ -208,13 +211,7 @@ function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
   const bg = SPOT_COLOR[type] || SPOT_COLOR.other;
   return new L.DivIcon({
     className: "",
-    html: `<div style="
-      width: 34px; height: 34px; border-radius: 50%;
-      background: ${bg};
-      border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 17px; line-height: 1;
-    ">🐾</div>`,
+    html: `<div style="width:34px;height:34px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${makeTypeCoinSvg(bg)}</div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -17],
