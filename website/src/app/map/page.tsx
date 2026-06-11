@@ -48,8 +48,17 @@ import {
   getStoredUser,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
-import { haloColor } from "@/components/FriendsLiveMap";
+// v23.1.365 — FIX build Vercel : importer haloColor depuis FriendsLiveMap
+// chargeait Leaflet AU PRERENDER ("window is not defined" sur /map). Les
+// couleurs rôle vivent ici en local (l'import type est erased, lui OK).
 import type { FriendLivePosition } from "@/components/FriendsLiveMap";
+
+const ROLE_CHIP_COLOR: Record<string, string> = {
+  owner: "#EF4324",
+  sitter: "#2563EB",
+  walker: "#16A34A",
+};
+const roleChipColor = (role: string) => ROLE_CHIP_COLOR[role] || "#6B7280";
 
 // v23.1.147 — note : PoiMap est dynamic pour éviter le SSR de Leaflet.
 // Son loading state est en français hardcodé ; il est court (1-2s) donc
@@ -553,11 +562,11 @@ export default function MapPage() {
                 setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })
               }
               className="inline-flex shrink-0 items-center gap-1 rounded-xl border bg-white px-2 py-1 text-[11px] font-semibold transition hover:shadow"
-              style={{ borderColor: `${haloColor(p.role)}88`, color: haloColor(p.role) }}
+              style={{ borderColor: `${roleChipColor(p.role)}88`, color: roleChipColor(p.role) }}
             >
               <span
                 className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: haloColor(p.role) }}
+                style={{ backgroundColor: roleChipColor(p.role) }}
               />
               {p.name} · {t(`role_${p.role}`)}
             </button>
