@@ -686,7 +686,41 @@ export default function MapPage() {
       )}
 
       {/* Carte */}
-      <div className="mt-6">
+      <div className="relative mt-6">
+        {/* v23.1.372 — Daniel : "en haut à droite, la petite icône pour
+            géolocaliser ma position" — recadre + zoome sur moi (FlyToFocus),
+            comme le bouton géoloc de l'app. z-[1000] pour passer au-dessus
+            des panes Leaflet. */}
+        <button
+          type="button"
+          title={t("map_locate_btn")}
+          aria-label={t("map_locate_btn")}
+          onClick={() => {
+            if (!("geolocation" in navigator)) return;
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                const loc = {
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                };
+                setUserLocation(loc);
+                setFocusTarget({ ...loc, ts: Date.now() });
+              },
+              () => {},
+              { enableHighAccuracy: true, timeout: 10000 },
+            );
+          }}
+          className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white text-[#EF4324] shadow-lg ring-1 ring-ink/10 transition hover:scale-105"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+            <circle cx="12" cy="12" r="8" />
+            <line x1="12" y1="1.5" x2="12" y2="5" />
+            <line x1="12" y1="19" x2="12" y2="22.5" />
+            <line x1="1.5" y1="12" x2="5" y2="12" />
+            <line x1="19" y1="12" x2="22.5" y2="12" />
+          </svg>
+        </button>
         <PoiMap
           center={center}
           pois={pois}
