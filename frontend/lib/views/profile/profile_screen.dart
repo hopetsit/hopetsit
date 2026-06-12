@@ -347,7 +347,7 @@ class ProfileScreen extends StatelessWidget {
                 text: label,
                 fontSize: 10.sp,
                 fontWeight: FontWeight.w500,
-                color: AppColors.grey700Color,
+                color: AppColors.textPrimary(context),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

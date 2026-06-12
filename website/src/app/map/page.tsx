@@ -259,7 +259,9 @@ export default function MapPage() {
       },
       // v23.1.394 — Daniel : « ma position mais la précise » → GPS haute
       // précision (au lieu de la position réseau approximative).
-      { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 },
+      // v23.1.396 — « mal géolocalisé » : position FRAÎCHE à chaque
+      // ouverture (maximumAge 0 = jamais la position en cache).
+      { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 },
     );
   }, [router]);
 

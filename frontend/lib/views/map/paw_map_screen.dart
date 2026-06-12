@@ -799,7 +799,16 @@ class _PawMapScreenState extends State<PawMapScreen>
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w500,
                 ),
+                // v23.1.396 — Daniel : "en dark mode on voit rien". Le
+                // THÈME sombre injectait filled+fillColor sombre et une
+                // bordure focus → rectangle noir dans la pilule blanche.
+                // On neutralise TOUT héritage du thème : la pilule reste
+                // blanche, texte sombre, aucun fond ni bordure interne.
+                filled: false,
+                fillColor: Colors.transparent,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 14.h),
               ),

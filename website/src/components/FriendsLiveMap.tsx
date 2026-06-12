@@ -79,27 +79,28 @@ export function makeAvatarIcon(
     .toUpperCase();
   const inner = avatar
     ? `<img src="${avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-    : `<span style="color:white;font-weight:700;font-size:14px;">${initials}</span>`;
+    : `<span style="color:white;font-weight:700;font-size:18px;">${initials}</span>`;
   // v23.1.359 — Daniel : "amis et famille, le rond légèrement plus gros"
   // (40 → 48 px) + HALO ANIMÉ : anneau couleur rôle (violet famille) qui
   // pulse derrière l'avatar (keyframes hps-pulse dans globals.css), comme
   // le halo qui respire dans l'app.
+  // v23.1.396 — Daniel : « moi et les utilisateurs en plus gros » 48 → 64.
   return new L.DivIcon({
     className: "",
-    html: `<div style="position:relative;width:48px;height:48px;">
-      <div style="position:absolute;inset:-3px;border-radius:50%;
+    html: `<div style="position:relative;width:64px;height:64px;">
+      <div style="position:absolute;inset:-4px;border-radius:50%;
         border:3px solid ${isFamily ? FAMILY_VIOLET : color};
         animation:hps-pulse 2s ease-out infinite;"></div>
       <div style="
-        width: 48px; height: 48px; border-radius: 50%;
+        width: 64px; height: 64px; border-radius: 50%;
         background: ${color};
         border: ${ringWidth}px solid ${ringColor};
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;">${inner}</div>
     </div>`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
+    iconSize: [64, 64],
+    iconAnchor: [32, 32],
   });
 }
 
