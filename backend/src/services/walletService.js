@@ -385,6 +385,10 @@ async function processPendingWithdrawals() {
             },
           });
           claimed.referenceId = payout?.id || claimed.referenceId;
+          // v23.1.382 — succès : on EFFACE l'ancienne raison d'échec (sinon
+          // l'admin continue d'afficher la vieille erreur à côté d'un
+          // statut completed — confusion Daniel).
+          claimed.failureReason = '';
           // Airwallex returns status PENDING → flip to processing
           // confirmed. Webhook later confirms COMPLETED.
           await claimed.save();
