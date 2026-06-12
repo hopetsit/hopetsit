@@ -100,6 +100,27 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // v23.1.391 — statut Paw Premium : si l'abo est ACTIF (ou staff), le
+  // bouton d'achat devient un chip d'état (Daniel : « le bouton me renvoie
+  // à la boutique au lieu de me montrer mes amis et les pawspots »).
+  const [premiumDays, setPremiumDays] = useState<number | null>(null);
+  const [isStaffSub, setIsStaffSub] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { getSubscriptionStatus } = await import("@/lib/api");
+        const st = await getSubscriptionStatus();
+        const staff = st.currentPeriodEnd
+          ? new Date(st.currentPeriodEnd).getFullYear() >= 2090
+          : false;
+        setIsStaffSub(staff);
+        if (st.premiumExpiry) {
+          const d = Math.ceil((new Date(st.premiumExpiry).getTime() - Date.now()) / 86400000);
+          if (d > 0) setPremiumDays(d);
+        }
+      } catch { /* non connecté → bouton d'achat visible */ }
+    })();
+  }, []);
   const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
 
   // ── v23.1 carte unique — couches PawFollow / PawSpot + itinéraire ──────
@@ -641,13 +662,22 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* v23.1.388 — Daniel : bouton Paw Premium sur la carte du site. */}
+      {/* v23.1.388/391 — bouton Paw Premium : achat si PAS abonné, sinon
+          chip d'état (amis + pawspots déjà visibles sur la carte). */}
       <div className="mt-3">
-        <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-2 text-xs font-bold text-yellow-400 hover:brightness-125">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
-          Paw Premium — PawFollow + PawSpot · 7,99 €/mois →
-        </Link>
+        {premiumDays !== null || isStaffSub ? (
+          <span className="inline-flex items-center gap-2 rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-2 text-xs font-bold text-yellow-400">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
+            {isStaffSub ? "Paw Premium actif — accès illimité ⭐" : `Paw Premium actif · ${premiumDays} j restants 👑`}
+          </span>
+        ) : (
+          <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-2 text-xs font-bold text-yellow-400 hover:brightness-125">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
+            Paw Premium — PawFollow + PawSpot · 7,99 €/mois →
+          </Link>
+        )}
       </div>
 
       {/* 402 PAWFOLLOW_REQUIRED → itinéraire réservé PawFollow / PawFamily. */}
