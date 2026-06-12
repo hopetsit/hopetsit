@@ -750,7 +750,11 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- PAYOUTS / REVENUE (v20.0.8 → v23.1 part 99) -->
       <div id="page-payouts" class="page">
-        <div class="section-title">💰 Mes revenus &amp; retraits</div>
+        <div class="section-title">💰 Mes revenus &amp; retraits
+          <button class="action-btn" style="margin-left:12px;background:#2563EB;color:#fff" onclick="refreshRevenuesPage()">🔄 Actualiser</button>
+          <button class="action-btn" style="margin-left:8px;background:#8B5CF6;color:#fff" onclick="showAllSweepHistory()">📜 Tout l'historique</button>
+          <button class="action-btn" style="margin-left:8px;background:#16A34A;color:#fff" onclick="exportRevenueCSV()">⬇️ Export CSV</button>
+        </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:780px;line-height:1.6">
           Tes <strong style="color:var(--text)">commissions HoPetSit</strong> (20% sur réservations) +
           <strong style="color:var(--text)">paiements boutique</strong> (PawBoost, PawSpot, PawFollow/PawFamily, 👑 Paw Premium).
@@ -3215,6 +3219,42 @@ async function exportPaymentsCSV() {
     } catch (_) { /* section optionnelle */ }
     downloadCSV('hopetsit_paiements_' + new Date().toISOString().slice(0, 10) + '.csv', rows);
   } catch (e) { alert('Export impossible : ' + (e.message || e)); }
+}
+
+// v23.1.393 — Daniel : boutons Actualiser / Tout l'historique sur Mes revenus.
+function refreshRevenuesPage() {
+  try { loadAdminPayouts(); } catch (_) {}
+  try { loadCompanySweeps(); } catch (_) {}
+  try { loadCompanySweep(); } catch (_) {}
+}
+
+function closeSweepHistoryModal() {
+  document.querySelectorAll('.modal-overlay.open').forEach((o) => o.remove());
+}
+
+async function showAllSweepHistory() {
+  try {
+    const d = await api('/admin/sweep-history?limit=200');
+    const items = d.items || [];
+    const rows = items.map((sw) =>
+      `<tr><td style="font-size:12px;color:var(--text-muted)">${sw.createdAt ? new Date(sw.createdAt).toLocaleString('fr-FR') : '—'}</td>` +
+      `<td><strong>${(Number(sw.amount)||0).toFixed(2)} ${sw.currency||'EUR'}</strong></td>` +
+      `<td>${sw.status === 'completed' ? '<span class="badge badge-green">Terminé</span>' : sw.status === 'failed' ? '<span class="badge badge-red">Échec</span>' : '<span class="badge badge-orange">En cours</span>'}</td>` +
+      `<td style="font-family:monospace;font-size:11px;color:var(--text-muted)">${sw.payoutId || '—'}</td>` +
+      `<td style="font-size:12px;color:var(--text-muted)">${sw.failureReason || '—'}</td></tr>`).join('');
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay open';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML =
+      '<div class="modal" style="width:860px;max-height:80vh;overflow-y:auto">' +
+        '<div class="modal-title">📜 Historique complet des retraits société (' + items.length + ')</div>' +
+        '<div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Montant</th><th>Statut</th><th>Payout ID</th><th>Erreur</th></tr></thead><tbody>' +
+        (rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun retrait.</td></tr>') +
+        '</tbody></table></div>' +
+        '<div style="text-align:right;margin-top:12px"><button class="action-btn" onclick="closeSweepHistoryModal()">Fermer</button></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+  } catch (e) { alert('Erreur : ' + (e.message || e)); }
 }
 
 async function exportRevenueCSV() {

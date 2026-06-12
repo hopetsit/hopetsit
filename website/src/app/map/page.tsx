@@ -96,7 +96,10 @@ export default function MapPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [center, setCenter] = useState<[number, number]>([48.8566, 2.3522]); // Paris default
   const [pois, setPois] = useState<Poi[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<PoiCategory | "all">("all");
+  // v23.1.393 — Daniel : « je ne peux pas choisir rien ou sélectionner
+  // plusieurs lieux ». Multi-sélection : [] = Tous ; sinon on filtre côté
+  // client (les POIs sont déjà tous chargés autour du centre).
+  const [selectedCats, setSelectedCats] = useState<PoiCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -292,8 +295,8 @@ export default function MapPage() {
   // Premier fetch après que loading initial soit fini.
   useEffect(() => {
     if (loading) return;
-    fetchPois(center[0], center[1], selectedCategory);
-  }, [loading, fetchPois, center, selectedCategory]);
+    fetchPois(center[0], center[1], "all");
+  }, [loading, fetchPois, center]);
 
   // v23.1 carte unique — fetch des PawSpots autour du centre courant quand
   // la couche est active (debounce, refetch quand l'user pan la carte).
@@ -583,6 +586,12 @@ export default function MapPage() {
     benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium
   );
 
+  // v23.1.393 — multi-sélection : [] = tout afficher.
+  const visiblePois =
+    selectedCats.length === 0
+      ? pois
+      : pois.filter((p) => selectedCats.includes(p.category));
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -598,7 +607,7 @@ export default function MapPage() {
         {t("map_title")}
       </h1>
       <p className="mt-2 text-ink-muted">
-        {t("map_count_results").replace("{count}", String(pois.length))}
+        {t("map_count_results").replace("{count}", String(visiblePois.length))}
         {" "}
         {t("map_pan_hint")}
       </p>
@@ -727,16 +736,22 @@ export default function MapPage() {
         <CategoryChip
           label={t("map_filter_all")}
           emoji="🗺️"
-          active={selectedCategory === "all"}
-          onClick={() => setSelectedCategory("all")}
+          active={selectedCats.length === 0}
+          onClick={() => setSelectedCats([])}
         />
         {ALL_CATEGORIES.map((cat) => (
           <CategoryChip
             key={cat}
             label={t(CAT_KEY_FOR_LANG[cat])}
             emoji={POI_CATEGORY_LABELS[cat].emoji}
-            active={selectedCategory === cat}
-            onClick={() => setSelectedCategory(cat)}
+            active={selectedCats.includes(cat)}
+            onClick={() =>
+              setSelectedCats((prev) =>
+                prev.includes(cat)
+                  ? prev.filter((c) => c !== cat)
+                  : [...prev, cat],
+              )
+            }
           />
         ))}
       </div>
@@ -785,7 +800,7 @@ export default function MapPage() {
         </button>
         <PoiMap
           center={center}
-          pois={pois}
+          pois={visiblePois}
           userLocation={userLocation}
           selectedPoi={selectedPoi}
           onSelectPoi={setSelectedPoi}
