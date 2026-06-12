@@ -285,18 +285,70 @@ async function processPendingWithdrawals() {
         const Model = _roleModel(tx.userRole);
         if (!Model) continue;
         const user = await Model.findById(tx.userId).select(
-          'airwallexBeneficiaryId ibanVerified ibanHolder name email',
+          'airwallexBeneficiaryId ibanVerified ibanHolder ibanNumber ibanBic name email',
         );
         if (!user) {
           logger.warn(`[wallet.processPendingWithdrawals] user not found ${tx.userId}`);
           continue;
         }
         if (!user.airwallexBeneficiaryId) {
-          logger.info(
-            `[wallet.processPendingWithdrawals] tx ${tx._id} user ${tx.userId} ` +
-            `has no Airwallex beneficiary yet — keeping pending for next tick.`,
-          );
-          continue;
+          // v23.1.378 — Daniel : "tous les retraits sont pending depuis
+          // 3 jours". CAUSE : le bénéficiaire Airwallex n'est créé QU'À
+          // l'enregistrement de l'IBAN ; si cet appel a échoué ce jour-là,
+          // AUCUNE relance n'existait → retraits pending éternels.
+          // AUTO-RÉPARATION : si l'IBAN est enregistré, on (re)crée le
+          // bénéficiaire ICI, puis le retrait part dans le MÊME tick.
+          let healed = false;
+          if (user.ibanNumber && user.ibanHolder) {
+            try {
+              const { decrypt } = require('../utils/encryption');
+              const plainIban = decrypt(user.ibanNumber);
+              if (plainIban) {
+                const ben = await airwallex.createBeneficiary({
+                  providerId: String(user._id),
+                  holderName: user.ibanHolder,
+                  iban: plainIban,
+                  bic: user.ibanBic || undefined,
+                  currency: tx.currency || 'EUR',
+                });
+                if (ben && ben.id) {
+                  user.airwallexBeneficiaryId = ben.id;
+                  await Model.updateOne(
+                    { _id: user._id },
+                    { $set: { airwallexBeneficiaryId: ben.id } },
+                  );
+                  healed = true;
+                  logger.info(
+                    `✅ [wallet.processPendingWithdrawals] beneficiary ${ben.id} ` +
+                    `auto-créé pour ${tx.userRole} ${tx.userId} (self-heal).`,
+                  );
+                }
+              }
+            } catch (healErr) {
+              logger.warn(
+                `[wallet.processPendingWithdrawals] self-heal beneficiary failed ` +
+                `for ${tx.userId}: ${healErr?.message || healErr}`,
+              );
+              // Trace visible dans l'admin (table Retraits wallet).
+              await WalletTransaction.updateOne(
+                { _id: tx._id },
+                { $set: { failureReason: `Création bénéficiaire Airwallex : ${(healErr?.message || String(healErr)).slice(0, 180)}` } },
+              );
+            }
+          }
+          if (!healed) {
+            if (!user.ibanNumber) {
+              await WalletTransaction.updateOne(
+                { _id: tx._id },
+                { $set: { failureReason: 'IBAN non configuré par le prestataire — retrait en attente.' } },
+              );
+            }
+            logger.info(
+              `[wallet.processPendingWithdrawals] tx ${tx._id} user ${tx.userId} ` +
+              `has no Airwallex beneficiary yet — keeping pending for next tick.`,
+            );
+            continue;
+          }
         }
         if (!user.ibanVerified) {
           logger.info(
