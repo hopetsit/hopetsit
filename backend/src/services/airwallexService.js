@@ -662,7 +662,20 @@ async function createBeneficiary({
   };
 
   try {
-    return await awxFetch('/api/v1/beneficiaries/create', { method: 'POST', body });
+    const r = await awxFetch('/api/v1/beneficiaries/create', { method: 'POST', body });
+    // v23.1.385 — la réponse 2xx arrivait parfois SANS `id` au niveau
+    // racine (trace admin : "réponse sans id") alors que la création
+    // semblait acceptée. On normalise : l'id peut vivre dans
+    // `beneficiary_id` ou `beneficiary.id` selon la version d'API.
+    if (r && !r.id) {
+      const altId = r.beneficiary_id || (r.beneficiary && r.beneficiary.id) || null;
+      if (altId) r.id = altId;
+    }
+    console.log(
+      '[airwallex/createBeneficiary] ✅ réponse: id=' + (r?.id || 'ABSENT') +
+      ' clés=' + Object.keys(r || {}).join(','),
+    );
+    return r;
   } catch (e) {
     // v23.1.383 — diagnostic : Airwallex renvoie le champ rejeté mais pas la
     // valeur reçue ; on embarque l'adresse réellement envoyée pour qu'elle

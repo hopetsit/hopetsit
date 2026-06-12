@@ -385,7 +385,15 @@ async function processPendingWithdrawals(source = 'scheduler') {
                 `auto-créé pour ${tx.userRole} ${tx.userId} (self-heal).`,
               );
             } else {
-              trace.push(`${txRef} → création bénéficiaire : réponse sans id — pending`);
+              // v23.1.385 — on embarque la RÉPONSE BRUTE d'Airwallex (la
+              // création répond 2xx mais sans id : il faut voir sa forme
+              // exacte pour comprendre — visible via le bouton admin).
+              const benSnippet = JSON.stringify(ben === undefined ? null : ben).slice(0, 250);
+              await WalletTransaction.updateOne(
+                { _id: tx._id },
+                { $set: { failureReason: `[${stamp()}] Création bénéficiaire : réponse Airwallex sans id : ${benSnippet}` } },
+              );
+              trace.push(`${txRef} → création bénéficiaire : réponse sans id — réponse brute : ${benSnippet}`);
             }
           } catch (healErr) {
             logger.warn(
