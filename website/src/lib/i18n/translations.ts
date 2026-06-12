@@ -370,7 +370,7 @@ export const t: Bundle = {
     v240_feat_kyc_title:        "Verified ID",
     v240_feat_kyc_body:         "Sitters and walkers verify their identity with a regulated KYC partner. The blue badge appears on every profile — extra peace of mind for owners.",
     faq_q6:                 "What is PawFollow Family?",
-    faq_a6:                 "Add up to 5 family members to your PawFollow plan. Everyone follows your pet, the alerts and the live position on the same map — handy for spouses, grown-up kids or trusted friends.",
+    faq_a6:                 "Your PawFollow Family plan covers YOU + up to 5 invited members (6 people in total). Everyone follows your pet, the alerts and the live position on the same map — handy for spouses, grown-up kids or trusted friends.",
     faq_q7:                 "How does live position sharing work?",
     faq_a7:                 "Once a booking is paid, the owner taps “Track my pet” in the chat and the walker or sitter accepts in one tap — the live position appears instantly on the PawMap. Outside bookings, the PawFollow subscription (violet chip on the map) lets you follow your own pet and your family at any time. Tracking can be turned off whenever you want.",
 

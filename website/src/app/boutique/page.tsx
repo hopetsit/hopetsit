@@ -545,7 +545,7 @@ function PlanCard({
           <FeatureLi>+12 crédits PawSpot offerts (1/mois)</FeatureLi>
         )}
         {(plan.id === "family" || plan.id === "family_yearly") && (
-          <FeatureLi>Jusqu&apos;à 5 utilisateurs</FeatureLi>
+          <FeatureLi>Toi + 5 proches (6 personnes au total)</FeatureLi>
         )}
       </ul>
       <button
