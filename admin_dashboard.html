@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v388</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v389</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -420,6 +420,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-payments" class="page">
         <div class="section-title">💰 Paiements &amp; payouts
           <button class="action-btn" style="margin-left:12px;background:#2563EB;color:#fff" onclick="refreshPaymentsPage()">🔄 Actualiser</button>
+          <button class="action-btn" style="margin-left:8px;background:#8B5CF6;color:#fff" onclick="paymentsLimit=5000;loadPayments(1)">📜 Tout l'historique</button>
+          <button class="action-btn" style="margin-left:8px;background:#16A34A;color:#fff" onclick="exportPaymentsCSV()">⬇️ Export CSV</button>
         </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">
           Vue complète des transactions plateforme — paiements reçus, commissions perçues et virements aux providers.
@@ -3160,6 +3162,69 @@ async function loadInvoices(role) {
   }
 }
 
+// v23.1.389 — Daniel : « voir tout l'historique et export CSV » (Revenus +
+// Paiements). CSV avec BOM UTF-8 + séparateur ; (Excel FR friendly).
+function downloadCSV(filename, rows) {
+  const esc = (v) => {
+    const t = (v === null || v === undefined) ? '' : String(v);
+    return '"' + t.replace(/"/g, '""') + '"';
+  };
+  const BOM = String.fromCharCode(0xFEFF);
+  const EOL = String.fromCharCode(13) + String.fromCharCode(10);
+  const csv = BOM + rows.map((r) => r.map(esc).join(';')).join(EOL);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+async function exportPaymentsCSV() {
+  try {
+    const d = await api('/admin/payments?page=1&limit=10000');
+    const rows = [[
+      'Date', 'Réservation', 'Owner', 'Prestataire', 'Rôle', 'Montant', 'Commission',
+      'Net prestataire', 'Devise', 'Statut paiement', 'Statut payout', 'Provider', 'PaymentIntent',
+    ]];
+    for (const p of (d.payments || [])) {
+      rows.push([
+        p.paidAt || p.createdAt || '', p.bookingId || p.id || '', p.ownerName || '',
+        p.providerName || p.sitterName || p.walkerName || '', p.providerRole || p.role || '',
+        p.amount ?? p.totalAmount ?? '', p.commission ?? '', p.netPayout ?? '',
+        p.currency || 'EUR', p.paymentStatus || p.status || '', p.payoutStatus || '',
+        p.paymentProvider || '', p.paymentIntentId || '',
+      ]);
+    }
+    // + retraits prestataires (2e section du fichier)
+    try {
+      const w = await api('/admin/provider-payouts?role=all');
+      rows.push([]);
+      rows.push(['— RETRAITS WALLET —']);
+      rows.push(['Date', 'Prestataire', 'Rôle', 'Montant', 'Méthode', 'Statut', 'Réf Airwallex', 'Erreur']);
+      for (const x of (w.withdrawals || [])) {
+        rows.push([x.date || x.createdAt || '', x.providerName || x.name || '', x.role || '',
+          x.amount ?? '', x.method || 'iban', x.status || '', x.airwallexId || '', x.failureReason || '']);
+      }
+    } catch (_) { /* section optionnelle */ }
+    downloadCSV('hopetsit_paiements_' + new Date().toISOString().slice(0, 10) + '.csv', rows);
+  } catch (e) { alert('Export impossible : ' + (e.message || e)); }
+}
+
+async function exportRevenueCSV() {
+  try {
+    const d = await api('/admin/sweep-history?limit=200');
+    const rows = [['Date', 'Montant', 'Devise', 'Statut', 'Payout ID', 'Bénéficiaire', 'Erreur']];
+    for (const sw of (d.items || [])) {
+      rows.push([sw.createdAt || '', sw.amount ?? '', sw.currency || 'EUR', sw.status || '',
+        sw.payoutId || '', sw.beneficiaryId || '', sw.failureReason || '']);
+    }
+    downloadCSV('hopetsit_revenus_retraits_' + new Date().toISOString().slice(0, 10) + '.csv', rows);
+  } catch (e) { alert('Export impossible : ' + (e.message || e)); }
+}
+
 async function loadPayments(page) {
   if (page) paymentsPage = page;
   const tbody = document.getElementById('payments-table-body');
@@ -4326,6 +4391,7 @@ async function loadCompanySweep() {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
           '<h3 style="font-family:Syne,sans-serif;font-size:18px;font-weight:700">🏦 Solde Airwallex (compte société)</h3>' +
           '<button class="action-btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text-muted)" onclick="loadCompanySweep()">↻ Actualiser</button>' +
+          '<button class="action-btn" style="margin-left:8px;background:#16A34A;color:#fff" onclick="exportRevenueCSV()">⬇️ Export CSV</button>' +
         '</div>' +
         diagBlock +
         cfgBanner +

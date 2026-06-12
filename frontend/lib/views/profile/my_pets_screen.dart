@@ -98,12 +98,48 @@ class MyPetsScreen extends StatelessWidget {
           }
 
           if (controller.pets.isEmpty) {
+            // v23.1.389 — état vide modernisé : icône + CTA direct.
             return Center(
-              child: PoppinsText(
-                text: 'my_pets_empty'.tr,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.greyColor,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(22.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text('🐾', style: TextStyle(fontSize: 44.sp)),
+                  ),
+                  SizedBox(height: 14.h),
+                  PoppinsText(
+                    text: 'my_pets_empty'.tr,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.greyColor,
+                  ),
+                  SizedBox(height: 16.h),
+                  ElevatedButton.icon(
+                    onPressed: () => Get.to(
+                      () => CreatePetProfileScreen(
+                        userType: authController.userRole.value ?? '',
+                        serviceType: userController.profile.value?.service.isNotEmpty == true
+                            ? userController.profile.value!.service.first
+                            : '',
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded),
+                    label: Text('my_pets_add_pet'.tr),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -115,7 +151,7 @@ class MyPetsScreen extends StatelessWidget {
               itemCount: controller.pets.length,
               itemBuilder: (context, index) {
                 final pet = controller.pets[index];
-                return _buildPetCard(context, pet);
+                return _buildPetCard(context, pet, index);
               },
             ),
           );
@@ -124,15 +160,35 @@ class MyPetsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPetCard(BuildContext context, PetModel pet) {
+  // v23.1.389 — Daniel : "qu'on distingue qu'on a plusieurs animaux, une
+  // autre couleur, design plus moderne". Chaque animal reçoit sa couleur
+  // d'accent (rotation sur 6 teintes) : bordure, badge, boutons.
+  static const List<Color> _petAccents = [
+    Color(0xFFE8472A), // orange HoPetSit
+    Color(0xFF7C3AED), // violet
+    Color(0xFFE8A00A), // doré
+    Color(0xFF14B8A6), // teal
+    Color(0xFF2563EB), // bleu
+    Color(0xFFEC4899), // rose
+  ];
+
+  Widget _buildPetCard(BuildContext context, PetModel pet, int index) {
     final imageUrl = pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
+    final accent = _petAccents[index % _petAccents.length];
 
     return Container(
-      margin: EdgeInsets.only(bottom: 16.h),
+      margin: EdgeInsets.only(bottom: 18.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.8),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +300,7 @@ class MyPetsScreen extends StatelessWidget {
                                     vertical: 3.h,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primaryColor,
+                                    color: accent,
                                     borderRadius: BorderRadius.circular(16.r),
                                   ),
                                   child: Row(
@@ -313,7 +369,7 @@ class MyPetsScreen extends StatelessWidget {
                           child: Icon(
                             Icons.edit,
                             size: 18.sp,
-                            color: AppColors.primaryColor,
+                            color: accent,
                           ),
                         ),
                       ),

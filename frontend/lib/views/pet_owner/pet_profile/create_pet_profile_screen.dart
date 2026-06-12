@@ -46,6 +46,11 @@ class CreatePetProfileScreen extends StatelessWidget {
             permanent: true, // Prevents disposal during navigation
           );
 
+    // v23.1.389 — Daniel : "quand j'ajoute plusieurs animaux, chaque création
+    // me renvoie à l'accueil". On informe le controller du contexte : depuis
+    // Mes animaux (fromSignup=false) → retour à la LISTE après création.
+    controller.fromSignup = fromSignup == true;
+
     final ProfileController profileController = Get.put(ProfileController());
     profileController.applyStoredUserProfileDisplay();
     profileController.ensureProfileLoadedForSession();
@@ -123,15 +128,29 @@ class CreatePetProfileScreen extends StatelessWidget {
                             () => Center(
                               child: Stack(
                                 children: [
+                                  // v23.1.389 — anneau dégradé moderne autour
+                                  // de la photo de l'animal.
                                   Container(
-                                    width: 120.r,
-                                    height: 120.r,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.grey300Color,
+                                    padding: EdgeInsets.all(4.r),
+                                    decoration: const BoxDecoration(
                                       shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        colors: [Color(0xFFE8472A), Color(0xFFF59E0B)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
                                     ),
-                                    child: ClipOval(
-                                      child: _buildPetProfileImage(controller),
+                                    child: Container(
+                                      width: 118.r,
+                                      height: 118.r,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.grey300Color,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 3),
+                                      ),
+                                      child: ClipOval(
+                                        child: _buildPetProfileImage(controller),
+                                      ),
                                     ),
                                   ),
                                   Positioned(
@@ -152,6 +171,10 @@ class CreatePetProfileScreen extends StatelessWidget {
                           ),
 
                           SizedBox(height: 32.h),
+
+                          // v23.1.389 — sections visuelles modernes.
+                          _sectionHeader('🐾', 'create_pet_section_identity'.tr),
+                          SizedBox(height: 12.h),
 
                           // Pet Name
                           CustomTextField(
@@ -278,6 +301,9 @@ class CreatePetProfileScreen extends StatelessWidget {
                           SizedBox(height: 20.h),
 
                           // Passport Number
+                          _sectionHeader('📋', 'create_pet_section_documents'.tr),
+                          SizedBox(height: 12.h),
+
                           CustomTextField(
                             labelText: 'create_pet_passport_label'.tr,
                             hintText: 'create_pet_passport_hint'.tr,
@@ -675,6 +701,33 @@ class CreatePetProfileScreen extends StatelessWidget {
   /// 1. If profileImageUrl is valid, display CachedNetworkImage
   /// 2. Else if petProfileImage file exists, display FileImage with error handling
   /// 3. Else display placeholder image
+  // v23.1.389 — petit en-tête de section avec pastille emoji (design
+  // moderne demandé par Daniel pour la page de création d'animal).
+  Widget _sectionHeader(String emoji, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 34.w,
+          height: 34.w,
+          decoration: BoxDecoration(
+            color: AppColors.primaryColor.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          child: Center(child: Text(emoji, style: TextStyle(fontSize: 17.sp))),
+        ),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: PoppinsText(
+            text: title,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPetProfileImage(CreatePetProfileController controller) {
     // Check if pet has a profile image URL (from existing pet)
     // You may need to add petProfileImageUrl to the controller if editing existing pet

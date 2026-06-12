@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -347,16 +348,31 @@ class CreatePetProfileController extends GetxController {
     }
   }
 
+  /// v23.1.389 — true uniquement dans le parcours d'inscription (le seul cas
+  /// où aller à l'accueil a du sens). Depuis « Mes animaux », on revient à la
+  /// LISTE pour pouvoir enchaîner plusieurs animaux (bug Daniel).
+  bool fromSignup = false;
+
   /// Handles profile creation with navigation logic
   Future<void> handleCreateProfileWithNavigation() async {
     final success = await validateAndCreateProfile();
 
     if (success) {
-      // Navigate to appropriate home screen based on userType
-      if (userType == 'sitter') {
-        await Get.offAll(() => const SitterNavWrapper());
+      if (fromSignup) {
+        // Parcours inscription : on pose la home par-dessus tout.
+        if (userType == 'sitter') {
+          await Get.offAll(() => const SitterNavWrapper());
+        } else {
+          await Get.offAll(() => const BottomNavWrapper());
+        }
       } else {
-        await Get.offAll(() => const BottomNavWrapper());
+        // Depuis « Mes animaux » : retour à la liste + refresh immédiat.
+        Get.back();
+        try {
+          if (Get.isRegistered<MyPetsController>()) {
+            await Get.find<MyPetsController>().refreshPets();
+          }
+        } catch (_) { /* best-effort */ }
       }
 
       // Clean up permanent controller after leaving the screen.
