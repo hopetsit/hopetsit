@@ -14,6 +14,11 @@ export default function FAQPage() {
     // suivi position en direct (les 2 grosses features v240).
     { q: t("faq_q6"), a: t("faq_a6") },
     { q: t("faq_q7"), a: t("faq_a7") },
+    // v23.1.388 — Paw Premium (bundle), PawSpot communautaire, et
+    // « un compte = 3 profils » (Daniel : actualisation FAQ).
+    { q: t("faq_q8"), a: t("faq_a8") },
+    { q: t("faq_q9"), a: t("faq_a9") },
+    { q: t("faq_q10"), a: t("faq_a10") },
   ];
 
   return (
