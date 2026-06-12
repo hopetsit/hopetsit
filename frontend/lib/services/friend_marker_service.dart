@@ -41,10 +41,13 @@ class FriendMarkerService extends GetxService {
   final RxInt rev = 0.obs;
 
   static const _violetFamily = Color(0xFF8B5CF6);
+  // v23.1.395 — anneau Paw Premium (or).
+  static const _goldPremium = Color(0xFFE8A00A);
   static const _silver = Color(0xFFC0C0C0);
 
-  String _cacheKey(String userId, String avatarUrl, String role, bool isFamily) =>
-      '$userId|$avatarUrl|$role|$isFamily';
+  String _cacheKey(String userId, String avatarUrl, String role, bool isFamily,
+          bool isPremium) =>
+      '$userId|$avatarUrl|$role|$isFamily|$isPremium';
 
   /// Lookup synchrone. Si pas en cache, declenche un build async et
   /// retourne un placeholder (marker plein couleur role) en attendant.
@@ -53,15 +56,16 @@ class FriendMarkerService extends GetxService {
     required String avatarUrl,
     required String role,
     required bool isFamily,
+    bool isPremium = false,
   }) {
-    final key = _cacheKey(userId, avatarUrl, role, isFamily);
+    final key = _cacheKey(userId, avatarUrl, role, isFamily, isPremium);
     final cached = _cache[key];
     if (cached != null) return cached;
     if (!_loading.contains(key)) {
       _loading.add(key);
       // Lance build async sans attendre, mais ne throw pas.
       // ignore: discarded_futures
-      _buildAndCache(key, avatarUrl, role, isFamily);
+      _buildAndCache(key, avatarUrl, role, isFamily, isPremium);
     }
     return BitmapDescriptor.defaultMarkerWithHue(_hueForRole(role));
   }
@@ -71,6 +75,7 @@ class FriendMarkerService extends GetxService {
     String avatarUrl,
     String role,
     bool isFamily,
+    bool isPremium,
   ) async {
     try {
       Uint8List? avatarBytes;
@@ -89,6 +94,7 @@ class FriendMarkerService extends GetxService {
         avatarBytes: avatarBytes,
         role: role,
         isFamily: isFamily,
+        isPremium: isPremium,
       );
       _cache[key] = BitmapDescriptor.bytes(bytes);
       rev.value++;
@@ -110,6 +116,7 @@ class FriendMarkerService extends GetxService {
     required Uint8List? avatarBytes,
     required String role,
     required bool isFamily,
+    bool isPremium = false,
   }) async {
     // v23.1.350 — Daniel : "réduire un peu la taille des ronds amis et
     // famille" (ils dominaient la carte). 120 → 96 px (-20%), toutes les
@@ -126,14 +133,19 @@ class FriendMarkerService extends GetxService {
     final roleColor = _colorForRole(role);
 
     // Layer 1 : ring violet (famille) — fait toute la taille du bitmap.
-    if (isFamily) {
+    // v23.1.395 — Paw Premium : anneau OR prioritaire (badge 👑 ajouté en
+    // dernier layer, par-dessus).
+    if (isPremium) {
+      final goldPaint = Paint()..color = _goldPremium;
+      canvas.drawCircle(const Offset(cx, cy), size / 2 - 1, goldPaint);
+    } else if (isFamily) {
       final familyPaint = Paint()..color = _violetFamily;
       canvas.drawCircle(const Offset(cx, cy), size / 2 - 1, familyPaint);
     }
 
-    // Layer 2 : disque role color, leger inset si famille pour que le
-    // ring violet soit visible. Sinon disque pleine taille.
-    final roleInset = isFamily ? 10.0 : 4.0;
+    // Layer 2 : disque role color, leger inset si famille/premium pour que
+    // le ring soit visible. Sinon disque pleine taille.
+    final roleInset = (isFamily || isPremium) ? 10.0 : 4.0;
     final rolePaint = Paint()..color = roleColor;
     canvas.drawCircle(
       const Offset(cx, cy),
@@ -184,6 +196,16 @@ class FriendMarkerService extends GetxService {
       }
     } else {
       _paintFallback(canvas, cx, cy, photoRadius);
+    }
+
+    // v23.1.395 — couronne 👑 en haut du marqueur quand Paw Premium actif
+    // (Daniel : « sur mon tel j'ai pas le badge »).
+    if (isPremium) {
+      final crown = TextPainter(
+        text: const TextSpan(text: '👑', style: TextStyle(fontSize: 26)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      crown.paint(canvas, Offset(cx - crown.width / 2, -2));
     }
 
     final picture = recorder.endRecording();

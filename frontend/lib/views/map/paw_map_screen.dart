@@ -1541,6 +1541,8 @@ class _PawMapScreenState extends State<PawMapScreen>
           avatarUrl: myAvatar,
           role: _role,
           isFamily: false,
+          // v23.1.395 — couronne 👑 + anneau or sur MON marqueur si Premium.
+          isPremium: _pawSpotController.premiumActive.value,
         );
         markers.add(
           Marker(

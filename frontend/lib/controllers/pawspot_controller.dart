@@ -162,6 +162,9 @@ class PawSpotController extends GetxController {
   /// violet + couronne 👑 du chip PawFollow de la PawMap.
   final RxBool followActive = false.obs;
 
+  /// v23.1.395 — Paw Premium actif (badge 👑 sur mon marqueur de la carte).
+  final RxBool premiumActive = false.obs;
+
   ApiClient? get _api =>
       Get.isRegistered<ApiClient>() ? Get.find<ApiClient>() : null;
 
@@ -186,6 +189,7 @@ class PawSpotController extends GetxController {
         // v23.1.388 — Paw Premium actif ⇒ PawFollow ET PawSpot ON sur la
         // carte (le backend étend déjà les timers, ceci est la ceinture).
         final premium = r['premiumActive'] == true;
+        premiumActive.value = premium;
         pawspotActive.value = r['pawspotActive'] == true || premium;
         followActive.value = r['pawFollowActive'] == true ||
             r['familyActive'] == true ||
