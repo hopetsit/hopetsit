@@ -275,10 +275,27 @@ export default function DashboardPage() {
           title="Boutique"
           subtitle={
             user?.role === "owner"
-              ? "Premium PawFollow"
-              : "Premium + Boost annonce + PawSpot"
+              ? "PawFollow · PawSpot · PawBoost"
+              : "PawBoost · PawFollow · PawSpot"
           }
         />
+        {/* v23.1.394 — Daniel : « fond noir et or pour le faire ressortir ». */}
+        <a
+          href="/boutique"
+          className="group flex items-center gap-4 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-[#221C12] to-[#15120D] p-5 shadow-card transition hover:brightness-110"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pawpremium_logo.svg" alt="" width={44} height={44} />
+          <div>
+            <div className="font-display text-base font-extrabold text-yellow-400">
+              Paw Premium 👑
+            </div>
+            <div className="text-xs text-white/75">
+              PawFollow + PawSpot + exclusifs · 7,99 €/mois — Économise 33%
+            </div>
+          </div>
+          <span className="ml-auto text-yellow-400 transition group-hover:translate-x-1">→</span>
+        </a>
         <NavCard
           href="/invoices"
           emoji="🧾"

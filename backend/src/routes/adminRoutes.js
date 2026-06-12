@@ -4133,6 +4133,57 @@ router.post('/pawpremium/grant', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /admin/pawpremium/diag?email= — v23.1.394. Diagnostic Paw Premium :
+// pour chaque rôle du compte, montre points + timers + si le ×2 points est
+// actif. Daniel : « points/badge/classement n'apparaissent plus et ne se
+// comptabilisent pas » → cet outil tranche en un clic, sans logs Render.
+router.get('/pawpremium/diag', requireAdmin, async (req, res) => {
+  try {
+    const email = String(req.query.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'email requis' });
+    const Models = {
+      owner: require('../models/Owner'),
+      sitter: require('../models/Sitter'),
+      walker: require('../models/Walker'),
+    };
+    const UserSubscription = require('../models/UserSubscription');
+    const pawPointsSvc = require('../services/pawPointsService');
+    const now = new Date();
+    const out = [];
+    for (const [role, Model] of Object.entries(Models)) {
+      const u = await Model.findOne({ email })
+        .select('name isStaff pawPoints countryCode location.city')
+        .lean();
+      if (!u) { out.push({ role, exists: false }); continue; }
+      const userModel = role === 'walker' ? 'Walker' : role === 'sitter' ? 'Sitter' : 'Owner';
+      const sub = await UserSubscription.findOne({ userId: u._id, userModel })
+        .select('plan status currentPeriodEnd pawspotExpiry premiumExpiry familyExpiry')
+        .lean();
+      const premiumActive = !!(sub?.premiumExpiry && new Date(sub.premiumExpiry) > now);
+      out.push({
+        role,
+        exists: true,
+        name: u.name || '',
+        isStaff: u.isStaff === true,
+        pawPoints: u.pawPoints || 0,
+        badge: pawPointsSvc.badgeFor(u.pawPoints),
+        countryCode: u.countryCode || '',
+        city: u.location?.city || '',
+        plan: sub?.plan || 'none',
+        currentPeriodEnd: sub?.currentPeriodEnd || null,
+        pawspotExpiry: sub?.pawspotExpiry || null,
+        premiumExpiry: sub?.premiumExpiry || null,
+        familyExpiry: sub?.familyExpiry || null,
+        pointsX2Actif: premiumActive,
+      });
+    }
+    res.json({ email, accounts: out, now });
+  } catch (e) {
+    logger.error('[admin/pawpremium/diag]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /admin/pawspot-subscriptions — abos PawSpot actifs (mensuel/annuel/
 // essai, plan inféré du dernier paiement) par type de compte + CLASSEMENT
 // PawPoints (pays dérivé de l'indicatif téléphonique).

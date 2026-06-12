@@ -446,7 +446,11 @@ function BenefitsChips({
   if (staff) chips.push({ e: "⭐", l: "Staff — accès illimité", c: "bg-emerald-100 text-emerald-800" });
   if (status.premiumExpiry && days(status.premiumExpiry) > 0)
     chips.push({ e: "👑", l: `Paw Premium · ${days(status.premiumExpiry)} j`, c: "bg-amber-100 text-amber-900" });
-  if (!staff && status.currentPeriodEnd && days(status.currentPeriodEnd) > 0 && status.plan !== "famille" && status.plan !== "family")
+  // v23.1.394 — Daniel : « le badge PawFollow n'apparaît plus » — pour les
+  // comptes STAFF on l'affichait pas du tout ; désormais chip « illimité ».
+  if (staff) {
+    chips.push({ e: "📍", l: "PawFollow · illimité", c: "bg-violet-100 text-violet-800" });
+  } else if (status.currentPeriodEnd && days(status.currentPeriodEnd) > 0 && status.plan !== "famille" && status.plan !== "family")
     chips.push({ e: "📍", l: `PawFollow · ${days(status.currentPeriodEnd)} j`, c: "bg-violet-100 text-violet-800" });
   if (status.familyExpiry && days(status.familyExpiry) > 0)
     chips.push({ e: "👨‍👩‍👧", l: `Famille · ${days(status.familyExpiry)} j`, c: "bg-violet-100 text-violet-800" });

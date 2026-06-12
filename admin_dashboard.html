@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v393</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v394</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -803,6 +803,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="page-pawpremium" class="page">
         <div class="section-title">👑 Paw Premium — bundle
           <button class="action-btn" style="margin-left:12px;background:linear-gradient(90deg,#B8860B,#FFD700);color:#15120D;font-weight:700" onclick="giftPawPremium()">👑 Offrir Paw Premium</button>
+          <button class="action-btn" style="margin-left:8px;background:#2563EB;color:#fff" onclick="diagPawPremium()">🧪 Diagnostic compte</button>
         </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:760px">
           Paw Premium = PawFollow + PawSpot + exclusifs (badge 👑, points communauté ×2, priorité nouveautés).
@@ -1544,6 +1545,30 @@ async function loadPawFollowSubs() {
     document.getElementById('pawfollow-rows').innerHTML =
       `<tr><td colspan="5" style="color:#E53935">Erreur : ${e.message}</td></tr>`;
   }
+}
+
+// v23.1.394 — Diagnostic Paw Premium par email : points, badge, timers,
+// et si le ×2 points est actif — pour vérifier badge/classement/points.
+async function diagPawPremium() {
+  const email = prompt('Email du compte à diagnostiquer :');
+  if (!email || !email.trim()) return;
+  try {
+    const d = await api('/admin/pawpremium/diag?email=' + encodeURIComponent(email.trim()));
+    const NL = String.fromCharCode(10);
+    const fd = (x) => x ? new Date(x).toLocaleDateString('fr-FR') : '—';
+    const lines = (d.accounts || []).map((a) => {
+      if (!a.exists) return '• ' + a.role + ' : (pas de compte)';
+      return [
+        '• ' + a.role.toUpperCase() + ' — ' + (a.name || '?') + (a.isStaff ? ' ⭐staff' : ''),
+        '   PawPoints : ' + a.pawPoints + (a.badge ? ' (' + a.badge.emoji + ' ' + a.badge.key + ')' : ' (pas encore de badge — 1er palier à 100 pts)'),
+        '   Points ×2 Premium : ' + (a.pointsX2Actif ? 'ACTIF ✅' : 'inactif ❌'),
+        '   premium=' + fd(a.premiumExpiry) + ' · pawspot=' + fd(a.pawspotExpiry) + ' · pawfollow=' + fd(a.currentPeriodEnd) + ' · famille=' + fd(a.familyExpiry),
+        '   plan=' + a.plan + ' · pays=' + (a.countryCode || '—') + ' · ville=' + (a.city || '—'),
+      ].join(NL);
+    });
+    alert('🧪 Diagnostic ' + d.email + NL + NL + lines.join(NL + NL) + NL + NL +
+      'Rappel : 1er badge à 100 pts (🥉) ; le classement ne montre que les comptes avec pawPoints > 0.');
+  } catch (e) { alert('Erreur : ' + (e.message || e)); }
 }
 
 // v23.1.387 — Offrir Paw Premium à un utilisateur (par email, tous rôles).
