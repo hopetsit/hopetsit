@@ -199,7 +199,16 @@ export default function HomePage() {
 
           {/* v23.1.388 — Daniel : "en dessous de PawSpot parle aussi de
               PawFollow + une ligne Paw Premium : les deux en un". */}
-          <div className="mt-12 grid gap-5 md:grid-cols-2">
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            <div className="rounded-2xl border-2 border-amber-300 bg-white p-6 shadow-card">
+              <div className="flex items-center gap-3">
+                <PawSpotGoldCoin size={44} />
+                <h3 className="text-lg font-extrabold text-amber-600">PawSpot</h3>
+              </div>
+              <p className="mt-3 text-sm text-ink-muted">{t("home_pawspot_blurb")}</p>
+              <p className="mt-3 text-xs font-semibold text-ink-muted">{t("home_rule_pawspot")}</p>
+              <p className="mt-3 text-sm font-semibold text-amber-600">{t("home_pawspot_price_line")}</p>
+            </div>
             <div className="rounded-2xl border-2 border-violet-300 bg-white p-6 shadow-card">
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -207,6 +216,7 @@ export default function HomePage() {
                 <h3 className="text-lg font-extrabold text-violet-700">PawFollow</h3>
               </div>
               <p className="mt-3 text-sm text-ink-muted">{t("home_pawfollow_blurb")}</p>
+              <p className="mt-3 text-xs font-semibold text-ink-muted">{t("home_rule_pawfollow")}</p>
               <p className="mt-3 text-sm font-semibold text-violet-700">
                 {t("home_pawfollow_price_line")}
               </p>
@@ -223,6 +233,7 @@ export default function HomePage() {
               <li key={k} className="flex items-start gap-2 text-xs font-medium text-white/90"><span className="text-amber-400">✓</span>{t(k)}</li>
             ))}
               </ul>
+              <p className="mt-3 text-xs font-semibold text-white/70">{t("home_rule_pawpremium")}</p>
               <p className="mt-3 text-sm font-semibold text-yellow-300">
                 {t("home_pawpremium_price_line")}
               </p>
