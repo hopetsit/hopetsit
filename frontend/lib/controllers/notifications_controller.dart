@@ -177,6 +177,21 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
             // Message envoyé par soi-même → on ne bumpe rien.
             return;
           }
+          // v23.1.390 — Daniel : badge 1 sur l'icône chat aussi pour les
+          // DEMANDES DE SUIVI (pawfollow_request) / partages tel/adresse.
+          // Ces emits n'ont PAS triggeredBy → on déduit l'expéditeur du
+          // message.senderId pour ne pas bumper son PROPRE badge quand on
+          // envoie la demande (le destinataire, lui, voit bien le badge).
+          final inner = map['message'];
+          if (inner is Map && myId != null) {
+            final rawSender = inner['senderId'];
+            final senderId = rawSender is Map
+                ? (rawSender['_id'] ?? rawSender['id'])?.toString()
+                : rawSender?.toString();
+            if (senderId != null && senderId == myId) {
+              return;
+            }
+          }
         } catch (_) {/* best-effort */}
         unreadChat.value = unreadChat.value + 1;
         _storage.write(_kUnreadChat, unreadChat.value);
