@@ -269,6 +269,13 @@ async function getBalance({ userId, userRole }) {
  */
 async function processPendingWithdrawals() {
   let released = 0;
+  // v23.1.383 — chaque failureReason est HORODATÉE : impossible jusqu'ici de
+  // distinguer une erreur fraîche (le tick vient de réessayer) d'une erreur
+  // fossile (écrite avant un correctif) — Daniel voyait "toujours pareil".
+  const stamp = () => new Date().toLocaleString('fr-FR', {
+    timeZone: 'Europe/Madrid',
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
   try {
     const airwallex = require('./airwallexService');
     const items = await WalletTransaction.find({
@@ -316,9 +323,14 @@ async function processPendingWithdrawals() {
                 });
                 if (ben && ben.id) {
                   user.airwallexBeneficiaryId = ben.id;
+                  // v23.1.383 — Airwallex vient d'ACCEPTER l'IBAN (validation
+                  // la plus forte possible) : on lève aussi ibanVerified pour
+                  // les comptes enregistrés avant l'auto-vérification v18.1,
+                  // sinon le gate ci-dessous les laissait pending en silence.
+                  user.ibanVerified = true;
                   await Model.updateOne(
                     { _id: user._id },
-                    { $set: { airwallexBeneficiaryId: ben.id } },
+                    { $set: { airwallexBeneficiaryId: ben.id, ibanVerified: true } },
                   );
                   healed = true;
                   logger.info(
@@ -333,9 +345,11 @@ async function processPendingWithdrawals() {
                 `for ${tx.userId}: ${healErr?.message || healErr}`,
               );
               // Trace visible dans l'admin (table Retraits wallet).
+              // v23.1.383 — horodaté + tronqué plus large (le message inclut
+              // désormais l'adresse envoyée pour diagnostiquer les 400).
               await WalletTransaction.updateOne(
                 { _id: tx._id },
-                { $set: { failureReason: `Création bénéficiaire Airwallex : ${(healErr?.message || String(healErr)).slice(0, 180)}` } },
+                { $set: { failureReason: `[${stamp()}] Création bénéficiaire Airwallex : ${(healErr?.message || String(healErr)).slice(0, 320)}` } },
               );
             }
           }
@@ -354,6 +368,12 @@ async function processPendingWithdrawals() {
           }
         }
         if (!user.ibanVerified) {
+          // v23.1.383 — ce blocage était INVISIBLE dans l'admin : le retrait
+          // restait pending en affichant la dernière erreur (périmée).
+          await WalletTransaction.updateOne(
+            { _id: tx._id },
+            { $set: { failureReason: `[${stamp()}] IBAN non vérifié — retrait en attente de vérification.` } },
+          );
           logger.info(
             `[wallet.processPendingWithdrawals] tx ${tx._id} user ${tx.userId} ` +
             `IBAN not yet verified — keeping pending.`,
@@ -418,6 +438,11 @@ async function processPendingWithdrawals() {
           // Roll back to pending so a later tick can retry.
           claimed.status = 'pending';
           claimed.processingStartedAt = null;
+          // v23.1.383 — l'échec du VIREMENT (transfers/create) n'était jamais
+          // écrit : l'admin continuait d'afficher l'ancienne erreur de
+          // création de bénéficiaire alors que celle-ci était résolue.
+          claimed.failureReason =
+            `[${stamp()}] Virement Airwallex : ${(apiErr?.message || String(apiErr)).slice(0, 320)}`;
           await claimed.save();
           logger.error(
             `[wallet.processPendingWithdrawals] Airwallex payout failed for tx ` +

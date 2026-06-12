@@ -588,9 +588,43 @@ async function createBeneficiary({
   // `account_number` que pour les comptes non-IBAN (US ACH, UK FPS sans IBAN…).
   const isIbanValue = /^[A-Z]{2}\d{2}/.test(cleanIban);
 
-  return awxFetch('/api/v1/beneficiaries/create', {
-    method: 'POST',
-    body: {
+  // v23.1.383 — adresse calculée AVANT l'appel pour pouvoir la joindre au
+  // message d'erreur si Airwallex la rejette (diagnostic admin).
+  const benefAddress = (() => {
+    const cc = (addressCountryCode || country || 'ES').toUpperCase();
+    // Formats de code postal par pays — un candidat extrait du profil n'est
+    // retenu que s'il matche, sinon repli sur un défaut VALIDE.
+    const ZIP_RE = {
+      ES: /^\d{5}$/, FR: /^\d{5}$/, IT: /^\d{5}$/, DE: /^\d{5}$/,
+      FI: /^\d{5}$/, PT: /^\d{4}(-\d{3})?$/, BE: /^\d{4}$/, AT: /^\d{4}$/,
+      LU: /^\d{4}$/, CH: /^\d{4}$/, DK: /^\d{4}$/, NO: /^\d{4}$/,
+      HU: /^\d{4}$/, NL: /^\d{4}\s?[A-Za-z]{2}$/, PL: /^\d{2}-\d{3}$/,
+      CZ: /^\d{3}\s?\d{2}$/, SE: /^\d{3}\s?\d{2}$/, GR: /^\d{3}\s?\d{2}$/,
+      RO: /^\d{6}$/, GB: /^[A-Za-z]\w{1,3}\s?\d[A-Za-z]{2}$/,
+    };
+    const DEFAULT_ZIP = {
+      ES: '28001', FR: '75001', IT: '00100', DE: '10115',
+      PT: '1000-001', BE: '1000', NL: '1011AB', AT: '1010',
+      LU: '1111', CH: '8001', GB: 'EC1A1BB', PL: '00-001',
+      GR: '10431', CZ: '11000', SE: '11120', DK: '1050',
+      FI: '00100', NO: '0010', HU: '1011', RO: '010011',
+    };
+    const fromProfile = (postalCode || '').toString().trim();
+    const fromAddress =
+      (String(addressLine || '').match(/\b\d{4,5}(?:-\d{3})?\b/) || [])[0] || '';
+    const re = ZIP_RE[cc];
+    const candidates = [fromProfile, fromAddress].filter(Boolean);
+    const zip = candidates.find((z) => (re ? re.test(z) : true))
+      || DEFAULT_ZIP[cc] || '1000';
+    return {
+      street_address: String(addressLine || 'Address not provided').trim().slice(0, 100) || 'Address not provided',
+      city: String(addressCity || 'N/A').trim().slice(0, 50) || 'N/A',
+      country_code: cc,
+      postcode: zip,
+    };
+  })();
+
+  const body = {
       request_id: genRequestId('benef'),
       nickname: `provider_${providerId}`,
       transfer_methods: ['LOCAL'],
@@ -619,30 +653,25 @@ async function createBeneficiary({
         // code postal est OBLIGATOIRE pour les adresses UE. On l'extrait de
         // l'adresse du profil ("Calle X 12, 03750 Pedreguer" → 03750), sinon
         // repli VALIDE par pays — toujours envoyé, plus jamais omis.
-        address: (() => {
-          const cc = (addressCountryCode || country || 'ES').toUpperCase();
-          const fromProfile = (postalCode || '').toString().trim();
-          const fromAddress =
-            ((addressLine || '').match(/\b\d{4,5}(?:-\d{3})?\b/) || [])[0] || '';
-          const DEFAULT_ZIP = {
-            ES: '28001', FR: '75001', IT: '00100', DE: '10115',
-            PT: '1000-001', BE: '1000', NL: '1011AB', AT: '1010',
-            LU: '1111', CH: '8001', GB: 'EC1A1BB', PL: '00-001',
-            GR: '10431', CZ: '11000', SE: '11120', DK: '1050',
-            FI: '00100', NO: '0010', HU: '1011', RO: '010011',
-          };
-          const zip = fromProfile || fromAddress || DEFAULT_ZIP[cc] || '1000';
-          return {
-            street_address: (addressLine || 'Address not provided').trim().slice(0, 100),
-            city: (addressCity || 'N/A').trim().slice(0, 50),
-            country_code: cc,
-            postcode: zip,
-          };
-        })(),
+        // v23.1.383 — le candidat extrait est désormais VALIDÉ contre le
+        // format du pays : un numéro de rue à 4 chiffres ("Carrer X 1234")
+        // passait pour un code postal ES (qui en exige 5) → 400 postcode.
+        address: benefAddress,
       },
       payment_methods: ['LOCAL'],
-    },
-  });
+  };
+
+  try {
+    return await awxFetch('/api/v1/beneficiaries/create', { method: 'POST', body });
+  } catch (e) {
+    // v23.1.383 — diagnostic : Airwallex renvoie le champ rejeté mais pas la
+    // valeur reçue ; on embarque l'adresse réellement envoyée pour qu'elle
+    // remonte telle quelle dans failureReason (admin > Retraits wallet).
+    if (e && e.status === 400) {
+      e.message += ` | adresse envoyée: ${JSON.stringify(benefAddress)}`;
+    }
+    throw e;
+  }
 }
 
 /**
