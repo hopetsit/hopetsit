@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v387</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v388</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -242,6 +242,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('moderation')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_moderation">Modération users</span></div>
       <div class="nav-item" onclick="showPage('loyalty')"><span class="nav-icon">🏆</span> <span data-i18n="nav_loyalty">Avantages fidélité</span></div>
       <div class="nav-item" onclick="showPage('pawfollow')"><span class="nav-icon">⭐</span> <span data-i18n="nav_pawfollow">PawFollow</span></div>
+      <div class="nav-item" onclick="showPage('pawpremium')"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">Paw Premium</span></div>
       <div class="nav-item" onclick="showPage('pawspot')"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
 
       <!-- Activité -->
@@ -792,10 +793,28 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       </div>
 
       <!-- BOOSTS -->
+      <!-- v23.1.388 — section dédiée Paw Premium (Daniel) -->
+      <div id="page-pawpremium" class="page">
+        <div class="section-title">👑 Paw Premium — bundle
+          <button class="action-btn" style="margin-left:12px;background:linear-gradient(90deg,#B8860B,#FFD700);color:#15120D;font-weight:700" onclick="giftPawPremium()">👑 Offrir Paw Premium</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:760px">
+          Paw Premium = PawFollow + PawSpot + exclusifs (badge 👑, points communauté ×2, priorité nouveautés).
+          <strong style="color:#FFD700">7,99 €/mois · 59,99 €/an</strong> (-33% vs les deux séparés : 11,98 € et 89,98 €).
+          Grille complète : PawFollow 6,99/mois · 49,99/an — PawFamily 9,99/mois · 69,99/an — PawSpot 4,99/mois · 39,99/an — PawBoost 4,99→24,99 €.
+        </p>
+        <div class="stats-grid" id="pawpremium-summary"></div>
+        <div class="table-wrap" style="margin-top:14px">
+          <table class="data-table"><thead><tr>
+            <th>Nom</th><th>Email</th><th>Rôle</th><th>Plan</th><th>Expire</th>
+          </tr></thead><tbody id="pawpremium-rows"><tr><td colspan="5" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
+        </div>
+      </div>
+
       <div id="page-boosts" class="page">
         <div class="section-title">🚀 Activité boutique</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Tous les achats boutique (Boost profil, PawSpot, PawFollow/PawFamily, Chat add-on) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
+          Tous les achats boutique (PawBoost profil, PawSpot, PawFollow/PawFamily, Paw Premium, Chat add-on) pour pet-sitters, owners et walkers. Revenus, achats actifs, historique.
         </p>
         <div class="stats-grid" id="boosts-stats-grid"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -1539,6 +1558,32 @@ async function giftPawPremium() {
   }
 }
 
+// v23.1.388 — section Paw Premium : compteurs + abonnés (depuis le même
+// endpoint que PawFollow, filtré premium).
+async function loadPawPremiumAdmin() {
+  try {
+    const d = await api('/admin/pawfollow-subscriptions');
+    const c = d.counts || {};
+    const cell = (r) => (c[r] || {}).premium || 0;
+    const card = (label, v) =>
+      `<div class="stat-card" style="--accent:#B8860B"><div class="stat-label">${label}</div><div class="stat-value" style="color:#FFD700">${v}</div></div>`;
+    document.getElementById('pawpremium-summary').innerHTML =
+      card('🐶 Owners Premium', cell('owner')) +
+      card('🏠 Sitters Premium', cell('sitter')) +
+      card('🐕 Walkers Premium', cell('walker')) +
+      card('👑 Total Premium', cell('owner') + cell('sitter') + cell('walker'));
+    const rows = (d.rows || [])
+      .filter((r) => String(r.plan || '').startsWith('premium_'))
+      .map((r) =>
+        `<tr><td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.role}</td><td>${r.plan === 'premium_yearly' ? '👑 Annuel' : '👑 Mensuel'}</td><td>${r.expiry ? new Date(r.expiry).toLocaleDateString() : '—'}</td></tr>`).join('');
+    document.getElementById('pawpremium-rows').innerHTML =
+      rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun abonné Paw Premium pour le moment.</td></tr>';
+  } catch (e) {
+    document.getElementById('pawpremium-rows').innerHTML =
+      `<tr><td colspan="5" style="color:#E53935">Erreur : ${e.message}</td></tr>`;
+  }
+}
+
 // v23.1.365 — onglet PawSpot : compteurs + liste + classement PawPoints.
 async function loadPawSpotSubs() {
   try {
@@ -1605,6 +1650,7 @@ function showPage(name) {
   if (name === 'services') loadServices();
   if (name === 'pawmap') { loadPawmapStats(); loadFlaggedReports(); }
   if (name === 'pawfollow') loadPawFollowSubs();
+  if (name === 'pawpremium') loadPawPremiumAdmin();
   if (name === 'pawspot') loadPawSpotSubs();
   if (name === 'payments') loadProviderPayouts();
   if (name === 'payouts') loadCompanySweeps();
@@ -2651,7 +2697,7 @@ async function loadDashboard() {
       { label: 'Réservations payées', value: d.paidBookings, sub: 'paiements aboutis', accent: colors[1] },
       { label: 'CA brut réservations', value: `€${(d.totalRevenue||0).toFixed(2)}`, sub: 'total payé par les owners', accent: colors[2] },
       { label: '💰 Commission 20%', value: `€${(d.commissionTotal||0).toFixed(2)}`, sub: 'ta part sur les réservations', accent: colors[1] },
-      { label: '🛍️ Boutique bénéfice', value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'Boost + PawSpot + Premium + Chat', accent: colors[3] },
+      { label: '🛍️ Boutique bénéfice', value: `€${(d.boutiqueTotal||0).toFixed(2)}`, sub: 'PawBoost + PawSpot + PawFollow + Paw Premium + Chat', accent: colors[3] },
       { label: '↩️ À reverser aux prestataires', value: `€${(d.providerWalletTotal||0).toFixed(2)}`, sub: 'solde wallets sitters + walkers', accent: colors[4] },
       { label: '📦 Abonnements', value: d.subscriptions?.total || 0, sub: `€${(d.subscriptions?.totalRevenue||0).toFixed(2)} de revenus`, accent: colors[5] },
       { label: 'Pet Sitters', value: d.totalSitters, sub: 'inscrits', accent: colors[3] },

@@ -154,6 +154,13 @@ router.get(
       // timer dédié premiumExpiry → badge noir/or + points ×2.
       let premiumActive = false;
       let premiumExpiry = null;
+      // v23.1.388 — lazy-heal : aligne les timers des comptes frères (même
+      // email, autres rôles) à chaque lecture du profil — couvre les achats
+      // antérieurs et garantit « acheté en walker = visible en sitter ».
+      try {
+        const { syncAllRolesByEmail } = require('../models/UserSubscription');
+        await syncAllRolesByEmail(req.user.id, modelName);
+      } catch (_) { /* best-effort */ }
       try {
         const UserSubscriptionPs = require('../models/UserSubscription');
         const psSub = await UserSubscriptionPs.findOne({

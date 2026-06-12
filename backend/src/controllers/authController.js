@@ -166,13 +166,22 @@ const signup = async (req, res) => {
       paypalEmailRaw && typeof paypalEmailRaw === 'string' && paypalEmailRaw.trim()
         ? paypalEmailRaw.trim().toLowerCase()
         : '';
-    // Email must be unique across all three roles.
+    // v23.1.388 — Daniel : « un compte = 3 profils ». L'email ne doit être
+    // unique QUE pour le rôle demandé : un owner peut ouvrir un profil
+    // sitter/walker (et inversement) avec le MÊME email. Ses données
+    // partagées (nom, tél, adresse, CB, IBAN…) et ses forfaits sont
+    // hérités du compte existant (cf. _siblingSource plus bas).
     const existingOwner = await Owner.findOne({ email });
     const existingSitter = await Sitter.findOne({ email });
     const existingWalker = await Walker.findOne({ email });
-    if (existingOwner || existingSitter || existingWalker) {
+    const existingForRole =
+      role === 'owner' ? existingOwner : role === 'sitter' ? existingSitter : existingWalker;
+    if (existingForRole) {
       return res.status(409).json({ error: 'User with this email already exists.' });
     }
+    // Compte frère le plus pertinent comme source de copie (sitter/walker
+    // d'abord — ils portent l'IBAN — sinon owner).
+    const _siblingSource = existingSitter || existingWalker || existingOwner || null;
 
     // Process location data (optional: only when valid coordinates provided)
     const location = processLocationData(user.location);
@@ -353,6 +362,49 @@ const signup = async (req, res) => {
     } else {
       // walker
       newUser = await Walker.create(walkerPayload);
+    }
+
+    // v23.1.388 — héritage depuis le compte frère (même email, autre rôle) :
+    // 1) données partagées (nom, tél, adresse, avatar, CB, IBAN…) copiées
+    //    via la MÊME liste SHARED_FIELDS que userSyncService (cohérence) ;
+    // 2) email déjà vérifié sur le frère → pas de re-vérification ;
+    // 3) forfaits (PawFollow/PawSpot/Premium/Famille) propagés — il garde
+    //    ses jours restants sur le nouveau profil. Best-effort non bloquant.
+    let inheritedFromSibling = false;
+    if (_siblingSource) {
+      try {
+        const Model = role === 'owner' ? Owner : role === 'sitter' ? Sitter : Walker;
+        const SHARED = [
+          'name', 'firstName', 'lastName', 'fullName',
+          'mobile', 'phone', 'phoneNumber', 'countryCode',
+          'avatar', 'profileImage', 'dateOfBirth', 'dob', 'gender',
+          'address', 'city', 'postalCode', 'country', 'location',
+          'language', 'currency', 'bio', 'skills', 'card',
+          ...(role === 'owner' ? [] : [
+            'ibanHolder', 'ibanNumber', 'ibanBic', 'ibanVerified',
+            'payoutMethod', 'paypalEmail', 'paypalConnectedAt',
+          ]),
+          'verified', 'isStaff',
+        ];
+        const copy = {};
+        for (const k of SHARED) {
+          const v = _siblingSource[k];
+          if (v !== undefined && v !== null && v !== '') copy[k] = v;
+        }
+        if (Object.keys(copy).length) {
+          await Model.updateOne({ _id: newUser._id }, { $set: copy });
+          inheritedFromSibling = true;
+          // Recharge pour renvoyer le profil complété au client.
+          newUser = await Model.findById(newUser._id);
+        }
+        // Forfaits : union des timers entre tous les rôles de cet email.
+        const siblingModelName = existingSitter ? 'Sitter' : existingWalker ? 'Walker' : 'Owner';
+        const { syncAllRolesByEmail } = require('../models/UserSubscription');
+        await syncAllRolesByEmail(_siblingSource._id, siblingModelName);
+        logger.info(`[signup] ${role} ${newUser._id} hérite du profil frère (${email})`);
+      } catch (inheritErr) {
+        logger.warn(`[signup] héritage frère non appliqué : ${inheritErr.message}`);
+      }
     }
 
     // Sprint 7 step 3 — record pending Referral if a valid code was provided.

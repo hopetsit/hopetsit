@@ -131,8 +131,42 @@ export default function PawMapPage() {
         ))}
       </div>
 
+      {/* v23.1.388 — Daniel : "mets en avant le tarif Paw Premium D'ABORD,
+          puis PawFollow et PawSpot séparés". Vitrine noir/or en tête. */}
       <div className="mt-20">
-        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+        <section className="mx-auto max-w-3xl rounded-3xl border-2 border-amber-400 bg-gradient-to-b from-[#221C12] to-[#15120D] p-8 text-center shadow-xl">
+          <span className="inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-1 text-xs font-extrabold tracking-wide text-black">
+            {t("pawpremium_ribbon")}
+          </span>
+          <div className="mt-4 flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pawpremium_logo.svg" alt="Paw Premium" width={80} height={80} />
+          </div>
+          <h2 className="mt-2 font-display text-2xl font-extrabold text-yellow-400">Paw Premium 👑</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-white/85">{t("pawpremium_subtitle")}</p>
+          <div className="mx-auto mt-5 grid max-w-md gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-amber-400/50 bg-white/5 p-4">
+              <p className="text-xs font-bold text-white/85">{t("pawpremium_monthly")}</p>
+              <p className="mt-1 text-2xl font-extrabold text-yellow-400">7,99 €</p>
+              <p className="text-xs text-white/50 line-through">11,98 €</p>
+            </div>
+            <div className="relative rounded-2xl border-2 border-yellow-400 bg-white/10 p-4">
+              <span className="absolute -top-2.5 right-3 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-2 py-0.5 text-[10px] font-extrabold text-black">-33%</span>
+              <p className="text-xs font-bold text-white/85">{t("pawpremium_yearly")}</p>
+              <p className="mt-1 text-2xl font-extrabold text-yellow-400">59,99 €</p>
+              <p className="text-xs text-white/50 line-through">89,98 €</p>
+            </div>
+          </div>
+          <p className="mt-4 text-xs font-semibold text-yellow-300">{t("pawpremium_savings")}</p>
+          <Link
+            href="/boutique"
+            className="mt-5 inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3 text-sm font-bold text-black hover:brightness-110"
+          >
+            {t("pawpremium_cta")} →
+          </Link>
+        </section>
+
+        <h2 className="mt-16 text-center font-display text-3xl font-extrabold tracking-tight md:text-4xl">
           {t("pawfollow_title")}
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-base text-ink-muted">

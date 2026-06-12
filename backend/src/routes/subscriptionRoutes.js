@@ -493,6 +493,12 @@ router.post('/confirm', requireAuth, async (req, res) => {
 
     await sub.save();
 
+    // v23.1.388 — propage les timers aux comptes frères (même email).
+    try {
+      const { syncSubscriptionAcrossRoles } = require('../models/UserSubscription');
+      await syncSubscriptionAcrossRoles(userId, userModel);
+    } catch (_) { /* */ }
+
     logger.info(`[subscription] ${req.user.role} ${userId} activated ${plan} → expires ${newPeriodEnd.toISOString()}`);
 
     res.json({

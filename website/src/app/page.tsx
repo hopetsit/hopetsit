@@ -196,6 +196,33 @@ export default function HomePage() {
               {t("home_pawspot_cta")} →
             </Link>
           </div>
+
+          {/* v23.1.388 — Daniel : "en dessous de PawSpot parle aussi de
+              PawFollow + une ligne Paw Premium : les deux en un". */}
+          <div className="mt-12 grid gap-5 md:grid-cols-2">
+            <div className="rounded-2xl border-2 border-violet-300 bg-white p-6 shadow-card">
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/pawfollow_logo.svg" alt="PawFollow" width={44} height={44} />
+                <h3 className="text-lg font-extrabold text-violet-700">PawFollow</h3>
+              </div>
+              <p className="mt-3 text-sm text-ink-muted">{t("home_pawfollow_blurb")}</p>
+              <p className="mt-3 text-sm font-semibold text-violet-700">
+                {t("home_pawfollow_price_line")}
+              </p>
+            </div>
+            <div className="rounded-2xl border-2 border-amber-400 bg-gradient-to-b from-[#221C12] to-[#15120D] p-6 shadow-card">
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/pawpremium_logo.svg" alt="Paw Premium" width={44} height={44} />
+                <h3 className="text-lg font-extrabold text-yellow-400">Paw Premium 👑</h3>
+              </div>
+              <p className="mt-3 text-sm text-white/85">{t("home_pawpremium_blurb")}</p>
+              <p className="mt-3 text-sm font-semibold text-yellow-300">
+                {t("home_pawpremium_price_line")}
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

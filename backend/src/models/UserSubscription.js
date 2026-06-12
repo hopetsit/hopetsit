@@ -612,3 +612,99 @@ module.exports.getPawFollowPricing = getPawFollowPricing;
 // v23.1.387 — Paw Premium.
 module.exports.isPremiumPlan = isPremiumPlan;
 module.exports.isFamilyPlan = isFamilyPlan;
+
+// v23.1.388 — Daniel : « un compte = 3 profils ». Les forfaits (PawFollow /
+// PawSpot / Premium / Famille) SUIVENT l'utilisateur sur ses comptes frères
+// (même email, rôles différents) : acheté en walker → visible en sitter avec
+// les MÊMES jours restants. On propage le MAX de chaque timer (jamais de
+// perte, idempotent). familyMembers n'est PAS copié (liste du titulaire).
+// Appelé : aux 3 chemins d'activation, à l'inscription d'un nouveau rôle,
+// et en lazy-heal sur /users/me/benefits (couvre les achats antérieurs).
+async function syncSubscriptionAcrossRoles(userId, userModelName) {
+  try {
+    const Models = {
+      Owner: require('./Owner'),
+      Sitter: require('./Sitter'),
+      Walker: require('./Walker'),
+    };
+    const SrcUserModel = Models[userModelName];
+    if (!SrcUserModel) return;
+    const me = await SrcUserModel.findById(userId).select('email').lean();
+    const email = (me?.email || '').toLowerCase().trim();
+    if (!email) return;
+    const Model = mongoose.model('UserSubscription');
+    const src = await Model.findOne({ userId, userModel: userModelName }).lean();
+    if (!src) return;
+    const later = (a, b) => {
+      const da = a ? new Date(a) : null;
+      const db = b ? new Date(b) : null;
+      if (!da) return db;
+      if (!db) return da;
+      return da > db ? da : db;
+    };
+    for (const [name, M] of Object.entries(Models)) {
+      if (name === userModelName) continue;
+      const sib = await M.findOne({ email }).select('_id').lean();
+      if (!sib) continue;
+      let dst = await Model.findOne({ userId: sib._id, userModel: name });
+      if (!dst) dst = new Model({ userId: sib._id, userModel: name });
+      const before = `${dst.currentPeriodEnd}|${dst.pawspotExpiry}|${dst.premiumExpiry}|${dst.familyExpiry}|${dst.plan}`;
+      dst.currentPeriodEnd = later(dst.currentPeriodEnd, src.currentPeriodEnd);
+      dst.pawspotExpiry = later(dst.pawspotExpiry, src.pawspotExpiry);
+      dst.premiumExpiry = later(dst.premiumExpiry, src.premiumExpiry);
+      dst.familyExpiry = later(dst.familyExpiry, src.familyExpiry);
+      if (
+        src.plan && src.plan !== 'none' &&
+        (!dst.plan || dst.plan === 'none') &&
+        src.currentPeriodEnd && new Date(src.currentPeriodEnd) > new Date()
+      ) {
+        dst.plan = src.plan;
+      }
+      if (dst.currentPeriodEnd || dst.premiumExpiry || dst.familyExpiry || dst.pawspotExpiry) {
+        dst.status = 'active';
+        dst.currentPeriodStart = dst.currentPeriodStart || src.currentPeriodStart || new Date();
+      }
+      const after = `${dst.currentPeriodEnd}|${dst.pawspotExpiry}|${dst.premiumExpiry}|${dst.familyExpiry}|${dst.plan}`;
+      if (after !== before) {
+        await dst.save();
+        logger_safe(`[subSync] ${userModelName}→${name} (${email}) : timers alignés`);
+      }
+    }
+  } catch (e) {
+    logger_safe(`[subSync] échec non-bloquant : ${e?.message || e}`, true);
+  }
+}
+function logger_safe(msg, warn) {
+  try {
+    const logger = require('../utils/logger');
+    if (warn) logger.warn(msg); else logger.info(msg);
+  } catch (_) { /* */ }
+}
+module.exports.syncSubscriptionAcrossRoles = syncSubscriptionAcrossRoles;
+
+// v23.1.388 — variante « union complète » : pousse les timers de CHAQUE
+// compte frère vers les autres (le merge prend toujours le MAX, donc une
+// passe suffit pour converger). Utilisée par /users/me/benefits (lazy-heal)
+// et l'inscription d'un nouveau rôle : peu importe OÙ le forfait a été
+// acheté, il devient visible partout.
+async function syncAllRolesByEmail(userId, userModelName) {
+  try {
+    const Models = {
+      Owner: require('./Owner'),
+      Sitter: require('./Sitter'),
+      Walker: require('./Walker'),
+    };
+    const SrcUserModel = Models[userModelName];
+    if (!SrcUserModel) return;
+    const me = await SrcUserModel.findById(userId).select('email').lean();
+    const email = (me?.email || '').toLowerCase().trim();
+    if (!email) return;
+    for (const [name, M] of Object.entries(Models)) {
+      const acc = await M.findOne({ email }).select('_id').lean();
+      if (acc) await syncSubscriptionAcrossRoles(acc._id, name);
+    }
+  } catch (e) {
+    logger_safe(`[subSync] syncAllRolesByEmail échec : ${e?.message || e}`, true);
+  }
+}
+module.exports.syncAllRolesByEmail = syncAllRolesByEmail;

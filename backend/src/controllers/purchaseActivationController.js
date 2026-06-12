@@ -231,6 +231,13 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
     `[purchaseActivation] subscription activated ${role} ${userId} plan=${plan} → ${newExpiry.toISOString()}`,
   );
 
+  // v23.1.388 — un compte = 3 profils : les timers suivent les comptes
+  // frères (même email). Best-effort, jamais bloquant.
+  try {
+    const { syncSubscriptionAcrossRoles } = require('../models/UserSubscription');
+    await syncSubscriptionAcrossRoles(userId, userModelName);
+  } catch (_) { /* */ }
+
   // Best-effort notification.
   try {
     const { sendNotification } = require('../services/notificationSender');

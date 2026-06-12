@@ -183,9 +183,13 @@ class PawSpotController extends GetxController {
     try {
       final r = await _api?.get('/users/me/benefits', requiresAuth: true);
       if (r is Map) {
-        pawspotActive.value = r['pawspotActive'] == true;
-        followActive.value =
-            r['pawFollowActive'] == true || r['familyActive'] == true;
+        // v23.1.388 — Paw Premium actif ⇒ PawFollow ET PawSpot ON sur la
+        // carte (le backend étend déjà les timers, ceci est la ceinture).
+        final premium = r['premiumActive'] == true;
+        pawspotActive.value = r['pawspotActive'] == true || premium;
+        followActive.value = r['pawFollowActive'] == true ||
+            r['familyActive'] == true ||
+            premium;
       }
     } catch (e) {
       debugPrint('[PawSpot] refreshBenefits error: $e');
