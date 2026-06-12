@@ -899,7 +899,12 @@ async function createPayout({ beneficiaryId, amount, currency, reference, reason
 async function retrievePayout(id) {
   if (!id) throw new Error('payout id is required');
   // v23.1.304 — ressource Transfers (l'ancien /api/v1/payouts/{id} est déprécié).
-  return awxFetch(`/api/v1/transfers/${encodeURIComponent(id)}`);
+  // v23.1.386 — même version d'API épinglée que transfers/create pour que le
+  // champ `status` ait un schéma déterministe (utilisé par la sync des
+  // retraits prestataires + sweeps société).
+  return awxFetch(`/api/v1/transfers/${encodeURIComponent(id)}`, {
+    headers: { 'x-api-version': '2024-09-27' },
+  });
 }
 
 /**

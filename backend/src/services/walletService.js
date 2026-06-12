@@ -516,6 +516,69 @@ async function processPendingWithdrawals(source = 'scheduler') {
     trace.push(`ERREUR GLOBALE : ${(e?.message || String(e)).slice(0, 220)}`);
     logger.error('[wallet.processPendingWithdrawals] outer error', e);
   }
+
+  // ── v23.1.386 — SYNC des retraits 'processing' avec Airwallex ──────────
+  // Le commentaire historique promettait qu'un webhook flippait processing →
+  // completed… aucun webhook transfers n'existe : les retraits restaient
+  // 'processing' à vie même une fois l'argent arrivé (même angle mort que
+  // les sweeps société). On interroge GET /transfers/{id} à chaque tick.
+  try {
+    const airwallex = require('./airwallexService');
+    const DONE_ST = new Set(['PAID', 'SETTLED', 'DISPATCHED', 'CONFIRMED', 'SENT', 'COMPLETED', 'SUCCEEDED']);
+    const FAIL_ST = new Set(['FAILED', 'CANCELLED', 'CANCELED', 'REJECTED', 'RETURNED', 'ERROR']);
+    const inFlight = await WalletTransaction.find({
+      type: 'debit_withdrawal',
+      status: 'processing',
+      referenceId: { $ne: '' },
+    })
+      .sort({ createdAt: 1 })
+      .limit(20);
+    for (const tx of inFlight) {
+      const txRef = `${String(tx._id).slice(-8)} · ${tx.amount}€ · ${tx.userRole || '?'}`;
+      try {
+        const t = await airwallex.retrievePayout(tx.referenceId);
+        const st = String(t?.status || '').toUpperCase();
+        if (DONE_ST.has(st)) {
+          tx.status = 'completed';
+          tx.completedAt = new Date();
+          tx.failureReason = '';
+          await tx.save();
+          trace.push(`${txRef} → virement confirmé par la banque (${st}) → completed ✅`);
+          logger.info(`💸 [wallet.sync] tx ${tx._id} → completed (Airwallex ${st})`);
+          try {
+            const { sendNotification } = require('./notificationSender');
+            await sendNotification({
+              userId: String(tx.userId),
+              role: tx.userRole,
+              type: 'withdrawal_completed',
+              data: {
+                transactionId: String(tx._id),
+                amount: String(tx.amount),
+                currency: (tx.currency || 'EUR').toUpperCase(),
+              },
+              actor: { role: 'system', id: null },
+            });
+          } catch (_) { /* non-critical */ }
+        } else if (FAIL_ST.has(st)) {
+          // Pas de re-crédit automatique : le solde a été débité à la
+          // demande — l'admin décide (erreur IBAN → le provider corrige).
+          tx.status = 'failed';
+          tx.failureReason = `[${stamp()}] Virement rejeté par la banque (Airwallex : ${st}).`;
+          await tx.save();
+          trace.push(`${txRef} → virement REJETÉ par la banque (${st}) → failed`);
+          logger.warn(`[wallet.sync] tx ${tx._id} → failed (Airwallex ${st})`);
+        } else {
+          trace.push(`${txRef} → virement en cours côté banque (${st || 'statut inconnu'})`);
+        }
+      } catch (syncErr) {
+        trace.push(`${txRef} → sync statut impossible : ${(syncErr?.message || String(syncErr)).slice(0, 160)}`);
+        logger.warn(`[wallet.sync] tx ${tx._id}: ${syncErr?.message || syncErr}`);
+      }
+    }
+  } catch (e) {
+    logger.error('[wallet.sync] outer error', e);
+  }
+
   if (released > 0) {
     logger.info(`💸 [wallet.processPendingWithdrawals] released ${released} withdrawal(s).`);
   }

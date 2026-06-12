@@ -3380,9 +3380,50 @@ router.post('/setup-company-beneficiary', requireAdmin, async (req, res) => {
 });
 
 // v23.1 part 86 — historique des "Retirer mes bénéfices" passés.
+// v23.1.386 — Daniel : « mon retrait société reste En cours depuis des
+// jours ». CAUSE : le statut était écrit UNE FOIS à la création
+// ('initiated') et plus jamais relu — personne ne redemandait à Airwallex
+// où en était le virement (probablement arrivé depuis longtemps).
+// SYNC-À-LA-LECTURE : à chaque affichage de l'historique on interroge
+// GET /transfers/{id} pour les sweeps encore 'initiated' et on persiste
+// le statut réel.
+const SWEEP_DONE_ST = new Set(['PAID', 'SETTLED', 'DISPATCHED', 'CONFIRMED', 'SENT', 'COMPLETED', 'SUCCEEDED']);
+const SWEEP_FAIL_ST = new Set(['FAILED', 'CANCELLED', 'CANCELED', 'REJECTED', 'RETURNED', 'ERROR']);
+async function syncInitiatedSweeps() {
+  const CompanySweep = require('../models/CompanySweep');
+  const airwallex = require('../services/airwallexService');
+  const pending = await CompanySweep.find({ status: 'initiated', payoutId: { $ne: '' } })
+    .sort({ createdAt: -1 })
+    .limit(10);
+  for (const sweep of pending) {
+    try {
+      const t = await airwallex.retrievePayout(sweep.payoutId);
+      const st = String(t?.status || '').toUpperCase();
+      if (SWEEP_DONE_ST.has(st)) {
+        sweep.status = 'completed';
+        sweep.completedAt = new Date();
+        sweep.failureReason = '';
+        await sweep.save();
+        logger.info(`[admin/syncInitiatedSweeps] sweep ${sweep._id} → completed (Airwallex ${st})`);
+      } else if (SWEEP_FAIL_ST.has(st)) {
+        sweep.status = 'failed';
+        sweep.failureReason = `Airwallex : ${st}`;
+        await sweep.save();
+        logger.warn(`[admin/syncInitiatedSweeps] sweep ${sweep._id} → failed (Airwallex ${st})`);
+      }
+      // PENDING / PROCESSING / IN_REVIEW… → on laisse 'initiated', le
+      // prochain affichage revérifiera.
+    } catch (e) {
+      logger.warn(`[admin/syncInitiatedSweeps] ${sweep._id}: ${e.message}`);
+    }
+  }
+}
+
 router.get('/sweep-history', requireAdmin, async (req, res) => {
   try {
     const CompanySweep = require('../models/CompanySweep');
+    // v23.1.386 — statuts rafraîchis depuis Airwallex avant lecture.
+    try { await syncInitiatedSweeps(); } catch (_) { /* non bloquant */ }
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
     const items = await CompanySweep.find({})
       .sort({ createdAt: -1 })
@@ -4231,6 +4272,8 @@ router.post('/withdrawals/process-now', requireAdmin, async (req, res) => {
 router.get('/company-sweeps', requireAdmin, async (req, res) => {
   try {
     const CompanySweep = require('../models/CompanySweep');
+    // v23.1.386 — statuts rafraîchis depuis Airwallex avant lecture.
+    try { await syncInitiatedSweeps(); } catch (_) { /* non bloquant */ }
     const sweeps = await CompanySweep.find({})
       .sort({ createdAt: -1 })
       .limit(500)
