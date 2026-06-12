@@ -831,6 +831,7 @@ export default function MapPage() {
           }}
           userHaloColor={myRoleColor}
           userAvatarUrl={myAvatarUrl}
+          userIsPremium={premiumDays !== null || isStaffSub}
           focusTarget={focusTarget}
           onFriendFocus={(p) =>
             setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })

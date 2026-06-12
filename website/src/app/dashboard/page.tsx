@@ -246,9 +246,15 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* v23.1 part 146 — Navigation vers les pages portées du site.
-          Cards adaptés au rôle de l'utilisateur. */}
-      <div className="mt-8 grid gap-3 md:grid-cols-2">
+      {/* v23.1.394 — Daniel : « mon compte web en titre, mettre en valeur
+          les boutons ». Titre de section + cards relookées (NavCard). */}
+      <h2 className="mt-10 font-display text-2xl font-extrabold text-ink">
+        🌐 Mon compte web
+      </h2>
+      <p className="mt-1 text-sm text-ink-muted">
+        Tout HoPetSit depuis ton navigateur — même compte que l'app.
+      </p>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
         <NavCard
           href="/profile"
           emoji="👤"
@@ -368,16 +374,16 @@ function NavCard({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card transition hover:border-ink/15 hover:shadow-lg"
+      className="group flex items-center gap-4 rounded-2xl border-2 border-ink/5 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:border-owner/40 hover:shadow-xl"
     >
-      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-bg-soft text-2xl">
+      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-owner-light to-amber-50 text-2xl shadow-sm transition group-hover:scale-110">
         {emoji}
       </span>
       <span className="flex-1">
-        <span className="block text-sm font-bold text-ink">{title}</span>
+        <span className="block text-sm font-extrabold text-ink">{title}</span>
         <span className="block text-xs text-ink-muted">{subtitle}</span>
       </span>
-      <span className="text-ink-muted">→</span>
+      <span className="text-owner transition group-hover:translate-x-1">→</span>
     </Link>
   );
 }

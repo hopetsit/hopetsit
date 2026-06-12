@@ -229,22 +229,26 @@ function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
 // v23.1.394 — Daniel : « ma position avec MON PROFIL, pas un point ». Si
 // l'avatar est dispo → photo ronde 40px, anneau couleur du rôle + halo
 // pulsé. Sinon, fallback sur l'ancien point.
-function makeUserIcon(color: string, avatarUrl?: string | null): L.DivIcon {
+// v23.1.394 — `crown` : couronne 👑 sur l'avatar quand Paw Premium actif
+// (Daniel : « je vois pas où doit être le badge — regarde ma position »).
+function makeUserIcon(color: string, avatarUrl?: string | null, crown?: boolean): L.DivIcon {
   if (avatarUrl) {
+    const ring = crown ? "#FFD700" : color;
     return new L.DivIcon({
       className: "",
       html: `<div style="position:relative;width:40px;height:40px;">
         <div style="position:absolute;inset:-5px;border-radius:50%;
-          background:${color}45;border:2px solid ${color};
+          background:${ring}45;border:2px solid ${ring};
           animation:hps-pulse 1.8s ease-out infinite;"></div>
         <img src="${avatarUrl}" alt="" style="position:absolute;inset:0;
           width:40px;height:40px;border-radius:50%;object-fit:cover;
-          border:3px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,0.35);
+          border:3px solid ${ring};box-shadow:0 2px 8px rgba(0,0,0,0.35);
           background:#fff;" />
+        ${crown ? '<div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,0.4);">👑</div>' : ''}
       </div>`,
       iconSize: [40, 40],
       iconAnchor: [20, 20],
-      popupAnchor: [0, -20],
+      popupAnchor: [0, -26],
     });
   }
   return new L.DivIcon({
@@ -276,6 +280,7 @@ export default function PoiMap({
   roleLabels,
   userHaloColor,
   userAvatarUrl,
+  userIsPremium,
   focusTarget = null,
   onFriendFocus,
   routePoints = null,
@@ -304,6 +309,8 @@ export default function PoiMap({
   userHaloColor?: string;
   /** v23.1.394 — photo de profil affichée comme marqueur « ma position ». */
   userAvatarUrl?: string | null;
+  /** v23.1.394 — couronne 👑 + anneau OR sur le marqueur si Premium. */
+  userIsPremium?: boolean;
   /** v23.1.364 — cible de zoom (clic marqueur ami / chip nom·rôle). */
   focusTarget?: { lat: number; lng: number; ts: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
@@ -316,8 +323,8 @@ export default function PoiMap({
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   // v23.1.359 — halo "ma position" pulsant, couleur du rôle.
   const userIcon = useMemo(
-    () => makeUserIcon(userHaloColor || "#2563EB", userAvatarUrl),
-    [userHaloColor, userAvatarUrl],
+    () => makeUserIcon(userHaloColor || "#2563EB", userAvatarUrl, userIsPremium),
+    [userHaloColor, userAvatarUrl, userIsPremium],
   );
   // Re-mount la carte si le centre change radicalement (>10km).
   // v23.1.364 — BUG Daniel ("1er clic dézoome, 2e clic zoome") : le mapKey
