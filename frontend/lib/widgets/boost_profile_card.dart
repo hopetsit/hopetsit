@@ -148,25 +148,32 @@ class _BoostChip extends StatelessWidget {
                   : Icon(icon, color: Colors.white, size: 22.sp),
             ),
             SizedBox(height: 6.h),
-            PoppinsText(
-              text: label,
-              fontSize: 10.5.sp,
-              fontWeight: FontWeight.w800,
-              color: labelColor ?? Colors.white,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+            // v23.1.391 — Daniel : « qu'on arrive à lire sans coupure ».
+            // FittedBox(scaleDown) : le texte rétrécit pour TOUJOURS tenir
+            // en entier dans le carré (jamais de « Paw Premi… »).
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: PoppinsText(
+                text: label,
+                fontSize: 10.5.sp,
+                fontWeight: FontWeight.w800,
+                color: labelColor ?? Colors.white,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+              ),
             ),
             if (subLabel != null) ...[
               SizedBox(height: 1.h),
-              InterText(
-                text: subLabel!,
-                fontSize: 7.sp,
-                fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.85),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: InterText(
+                  text: subLabel!,
+                  fontSize: 7.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ],
