@@ -218,6 +218,11 @@ export default function HomePage() {
                 <h3 className="text-lg font-extrabold text-yellow-400">Paw Premium 👑</h3>
               </div>
               <p className="mt-3 text-sm text-white/85">{t("home_pawpremium_blurb")}</p>
+              <ul className="mt-3 space-y-1.5 text-left">
+            {["pawpremium_feat_pawfollow","pawpremium_feat_pawspot","pawpremium_feat_exclusive","pawpremium_feat_badge","pawpremium_feat_points","pawpremium_feat_priority"].map((k) => (
+              <li key={k} className="flex items-start gap-2 text-xs font-medium text-white/90"><span className="text-amber-400">✓</span>{t(k)}</li>
+            ))}
+              </ul>
               <p className="mt-3 text-sm font-semibold text-yellow-300">
                 {t("home_pawpremium_price_line")}
               </p>

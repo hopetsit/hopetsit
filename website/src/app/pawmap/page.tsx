@@ -144,6 +144,11 @@ export default function PawMapPage() {
           </div>
           <h2 className="mt-2 font-display text-2xl font-extrabold text-yellow-400">Paw Premium 👑</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-white/85">{t("pawpremium_subtitle")}</p>
+          <ul className="mx-auto mt-4 max-w-md space-y-1.5 text-left">
+            {["pawpremium_feat_pawfollow","pawpremium_feat_pawspot","pawpremium_feat_exclusive","pawpremium_feat_badge","pawpremium_feat_points","pawpremium_feat_priority"].map((k) => (
+              <li key={k} className="flex items-start gap-2 text-xs font-medium text-white/90"><span className="text-amber-400">✓</span>{t(k)}</li>
+            ))}
+          </ul>
           <div className="mx-auto mt-5 grid max-w-md gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-amber-400/50 bg-white/5 p-4">
               <p className="text-xs font-bold text-white/85">{t("pawpremium_monthly")}</p>

@@ -641,6 +641,15 @@ export default function MapPage() {
         </div>
       )}
 
+      {/* v23.1.388 — Daniel : bouton Paw Premium sur la carte du site. */}
+      <div className="mt-3">
+        <Link href="/boutique" className="inline-flex items-center gap-2 rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-2 text-xs font-bold text-yellow-400 hover:brightness-125">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
+          Paw Premium — PawFollow + PawSpot · 7,99 €/mois →
+        </Link>
+      </div>
+
       {/* 402 PAWFOLLOW_REQUIRED → itinéraire réservé PawFollow / PawFamily. */}
       {directionsLocked && (
         <div
