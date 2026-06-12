@@ -4210,6 +4210,22 @@ router.post('/provider-payouts/:bookingId/retry', requireAdmin, async (req, res)
   }
 });
 
+// POST /admin/withdrawals/process-now — v23.1.384. Exécute IMMÉDIATEMENT le
+// même traitement des retraits que le scheduler (5 min) et renvoie la trace
+// pas-à-pas de chaque transaction. Daniel n'a pas accès aux logs Render :
+// c'est SON outil de diagnostic quand des retraits semblent figés.
+// lastSchedulerRunAt === null ⇒ le scheduler n'a jamais tourné depuis le boot.
+router.post('/withdrawals/process-now', requireAdmin, async (req, res) => {
+  try {
+    const { processPendingWithdrawals } = require('../services/walletService');
+    const result = await processPendingWithdrawals('manual');
+    res.json(result || { error: 'Aucun résultat retourné.' });
+  } catch (e) {
+    logger.error('[admin/withdrawals/process-now]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /admin/company-sweeps — historique COMPLET des retraits société
 // (sweeps Airwallex → compte bancaire) pour l'onglet « Mes revenus ».
 router.get('/company-sweeps', requireAdmin, async (req, res) => {

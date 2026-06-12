@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v383</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v384</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -445,12 +445,16 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <th>Date</th><th>Prestataire</th><th>Rôle</th><th>Owner</th><th>Net</th><th>Statut</th><th>Erreur</th><th></th>
           </tr></thead><tbody id="provider-payouts-wrap"><tr><td colspan="8" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
         </div>
-        <div class="section-title" style="font-size:15px">🏧 Retraits wallet des prestataires</div>
-        <div style="overflow-x:auto;margin-bottom:22px">
+        <div class="section-title" style="font-size:15px">🏧 Retraits wallet des prestataires
+          <button class="action-btn" id="wd-process-btn" style="margin-left:12px;background:#16A34A;color:#fff" onclick="processWithdrawalsNow()">▶️ Traiter maintenant</button>
+        </div>
+        <div style="overflow-x:auto;margin-bottom:8px">
           <table class="data-table"><thead><tr>
             <th>Date</th><th>Prestataire</th><th>Rôle</th><th>Montant</th><th>Méthode</th><th>Statut</th><th>Réf. Airwallex</th><th>Erreur</th>
           </tr></thead><tbody id="provider-withdrawals-wrap"><tr><td colspan="8" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
         </div>
+        <!-- v23.1.384 — trace pas-à-pas du dernier « Traiter maintenant » -->
+        <pre id="wd-process-trace" style="display:none;background:var(--card-bg,#1e1e2e);border:1px solid #333;border-radius:8px;padding:12px;font-size:12px;white-space:pre-wrap;margin-bottom:22px;color:#ddd"></pre>
 
         <!-- Provider + Payout breakdown -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="payment-breakdown-row">
@@ -1337,6 +1341,33 @@ async function exportPawSpots() {
 
 // v23.1.376 — payouts prestataires (escrow → provider) + retraits wallet.
 // v23.1.382 — bouton Actualiser de la page Paiements.
+// v23.1.384 — exécute le traitement des retraits IMMÉDIATEMENT (sans
+// attendre le tick 5 min) et affiche la trace pas-à-pas renvoyée par le
+// backend : pourquoi chaque retrait est passé, bloqué ou ignoré.
+async function processWithdrawalsNow() {
+  const btn = document.getElementById('wd-process-btn');
+  const pre = document.getElementById('wd-process-trace');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Traitement…'; }
+  try {
+    const r = await api('/admin/withdrawals/process-now', 'POST');
+    const lines = (r.trace && r.trace.length) ? r.trace.join('\n') : '(aucune ligne de trace)';
+    const sched = r.lastSchedulerRunAt
+      ? new Date(r.lastSchedulerRunAt).toLocaleString('fr-FR')
+      : '⚠️ JAMAIS depuis le démarrage du serveur';
+    if (pre) {
+      pre.style.display = 'block';
+      pre.textContent =
+        `Exécuté : ${new Date(r.lastRunAt).toLocaleString('fr-FR')}\n` +
+        `Retraits pending trouvés : ${r.found} — virements envoyés : ${r.released}\n` +
+        `Dernier passage AUTO du scheduler : ${sched}\n\n${lines}`;
+    }
+    loadProviderPayouts();
+  } catch (e) {
+    if (pre) { pre.style.display = 'block'; pre.textContent = 'Erreur : ' + (e.message || e); }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '▶️ Traiter maintenant'; }
+}
+
 function refreshPaymentsPage() {
   try { loadPayments(); } catch (_) {}
   try { loadProviderPayouts(); } catch (_) {}
