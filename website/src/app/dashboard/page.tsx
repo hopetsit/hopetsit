@@ -22,6 +22,26 @@ export default function DashboardPage() {
   const { connected: socketConnected } = useSocket();
   // Toasts in-page pour les events critiques reçus.
   const [liveToast, setLiveToast] = useState<{ icon: string; text: string } | null>(null);
+  // v23.1.394 — Daniel : « mettre en valeur mon compte + où est le badge
+  // premium ? ». Statut Premium pour le badge 👑 et le cadre noir/or.
+  const [premiumLabel, setPremiumLabel] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { getSubscriptionStatus } = await import("@/lib/api");
+        const st = await getSubscriptionStatus();
+        const staff = st.currentPeriodEnd
+          ? new Date(st.currentPeriodEnd).getFullYear() >= 2090
+          : false;
+        if (st.premiumExpiry && new Date(st.premiumExpiry) > new Date()) {
+          const d = Math.ceil((new Date(st.premiumExpiry).getTime() - Date.now()) / 86400000);
+          setPremiumLabel(`👑 Paw Premium · ${d} j`);
+        } else if (staff) {
+          setPremiumLabel("👑 Paw Premium · illimité ⭐");
+        }
+      } catch { /* pas connecté / pas premium → rien */ }
+    })();
+  }, []);
   const showLiveToast = (icon: string, text: string) => {
     setLiveToast({ icon, text });
     // Auto-dismiss après 6s.
@@ -148,7 +168,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className={`rounded-3xl bg-${roleColor} p-8 text-white shadow-card md:p-12`}>
+      <div
+        className={`rounded-3xl bg-${roleColor} p-8 text-white shadow-card md:p-12 ${
+          premiumLabel
+            ? "border-4 border-[#15120D] ring-4 ring-amber-400 shadow-[0_0_28px_rgba(232,160,10,0.45)]"
+            : ""
+        }`}
+      >
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium uppercase tracking-wider opacity-80">
             {user?.role}
@@ -168,8 +194,13 @@ export default function DashboardPage() {
             <span>{socketConnected ? "Live" : "Offline"}</span>
           </div>
         </div>
-        <h1 className="mt-2 font-display text-3xl font-extrabold md:text-4xl">
-          {t("dash_welcome")}, {user?.name?.split(" ")[0] || "you"} 👋
+        <h1 className="mt-2 flex flex-wrap items-center gap-3 font-display text-3xl font-extrabold md:text-4xl">
+          <span>{t("dash_welcome")}, {user?.name?.split(" ")[0] || "you"} 👋</span>
+          {premiumLabel && (
+            <span className="rounded-full border-2 border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] px-4 py-1.5 text-sm font-extrabold text-yellow-400 shadow-lg">
+              {premiumLabel}
+            </span>
+          )}
         </h1>
         <p className="mt-3 max-w-md text-white/85">{t("dash_sub")}</p>
 
