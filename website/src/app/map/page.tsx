@@ -94,6 +94,8 @@ export default function MapPage() {
   const { t } = useT();
   const router = useRouter();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  // v23.1.397 — précision (mètres) du dernier relevé navigateur.
+  const [userAccuracy, setUserAccuracy] = useState<number | null>(null);
   const [center, setCenter] = useState<[number, number]>([48.8566, 2.3522]); // Paris default
   const [pois, setPois] = useState<Poi[]>([]);
   // v23.1.393 — Daniel : « je ne peux pas choisir rien ou sélectionner
@@ -246,23 +248,42 @@ export default function MapPage() {
       setLoading(false);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
+    // v23.1.397 — Daniel : « pourquoi je suis à côté de kasia ? ». Sur un
+    // PC, le navigateur s'estime par WiFi/IP (30-300 m d'erreur) alors que
+    // l'app utilise le GPS du téléphone. On AFFINE en continu : watchPosition
+    // pendant ~12 s, on ne garde que les relevés qui AMÉLIORENT la précision,
+    // et on expose accuracy → cercle de précision dessiné autour du marqueur.
+    let bestAcc = Infinity;
+    let firstFix = true;
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setUserLocation(loc);
-        setCenter([loc.lat, loc.lng]);
+        const acc = pos.coords.accuracy ?? 99999;
+        if (acc < bestAcc) {
+          bestAcc = acc;
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(loc);
+          setUserAccuracy(Math.round(acc));
+          if (firstFix) {
+            firstFix = false;
+            setCenter([loc.lat, loc.lng]);
+          }
+        }
         setLoading(false);
       },
       () => {
         // L'user a refusé la géoloc → fallback Paris.
         setLoading(false);
       },
-      // v23.1.394 — Daniel : « ma position mais la précise » → GPS haute
-      // précision (au lieu de la position réseau approximative).
-      // v23.1.396 — « mal géolocalisé » : position FRAÎCHE à chaque
-      // ouverture (maximumAge 0 = jamais la position en cache).
       { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 },
     );
+    const stopId = setTimeout(
+      () => navigator.geolocation.clearWatch(watchId),
+      12000,
+    );
+    return () => {
+      clearTimeout(stopId);
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [router]);
 
   // v23.1 carte unique — flags d'abonnement pour colorer les chips
@@ -834,6 +855,7 @@ export default function MapPage() {
           userHaloColor={myRoleColor}
           userAvatarUrl={myAvatarUrl}
           userIsPremium={premiumDays !== null || isStaffSub}
+          userAccuracy={userAccuracy}
           focusTarget={focusTarget}
           onFriendFocus={(p) =>
             setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })

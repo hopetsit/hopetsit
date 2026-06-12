@@ -282,6 +282,7 @@ export default function PoiMap({
   userHaloColor,
   userAvatarUrl,
   userIsPremium,
+  userAccuracy,
   focusTarget = null,
   onFriendFocus,
   routePoints = null,
@@ -312,6 +313,8 @@ export default function PoiMap({
   userAvatarUrl?: string | null;
   /** v23.1.394 — couronne 👑 + anneau OR sur le marqueur si Premium. */
   userIsPremium?: boolean;
+  /** v23.1.397 — précision (m) du relevé navigateur → cercle autour de moi. */
+  userAccuracy?: number | null;
   /** v23.1.364 — cible de zoom (clic marqueur ami / chip nom·rôle). */
   focusTarget?: { lat: number; lng: number; ts: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
@@ -386,6 +389,21 @@ export default function PoiMap({
 
         <MapMoveHandler onMove={onMapMove} />
 
+        {userLocation && userAccuracy != null && userAccuracy > 25 && (
+          // v23.1.397 — cercle de précision : sur PC la géoloc navigateur
+          // (WiFi/IP) peut dévier de 30-300 m — on le montre honnêtement.
+          <Circle
+            center={[userLocation.lat, userLocation.lng]}
+            radius={userAccuracy}
+            pathOptions={{
+              color: userHaloColor || "#2563EB",
+              fillColor: userHaloColor || "#2563EB",
+              fillOpacity: 0.08,
+              weight: 1,
+              dashArray: "6 6",
+            }}
+          />
+        )}
         {userLocation && (
           <Marker
             position={[userLocation.lat, userLocation.lng]}
@@ -393,6 +411,15 @@ export default function PoiMap({
           >
             <Popup>
               <strong>Votre position</strong>
+              {userAccuracy != null && (
+                <>
+                  <br />
+                  <span className="text-xs opacity-70">
+                    Précision ±{userAccuracy} m (géoloc navigateur — le GPS du
+                    téléphone est plus précis)
+                  </span>
+                </>
+              )}
             </Popup>
           </Marker>
         )}
