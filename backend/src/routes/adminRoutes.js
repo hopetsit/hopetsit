@@ -4221,4 +4221,41 @@ router.get('/company-sweeps', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── v23.1.379 — IBAN walkers (miroir des routes sitters : la page admin
+// « Virements IBAN » n'affichait QUE les sitters, les walkers étaient
+// invisibles) ──────────────────────────────────────────────────────────────
+router.get('/walkers/:id/iban', requireAdmin, async (req, res) => {
+  try {
+    const Walker = require('../models/Walker');
+    const walker = await Walker.findById(req.params.id).select('ibanHolder ibanNumber ibanBic ibanVerified payoutMethod');
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    const iban = decrypt(walker.ibanNumber);
+    const masked = iban ? iban.slice(0, 4) + '****' + iban.slice(-4) : '';
+    res.json({
+      ibanHolder: walker.ibanHolder,
+      ibanNumberMasked: masked,
+      ibanBic: walker.ibanBic,
+      ibanVerified: walker.ibanVerified,
+      payoutMethod: walker.payoutMethod,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/walkers/:id/iban/verify', requireAdmin, async (req, res) => {
+  try {
+    const Walker = require('../models/Walker');
+    const walker = await Walker.findByIdAndUpdate(
+      req.params.id,
+      { ibanVerified: true },
+      { new: true },
+    ).select('-password');
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    res.json({ message: 'IBAN verified.', ibanVerified: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

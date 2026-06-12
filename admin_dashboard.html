@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v378</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v379</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -3395,24 +3395,33 @@ async function retryPayoutFromModal(bookingId) {
 async function loadIbanSitters() {
   document.getElementById('iban-table-body').innerHTML = '<div class="loading"><div class="spinner"></div> Loading IBAN data...</div>';
   try {
-    const d = await api('/admin/sitters?limit=100');
-    const sitters = (d.sitters || []).filter(s => s.payoutMethod === 'iban' || s.ibanHolder);
+    // v23.1.379 — la page n'affichait QUE les sitters → les IBAN des
+    // WALKERS (auto-vérifiés à l'enregistrement) étaient invisibles.
+    const [ds, dw] = await Promise.all([
+      api('/admin/sitters?limit=300'),
+      api('/admin/walkers?limit=300'),
+    ]);
+    const sitters = [
+      ...(ds.sitters || []).map(s => ({ ...s, _role: 'sitter' })),
+      ...(dw.walkers || []).map(w => ({ ...w, _role: 'walker' })),
+    ].filter(s => s.payoutMethod === 'iban' || s.ibanHolder);
     if (!sitters.length) {
       document.getElementById('iban-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">🏦</div><div>Aucun provider n\'a soumis ses coordonnées bancaires.</div></div>';
       return;
     }
     // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     document.getElementById('iban-table-body').innerHTML = `
-      <table><thead><tr><th>Sitter</th><th>Email</th><th>Account Holder</th><th>IBAN (masked)</th><th>BIC</th><th>Status</th><th>Action</th></tr></thead>
+      <table><thead><tr><th>Provider</th><th>Rôle</th><th>Email</th><th>Account Holder</th><th>IBAN (masked)</th><th>BIC</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>${sitters.map(s => `
         <tr>
           <td><strong>${escapeHtml(s.name||'-')}</strong></td>
+          <td>${s._role === 'walker' ? '🐕 walker' : '🏠 sitter'}</td>
           <td style="color:var(--text-muted)">${escapeHtml(s.email||'-')}</td>
           <td>${escapeHtml(s.ibanHolder||'-')}</td>
           <td style="font-family:monospace">${escapeHtml(maskIban(s.ibanNumber))}</td>
           <td>${escapeHtml(s.ibanBic||'-')}</td>
           <td>${s.ibanVerified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">À vérifier</span>'}</td>
-          <td><button class="action-btn btn-verify" onclick="openIbanModal('${s._id}')">Examiner</button></td>
+          <td><button class="action-btn btn-verify" onclick="openIbanModal('${s._id}', '${s._role}')">Examiner</button></td>
         </tr>
       `).join('')}</tbody></table>
     `;
@@ -3422,10 +3431,11 @@ function maskIban(iban) {
   if (!iban) return '-';
   return iban.slice(0,4) + '****' + iban.slice(-4);
 }
-async function openIbanModal(sitterId) {
+async function openIbanModal(sitterId, role = 'sitter') {
   currentIbanSitterId = sitterId;
+  window._currentIbanRole = role;
   try {
-    const d = await api(`/admin/sitters/${sitterId}/iban`);
+    const d = await api(`/admin/${role === 'walker' ? 'walkers' : 'sitters'}/${sitterId}/iban`);
     document.getElementById('modal-iban-content').innerHTML = `
       <div class="modal-field"><label class="modal-label">Titulaire du compte</label><div class="modal-value">${d.ibanHolder||'-'}</div></div>
       <div class="modal-field"><label class="modal-label">IBAN (masqué)</label><div class="modal-value" style="font-family:monospace">${d.ibanNumberMasked||'-'}</div></div>
@@ -3435,13 +3445,13 @@ async function openIbanModal(sitterId) {
     `;
     const btn = document.getElementById('modal-iban-verify-btn');
     btn.style.display = d.ibanVerified ? 'none' : '';
-    btn.onclick = () => verifyIban(sitterId);
+    btn.onclick = () => verifyIban(sitterId, role);
     document.getElementById('iban-modal').classList.add('open');
   } catch(e) { showToast('Erreur de chargement IBAN : ' + e.message, 'error'); }
 }
-async function verifyIban(sitterId) {
+async function verifyIban(sitterId, role = 'sitter') {
   try {
-    await api(`/admin/sitters/${sitterId}/iban/verify`, 'PATCH');
+    await api(`/admin/${role === 'walker' ? 'walkers' : 'sitters'}/${sitterId}/iban/verify`, 'PATCH');
     closeModal('iban-modal');
     loadIbanSitters();
     showToast('IBAN vérifié ✓ — le provider peut maintenant recevoir des virements !', 'success');
