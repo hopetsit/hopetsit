@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v379</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v380</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -3753,7 +3753,8 @@ async function loadAdminWallets() {
       sum.innerHTML =
         '<div class="stat-card"><div class="stat-label">Total balance</div><div class="stat-value">' + (s.totalBalance||0).toFixed(2) + ' EUR</div></div>' +
         '<div class="stat-card"><div class="stat-label">Providers with balance</div><div class="stat-value">' + (s.providerCount||0) + '</div></div>' +
-        '<div class="stat-card"><div class="stat-label">IBAN configurés (Airwallex)</div><div class="stat-value">' + (s.ibanConnectedCount ?? s.stripeConnectedCount ?? 0) + '</div></div>';
+        '<div class="stat-card"><div class="stat-label">IBAN configurés (Airwallex)</div><div class="stat-value">' + (s.ibanConnectedCount ?? s.stripeConnectedCount ?? 0) + '</div></div>' +
+        '<div class="stat-card" style="--accent:#F59E0B"><div class="stat-label">💸 Retraits en attente</div><div class="stat-value" style="color:#F59E0B">' + (s.pendingWithdrawalsTotal ?? 0).toFixed(2) + ' EUR</div><div class="stat-sub">débités des wallets, en route vers les IBAN</div></div>';
     }
     // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     const rows = (data.wallets||[]).map(w => {

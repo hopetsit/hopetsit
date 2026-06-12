@@ -97,6 +97,9 @@ router.put('/iban', requireAuth, requireProviderRole, async (req, res) => {
           iban:       normalizedIban,
           bic:        ibanUpdate.ibanBic,
           currency:   'EUR',
+          // v23.1.380 — adresse profil (Airwallex exige beneficiary.address).
+          addressLine: provider.address || '',
+          addressCity: (provider.location && provider.location.city) || '',
         });
         if (ben && ben.id) {
           await Model.findByIdAndUpdate(provider._id, {

@@ -112,8 +112,16 @@ async function awxFetch(path, { method = 'GET', body, query, headers: extraHeade
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
 
   if (!res.ok) {
+    // v23.1.380 — les erreurs de validation Airwallex arrivent souvent SANS
+    // message top-level (juste code + errors[]) → le fallback générique
+    // cachait la cause ("Airwallex API error 400"). On embarque un extrait
+    // du body pour que l'admin/logs montrent le VRAI champ rejeté.
+    const detail = data?.message
+      || (data ? JSON.stringify(data).slice(0, 280) : '');
     const err = new Error(
-      data?.message || `Airwallex API error ${res.status} on ${method} ${path}`,
+      detail
+        ? `Airwallex ${res.status} ${method} ${path}: ${detail}`
+        : `Airwallex API error ${res.status} on ${method} ${path}`,
     );
     err.status   = res.status;
     err.code     = data?.code;
@@ -561,6 +569,14 @@ async function createBeneficiary({
   bic,
   currency = 'EUR',
   bankCountryCode,
+  // v23.1.380 — Airwallex EXIGE beneficiary.address (street_address + city +
+  // country_code) aussi pour les bénéficiaires PERSONNELS : son absence
+  // était la cause du 400 systématique → aucun prestataire n'avait de
+  // bénéficiaire → tous les retraits restaient pending.
+  addressLine,
+  addressCity,
+  addressCountryCode,
+  postalCode,
 }) {
   if (!providerId) throw new Error('providerId is required');
   if (!holderName) throw new Error('holderName is required');
@@ -596,6 +612,18 @@ async function createBeneficiary({
         },
         first_name: holderName.split(' ')[0] || holderName,
         last_name:  holderName.split(' ').slice(1).join(' ') || holderName,
+        // v23.1.380 — adresse obligatoire (cf. createCompanyBeneficiary qui
+        // FONCTIONNE et l'envoie depuis le part 93). Best-effort depuis le
+        // profil ; fallback neutre pour ne jamais bloquer un virement SEPA.
+        address: {
+          street_address: (addressLine || 'Address not provided').trim().slice(0, 100),
+          city: (addressCity || 'N/A').trim().slice(0, 50),
+          country_code: (addressCountryCode || country || 'ES').toUpperCase(),
+          ...((postalCode || '').toString().trim() &&
+              !/^0+$/.test((postalCode || '').toString().replace(/\s+/g, ''))
+            ? { postcode: (postalCode || '').toString().trim() }
+            : {}),
+        },
       },
       payment_methods: ['LOCAL'],
     },

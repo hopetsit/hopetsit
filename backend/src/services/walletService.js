@@ -285,7 +285,7 @@ async function processPendingWithdrawals() {
         const Model = _roleModel(tx.userRole);
         if (!Model) continue;
         const user = await Model.findById(tx.userId).select(
-          'airwallexBeneficiaryId ibanVerified ibanHolder ibanNumber ibanBic name email',
+          'airwallexBeneficiaryId ibanVerified ibanHolder ibanNumber ibanBic name email address location',
         );
         if (!user) {
           logger.warn(`[wallet.processPendingWithdrawals] user not found ${tx.userId}`);
@@ -310,6 +310,9 @@ async function processPendingWithdrawals() {
                   iban: plainIban,
                   bic: user.ibanBic || undefined,
                   currency: tx.currency || 'EUR',
+                  // v23.1.380 — adresse profil (exigée par Airwallex).
+                  addressLine: user.address || '',
+                  addressCity: (user.location && user.location.city) || '',
                 });
                 if (ben && ben.id) {
                   user.airwallexBeneficiaryId = ben.id;

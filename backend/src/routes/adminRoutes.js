@@ -2596,11 +2596,15 @@ router.get('/wallets', requireAdmin, async (req, res) => {
     const Sitter = require('../models/Sitter');
     const Walker = require('../models/Walker');
     const [sitters, walkers] = await Promise.all([
-      Sitter.find({ walletBalance: { $gt: 0 } })
+      // v23.1.380 — Daniel : "dans Portefeuilles y a plus rien". Un solde à 0
+      // est NORMAL après un retrait (le débit part en demande pending) — mais
+      // la page devenait vide. On liste aussi les providers qui ont un IBAN
+      // (donc une vie financière), même à solde nul.
+      Sitter.find({ $or: [{ walletBalance: { $gt: 0 } }, { ibanNumber: { $nin: ['', null] } }] })
         .select('name email walletBalance walletCurrency airwallexBeneficiaryId')
         .limit(200)
         .lean(),
-      Walker.find({ walletBalance: { $gt: 0 } })
+      Walker.find({ $or: [{ walletBalance: { $gt: 0 } }, { ibanNumber: { $nin: ['', null] } }] })
         .select('name email walletBalance walletCurrency airwallexBeneficiaryId')
         .limit(200)
         .lean(),
@@ -2627,6 +2631,18 @@ router.get('/wallets', requireAdmin, async (req, res) => {
     // v23.1.377 — Stripe purgé : l'indicateur devient le bénéficiaire Airwallex (IBAN prêt pour les virements).
     const connectedCount = rows.filter((r) => !!r.airwallexBeneficiaryId).length;
 
+    // v23.1.380 — total des retraits EN ATTENTE (l'argent "disparu" des
+    // soldes est ici : débité du wallet à la demande, en route vers l'IBAN).
+    let pendingWithdrawalsTotal = 0;
+    try {
+      const WalletTransaction = require('../models/WalletTransaction');
+      const agg = await WalletTransaction.aggregate([
+        { $match: { type: 'debit_withdrawal', status: { $in: ['pending', 'processing'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]);
+      pendingWithdrawalsTotal = Math.round(Number(agg[0]?.total || 0) * 100) / 100;
+    } catch (_) {/* défensif */}
+
     res.json({
       wallets: rows,
       summary: {
@@ -2634,6 +2650,7 @@ router.get('/wallets', requireAdmin, async (req, res) => {
         providerCount: rows.length,
         ibanConnectedCount: connectedCount,
         stripeConnectedCount: connectedCount, // alias rétro-compat front
+        pendingWithdrawalsTotal,
       },
     });
   } catch (e) {
