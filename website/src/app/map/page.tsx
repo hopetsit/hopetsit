@@ -447,6 +447,27 @@ export default function MapPage() {
     }
   }, [router]);
 
+  // v23.1.391 — Daniel : « mes amis et les spots n'apparaissent pas ».
+  // Quand l'abonnement est ACTIF (PawFollow/Famille/Premium/staff), les
+  // couches s'allument AUTOMATIQUEMENT au chargement — comme dans l'app.
+  const autoLayersRef = useRef(false);
+  useEffect(() => {
+    if (!benefits || autoLayersRef.current) return;
+    autoLayersRef.current = true;
+    const premium = benefits.premiumActive === true;
+    const staff = benefits.isPremium === true; // staff/abo individuel actif
+    if (premium || benefits.pawFollowActive || benefits.familyActive || staff) {
+      setShowFriends(true);
+      if (!friendsLoadedRef.current) {
+        friendsLoadedRef.current = true;
+        void loadFriends();
+      }
+    }
+    if (premium || benefits.pawspotActive || staff) {
+      setShowSpots(true);
+    }
+  }, [benefits, loadFriends]);
+
   function toggleFriendsLayer() {
     const next = !showFriends;
     setShowFriends(next);
@@ -558,7 +579,9 @@ export default function MapPage() {
   const pawFollowSubscribed = !!(
     benefits?.pawFollowActive || benefits?.familyActive
   );
-  const pawSpotSubscribed = !!benefits?.pawspotActive;
+  const pawSpotSubscribed = !!(
+    benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">

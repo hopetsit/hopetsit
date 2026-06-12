@@ -1185,6 +1185,9 @@ export type MyBenefits = {
   pawFollowActive: boolean;
   familyActive: boolean;
   pawspotActive: boolean;
+  // v23.1.391 — Paw Premium (bundle) + staff/abo individuel.
+  premiumActive: boolean;
+  isPremium: boolean;
 };
 
 export async function getMyBenefits(): Promise<MyBenefits | null> {
@@ -1193,8 +1196,12 @@ export async function getMyBenefits(): Promise<MyBenefits | null> {
       pawFollowActive?: boolean;
       familyActive?: boolean;
       pawspotActive?: boolean;
+      premiumActive?: boolean;
+      isPremium?: boolean;
     }>(`/users/me/benefits`);
     return {
+      premiumActive: !!raw?.premiumActive,
+      isPremium: !!raw?.isPremium,
       pawFollowActive: !!raw?.pawFollowActive,
       familyActive: !!raw?.familyActive,
       pawspotActive: !!raw?.pawspotActive,
