@@ -41,7 +41,7 @@ import {
 } from "@/lib/api";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
-type Section = "premium" | "boost" | "mapboost";
+type Section = "premium" | "boost" | "mapboost" | "pawpremium";
 
 export default function BoutiquePage() {
   const { t } = useT();
@@ -153,7 +153,8 @@ export default function BoutiquePage() {
     }
   }
 
-  async function handleSubscribePlan(plan: "monthly" | "yearly" | "family") {
+  // v23.1.387 — type élargi : + family_yearly, premium_monthly, premium_yearly.
+  async function handleSubscribePlan(plan: string) {
     return startCheckout(
       "subscription",
       plan,
@@ -260,7 +261,27 @@ export default function BoutiquePage() {
           onClick={() => setSection("mapboost")}
           icon={<PawSpotGoldCoin size={18} />}
         />
+        {/* v23.1.387 — Paw Premium : bundle PawFollow + PawSpot + exclusifs. */}
+        <SectionTab
+          label={t("shop_tab_pawpremium")}
+          active={section === "pawpremium"}
+          onClick={() => setSection("pawpremium")}
+          icon={
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/pawpremium_logo.svg" alt="" width={18} height={18} />
+          }
+        />
       </div>
+
+      {section === "pawpremium" && (
+        <PawPremiumSection
+          plans={plans}
+          status={subStatus}
+          onSubscribe={handleSubscribePlan}
+          purchasing={purchasing}
+          t={t}
+        />
+      )}
 
       {section === "premium" && (
         <PremiumSection
@@ -378,7 +399,8 @@ function PremiumSection({
 }: {
   plans: SubscriptionPlan[];
   status: SubscriptionStatus | null;
-  onSubscribe: (plan: "monthly" | "yearly" | "family") => void;
+  // v23.1.387 — + family_yearly (les premium_* sont filtrés de cette section).
+  onSubscribe: (plan: string) => void;
   onCancel: () => void;
   onResume: () => void;
   purchasing: string | null;
@@ -446,18 +468,20 @@ function PremiumSection({
         </div>
       )}
 
-      {/* Plans */}
+      {/* Plans — v23.1.387 : les plans premium_* ont leur PROPRE section. */}
       {!isPremium && (
-        <div className="grid gap-4 md:grid-cols-3">
-          {plans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              onPurchase={() => onSubscribe(plan.id)}
-              purchasing={purchasing === `plan-${plan.id}`}
-              highlighted={plan.id === "yearly"}
-            />
-          ))}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {plans
+            .filter((plan) => !plan.id.startsWith("premium_"))
+            .map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                onPurchase={() => onSubscribe(plan.id)}
+                purchasing={purchasing === `plan-${plan.id}`}
+                highlighted={plan.id === "yearly"}
+              />
+            ))}
         </div>
       )}
     </div>
@@ -485,6 +509,10 @@ function PlanCard({
     monthly: "Mensuel",
     yearly: "Annuel",
     family: "Famille",
+    // v23.1.387 — Famille annuel (-42%) + plans Paw Premium.
+    family_yearly: "Famille Annuel",
+    premium_monthly: "Paw Premium Mensuel",
+    premium_yearly: "Paw Premium Annuel",
   };
 
   return (
@@ -513,10 +541,12 @@ function PlanCard({
         <FeatureLi>Signalements communautaires complets</FeatureLi>
         <FeatureLi>Amis sur la carte + alertes proximité</FeatureLi>
         <FeatureLi>Chat sans limite</FeatureLi>
-        {plan.id === "yearly" && (
+        {(plan.id === "yearly" || plan.id === "family_yearly") && (
           <FeatureLi>+12 crédits PawSpot offerts (1/mois)</FeatureLi>
         )}
-        {plan.id === "family" && <FeatureLi>Jusqu&apos;à 4 utilisateurs</FeatureLi>}
+        {(plan.id === "family" || plan.id === "family_yearly") && (
+          <FeatureLi>Jusqu&apos;à 5 utilisateurs</FeatureLi>
+        )}
       </ul>
       <button
         type="button"
@@ -525,6 +555,164 @@ function PlanCard({
         className="mt-6 w-full rounded-full bg-walker px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
       >
         {purchasing ? "Ouverture app…" : "S'abonner"}
+      </button>
+    </div>
+  );
+}
+
+// ─── v23.1.387 — Paw Premium (bundle PawFollow + PawSpot + exclusifs) ───────
+// Vitrine noir/or fidèle au mockup Daniel : ruban « LE PLUS COMPLET 👑 »,
+// 6 avantages, prix barrés des deux abos séparés, -33%.
+function PawPremiumSection({
+  plans,
+  status,
+  onSubscribe,
+  purchasing,
+  t,
+}: {
+  plans: SubscriptionPlan[];
+  status: SubscriptionStatus | null;
+  onSubscribe: (plan: string) => void;
+  purchasing: string | null;
+  t: (k: string) => string;
+}) {
+  const monthly = plans.find((p) => p.id === "premium_monthly");
+  const yearly = plans.find((p) => p.id === "premium_yearly");
+  const monthlyPrice = monthly?.amount ?? 7.99;
+  const yearlyPrice = yearly?.amount ?? 59.99;
+  const cur = monthly?.currency ?? "EUR";
+  const fmt = (n: number) =>
+    `${n.toFixed(2).replace(".", ",")} ${cur === "EUR" ? "€" : cur}`;
+  const bundleActive = status?.premiumBundleActive === true;
+  const expiry = status?.premiumExpiry
+    ? new Date(status.premiumExpiry)
+    : null;
+
+  const features = [
+    t("pawpremium_feat_pawfollow"),
+    t("pawpremium_feat_pawspot"),
+    t("pawpremium_feat_exclusive"),
+    t("pawpremium_feat_badge"),
+    t("pawpremium_feat_points"),
+    t("pawpremium_feat_priority"),
+  ];
+
+  return (
+    <div className="mt-8">
+      {bundleActive && (
+        <div className="mb-6 flex items-center gap-3 rounded-2xl border-2 border-amber-400 bg-amber-50 p-5 shadow-card">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={34} height={34} />
+          <p className="text-sm font-semibold text-ink">
+            {t("pawpremium_active")}
+            {expiry && (
+              <span className="ml-1 text-ink-muted">
+                · {expiry.toLocaleDateString("fr-FR")}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      <section className="relative overflow-hidden rounded-3xl border-2 border-amber-400 bg-gradient-to-b from-[#221C12] to-[#15120D] p-8 text-center shadow-xl">
+        <span className="inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-1 text-xs font-extrabold tracking-wide text-black">
+          {t("pawpremium_ribbon")}
+        </span>
+        <div className="mt-5 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pawpremium_logo.svg" alt="Paw Premium" width={96} height={96} />
+        </div>
+        <h2 className="mt-3 font-display text-3xl font-extrabold text-yellow-400">
+          Paw Premium
+        </h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-white/85">
+          {t("pawpremium_subtitle")}
+        </p>
+        <p className="mx-auto mt-4 inline-flex items-center gap-1 rounded-full border border-amber-400/50 bg-white/5 px-4 py-1.5 text-xs font-bold">
+          <span className="text-white/90">{t("pawpremium_includes")}</span>
+          <span className="text-violet-300">PAWFOLLOW</span>
+          <span className="text-white/90">+</span>
+          <span className="text-yellow-400">PAWSPOT</span>
+        </p>
+
+        <ul className="mx-auto mt-6 max-w-md space-y-2 text-left">
+          {features.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-sm font-medium text-white/90">
+              <span className="mt-0.5 text-amber-400">✓</span>
+              {f}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mx-auto mt-7 grid max-w-md gap-4 sm:grid-cols-2">
+          <PawPremiumPlanCard
+            label={t("pawpremium_monthly")}
+            price={fmt(monthlyPrice)}
+            strike={fmt(11.98)}
+            pct="-33%"
+            purchasing={purchasing === "plan-premium_monthly"}
+            onClick={() => onSubscribe("premium_monthly")}
+            cta={t("pawpremium_cta")}
+          />
+          <PawPremiumPlanCard
+            label={t("pawpremium_yearly")}
+            price={fmt(yearlyPrice)}
+            strike={fmt(89.98)}
+            pct="-33%"
+            highlight
+            purchasing={purchasing === "plan-premium_yearly"}
+            onClick={() => onSubscribe("premium_yearly")}
+            cta={t("pawpremium_cta")}
+          />
+        </div>
+        <p className="mt-5 text-xs font-semibold text-yellow-300">
+          {t("pawpremium_savings")}
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function PawPremiumPlanCard({
+  label,
+  price,
+  strike,
+  pct,
+  highlight = false,
+  purchasing,
+  onClick,
+  cta,
+}: {
+  label: string;
+  price: string;
+  strike: string;
+  pct: string;
+  highlight?: boolean;
+  purchasing: boolean;
+  onClick: () => void;
+  cta: string;
+}) {
+  return (
+    <div
+      className={`relative rounded-2xl border p-5 ${
+        highlight
+          ? "border-yellow-400 bg-white/10"
+          : "border-amber-400/50 bg-white/5"
+      }`}
+    >
+      <span className="absolute -top-2.5 right-3 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-2 py-0.5 text-[10px] font-extrabold text-black">
+        {pct}
+      </span>
+      <p className="text-xs font-bold text-white/85">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold text-yellow-400">{price}</p>
+      <p className="text-xs text-white/50 line-through">{strike}</p>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={purchasing}
+        className="mt-3 w-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-2 text-xs font-bold text-black hover:brightness-110 disabled:opacity-60"
+      >
+        {purchasing ? "…" : cta}
       </button>
     </div>
   );

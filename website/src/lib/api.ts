@@ -1208,11 +1208,16 @@ export async function getMyBenefits(): Promise<MyBenefits | null> {
 // ─── Subscriptions (PawFollow Premium) ──────────────────────────────────────
 
 export type SubscriptionPlan = {
-  id: "monthly" | "yearly" | "family";
+  // v23.1.387 — élargi : + family_yearly, premium_monthly, premium_yearly.
+  id: string;
   name?: string;
+  /** Clé brute renvoyée par le backend (champ `plan`). */
+  plan?: string;
+  label?: string;
   amount: number;
   currency: string;
   intervalDays: number;
+  amountPerDay?: number;
   features?: Record<string, boolean | number>;
 };
 
@@ -1220,6 +1225,10 @@ export type SubscriptionStatus = {
   plan: string | null;
   status: "active" | "cancelled" | "expired" | "none";
   isPremium: boolean;
+  // v23.1.387 — Paw Premium (bundle PawFollow + PawSpot + extras).
+  premiumBundleActive?: boolean;
+  premiumExpiry?: string | null;
+  pawspotExpiry?: string | null;
   features?: Record<string, boolean | number>;
   currentPeriodStart?: string;
   currentPeriodEnd?: string;
@@ -1234,7 +1243,13 @@ export async function getSubscriptionPlans(
   const raw = await request<{ plans?: SubscriptionPlan[] }>(
     `/subscriptions/plans${qs}`,
   );
-  return raw.plans || [];
+  // v23.1.387 — le backend renvoie la clé sous `plan` (pas `id`) : on
+  // normalise pour que plan.id soit TOUJOURS rempli (labels, highlight,
+  // filtres premium_* de la boutique).
+  return (raw.plans || []).map((p) => ({
+    ...p,
+    id: p.id ?? p.plan ?? "",
+  }));
 }
 
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
@@ -1242,7 +1257,8 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
 }
 
 export async function subscribeToPlan(
-  plan: "monthly" | "yearly" | "family",
+  // v23.1.387 — + family_yearly, premium_monthly, premium_yearly.
+  plan: string,
   currency?: string,
 ): Promise<{ clientSecret: string; paymentIntentId: string; amount: number; currency: string }> {
   return await request("/subscriptions/subscribe", {

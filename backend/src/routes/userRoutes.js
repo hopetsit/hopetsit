@@ -150,15 +150,24 @@ router.get(
       // Fix : require local + new Date() direct + warn loggé.
       let pawspotActive = false;
       let pawspotExpiry = null;
+      // v23.1.387 — Paw Premium (bundle PawFollow + PawSpot + extras) :
+      // timer dédié premiumExpiry → badge noir/or + points ×2.
+      let premiumActive = false;
+      let premiumExpiry = null;
       try {
         const UserSubscriptionPs = require('../models/UserSubscription');
         const psSub = await UserSubscriptionPs.findOne({
           userId: req.user.id,
           userModel: modelName,
-        }).select('pawspotExpiry').lean();
-        if (psSub?.pawspotExpiry && new Date(psSub.pawspotExpiry) > new Date()) {
+        }).select('pawspotExpiry premiumExpiry').lean();
+        const _bn = new Date();
+        if (psSub?.pawspotExpiry && new Date(psSub.pawspotExpiry) > _bn) {
           pawspotActive = true;
           pawspotExpiry = psSub.pawspotExpiry;
+        }
+        if (psSub?.premiumExpiry && new Date(psSub.premiumExpiry) > _bn) {
+          premiumActive = true;
+          premiumExpiry = psSub.premiumExpiry;
         }
       } catch (e) {
         logger.warn(`[users/me/benefits] pawspot lookup failed : ${e.message}`);
@@ -172,6 +181,8 @@ router.get(
         mapBoostTier: user.mapBoostTier || null,
         pawspotActive,
         pawspotExpiry,
+        premiumActive,
+        premiumExpiry,
         pawPoints: user.pawPoints || 0,
         mapBoostLocation: user.mapBoostLocation || null,
         kycStatus: user.kycStatus || 'none',

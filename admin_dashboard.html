@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v386</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v387</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -709,9 +709,11 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- v23.1.365 — PAWFOLLOW (abos mensuel/annuel/famille par rôle) -->
       <div id="page-pawfollow" class="page">
-        <div class="section-title">⭐ <span data-i18n="pawfollow_admin_title">PawFollow — abonnements</span></div>
+        <div class="section-title">⭐ <span data-i18n="pawfollow_admin_title">PawFollow — abonnements</span>
+          <button class="action-btn" style="margin-left:12px;background:linear-gradient(90deg,#B8860B,#FFD700);color:#15120D;font-weight:700" onclick="giftPawPremium()">👑 Offrir Paw Premium</button>
+        </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
-          Abonnements PawFollow (mensuel 6,99 € / annuel 49,99 €) et PawFamily (9,99 €/mois) ACTIFS, par type de compte.
+          Abonnements ACTIFS par type de compte — PawFollow (6,99 €/mois · 49,99 €/an) · PawFamily (9,99 €/mois · 69,99 €/an) · 👑 Paw Premium = PawFollow + PawSpot + exclusifs (7,99 €/mois · 59,99 €/an, -33% vs séparés).
         </p>
         <div class="stats-grid" id="pawfollow-summary"></div>
         <div style="margin-top:20px;overflow-x:auto">
@@ -1486,20 +1488,28 @@ async function loadPawFollowSubs() {
   try {
     const d = await api('/admin/pawfollow-subscriptions');
     const c = d.counts || {};
-    const cell = (r) => c[r] || { monthly: 0, yearly: 0, family: 0 };
+    const cell = (r) => c[r] || { monthly: 0, yearly: 0, family: 0, premium: 0 };
     const card = (label, v, accent) =>
       `<div class="stat-card" style="--accent:${accent}"><div class="stat-label">${label}</div><div class="stat-value" style="color:${accent}">${v}</div></div>`;
     document.getElementById('pawfollow-summary').innerHTML =
       card('🐶 Owners — mensuel', cell('owner').monthly, '#EF4324') +
       card('🐶 Owners — annuel', cell('owner').yearly, '#EF4324') +
       card('🐶 Owners — famille', cell('owner').family, '#8B5CF6') +
+      card('🐶 Owners — 👑 Premium', cell('owner').premium, '#B8860B') +
       card('🏠 Sitters — mensuel', cell('sitter').monthly, '#2563EB') +
       card('🏠 Sitters — annuel', cell('sitter').yearly, '#2563EB') +
       card('🏠 Sitters — famille', cell('sitter').family, '#8B5CF6') +
+      card('🏠 Sitters — 👑 Premium', cell('sitter').premium, '#B8860B') +
       card('🐕 Walkers — mensuel', cell('walker').monthly, '#16A34A') +
       card('🐕 Walkers — annuel', cell('walker').yearly, '#16A34A') +
-      card('🐕 Walkers — famille', cell('walker').family, '#8B5CF6');
-    const planLabel = { monthly: '📆 Mensuel', yearly: '📅 Annuel', family: '👨‍👩‍👧 Famille' };
+      card('🐕 Walkers — famille', cell('walker').family, '#8B5CF6') +
+      card('🐕 Walkers — 👑 Premium', cell('walker').premium, '#B8860B');
+    // v23.1.387 — + plans Paw Premium et Famille annuel.
+    const planLabel = {
+      monthly: '📆 Mensuel', yearly: '📅 Annuel',
+      family: '👨‍👩‍👧 Famille', family_yearly: '👨‍👩‍👧 Famille Annuel',
+      premium_monthly: '👑 Paw Premium Mensuel', premium_yearly: '👑 Paw Premium Annuel',
+    };
     const rows = (d.rows || []).map((r) =>
       `<tr><td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.role}</td><td>${planLabel[r.plan] || r.plan}</td><td>${r.expiry ? new Date(r.expiry).toLocaleDateString() : '—'}</td></tr>`).join('');
     document.getElementById('pawfollow-rows').innerHTML =
@@ -1507,6 +1517,25 @@ async function loadPawFollowSubs() {
   } catch (e) {
     document.getElementById('pawfollow-rows').innerHTML =
       `<tr><td colspan="5" style="color:#E53935">Erreur : ${e.message}</td></tr>`;
+  }
+}
+
+// v23.1.387 — Offrir Paw Premium à un utilisateur (par email, tous rôles).
+async function giftPawPremium() {
+  const email = prompt('Email du compte à qui offrir Paw Premium :');
+  if (!email || !email.trim()) return;
+  const daysRaw = prompt('Durée en jours (30 = mensuel, 365 = annuel) :', '30');
+  const days = parseInt(daysRaw, 10);
+  if (!days || days < 1) return;
+  try {
+    const r = await api('/admin/pawpremium/grant', 'POST', { email: email.trim(), days });
+    const lines = (r.granted || [])
+      .map((g) => `• ${g.role} ${g.name || ''} → jusqu'au ${new Date(g.premiumExpiry).toLocaleDateString()}`)
+      .join('\n');
+    alert(`👑 Paw Premium offert (+${r.days} j) :\n${lines}`);
+    loadPawFollowSubs();
+  } catch (e) {
+    alert('Erreur : ' + (e.message || e));
   }
 }
 

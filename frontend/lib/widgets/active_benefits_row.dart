@@ -193,13 +193,26 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
         ? '$base · ${'pawmap_time_days_short'.trParams({'n': '$days'})}'
         : base;
 
+    // v23.1.387 — Paw Premium (bundle) : badge 👑 noir/or EN PREMIER (le
+    // plus prestigieux), jours au plafond comme PawSpot.
+    final premiumActive = p['premiumActive'] == true;
+    final premiumExpiry = _toDate(p['premiumExpiry']);
+
     final children = <Widget>[];
+    if (premiumActive) {
+      final days = premiumExpiry != null
+          ? (premiumExpiry.difference(now).inHours / 24).ceil()
+          : 0;
+      children.add(_badge(
+          context, '👑', withDays('Paw Premium', days), const Color(0xFFB8860B)));
+    }
     if (hasIndividualPawFollow) {
       final days = pawFollowExpiry != null
           ? pawFollowExpiry.difference(now).inDays
           : 0;
+      // v23.1.387 — violet PawFollow (nouveau logo pin violet, canon couleur).
       children.add(_badge(
-          context, '⭐', withDays('PawFollow', days), const Color(0xFFF59E0B)));
+          context, '📍', withDays('PawFollow', days), const Color(0xFF7C3AED)));
     }
     if (familyActive) {
       final days =
@@ -209,8 +222,9 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     }
     if (boostActive) {
       final days = boostExpiry.difference(now).inDays;
+      // v23.1.387 — Daniel : Boost devient PawBoost.
       children.add(_badge(
-          context, '🚀', withDays('Boost', days), const Color(0xFFE8472A)));
+          context, '🚀', withDays('PawBoost', days), const Color(0xFFE8472A)));
     }
     if (pawSpotActive) {
       // Jours au PLAFOND (29,9 j → 30) pour coller à l'abonnement acheté.

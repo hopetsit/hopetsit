@@ -1,0 +1,45 @@
+<svg viewBox="0 0 512 512" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="violetDisc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="0.55" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#5B21B6"/>
+    </linearGradient>
+    <linearGradient id="pinWhite" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EDE9FE"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.62" stop-color="#8B5CF6" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- halo violet doux -->
+  <circle cx="256" cy="256" r="254" fill="url(#violetGlow)"/>
+
+  <!-- disque violet + liseré blanc -->
+  <circle cx="256" cy="256" r="232" fill="url(#violetDisc)"/>
+  <circle cx="256" cy="256" r="208" fill="none" stroke="#FFFFFF" stroke-width="10" opacity="0.96"/>
+  <circle cx="256" cy="256" r="196" fill="url(#violetDisc)"/>
+
+  <!-- pin de localisation blanc -->
+  <path d="M 256 384
+           C 234 348 162 292 162 220
+           A 94 94 0 1 1 350 220
+           C 350 292 278 348 256 384 Z"
+        fill="url(#pinWhite)"/>
+
+  <!-- patte violette dans la tête du pin -->
+  <g fill="#6D28D9">
+    <ellipse cx="217" cy="184" rx="13" ry="19" transform="rotate(-22 217 184)"/>
+    <ellipse cx="243" cy="168" rx="13" ry="20" transform="rotate(-7 243 168)"/>
+    <ellipse cx="270" cy="168" rx="13" ry="20" transform="rotate(7 270 168)"/>
+    <ellipse cx="296" cy="184" rx="13" ry="19" transform="rotate(22 296 184)"/>
+    <path d="M 256 200
+             C 280 200 298 216 298 237
+             C 298 258 280 268 256 268
+             C 232 268 214 258 214 237
+             C 214 216 232 200 256 200 Z"/>
+  </g>
+</svg>

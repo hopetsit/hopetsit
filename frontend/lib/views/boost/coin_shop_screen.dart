@@ -16,19 +16,22 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/golden_paw_coin.dart';
 
-/// Boutique screen — 3 tabs:
-///   1. Boost   — one-time profile boost (existing feature)
-///   2. PawPass — PawFollow / PawFamily subscription
-///   3. PawSpot — community subscription (tag pet-friendly spots on the
-///                PawMap, PawPoints + badges, leaderboards, rewards)
+/// Boutique screen — 4 tabs:
+///   1. PawBoost    — one-time profile boost (renommé v23.1.387, Daniel)
+///   2. PawFollow   — PawFollow / PawFamily subscription
+///   3. PawSpot     — community subscription (tag pet-friendly spots on the
+///                    PawMap, PawPoints + badges, leaderboards, rewards)
+///   4. Paw Premium — bundle PawFollow + PawSpot + exclusifs (v23.1.387) :
+///                    badge Premium, points ×2, priorité nouveautés.
+///                    -33% vs les deux abonnements séparés.
 ///
 /// Available for the 3 roles: Owner, Sitter, Walker.
 class CoinShopScreen extends StatefulWidget {
   const CoinShopScreen({super.key, this.initialTab = 0});
 
-  /// Index of the tab to show first. 0 = Boost (default), 1 = Premium,
-  /// 2 = PawSpot. Used by the PawMap "Passer Premium" banner to land
-  /// directly on the Premium offers rather than the Boost page.
+  /// Index of the tab to show first. 0 = PawBoost (default), 1 = PawFollow,
+  /// 2 = PawSpot, 3 = Paw Premium. Used by the PawMap "Passer Premium"
+  /// banner to land directly on the right offer.
   final int initialTab;
 
   @override
@@ -49,8 +52,8 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
     }
 
     return DefaultTabController(
-      length: 3,
-      initialIndex: widget.initialTab.clamp(0, 2),
+      length: 4,
+      initialIndex: widget.initialTab.clamp(0, 3),
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -79,14 +82,32 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             // v21.1.1 — rebrand : Premium → PawPass, Map Boost → PawSpot.
             // Refonte PawSpot — l'identité passe du pin bleu à l'empreinte
             // dorée (abonnement communautaire, plus un map boost).
+            // v23.1.387 — Daniel : Boost devient PawBoost, PawFollow reçoit
+            // son NOUVEAU logo officiel (pin violet + patte), et l'onglet
+            // Paw Premium (pièce or + couronne) rejoint la boutique.
             tabs: [
               Tab(icon: const Icon(Icons.trending_up, size: 20), text: 'shop_tab_boost'.tr),
-              Tab(icon: const Icon(Icons.star_rounded, size: 22), text: 'shop_tab_pawpass'.tr),
+              Tab(
+                icon: Image.asset(
+                  'assets/images/pawfollow_logo.png',
+                  width: 22,
+                  height: 22,
+                ),
+                text: 'shop_tab_pawpass'.tr,
+              ),
               // v23.1.363 — Daniel : le logo PawSpot = la pièce DORÉE
               // officielle (emoji fourni) partout dans la boutique.
               Tab(
                 icon: const GoldenPawCoin(size: 22),
                 text: 'shop_tab_pawspot'.tr,
+              ),
+              Tab(
+                icon: Image.asset(
+                  'assets/images/pawpremium_logo.png',
+                  width: 22,
+                  height: 22,
+                ),
+                text: 'shop_tab_premium'.tr,
               ),
             ],
           ),
@@ -96,6 +117,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             _BoostTab(),
             _PremiumTab(),
             _PawSpotTab(),
+            _PawPremiumTab(),
           ],
         ),
       ),
@@ -877,8 +899,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 color: const Color(0xFF7C3AED),
               ),
               SizedBox(height: 12.h),
+              // v23.1.387 — filtre EXPLICITE : le backend renvoie désormais
+              // aussi family_yearly + premium_* ; les plans Premium ont leur
+              // PROPRE onglet et ne doivent pas apparaître ici.
               ...controller.plans
-                  .where((p) => p.plan != 'family' && p.plan != 'famille')
+                  .where((p) => p.plan == 'monthly' || p.plan == 'yearly')
                   .map((p) => _buildPlanCard(context, controller, p)),
               SizedBox(height: 22.h),
               // ── Section 2 : PawFamily (suivi en famille) — VIOLET ────────
@@ -891,7 +916,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
               ),
               SizedBox(height: 12.h),
               ...controller.plans
-                  .where((p) => p.plan == 'family' || p.plan == 'famille')
+                  .where((p) =>
+                      p.plan == 'family' ||
+                      p.plan == 'famille' ||
+                      p.plan == 'family_yearly')
                   .map((p) => _buildPlanCard(context, controller, p)),
               SizedBox(height: 20.h),
               // Session v3.2 — Chat add-on tile for free users who just want
@@ -1250,9 +1278,12 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // la police violette pour PawFollow Famille". 3 plans visuellement
     // distincts : Mensuel ⭐ (gold clair) / Annuel 🏆 (gold profond + MEILLEUR
     // PRIX) / Famille 👨‍👩‍👧 (VIOLET, code couleur famille de l'app).
-    final isYearly = plan.plan == 'yearly';
+    // v23.1.387 — family_yearly : annuel ET famille à la fois.
+    final isYearly = plan.plan == 'yearly' || plan.plan == 'family_yearly';
     // robuste FR/EN : l'enum backend accepte 'famille' ET 'family'.
-    final isFamily = plan.plan == 'family' || plan.plan == 'famille';
+    final isFamily = plan.plan == 'family' ||
+        plan.plan == 'famille' ||
+        plan.plan == 'family_yearly';
     final savings = isYearly ? 'pawfollow_yearly_savings'.tr : '';
     final currentPlan = controller.status.value?.plan;
     final isCurrent = currentPlan == plan.plan && controller.isPremium;
@@ -2695,6 +2726,540 @@ class _PawSpotTabState extends State<_PawSpotTab>
             borderRadius: BorderRadius.circular(14.r),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TAB 4 — PAW PREMIUM (v23.1.387, Daniel)
+//  Bundle PawFollow + PawSpot + exclusifs : badge Premium noir/or, points
+//  communauté ×2, priorité sur les nouveautés. -33% vs les deux séparés.
+//  Achat via /subscriptions/subscribe (plans premium_monthly/premium_yearly)
+//  → le backend étend les 3 timers (tracking + pawspot + premium) d'un coup.
+// ═══════════════════════════════════════════════════════════════════════════
+class _PawPremiumTab extends StatefulWidget {
+  const _PawPremiumTab();
+
+  @override
+  State<_PawPremiumTab> createState() => _PawPremiumTabState();
+}
+
+class _PawPremiumTabState extends State<_PawPremiumTab>
+    with AutomaticKeepAliveClientMixin {
+  // Identité Paw Premium : or sur fond noir (mockup Daniel).
+  static const Color _gold = Color(0xFFE8A00A);
+  static const Color _goldLight = Color(0xFFFFD700);
+  static const Color _black = Color(0xFF15120D);
+
+  static const double _monthlyPrice = 7.99;
+  static const double _yearlyPrice = 59.99;
+  // Prix des deux abonnements séparés (pour afficher l'économie réelle) :
+  // PawFollow 6,99 + PawSpot 4,99 = 11,98 /mois · 49,99 + 39,99 = 89,98 /an.
+  static const double _separateMonthly = 11.98;
+  static const double _separateYearly = 89.98;
+
+  bool _loading = true;
+  String? _purchasingPlan; // 'premium_monthly' | 'premium_yearly'
+
+  /// Payload brut de GET /users/me/benefits (premiumActive/premiumExpiry).
+  Map<String, dynamic> _benefits = const {};
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBenefits();
+  }
+
+  Future<void> _loadBenefits() async {
+    try {
+      final api = Get.find<ApiClient>();
+      final data = await api.get('/users/me/benefits', requiresAuth: true);
+      if (!mounted) return;
+      if (data is Map) {
+        setState(() => _benefits = Map<String, dynamic>.from(data));
+      }
+    } catch (_) {
+      // Best-effort.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  bool get _active => _benefits['premiumActive'] == true;
+
+  int get _remainingDays {
+    final raw = _benefits['premiumExpiry'];
+    if (raw is! String || raw.isEmpty) return 0;
+    final expiry = DateTime.tryParse(raw);
+    if (expiry == null) return 0;
+    // Arrondi au PLAFOND (cf. fix v23.1.370 PawSpot) : 29 j 23 h → 30.
+    final hours = expiry.difference(DateTime.now()).inHours;
+    if (hours <= 0) return 0;
+    return (hours / 24).ceil();
+  }
+
+  // ── Achat ─────────────────────────────────────────────────────────────────
+
+  Future<void> _confirmPayWithWallet(String plan) async {
+    final amount = plan == 'premium_yearly' ? _yearlyPrice : _monthlyPrice;
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('coin_shop_pay_wallet_dialog_title'.tr),
+        content: Text(
+          'coin_shop_boost_wallet_confirm_msg'.trParams({
+            'amount': '${amount.toStringAsFixed(2)} EUR',
+          }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('common_cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text('coin_shop_pay_wallet_btn'.tr),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _subscribe(plan, payWithWallet: true);
+    }
+  }
+
+  Future<void> _subscribe(String plan, {bool payWithWallet = false}) async {
+    if (_purchasingPlan != null) return;
+    final price = plan == 'premium_yearly' ? _yearlyPrice : _monthlyPrice;
+    final planLabel = plan == 'premium_yearly'
+        ? 'premium_bundle_plan_yearly'.tr
+        : 'premium_bundle_plan_monthly'.tr;
+
+    if (!payWithWallet) {
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('Paw Premium 👑'),
+          content: Text('$planLabel · ${CurrencyHelper.format('EUR', price)}'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text('common_cancel'.tr),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('common_confirm'.tr),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    setState(() => _purchasingPlan = plan);
+    try {
+      final api = Get.find<ApiClient>();
+      final currency = Get.isRegistered<SubscriptionController>()
+          ? Get.find<SubscriptionController>().currency.value
+          : 'EUR';
+      final data = await api.post(
+        '/subscriptions/subscribe',
+        body: {
+          'plan': plan,
+          'currency': currency,
+          'payWithWallet': payWithWallet,
+        },
+        requiresAuth: true,
+      );
+      final map = data as Map<String, dynamic>;
+
+      // Staff (gratuit) ou wallet → activation immédiate, pas de HPP.
+      if (map['activated'] == true &&
+          (map['staff'] == true || map['paidFromWallet'] == true)) {
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: map['paidFromWallet'] == true
+              ? 'coin_shop_boost_wallet_success'.tr
+              : 'premium_bundle_activated_msg'.tr,
+        );
+        await _loadBenefits();
+        await refreshAfterPurchase();
+        return;
+      }
+
+      final clientSecret = map['clientSecret'] as String?;
+      final paymentIntentId = map['paymentIntentId'] as String?;
+      if (clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Failed to create payment intent.');
+      }
+
+      final displayAmount = (map['amount'] as num?)?.toDouble() ?? price;
+      final displayCurrency = (map['currency'] as String?) ?? currency;
+
+      AppLogger.logInfo(
+          '[pawpremium] AIRWALLEX flow ($displayAmount $displayCurrency, $plan)');
+      final result = await AirwallexPaymentService.confirmPaymentIntent(
+        intentId: paymentIntentId ?? '',
+        clientSecret: clientSecret,
+        amount: displayAmount,
+        currency: displayCurrency,
+      );
+      if (!mounted) return;
+      if (result.isSuccess) {
+        await api.post(
+          '/subscriptions/confirm',
+          body: {'paymentIntentId': paymentIntentId, 'plan': plan},
+          requiresAuth: true,
+        );
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'premium_bundle_activated_msg'.tr,
+        );
+        await _loadBenefits();
+        await refreshAfterPurchase();
+      } else if (result.outcome == AirwallexPaymentOutcome.failed) {
+        CustomSnackbar.showError(
+          title: 'common_error'.tr,
+          message: result.errorMessage ?? 'boost_purchase_error'.tr,
+        );
+      }
+      // cancelled → silencieux.
+    } catch (e) {
+      if (!mounted) return;
+      String msg = e is ApiException ? e.message : e.toString();
+      if (msg.contains('<!DOCTYPE') || msg.contains('<html') || msg.contains('404')) {
+        msg = 'boost_service_unavailable'.tr;
+      }
+      CustomSnackbar.showError(title: 'common_error'.tr, message: msg);
+    } finally {
+      if (mounted) setState(() => _purchasingPlan = null);
+    }
+  }
+
+  // ── UI ────────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return RefreshIndicator(
+      onRefresh: _loadBenefits,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.all(16.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_active) ...[
+              _buildActiveCard(context),
+              SizedBox(height: 14.h),
+            ],
+            _buildShowcaseCard(context),
+            SizedBox(height: 40.h),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Carte statut quand le bundle est actif (jours restants).
+  Widget _buildActiveCard(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: _gold, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Image.asset('assets/images/pawpremium_logo.png',
+              width: 26.w, height: 26.w),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: InterText(
+              text: 'premium_bundle_active_until'
+                  .trParams({'days': '$_remainingDays'}),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// La grande carte noir/or « LE PLUS COMPLET » (mockup Daniel).
+  Widget _buildShowcaseCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF221C12), _black],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: _gold, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: _gold.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(18.w, 22.h, 18.w, 20.h),
+      child: Column(
+        children: [
+          // Ruban « LE PLUS COMPLET 👑 »
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 5.h),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [_gold, _goldLight]),
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            child: InterText(
+              text: 'premium_bundle_ribbon'.tr,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w800,
+              color: _black,
+            ),
+          ),
+          SizedBox(height: 16.h),
+          Image.asset('assets/images/pawpremium_logo.png',
+              width: 84.w, height: 84.w),
+          SizedBox(height: 10.h),
+          PoppinsText(
+            text: 'Paw Premium',
+            fontSize: 22.sp,
+            fontWeight: FontWeight.w800,
+            color: _goldLight,
+          ),
+          SizedBox(height: 4.h),
+          InterText(
+            text: 'premium_bundle_subtitle'.tr,
+            fontSize: 12.5.sp,
+            color: Colors.white.withValues(alpha: 0.85),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+          ),
+          SizedBox(height: 12.h),
+          // Pill « INCLUT PAWFOLLOW + PAWSPOT »
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(color: _gold.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InterText(
+                  text: '${'premium_bundle_includes'.tr} ',
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+                InterText(
+                  text: 'PAWFOLLOW',
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFA78BFA),
+                ),
+                InterText(
+                  text: ' + ',
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+                InterText(
+                  text: 'PAWSPOT',
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w800,
+                  color: _goldLight,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 16.h),
+          // 6 avantages avec checks dorés
+          ..._features(context),
+          SizedBox(height: 18.h),
+          // 2 cartes prix (mensuel / annuel)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _planCard(
+                    context,
+                    plan: 'premium_monthly',
+                    title: 'premium_bundle_plan_monthly'.tr,
+                    price: _monthlyPrice,
+                    separatePrice: _separateMonthly,
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: _planCard(
+                    context,
+                    plan: 'premium_yearly',
+                    title: 'premium_bundle_plan_yearly'.tr,
+                    price: _yearlyPrice,
+                    separatePrice: _separateYearly,
+                    highlight: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12.h),
+          // Économie réelle vs les deux abonnements séparés (-33%)
+          InterText(
+            text: 'premium_bundle_savings'.tr,
+            fontSize: 11.5.sp,
+            fontWeight: FontWeight.w600,
+            color: _goldLight,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _features(BuildContext context) {
+    final items = <String>[
+      'premium_bundle_feat_pawfollow'.tr,
+      'premium_bundle_feat_pawspot'.tr,
+      'premium_bundle_feat_exclusive'.tr,
+      'premium_bundle_feat_badge'.tr,
+      'premium_bundle_feat_points'.tr,
+      'premium_bundle_feat_priority'.tr,
+    ];
+    return items
+        .map(
+          (t) => Padding(
+            padding: EdgeInsets.symmetric(vertical: 4.h),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: _gold, size: 18.sp),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: InterText(
+                    text: t,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.92),
+                    maxLines: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  Widget _planCard(
+    BuildContext context, {
+    required String plan,
+    required String title,
+    required double price,
+    required double separatePrice,
+    bool highlight = false,
+  }) {
+    final isPurchasing = _purchasingPlan != null;
+    final isThisPlan = _purchasingPlan == plan;
+    final pct = (100 - price / separatePrice * 100).round();
+    return GestureDetector(
+      onTap: isPurchasing ? null : () => _subscribe(plan),
+      // Wallet (sitter/walker) — même raccourci long-press que les autres tabs.
+      onLongPress: isPurchasing ? null : () => _confirmPayWithWallet(plan),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(10.w, 16.h, 10.w, 12.h),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: highlight ? 0.10 : 0.05),
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(
+                color: highlight ? _goldLight : _gold.withValues(alpha: 0.5),
+                width: highlight ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InterText(
+                  text: title,
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+                SizedBox(height: 6.h),
+                isThisPlan
+                    ? SizedBox(
+                        width: 22.w,
+                        height: 22.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _gold,
+                        ),
+                      )
+                    : PoppinsText(
+                        text: CurrencyHelper.format('EUR', price),
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w800,
+                        color: _goldLight,
+                      ),
+                SizedBox(height: 2.h),
+                // Prix barré des deux abos séparés
+                Text(
+                  CurrencyHelper.format('EUR', separatePrice),
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: Colors.white.withValues(alpha: 0.5),
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: -8.h,
+            right: 8.w,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.5.h),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [_gold, _goldLight]),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Text(
+                '-$pct%',
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w800,
+                  color: _black,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

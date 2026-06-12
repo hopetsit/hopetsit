@@ -3999,9 +3999,10 @@ router.get('/pawfollow-subscriptions', requireAdmin, async (req, res) => {
     const subs = await UserSubscription.find({
       $or: [
         { currentPeriodEnd: { $gt: now } },
+        { premiumExpiry: { $gt: now } },
         familyActiveMatch(now),
       ],
-    }).select('userId userModel plan currentPeriodEnd familyExpiry status').lean();
+    }).select('userId userModel plan currentPeriodEnd familyExpiry premiumExpiry status').lean();
 
     const Models = {
       Owner: require('../models/Owner'),
@@ -4009,10 +4010,11 @@ router.get('/pawfollow-subscriptions', requireAdmin, async (req, res) => {
       Walker: require('../models/Walker'),
     };
     const rows = [];
+    // v23.1.387 — + compteur Paw Premium (bundle).
     const counts = {
-      owner: { monthly: 0, yearly: 0, family: 0 },
-      sitter: { monthly: 0, yearly: 0, family: 0 },
-      walker: { monthly: 0, yearly: 0, family: 0 },
+      owner: { monthly: 0, yearly: 0, family: 0, premium: 0 },
+      sitter: { monthly: 0, yearly: 0, family: 0, premium: 0 },
+      walker: { monthly: 0, yearly: 0, family: 0, premium: 0 },
     };
     for (const sub of subs) {
       const role = String(sub.userModel || 'Owner').toLowerCase();
@@ -4025,7 +4027,20 @@ router.get('/pawfollow-subscriptions', requireAdmin, async (req, res) => {
         try { email = decrypt(u?.email || '') || ''; } catch (_) { email = ''; }
       } catch (_) {/* */}
 
+      // v23.1.387 — un abonné Premium est listé UNE fois (ligne premium) :
+      // son tracking individuel est inclus dans le bundle.
+      const premiumActive =
+        sub.premiumExpiry && new Date(sub.premiumExpiry) > now;
+      if (premiumActive) {
+        if (counts[role]) counts[role].premium += 1;
+        rows.push({
+          name, email, role,
+          plan: /^premium_/.test(sub.plan) ? sub.plan : 'premium_monthly',
+          expiry: sub.premiumExpiry,
+        });
+      }
       const indivActive =
+        !premiumActive &&
         sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now &&
         sub.plan !== 'famille' && sub.plan !== 'family';
       if (indivActive) {
@@ -4043,6 +4058,71 @@ router.get('/pawfollow-subscriptions', requireAdmin, async (req, res) => {
     res.json({ counts, rows });
   } catch (e) {
     logger.error('[admin/pawfollow-subscriptions]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /admin/pawpremium/grant — v23.1.387. Offre/prolonge Paw Premium à un
+// utilisateur par EMAIL (les emails sont chiffrés non-déterministes en base
+// → scan + decrypt, acceptable pour un geste admin ponctuel). Étend les
+// 3 timers du bundle (tracking + PawSpot + Premium) de `days` jours.
+router.post('/pawpremium/grant', requireAdmin, async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const days = Math.max(1, Math.min(3650, parseInt(req.body?.days, 10) || 30));
+    if (!email) return res.status(400).json({ error: 'email requis' });
+
+    const Models = {
+      Owner: require('../models/Owner'),
+      Sitter: require('../models/Sitter'),
+      Walker: require('../models/Walker'),
+    };
+    const matches = [];
+    for (const [modelName, Model] of Object.entries(Models)) {
+      const users = await Model.find({}).select('email name').lean();
+      for (const u of users) {
+        let plain = '';
+        try { plain = (decrypt(u.email || '') || '').toLowerCase(); } catch (_) { /* */ }
+        if (plain === email) matches.push({ modelName, userId: u._id, name: u.name || '' });
+      }
+    }
+    if (!matches.length) {
+      return res.status(404).json({ error: `Aucun compte trouvé pour ${email}.` });
+    }
+
+    const UserSubscription = require('../models/UserSubscription');
+    const now = new Date();
+    const granted = [];
+    for (const m of matches) {
+      let sub = await UserSubscription.findOne({ userId: m.userId, userModel: m.modelName });
+      if (!sub) sub = new UserSubscription({ userId: m.userId, userModel: m.modelName });
+      const { migrateLegacyFamily } = require('../models/UserSubscription');
+      migrateLegacyFamily(sub, now);
+      const extendFrom = (d) =>
+        new Date((d && new Date(d) > now ? new Date(d) : now).getTime() + days * 86_400_000);
+      sub.plan = days >= 365 ? 'premium_yearly' : 'premium_monthly';
+      sub.status = 'active';
+      sub.currentPeriodStart = sub.currentPeriodStart || now;
+      sub.currentPeriodEnd = extendFrom(sub.currentPeriodEnd);
+      sub.pawspotExpiry = extendFrom(sub.pawspotExpiry);
+      sub.premiumExpiry = extendFrom(sub.premiumExpiry);
+      sub.history = sub.history || [];
+      sub.history.push({
+        plan: sub.plan,
+        paymentProvider: 'admin_gift',
+        paymentId: `gift_${Date.now()}_${m.modelName}`,
+        activatedAt: now,
+        expiresAt: sub.premiumExpiry,
+        intervalDays: days,
+        currency: 'EUR',
+      });
+      await sub.save();
+      granted.push({ role: m.modelName.toLowerCase(), name: m.name, premiumExpiry: sub.premiumExpiry });
+    }
+    logger.info(`[admin/pawpremium/grant] ${email} +${days}j → ${granted.length} compte(s)`);
+    res.json({ granted, days });
+  } catch (e) {
+    logger.error('[admin/pawpremium/grant]', e);
     res.status(500).json({ error: e.message });
   }
 });

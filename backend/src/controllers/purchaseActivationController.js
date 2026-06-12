@@ -157,7 +157,10 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
 
   const now = new Date();
   const planCanonical = plan === 'family' ? 'famille' : plan;
-  const isFamilyPurchase = planCanonical === 'famille';
+  // v23.1.387 — family_yearly = même timer famille, intervalle 365 j.
+  const { isFamilyPlan, isPremiumPlan } = require('../models/UserSubscription');
+  const isFamilyPurchase = isFamilyPlan(planCanonical);
+  const isPremiumPurchase = isPremiumPlan(planCanonical);
 
   // v23.1.283 — Daniel : "prendre PawFollow ou PawFamily désactive l'autre" +
   // "1 mois = 300 j au lieu de 30". RACINE : l'abo individuel et le plan Famille
@@ -168,25 +171,35 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
   const { migrateLegacyFamily } = require('../models/UserSubscription');
   migrateLegacyFamily(sub, now);
 
+  // Base d'extension d'un timer : on repart de sa valeur future ou de
+  // maintenant (jamais d'empilage rétroactif).
+  const extendFrom = (d) =>
+    new Date((d && new Date(d) > now ? new Date(d) : now).getTime() + intervalDays * 86_400_000);
+
   let newExpiry;
   if (isFamilyPurchase) {
     // Timer FAMILLE indépendant : on étend familyExpiry (sans toucher l'abo
     // individuel). plan/currentPeriodEnd restent ceux de l'individuel.
-    const famBase =
-      sub.familyExpiry && new Date(sub.familyExpiry) > now
-        ? new Date(sub.familyExpiry)
-        : now;
-    newExpiry = new Date(famBase.getTime() + intervalDays * 86_400_000);
+    newExpiry = extendFrom(sub.familyExpiry);
     sub.familyExpiry = newExpiry;
     sub.status = 'active';
+  } else if (isPremiumPurchase) {
+    // v23.1.387 — Paw Premium = bundle : on étend les TROIS timers d'un coup.
+    //   currentPeriodEnd → PawFollow individuel (tracking)
+    //   pawspotExpiry    → PawSpot communautaire
+    //   premiumExpiry    → extras Premium (badge, points ×2, priorité)
+    newExpiry = extendFrom(sub.currentPeriodEnd);
+    sub.plan = planCanonical;
+    sub.status = 'active';
+    sub.currentPeriodStart = sub.currentPeriodStart || now;
+    sub.currentPeriodEnd = newExpiry;
+    sub.expiresAt = newExpiry; // legacy alias
+    sub.pawspotExpiry = extendFrom(sub.pawspotExpiry);
+    sub.premiumExpiry = extendFrom(sub.premiumExpiry);
   } else {
     // Abo INDIVIDUEL (monthly/yearly/solo) : on étend currentPeriodEnd (sans
     // toucher la famille). Un mois sur un slot vide = exactement 30 j.
-    const indivBase =
-      sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
-        ? new Date(sub.currentPeriodEnd)
-        : now;
-    newExpiry = new Date(indivBase.getTime() + intervalDays * 86_400_000);
+    newExpiry = extendFrom(sub.currentPeriodEnd);
     sub.plan = planCanonical;
     sub.status = 'active';
     sub.currentPeriodStart = sub.currentPeriodStart || now;
@@ -196,10 +209,9 @@ async function activateSubscriptionFromWebhook({ piId, metadata }) {
   sub.currency = currency;
 
   // Map-boost credit allowance per plan :
-  //   yearly  → 12 credits (one per month for the year)
-  //   monthly → 1 credit
-  //   family  → 1 credit (family is also monthly-billed)
-  const creditsToAdd = planCanonical === 'yearly' ? 12 : 1;
+  //   yearly / family_yearly / premium_yearly → 12 credits (1 par mois)
+  //   monthly / family / premium_monthly      → 1 credit
+  const creditsToAdd = intervalDays >= 365 ? 12 : 1;
   sub.mapBoostCreditsRemaining = (sub.mapBoostCreditsRemaining || 0) + creditsToAdd;
 
   sub.history = history;

@@ -40,16 +40,34 @@ const PREMIUM_PLAN_INTERVALS = {
   monthly: { intervalDays: 30, label: 'PawFollow Mensuel' },
   yearly: { intervalDays: 365, label: 'PawFollow Annuel' },
   // v22.1 — PawFollow Famille (anciennement PawPass Famille) :
-  // partagé avec jusqu'à 5 membres de la famille. Mensuel uniquement.
+  // partagé avec jusqu'à 5 membres de la famille.
   family: { intervalDays: 30, label: 'PawFollow Famille' },
+  // v23.1.387 — Daniel : « offre mensuel et annuel » pour chaque produit.
+  // La Famille n'avait pas d'annuel → ajouté (69,99 = -42% vs 12 × 9,99).
+  family_yearly: { intervalDays: 365, label: 'PawFollow Famille Annuel' },
+  // v23.1.387 — Paw Premium : PawFollow (individuel) + PawSpot + exclusifs
+  // (badge Premium, points communauté ×2, priorité nouveautés).
+  // -33% vs les deux séparés : 6,99+4,99=11,98 → 7,99 ; 49,99+39,99=89,98 → 59,99.
+  premium_monthly: { intervalDays: 30, label: 'Paw Premium Mensuel' },
+  premium_yearly: { intervalDays: 365, label: 'Paw Premium Annuel' },
 };
 
 const PREMIUM_PRICING = {
-  EUR: { monthly: 6.99, yearly: 49.99, family: 9.99 },
-  GBP: { monthly: 5.89, yearly: 42.19, family: 8.49 },
-  CHF: { monthly: 6.99, yearly: 49.99, family: 9.99 },
-  USD: { monthly: 7.69, yearly: 54.99, family: 10.99 },
+  EUR: { monthly: 6.99, yearly: 49.99, family: 9.99, family_yearly: 69.99, premium_monthly: 7.99, premium_yearly: 59.99 },
+  GBP: { monthly: 5.89, yearly: 42.19, family: 8.49, family_yearly: 59.49, premium_monthly: 6.79, premium_yearly: 50.99 },
+  CHF: { monthly: 6.99, yearly: 49.99, family: 9.99, family_yearly: 69.99, premium_monthly: 7.99, premium_yearly: 59.99 },
+  USD: { monthly: 7.69, yearly: 54.99, family: 10.99, family_yearly: 76.99, premium_monthly: 8.79, premium_yearly: 65.99 },
 };
+
+// v23.1.387 — classification des plans, centralisée pour que les TROIS
+// chemins d'activation (webhook, /confirm, staff gratuit) traitent les
+// nouveaux plans à l'identique — aucun chemin ne doit oublier un cas.
+function isPremiumPlan(plan) {
+  return /^premium_/.test(String(plan || ''));
+}
+function isFamilyPlan(plan) {
+  return ['famille', 'family', 'family_yearly'].includes(String(plan || ''));
+}
 
 const PAWFOLLOW_PLAN_INTERVALS = {
   solo: { intervalDays: 30, label: 'PawFollow Solo' },
@@ -192,7 +210,9 @@ const userSubscriptionSchema = new mongoose.Schema(
       // rien". Cause racine : le frontend envoie 'family' (EN) mais l'enum
       // n'acceptait que 'famille' (FR) → ValidationError silencieuse →
       // sub jamais persistée. On accepte les 2 pour la compat.
-      enum: ['none', 'monthly', 'yearly', 'solo', 'famille', 'family'],
+      // v23.1.387 — + plans Paw Premium (family_yearly ne va jamais dans
+      // `plan` — il alimente familyExpiry — mais on l'accepte défensivement).
+      enum: ['none', 'monthly', 'yearly', 'solo', 'famille', 'family', 'family_yearly', 'premium_monthly', 'premium_yearly'],
       default: 'none',
       index: true,
     },
@@ -237,6 +257,13 @@ const userSubscriptionSchema = new mongoose.Schema(
     // les LECTURES acceptent les 2 formes (familyActiveMatch).
     familyExpiry: { type: Date, default: null, index: true },
 
+    // v23.1.387 — Paw Premium : timer DÉDIÉ aux avantages exclusifs du
+    // bundle (badge Premium, points ×2, priorité nouveautés). L'achat
+    // Premium étend AUSSI currentPeriodEnd (tracking) et pawspotExpiry
+    // (communauté) — ce champ ne gate QUE les extras, jamais les features
+    // de base (qui restent pilotées par leurs timers respectifs).
+    premiumExpiry: { type: Date, default: null, index: true },
+
     // Cancellation
     cancelAtPeriodEnd: { type: Boolean, default: false },
     canceledAt: { type: Date, default: null },
@@ -247,9 +274,10 @@ const userSubscriptionSchema = new mongoose.Schema(
     payments: [
       {
         // v23.1.175 — Daniel : ajout de 'family' pour compat FR/EN.
+        // v23.1.387 — + family_yearly et plans Paw Premium.
         plan: {
           type: String,
-          enum: ['monthly', 'yearly', 'solo', 'famille', 'family'],
+          enum: ['monthly', 'yearly', 'solo', 'famille', 'family', 'family_yearly', 'premium_monthly', 'premium_yearly'],
         },
         amount: Number,
         currency: { type: String, default: 'EUR' },
@@ -581,3 +609,6 @@ module.exports.PAWFOLLOW_PLAN_INTERVALS = PAWFOLLOW_PLAN_INTERVALS;
 module.exports.PAWFOLLOW_PRICING = PAWFOLLOW_PRICING;
 module.exports.PAWFOLLOW_FEATURES = PAWFOLLOW_FEATURES;
 module.exports.getPawFollowPricing = getPawFollowPricing;
+// v23.1.387 — Paw Premium.
+module.exports.isPremiumPlan = isPremiumPlan;
+module.exports.isFamilyPlan = isFamilyPlan;

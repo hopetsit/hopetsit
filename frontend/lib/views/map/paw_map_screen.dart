@@ -3686,7 +3686,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                 Expanded(
                   child: _quickSwitchChip(
                     label: 'PawFollow',
-                    icon: Icons.star_rounded,
+                    // v23.1.387 — nouveau logo officiel (pin violet + patte).
+                    assetIcon: 'assets/images/pawfollow_logo.png',
                     accent: const Color(0xFF7C3AED),
                     subscribed: followSub,
                     value: _showLiveLayer.value,
@@ -3814,6 +3815,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     required String label,
     IconData? icon,
     String? emoji,
+    String? assetIcon, // v23.1.387 — logo PNG (nouveau logo PawFollow)
     required Color accent,
     required bool subscribed,
     required bool value,
@@ -3839,17 +3841,36 @@ class _PawMapScreenState extends State<PawMapScreen>
       ),
       child: Row(
         children: [
-          Container(
-            width: 20.w,
-            height: 20.w,
-            decoration: BoxDecoration(
-              color: subscribed ? accent : AppColors.greyText.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-            ),
-            child: emoji != null
-                ? Center(child: Text(emoji, style: TextStyle(fontSize: 10.sp)))
-                : Icon(icon, size: 13.sp, color: Colors.white),
-          ),
+          // v23.1.387 — assetIcon : le logo se suffit (pas de pastille de
+          // fond), grisé via ColorFiltered quand pas abonné.
+          assetIcon != null
+              ? ColorFiltered(
+                  colorFilter: subscribed
+                      ? const ColorFilter.mode(
+                          Colors.transparent, BlendMode.multiply)
+                      : const ColorFilter.matrix(<double>[
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0, 0, 0, 1, 0,
+                        ]),
+                  child: Image.asset(assetIcon, width: 20.w, height: 20.w),
+                )
+              : Container(
+                  width: 20.w,
+                  height: 20.w,
+                  decoration: BoxDecoration(
+                    color: subscribed
+                        ? accent
+                        : AppColors.greyText.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: emoji != null
+                      ? Center(
+                          child:
+                              Text(emoji, style: TextStyle(fontSize: 10.sp)))
+                      : Icon(icon, size: 13.sp, color: Colors.white),
+                ),
           SizedBox(width: 5.w),
           Expanded(
             child: Row(

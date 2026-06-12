@@ -68,19 +68,38 @@ function isGoldCreator(points) {
 /**
  * Crédite des PawPoints (atomique) et retourne le nouveau total.
  * Retourne null si user introuvable. Ne throw jamais (best-effort).
+ *
+ * v23.1.387 — Paw Premium : points communauté DOUBLÉS pendant toute la
+ * durée du bundle (premiumExpiry futur). C'est LE chokepoint unique
+ * d'attribution (create/like/comment/visit/validate passent tous ici)
+ * → un seul endroit à maintenir.
  */
 async function awardPoints({ userId, role, points, reason = '' }) {
   try {
     if (!userId || !points) return null;
+    let pts = Number(points) || 0;
+    let doubled = false;
+    try {
+      const UserSubscription = require('../models/UserSubscription');
+      const r = String(role || '').toLowerCase();
+      const userModel = r === 'walker' ? 'Walker' : r === 'sitter' ? 'Sitter' : 'Owner';
+      const sub = await UserSubscription.findOne({ userId, userModel })
+        .select('premiumExpiry')
+        .lean();
+      if (sub?.premiumExpiry && new Date(sub.premiumExpiry) > new Date()) {
+        pts *= 2;
+        doubled = true;
+      }
+    } catch (_) { /* best-effort : sans lookup on crédite le montant simple */ }
     const Model = _modelFor(role);
     const updated = await Model.findByIdAndUpdate(
       userId,
-      { $inc: { pawPoints: points } },
+      { $inc: { pawPoints: pts } },
       { new: true },
     ).select('pawPoints');
     if (!updated) return null;
     logger.info(
-      `🐾 [pawPoints] +${points} → ${role}:${userId} (total ${updated.pawPoints}) ${reason ? '— ' + reason : ''}`,
+      `🐾 [pawPoints] +${pts}${doubled ? ' (×2 Paw Premium)' : ''} → ${role}:${userId} (total ${updated.pawPoints}) ${reason ? '— ' + reason : ''}`,
     );
     return updated.pawPoints;
   } catch (e) {

@@ -63,12 +63,17 @@ function serializeSubscription(sub) {
         ? sub.currentPeriodEnd
         : null);
   const familyActive = !!(_famExp && new Date(_famExp) > _now);
+  // v23.1.387 — Paw Premium (bundle) : timer dédié aux extras.
+  const premiumBundleActive = !!(sub.premiumExpiry && new Date(sub.premiumExpiry) > _now);
   return {
     plan: sub.plan,
     status: sub.status,
     isPremium: sub.isCurrentlyPremium ? sub.isCurrentlyPremium() : (sub.status === 'active' && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > new Date()),
     familyActive,
     familyExpiry: _famExp,
+    premiumBundleActive,
+    premiumExpiry: sub.premiumExpiry || null,
+    pawspotExpiry: sub.pawspotExpiry || null,
     features: sub.features || {},
     currentPeriodStart: sub.currentPeriodStart,
     currentPeriodEnd: sub.currentPeriodEnd,
@@ -184,27 +189,45 @@ router.post('/subscribe', requireAuth, async (req, res) => {
         // indépendamment du pre-save hook. Tous les routes lectures filtrent
         // par 'famille' (FR canonique).
         const planCanonical = plan === 'family' ? 'famille' : plan;
-        const isFamilyPurchase = planCanonical === 'famille';
+        // v23.1.387 — Paw Premium + Famille annuel (mêmes règles que le
+        // chemin webhook, cf purchaseActivationController).
+        const { isFamilyPlan, isPremiumPlan } = require('../models/UserSubscription');
+        const isFamilyPurchase = isFamilyPlan(planCanonical);
+        const isPremiumPurchase = isPremiumPlan(planCanonical);
         let sub = await UserSubscription.findOne({ userId, userModel: userModelName });
         const now = new Date();
         if (!sub) sub = new UserSubscription({ userId, userModel: userModelName });
         // v23.1.283 — découplage famille/individuel (cf purchaseActivationController).
         const { migrateLegacyFamily } = require('../models/UserSubscription');
         migrateLegacyFamily(sub, now);
-        let startFrom;
+        const extendFrom = (d) =>
+          new Date((d && new Date(d) > now ? new Date(d) : now).getTime() + pricing.intervalDays * 86_400_000);
+        let startFrom = now;
         let newPeriodEnd;
         if (isFamilyPurchase) {
           startFrom = sub.familyExpiry && new Date(sub.familyExpiry) > now
             ? new Date(sub.familyExpiry)
             : now;
-          newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86_400_000);
+          newPeriodEnd = extendFrom(sub.familyExpiry);
           sub.familyExpiry = newPeriodEnd;
           sub.status = 'active';
+        } else if (isPremiumPurchase) {
+          // Bundle : étend tracking + PawSpot + extras Premium.
+          startFrom = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
+            ? new Date(sub.currentPeriodEnd)
+            : now;
+          newPeriodEnd = extendFrom(sub.currentPeriodEnd);
+          sub.plan = planCanonical;
+          sub.status = 'active';
+          sub.currentPeriodStart = sub.currentPeriodStart || now;
+          sub.currentPeriodEnd = newPeriodEnd;
+          sub.pawspotExpiry = extendFrom(sub.pawspotExpiry);
+          sub.premiumExpiry = extendFrom(sub.premiumExpiry);
         } else {
           startFrom = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
             ? new Date(sub.currentPeriodEnd)
             : now;
-          newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86_400_000);
+          newPeriodEnd = extendFrom(sub.currentPeriodEnd);
           sub.plan = planCanonical;
           sub.status = 'active';
           sub.currentPeriodStart = sub.currentPeriodStart || now;
@@ -406,24 +429,40 @@ router.post('/confirm', requireAuth, async (req, res) => {
     }
 
     // v23.1.283 — découplage famille/individuel (cf purchaseActivationController).
+    // v23.1.387 — Paw Premium + Famille annuel (mêmes règles que le webhook).
     const planCanonical = plan === 'family' ? 'famille' : plan;
-    const isFamilyPurchase = planCanonical === 'famille';
-    const { migrateLegacyFamily } = require('../models/UserSubscription');
+    const { migrateLegacyFamily, isFamilyPlan, isPremiumPlan } = require('../models/UserSubscription');
+    const isFamilyPurchase = isFamilyPlan(planCanonical);
+    const isPremiumPurchase = isPremiumPlan(planCanonical);
     migrateLegacyFamily(sub, now);
-    let startFrom;
+    const extendFrom = (d) =>
+      new Date((d && new Date(d) > now ? new Date(d) : now).getTime() + pricing.intervalDays * 86400000);
+    let startFrom = now;
     let newPeriodEnd;
     if (isFamilyPurchase) {
       startFrom = sub.familyExpiry && new Date(sub.familyExpiry) > now
         ? new Date(sub.familyExpiry)
         : now;
-      newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86400000);
+      newPeriodEnd = extendFrom(sub.familyExpiry);
       sub.familyExpiry = newPeriodEnd;
       sub.status = 'active';
+    } else if (isPremiumPurchase) {
+      // Bundle : étend tracking + PawSpot + extras Premium.
+      startFrom = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
+        ? new Date(sub.currentPeriodEnd)
+        : now;
+      newPeriodEnd = extendFrom(sub.currentPeriodEnd);
+      sub.plan = planCanonical;
+      sub.status = 'active';
+      sub.currentPeriodStart = sub.currentPeriodStart || now;
+      sub.currentPeriodEnd = newPeriodEnd;
+      sub.pawspotExpiry = extendFrom(sub.pawspotExpiry);
+      sub.premiumExpiry = extendFrom(sub.premiumExpiry);
     } else {
       startFrom = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now
         ? new Date(sub.currentPeriodEnd)
         : now;
-      newPeriodEnd = new Date(startFrom.getTime() + pricing.intervalDays * 86400000);
+      newPeriodEnd = extendFrom(sub.currentPeriodEnd);
       sub.plan = planCanonical;
       sub.status = 'active';
       sub.currentPeriodStart = sub.currentPeriodStart || now;
@@ -435,8 +474,8 @@ router.post('/confirm', requireAuth, async (req, res) => {
     // Feature flags (Premium unlocks everything)
     sub.features = { ...PREMIUM_FEATURES_DEFAULT };
 
-    // Top up map-boost credits: 1 per month. For yearly = 12 credits/year.
-    const creditsToAdd = plan === 'yearly' ? 12 : 1;
+    // Top up map-boost credits: 1 per month. For yearly plans = 12 credits.
+    const creditsToAdd = pricing.intervalDays >= 365 ? 12 : 1;
     sub.mapBoostCreditsRemaining = (sub.mapBoostCreditsRemaining || 0) + creditsToAdd;
     sub.mapBoostCreditsResetAt = newPeriodEnd;
 

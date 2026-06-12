@@ -1,0 +1,62 @@
+<svg viewBox="0 0 512 512" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="goldRing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF3B0"/>
+      <stop offset="0.35" stop-color="#F5C84C"/>
+      <stop offset="0.65" stop-color="#E8A00A"/>
+      <stop offset="1" stop-color="#9C6B00"/>
+    </linearGradient>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE285"/>
+      <stop offset="0.55" stop-color="#F2B926"/>
+      <stop offset="1" stop-color="#C98F0E"/>
+    </linearGradient>
+    <radialGradient id="blackDisc" cx="0.5" cy="0.42" r="0.75">
+      <stop offset="0" stop-color="#262017"/>
+      <stop offset="1" stop-color="#120F0A"/>
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.62" stop-color="#E8A00A" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#E8A00A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- halo doré -->
+  <circle cx="256" cy="256" r="254" fill="url(#goldGlow)"/>
+
+  <!-- anneau or + disque noir -->
+  <circle cx="256" cy="256" r="232" fill="url(#goldRing)"/>
+  <circle cx="256" cy="256" r="200" fill="url(#blackDisc)"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#FFE9A8" stroke-width="2" opacity="0.45"/>
+
+  <!-- couronne -->
+  <g fill="url(#goldFill)" stroke="#8A5D00" stroke-width="3" stroke-linejoin="round">
+    <path d="M 190 196 L 190 150 L 224 170 L 256 128 L 288 170 L 322 150 L 322 196 Z"/>
+  </g>
+  <circle cx="190" cy="142" r="8" fill="url(#goldFill)" stroke="#8A5D00" stroke-width="2.5"/>
+  <circle cx="256" cy="119" r="9" fill="url(#goldFill)" stroke="#8A5D00" stroke-width="2.5"/>
+  <circle cx="322" cy="142" r="8" fill="url(#goldFill)" stroke="#8A5D00" stroke-width="2.5"/>
+  <path d="M 256 172 L 266 184 L 256 196 L 246 184 Z" fill="#FFF3B0" stroke="#8A5D00" stroke-width="2"/>
+
+  <!-- patte or -->
+  <g fill="url(#goldFill)" stroke="#8A5D00" stroke-width="3">
+    <ellipse cx="194" cy="278" rx="22" ry="30" transform="rotate(-18 194 278)"/>
+    <ellipse cx="235" cy="252" rx="22" ry="32" transform="rotate(-5 235 252)"/>
+    <ellipse cx="277" cy="252" rx="22" ry="32" transform="rotate(5 277 252)"/>
+    <ellipse cx="318" cy="278" rx="22" ry="30" transform="rotate(18 318 278)"/>
+    <path d="M 256 300
+             C 296 300 324 326 324 356
+             C 324 388 294 402 256 402
+             C 218 402 188 388 188 356
+             C 188 326 216 300 256 300 Z"/>
+  </g>
+  <!-- reflet sur la patte -->
+  <ellipse cx="238" cy="330" rx="26" ry="12" fill="#FFF3B0" opacity="0.35" transform="rotate(-18 238 330)"/>
+
+  <!-- étincelles -->
+  <g fill="#FFEFB0">
+    <path d="M 128 210 L 132 224 L 146 228 L 132 232 L 128 246 L 124 232 L 110 228 L 124 224 Z"/>
+    <path d="M 390 176 L 393 187 L 404 190 L 393 193 L 390 204 L 387 193 L 376 190 L 387 187 Z"/>
+    <path d="M 372 384 L 375 394 L 385 397 L 375 400 L 372 410 L 369 400 L 359 397 L 369 394 Z"/>
+  </g>
+</svg>
