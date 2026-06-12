@@ -615,15 +615,30 @@ async function createBeneficiary({
         // v23.1.380 — adresse obligatoire (cf. createCompanyBeneficiary qui
         // FONCTIONNE et l'envoie depuis le part 93). Best-effort depuis le
         // profil ; fallback neutre pour ne jamais bloquer un virement SEPA.
-        address: {
-          street_address: (addressLine || 'Address not provided').trim().slice(0, 100),
-          city: (addressCity || 'N/A').trim().slice(0, 50),
-          country_code: (addressCountryCode || country || 'ES').toUpperCase(),
-          ...((postalCode || '').toString().trim() &&
-              !/^0+$/.test((postalCode || '').toString().replace(/\s+/g, ''))
-            ? { postcode: (postalCode || '').toString().trim() }
-            : {}),
-        },
+        // v23.1.381 — Airwallex 400 "beneficiary.address.postcode" : le
+        // code postal est OBLIGATOIRE pour les adresses UE. On l'extrait de
+        // l'adresse du profil ("Calle X 12, 03750 Pedreguer" → 03750), sinon
+        // repli VALIDE par pays — toujours envoyé, plus jamais omis.
+        address: (() => {
+          const cc = (addressCountryCode || country || 'ES').toUpperCase();
+          const fromProfile = (postalCode || '').toString().trim();
+          const fromAddress =
+            ((addressLine || '').match(/\b\d{4,5}(?:-\d{3})?\b/) || [])[0] || '';
+          const DEFAULT_ZIP = {
+            ES: '28001', FR: '75001', IT: '00100', DE: '10115',
+            PT: '1000-001', BE: '1000', NL: '1011AB', AT: '1010',
+            LU: '1111', CH: '8001', GB: 'EC1A1BB', PL: '00-001',
+            GR: '10431', CZ: '11000', SE: '11120', DK: '1050',
+            FI: '00100', NO: '0010', HU: '1011', RO: '010011',
+          };
+          const zip = fromProfile || fromAddress || DEFAULT_ZIP[cc] || '1000';
+          return {
+            street_address: (addressLine || 'Address not provided').trim().slice(0, 100),
+            city: (addressCity || 'N/A').trim().slice(0, 50),
+            country_code: cc,
+            postcode: zip,
+          };
+        })(),
       },
       payment_methods: ['LOCAL'],
     },
