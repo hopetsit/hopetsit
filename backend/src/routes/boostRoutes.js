@@ -39,11 +39,12 @@ const BOOST_PACKAGES = {
 // range to make the boost much more attractive. Phase 2 will move these into
 // DB-backed PricingConfig so admin can tweak from the dashboard without code
 // changes; these values remain as fallback defaults.
+// v23.1.393 — Daniel : « réduis les prix de PawBoost » (~ -20%, grille .99).
 const BOOST_PRICING = {
-  EUR: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
-  GBP: { bronze: 4.39,  silver: 8.79,  gold: 13.29, platinum: 21.99 },
-  CHF: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
-  USD: { bronze: 5.49,  silver: 10.99, gold: 16.49, platinum: 27.49 },
+  EUR: { bronze: 3.99,  silver: 7.99,  gold: 11.99, platinum: 19.99 },
+  GBP: { bronze: 3.39,  silver: 6.79,  gold: 10.19, platinum: 16.99 },
+  CHF: { bronze: 3.99,  silver: 7.99,  gold: 11.99, platinum: 19.99 },
+  USD: { bronze: 4.39,  silver: 8.79,  gold: 13.19, platinum: 21.99 },
 };
 
 function getBoostPricing(tier, currency = 'EUR') {

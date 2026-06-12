@@ -153,10 +153,11 @@ class _BoostTabState extends State<_BoostTab> with AutomaticKeepAliveClientMixin
   // etc.). On calcule le libellé à l'affichage via _durationLabel(days) avec
   // la locale active → plus jamais de "pendant 3 days" côté FR.
   static const List<Map<String, dynamic>> _fallbackPackages = [
-    {'tier': 'bronze',   'amount': 4.99,  'days': 3,  'icon': '🥉', 'color': Color(0xFFCD7F32)},
-    {'tier': 'silver',   'amount': 9.99,  'days': 7,  'icon': '🥈', 'color': Color(0xFFC0C0C0)},
-    {'tier': 'gold',     'amount': 14.99, 'days': 15, 'icon': '🥇', 'color': Color(0xFFFFD700)},
-    {'tier': 'platinum', 'amount': 24.99, 'days': 30, 'icon': '💎', 'color': Color(0xFFE5E4E2)},
+    // v23.1.393 — baisse PawBoost (Daniel) : -20%, alignée backend.
+    {'tier': 'bronze',   'amount': 3.99,  'days': 3,  'icon': '🥉', 'color': Color(0xFFCD7F32)},
+    {'tier': 'silver',   'amount': 7.99,  'days': 7,  'icon': '🥈', 'color': Color(0xFFC0C0C0)},
+    {'tier': 'gold',     'amount': 11.99, 'days': 15, 'icon': '🥇', 'color': Color(0xFFFFD700)},
+    {'tier': 'platinum', 'amount': 19.99, 'days': 30, 'icon': '💎', 'color': Color(0xFFE5E4E2)},
   ];
 
   /// v18.9.8 — libellé de durée localisé. Remplace les labels EN hardcodés

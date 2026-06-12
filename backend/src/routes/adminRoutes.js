@@ -1577,7 +1577,8 @@ router.get('/boosts', requireAdmin, async (req, res) => {
           userName: u.name || '-',
           userEmail: u.email || '-',
           role: (sub.userModel || '').toLowerCase(),
-          product: 'premium',
+          // v23.1.393 — Paw Premium = produit distinct dans l'activité.
+          product: /^premium_/.test(String(p.plan || sub.plan || '')) ? 'pawpremium' : 'premium',
           tier: p.plan || sub.plan || 'monthly',
           amount: p.amount,
           currency: p.currency || 'EUR',
@@ -2883,11 +2884,15 @@ router.get('/payouts', requireAdmin, async (req, res) => {
         count: { $sum: 1 },
       } },
     ]);
-    const isFamilyPlan = (p) => ['family', 'famille'].includes(String(p || '').toLowerCase());
+    // v23.1.393 — + family_yearly côté Famille, et Paw Premium séparé.
+    const isFamilyPlan = (p) => ['family', 'famille', 'family_yearly'].includes(String(p || '').toLowerCase());
+    const isPremiumBundle = (p) => /^premium_/.test(String(p || '').toLowerCase());
     let pawFamilyTotal = 0; let pawFamilyCount = 0;
     let pawFollowTotal = 0; let pawFollowCount = 0;
+    let pawPremiumTotal = 0; let pawPremiumCount = 0;
     for (const r of (subByPlan || [])) {
-      if (isFamilyPlan(r._id)) { pawFamilyTotal += r.total || 0; pawFamilyCount += r.count || 0; }
+      if (isPremiumBundle(r._id)) { pawPremiumTotal += r.total || 0; pawPremiumCount += r.count || 0; }
+      else if (isFamilyPlan(r._id)) { pawFamilyTotal += r.total || 0; pawFamilyCount += r.count || 0; }
       else { pawFollowTotal += r.total || 0; pawFollowCount += r.count || 0; }
     }
 
@@ -2981,6 +2986,7 @@ router.get('/payouts', requireAdmin, async (req, res) => {
           premium:      { total: subscriptionAllTime, count: subAgg[0]?.count || 0 },
           pawFollow:    { total: pawFollowTotal, count: pawFollowCount },
           pawFamily:    { total: pawFamilyTotal, count: pawFamilyCount },
+          pawPremium:   { total: pawPremiumTotal, count: pawPremiumCount },
           chatAddon:    { total: chatAddonTotal,    count: chatAddonCount },
         },
         cumulativeSwept,

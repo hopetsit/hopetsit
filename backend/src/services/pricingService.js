@@ -27,10 +27,11 @@ const DEFAULTS = Object.freeze({
     // volontairement baissé en avril 2026 ("phase-1 price cut", gamme .99
     // psychologique 4.99→24.99). Les deux fallbacks divergeaient → prix affiché
     // ≠ prix facturé si la DB pricing est vide. Alignés sur la grille voulue.
-    EUR: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
-    GBP: { bronze: 4.39,  silver: 8.79,  gold: 13.29, platinum: 21.99 },
-    CHF: { bronze: 4.99,  silver: 9.99,  gold: 14.99, platinum: 24.99 },
-    USD: { bronze: 5.49,  silver: 10.99, gold: 16.49, platinum: 27.49 },
+    // v23.1.393 — baisse PawBoost (Daniel) : -20%, grille .99.
+    EUR: { bronze: 3.99,  silver: 7.99,  gold: 11.99, platinum: 19.99 },
+    GBP: { bronze: 3.39,  silver: 6.79,  gold: 10.19, platinum: 16.99 },
+    CHF: { bronze: 3.99,  silver: 7.99,  gold: 11.99, platinum: 19.99 },
+    USD: { bronze: 4.39,  silver: 8.79,  gold: 13.19, platinum: 21.99 },
   },
   mapBoost: {
     // v23.1 — aligned with website PawMap pricing:
@@ -51,10 +52,12 @@ const DEFAULTS = Object.freeze({
   },
   premium: {
     // v23.1 — family added to admin/api so it can be edited from the dashboard.
-    EUR: { monthly: 6.99, yearly: 49.99, family: 9.99 },
-    GBP: { monthly: 5.89, yearly: 42.19, family: 8.49 },
-    CHF: { monthly: 6.99, yearly: 49.99, family: 9.99 },
-    USD: { monthly: 7.69, yearly: 54.99, family: 10.99 },
+    // v23.1.393 — + family_yearly + plans Paw Premium (éditables depuis
+    // l'onglet Tarifs de l'admin, lus par getPlanPricing).
+    EUR: { monthly: 6.99, yearly: 49.99, family: 9.99, family_yearly: 69.99, premium_monthly: 7.99, premium_yearly: 59.99 },
+    GBP: { monthly: 5.89, yearly: 42.19, family: 8.49, family_yearly: 59.49, premium_monthly: 6.79, premium_yearly: 50.99 },
+    CHF: { monthly: 6.99, yearly: 49.99, family: 9.99, family_yearly: 69.99, premium_monthly: 7.99, premium_yearly: 59.99 },
+    USD: { monthly: 7.69, yearly: 54.99, family: 10.99, family_yearly: 76.99, premium_monthly: 8.79, premium_yearly: 65.99 },
   },
   chat: {
     EUR: { monthly: 2.99 },
@@ -92,7 +95,8 @@ function mergeInto(target, patch) {
 // v23.1 — la version courante des tarifs. Bumper cette valeur force une
 // remise à jour de la DB depuis DEFAULTS au prochain boot (admin perd ses
 // éventuelles édits manuelles, c'est intentionnel sur un version bump).
-const PRICING_VERSION = 'v23.1.353';
+// v23.1.393 — bump : force la migration DB (baisse PawBoost + clés Premium).
+const PRICING_VERSION = 'v23.1.393';
 
 async function init() {
   try {
