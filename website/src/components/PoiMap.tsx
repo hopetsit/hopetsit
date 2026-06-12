@@ -206,26 +206,47 @@ function makeSpotIcon(type: PawSpotType, isGolden: boolean): L.DivIcon {
     const ring = SPOT_COLOR[type] || SPOT_COLOR.other;
     return new L.DivIcon({
       className: "",
-      html: `<div style="width:46px;height:46px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
-      iconSize: [46, 46],
-      iconAnchor: [23, 23],
-      popupAnchor: [0, -23],
+      // v23.1.394 — Daniel : pièces légèrement agrandies (46→52).
+      html: `<div style="width:52px;height:52px;border-radius:50%;border:3px solid ${ring};box-sizing:border-box;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">${GOLDEN_COIN_SVG}</div>`,
+      iconSize: [52, 52],
+      iconAnchor: [26, 26],
+      popupAnchor: [0, -26],
     });
   }
   const bg = SPOT_COLOR[type] || SPOT_COLOR.other;
   return new L.DivIcon({
     className: "",
-    // v23.1.369 — pièces type 42 px (légèrement sous les avatars 48).
-    html: `<div style="width:42px;height:42px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${makeTypeCoinSvg(bg)}</div>`,
-    iconSize: [42, 42],
-    iconAnchor: [21, 21],
-    popupAnchor: [0, -21],
+    // v23.1.394 — Daniel : pièces type agrandies 42→48 px.
+    html: `<div style="width:48px;height:48px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${makeTypeCoinSvg(bg)}</div>`,
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+    popupAnchor: [0, -24],
   });
 }
 
 // Pin "ma position" — v23.1.359 : HALO ANIMÉ (pulse hps-pulse, comme le
 // halo qui respire dans l'app), teinté couleur du RÔLE de l'utilisateur.
-function makeUserIcon(color: string): L.DivIcon {
+// v23.1.394 — Daniel : « ma position avec MON PROFIL, pas un point ». Si
+// l'avatar est dispo → photo ronde 40px, anneau couleur du rôle + halo
+// pulsé. Sinon, fallback sur l'ancien point.
+function makeUserIcon(color: string, avatarUrl?: string | null): L.DivIcon {
+  if (avatarUrl) {
+    return new L.DivIcon({
+      className: "",
+      html: `<div style="position:relative;width:40px;height:40px;">
+        <div style="position:absolute;inset:-5px;border-radius:50%;
+          background:${color}45;border:2px solid ${color};
+          animation:hps-pulse 1.8s ease-out infinite;"></div>
+        <img src="${avatarUrl}" alt="" style="position:absolute;inset:0;
+          width:40px;height:40px;border-radius:50%;object-fit:cover;
+          border:3px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,0.35);
+          background:#fff;" />
+      </div>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      popupAnchor: [0, -20],
+    });
+  }
   return new L.DivIcon({
     className: "",
     html: `<div style="position:relative;width:18px;height:18px;">
@@ -254,6 +275,7 @@ export default function PoiMap({
   familyIds = [],
   roleLabels,
   userHaloColor,
+  userAvatarUrl,
   focusTarget = null,
   onFriendFocus,
   routePoints = null,
@@ -280,6 +302,8 @@ export default function PoiMap({
   /** v23.1.359 — couleur du halo animé "ma position" (couleur du rôle de
       l'utilisateur connecté ; bleu par défaut). */
   userHaloColor?: string;
+  /** v23.1.394 — photo de profil affichée comme marqueur « ma position ». */
+  userAvatarUrl?: string | null;
   /** v23.1.364 — cible de zoom (clic marqueur ami / chip nom·rôle). */
   focusTarget?: { lat: number; lng: number; ts: number } | null;
   onFriendFocus?: (p: FriendLivePosition) => void;
@@ -292,8 +316,8 @@ export default function PoiMap({
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
   // v23.1.359 — halo "ma position" pulsant, couleur du rôle.
   const userIcon = useMemo(
-    () => makeUserIcon(userHaloColor || "#2563EB"),
-    [userHaloColor],
+    () => makeUserIcon(userHaloColor || "#2563EB", userAvatarUrl),
+    [userHaloColor, userAvatarUrl],
   );
   // Re-mount la carte si le centre change radicalement (>10km).
   // v23.1.364 — BUG Daniel ("1er clic dézoome, 2e clic zoome") : le mapKey

@@ -107,6 +107,19 @@ export default function MapPage() {
   // bouton d'achat devient un chip d'état (Daniel : « le bouton me renvoie
   // à la boutique au lieu de me montrer mes amis et les pawspots »).
   const [premiumDays, setPremiumDays] = useState<number | null>(null);
+  // v23.1.394 — avatar pour le marqueur « ma position » (photo, pas un point).
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!getStoredUser()) return;
+    (async () => {
+      try {
+        const { getMyProfile } = await import("@/lib/api");
+        const p = await getMyProfile();
+        const url = p?.avatar?.url || null;
+        if (url) setMyAvatarUrl(url);
+      } catch { /* fallback : point couleur rôle */ }
+    })();
+  }, []);
   const [isStaffSub, setIsStaffSub] = useState(false);
   useEffect(() => {
     (async () => {
@@ -244,7 +257,9 @@ export default function MapPage() {
         // L'user a refusé la géoloc → fallback Paris.
         setLoading(false);
       },
-      { timeout: 10000 },
+      // v23.1.394 — Daniel : « ma position mais la précise » → GPS haute
+      // précision (au lieu de la position réseau approximative).
+      { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 },
     );
   }, [router]);
 
@@ -815,6 +830,7 @@ export default function MapPage() {
             walker: t("role_walker"),
           }}
           userHaloColor={myRoleColor}
+          userAvatarUrl={myAvatarUrl}
           focusTarget={focusTarget}
           onFriendFocus={(p) =>
             setFocusTarget({ lat: p.lat, lng: p.lng, ts: Date.now() })
