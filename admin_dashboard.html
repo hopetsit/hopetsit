@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v376</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v377</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -471,8 +471,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </select>
           <select class="filter-select" id="pay-filter-provider" onchange="loadPayments()">
             <option value="">Tous les providers</option>
-            <option value="stripe">Stripe</option>
-            <option value="paypal">PayPal</option>
+            <option value="airwallex">🌐 Airwallex</option>
           </select>
           <input type="date" class="filter-select" id="pay-filter-from" onchange="loadPayments()" title="From date" />
           <input type="date" class="filter-select" id="pay-filter-to" onchange="loadPayments()" title="To date" />
@@ -520,10 +519,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- IBAN PAYOUTS -->
       <div id="page-iban" class="page">
-        <!-- v18.9.8 — Pending Manual Transfers. Bookings payed by owner
-             but provider receives via IBAN (Stripe Transfers API requires
-             Connect, we use manual SEPA instead). Admin marks as paid
-             once SEPA transfer is executed. -->
+        <!-- v18.9.8 → v23.1.377 — Pending Manual Transfers. Bookings payées
+             par l'owner, provider payé via IBAN (transferts Airwallex /
+             SEPA). L'admin marque payé une fois le virement exécuté. -->
         <div class="section-title">💸 Virements IBAN en attente</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:12px">
           Réservations payées par les owners qui attendent un virement SEPA manuel. Exécute le virement depuis ta banque puis clique sur <strong>Marquer comme payé</strong>.
@@ -2765,7 +2763,7 @@ function renderSitters() {
         <td style="font-size:12px">${services}</td>
         <td>${s.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(s.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td><span class="badge badge-blue">${escapeHtml(s.payoutMethod||'stripe')}</span></td>
+        <td><span class="badge badge-blue">${escapeHtml(s.payoutMethod||'airwallex')}</span></td>
         <td>${s.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!s.verified ? `<button class="action-btn btn-verify" onclick="verifySitter('${s._id}')">✓ Verify</button>` : ''}
@@ -2938,7 +2936,7 @@ function renderWalkers() {
         <td style="font-size:12px">${coverage}</td>
         <td>${w.verified ? '<span class="badge badge-green">Vérifié</span>' : '<span class="badge badge-orange">En attente</span>'}</td>
         <td>${boosted ? `<span class="badge badge-orange">🔥 ${escapeHtml(w.boostTier||'boost')} (${boostDays}d)</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td><span class="badge badge-blue">${escapeHtml(w.payoutMethod||'stripe')}</span></td>
+        <td><span class="badge badge-blue">${escapeHtml(w.payoutMethod||'airwallex')}</span></td>
         <td>${w.isStaff ? '<span style="color:#16A34A;font-weight:700">⭐ STAFF</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           ${!w.verified ? `<button class="action-btn btn-verify" onclick="verifyWalker('${w._id}')">✓ Verify</button>` : ''}
@@ -3104,7 +3102,7 @@ function renderPaymentSummary(summary, providers, payouts) {
   // Provider + Payout breakdown
   const provHtml = Object.entries(providers || {}).map(([name, v]) => `
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span>${name === 'stripe' ? '💳 Stripe' : name === 'paypal' ? '🅿️ PayPal' : '❓ ' + name}</span>
+      <span>${name === 'airwallex' ? '🌐 Airwallex' : '❓ ' + name}</span>
       <span><strong>${v.count}</strong> txn · ${fmt(v.total)} · comm ${fmt(v.commission)}</span>
     </div>
   `).join('');
@@ -3148,7 +3146,7 @@ function renderPaymentsTable(payments, total) {
     const c = { completed: 'green', processing: 'blue', failed: 'red', pending: 'orange' };
     return `<span class="badge badge-${c[s] || 'blue'}">${s}</span>`;
   };
-  const provIcon = (p) => p === 'stripe' ? '💳' : p === 'paypal' ? '🅿️' : '❓';
+  const provIcon = (p) => p === 'airwallex' ? '🌐' : '❓';
 
   tbody.innerHTML = `
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${total} transaction${total !== 1 ? 's' : ''} found</div>
@@ -3260,8 +3258,7 @@ function showPaymentModal(p) {
             <div><span style="color:var(--text-muted)">Provider:</span> <strong>${p.paymentProvider || '-'}</strong></div>
             <div><span style="color:var(--text-muted)">Paid:</span> ${fmtDate(p.paidAt)}</div>
             <div><span style="color:var(--text-muted)">Payout:</span> ${fmtDate(p.payoutAt)}</div>
-            ${p.stripePaymentIntentId ? `<div style="grid-column:span 2"><span style="color:var(--text-muted)">Stripe PI:</span> <code style="font-size:11px">${p.stripePaymentIntentId}</code></div>` : ''}
-            ${p.paypalOrderId ? `<div style="grid-column:span 2"><span style="color:var(--text-muted)">PayPal Order:</span> <code style="font-size:11px">${p.paypalOrderId}</code></div>` : ''}
+            ${p.stripePaymentIntentId ? `<div style="grid-column:span 2"><span style="color:var(--text-muted)">Airwallex PI:</span> <code style="font-size:11px">${p.stripePaymentIntentId}</code></div>` : ''}
             ${p.payoutError ? `<div style="grid-column:span 2;color:var(--red)"><span style="color:var(--text-muted)">Erreur :</span> ${escapeHtml(p.payoutError)}</div>` : ''}
           </div>
         </div>
@@ -3746,15 +3743,15 @@ async function loadAdminWallets() {
       sum.innerHTML =
         '<div class="stat-card"><div class="stat-label">Total balance</div><div class="stat-value">' + (s.totalBalance||0).toFixed(2) + ' EUR</div></div>' +
         '<div class="stat-card"><div class="stat-label">Providers with balance</div><div class="stat-value">' + (s.providerCount||0) + '</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Stripe-connected</div><div class="stat-value">' + (s.stripeConnectedCount||0) + '</div></div>';
+        '<div class="stat-card"><div class="stat-label">IBAN configurés (Airwallex)</div><div class="stat-value">' + (s.ibanConnectedCount ?? s.stripeConnectedCount ?? 0) + '</div></div>';
     }
     // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     const rows = (data.wallets||[]).map(w => {
       const role = w.role === 'walker' ? 'Walker' : 'Sitter';
       const cur = escapeHtml(w.currency || 'EUR');
-      return '<tr><td>'+role+'</td><td><strong>'+escapeHtml(w.name||'-')+'</strong></td><td>'+escapeHtml(w.email||'-')+'</td><td>'+(w.balance||0).toFixed(2)+' '+cur+'</td><td>'+(w.stripeAccountId ? '<span class="badge badge-green">OK</span>' : '<span class="badge badge-orange">-</span>')+'</td></tr>';
+      return '<tr><td>'+role+'</td><td><strong>'+escapeHtml(w.name||'-')+'</strong></td><td>'+escapeHtml(w.email||'-')+'</td><td>'+(w.balance||0).toFixed(2)+' '+cur+'</td><td>'+((w.hasIban ?? w.stripeAccountId) ? '<span class="badge badge-green">OK</span>' : '<span class="badge badge-orange">-</span>')+'</td></tr>';
     }).join('');
-    if (tbl) tbl.innerHTML = '<table class="table"><thead><tr><th>Role</th><th>Nom</th><th>Email</th><th>Solde</th><th>Stripe</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun wallet</td></tr>') + '</tbody></table>';
+    if (tbl) tbl.innerHTML = '<table class="table"><thead><tr><th>Role</th><th>Nom</th><th>Email</th><th>Solde</th><th>IBAN Airwallex</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun wallet</td></tr>') + '</tbody></table>';
   } catch (e) {
     if (tbl) tbl.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
   }

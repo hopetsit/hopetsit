@@ -2597,11 +2597,11 @@ router.get('/wallets', requireAdmin, async (req, res) => {
     const Walker = require('../models/Walker');
     const [sitters, walkers] = await Promise.all([
       Sitter.find({ walletBalance: { $gt: 0 } })
-        .select('name email walletBalance walletCurrency stripeAccountId stripePayoutsEnabled')
+        .select('name email walletBalance walletCurrency airwallexBeneficiaryId')
         .limit(200)
         .lean(),
       Walker.find({ walletBalance: { $gt: 0 } })
-        .select('name email walletBalance walletCurrency stripeAccountId stripePayoutsEnabled')
+        .select('name email walletBalance walletCurrency airwallexBeneficiaryId')
         .limit(200)
         .lean(),
     ]);
@@ -2613,22 +2613,27 @@ router.get('/wallets', requireAdmin, async (req, res) => {
       ...sitters.map((s) => ({
         role: 'sitter', ...s, id: s._id.toString(),
         balance: s.walletBalance || 0, currency: s.walletCurrency || 'EUR',
+        // v23.1.377 — badge front : bénéficiaire Airwallex (IBAN) configuré.
+        hasIban: !!s.airwallexBeneficiaryId,
       })),
       ...walkers.map((w) => ({
         role: 'walker', ...w, id: w._id.toString(),
         balance: w.walletBalance || 0, currency: w.walletCurrency || 'EUR',
+        hasIban: !!w.airwallexBeneficiaryId,
       })),
     ].sort((a, b) => (b.walletBalance || 0) - (a.walletBalance || 0));
 
     const totalBalance = rows.reduce((sum, r) => sum + (r.walletBalance || 0), 0);
-    const connectedCount = rows.filter((r) => !!r.stripeAccountId).length;
+    // v23.1.377 — Stripe purgé : l'indicateur devient le bénéficiaire Airwallex (IBAN prêt pour les virements).
+    const connectedCount = rows.filter((r) => !!r.airwallexBeneficiaryId).length;
 
     res.json({
       wallets: rows,
       summary: {
         totalBalance: Math.round(totalBalance * 100) / 100,
         providerCount: rows.length,
-        stripeConnectedCount: connectedCount,
+        ibanConnectedCount: connectedCount,
+        stripeConnectedCount: connectedCount, // alias rétro-compat front
       },
     });
   } catch (e) {
