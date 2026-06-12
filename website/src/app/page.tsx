@@ -197,47 +197,72 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* v23.1.388 — Daniel : "en dessous de PawSpot parle aussi de
-              PawFollow + une ligne Paw Premium : les deux en un". */}
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            <div className="rounded-2xl border-2 border-amber-300 bg-white p-6 shadow-card">
-              <div className="flex items-center gap-3">
-                <PawSpotGoldCoin size={44} />
-                <h3 className="text-lg font-extrabold text-amber-600">PawSpot</h3>
+          {/* v23.1.390 — Daniel : « 3 cadres explicatifs pour CHAQUE produit ».
+              Section PawFollow (violet) — 3 cadres, comme PawSpot ci-dessus. */}
+        </div>
+      </section>
+
+      <section className="bg-gradient-to-br from-violet-50 via-white to-violet-100/60 py-20">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pawfollow_logo.svg" alt="" width={40} height={40} className="mr-2 -mt-1 inline" />
+            PawFollow
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base text-ink-muted">
+            {t("home_pawfollow_blurb")}
+          </p>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {[
+              { e: "🛰️", ti: t("home_pf_b1t"), bo: t("home_pf_b1b") },
+              { e: "👥", ti: t("home_pf_b2t"), bo: t("home_pf_b2b") },
+              { e: "🛡️", ti: t("home_pf_b3t"), bo: t("home_pf_b3b") },
+            ].map((b) => (
+              <div key={b.ti} className="rounded-2xl border border-violet-200 bg-white p-6 shadow-card">
+                <div className="text-3xl">{b.e}</div>
+                <h3 className="mt-3 text-base font-bold text-ink">{b.ti}</h3>
+                <p className="mt-2 text-sm text-ink-muted">{b.bo}</p>
               </div>
-              <p className="mt-3 text-sm text-ink-muted">{t("home_pawspot_blurb")}</p>
-              <p className="mt-3 text-xs font-semibold text-ink-muted">{t("home_rule_pawspot")}</p>
-              <p className="mt-3 text-sm font-semibold text-amber-600">{t("home_pawspot_price_line")}</p>
-            </div>
-            <div className="rounded-2xl border-2 border-violet-300 bg-white p-6 shadow-card">
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/pawfollow_logo.svg" alt="PawFollow" width={44} height={44} />
-                <h3 className="text-lg font-extrabold text-violet-700">PawFollow</h3>
-              </div>
-              <p className="mt-3 text-sm text-ink-muted">{t("home_pawfollow_blurb")}</p>
-              <p className="mt-3 text-xs font-semibold text-ink-muted">{t("home_rule_pawfollow")}</p>
-              <p className="mt-3 text-sm font-semibold text-violet-700">
-                {t("home_pawfollow_price_line")}
-              </p>
-            </div>
-            <div className="rounded-2xl border-2 border-amber-400 bg-gradient-to-b from-[#221C12] to-[#15120D] p-6 shadow-card">
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/pawpremium_logo.svg" alt="Paw Premium" width={44} height={44} />
-                <h3 className="text-lg font-extrabold text-yellow-400">Paw Premium 👑</h3>
-              </div>
-              <p className="mt-3 text-sm text-white/85">{t("home_pawpremium_blurb")}</p>
-              <ul className="mt-3 space-y-1.5 text-left">
-            {["pawpremium_feat_pawfollow","pawpremium_feat_pawspot","pawpremium_feat_exclusive","pawpremium_feat_badge","pawpremium_feat_points","pawpremium_feat_priority"].map((k) => (
-              <li key={k} className="flex items-start gap-2 text-xs font-medium text-white/90"><span className="text-amber-400">✓</span>{t(k)}</li>
             ))}
-              </ul>
-              <p className="mt-3 text-xs font-semibold text-white/70">{t("home_rule_pawpremium")}</p>
-              <p className="mt-3 text-sm font-semibold text-yellow-300">
-                {t("home_pawpremium_price_line")}
-              </p>
-            </div>
+          </div>
+          <p className="mt-8 text-center text-sm font-semibold text-violet-700">{t("home_rule_pawfollow")}</p>
+          <div className="mt-5 text-center">
+            <Link href="/boutique" className="inline-block rounded-full bg-violet-600 px-7 py-3 text-sm font-semibold text-white shadow-cta hover:bg-violet-700">
+              {t("home_pawfollow_price_line")} →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Paw Premium (noir/or) — 3 cadres + CTA boutique. */}
+      <section className="bg-gradient-to-b from-[#221C12] to-[#15120D] py-20">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-yellow-400 md:text-4xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pawpremium_logo.svg" alt="" width={44} height={44} className="mr-2 -mt-1 inline" />
+            Paw Premium 👑
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base text-white/85">
+            {t("home_pawpremium_blurb")}
+          </p>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {[
+              { e: "🎁", ti: t("home_pp_b1t"), bo: t("home_pp_b1b") },
+              { e: "👑", ti: t("home_pp_b2t"), bo: t("home_pp_b2b") },
+              { e: "⚡", ti: t("home_pp_b3t"), bo: t("home_pp_b3b") },
+            ].map((b) => (
+              <div key={b.ti} className="rounded-2xl border border-amber-400/50 bg-white/5 p-6">
+                <div className="text-3xl">{b.e}</div>
+                <h3 className="mt-3 text-base font-bold text-yellow-300">{b.ti}</h3>
+                <p className="mt-2 text-sm text-white/80">{b.bo}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-8 text-center text-xs font-semibold text-white/70">{t("home_rule_pawpremium")}</p>
+          <div className="mt-5 text-center">
+            <Link href="/boutique" className="inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3 text-sm font-bold text-black hover:brightness-110">
+              {t("home_pawpremium_price_line")} →
+            </Link>
           </div>
         </div>
       </section>

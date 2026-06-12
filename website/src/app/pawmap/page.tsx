@@ -294,7 +294,7 @@ export default function PawMapPage() {
 
       <div className="mt-16 text-center">
         <Link
-          href="/download"
+          href="/boutique"
           className="inline-block rounded-full bg-walker px-7 py-3 text-sm font-semibold text-white hover:bg-walker-dark"
         >
           {t("nav_download")} →

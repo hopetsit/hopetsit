@@ -38,6 +38,70 @@ export default function HowItWorksPage() {
         ))}
       </ol>
 
+      {/* v23.1.390 — Daniel : grande partie petsitting (les 3 rôles). */}
+      <h2 className="mt-20 text-center font-display text-3xl font-extrabold tracking-tight text-ink">
+        {t("roles_title")}
+      </h2>
+      <div className="mt-10 grid gap-5 md:grid-cols-3">
+        {[
+          { e: "🐾", ti: t("role_owner_title"), bo: t("role_owner_body"), c: "owner" },
+          { e: "🏠", ti: t("role_sitter_title"), bo: t("role_sitter_body"), c: "sitter" },
+          { e: "🚶", ti: t("role_walker_title"), bo: t("role_walker_body"), c: "walker" },
+        ].map((r) => (
+          <div key={r.ti} className="rounded-2xl border border-ink/5 bg-white p-6 shadow-card">
+            <div className={`grid h-11 w-11 place-items-center rounded-2xl bg-${r.c}-light text-2xl`}>{r.e}</div>
+            <h3 className="mt-4 text-base font-bold text-ink">{r.ti}</h3>
+            <p className="mt-2 text-sm text-ink-muted">{r.bo}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Suivi GRATUIT pendant le service via la PawMap. */}
+      <div className="mt-10 rounded-3xl border-2 border-emerald-300 bg-emerald-50 p-8 text-center">
+        <div className="text-4xl">🛰️</div>
+        <h3 className="mt-3 font-display text-xl font-extrabold text-emerald-800">
+          {t("hiw_track_title")}
+        </h3>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-emerald-900/80">{t("hiw_track_body")}</p>
+      </div>
+
+      {/* Vente : PawFollow · PawSpot · surtout Paw Premium. */}
+      <h2 className="mt-20 text-center font-display text-3xl font-extrabold tracking-tight text-ink">
+        {t("hiw_subs_title")}
+      </h2>
+      <div className="mt-10 grid gap-5 md:grid-cols-2">
+        <div className="rounded-2xl border-2 border-violet-300 bg-white p-6 shadow-card">
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pawfollow_logo.svg" alt="PawFollow" width={40} height={40} />
+            <h3 className="text-lg font-extrabold text-violet-700">PawFollow</h3>
+          </div>
+          <p className="mt-3 text-sm text-ink-muted">{t("home_pawfollow_blurb")}</p>
+          <p className="mt-3 text-sm font-semibold text-violet-700">{t("home_pawfollow_price_line")}</p>
+        </div>
+        <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-6 shadow-card">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🐾</span>
+            <h3 className="text-lg font-extrabold text-amber-700">PawSpot</h3>
+          </div>
+          <p className="mt-3 text-sm text-ink-muted">{t("home_pawspot_blurb")}</p>
+          <p className="mt-3 text-sm font-semibold text-amber-700">{t("home_pawspot_price_line")}</p>
+        </div>
+      </div>
+      <div className="mt-6 rounded-3xl border-2 border-amber-400 bg-gradient-to-b from-[#221C12] to-[#15120D] p-8 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pawpremium_logo.svg" alt="Paw Premium" width={72} height={72} className="mx-auto" />
+        <h3 className="mt-3 font-display text-2xl font-extrabold text-yellow-400">Paw Premium 👑</h3>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-white/85">{t("home_pawpremium_blurb")}</p>
+        <p className="mt-3 text-sm font-semibold text-yellow-300">{t("home_pawpremium_price_line")}</p>
+        <Link
+          href="/boutique"
+          className="mt-5 inline-block rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-7 py-3 text-sm font-bold text-black hover:brightness-110"
+        >
+          {t("pawpremium_cta")} →
+        </Link>
+      </div>
+
       <div className="mt-16 text-center">
         <Link
           href="/signup"

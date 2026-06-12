@@ -1227,6 +1227,8 @@ export type SubscriptionStatus = {
   isPremium: boolean;
   // v23.1.387 — Paw Premium (bundle PawFollow + PawSpot + extras).
   premiumBundleActive?: boolean;
+  familyActive?: boolean;
+  familyExpiry?: string | null;
   premiumExpiry?: string | null;
   pawspotExpiry?: string | null;
   features?: Record<string, boolean | number>;
@@ -1264,6 +1266,27 @@ export async function subscribeToPlan(
   return await request("/subscriptions/subscribe", {
     method: "POST",
     body: JSON.stringify({ plan, currency }),
+  });
+}
+
+// v23.1.390 — achat PawSpot depuis le SITE (même HPP que l'app).
+export async function subscribeToPawSpot(
+  plan: string,
+  currency?: string,
+): Promise<{ clientSecret?: string; paymentIntentId?: string; amount?: number; currency?: string; activated?: boolean }> {
+  return await request("/pawspots/subscribe", {
+    method: "POST",
+    body: JSON.stringify({ plan, currency }),
+  });
+}
+
+export async function confirmPawSpot(
+  plan: string,
+  paymentIntentId: string,
+): Promise<unknown> {
+  return await request("/pawspots/confirm", {
+    method: "POST",
+    body: JSON.stringify({ plan, paymentIntentId }),
   });
 }
 

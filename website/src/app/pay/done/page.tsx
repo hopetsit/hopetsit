@@ -23,13 +23,14 @@ import {
 } from "@/lib/api";
 
 type Status = "success" | "fail" | "cancel" | "unknown";
-type Purpose = "" | "subscription" | "boost" | "mapboost" | "booking";
+type Purpose = "" | "subscription" | "boost" | "mapboost" | "pawspot" | "booking";
 
 const PURPOSE_LABEL: Record<Exclude<Purpose, "">, string> = {
   subscription: "abonnement Premium",
   boost: "boost annonce",
   mapboost: "PawSpot (visibilité carte)",
   booking: "réservation",
+  pawspot: "abonnement PawSpot",
 };
 
 export default function PayDonePage() {
@@ -84,6 +85,10 @@ export default function PayDonePage() {
           await confirmBoost(planOrTier as BoostTier, intentId, currency);
         } else if (purpose === "mapboost") {
           await confirmMapBoost(planOrTier as BoostTier, intentId, currency);
+        } else if (purpose === "pawspot") {
+          // v23.1.390 — abo PawSpot acheté depuis le site.
+          const { confirmPawSpot } = await import("@/lib/api");
+          await confirmPawSpot(planOrTier, intentId);
         }
         setConfirmed(true);
       } catch (e) {

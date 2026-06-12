@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import {
   ApiError,
   AuthUser,
+  subscribeToPawSpot,
   BoostPackage,
   BoostStatus,
   BoostTier,
@@ -115,23 +116,32 @@ export default function BoutiquePage() {
    * /confirm.
    */
   async function startCheckout(
-    purpose: "subscription" | "boost" | "mapboost",
+    purpose: "subscription" | "boost" | "mapboost" | "pawspot",
     planOrTier: string,
-    createIntent: () => Promise<PaymentIntentResponse | { clientSecret: string; paymentIntentId: string; amount: number; currency: string }>,
+    createIntent: () => Promise<PaymentIntentResponse | { clientSecret?: string; paymentIntentId?: string; amount?: number; currency?: string; activated?: boolean }>,
     label: string,
   ) {
     setPurchasing(label);
     setError(null);
     try {
       const intent = await createIntent();
+      // v23.1.390 — comptes STAFF / wallet : le backend active DIRECTEMENT
+      // ({activated:true}, sans clientSecret). Avant : « Réponse backend
+      // incomplète (paymentIntent manquant) » à tort (bug Daniel).
+      if ((intent as { activated?: boolean }).activated) {
+        setPurchasing(null);
+        alert("✅ Abonnement activé !");
+        window.location.reload();
+        return;
+      }
       if (!intent.clientSecret || !intent.paymentIntentId) {
         throw new Error("Réponse backend incomplète (paymentIntent manquant).");
       }
-      const country = guessCountryFromCurrency(intent.currency);
+      const country = guessCountryFromCurrency(intent.currency || "EUR");
       const qs = new URLSearchParams({
-        intent: intent.paymentIntentId,
-        secret: intent.clientSecret,
-        currency: intent.currency,
+        intent: intent.paymentIntentId as string,
+        secret: intent.clientSecret as string,
+        currency: (intent.currency || "EUR") as string,
         country,
         purpose,
         ...(purpose === "subscription" ? { plan: planOrTier } : { tier: planOrTier }),
@@ -169,6 +179,16 @@ export default function BoutiquePage() {
       tier,
       () => purchaseBoost(tier),
       `boost-${tier}`,
+    );
+  }
+
+  // v23.1.390 — abo PawSpot acheté directement sur le site (HPP).
+  async function handleBuyPawSpot(plan: string) {
+    return startCheckout(
+      "pawspot",
+      plan,
+      () => subscribeToPawSpot(plan),
+      `pawspot-${plan}`,
     );
   }
 
@@ -239,13 +259,11 @@ export default function BoutiquePage() {
         </div>
       )}
 
-      {/* Tabs sections */}
-      <div className="mt-8 inline-flex flex-wrap gap-2 rounded-full bg-ink/5 p-1">
-        <SectionTab
-          label={t("shop_tab_premium")}
-          active={section === "premium"}
-          onClick={() => setSection("premium")}
-        />
+      {/* v23.1.390 — chips « jours restants » comme dans l'app (Daniel). */}
+      <BenefitsChips status={subStatus} boost={boostStatus} />
+
+      {/* Tabs sections — ordre Daniel : PawBoost · PawFollow · PawSpot · Premium */}
+      <div className="mt-6 inline-flex flex-wrap gap-2 rounded-full bg-ink/5 p-1">
         {isProvider && (
           <SectionTab
             label={t("shop_tab_boost")}
@@ -253,6 +271,11 @@ export default function BoutiquePage() {
             onClick={() => setSection("boost")}
           />
         )}
+        <SectionTab
+          label={t("shop_tab_premium")}
+          active={section === "premium"}
+          onClick={() => setSection("premium")}
+        />
         {/* v23.1.353 — PawSpot communautaire : pour TOUS les rôles (plus
             seulement les prestataires comme l'ancien map boost). */}
         <SectionTab
@@ -324,6 +347,14 @@ export default function BoutiquePage() {
               <h3 className="text-lg font-bold text-ink">{t("pawspot_monthly_name")}</h3>
               <p className="mt-2 text-3xl font-extrabold text-amber-600">4,99 €</p>
               <p className="mt-2 text-sm text-ink-muted">{t("pawspot_monthly_details")}</p>
+              <button
+                type="button"
+                onClick={() => handleBuyPawSpot("monthly")}
+                disabled={purchasing === "pawspot-monthly"}
+                className="mt-4 w-full rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+              >
+                {purchasing === "pawspot-monthly" ? "…" : "S'abonner"}
+              </button>
             </div>
             <div className="rounded-2xl border-4 border-amber-400 bg-amber-50 p-6 ring-2 ring-amber-200 shadow-lg">
               <h3 className="text-lg font-bold text-ink">
@@ -332,6 +363,14 @@ export default function BoutiquePage() {
               </h3>
               <p className="mt-2 text-3xl font-extrabold text-amber-600">39,99 €</p>
               <p className="mt-2 text-sm text-ink-muted">{t("pawspot_yearly_details")}</p>
+              <button
+                type="button"
+                onClick={() => handleBuyPawSpot("yearly")}
+                disabled={purchasing === "pawspot-yearly"}
+                className="mt-4 w-full rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+              >
+                {purchasing === "pawspot-yearly" ? "…" : "S'abonner"}
+              </button>
             </div>
           </div>
           <p className="mt-5 text-sm text-ink-muted">{t("pawspot_footer_note")}</p>
@@ -388,6 +427,46 @@ function SectionTab({
   );
 }
 
+// v23.1.390 — chips jours restants (mêmes règles que l'app : ceil heures/24).
+function BenefitsChips({
+  status,
+  boost,
+}: {
+  status: SubscriptionStatus | null;
+  boost: (BoostStatus & { expiresAt?: string; expiry?: string }) | null;
+}) {
+  if (!status) return null;
+  const now = Date.now();
+  const days = (d?: string | null) =>
+    d ? Math.max(0, Math.ceil((new Date(d).getTime() - now) / 86400000)) : 0;
+  const staff = status.currentPeriodEnd
+    ? new Date(status.currentPeriodEnd).getFullYear() >= 2090
+    : false;
+  const chips: { e: string; l: string; c: string }[] = [];
+  if (staff) chips.push({ e: "⭐", l: "Staff — accès illimité", c: "bg-emerald-100 text-emerald-800" });
+  if (status.premiumExpiry && days(status.premiumExpiry) > 0)
+    chips.push({ e: "👑", l: `Paw Premium · ${days(status.premiumExpiry)} j`, c: "bg-amber-100 text-amber-900" });
+  if (!staff && status.currentPeriodEnd && days(status.currentPeriodEnd) > 0 && status.plan !== "famille" && status.plan !== "family")
+    chips.push({ e: "📍", l: `PawFollow · ${days(status.currentPeriodEnd)} j`, c: "bg-violet-100 text-violet-800" });
+  if (status.familyExpiry && days(status.familyExpiry) > 0)
+    chips.push({ e: "👨‍👩‍👧", l: `Famille · ${days(status.familyExpiry)} j`, c: "bg-violet-100 text-violet-800" });
+  if (status.pawspotExpiry && days(status.pawspotExpiry) > 0)
+    chips.push({ e: "🐾", l: `PawSpot · ${days(status.pawspotExpiry)} j`, c: "bg-amber-100 text-amber-800" });
+  const boostExp = boost?.expiresAt || boost?.expiry;
+  if (boost?.isActive && boostExp && days(boostExp) > 0)
+    chips.push({ e: "🚀", l: `PawBoost · ${days(boostExp)} j`, c: "bg-red-100 text-red-700" });
+  if (!chips.length) return null;
+  return (
+    <div className="mt-6 flex flex-wrap gap-2">
+      {chips.map((ch) => (
+        <span key={ch.l} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${ch.c}`}>
+          <span>{ch.e}</span>{ch.l}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PremiumSection({
   plans,
   status,
@@ -429,8 +508,9 @@ function PremiumSection({
               </div>
               {status.currentPeriodEnd && (
                 <p className="mt-1 text-sm text-ink-muted">
-                  {willCancel ? "Se terminera" : "Renouvellement"} le{" "}
-                  {new Date(status.currentPeriodEnd).toLocaleDateString("fr-FR")}
+                  {new Date(status.currentPeriodEnd).getFullYear() >= 2090
+                    ? "Accès illimité (compte staff) ⭐"
+                    : `${willCancel ? "Se terminera" : "Renouvellement"} le ${new Date(status.currentPeriodEnd).toLocaleDateString("fr-FR")}`}
                 </p>
               )}
               {typeof status.mapBoostCreditsRemaining === "number" && (

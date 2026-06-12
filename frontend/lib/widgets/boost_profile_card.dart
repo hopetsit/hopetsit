@@ -1,7 +1,9 @@
-// v19.1.1 — Boost profil : 2 boutons côte à côte sans CrossAxisAlignment.stretch
+// v19.1.1 — Boost profil : boutons côte à côte sans CrossAxisAlignment.stretch
 // (qui cassait le rendu des sections en-dessous sur le profil owner).
-// Chaque chip est un Container à hauteur fixe, donc pas d'infinite height
-// constraint qui fait bugger le scroll parent.
+// v23.1.390 — Daniel : 4 carrés ALIGNÉS sur une ligne (les 3 profils) :
+//   PawBoost (orange) · PawFollow (nouveau logo pin violet) · PawSpot (pièce
+//   dorée) · Paw Premium (NOIR/or, sous-titre "PawFollow+PawSpot", ouvre
+//   l'onglet Premium de la boutique). Tailles réduites pour tenir à 4.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -17,12 +19,8 @@ class BoostProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // v23.1 part 122 — Daniel : "Ameliorer - icone premium pawfollow et
-    // pawspot plus visible". Chips agrandies (height 86→110), icones plus
-    // grandes (34→48), avec animation de pulse subtile pour attirer le
-    // regard. Labels en deux lignes possibles (max 2 lines).
     return SizedBox(
-      height: 112.h,
+      height: 108.h,
       child: Row(
         children: [
           Expanded(
@@ -33,25 +31,49 @@ class BoostProfileCard extends StatelessWidget {
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 0)),
             ),
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: 8.w),
           Expanded(
             child: _BoostChip(
               accent: const Color(0xFF7C3AED), // v354 — PawFollow = violet (Daniel)
               icon: Icons.star_rounded,
+              // v23.1.390 — nouveau logo officiel (pin violet + patte).
+              iconWidget: Image.asset(
+                'assets/images/pawfollow_logo.png',
+                width: 40.w,
+                height: 40.w,
+              ),
               label: 'shop_tile_premium'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 1)),
             ),
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: 8.w),
           Expanded(
             child: _BoostChip(
               // v23.1.363 — Daniel : le logo PawSpot = la pièce DORÉE
               // officielle (emoji fourni), aussi sur le chip du profil.
               accent: const Color(0xFFE8A00A),
               icon: Icons.pets_rounded,
-              iconWidget: const GoldenPawCoin(size: 40),
+              iconWidget: const GoldenPawCoin(size: 36),
               label: 'shop_tile_map_boost'.tr,
               onTap: () => Get.to(() => const CoinShopScreen(initialTab: 2)),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _BoostChip(
+              // v23.1.390 — Paw Premium : carré NOIR, liseré or, pièce or.
+              accent: const Color(0xFF15120D),
+              borderColor: const Color(0xFFE8A00A),
+              labelColor: const Color(0xFFFFD700),
+              icon: Icons.workspace_premium_rounded,
+              iconWidget: Image.asset(
+                'assets/images/pawpremium_logo.png',
+                width: 40.w,
+                height: 40.w,
+              ),
+              label: 'shop_tile_pawpremium'.tr,
+              subLabel: 'PawFollow+PawSpot',
+              onTap: () => Get.to(() => const CoinShopScreen(initialTab: 3)),
             ),
           ),
         ],
@@ -67,6 +89,9 @@ class _BoostChip extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.iconWidget,
+    this.subLabel,
+    this.borderColor,
+    this.labelColor,
   });
 
   final Color accent;
@@ -78,62 +103,72 @@ class _BoostChip extends StatelessWidget {
   /// l'IconData.
   final Widget? iconWidget;
 
+  /// v23.1.390 — petite 2e ligne (ex. "PawFollow+PawSpot" sur Premium).
+  final String? subLabel;
+  final Color? borderColor;
+  final Color? labelColor;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 10.h),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [accent, accent.withValues(alpha: 0.78)],
+            colors: [accent, accent.withValues(alpha: 0.82)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(18.r),
+          borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
-              color: accent.withValues(alpha: 0.42),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: (borderColor ?? accent).withValues(alpha: 0.38),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.18),
-            width: 1.5,
+            color: borderColor ?? Colors.white.withValues(alpha: 0.18),
+            width: borderColor != null ? 1.8 : 1.5,
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 48.w,
-              height: 48.w,
+              width: 40.w,
+              height: 40.w,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.28),
+                color: Colors.white.withValues(alpha: 0.24),
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    blurRadius: 8,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
               ),
               child: iconWidget != null
                   ? Center(child: iconWidget)
-                  : Icon(icon, color: Colors.white, size: 28.sp),
+                  : Icon(icon, color: Colors.white, size: 22.sp),
             ),
-            SizedBox(height: 8.h),
+            SizedBox(height: 6.h),
             PoppinsText(
               text: label,
-              fontSize: 13.sp,
+              fontSize: 10.5.sp,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: labelColor ?? Colors.white,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
+            if (subLabel != null) ...[
+              SizedBox(height: 1.h),
+              InterText(
+                text: subLabel!,
+                fontSize: 7.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.85),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),
