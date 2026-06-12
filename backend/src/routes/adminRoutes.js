@@ -4085,4 +4085,135 @@ router.get('/export/pawspots', requireAdmin, async (req, res) => {
   }
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// v23.1.376 — Daniel (partie 1 admin) : payouts prestataires par catégorie
+// (sitter/walker) + relance en cas d'échec + historique retraits société.
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /admin/provider-payouts?role=all|sitter|walker — tous les MOUVEMENTS
+// d'argent vers les prestataires : (a) payouts de réservations (libération
+// escrow → wallet/IBAN) avec statut + erreur, (b) retraits wallet (virements
+// IBAN demandés par les prestataires) avec statut + raison d'échec.
+router.get('/provider-payouts', requireAdmin, async (req, res) => {
+  try {
+    const role = String(req.query.role || 'all').toLowerCase();
+    const Booking = require('../models/Booking');
+    const WalletTransaction = require('../models/WalletTransaction');
+    const Sitter = require('../models/Sitter');
+    const Walker = require('../models/Walker');
+
+    // (a) Payouts de réservations.
+    const bookingFilter = {
+      paymentStatus: 'paid',
+      payoutStatus: { $in: ['scheduled', 'processing', 'completed', 'failed', 'held'] },
+    };
+    if (role === 'sitter') bookingFilter.sitterId = { $ne: null };
+    if (role === 'walker') bookingFilter.walkerId = { $ne: null };
+    const bookings = await Booking.find(bookingFilter)
+      .sort({ updatedAt: -1 })
+      .limit(500)
+      .populate('sitterId', 'name')
+      .populate('walkerId', 'name')
+      .populate('ownerId', 'name')
+      .lean();
+    const bookingPayouts = bookings.map((b) => ({
+      bookingId: String(b._id),
+      role: b.walkerId ? 'walker' : 'sitter',
+      providerName: (b.walkerId && b.walkerId.name) || (b.sitterId && b.sitterId.name) || '—',
+      ownerName: (b.ownerId && b.ownerId.name) || '—',
+      net: b.pricing && b.pricing.netPayout != null ? b.pricing.netPayout : null,
+      currency: (b.pricing && b.pricing.currency) || 'EUR',
+      payoutStatus: b.payoutStatus || '—',
+      payoutError: b.payoutError || '',
+      scheduledPayoutAt: b.scheduledPayoutAt || null,
+      updatedAt: b.updatedAt,
+    }));
+
+    // (b) Retraits wallet des prestataires.
+    const wdFilter = { type: 'debit_withdrawal' };
+    if (role === 'sitter' || role === 'walker') wdFilter.userRole = role;
+    const txs = await WalletTransaction.find(wdFilter)
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+    const nameCache = new Map();
+    const withdrawals = [];
+    for (const t of txs) {
+      const key = String(t.userId);
+      if (!nameCache.has(key)) {
+        try {
+          const Model = t.userRole === 'walker' ? Walker : Sitter;
+          const u = await Model.findById(t.userId).select('name').lean();
+          nameCache.set(key, (u && u.name) || '—');
+        } catch (_) { nameCache.set(key, '—'); }
+      }
+      withdrawals.push({
+        txId: String(t._id),
+        role: t.userRole,
+        userName: nameCache.get(key),
+        amount: t.amount,
+        currency: t.currency || 'EUR',
+        status: t.status || '—',
+        method: t.withdrawalMethod || 'iban',
+        airwallexId: t.referenceId || '',
+        failureReason: t.failureReason || '',
+        createdAt: t.createdAt,
+      });
+    }
+
+    res.json({ role, bookingPayouts, withdrawals });
+  } catch (e) {
+    logger.error('[admin/provider-payouts]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /admin/provider-payouts/:bookingId/retry — relance un payout en
+// ÉCHEC : repasse payoutStatus à 'scheduled' (updateOne atomique, pas de
+// validators — cf. boucle v374) → retraité au prochain tick du scheduler.
+router.post('/provider-payouts/:bookingId/retry', requireAdmin, async (req, res) => {
+  try {
+    const Booking = require('../models/Booking');
+    const r = await Booking.updateOne(
+      { _id: req.params.bookingId, payoutStatus: 'failed' },
+      { $set: { payoutStatus: 'scheduled', payoutError: '', scheduledPayoutAt: new Date() } },
+    );
+    if (!r.matchedCount) {
+      return res.status(409).json({ error: "Ce payout n'est pas en échec (rien à relancer)." });
+    }
+    res.json({ retried: true });
+  } catch (e) {
+    logger.error('[admin/provider-payouts/retry]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /admin/company-sweeps — historique COMPLET des retraits société
+// (sweeps Airwallex → compte bancaire) pour l'onglet « Mes revenus ».
+router.get('/company-sweeps', requireAdmin, async (req, res) => {
+  try {
+    const CompanySweep = require('../models/CompanySweep');
+    const sweeps = await CompanySweep.find({})
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+    res.json({
+      sweeps: sweeps.map((s) => ({
+        id: String(s._id),
+        date: s.createdAt,
+        amount: s.amount,
+        requestedAmount: s.requestedAmount,
+        currency: s.currency,
+        status: s.status,
+        payoutId: s.payoutId || '',
+        failureReason: s.failureReason || '',
+        triggeredBy: s.triggeredBy || 'admin',
+      })),
+    });
+  } catch (e) {
+    logger.error('[admin/company-sweeps]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
