@@ -146,14 +146,18 @@ class SocketService {
   }
 
   /// v23.1.397 — Daniel : « Session expirée » à la reconnexion. Au logout,
-  /// le socket restait connecté avec l'ANCIEN token et ses hooks (chat,
-  /// map…) tournaient encore → requêtes résiduelles avec token effacé →
-  /// 401 → snackbar parasite. On coupe le socket ET on purge les hooks
-  /// onConnected (sinon le prochain connect() du nouveau compte les
-  /// rejouerait avec l'état de l'ancien). À appeler dans logout().
+  /// le socket restait connecté avec l'ANCIEN token → requêtes résiduelles
+  /// → 401 → snackbar parasite. On COUPE le socket.
+  ///
+  /// v23.1.399 — Daniel : « vérifie que Me suivre marche ». On NE purge PLUS
+  /// les _onConnectedHooks : ils sont enregistrés par des services PERMANENTS
+  /// (LiveMapService → map:identify) qui SURVIVENT au logout et ne sont
+  /// jamais recréés → les vider les perdait à jamais, cassant le suivi en
+  /// direct après un cycle déconnexion→reconnexion. Les hooks sont
+  /// idempotents et relisent le token courant à la (re)connexion : aucun
+  /// risque de rejouer l'état de l'ancien compte.
   void resetForLogout() {
     try {
-      _onConnectedHooks.clear();
       disconnect();
     } catch (e) {
       AppLogger.logError('resetForLogout failed', error: e);

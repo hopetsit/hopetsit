@@ -88,6 +88,23 @@ export default function PawMapPage() {
       badge: t("pawfollow_family_badge"),
       isFamily: true,
     },
+    {
+      // v23.1.398 — Daniel : ajouter PawFamily ANNUEL sur la page PawMap.
+      name: t("pawfollow_family_yearly_name"),
+      price: "69,99 €",
+      period: t("pawfollow_yearly_period"),
+      tagline: t("pawfollow_family_tagline"),
+      features: [
+        t("pawfollow_family_f1"),
+        t("pawfollow_family_f2"),
+        t("pawfollow_family_f3"),
+        t("pawfollow_family_f4"),
+        t("pawfollow_monthly_f4"),
+      ],
+      highlighted: true,
+      badge: t("pawfollow_family_yearly_badge"),
+      isFamily: true,
+    },
   ];
 
   // v23.1.353 — refonte PawSpot : abonnement communautaire (spots tagués,
