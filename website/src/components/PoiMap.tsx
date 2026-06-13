@@ -52,11 +52,13 @@ import { GOLDEN_COIN_SVG, makeTypeCoinSvg } from "@/components/PawSpotGoldCoin";
 function LiveFriendMarker({
   p,
   isFamily,
+  isPremium,
   roleLabel,
   onFocus,
 }: {
   p: FriendLivePosition;
   isFamily: boolean;
+  isPremium?: boolean;
   roleLabel: string;
   onFocus?: () => void;
 }) {
@@ -87,7 +89,7 @@ function LiveFriendMarker({
       )}
       <Marker
         position={[p.lat, p.lng]}
-        icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily)}
+        icon={makeAvatarIcon(p.role, p.name, p.avatar, isFamily, isPremium)}
         zIndexOffset={800}
         eventHandlers={{
           // v23.1.364 — le clic notifie la PAGE (focusTarget) → FlyToFocus
@@ -278,6 +280,7 @@ export default function PoiMap({
   spotTypeLabels,
   friendPositions = [],
   familyIds = [],
+  premiumIds = [],
   roleLabels,
   userHaloColor,
   userAvatarUrl,
@@ -303,6 +306,8 @@ export default function PoiMap({
   /** v23.1 carte unique — amis/famille en direct (couche optionnelle). */
   friendPositions?: FriendLivePosition[];
   familyIds?: string[];
+  /** v23.1.399 — ids des membres Paw Premium → couronne 👑 + anneau OR. */
+  premiumIds?: string[];
   /** v23.1.358 — libellés i18n des rôles (owner/sitter/walker) pour le
       tooltip permanent « nom · rôle » sous chaque ami en direct. */
   roleLabels?: Partial<Record<Role, string>>;
@@ -325,6 +330,7 @@ export default function PoiMap({
   directionsLabel?: string;
 }) {
   const familySet = useMemo(() => new Set(familyIds), [familyIds]);
+  const premiumSet = useMemo(() => new Set(premiumIds), [premiumIds]);
   // v23.1.359 — halo "ma position" pulsant, couleur du rôle.
   const userIcon = useMemo(
     () => makeUserIcon(userHaloColor || "#2563EB", userAvatarUrl, userIsPremium),
@@ -546,6 +552,7 @@ export default function PoiMap({
             key={`live-${p.userId}`}
             p={p}
             isFamily={familySet.has(p.userId)}
+            isPremium={premiumSet.has(p.userId)}
             roleLabel={roleLabels?.[p.role] ?? p.role}
             onFocus={() => onFriendFocus?.(p)}
           />

@@ -425,7 +425,11 @@ class _FriendTile extends StatelessWidget {
               }
             } catch (_) {/* defensive */}
           }
-          Get.to(() => PawMapScreen(
+          // v23.1.400 — Daniel : « le retour depuis Suivre me remet sur la
+          // liste Amis au lieu de la carte ». Get.off REMPLACE l'écran Amis
+          // par la carte-focus → le bouton retour ramène directement à la
+          // carte (onglet, menu en bas), plus jamais sur la liste Amis.
+          Get.off(() => PawMapScreen(
                 initialLat: lat,
                 initialLng: lng,
                 focusUserId: other.id,
@@ -1903,7 +1907,9 @@ class _FamilyMemberTile extends StatelessWidget {
                   }
                 } catch (_) {/* defensive */}
               }
-              Get.to(() => PawMapScreen(
+              // v23.1.400 — Get.off : la carte-focus remplace l'écran Amis →
+              // retour = carte (onglet, menu en bas), pas la liste Amis.
+              Get.off(() => PawMapScreen(
                     initialLat: lat,
                     initialLng: lng,
                     focusUserId: id,

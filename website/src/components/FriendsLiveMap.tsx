@@ -67,10 +67,15 @@ export function makeAvatarIcon(
   name: string,
   avatar?: string,
   isFamily?: boolean,
+  isPremium?: boolean,
 ): L.DivIcon {
   const color = haloColor(role);
-  const ringColor = isFamily ? FAMILY_VIOLET : "white";
-  const ringWidth = isFamily ? 4 : 3;
+  // v23.1.399 — Daniel : couronne 👑 + anneau OR pour les membres Paw
+  // Premium (prioritaire sur le violet famille), comme dans l'app.
+  const GOLD = "#E8A00A";
+  const ringColor = isPremium ? GOLD : isFamily ? FAMILY_VIOLET : "white";
+  const ringWidth = isPremium || isFamily ? 4 : 3;
+  const haloColorEdge = isPremium ? GOLD : isFamily ? FAMILY_VIOLET : color;
   const initials = (name || "?")
     .split(/\s+/)
     .map((w) => w[0] || "")
@@ -80,16 +85,15 @@ export function makeAvatarIcon(
   const inner = avatar
     ? `<img src="${avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
     : `<span style="color:white;font-weight:700;font-size:18px;">${initials}</span>`;
-  // v23.1.359 — Daniel : "amis et famille, le rond légèrement plus gros"
-  // (40 → 48 px) + HALO ANIMÉ : anneau couleur rôle (violet famille) qui
-  // pulse derrière l'avatar (keyframes hps-pulse dans globals.css), comme
-  // le halo qui respire dans l'app.
-  // v23.1.396 — Daniel : « moi et les utilisateurs en plus gros » 48 → 64.
+  const crown = isPremium
+    ? `<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:22px;text-shadow:0 1px 3px rgba(0,0,0,0.4);">👑</div>`
+    : "";
+  // v23.1.359 — anneau pulsé ; v23.1.396 — 64 px ; v23.1.399 — couronne premium.
   return new L.DivIcon({
     className: "",
     html: `<div style="position:relative;width:64px;height:64px;">
       <div style="position:absolute;inset:-4px;border-radius:50%;
-        border:3px solid ${isFamily ? FAMILY_VIOLET : color};
+        border:3px solid ${haloColorEdge};
         animation:hps-pulse 2s ease-out infinite;"></div>
       <div style="
         width: 64px; height: 64px; border-radius: 50%;
@@ -98,6 +102,7 @@ export function makeAvatarIcon(
         box-shadow: 0 3px 10px rgba(0,0,0,0.3);
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;">${inner}</div>
+      ${crown}
     </div>`,
     iconSize: [64, 64],
     iconAnchor: [32, 32],

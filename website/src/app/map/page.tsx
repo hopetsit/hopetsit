@@ -149,6 +149,8 @@ export default function MapPage() {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [friendsForMap, setFriendsForMap] = useState<FriendItem[]>([]);
   const [familyIds, setFamilyIds] = useState<string[]>([]);
+  // v23.1.399 — Daniel : la couronne 👑 doit aussi apparaître sur le site.
+  const [premiumIds, setPremiumIds] = useState<string[]>([]);
   const [livePositions, setLivePositions] = useState<
     Map<string, FriendLivePosition>
   >(new Map());
@@ -373,6 +375,8 @@ export default function MapPage() {
       );
       const allFamily = (familyResp.members || []).filter((m) => !!m.id);
       setFamilyIds(allFamily.map((m) => m.id));
+      // v23.1.399 — membres Paw Premium (isPremium poussé par le backend).
+      setPremiumIds(allFamily.filter((m) => m.isPremium).map((m) => m.id));
 
       // 2) friends élargis (friends + family synthétiques) pour résoudre
       // les events socket des membres famille hors friend-list.
@@ -847,6 +851,7 @@ export default function MapPage() {
           spotTypeLabels={spotTypeLabels}
           friendPositions={showFriends ? livePositionsList : []}
           familyIds={familyIds}
+          premiumIds={premiumIds}
           roleLabels={{
             owner: t("role_owner"),
             sitter: t("role_sitter"),

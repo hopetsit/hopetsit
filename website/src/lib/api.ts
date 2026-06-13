@@ -722,6 +722,8 @@ export type FamilyMember = {
   addedAt?: string;
   email?: string | null;
   status: "pending" | "active" | "declined" | string;
+  // v23.1.399 — Paw Premium actif → couronne 👑 + anneau OR sur la carte.
+  isPremium?: boolean;
 };
 
 export type FamilyResponse = {
