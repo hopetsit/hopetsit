@@ -145,6 +145,21 @@ class SocketService {
     }
   }
 
+  /// v23.1.397 — Daniel : « Session expirée » à la reconnexion. Au logout,
+  /// le socket restait connecté avec l'ANCIEN token et ses hooks (chat,
+  /// map…) tournaient encore → requêtes résiduelles avec token effacé →
+  /// 401 → snackbar parasite. On coupe le socket ET on purge les hooks
+  /// onConnected (sinon le prochain connect() du nouveau compte les
+  /// rejouerait avec l'état de l'ancien). À appeler dans logout().
+  void resetForLogout() {
+    try {
+      _onConnectedHooks.clear();
+      disconnect();
+    } catch (e) {
+      AppLogger.logError('resetForLogout failed', error: e);
+    }
+  }
+
   /// v23.1 part 228 — Daniel : "fais que en background l'app reste
   /// connecter". Appele au resume du lifecycle Flutter. Si le socket
   /// est dispose ou disconnected, on re-connecte. Sinon best-effort

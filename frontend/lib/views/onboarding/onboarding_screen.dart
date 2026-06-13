@@ -206,9 +206,12 @@ class OnboardingScreen extends StatelessWidget {
 
                       SizedBox(height: 10.h),
 
+                      // v23.1.397 — flags SÉPARÉS par bouton (parité avec
+                      // login_screen) : taper Google ne fait plus tourner
+                      // le bouton Apple, et inversement.
                       Obx(
                         () => _SocialButton(
-                          onTap: authController.isSocialLoginLoading.value
+                          onTap: authController.isGoogleLoginLoading.value
                               ? null
                               : () => authController.loginWithGoogle(),
                           icon: Icons.g_mobiledata,
@@ -216,7 +219,7 @@ class OnboardingScreen extends StatelessWidget {
                           isOutlined: true,
                           imagePath: AppImages.googleIcon,
                           isLoading:
-                              authController.isSocialLoginLoading.value,
+                              authController.isGoogleLoginLoading.value,
                           isDark: isDark,
                         ),
                       ),
@@ -225,14 +228,14 @@ class OnboardingScreen extends StatelessWidget {
                         SizedBox(height: 8.h),
                         Obx(
                           () => _SocialButton(
-                            onTap: authController.isSocialLoginLoading.value
+                            onTap: authController.isAppleLoginLoading.value
                                 ? null
                                 : () => authController.loginWithApple(),
                             icon: Icons.apple,
                             label: 'onboarding_continue_with_apple'.tr,
                             isOutlined: false,
                             isLoading:
-                                authController.isSocialLoginLoading.value,
+                                authController.isAppleLoginLoading.value,
                             isDark: isDark,
                           ),
                         ),

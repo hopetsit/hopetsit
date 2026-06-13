@@ -17,6 +17,7 @@ import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
+import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_constants.dart';
 import 'package:flutter/scheduler.dart';
@@ -1443,6 +1444,16 @@ class AuthController extends GetxController {
     _forceDelete<NotificationsController>();
     _forceDelete<UnifiedNotificationController>();
     _forceDelete<ChatController>();
+    // v23.1.397 — Daniel : « Session expirée » à la reconnexion. Le
+    // SitterChatController résiduel relançait des requêtes avec le token
+    // effacé → 401 → snackbar parasite. On le purge, et on COUPE le socket
+    // (sinon il restait connecté avec l'ancien token + ses hooks).
+    _forceDelete<SitterChatController>();
+    try {
+      if (Get.isRegistered<SocketService>()) {
+        Get.find<SocketService>().resetForLogout();
+      }
+    } catch (_) {/* le logout doit toujours réussir */}
 
     // Navigate to login screen
     Get.offAll(() => const LoginScreen());
@@ -1505,6 +1516,14 @@ class AuthController extends GetxController {
   static bool _sessionExpiredSnackShown = false;
   static Future<void> handleLoginRequiredError() async {
     try {
+      // v23.1.397 — Daniel : « Session expirée » parasite à la
+      // déconnexion. Si AUCUN token n'est stocké, c'est une déconnexion
+      // volontaire (ou une requête résiduelle post-logout) → on n'affiche
+      // PAS le snackbar.
+      try {
+        final tok = GetStorage().read<String>(StorageKeys.authToken);
+        if (tok == null || tok.isEmpty) return;
+      } catch (_) {/* en cas de doute, comportement inchangé */}
       if (_sessionExpiredSnackShown) return;
       _sessionExpiredSnackShown = true;
       // Show a one-shot warning. Don't logout, don't redirect.
