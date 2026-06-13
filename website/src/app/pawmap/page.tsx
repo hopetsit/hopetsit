@@ -241,7 +241,9 @@ export default function PawMapPage() {
         <p className="mx-auto mt-2 max-w-xl text-center text-sm text-ink-muted">
           {t("pawfollow_section_family_sub")}
         </p>
-        <div className="mt-6 grid grid-cols-1 gap-5 md:mx-auto md:max-w-md">
+        {/* v23.1.400 — Daniel : les 2 forfaits PawFamily (mensuel + annuel)
+            côte à côte en horizontal. */}
+        <div className="mt-6 grid grid-cols-1 gap-5 md:mx-auto md:max-w-3xl md:grid-cols-2">
           {pawfollowPlans
             .filter((p) => p.isFamily)
             .map((p) => (
