@@ -53,11 +53,12 @@ export default function HomePage() {
 
   // v23.1.279 — Daniel : "mettre 4 façons d'utiliser HoPetSit + l'onglet
   // PawFamily". La 4e carte (PawFamily) est en VIOLET = code couleur famille.
-  const usageWays = [
-    { emoji: "🔎", title: t("home_way1_title"), body: t("home_way1_body"), accent: "owner" },
-    { emoji: "💼", title: t("home_way2_title"), body: t("home_way2_body"), accent: "sitter" },
-    { emoji: "📍", title: t("home_way3_title"), body: t("home_way3_body"), accent: "walker" },
-    { emoji: "👨‍👩‍👧", title: t("home_way4_title"), body: t("home_way4_body"), accent: "family" },
+  // v23.1.398 — Daniel : « change ça par 3 apps en 1, 3 cadres explicatifs
+  // courts et différents : PETSITTING · PAWFOLLOW · PAWSPOT ».
+  const apps3in1 = [
+    { kind: "petsitting", name: "PetSitting", title: t("home_app1_title"), body: t("home_app1_body") },
+    { kind: "pawfollow", name: "PawFollow", title: t("home_app2_title"), body: t("home_app2_body") },
+    { kind: "pawspot", name: "PawSpot", title: t("home_app3_title"), body: t("home_app3_body") },
   ] as const;
 
   return (
@@ -319,47 +320,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* v23.1.279 — Daniel : "4 façons d'utiliser HoPetSit + onglet PawFamily".
-          4 cartes ; la 4e (PawFamily) en VIOLET = code couleur famille. */}
+      {/* v23.1.398 — Daniel : « 3 apps en 1 » — 3 cadres courts et distincts :
+          PetSitting (orange) · PawFollow (violet, logo) · PawSpot (or, pièce). */}
       <section className="bg-bg-soft py-20">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-            {t("home_ways_title")}
+            {t("home_3in1_title")}
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-center text-base leading-relaxed text-ink-muted">
-            {t("home_ways_sub")}
+            {t("home_3in1_sub")}
           </p>
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {usageWays.map((w) => {
-              const isFamily = w.accent === "family";
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {apps3in1.map((a) => {
+              const isPawfollow = a.kind === "pawfollow";
+              const isPawspot = a.kind === "pawspot";
+              const borderCls = isPawfollow
+                ? "border-violet-300 ring-1 ring-violet-200"
+                : isPawspot
+                  ? "border-amber-300 ring-1 ring-amber-200"
+                  : "border-owner/20 ring-1 ring-owner/10";
+              const barCls = isPawfollow ? "bg-violet-500" : isPawspot ? "bg-amber-400" : "bg-owner";
+              const titleCls = isPawfollow ? "text-violet-700" : isPawspot ? "text-amber-700" : "text-owner-dark";
               return (
                 <div
-                  key={w.title}
-                  className={
-                    "group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-card transition-transform hover:-translate-y-1 " +
-                    (isFamily ? "border-violet-300 ring-1 ring-violet-200" : "border-ink/5")
-                  }
+                  key={a.name}
+                  className={`group relative overflow-hidden rounded-2xl border bg-white p-7 shadow-card transition-transform hover:-translate-y-1 ${borderCls}`}
                 >
-                  <div
-                    className={
-                      isFamily
-                        ? "absolute inset-x-0 top-0 h-1 bg-violet-500"
-                        : `absolute inset-x-0 top-0 h-1 bg-${w.accent}`
-                    }
-                  />
-                  <div
-                    className={
-                      isFamily
-                        ? "mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-violet-100 text-2xl"
-                        : `mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-${w.accent}-light text-2xl`
-                    }
-                  >
-                    {w.emoji}
+                  <div className={`absolute inset-x-0 top-0 h-1.5 ${barCls}`} />
+                  <div className="mb-4 flex items-center gap-3">
+                    {isPawfollow ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src="/pawfollow_logo.svg" alt="" width={48} height={48} />
+                    ) : isPawspot ? (
+                      <PawSpotGoldCoin size={48} />
+                    ) : (
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-owner-light text-2xl">🏠</div>
+                    )}
+                    <h3 className={`text-lg font-extrabold ${titleCls}`}>{a.name}</h3>
                   </div>
-                  <h3 className={"text-base font-bold " + (isFamily ? "text-violet-700" : "text-ink")}>
-                    {w.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{w.body}</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{a.title}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{a.body}</p>
                 </div>
               );
             })}
