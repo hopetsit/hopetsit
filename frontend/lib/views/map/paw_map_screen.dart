@@ -2346,7 +2346,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // dégagée.
                 Positioned(
                   right: 12.w,
-                  bottom: 24.h,
+                  // v401 — Daniel : "boutons trop bas, ils passent sous la
+                  // barre de navigation Android". On ajoute l'inset système
+                  // (viewPadding.bottom) pour que le FAB Signaler reste
+                  // au-dessus de la zone de gestes/3-boutons.
+                  bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
                   child: _buildReportFab(),
                 ),
 
@@ -2366,14 +2370,20 @@ class _PawMapScreenState extends State<PawMapScreen>
                   Positioned(
                     left: 12.w,
                     right: 12.w,
-                    bottom: 12.h,
+                    // v401 — au-dessus de la barre système (cf. FAB Signaler).
+                    bottom: 12.h + MediaQuery.of(context).viewPadding.bottom,
                     child: _buildAroundYouCard(),
                   )
                 else
                   Positioned(
                     left: 12.w,
                     right: 12.w,
-                    bottom: 12.h,
+                    // v401 — Daniel : "le bouton Effacer l'itinéraire trop bas,
+                    // il gêne". Le bandeau distance + Effacer passait sous la
+                    // barre de gestes Android. On le remonte de tout l'inset
+                    // système + une marge pour qu'il ne croise plus le FAB
+                    // Signaler (bottom-right, à 24.h + inset).
+                    bottom: 84.h + MediaQuery.of(context).viewPadding.bottom,
                     child: Center(child: _buildDirectionsBanner()),
                   ),
               ],

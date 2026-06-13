@@ -201,9 +201,9 @@ class SitterChatController extends GetxController {
         if (currentChatId.value.isNotEmpty) {
           _socketService.joinConversation(currentChatId.value);
         }
-        _socketService.onNewMessage((messageData) {
-          _handleNewMessage(messageData);
-        });
+        // v401 — réf stable via le multiplexeur (cf. chat_controller) : ne
+        // clobbere plus le listener badge du NotificationsController.
+        _socketService.addMessageNewListener(_handleNewMessage);
         _socketService.onMessageDeleted((payload) {
           _handleMessageDeleted(payload);
         });
@@ -233,8 +233,9 @@ class SitterChatController extends GetxController {
     if (currentChatId.value.isNotEmpty) {
       _socketService.leaveConversation(currentChatId.value);
     }
-    // v20.0.19 — backend emits `message:new` (colon), not `new_message`.
-    _socketService.removeListener('message:new');
+    // v401 — retire UNIQUEMENT notre abonnement message:new (cf.
+    // chat_controller) ; le listener badge reste vivant.
+    _socketService.removeMessageNewListener(_handleNewMessage);
     _socketService.removeListener('message:deleted');
   }
 

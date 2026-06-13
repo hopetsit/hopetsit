@@ -149,6 +149,36 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     return false;
   }
 
+  // v401 — handler badge chat, enregistré via le multiplexeur message:new
+  // (réf. stable = tear-off de méthode d'instance, égale entre appels en Dart
+  // → addMessageNewListener idempotent, removeMessageNewListener ciblé).
+  // v23.1 part 130 — ne bumpe PAS quand c'est NOUS qui envoyons (triggeredBy
+  // ou message.senderId == moi). v23.1.390 — couvre aussi les demandes de
+  // suivi / partages (pas de triggeredBy → on déduit du senderId).
+  void _onSocketMessageNew(Map<String, dynamic> map) {
+    try {
+      final triggered = map['triggeredBy'];
+      final triggeredId = triggered is Map ? triggered['userId']?.toString() : null;
+      final profile = _storage.read<Map<String, dynamic>>('user_profile');
+      final myId = profile?['id']?.toString();
+      if (triggeredId != null && myId != null && triggeredId == myId) {
+        return;
+      }
+      final inner = map['message'];
+      if (inner is Map && myId != null) {
+        final rawSender = inner['senderId'];
+        final senderId = rawSender is Map
+            ? (rawSender['_id'] ?? rawSender['id'])?.toString()
+            : rawSender?.toString();
+        if (senderId != null && senderId == myId) {
+          return;
+        }
+      }
+    } catch (_) {/* best-effort */}
+    unreadChat.value = unreadChat.value + 1;
+    _storage.write(_kUnreadChat, unreadChat.value);
+  }
+
   void _attachSocketListener() {
     try {
       final s = Get.find<SocketService>();
@@ -159,43 +189,13 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       // déclencher sendNotification (template manquant à l'époque), le badge
       // chat ne bumpait jamais. Maintenant on écoute aussi message:new pour
       // bump unreadChat directement, indépendamment du flux notification.
-      s.socket?.off('message:new');
-      s.socket?.on('message:new', (data) {
-        // v23.1 part 130 — Phase 6 audit P6-2 : ne pas bumper le badge
-        // chat quand C'EST NOUS qui avons envoyé le message. AVANT le
-        // backend emit message:new à TOUS les membres de la room
-        // (incluant le sender) → l'expéditeur voyait son propre badge
-        // chat s'allumer (Daniel : "badge message doit aparaitre
-        // uniquement qd on recoi d message").
-        try {
-          final map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
-          final triggered = map['triggeredBy'];
-          final triggeredId = triggered is Map ? triggered['userId']?.toString() : null;
-          final profile = _storage.read<Map<String, dynamic>>('user_profile');
-          final myId = profile?['id']?.toString();
-          if (triggeredId != null && myId != null && triggeredId == myId) {
-            // Message envoyé par soi-même → on ne bumpe rien.
-            return;
-          }
-          // v23.1.390 — Daniel : badge 1 sur l'icône chat aussi pour les
-          // DEMANDES DE SUIVI (pawfollow_request) / partages tel/adresse.
-          // Ces emits n'ont PAS triggeredBy → on déduit l'expéditeur du
-          // message.senderId pour ne pas bumper son PROPRE badge quand on
-          // envoie la demande (le destinataire, lui, voit bien le badge).
-          final inner = map['message'];
-          if (inner is Map && myId != null) {
-            final rawSender = inner['senderId'];
-            final senderId = rawSender is Map
-                ? (rawSender['_id'] ?? rawSender['id'])?.toString()
-                : rawSender?.toString();
-            if (senderId != null && senderId == myId) {
-              return;
-            }
-          }
-        } catch (_) {/* best-effort */}
-        unreadChat.value = unreadChat.value + 1;
-        _storage.write(_kUnreadChat, unreadChat.value);
-      });
+      // v401 — Daniel : "qd je recoi un message le badge 1 du menu ne vient
+      // pas". On s'abonne au MULTIPLEXEUR message:new du SocketService avec une
+      // RÉFÉRENCE STABLE (_onSocketMessageNew, tear-off de méthode). Avant, ce
+      // listener faisait socket.off/on et était écrasé par les ChatController
+      // (qui font pareil), puis carrément supprimé quand on quittait un chat.
+      // Le mux garantit que le badge survit à l'ouverture/fermeture des chats.
+      s.addMessageNewListener(_onSocketMessageNew);
       s.socket?.off('notification.new');
       s.socket?.on('notification.new', (data) {
         try {

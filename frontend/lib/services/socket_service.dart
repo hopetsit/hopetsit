@@ -291,19 +291,63 @@ class SocketService {
   // nouveau les .on(...) → après 8h ça fait des centaines de doublons qui
   // tirent tous sur chaque message → callback explosion → OOM.
   // Fix : appeler `off(event)` AVANT chaque `.on(event, ...)`.
-  void onNewMessage(Function(Map<String, dynamic>) callback) {
-    if (_socket != null) {
-      _socket!.off('message:new');
-      _socket!.on('message:new', (data) {
+  // ── message:new multiplexeur ────────────────────────────────────────────
+  // v401 — Daniel : "qd je recoi un message le badge 1 du menu ne vient pas".
+  // ROOT CAUSE : plusieurs consommateurs de `message:new` (NotificationsController
+  // = badge chat, ChatController + SitterChatController = affichage du message)
+  // faisaient CHACUN `socket.off('message:new')` + `.on(...)`. Le dernier à
+  // s'enregistrer écrasait donc les autres ; pire, quand un ChatController
+  // quittait l'écran il faisait `off('message:new')` → plus AUCUN listener →
+  // le badge ne se bumpait plus jusqu'à la prochaine reconnexion socket.
+  //
+  // FIX : un SEUL listener socket interne (le mux) qui redistribue l'event à
+  // N abonnés. S'abonner/se désabonner n'affecte plus les autres. Les abonnés
+  // passent une RÉFÉRENCE STABLE (tear-off de méthode d'instance ou closure
+  // stockée en champ) pour pouvoir se retirer proprement.
+  final List<void Function(Map<String, dynamic>)> _messageNewSubs = [];
+
+  void _bindMessageNewMux() {
+    final s = _socket;
+    if (s == null) return;
+    // Idempotent : off→on rebinde l'unique handler mux sur le socket COURANT
+    // (nécessaire après une reconnexion qui a remplacé l'instance socket).
+    s.off('message:new');
+    s.on('message:new', (data) {
+      Map<String, dynamic> map;
+      try {
+        map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      } catch (_) {
+        return;
+      }
+      for (final cb in List.of(_messageNewSubs)) {
         try {
-          final messageData = data as Map<String, dynamic>;
-          AppLogger.logInfo('Received new message: $messageData');
-          callback(messageData);
+          cb(map);
         } catch (e) {
-          AppLogger.logError('Error handling new message', error: e);
+          AppLogger.logError('message:new subscriber threw', error: e);
         }
-      });
-    }
+      }
+    });
+  }
+
+  /// Abonne un listener `message:new` SANS écraser les autres. Passer une
+  /// référence STABLE (tear-off de méthode ou closure conservée dans un champ)
+  /// pour pouvoir la retirer ensuite. Idempotent : ré-ajouter la même réf est
+  /// un no-op pour la liste mais re-bind le listener socket sous-jacent (utile
+  /// après une reconnexion). À appeler depuis un onConnected hook.
+  void addMessageNewListener(void Function(Map<String, dynamic>) cb) {
+    if (!_messageNewSubs.contains(cb)) _messageNewSubs.add(cb);
+    _bindMessageNewMux();
+  }
+
+  /// Désabonne UN listener `message:new` (les autres restent actifs).
+  void removeMessageNewListener(void Function(Map<String, dynamic>) cb) {
+    _messageNewSubs.remove(cb);
+  }
+
+  /// LEGACY — délègue désormais au multiplexeur pour ne plus clobberer les
+  /// autres abonnés. Préférer addMessageNewListener avec une réf stable.
+  void onNewMessage(Function(Map<String, dynamic>) callback) {
+    addMessageNewListener((m) => callback(m));
   }
 
   /// Listens for message sent confirmation.

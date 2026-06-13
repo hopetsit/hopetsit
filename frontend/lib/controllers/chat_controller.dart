@@ -222,9 +222,11 @@ class ChatController extends GetxController {
         if (currentChatId.value.isNotEmpty) {
           _socketService.joinConversation(currentChatId.value);
         }
-        _socketService.onNewMessage((messageData) {
-          _handleNewMessage(messageData);
-        });
+        // v401 — abonnement au multiplexeur avec une RÉFÉRENCE STABLE
+        // (tear-off de méthode) : ne clobbere plus le listener badge du
+        // NotificationsController, et _cleanupSocket retire exactement
+        // CE listener sans toucher aux autres. Idempotent sur reconnexion.
+        _socketService.addMessageNewListener(_handleNewMessage);
         _socketService.onMessageDeleted((payload) {
           _handleMessageDeleted(payload);
         });
@@ -256,8 +258,11 @@ class ChatController extends GetxController {
     if (currentChatId.value.isNotEmpty) {
       _socketService.leaveConversation(currentChatId.value);
     }
-    // v20.0.19 — backend emits `message:new` (colon), not `new_message`.
-    _socketService.removeListener('message:new');
+    // v401 — on retire UNIQUEMENT notre abonnement message:new (le listener
+    // badge du NotificationsController reste actif). Avant, removeListener
+    // ('message:new') faisait socket.off() → supprimait TOUS les abonnés →
+    // badge chat mort après avoir ouvert/fermé un chat.
+    _socketService.removeMessageNewListener(_handleNewMessage);
     _socketService.removeListener('message:deleted');
   }
 
