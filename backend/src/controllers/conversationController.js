@@ -279,6 +279,45 @@ const getConversationMessages = async (req, res) => {
       return res.status(403).json({ error: 'Access denied for this conversation.' });
     }
 
+    // v402 — Daniel : "à chaque connexion le badge message revient alors que j'ai
+    // tout lu". CAUSE : le reset du unreadCount serveur dépendait de l'event socket
+    // `conversation:read` (émis à l'ouverture du chat), qui peut se perdre si le
+    // socket est lent/coupé à ce moment. Compteur serveur resté > 0 →
+    // syncChatBadgeFromServer ré-inflate le badge à CHAQUE reconnexion/login.
+    // FIX robuste (deploy-only, pas de rebuild) : ouvrir une conversation = charger
+    // ses messages via CE endpoint REST (toujours fiable). On remet donc le
+    // unreadCount du lecteur à 0 ici aussi. Couvre friendChat (participants[]) ET
+    // booking (owner/sitterUnreadCount). Best-effort : n'empêche jamais la réponse.
+    try {
+      const myIdStr = String(req.user?.id || '');
+      let changed = false;
+      if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
+        for (const part of conversation.participants) {
+          if (String(part.userId) === myIdStr && (part.unreadCount || 0) > 0) {
+            part.unreadCount = 0;
+            part.lastReadAt = new Date();
+            changed = true;
+          }
+        }
+      } else {
+        // Booking-style : le provider (sitter ET walker) partage le slot sitter.
+        if (req.user?.role === 'owner') {
+          if ((conversation.ownerUnreadCount || 0) > 0) {
+            conversation.ownerUnreadCount = 0;
+            conversation.ownerLastReadAt = new Date();
+            changed = true;
+          }
+        } else if ((conversation.sitterUnreadCount || 0) > 0) {
+          conversation.sitterUnreadCount = 0;
+          conversation.sitterLastReadAt = new Date();
+          changed = true;
+        }
+      }
+      if (changed) await conversation.save();
+    } catch (e) {
+      logger.warn(`[conversation.messages] reset unread failed : ${e?.message || e}`);
+    }
+
     const messages = await Message.find({ conversationId: conversation._id }).sort({ createdAt: 1 });
 
     res.json({ messages: messages.map(sanitizeMessage) });
