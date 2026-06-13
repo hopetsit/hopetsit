@@ -248,38 +248,40 @@ export default function DashboardPage() {
 
       {/* v23.1.394 — Daniel : « mon compte web en titre, mettre en valeur
           les boutons ». Titre de section + cards relookées (NavCard). */}
+      {/* v23.1.398 — Daniel : « il manque le package langue pour Mon compte
+          web ». Tous les libellés de la section passent par t() (6 langues). */}
       <h2 className="mt-10 font-display text-2xl font-extrabold text-ink">
-        🌐 Mon compte web
+        {t("dash_account_section")}
       </h2>
       <p className="mt-1 text-sm text-ink-muted">
-        Tout HoPetSit depuis ton navigateur — même compte que l'app.
+        {t("dash_account_section_sub")}
       </p>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         <NavCard
           href="/profile"
           emoji="👤"
-          title="Mon profil"
-          subtitle="Voir et modifier mes infos"
+          title={t("dash_card_profile_title")}
+          subtitle={t("dash_card_profile_sub")}
         />
         <NavCard
           href="/bookings"
           emoji="📅"
-          title="Mes réservations"
-          subtitle={user?.role === "owner" ? "Mes demandes en cours" : "Demandes reçues"}
+          title={t("dash_card_bookings_title")}
+          subtitle={user?.role === "owner" ? t("dash_card_bookings_sub_owner") : t("dash_card_bookings_sub_provider")}
         />
         {user?.role === "owner" && (
           <>
             <NavCard
               href="/pets"
               emoji="🐾"
-              title="Mes animaux"
-              subtitle="Gérer mes compagnons"
+              title={t("dash_card_pets_title")}
+              subtitle={t("dash_card_pets_sub")}
             />
             <NavCard
               href="/search"
               emoji="🔍"
-              title="Rechercher un sitter"
-              subtitle="Trouver et réserver un pro"
+              title={t("dash_card_search_title")}
+              subtitle={t("dash_card_search_sub")}
             />
           </>
         )}
@@ -287,21 +289,21 @@ export default function DashboardPage() {
           <NavCard
             href="/sitter-setup"
             emoji="⚙️"
-            title="Mes tarifs & IBAN"
-            subtitle="Configurer mon profil pro"
+            title={t("dash_card_setup_title")}
+            subtitle={t("dash_card_setup_sub")}
           />
         )}
         <NavCard
           href="/chat"
           emoji="💬"
-          title="Messages"
-          subtitle="Conversations en temps réel"
+          title={t("dash_card_messages_title")}
+          subtitle={t("dash_card_messages_sub")}
         />
         <NavCard
           href="/map"
           emoji="🗺️"
-          title="PawMap"
-          subtitle="Vétos, parcs, plages pet-friendly"
+          title={t("dash_card_map_title")}
+          subtitle={t("dash_card_map_sub")}
         />
         {/* v23.1.358 — Daniel : "efface amis en direct" — la carte « Mes
             amis en direct » est supprimée : la couche PawFollow vit dans la
@@ -309,12 +311,8 @@ export default function DashboardPage() {
         <NavCard
           href="/boutique"
           emoji="🛍️"
-          title="Boutique"
-          subtitle={
-            user?.role === "owner"
-              ? "PawFollow · PawSpot · PawBoost"
-              : "PawBoost · PawFollow · PawSpot"
-          }
+          title={t("dash_card_shop_title")}
+          subtitle={t("dash_card_shop_sub")}
         />
         {/* v23.1.394 — Daniel : « fond noir et or pour le faire ressortir ». */}
         <a
@@ -328,7 +326,7 @@ export default function DashboardPage() {
               Paw Premium 👑
             </div>
             <div className="text-xs text-white/75">
-              PawFollow + PawSpot + exclusifs · 7,99 €/mois — Économise 33%
+              {t("dash_premium_sub")}
             </div>
           </div>
           <span className="ml-auto text-yellow-400 transition group-hover:translate-x-1">→</span>
@@ -336,8 +334,8 @@ export default function DashboardPage() {
         <NavCard
           href="/invoices"
           emoji="🧾"
-          title="Mes factures"
-          subtitle="Télécharger en PDF"
+          title={t("dash_card_invoices_title")}
+          subtitle={t("dash_card_invoices_sub")}
         />
       </div>
 
