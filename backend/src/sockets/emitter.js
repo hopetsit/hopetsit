@@ -129,8 +129,27 @@ const emitChatMessage = (conversation, event, payload) => {
       participants.push({ role: 'walker', userId: String(conversation.walkerId._id || conversation.walkerId) });
     }
   }
+  // v401 — Daniel : "qd je recoi des messages le badge 1 ds menu ne vient
+  // pas". ROOT CAUSE pour les comptes STAFF multi-profils (1 compte = owner +
+  // sitter + walker) : l'amitié/conversation stocke le `userModel` figé au
+  // moment de sa création (ex. 'Owner'), donc on emit vers user:owner:<id>.
+  // Mais le destinataire rejoint sa room avec le rôle de SA SESSION COURANTE
+  // (JWT) — s'il est connecté en walker, il est dans user:walker:<id> et ne
+  // reçoit JAMAIS le message:new → badge chat muet, alors que le message
+  // existe bien (et le resync serveur ne tourne qu'au resume de l'app).
+  //
+  // FIX (deploy-only, pas de rebuild app) : on emit vers les 3 rooms de rôle
+  // (owner/sitter/walker) de chaque userId destinataire. Un socket n'est
+  // membre QUE d'une seule de ces rooms (son rôle JWT courant) → exactement
+  // UNE livraison, aucune double-incrémentation du badge. On dédup les userId
+  // pour ne pas re-emit plusieurs fois au même utilisateur.
+  const seenUserIds = new Set();
   for (const p of participants) {
-    ioInstance.to(userRoom(p.role, p.userId)).emit(event, payload);
+    if (!p.userId || seenUserIds.has(p.userId)) continue;
+    seenUserIds.add(p.userId);
+    for (const r of ['owner', 'sitter', 'walker']) {
+      ioInstance.to(userRoom(r, p.userId)).emit(event, payload);
+    }
   }
 };
 
