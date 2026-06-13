@@ -2592,7 +2592,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'walker_rate_hint_30': 'Ex : 30',
       'pawfollow_plan_monthly': 'PawFollow Mensuel',
       'pawfollow_plan_yearly': 'PawFollow Annuel',
-      'pawfollow_plan_family': 'PawFollow Famille',
+      'pawfollow_plan_family': 'PawFamily Mensuel',
       'pawfollow_subtitle_monthly': 'Facturé tous les mois',
       'pawfollow_subtitle_yearly': 'Facturé 1x par an',
       'pawfollow_subtitle_family': 'Toi + 5 proches • partagé',

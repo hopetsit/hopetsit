@@ -2269,7 +2269,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'post_incomplete_for_request': 'Diesem Beitrag fehlen einige Angaben, um eine direkte Anfrage zu senden.',
       'pawfollow_plan_monthly': 'PawFollow Monatlich',
       'pawfollow_plan_yearly': 'PawFollow Jährlich',
-      'pawfollow_plan_family': 'PawFollow Familie',
+      'pawfollow_plan_family': 'PawFamily Monatlich',
       'pawfollow_subtitle_monthly': 'Monatlich abgerechnet',
       'pawfollow_subtitle_yearly': '1x pro Jahr abgerechnet',
       'pawfollow_subtitle_family': 'Du + 5 Mitglieder • geteilt',

@@ -592,9 +592,9 @@ function PlanCard({
   const planLabels: Record<string, string> = {
     monthly: "Mensuel",
     yearly: "Annuel",
-    family: "Famille",
-    // v23.1.387 — Famille annuel (-42%) + plans Paw Premium.
-    family_yearly: "Famille Annuel",
+    // v401 — Daniel : rebrand "PawFollow Famille" → "PawFamily" (mensuel/annuel).
+    family: "PawFamily Mensuel",
+    family_yearly: "PawFamily Annuel",
     premium_monthly: "Paw Premium Mensuel",
     premium_yearly: "Paw Premium Annuel",
   };

@@ -2242,7 +2242,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'post_incomplete_for_request': 'Esta publicación no tiene todos los datos necesarios para enviar una solicitud directa.',
       'pawfollow_plan_monthly': 'PawFollow Mensual',
       'pawfollow_plan_yearly': 'PawFollow Anual',
-      'pawfollow_plan_family': 'PawFollow Familia',
+      'pawfollow_plan_family': 'PawFamily Mensual',
       'pawfollow_subtitle_monthly': 'Facturado mensualmente',
       'pawfollow_subtitle_yearly': 'Facturado 1 vez al año',
       'pawfollow_subtitle_family': 'Tú + 5 invitados • compartido',

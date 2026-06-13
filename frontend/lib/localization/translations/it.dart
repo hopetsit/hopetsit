@@ -2246,7 +2246,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'post_incomplete_for_request': 'A questa pubblicazione mancano alcuni dettagli per inviare una richiesta diretta.',
       'pawfollow_plan_monthly': 'PawFollow Mensile',
       'pawfollow_plan_yearly': 'PawFollow Annuale',
-      'pawfollow_plan_family': 'PawFollow Famiglia',
+      'pawfollow_plan_family': 'PawFamily Mensile',
       'pawfollow_subtitle_monthly': 'Fatturato mensilmente',
       'pawfollow_subtitle_yearly': 'Fatturato 1 volta all\'anno',
       'pawfollow_subtitle_family': 'Tu + 5 invitati • condiviso',

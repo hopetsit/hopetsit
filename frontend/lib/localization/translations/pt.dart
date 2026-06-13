@@ -2102,7 +2102,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'post_incomplete_for_request': 'Esta publicação não tem todos os dados necessários para enviar um pedido direto.',
       'pawfollow_plan_monthly': 'PawFollow Mensal',
       'pawfollow_plan_yearly': 'PawFollow Anual',
-      'pawfollow_plan_family': 'PawFollow Família',
+      'pawfollow_plan_family': 'PawFamily Mensal',
       'pawfollow_subtitle_monthly': 'Faturado mensalmente',
       'pawfollow_subtitle_yearly': 'Faturado 1x por ano',
       'pawfollow_subtitle_family': 'Tu + 5 convidados • partilhado',

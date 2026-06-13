@@ -2630,7 +2630,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'post_incomplete_for_request': 'This post is missing some details needed to send a direct request.',
       'pawfollow_plan_monthly': 'PawFollow Monthly',
       'pawfollow_plan_yearly': 'PawFollow Yearly',
-      'pawfollow_plan_family': 'PawFollow Family',
+      'pawfollow_plan_family': 'PawFamily Monthly',
       'pawfollow_subtitle_monthly': 'Billed monthly',
       'pawfollow_subtitle_yearly': 'Billed once a year',
       'pawfollow_subtitle_family': 'You + 5 members • shared',
