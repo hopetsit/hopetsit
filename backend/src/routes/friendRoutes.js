@@ -1604,6 +1604,18 @@ router.get('/family/members', requireAuth, async (req, res) => {
     }
 
     const raw = Array.from(byId.values());
+    // v23.1.398 — Daniel : « mon frère a Paw Premium mais reste violet
+    // famille, pas de couronne ». La couche carte doit savoir QUELS membres
+    // sont Premium. On résout premiumExpiry pour chaque membre en UNE requête.
+    const memberIds = raw.map((m) => m.userId);
+    const premiumSet = new Set();
+    try {
+      const premSubs = await UserSubscription.find({
+        userId: { $in: memberIds },
+        premiumExpiry: { $gt: now },
+      }).select('userId').lean();
+      for (const s of premSubs) premiumSet.add(String(s.userId));
+    } catch (_) {/* best-effort : pas de couronne plutôt qu'un 500 */}
     // Enrichit avec nom + avatar + role normalise via fetchUserMini.
     const enriched = await Promise.all(
       raw.map(async (m) => {
@@ -1622,6 +1634,9 @@ router.get('/family/members', requireAuth, async (req, res) => {
           // v23.1.280 — tier PawSpot actif du membre → anneau doré/bleu sur
           // l'avatar dans l'onglet Famille de l'app (parité _FriendTile).
           pawSpotTier: mini?.pawSpotTier || null,
+          // v23.1.398 — Paw Premium actif → couronne 👑 + anneau OR sur la
+          // carte (prioritaire sur le violet famille).
+          isPremium: premiumSet.has(String(m.userId)),
         };
       }),
     );

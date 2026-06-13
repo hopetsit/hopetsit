@@ -1349,6 +1349,15 @@ class _PawMapScreenState extends State<PawMapScreen>
               .where((id) => id.isNotEmpty)
               .toSet() ??
           <String>{};
+      // v23.1.398 — membres Paw Premium → grand halo OR (au lieu du violet
+      // famille). Champ isPremium poussé par GET /friends/family/members.
+      final premiumMemberIds = friendCtl?.familyMembers
+              .where((m) => m['isPremium'] == true)
+              .map((m) =>
+                  ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
+              .where((id) => id.isNotEmpty)
+              .toSet() ??
+          <String>{};
       // v23.1 part 225 — Index userId → role (lowercase) tire de la
       // liste d'amis acceptes pour pouvoir override la couleur halo
       // selon le metier de l'ami qui broadcast.
@@ -1394,9 +1403,15 @@ class _PawMapScreenState extends State<PawMapScreen>
         // Sinon, couleur du role : walker VERT / sitter BLEU / owner ORANGE /
         // ami ARGENT. Dans tous les cas le centre lit la position LIVE, donc
         // le halo SUIT la personne a la trace pendant la promenade / la garde.
+        // v23.1.398 — Paw Premium PRIORITAIRE : halo OR (au lieu du violet
+        // famille / couleur rôle) pour signaler le bundle premium.
+        final isPremiumMember = premiumMemberIds.contains(normUserId);
         Color color;
         String tag;
-        if (isFamily) {
+        if (isPremiumMember) {
+          color = const Color(0xFFE8A00A); // or Paw Premium
+          tag = 'premium';
+        } else if (isFamily) {
           color = familyViolet;
           tag = 'family';
         } else if (role == 'walker') {
@@ -1753,6 +1768,15 @@ class _PawMapScreenState extends State<PawMapScreen>
           .map((m) => ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
           .where((id) => id.isNotEmpty)
           .toSet();
+      // v23.1.398 — Daniel : « mon frère a Paw Premium mais reste violet
+      // famille, pas de couronne ». Set des membres Premium (champ isPremium
+      // poussé par GET /friends/family/members) → couronne 👑 + anneau OR
+      // sur LEUR marqueur, prioritaire sur le violet famille.
+      final premiumMemberIds = _friendController.familyMembers
+          .where((m) => m['isPremium'] == true)
+          .map((m) => ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
+          .where((id) => id.isNotEmpty)
+          .toSet();
       // v23.1.297 — Daniel : "compter famille ET amis". Le backend pousse
       // désormais aussi la position des membres famille (mapSocket). Lookup
       // id->map pour dessiner leur pin même s'ils ne sont PAS aussi des amis
@@ -1790,14 +1814,16 @@ class _PawMapScreenState extends State<PawMapScreen>
         final famAvatar = (famMember?['avatar'] ?? '').toString();
         final avatarUrl = friend?.other?.avatar ??
             (famAvatar.isNotEmpty ? famAvatar : '');
-        final isFamily = familyMemberIds.contains(
-          pos.userId.trim().toLowerCase(),
-        );
+        final normPosId = pos.userId.trim().toLowerCase();
+        final isFamily = familyMemberIds.contains(normPosId);
+        // v23.1.398 — couronne 👑 + anneau OR si ce membre est Paw Premium.
+        final isPremiumMember = premiumMemberIds.contains(normPosId);
         final icon = _friendMarkerService.getOrPlaceholder(
           userId: pos.userId,
           avatarUrl: avatarUrl,
           role: role,
           isFamily: isFamily,
+          isPremium: isPremiumMember,
         );
         markers.add(
           Marker(
