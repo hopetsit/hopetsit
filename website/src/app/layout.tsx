@@ -45,11 +45,18 @@ export const metadata: Metadata = {
     images: ["/logo.svg"],
   },
   robots: { index: true, follow: true },
+  // v402 — Daniel : "sur Google le favicon sort Wix". Google ignore souvent
+  // les favicons SVG et préfère un favicon.ico raster. On sert donc d'abord le
+  // .ico + des PNG (logo HoPetSit) ; le SVG reste pour les navigateurs modernes.
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
       { url: "/favicon.svg", type: "image/svg+xml" },
     ],
-    apple: "/logo.svg",
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
   },
 };
 
@@ -80,6 +87,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   email: "hopetsit@gmail.com",
                   description:
                     "Trusted marketplace connecting pet owners with sitters and dog walkers across Europe.",
+                  // v402 — référencement des réseaux sociaux officiels (Google
+                  // les associe à la marque via sameAs).
+                  sameAs: [
+                    "https://www.instagram.com/hopetsit/",
+                    "https://www.tiktok.com/@hopetsit",
+                    "https://www.youtube.com/@HoPetSit",
+                    "https://www.facebook.com/people/Hopetsit/61590596619482/",
+                  ],
                 },
                 {
                   "@type": "WebSite",

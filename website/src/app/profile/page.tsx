@@ -11,10 +11,16 @@ import {
   ApiError,
   getMyProfile,
   getStoredUser,
+  getSubscriptionStatus,
   updateMyProfile,
   uploadMyAvatar,
   UserProfile,
 } from "@/lib/api";
+
+// v402 — Daniel : "le badge avec le nombre de jours restants des abonnements
+// doit apparaître sur les 3 profils". Chip par abo actif (Premium / PawFollow /
+// PawFamily / PawSpot) avec les jours restants.
+type SubChip = { label: string; cls: string };
 
 export default function ProfilePage() {
   const { t } = useT();
@@ -35,6 +41,9 @@ export default function ProfilePage() {
   // v23.1 part 146 — upload avatar.
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // v402 — chips d'abonnement (jours restants).
+  const [subChips, setSubChips] = useState<SubChip[]>([]);
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -80,6 +89,36 @@ export default function ProfilePage() {
       }
     })();
   }, [router]);
+
+  // v402 — charge le statut d'abonnement et construit les chips jours-restants.
+  useEffect(() => {
+    (async () => {
+      try {
+        const st = await getSubscriptionStatus();
+        const now = Date.now();
+        const dleft = (d?: string | null) =>
+          d ? Math.ceil((new Date(d).getTime() - now) / 86400000) : 0;
+        const staff = st.currentPeriodEnd
+          ? new Date(st.currentPeriodEnd).getFullYear() >= 2090
+          : false;
+        const gold = "border border-amber-400 bg-gradient-to-r from-[#221C12] to-[#15120D] text-yellow-400";
+        const violet = "bg-violet-100 text-violet-800";
+        const fuchsia = "bg-fuchsia-100 text-fuchsia-800";
+        const amber = "bg-amber-100 text-amber-800";
+        const chips: SubChip[] = [];
+        const pd = dleft(st.premiumExpiry);
+        if (pd > 0) chips.push({ label: `👑 Paw Premium · ${pd} j`, cls: gold });
+        else if (staff) chips.push({ label: "👑 Paw Premium · ∞", cls: gold });
+        if ((st.plan === "monthly" || st.plan === "yearly") && dleft(st.currentPeriodEnd) > 0)
+          chips.push({ label: `📍 PawFollow · ${dleft(st.currentPeriodEnd)} j`, cls: violet });
+        const fd = dleft(st.familyExpiry);
+        if (fd > 0) chips.push({ label: `👨‍👩‍👧 PawFamily · ${fd} j`, cls: fuchsia });
+        const sd = dleft(st.pawspotExpiry);
+        if (sd > 0) chips.push({ label: `🐾 PawSpot · ${sd} j`, cls: amber });
+        setSubChips(chips);
+      } catch { /* pas connecté / pas d'abo → aucune chip */ }
+    })();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -189,6 +228,25 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* v402 — Badges abonnements (jours restants) sur le profil, 3 rôles. */}
+      {subChips.length > 0 && (
+        <div className="mt-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            {t("profile_subs_title")}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {subChips.map((c) => (
+              <span
+                key={c.label}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${c.cls}`}
+              >
+                {c.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <Field label="Nom complet">

@@ -4,6 +4,48 @@ import Link from "next/link";
 import { LogoWithText } from "./Logo";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
+// v402 — réseaux sociaux officiels HoPetSit (fournis par Daniel).
+const SOCIALS: { label: string; href: string; icon: React.ReactNode }[] = [
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/hopetsit/",
+    icon: (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}>
+        <rect x="3" y="3" width="18" height="18" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+  },
+  {
+    label: "TikTok",
+    href: "https://www.tiktok.com/@hopetsit",
+    icon: (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M16 3c.3 2.2 1.8 4 4 4.3V10c-1.5 0-2.9-.5-4-1.3V15a5.5 5.5 0 1 1-5.5-5.5c.3 0 .6 0 .9.08v2.7a2.8 2.8 0 1 0 1.9 2.6V3H16z" />
+      </svg>
+    ),
+  },
+  {
+    label: "YouTube",
+    href: "https://www.youtube.com/@HoPetSit",
+    icon: (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8zM10 15V9l5 3-5 3z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Facebook",
+    href: "https://www.facebook.com/people/Hopetsit/61590596619482/",
+    icon: (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H7v3h3v6h3v-6h2.5l.5-3H13v-2c0-.6.4-1 1-1z" />
+      </svg>
+    ),
+  },
+];
+
 export function Footer() {
   const { t } = useT();
   const year = new Date().getFullYear();
@@ -50,6 +92,22 @@ export function Footer() {
                 contact@hopetsit.com
               </a>
             </p>
+            {/* v402 — réseaux sociaux HoPetSit (Daniel). */}
+            <div className="mt-4 flex items-center gap-3">
+              {SOCIALS.map((s) => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={s.label}
+                  title={s.label}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink-muted shadow-sm ring-1 ring-ink/5 transition hover:text-ink hover:shadow"
+                >
+                  {s.icon}
+                </a>
+              ))}
+            </div>
           </div>
           {cols.map((c) => (
             <div key={c.title}>
