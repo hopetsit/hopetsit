@@ -221,6 +221,16 @@ function PostCard({
 
       {post.body && <p className="mt-2 whitespace-pre-wrap text-sm text-ink">{post.body}</p>}
 
+      {/* v402 — photos de l'annonce */}
+      {Array.isArray(post.images) && post.images.length > 0 && (
+        <div className="mt-3 flex gap-2 overflow-x-auto">
+          {post.images.map((im, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={im.url} alt="" className="h-28 w-28 shrink-0 rounded-xl object-cover" />
+          ))}
+        </div>
+      )}
+
       {Array.isArray(post.serviceTypes) && post.serviceTypes.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {post.serviceTypes.map((s) => (

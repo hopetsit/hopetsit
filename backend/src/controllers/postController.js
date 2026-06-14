@@ -1075,7 +1075,7 @@ const createPostWithMedia = async (req, res) => {
   try {
     const ownerId = req.user?.id;
     const userRole = req.user?.role;
-    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue } = req.body || {};
+    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, postType: rawPostType } = req.body || {};
 
     if (!ownerId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
@@ -1084,6 +1084,12 @@ const createPostWithMedia = async (req, res) => {
     if (userRole !== 'owner') {
       return res.status(403).json({ error: 'Only owners can create posts.' });
     }
+
+    // v402 — ADDITIF : le site web peut créer une ANNONCE (request) AVEC photos
+    // en passant postType='request'. L'app n'envoie pas ce champ → reste 'media'
+    // comme avant (zéro impact app). Une annonce request avec photos apparaît
+    // dans le feed des demandes (getRequestPosts) ET porte ses images.
+    const resolvedPostType = rawPostType === 'request' ? 'request' : 'media';
 
     // v23.1 part 122 — même protection que createPost : bloque les
     // emails / téléphones dans le body.
@@ -1190,7 +1196,7 @@ const createPostWithMedia = async (req, res) => {
       body: trimmedBody,
       images: uploadedImages,
       videos: uploadedVideos,
-      postType: 'media',
+      postType: resolvedPostType,
     };
 
     // Optional dates (store as Date objects)

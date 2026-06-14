@@ -67,17 +67,17 @@ export function Header() {
             <div aria-hidden="true" className="h-9 w-[150px]" />
           ) : user ? (
             <>
+              {/* v402 — Daniel : bouton « Mon compte » plus visible. Pilule
+                  pleine couleur du rôle + ombre, au lieu d'une fine bordure. */}
               <Link
                 href="/dashboard"
-                className="hidden items-center gap-2 rounded-full border border-ink/10 px-3 py-1.5 text-sm font-medium text-ink hover:border-ink/30 md:inline-flex"
+                className={`hidden items-center gap-2 rounded-full ${roleColor} px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:opacity-90 md:inline-flex`}
                 title={user.email}
               >
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full ${roleColor} text-xs font-bold text-white`}
-                >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 text-xs font-bold text-white">
                   {initial}
                 </span>
-                <span className="max-w-[120px] truncate">
+                <span className="max-w-[140px] truncate">
                   {user.name?.split(" ")[0] || t("nav_dashboard")}
                 </span>
               </Link>

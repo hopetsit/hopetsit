@@ -1053,6 +1053,26 @@ export async function createPost(input: CreatePostInput): Promise<RequestPost> {
   return (raw.post as RequestPost) || (raw as RequestPost);
 }
 
+// v402 — annonce AVEC photos. Le backend /posts/with-media accepte
+// postType='request' (additif) → l'annonce porte ses images + apparaît dans le
+// feed des demandes (et dans l'app). Champ multipart 'photos'.
+export async function createPostWithMedia(input: CreatePostInput, files: File[]): Promise<RequestPost> {
+  const fd = new FormData();
+  fd.append("body", input.body);
+  fd.append("postType", "request");
+  (input.serviceTypes || []).forEach((s) => fd.append("serviceTypes", s));
+  if (input.houseSittingVenue) fd.append("houseSittingVenue", input.houseSittingVenue);
+  if (input.startDate) fd.append("startDate", input.startDate);
+  if (input.endDate) fd.append("endDate", input.endDate);
+  if (input.notes) fd.append("notes", input.notes);
+  files.forEach((f) => fd.append("photos", f));
+  const raw = await request<{ post?: RequestPost } & RequestPost>("/posts/with-media", {
+    method: "POST",
+    body: fd,
+  });
+  return (raw.post as RequestPost) || (raw as RequestPost);
+}
+
 export async function getRequestPosts(): Promise<RequestPost[]> {
   const raw = await request<{ posts?: RequestPost[] }>("/posts/requests");
   return raw.posts || [];

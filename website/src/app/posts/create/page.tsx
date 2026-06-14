@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import {
   ApiError,
   createPost,
+  createPostWithMedia,
   getStoredUser,
   POST_SERVICE_TYPES,
 } from "@/lib/api";
@@ -23,8 +24,20 @@ export default function CreatePostPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  function addPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setPhotos((prev) => [...prev, ...files].slice(0, 10)); // max 10
+    e.target.value = ""; // permet de re-sélectionner le même fichier
+  }
+
+  function removePhoto(idx: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   useEffect(() => {
     const u = getStoredUser();
@@ -59,14 +72,20 @@ export default function CreatePostPage() {
     setBusy(true);
     setErr("");
     try {
-      await createPost({
+      const input = {
         body: body.trim(),
         serviceTypes: services,
         houseSittingVenue: needsVenue ? venue : undefined,
         startDate: startDate ? new Date(startDate).toISOString() : undefined,
         endDate: endDate ? new Date(endDate).toISOString() : undefined,
         notes: notes.trim() || undefined,
-      });
+      };
+      // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
+      if (photos.length > 0) {
+        await createPostWithMedia(input, photos);
+      } else {
+        await createPost(input);
+      }
       router.push("/posts");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -182,6 +201,34 @@ export default function CreatePostPage() {
             placeholder={t("posts_notes_ph")}
             className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
           />
+        </div>
+
+        {/* v402 — Photos de l'annonce (ajouter / supprimer avant publication) */}
+        <div>
+          <label className="block text-sm font-medium text-ink">{t("posts_photos_label")}</label>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {photos.map((f, i) => (
+              <div key={i} className="relative h-20 w-20 overflow-hidden rounded-xl border border-ink/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={URL.createObjectURL(f)} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(i)}
+                  aria-label="remove"
+                  className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {photos.length < 10 && (
+              <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-ink/20 text-2xl text-ink-muted transition hover:border-owner hover:text-owner">
+                +
+                <input type="file" accept="image/*" multiple onChange={addPhotos} className="hidden" />
+              </label>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-ink-muted">{t("posts_photos_hint")}</p>
         </div>
 
         <button
