@@ -83,11 +83,12 @@ export default function HomePage() {
               >
                 {t("hero_cta_app")}
               </Link>
+              {/* v404 — Daniel : bouton noir, texte orange → page connexion web. */}
               <Link
-                href="/how-it-works"
-                className="rounded-full border border-ink/15 bg-white px-6 py-3 text-sm font-semibold text-ink hover:border-ink/40"
+                href="/login"
+                className="whitespace-nowrap rounded-full bg-[#111827] px-6 py-3 text-sm font-semibold text-[#EF4324] shadow-cta transition hover:bg-black"
               >
-                {t("hero_cta_how")} →
+                {t("hero_cta_web_login")}
               </Link>
             </div>
           </div>
