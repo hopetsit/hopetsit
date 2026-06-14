@@ -56,9 +56,10 @@ export default function CreatePostPage() {
         : t("posts_svc_dog_walking");
 
   function toggleService(s: string) {
-    setServices((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-    );
+    // v404 — Daniel : UN SEUL service par annonce (avant on pouvait cocher les
+    // 3). Évite aussi les annonces mixant dog_walking + autres qui brouillent
+    // le filtrage walker/sitter. Re-cliquer le service actif le désélectionne.
+    setServices((prev) => (prev.includes(s) ? [] : [s]));
   }
 
   const needsVenue = services.includes("house_sitting");

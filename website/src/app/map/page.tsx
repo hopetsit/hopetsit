@@ -102,6 +102,9 @@ export default function MapPage() {
   // plusieurs lieux ». Multi-sélection : [] = Tous ; sinon on filtre côté
   // client (les POIs sont déjà tous chargés autour du centre).
   const [selectedCats, setSelectedCats] = useState<PoiCategory[]>([]);
+  // v404 — Daniel : bouton « Rien » à côté de « Tous » → masque tous les POI.
+  // ([] = Tous, donc on a besoin d'un flag distinct pour « rien afficher ».)
+  const [noneSelected, setNoneSelected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -628,9 +631,10 @@ export default function MapPage() {
     benefits?.pawspotActive || benefits?.premiumActive || benefits?.isPremium
   );
 
-  // v23.1.393 — multi-sélection : [] = tout afficher.
-  const visiblePois =
-    selectedCats.length === 0
+  // v23.1.393 — multi-sélection : [] = tout afficher. v404 — « Rien » = aucun POI.
+  const visiblePois = noneSelected
+    ? []
+    : selectedCats.length === 0
       ? pois
       : pois.filter((p) => selectedCats.includes(p.category));
 
@@ -778,22 +782,30 @@ export default function MapPage() {
         <CategoryChip
           label={t("map_filter_all")}
           emoji="🗺️"
-          active={selectedCats.length === 0}
-          onClick={() => setSelectedCats([])}
+          active={!noneSelected && selectedCats.length === 0}
+          onClick={() => { setNoneSelected(false); setSelectedCats([]); }}
+        />
+        {/* v404 — « Rien » : masque tous les lieux. */}
+        <CategoryChip
+          label={t("map_filter_none")}
+          emoji="🚫"
+          active={noneSelected}
+          onClick={() => { setNoneSelected(true); setSelectedCats([]); }}
         />
         {ALL_CATEGORIES.map((cat) => (
           <CategoryChip
             key={cat}
             label={t(CAT_KEY_FOR_LANG[cat])}
             emoji={POI_CATEGORY_LABELS[cat].emoji}
-            active={selectedCats.includes(cat)}
-            onClick={() =>
+            active={!noneSelected && selectedCats.includes(cat)}
+            onClick={() => {
+              setNoneSelected(false);
               setSelectedCats((prev) =>
                 prev.includes(cat)
                   ? prev.filter((c) => c !== cat)
                   : [...prev, cat],
-              )
-            }
+              );
+            }}
           />
         ))}
       </div>

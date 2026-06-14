@@ -143,6 +143,22 @@ function FlyToFocus({
   return null;
 }
 
+// v404 — recentre la carte quand `center` change FORTEMENT (recherche ville /
+// géoloc) SANS remonter la carte ni toucher au zoom. Le garde-fou « far » évite
+// de contrarier l'utilisateur sur un simple pan (le centre y est déjà) et tout
+// risque de boucle moveend → setCenter → setView.
+function RecenterMap({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    const c = map.getCenter();
+    const far =
+      Math.abs(c.lat - center[0]) > 0.05 || Math.abs(c.lng - center[1]) > 0.05;
+    if (far) map.setView(center, map.getZoom(), { animate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center[0], center[1]]);
+  return null;
+}
+
 // Fix global icones Leaflet (sinon path cassé en bundler).
 // @ts-expect-error — Leaflet stocke ses defaults via _getIconUrl interne.
 delete L.Icon.Default.prototype._getIconUrl;
@@ -336,21 +352,12 @@ export default function PoiMap({
     () => makeUserIcon(userHaloColor || "#2563EB", userAvatarUrl, userIsPremium),
     [userHaloColor, userAvatarUrl, userIsPremium],
   );
-  // Re-mount la carte si le centre change radicalement (>10km).
-  // v23.1.364 — BUG Daniel ("1er clic dézoome, 2e clic zoome") : le mapKey
-  // changeait à CHAQUE recentrage (>500 m) → la carte se REMONTAIT au zoom
-  // par défaut, écrasant le flyTo du clic ami. On ne remonte plus que pour
-  // un saut radical (~>11 km : recherche de ville), comme prévu à l'origine.
-  const [mapKey, setMapKey] = useState(() => `${center[0]},${center[1]}`);
-  useEffect(() => {
-    const [plat, plng] = mapKey.split(",").map(Number);
-    if (
-      Math.abs(center[0] - plat) > 0.1 ||
-      Math.abs(center[1] - plng) > 0.1
-    ) {
-      setMapKey(`${center[0]},${center[1]}`);
-    }
-  }, [center, mapKey]);
+  // v404 — Daniel : "le dézoom marche mal". CAUSE : on REMONTAIT la MapContainer
+  // (via une key qui changeait dès que le centre bougeait de >0.1°) → la carte
+  // se réinitialisait au zoom 13. Or zoomé loin, un petit pan dépasse vite 0.1°
+  // → la carte se re-zoomait toute seule (impossible de rester dézoomé). FIX :
+  // plus de remount ; un composant RecenterMap recentre via setView en
+  // PRÉSERVANT le zoom, et seulement pour un vrai saut (recherche ville/géoloc).
 
   const categoryIcons = useMemo(() => {
     const map: Partial<Record<PoiCategory, L.DivIcon>> = {};
@@ -363,9 +370,9 @@ export default function PoiMap({
   return (
     <div className="relative h-[70vh] min-h-[450px] w-full overflow-hidden rounded-2xl border border-ink/5 shadow-card">
       <MapContainer
-        key={mapKey}
         center={center}
         zoom={13}
+        minZoom={3}
         maxZoom={19}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
@@ -394,6 +401,7 @@ export default function PoiMap({
         </LayersControl>
 
         <MapMoveHandler onMove={onMapMove} />
+        <RecenterMap center={center} />
 
         {userLocation && userAccuracy != null && userAccuracy > 25 && (
           // v23.1.397 — cercle de précision : sur PC la géoloc navigateur
