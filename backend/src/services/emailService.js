@@ -67,7 +67,12 @@ const noReplyAddress = () => {
   return `${BRAND_NAME} no-reply <no-reply@hopetsit.app>`;
 };
 
-const sendEmail = async (email, subject, text, html) => {
+// v402 — opts.replyTo : permet aux campagnes promo (admin) de fixer une adresse
+// de réponse choisie (ex. l'adresse perso de Daniel) tout en ENVOYANT depuis
+// l'adresse de marque vérifiée (SPF/DKIM OK, pas de spam). Quand replyTo est
+// fourni on n'ajoute PAS les en-têtes Auto-Submitted (sinon Gmail masque le
+// bouton « Répondre », alors qu'ici on VEUT que les clients puissent répondre).
+const sendEmail = async (email, subject, text, html, opts = {}) => {
   if (!email) {
     logger.warn(`[emailService] sendEmail called with empty recipient (subject="${subject}")`);
     return { skipped: true, reason: 'no-recipient' };
@@ -76,22 +81,26 @@ const sendEmail = async (email, subject, text, html) => {
     logger.info(`[${BRAND_NAME} dev-log] To=${email} | Subject=${subject} | Body=${text}`);
     return { skipped: true, reason: 'no-smtp-transporter' };
   }
+  const replyTo = opts && opts.replyTo ? String(opts.replyTo).trim() : noReplyAddress();
+  const isCampaign = !!(opts && opts.replyTo);
   try {
     const info = await transporter.sendMail({
       to: email,
       from: fromAddress(),
-      // v18.9 — Reply-To no-reply : les users ne peuvent plus répondre par
-      // mail (privacy). Ils doivent ouvrir l'app pour répondre au chat.
-      replyTo: noReplyAddress(),
+      // v18.9 — Reply-To no-reply par défaut (privacy). v402 — override possible
+      // pour les campagnes promo.
+      replyTo,
       subject,
       text,
       ...(html ? { html } : {}),
-      headers: {
-        // RFC 2076 — marque l'email comme automatisé, Gmail / Outlook
-        // cachent alors le bouton Reply directement.
-        'Auto-Submitted': 'auto-generated',
-        'X-Auto-Response-Suppress': 'All',
-      },
+      headers: isCampaign
+        ? {}
+        : {
+            // RFC 2076 — marque l'email comme automatisé, Gmail / Outlook
+            // cachent alors le bouton Reply directement.
+            'Auto-Submitted': 'auto-generated',
+            'X-Auto-Response-Suppress': 'All',
+          },
     });
     logger.info(`[emailService] sent to=${email} subject="${subject}" messageId=${info.messageId}`);
     return info;
@@ -99,6 +108,29 @@ const sendEmail = async (email, subject, text, html) => {
     logger.error(`[emailService] FAILED to send to=${email} subject="${subject}"`, err.message || err);
     throw err;
   }
+};
+
+// v402 — email de campagne promo (admin). Enveloppe le corps (texte simple ou
+// HTML léger) dans un gabarit de marque + ajoute, si fourni, un encadré code
+// promo. Envoi depuis l'adresse de marque, Reply-To = adresse choisie.
+const sendCampaignEmail = async (email, subject, bodyText, { replyTo, promoCode, ctaUrl, ctaLabel } = {}) => {
+  const safeBodyHtml = String(bodyText || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>');
+  const codeBlock = promoCode
+    ? `<div style="font-size:24px;font-weight:800;letter-spacing:4px;background:#FFF4EE;color:#EF4324;padding:16px;text-align:center;border-radius:10px;border:2px dashed #EF4324;margin:18px 0">${String(promoCode).toUpperCase()}</div>`
+    : '';
+  const ctaBlock = ctaUrl
+    ? `<p style="text-align:center;margin:18px 0"><a href="${ctaUrl}" style="background:#EF4324;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block">${ctaLabel || 'En profiter'}</a></p>`
+    : '';
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;padding:24px;background:#fff;border:1px solid #eee;border-radius:12px">
+  <h2 style="color:#EF4324;margin:0 0 12px">${BRAND_NAME}</h2>
+  <div style="color:#222;font-size:15px;line-height:1.5">${safeBodyHtml}</div>
+  ${codeBlock}
+  ${ctaBlock}
+  <p style="color:#999;font-size:12px;margin-top:24px">— ${BRAND_NAME}</p>
+</div>`;
+  return sendEmail(email, subject, bodyText, html, { replyTo: replyTo || undefined });
 };
 
 /**
@@ -167,5 +199,6 @@ module.exports = {
   sendPasswordResetEmail,
   sendEmail,
   sendTestEmail,
+  sendCampaignEmail,
 };
 

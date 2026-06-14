@@ -50,6 +50,8 @@ const friendRoutes = require('./routes/friendRoutes');
 const pawSpotRoutes = require('./routes/pawSpotRoutes');
 // v20.0.8 — in-app "Signaler un bug" from 3 profiles, emails hopetsit@gmail.com.
 const bugReportRoutes = require('./routes/bugReportRoutes');
+// v402 — Chantier 2 : codes promo (redemption user). 100% additif.
+const promoRoutes = require('./routes/promoRoutes');
 const { authLimiter, sensitiveLimiter, adminLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
@@ -157,7 +159,7 @@ const ADMIN_HTML_PATH = path.join(__dirname, '..', '..', 'admin_dashboard.html')
 // build is actually LIVE on Render (GET /__build). If /__build still returns an
 // old value after a push, Render did not redeploy (auto-deploy off / build
 // filter / failed deploy) — not a code problem.
-const ADMIN_BUILD = 'v402';
+const ADMIN_BUILD = 'v403';
 const noAdminCache = (req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -217,6 +219,8 @@ const versionedRoutes = [
   { path: '/walkers', mw: [], router: walkerRoutes },
   { path: '/bookings', mw: [sensitiveLimiter], router: bookingRoutes },
   { path: '/posts', mw: [], router: postRoutes },
+  // v402 — Chantier 2 : redemption code promo (l'app l'appellera plus tard).
+  { path: '/promo', mw: [], router: promoRoutes },
   { path: '/applications', mw: [], router: applicationRoutes },
   { path: '/conversations', mw: [], router: conversationRoutes },
   { path: '/tasks', mw: [], router: taskRoutes },

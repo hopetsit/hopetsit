@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v402</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v403</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -244,6 +244,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('pawfollow')"><span class="nav-icon">⭐</span> <span data-i18n="nav_pawfollow">PawFollow</span></div>
       <div class="nav-item" onclick="showPage('pawpremium')"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">Paw Premium</span></div>
       <div class="nav-item" onclick="showPage('pawspot')"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
+      <div class="nav-item" onclick="showPage('promotions')"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
 
       <!-- Activité -->
       <div class="nav-section" style="margin-top:18px">📅 <span data-i18n="navsec_activity">Activité</span></div>
@@ -746,6 +747,101 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <th>#</th><th>Nom</th><th>Rôle</th><th>Pays</th><th>Ville</th><th>Points</th>
           </tr></thead><tbody id="pawspot-leaderboard"><tr><td colspan="6" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
         </div>
+      </div>
+
+      <!-- PROMOTIONS (v402) — codes promo + campagnes email -->
+      <div id="page-promotions" class="page">
+        <div class="section-title">🎟️ Promotions — codes promo &amp; campagnes</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:18px;max-width:860px;line-height:1.6">
+          Génère des codes promo (abonnement offert ou % de réduction) et envoie-les par email à tes clients.
+          L'expéditeur reste l'adresse de marque HoPetSit (anti-spam) ; les réponses arrivent sur l'adresse <strong style="color:var(--text)">Reply-To</strong> que tu choisis.
+          Les clients saisiront leur code dans l'app (onglet « Offre » du profil) — à activer après la vidéo du vidéaste.
+        </p>
+
+        <!-- 1) Générer -->
+        <div class="section-title" style="font-size:16px">1) Générer des codes</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;max-width:940px;margin-top:8px">
+          <label style="font-size:12px;color:var(--text-muted)">Type de récompense
+            <select id="promo-rewardType" class="filter-select" style="width:100%;margin-top:5px" onchange="promoToggleReward()">
+              <option value="free_subscription">Abonnement offert</option>
+              <option value="percent_discount">% de réduction</option>
+            </select>
+          </label>
+          <label id="promo-plan-wrap" style="font-size:12px;color:var(--text-muted)">Forfait offert
+            <select id="promo-plan" class="filter-select" style="width:100%;margin-top:5px">
+              <option value="premium_monthly:30:">👑 Paw Premium — Mensuel</option>
+              <option value="premium_yearly:365:">👑 Paw Premium — Annuel</option>
+              <option value="monthly:30:">📍 PawFollow — Mensuel</option>
+              <option value="yearly:365:">📍 PawFollow — Annuel</option>
+              <option value="family:30:">👨‍👩‍👧 PawFamily — Mensuel</option>
+              <option value="family_yearly:365:">👨‍👩‍👧 PawFamily — Annuel</option>
+              <option value="pawspot:30:">🐾 PawSpot — Mensuel</option>
+              <option value="pawspot:365:">🐾 PawSpot — Annuel</option>
+              <option value="pawboost:30:bronze">🚀 PawBoost — Bronze (30j)</option>
+              <option value="pawboost:30:silver">🚀 PawBoost — Silver (30j)</option>
+              <option value="pawboost:30:gold">🚀 PawBoost — Gold (30j)</option>
+              <option value="pawboost:30:platinum">🚀 PawBoost — Platinum (30j)</option>
+            </select>
+          </label>
+          <label id="promo-discount-wrap" style="display:none;font-size:12px;color:var(--text-muted)">% de réduction
+            <input id="promo-discount" type="number" min="1" max="100" value="20" class="search-input" style="width:100%;margin-top:5px">
+          </label>
+          <label style="font-size:12px;color:var(--text-muted)">Nombre de codes
+            <input id="promo-count" type="number" min="1" value="1" class="search-input" style="width:100%;margin-top:5px">
+          </label>
+          <label style="font-size:12px;color:var(--text-muted)">Usages par code (0 = illimité)
+            <input id="promo-maxUses" type="number" min="0" value="1" class="search-input" style="width:100%;margin-top:5px">
+          </label>
+          <label style="font-size:12px;color:var(--text-muted)">Expire le (optionnel)
+            <input id="promo-expires" type="date" class="search-input" style="width:100%;margin-top:5px">
+          </label>
+          <label style="font-size:12px;color:var(--text-muted)">Campagne (préfixe du code)
+            <input id="promo-campaign" type="text" placeholder="LANCEMENT" maxlength="12" class="search-input" style="width:100%;margin-top:5px">
+          </label>
+        </div>
+        <button class="action-btn" style="margin-top:14px;background:#EF4324;color:#fff" onclick="generatePromo()">🎟️ Générer les codes</button>
+        <div id="promo-gen-result" style="margin-top:12px"></div>
+
+        <!-- 2) Codes existants -->
+        <div class="section-title" style="font-size:16px;margin-top:30px">2) Codes existants
+          <button class="action-btn" style="margin-left:10px" onclick="loadPromotions()">🔄 Actualiser</button>
+        </div>
+        <div style="overflow-x:auto;margin-top:8px">
+          <table class="data-table"><thead><tr>
+            <th>Code</th><th>Type</th><th>Forfait</th><th>Usages</th><th>Expire</th><th>Statut</th><th></th>
+          </tr></thead><tbody id="promo-rows"><tr><td colspan="7" style="color:var(--text-muted)">—</td></tr></tbody></table>
+        </div>
+
+        <!-- 3) Campagne email -->
+        <div class="section-title" style="font-size:16px;margin-top:30px">3) Envoyer une promo par email</div>
+        <div style="display:grid;grid-template-columns:1fr;gap:12px;max-width:760px;margin-top:8px">
+          <label style="font-size:12px;color:var(--text-muted)">Adresse Reply-To (où arrivent les réponses)
+            <input id="promo-replyto" type="email" placeholder="dadaciao84@gmail.com" class="search-input" style="width:100%;margin-top:5px">
+          </label>
+          <label style="font-size:12px;color:var(--text-muted)">Sujet
+            <input id="promo-subject" type="text" placeholder="🎁 Ton offre HoPetSit" class="search-input" style="width:100%;margin-top:5px">
+          </label>
+          <label style="font-size:12px;color:var(--text-muted)">Message
+            <textarea id="promo-message" rows="5" placeholder="Bonjour ! Profite de…" class="search-input" style="width:100%;margin-top:5px;resize:vertical"></textarea>
+          </label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <label style="font-size:12px;color:var(--text-muted)">Code promo à inclure (optionnel)
+              <input id="promo-code-include" type="text" placeholder="LANCEMENT-ABC123" class="search-input" style="width:100%;margin-top:5px">
+            </label>
+            <label style="font-size:12px;color:var(--text-muted)">Lien du bouton (optionnel)
+              <input id="promo-cta" type="url" placeholder="https://hopetsit.com/boutique" class="search-input" style="width:100%;margin-top:5px">
+            </label>
+          </div>
+        </div>
+        <div class="section-title" style="font-size:14px;margin-top:18px">Destinataires
+          <input id="promo-search" type="text" placeholder="Filtrer nom/email…" class="search-input" style="margin-left:10px;width:240px" oninput="renderPromoClients()">
+          <button class="action-btn" style="margin-left:8px" onclick="promoSelectAll(true)">Tout cocher</button>
+          <button class="action-btn" style="margin-left:6px" onclick="promoSelectAll(false)">Tout décocher</button>
+          <span id="promo-selected-count" style="margin-left:12px;color:var(--text-muted);font-size:13px"></span>
+        </div>
+        <div id="promo-clients" style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px;margin-top:8px;background:var(--bg)"></div>
+        <button class="action-btn" style="margin-top:14px;background:#EF4324;color:#fff" onclick="sendPromoCampaign()">📧 Envoyer la campagne</button>
+        <div id="promo-send-result" style="margin-top:12px"></div>
       </div>
 
       <!-- PAYOUTS / REVENUE (v20.0.8 → v23.1 part 99) -->
@@ -1684,9 +1780,191 @@ function showPage(name) {
   if (name === 'pawfollow') loadPawFollowSubs();
   if (name === 'pawpremium') loadPawPremiumAdmin();
   if (name === 'pawspot') loadPawSpotSubs();
+  if (name === 'promotions') loadPromotions();
   if (name === 'payments') loadProviderPayouts();
   if (name === 'payouts') loadCompanySweeps();
   if (name === 'annonces') loadAnnonces();
+}
+
+// ── PROMOTIONS (v402) ────────────────────────────────────────────────────────
+// Codes promo (génération + révocation) + campagnes email. Réutilise api() et
+// les endpoints /admin/promo/* + la liste clients /admin/owners|sitters|walkers.
+let _promoClients = [];
+const _promoSelected = new Set();
+
+function promoToggleReward() {
+  const rt = document.getElementById('promo-rewardType').value;
+  document.getElementById('promo-plan-wrap').style.display = rt === 'free_subscription' ? '' : 'none';
+  document.getElementById('promo-discount-wrap').style.display = rt === 'percent_discount' ? '' : 'none';
+}
+
+function promoPlanLabel(c) {
+  if (c.rewardType === 'percent_discount') return '-' + (c.discountPercent || 0) + '%';
+  const map = {
+    premium_monthly: '👑 Premium M', premium_yearly: '👑 Premium A',
+    monthly: '📍 PawFollow M', yearly: '📍 PawFollow A',
+    famille: '👨‍👩‍👧 PawFamily M', family: '👨‍👩‍👧 PawFamily M', family_yearly: '👨‍👩‍👧 PawFamily A',
+    pawboost: '🚀 PawBoost ' + (c.boostTier || ''),
+  };
+  if (c.plan === 'pawspot') return '🐾 PawSpot ' + (c.intervalDays >= 365 ? 'A' : 'M');
+  return map[c.plan] || c.plan || '—';
+}
+
+async function loadPromotions() {
+  try {
+    const data = await api('/admin/promo/list');
+    renderPromoCodes(data.codes || []);
+  } catch (e) {
+    document.getElementById('promo-rows').innerHTML =
+      '<tr><td colspan="7" style="color:#EF4324">' + e.message + '</td></tr>';
+  }
+  if (_promoClients.length === 0) await loadPromoClients();
+  renderPromoClients();
+  promoToggleReward();
+}
+
+function renderPromoCodes(codes) {
+  const tb = document.getElementById('promo-rows');
+  if (!codes.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted)">Aucun code pour le moment.</td></tr>';
+    return;
+  }
+  tb.innerHTML = codes.map(function (c) {
+    const uses = (c.maxUses && c.maxUses > 0) ? ((c.usedCount || 0) + '/' + c.maxUses) : ((c.usedCount || 0) + '/∞');
+    const exp = c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '—';
+    const active = c.isActive
+      ? '<span style="color:var(--green)">actif</span>'
+      : '<span style="color:var(--text-muted)">désactivé</span>';
+    const revokeBtn = c.isActive
+      ? '<button class="action-btn" style="background:#EF4324;color:#fff;font-size:12px" onclick="revokePromo(\'' + c._id + '\')">Révoquer</button>'
+      : '';
+    const type = c.rewardType === 'percent_discount' ? 'Réduction' : 'Abo offert';
+    return '<tr><td style="font-weight:700;font-family:monospace">' + c.code + '</td><td>' + type
+      + '</td><td>' + promoPlanLabel(c) + '</td><td>' + uses + '</td><td>' + exp + '</td><td>' + active
+      + '</td><td>' + revokeBtn + '</td></tr>';
+  }).join('');
+}
+
+async function generatePromo() {
+  const out = document.getElementById('promo-gen-result');
+  const rewardType = document.getElementById('promo-rewardType').value;
+  const body = {
+    rewardType: rewardType,
+    maxUses: Number(document.getElementById('promo-maxUses').value),
+    count: Number(document.getElementById('promo-count').value),
+    campaign: document.getElementById('promo-campaign').value.trim(),
+    expiresAt: document.getElementById('promo-expires').value || null,
+  };
+  if (rewardType === 'free_subscription') {
+    const parts = document.getElementById('promo-plan').value.split(':');
+    body.plan = parts[0];
+    body.intervalDays = Number(parts[1]) || 30;
+    body.boostTier = parts[2] || '';
+  } else {
+    body.discountPercent = Number(document.getElementById('promo-discount').value);
+  }
+  out.innerHTML = '<span style="color:var(--text-muted)">Génération…</span>';
+  try {
+    const r = await api('/admin/promo/generate', 'POST', body);
+    out.innerHTML = '<div style="color:var(--green);font-weight:600">✓ ' + r.count
+      + ' code(s) généré(s)</div><div style="margin-top:6px;font-family:monospace;font-size:13px;word-break:break-all">'
+      + (r.codes || []).join('  ·  ') + '</div>';
+    loadPromotions();
+  } catch (e) {
+    out.innerHTML = '<span style="color:#EF4324">' + e.message + '</span>';
+  }
+}
+
+async function revokePromo(id) {
+  if (!confirm('Désactiver ce code ?')) return;
+  try { await api('/admin/promo/revoke', 'POST', { id: id }); loadPromotions(); }
+  catch (e) { alert(e.message); }
+}
+
+async function loadPromoClients() {
+  try {
+    const res = await Promise.all([
+      api('/admin/owners?limit=300'), api('/admin/sitters?limit=300'), api('/admin/walkers?limit=300'),
+    ]);
+    const norm = function (arr, role) {
+      return (arr || []).map(function (u) { return { name: u.name || '', email: u.email || '', role: role }; });
+    };
+    _promoClients = norm(res[0].owners, 'owner')
+      .concat(norm(res[1].sitters, 'sitter'))
+      .concat(norm(res[2].walkers, 'walker'))
+      .filter(function (u) { return u.email; });
+  } catch (e) { _promoClients = []; }
+}
+
+function renderPromoClients() {
+  const q = (document.getElementById('promo-search').value || '').toLowerCase();
+  const box = document.getElementById('promo-clients');
+  const list = _promoClients.filter(function (u) {
+    return !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+  });
+  if (!list.length) {
+    box.innerHTML = '<div style="color:var(--text-muted);padding:8px">Aucun client.</div>';
+    updatePromoSelectedCount();
+    return;
+  }
+  box.innerHTML = list.map(function (u) {
+    const checked = _promoSelected.has(u.email) ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;font-size:13px;border-radius:6px">'
+      + '<input type="checkbox" class="promo-client-cb" data-email="' + u.email + '" ' + checked
+      + ' onchange="promoCbChange(this)"><span style="flex:1">' + (u.name || '—')
+      + ' <span style="color:var(--text-muted)">· ' + u.email + ' · ' + u.role + '</span></span></label>';
+  }).join('');
+  updatePromoSelectedCount();
+}
+
+function promoCbChange(cb) {
+  const email = cb.getAttribute('data-email');
+  if (cb.checked) _promoSelected.add(email); else _promoSelected.delete(email);
+  updatePromoSelectedCount();
+}
+
+function promoSelectAll(checked) {
+  document.querySelectorAll('#promo-clients .promo-client-cb').forEach(function (cb) {
+    cb.checked = checked;
+    const email = cb.getAttribute('data-email');
+    if (checked) _promoSelected.add(email); else _promoSelected.delete(email);
+  });
+  updatePromoSelectedCount();
+}
+
+function updatePromoSelectedCount() {
+  const el = document.getElementById('promo-selected-count');
+  if (el) el.textContent = _promoSelected.size + ' sélectionné(s)';
+}
+
+async function sendPromoCampaign() {
+  const out = document.getElementById('promo-send-result');
+  const recipients = Array.from(_promoSelected);
+  if (!recipients.length) {
+    out.innerHTML = '<span style="color:#EF4324">Sélectionne au moins un destinataire.</span>';
+    return;
+  }
+  const body = {
+    recipients: recipients,
+    subject: document.getElementById('promo-subject').value.trim(),
+    message: document.getElementById('promo-message').value.trim(),
+    replyTo: document.getElementById('promo-replyto').value.trim(),
+    promoCode: document.getElementById('promo-code-include').value.trim(),
+    ctaUrl: document.getElementById('promo-cta').value.trim(),
+  };
+  if (!body.subject || !body.message) {
+    out.innerHTML = '<span style="color:#EF4324">Sujet et message requis.</span>';
+    return;
+  }
+  if (!confirm('Envoyer à ' + recipients.length + ' destinataire(s) ?')) return;
+  out.innerHTML = '<span style="color:var(--text-muted)">Envoi en cours… (ça peut prendre un moment)</span>';
+  try {
+    const r = await api('/admin/promo/send-campaign', 'POST', body);
+    out.innerHTML = '<div style="color:var(--green);font-weight:600">✓ ' + r.sent + ' envoyé(s)'
+      + (r.failed ? (', ' + r.failed + ' échec(s)') : '') + ' / ' + r.total + '</div>';
+  } catch (e) {
+    out.innerHTML = '<span style="color:#EF4324">' + e.message + '</span>';
+  }
 }
 
 // ── ANNONCES ─────────────────────────────────────────────────────────────────

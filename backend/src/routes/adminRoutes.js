@@ -55,6 +55,134 @@ router.post('/test-email', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── PROMOTIONS (v402, Chantier 2) ───────────────────────────────────────────
+// 100% additif. Génère/gère des codes promo + envoie des campagnes email.
+// Expéditeur = adresse de marque (SPF/DKIM OK), Reply-To = adresse choisie.
+const _promoAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans 0/O/1/I ambigus
+function _genPromoCode(prefix) {
+  const crypto = require('crypto');
+  const bytes = crypto.randomBytes(6);
+  let s = '';
+  for (let i = 0; i < 6; i += 1) s += _promoAlphabet[bytes[i] % _promoAlphabet.length];
+  const clean = String(prefix || 'HOPE').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'HOPE';
+  return `${clean}-${s}`;
+}
+
+// POST /admin/promo/generate — crée N codes (ou 1 code multi-usages).
+router.post('/promo/generate', requireAdmin, async (req, res) => {
+  try {
+    const PromoCode = require('../models/PromoCode');
+    const b = req.body || {};
+    const rewardType = b.rewardType === 'percent_discount' ? 'percent_discount' : 'free_subscription';
+    const plan = String(b.plan || '').trim();
+    const intervalDays = Number(b.intervalDays) || 30;
+    const boostTier = String(b.boostTier || '').trim();
+    const discountPercent = Number(b.discountPercent) || 0;
+    const maxUses = (b.maxUses === 0 || b.maxUses) ? Number(b.maxUses) : 1;
+    const count = Math.min(Math.max(Number(b.count) || 1, 1), 1000);
+    const campaign = String(b.campaign || '').trim();
+    const expiresAt = b.expiresAt ? new Date(b.expiresAt) : null;
+    const createdBy = req.user?.email || req.user?.id || 'admin';
+
+    if (rewardType === 'free_subscription' && !plan) {
+      return res.status(400).json({ error: 'Choisis un forfait (plan).' });
+    }
+    if (rewardType === 'percent_discount' && !(discountPercent > 0)) {
+      return res.status(400).json({ error: 'Indique un pourcentage de réduction (>0).' });
+    }
+
+    const created = [];
+    for (let i = 0; i < count; i += 1) {
+      let saved = null;
+      for (let attempt = 0; attempt < 6 && !saved; attempt += 1) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          saved = await PromoCode.create({
+            code: _genPromoCode(campaign || 'HOPE'),
+            campaign, rewardType, plan, intervalDays, boostTier, discountPercent,
+            maxUses, expiresAt, createdBy,
+          });
+        } catch (e) {
+          if (!(e && e.code === 11000)) throw e; // retry uniquement sur collision de code
+        }
+      }
+      if (saved) created.push(saved.code);
+    }
+    return res.json({ ok: true, count: created.length, codes: created });
+  } catch (e) {
+    logger.error('[admin/promo/generate]', e);
+    return res.status(500).json({ error: 'Génération échouée.' });
+  }
+});
+
+// GET /admin/promo/list — codes récents + compteurs d'usage.
+router.get('/promo/list', requireAdmin, async (req, res) => {
+  try {
+    const PromoCode = require('../models/PromoCode');
+    const codes = await PromoCode.find().sort({ createdAt: -1 }).limit(500).lean();
+    return res.json({ codes });
+  } catch (e) {
+    logger.error('[admin/promo/list]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
+// POST /admin/promo/revoke { id } — désactive un code.
+router.post('/promo/revoke', requireAdmin, async (req, res) => {
+  try {
+    const PromoCode = require('../models/PromoCode');
+    const id = req.body?.id;
+    if (!id) return res.status(400).json({ error: 'id requis.' });
+    const updated = await PromoCode.findByIdAndUpdate(id, { isActive: false }, { new: true });
+    if (!updated) return res.status(404).json({ error: 'Code introuvable.' });
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('[admin/promo/revoke]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
+// POST /admin/promo/send-campaign — email promo à une liste de clients.
+// body: { recipients:[email], subject, message, replyTo?, promoCode?, ctaUrl? }
+router.post('/promo/send-campaign', requireAdmin, async (req, res) => {
+  try {
+    const { sendCampaignEmail } = require('../services/emailService');
+    const b = req.body || {};
+    const recipients = Array.isArray(b.recipients)
+      ? [...new Set(b.recipients.map((e) => String(e || '').trim().toLowerCase())
+          .filter((e) => /^\S+@\S+\.\S+$/.test(e)))]
+      : [];
+    const subject = String(b.subject || '').trim();
+    const message = String(b.message || '').trim();
+    const replyTo = String(b.replyTo || '').trim() || undefined;
+    const promoCode = String(b.promoCode || '').trim() || undefined;
+    const ctaUrl = String(b.ctaUrl || '').trim() || undefined;
+
+    if (!recipients.length) return res.status(400).json({ error: 'Aucun destinataire valide.' });
+    if (recipients.length > 2000) return res.status(400).json({ error: 'Trop de destinataires (max 2000 par envoi).' });
+    if (!subject || !message) return res.status(400).json({ error: 'Sujet et message requis.' });
+
+    let sent = 0;
+    let failed = 0;
+    // Lots de 10 pour ne pas saturer le pool SMTP (maxConnections 5).
+    for (let i = 0; i < recipients.length; i += 10) {
+      const batch = recipients.slice(i, i + 10);
+      // eslint-disable-next-line no-await-in-loop
+      const results = await Promise.allSettled(
+        batch.map((to) => sendCampaignEmail(to, subject, message, { replyTo, promoCode, ctaUrl })),
+      );
+      results.forEach((r) => {
+        if (r.status === 'fulfilled' && !(r.value && r.value.skipped)) sent += 1;
+        else failed += 1;
+      });
+    }
+    return res.json({ ok: true, sent, failed, total: recipients.length });
+  } catch (e) {
+    logger.error('[admin/promo/send-campaign]', e);
+    return res.status(500).json({ error: 'Envoi échoué.' });
+  }
+});
+
 // ─── DASHBOARD STATS ─────────────────────────────────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
