@@ -20,10 +20,17 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setErr("");
+    const cleanEmail = email.trim().toLowerCase();
     try {
-      await login(email.trim().toLowerCase(), password);
+      await login(cleanEmail, password);
       router.push("/dashboard");
     } catch (e) {
+      // v402 — compte non vérifié : le backend renvoie 403 et renvoie un
+      // nouveau code par email → on bascule sur la page de vérification.
+      if (e instanceof ApiError && e.status === 403) {
+        router.push(`/verify-email?email=${encodeURIComponent(cleanEmail)}`);
+        return;
+      }
       if (e instanceof ApiError && (e.status === 401 || e.status === 400)) {
         setErr(t("auth_error_invalid"));
       } else {

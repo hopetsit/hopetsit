@@ -27,13 +27,20 @@ export default function SignupPage() {
     setBusy(true);
     setErr("");
     try {
-      await signup({
+      const cleanEmail = email.trim().toLowerCase();
+      const res = await signup({
         name: name.trim(),
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         password,
         role,
       });
-      router.push("/dashboard");
+      // v402 — l'inscription web exige désormais la vérif email (le backend
+      // envoie un code par mail). On envoie l'utilisateur sur /verify-email.
+      if (res.needsVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(cleanEmail)}`);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setErr(t("auth_error_taken"));

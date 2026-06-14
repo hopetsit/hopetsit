@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, AuthUser, clearAuth, getStoredUser, openInApp } from "@/lib/api";
+import { ApiError, AuthUser, AuthRole, clearAuth, getStoredUser, openInApp, switchRole } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { disconnectSocket } from "@/lib/socket";
 
@@ -17,6 +17,9 @@ export default function DashboardPage() {
   const [openingApp, setOpeningApp] = useState(false);
   const [openAppError, setOpenAppError] = useState<string | null>(null);
   const [openAppHint, setOpenAppHint] = useState<string | null>(null);
+  // v402 — changement de rôle depuis le web (garde les abonnements).
+  const [switchingRole, setSwitchingRole] = useState<AuthRole | null>(null);
+  const [switchMsg, setSwitchMsg] = useState<string | null>(null);
 
   // v23.1 part 146 — socket.io temps réel.
   const { connected: socketConnected } = useSocket();
@@ -152,6 +155,38 @@ export default function DashboardPage() {
     }
   }
 
+  // v402 — bascule de rôle depuis le cadre orange. Le backend migre les
+  // abonnements (Premium/PawFollow/PawFamily/PawSpot) et renvoie un nouveau
+  // token, persisté par switchRole(). On rafraîchit ensuite le dashboard.
+  const roleLabel = (r: AuthRole) =>
+    r === "owner"
+      ? `🐾 ${t("signup_role_owner")}`
+      : r === "sitter"
+        ? `🏠 ${t("signup_role_sitter")}`
+        : `🚶 ${t("signup_role_walker")}`;
+
+  async function handleSwitchRole(target: AuthRole) {
+    if (!user || target === user.role || switchingRole) return;
+    if (!window.confirm(t("dash_switch_confirm"))) return;
+    setSwitchingRole(target);
+    setSwitchMsg(null);
+    try {
+      const data = await switchRole(target);
+      setUser(data.user);
+      setSwitchMsg(t("dash_switch_done"));
+      setTimeout(() => router.refresh(), 400);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        clearAuth();
+        router.replace("/login");
+        return;
+      }
+      setSwitchMsg(e instanceof ApiError ? e.message : t("dash_switch_error"));
+    } finally {
+      setSwitchingRole(null);
+    }
+  }
+
   const roleColor = user?.role === "owner" ? "owner" : user?.role === "walker" ? "walker" : "sitter";
 
   return (
@@ -244,6 +279,29 @@ export default function DashboardPage() {
             )}
           </div>
         )}
+
+        {/* v402 — Changement de rôle depuis le web. Garde tous les abonnements
+            (le backend migre Premium/PawFollow/PawFamily/PawSpot). */}
+        <div className="mt-6 border-t border-white/20 pt-5">
+          <p className="text-sm font-semibold">{t("dash_switch_role_title")}</p>
+          <p className="mt-0.5 text-xs text-white/75">{t("dash_switch_role_sub")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["owner", "sitter", "walker"] as AuthRole[])
+              .filter((r) => r !== user?.role)
+              .map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => handleSwitchRole(r)}
+                  disabled={switchingRole !== null}
+                  className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25 disabled:opacity-60"
+                >
+                  {switchingRole === r ? "…" : roleLabel(r)}
+                </button>
+              ))}
+          </div>
+          {switchMsg && <p className="mt-2 text-sm text-white/90">{switchMsg}</p>}
+        </div>
       </div>
 
       {/* v23.1.394 — Daniel : « mon compte web en titre, mettre en valeur
@@ -268,6 +326,13 @@ export default function DashboardPage() {
           emoji="📅"
           title={t("dash_card_bookings_title")}
           subtitle={user?.role === "owner" ? t("dash_card_bookings_sub_owner") : t("dash_card_bookings_sub_provider")}
+        />
+        {/* v402 — Annonces : owner publie, sitter/walker répond. */}
+        <NavCard
+          href="/posts"
+          emoji="📣"
+          title={user?.role === "owner" ? t("posts_my_title") : t("posts_feed_title")}
+          subtitle={user?.role === "owner" ? t("posts_create_cta") : t("posts_contact")}
         />
         {user?.role === "owner" && (
           <>

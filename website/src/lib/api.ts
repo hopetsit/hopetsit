@@ -148,7 +148,7 @@ export async function signup(input: {
   email: string;
   password: string;
   role: AuthRole;
-}) {
+}): Promise<{ needsVerification: boolean; email: string; token?: string; user?: AuthUser }> {
   // The /auth/signup contract requires `{ role, user: {...} }` (and accepts
   // optional fields like mobile, countryCode, currency that we don't collect
   // from the website — the mobile app fills those later in the onboarding).
@@ -161,9 +161,53 @@ export async function signup(input: {
       acceptedTerms: true,
     },
   };
-  const raw = await request<AuthRaw>(
+  // v402 — le backend /auth/signup crée le compte avec verified:false et NE
+  // renvoie PAS de token (il envoie un code 6 chiffres par email). Avant, le
+  // site persistait un token undefined puis filait au dashboard → user web
+  // bloqué (login renvoie 403 "Email not verified", aucune UI pour saisir le
+  // code). On renvoie donc needsVerification → la page d'inscription redirige
+  // vers /verify-email. Si un jour le backend renvoie un token (auto-login),
+  // on le gère aussi.
+  const raw = await request<Partial<AuthRaw> & { message?: string }>(
     "/auth/signup",
     { method: "POST", body: JSON.stringify(body) },
+  );
+  if (raw && raw.token) {
+    const data = normalizeAuthResponse(raw as AuthRaw);
+    persistAuth(data.token, data.user);
+    return { needsVerification: false, email: input.email, token: data.token, user: data.user };
+  }
+  return { needsVerification: true, email: input.email };
+}
+
+// v402 — vérification d'email depuis le SITE (parité app). Le backend renvoie
+// un JWT seulement APRÈS vérification du code 6 chiffres reçu par email.
+export async function verifyEmail(email: string, code: string) {
+  const raw = await request<AuthRaw>(
+    `/auth/verify?email=${encodeURIComponent(email)}`,
+    { method: "POST", body: JSON.stringify({ code: code.trim() }) },
+  );
+  const data = normalizeAuthResponse(raw);
+  persistAuth(data.token, data.user);
+  return data;
+}
+
+export async function resendVerificationCode(email: string) {
+  return request<{ message?: string }>(
+    `/auth/resend-code?email=${encodeURIComponent(email)}`,
+    { method: "POST" },
+  );
+}
+
+// v402 — changement de rôle depuis le SITE (parité app). Le backend
+// (/users/switch-role) MIGRE les abonnements (Premium / PawFollow / PawFamily /
+// PawSpot — il garde le max des compteurs, rien n'est perdu) et renvoie un
+// NOUVEAU token + le doc du nouveau rôle. On persiste pour rester connecté sous
+// le nouveau rôle. Même endpoint que l'app → aucun impact app.
+export async function switchRole(targetRole: AuthRole) {
+  const raw = await request<AuthRaw>(
+    "/users/switch-role",
+    { method: "POST", body: JSON.stringify({ targetRole }) },
   );
   const data = normalizeAuthResponse(raw);
   persistAuth(data.token, data.user);
@@ -944,6 +988,124 @@ export async function deleteConversation(conversationId: string): Promise<boolea
     }
     throw e;
   }
+}
+
+// ─── Annonces / Posts (v402 — parité app, 100% additif) ─────────────────────
+
+export type PostComment = {
+  _id?: string;
+  id?: string;
+  comment?: string;
+  body?: string;
+  authorName?: string;
+  name?: string;
+  createdAt?: string;
+};
+
+export type RequestPost = {
+  id?: string;
+  _id?: string;
+  body?: string;
+  notes?: string;
+  serviceTypes?: string[];
+  startDate?: string;
+  endDate?: string;
+  houseSittingVenue?: string | null;
+  postType?: string;
+  status?: string;
+  createdAt?: string;
+  owner?: { id?: string; name?: string; email?: string; avatar?: string };
+  ownerId?: string | { _id?: string; id?: string; name?: string };
+  isOwnerBoosted?: boolean;
+  ownerBoostTier?: string | null;
+  likes?: Array<{ userId?: string }>;
+  comments?: PostComment[];
+  pets?: Array<{ id?: string; petName?: string; avatar?: string }>;
+  media?: Array<{ url: string; type?: string }>;
+  images?: Array<{ url: string }>;
+};
+
+export type CreatePostInput = {
+  body: string;
+  serviceTypes?: string[];
+  startDate?: string;
+  endDate?: string;
+  houseSittingVenue?: "owners_home" | "sitters_home";
+  petId?: string;
+  notes?: string;
+  location?: { city?: string; lat?: number; lng?: number };
+};
+
+// Canonical service keys (match the app + backend filtering: dog_walking is
+// walker-exclusive, sitters see house_sitting / day_care).
+export const POST_SERVICE_TYPES = ["house_sitting", "day_care", "dog_walking"] as const;
+
+function postId(p: RequestPost): string {
+  return String(p.id || p._id || "");
+}
+export { postId };
+
+export async function createPost(input: CreatePostInput): Promise<RequestPost> {
+  const raw = await request<{ post?: RequestPost } & RequestPost>("/posts", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return (raw.post as RequestPost) || (raw as RequestPost);
+}
+
+export async function getRequestPosts(): Promise<RequestPost[]> {
+  const raw = await request<{ posts?: RequestPost[] }>("/posts/requests");
+  return raw.posts || [];
+}
+
+export async function getMyPosts(): Promise<RequestPost[]> {
+  const raw = await request<{ posts?: RequestPost[] }>("/posts/my");
+  return raw.posts || [];
+}
+
+export async function getPostById(id: string): Promise<RequestPost | null> {
+  const raw = await request<{ post?: RequestPost } & RequestPost>(`/posts/by-id/${id}`);
+  return (raw.post as RequestPost) || (raw as RequestPost) || null;
+}
+
+export async function deletePost(id: string): Promise<boolean> {
+  try {
+    await request(`/posts/${id}`, { method: "DELETE" });
+    return true;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return true;
+    throw e;
+  }
+}
+
+export async function toggleLikePost(id: string): Promise<void> {
+  await request(`/posts/${id}/like`, { method: "POST" });
+}
+
+export async function addPostComment(id: string, comment: string): Promise<void> {
+  await request(`/posts/${id}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
+}
+
+// Démarrer une conversation avec un owner depuis une annonce (sitter/walker).
+// Le backend applique la même règle d'accès que l'app : si pas de booking payé
+// ni Premium/Chat add-on → 402 CHAT_ACCESS_REQUIRED (le composant montre alors
+// l'upsell). Retourne l'id de conversation en cas de succès.
+export async function contactOwnerAboutPost(
+  ownerId: string,
+  message: string,
+): Promise<{ conversationId: string }> {
+  const role = getStoredUser()?.role;
+  const path = role === "walker" ? "start-by-walker" : "start-by-sitter";
+  const raw = await request<{ conversation?: { id?: string; _id?: string } }>(
+    `/conversations/${path}?ownerId=${encodeURIComponent(ownerId)}`,
+    { method: "POST", body: JSON.stringify({ message }) },
+  );
+  return {
+    conversationId: String(raw?.conversation?.id || raw?.conversation?._id || ""),
+  };
 }
 
 // ─── PawMap : POI (v23.1 part 146) ──────────────────────────────────────────

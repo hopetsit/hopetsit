@@ -85,6 +85,23 @@ export default function ChatPage() {
     }
   }
 
+  // v402 — deep-link depuis une annonce : /chat?c=<conversationId> ouvre
+  // directement la conversation dès que la liste est chargée (le bouton
+  // "Contacter" d'une annonce y redirige). window.location évite d'avoir à
+  // envelopper la page dans un <Suspense> (useSearchParams).
+  const openedDeepLink = useRef(false);
+  useEffect(() => {
+    if (openedDeepLink.current || loading || conversations.length === 0) return;
+    try {
+      const cid = new URLSearchParams(window.location.search).get("c");
+      if (cid && conversations.some((c) => c.id === cid)) {
+        openedDeepLink.current = true;
+        openConversation(cid);
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, conversations]);
+
   async function openConversation(id: string) {
     setActiveId(id);
     setLoadingMessages(true);
