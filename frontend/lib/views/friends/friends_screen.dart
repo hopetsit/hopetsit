@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/friend_controller.dart';
 import 'dart:async';
 
@@ -27,6 +26,11 @@ import 'package:share_plus/share_plus.dart';
 ///   1. Mes amis — accepted friendships with a per-friend "share my position"
 ///      toggle and an "unfriend" option.
 ///   2. Demandes — incoming requests (accept/decline) + outgoing (pending).
+// v414/v419 — « Mon cercle » (famille & amis PawFollow) = VIOLET partout.
+// Constante AU NIVEAU FICHIER : utilisée par FriendsScreen ET les widgets/tabs
+// privés (cartes amis, onglets Ajouter/Famille/Demandes) du même fichier.
+const Color _circleViolet = Color(0xFF8B5CF6);
+
 class FriendsScreen extends StatelessWidget {
   // v23.1 part 223 — Daniel : "personne en live met le bouton a coter
   // de famille et amis et alertes". On accepte un initialIndex pour
@@ -34,9 +38,6 @@ class FriendsScreen extends StatelessWidget {
   // le user tape le nouveau bouton quick-action sur PawMap.
   const FriendsScreen({super.key, this.initialIndex = 0});
   final int initialIndex;
-
-  // v414 — « Mon cercle » (famille & amis PawFollow) = VIOLET, pas bleu/orange.
-  static const Color _circleViolet = Color(0xFF8B5CF6);
 
   @override
   Widget build(BuildContext context) {
@@ -563,11 +564,12 @@ class _FriendTile extends StatelessWidget {
                 child: Container(
                   width: 36.w, height: 36.w,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                    // v419 — accent violet « Mon cercle » (maquette en violet).
+                    color: _circleViolet.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.chat_bubble_rounded,
-                      color: const Color(0xFFEF4324), size: 18.sp),
+                      color: _circleViolet, size: 18.sp),
                 ),
               ),
             ),
@@ -594,9 +596,8 @@ class _FriendTile extends StatelessWidget {
                 scale: 0.75,
                 child: Switch(
                   value: friendship.mySharePosition,
-                  activeThumbColor: AppColors.roleAccent(
-                    Get.find<AuthController>().userRole.value,
-                  ),
+                  // v419 — toggle violet (accent « Mon cercle », maquette violet).
+                  activeThumbColor: _circleViolet,
                   onChanged: (v) =>
                       controller.setSharePosition(friendship.id, v),
                 ),
@@ -1324,7 +1325,7 @@ class _FamilyTab extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.person_rounded,
-                    color: AppColors.primaryColor, size: 24.sp),
+                    color: _circleViolet, size: 24.sp),
                 SizedBox(width: 8.w),
                 Expanded(
                   child: InterText(
@@ -1365,7 +1366,7 @@ class _FamilyTab extends StatelessWidget {
               Row(
                 children: [
                   Icon(Icons.mail_outline_rounded,
-                      color: AppColors.primaryColor, size: 24.sp),
+                      color: _circleViolet, size: 24.sp),
                   SizedBox(width: 8.w),
                   Expanded(
                     child: InterText(
@@ -1405,7 +1406,7 @@ class _FamilyTab extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.group_rounded,
-                    color: AppColors.primaryColor, size: 24.sp),
+                    color: _circleViolet, size: 24.sp),
                 SizedBox(width: 8.w),
                 Expanded(
                   child: InterText(
@@ -1484,7 +1485,7 @@ class _FamilyTab extends StatelessWidget {
                       ),
                       trailing: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
+                          backgroundColor: _circleViolet,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20.r),
@@ -2025,11 +2026,12 @@ class _FamilyMemberTile extends StatelessWidget {
                 child: Container(
                   width: 36.w, height: 36.w,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                    // v419 — accent violet « Mon cercle » (maquette en violet).
+                    color: _circleViolet.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.chat_bubble_rounded,
-                      color: const Color(0xFFEF4324), size: 18.sp),
+                      color: _circleViolet, size: 18.sp),
                 ),
               ),
             ),
@@ -2185,19 +2187,19 @@ class _AddFriendTabState extends State<_AddFriendTab> {
         OutlinedButton.icon(
           onPressed: _onShareInvite,
           icon: Icon(Icons.ios_share_rounded,
-              color: AppColors.primaryColor, size: 20.sp),
+              color: _circleViolet, size: 20.sp),
           label: Padding(
             padding: EdgeInsets.symmetric(vertical: 4.h),
             child: InterText(
               text: 'friends_add_share_link'.tr,
               fontSize: 13.sp,
               fontWeight: FontWeight.w700,
-              color: AppColors.primaryColor,
+              color: _circleViolet,
             ),
           ),
           style: OutlinedButton.styleFrom(
             side: BorderSide(
-              color: AppColors.primaryColor.withValues(alpha: 0.4),
+              color: _circleViolet.withValues(alpha: 0.4),
               width: 1.2,
             ),
             shape: RoundedRectangleBorder(
