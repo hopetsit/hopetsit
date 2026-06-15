@@ -4691,4 +4691,65 @@ router.patch('/walkers/:id/iban/verify', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── v413 — SIGNALEMENTS : stats par type (Daniel : "savoir lesquels sont
+// utilisés / fonctionnent"). Compte tous les MapReport par type (y compris les
+// types JAMAIS utilisés, count 0) + dernière utilisation + masqués.
+router.get('/reports/stats', requireAdmin, async (req, res) => {
+  try {
+    const MapReport = require('../models/MapReport');
+    const REPORT_TYPES = MapReport.REPORT_TYPES || [];
+    const agg = await MapReport.aggregate([
+      {
+        $group: {
+          _id: '$type',
+          count: { $sum: 1 },
+          last: { $max: '$createdAt' },
+          hidden: { $sum: { $cond: ['$hidden', 1, 0] } },
+        },
+      },
+    ]);
+    const byType = new Map(agg.map((a) => [a._id, a]));
+    const types = (REPORT_TYPES.length ? REPORT_TYPES : [...byType.keys()]).map((t) => {
+      const a = byType.get(t);
+      return {
+        type: t,
+        count: a ? a.count : 0,
+        hidden: a ? a.hidden : 0,
+        last: a ? a.last : null,
+      };
+    }).sort((x, y) => y.count - x.count);
+    const total = types.reduce((s, t) => s + t.count, 0);
+    return res.json({ types, total });
+  } catch (e) {
+    logger.error('[admin/reports/stats]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
+// ─── v413 — PAWPOINTS : classement (Daniel : "voir le classement"). Top users
+// par pawPoints sur les 3 collections. La gestion des récompenses éditables
+// (sans rebuild) suivra avec un modèle Reward dédié.
+router.get('/pawpoints/leaderboard', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    const proj = 'name email pawPoints pawBadgeColor';
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find({ pawPoints: { $gt: 0 } }).select(proj).sort({ pawPoints: -1 }).limit(limit).lean(),
+      Sitter.find({ pawPoints: { $gt: 0 } }).select(proj).sort({ pawPoints: -1 }).limit(limit).lean(),
+      Walker.find({ pawPoints: { $gt: 0 } }).select(proj).sort({ pawPoints: -1 }).limit(limit).lean(),
+    ]);
+    const tag = (arr, role) => (arr || []).map((u) => ({
+      id: String(u._id), role, name: u.name || '', email: u.email || '',
+      pawPoints: u.pawPoints || 0, badge: u.pawBadgeColor || '',
+    }));
+    const all = [...tag(owners, 'owner'), ...tag(sitters, 'sitter'), ...tag(walkers, 'walker')]
+      .sort((a, b) => b.pawPoints - a.pawPoints)
+      .slice(0, limit);
+    return res.json({ leaderboard: all, total: all.length });
+  } catch (e) {
+    logger.error('[admin/pawpoints/leaderboard]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
 module.exports = router;
