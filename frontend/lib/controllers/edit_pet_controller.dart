@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/controllers/my_pets_controller.dart';
+import 'package:hopetsit/controllers/enriched_pet_form_state.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -46,6 +47,9 @@ class EditPetController extends GetxController {
   final RxBool emergencyAuthAccepted = false.obs;
   final RxList<Map<String, String>> vaccinationsList =
       <Map<String, String>>[].obs;
+
+  // v406 refonte — champs enrichis (À propos / Santé / Habitudes).
+  final EnrichedPetFormState enriched = EnrichedPetFormState();
 
   void addVaccination() {
     vaccinationsList.add({'name': '', 'date': ''});
@@ -97,6 +101,7 @@ class EditPetController extends GetxController {
     medicationAllergiesController.dispose();
     bioController.dispose();
     colourController.dispose();
+    enriched.dispose();
     super.onClose();
   }
 
@@ -129,6 +134,9 @@ class EditPetController extends GetxController {
     emergencyVetPhoneController.text = pet.emergencyVet.phone;
     emergencyVetAddressController.text = pet.emergencyVet.address;
     emergencyAuthAccepted.value = pet.emergencyInterventionAuthorization;
+
+    // v406 — champs enrichis.
+    enriched.populateFrom(pet);
   }
 
   Future<void> loadPetData() async {
@@ -342,6 +350,8 @@ class EditPetController extends GetxController {
         'emergencyInterventionAuthorization': emergencyAuthAccepted.value,
         'emergencyAuthorizationText':
             emergencyAuthAccepted.value ? emergencyLegalText : '',
+        // v406 — champs enrichis (À propos / Santé / Habitudes).
+        ...enriched.toPayload(),
       };
 
       await _petRepository.updatePet(petId: petId, petData: petData);

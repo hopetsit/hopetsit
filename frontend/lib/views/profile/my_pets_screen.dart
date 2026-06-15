@@ -13,6 +13,7 @@ import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/create_pet_profile_screen.dart';
+import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
@@ -176,7 +177,10 @@ class MyPetsScreen extends StatelessWidget {
     final imageUrl = pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
     final accent = _petAccents[index % _petAccents.length];
 
-    return Container(
+    return GestureDetector(
+      // v406 — tap sur la carte → fiche animal 4 onglets (lecture).
+      onTap: () => Get.to(() => PetProfileScreen(pet: pet, accent: accent)),
+      child: Container(
       margin: EdgeInsets.only(bottom: 18.h),
       decoration: BoxDecoration(
         color: AppColors.card(context),
@@ -340,6 +344,32 @@ class MyPetsScreen extends StatelessWidget {
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.whiteColor,
                                     ),
+                                  ),
+                                ],
+                                // v406 — badge sexe.
+                                if (pet.gender == 'male' ||
+                                    pet.gender == 'female') ...[
+                                  SizedBox(width: 6.w),
+                                  _miniBadge(
+                                    pet.gender == 'male' ? '♂' : '♀',
+                                    AppColors.whiteColor.withValues(alpha: 0.3),
+                                  ),
+                                ],
+                                // v406 — badge statut vaccination.
+                                if (pet.vaccinationStatus.isNotEmpty) ...[
+                                  SizedBox(width: 6.w),
+                                  _miniBadge(
+                                    pet.vaccinationStatus == 'up_to_date'
+                                        ? '💉 ${'pet_vax_up_to_date'.tr}'
+                                        : pet.vaccinationStatus == 'late'
+                                            ? '💉 ${'pet_vax_late'.tr}'
+                                            : '💉 ${'pet_vax_unknown'.tr}',
+                                    pet.vaccinationStatus == 'up_to_date'
+                                        ? const Color(0xCC16A34A)
+                                        : pet.vaccinationStatus == 'late'
+                                            ? const Color(0xCCE53935)
+                                            : AppColors.whiteColor
+                                                .withValues(alpha: 0.3),
                                   ),
                                 ],
                               ],
@@ -653,6 +683,7 @@ class MyPetsScreen extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -704,6 +735,23 @@ class MyPetsScreen extends StatelessWidget {
       default:
         return raw; // keep as-is if not recognized
     }
+  }
+
+  // v406 — petit badge pilule (sexe / statut vaccination) sur le hero.
+  Widget _miniBadge(String text, Color bg) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: InterText(
+        text: text,
+        fontSize: 11.sp,
+        fontWeight: FontWeight.w600,
+        color: AppColors.whiteColor,
+      ),
+    );
   }
 
   Widget _buildCompactInfoItem(IconData icon, String label, String value) {

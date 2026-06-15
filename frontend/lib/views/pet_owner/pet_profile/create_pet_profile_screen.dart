@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/widgets/pet_enriched_fields.dart';
+import 'package:hopetsit/widgets/pet_extra_fields.dart';
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hopetsit/controllers/create_pet_profile_controller.dart';
@@ -666,6 +667,13 @@ class CreatePetProfileScreen extends StatelessWidget {
                             onRemoveVaccination: controller.removeVaccination,
                             onSetVaccinationField:
                                 controller.setVaccinationField,
+                          ),
+
+                          // v406 refonte — À propos / Santé / Habitudes.
+                          PetExtraFields(
+                            state: controller.enriched,
+                            accent: AppColors.primaryColor,
+                            showGender: false,
                           ),
 
                           SizedBox(height: 40.h),

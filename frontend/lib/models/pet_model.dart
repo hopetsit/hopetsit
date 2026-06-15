@@ -29,6 +29,22 @@ class PetModel {
   final PetAvatar avatar;
   final PetPassportImage passportImage;
   final PetOwnerInfo? owner; // Owner information from API response
+  // v406 refonte — sexe + fiche enrichie (onglets À propos / Santé / Habitudes).
+  final String gender; // '' (non spécifié) | 'male' | 'female'
+  // À propos
+  final List<String> characterTraits;
+  final PetCompatibilities compatibilities;
+  final String history;
+  final List<String> particularities;
+  final String notes;
+  // Santé
+  final String vaccinationStatus; // '' | 'up_to_date' | 'late' | 'unknown'
+  final PetDeworming deworming;
+  final String currentTreatments;
+  final String bloodGroup;
+  final PetHealthInsurance healthInsurance;
+  // Habitudes
+  final PetHabits habits;
 
   PetModel({
     required this.id,
@@ -60,6 +76,18 @@ class PetModel {
     required this.avatar,
     required this.passportImage,
     this.owner,
+    this.gender = '',
+    this.characterTraits = const [],
+    this.compatibilities = const PetCompatibilities(),
+    this.history = '',
+    this.particularities = const [],
+    this.notes = '',
+    this.vaccinationStatus = '',
+    this.deworming = const PetDeworming(),
+    this.currentTreatments = '',
+    this.bloodGroup = '',
+    this.healthInsurance = const PetHealthInsurance(),
+    this.habits = const PetHabits(),
   });
 
   factory PetModel.fromJson(Map<String, dynamic> json) {
@@ -142,6 +170,28 @@ class PetModel {
           : (json['name'] != null || json['email'] != null
                 ? PetOwnerInfo.fromJson(json)
                 : null),
+      gender: json['gender'] as String? ?? '',
+      characterTraits: (json['characterTraits'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      compatibilities: PetCompatibilities.fromJson(
+          json['compatibilities'] as Map<String, dynamic>? ?? const {}),
+      history: json['history'] as String? ?? '',
+      particularities: (json['particularities'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      notes: json['notes'] as String? ?? '',
+      vaccinationStatus: json['vaccinationStatus'] as String? ?? '',
+      deworming: PetDeworming.fromJson(
+          json['deworming'] as Map<String, dynamic>? ?? const {}),
+      currentTreatments: json['currentTreatments'] as String? ?? '',
+      bloodGroup: json['bloodGroup'] as String? ?? '',
+      healthInsurance: PetHealthInsurance.fromJson(
+          json['healthInsurance'] as Map<String, dynamic>? ?? const {}),
+      habits: PetHabits.fromJson(
+          json['habits'] as Map<String, dynamic>? ?? const {}),
     );
   }
 
@@ -176,8 +226,179 @@ class PetModel {
       'avatar': avatar.toJson(),
       'passportImage': passportImage.toJson(),
       if (owner != null) 'owner': owner!.toJson(),
+      'gender': gender,
+      'characterTraits': characterTraits,
+      'compatibilities': compatibilities.toJson(),
+      'history': history,
+      'particularities': particularities,
+      'notes': notes,
+      'vaccinationStatus': vaccinationStatus,
+      'deworming': deworming.toJson(),
+      'currentTreatments': currentTreatments,
+      'bloodGroup': bloodGroup,
+      'healthInsurance': healthInsurance.toJson(),
+      'habits': habits.toJson(),
     };
   }
+}
+
+/// v406 — compatibilités de l'animal (chiens / chats / enfants).
+/// Valeurs : 'compatible' | 'supervised' | 'no' | '' (non renseigné).
+class PetCompatibilities {
+  final String withDogs;
+  final String withCats;
+  final String withChildren;
+
+  const PetCompatibilities({
+    this.withDogs = '',
+    this.withCats = '',
+    this.withChildren = '',
+  });
+
+  factory PetCompatibilities.fromJson(Map<String, dynamic> json) {
+    return PetCompatibilities(
+      withDogs: json['withDogs'] as String? ?? '',
+      withCats: json['withCats'] as String? ?? '',
+      withChildren: json['withChildren'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'withDogs': withDogs,
+        'withCats': withCats,
+        'withChildren': withChildren,
+      };
+
+  bool get isEmpty =>
+      withDogs.isEmpty && withCats.isEmpty && withChildren.isEmpty;
+}
+
+/// v406 — vermifuge (dernière date + fréquence).
+class PetDeworming {
+  final String lastDate;
+  final String frequency;
+
+  const PetDeworming({this.lastDate = '', this.frequency = ''});
+
+  factory PetDeworming.fromJson(Map<String, dynamic> json) {
+    return PetDeworming(
+      lastDate: json['lastDate']?.toString() ?? '',
+      frequency: json['frequency'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (lastDate.isNotEmpty) 'lastDate': lastDate,
+        'frequency': frequency,
+      };
+
+  bool get isEmpty => lastDate.isEmpty && frequency.isEmpty;
+}
+
+/// v406 — assurance santé animale (nom + numéro).
+class PetHealthInsurance {
+  final String name;
+  final String number;
+
+  const PetHealthInsurance({this.name = '', this.number = ''});
+
+  factory PetHealthInsurance.fromJson(Map<String, dynamic> json) {
+    return PetHealthInsurance(
+      name: json['name'] as String? ?? '',
+      number: json['number'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'name': name, 'number': number};
+
+  bool get isEmpty => name.isEmpty && number.isEmpty;
+}
+
+/// v406 — habitudes de vie de l'animal (onglet Habitudes).
+class PetHabits {
+  final String energyLevel;
+  final String preferredActivity;
+  final String education;
+  final String aloneTolerance;
+  final String barking;
+  final String likes;
+  final String dislikes;
+  final String transport;
+  final String brushing;
+  final String food;
+  final String allowedTreats;
+  final String favoriteObjects;
+  final String favoritePlaces;
+  final String remarks;
+
+  const PetHabits({
+    this.energyLevel = '',
+    this.preferredActivity = '',
+    this.education = '',
+    this.aloneTolerance = '',
+    this.barking = '',
+    this.likes = '',
+    this.dislikes = '',
+    this.transport = '',
+    this.brushing = '',
+    this.food = '',
+    this.allowedTreats = '',
+    this.favoriteObjects = '',
+    this.favoritePlaces = '',
+    this.remarks = '',
+  });
+
+  factory PetHabits.fromJson(Map<String, dynamic> json) {
+    return PetHabits(
+      energyLevel: json['energyLevel'] as String? ?? '',
+      preferredActivity: json['preferredActivity'] as String? ?? '',
+      education: json['education'] as String? ?? '',
+      aloneTolerance: json['aloneTolerance'] as String? ?? '',
+      barking: json['barking'] as String? ?? '',
+      likes: json['likes'] as String? ?? '',
+      dislikes: json['dislikes'] as String? ?? '',
+      transport: json['transport'] as String? ?? '',
+      brushing: json['brushing'] as String? ?? '',
+      food: json['food'] as String? ?? '',
+      allowedTreats: json['allowedTreats'] as String? ?? '',
+      favoriteObjects: json['favoriteObjects'] as String? ?? '',
+      favoritePlaces: json['favoritePlaces'] as String? ?? '',
+      remarks: json['remarks'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'energyLevel': energyLevel,
+        'preferredActivity': preferredActivity,
+        'education': education,
+        'aloneTolerance': aloneTolerance,
+        'barking': barking,
+        'likes': likes,
+        'dislikes': dislikes,
+        'transport': transport,
+        'brushing': brushing,
+        'food': food,
+        'allowedTreats': allowedTreats,
+        'favoriteObjects': favoriteObjects,
+        'favoritePlaces': favoritePlaces,
+        'remarks': remarks,
+      };
+
+  bool get isEmpty =>
+      energyLevel.isEmpty &&
+      preferredActivity.isEmpty &&
+      education.isEmpty &&
+      aloneTolerance.isEmpty &&
+      barking.isEmpty &&
+      likes.isEmpty &&
+      dislikes.isEmpty &&
+      transport.isEmpty &&
+      brushing.isEmpty &&
+      food.isEmpty &&
+      allowedTreats.isEmpty &&
+      favoriteObjects.isEmpty &&
+      favoritePlaces.isEmpty &&
+      remarks.isEmpty;
 }
 
 class PetVet {

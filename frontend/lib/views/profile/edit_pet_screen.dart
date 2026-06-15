@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/address_autocomplete_field.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
+import 'package:hopetsit/widgets/pet_extra_fields.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 
 class EditPetScreen extends StatelessWidget {
@@ -468,6 +469,13 @@ class EditPetScreen extends StatelessWidget {
 
                     // Sprint 5 UI step 2 — enriched pet profile sections.
                     _buildEnrichedSections(controller),
+
+                    // v406 refonte — À propos / Santé / Habitudes.
+                    PetExtraFields(
+                      state: controller.enriched,
+                      accent: AppColors.primaryColor,
+                      showGender: true,
+                    ),
 
                     SizedBox(height: 40.h),
 

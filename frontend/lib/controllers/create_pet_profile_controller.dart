@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
+import 'package:hopetsit/controllers/enriched_pet_form_state.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
@@ -45,6 +46,10 @@ class CreatePetProfileController extends GetxController {
   final RxList<Map<String, String>> vaccinationsList =
       <Map<String, String>>[].obs;
 
+  // v406 refonte — champs enrichis (À propos / Santé / Habitudes). Le sexe
+  // reste géré par selectedGender (UI existante) → showGender:false côté écran.
+  final EnrichedPetFormState enriched = EnrichedPetFormState();
+
   void addVaccination() => vaccinationsList.add({'name': '', 'date': ''});
   void removeVaccination(int i) {
     if (i >= 0 && i < vaccinationsList.length) vaccinationsList.removeAt(i);
@@ -81,6 +86,7 @@ class CreatePetProfileController extends GetxController {
     passportNumberController.dispose();
     chipNumberController.dispose();
     medicationAllergiesController.dispose();
+    enriched.dispose();
     super.onClose();
   }
 
@@ -252,6 +258,8 @@ class CreatePetProfileController extends GetxController {
         'emergencyAuthorizationText': emergencyAuthAccepted.value
             ? "J'autorise le petsitter à contacter le vétérinaire d'urgence et à engager les soins nécessaires en cas de danger vital pour mon animal, avec prise en charge financière à ma charge. Je reste joignable à tout moment."
             : '',
+        // v406 — champs enrichis (À propos / Santé / Habitudes).
+        ...enriched.toPayload(),
       };
 
       AppLogger.logInfo(
