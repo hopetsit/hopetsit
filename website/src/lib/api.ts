@@ -1006,6 +1006,26 @@ export async function sendMessage(
   return raw.message;
 }
 
+/** v413 — Envoi d'un message avec photo(s) dans le chat web (max 5). */
+export async function sendMessageWithAttachments(
+  conversationId: string,
+  files: File[],
+  body = "",
+): Promise<ChatMessage> {
+  const user = getStoredUser();
+  if (!user) throw new ApiError("Not logged in", 401);
+  const fd = new FormData();
+  fd.append("senderRole", user.role);
+  fd.append("senderId", user.id);
+  if (body) fd.append("body", body);
+  for (const f of files.slice(0, 5)) fd.append("files", f);
+  const raw = await request<{ message?: ChatMessage } & ChatMessage>(
+    `/conversations/${conversationId}/messages/attachments`,
+    { method: "POST", body: fd },
+  );
+  return raw.message ?? (raw as ChatMessage);
+}
+
 // v23.1 part 248b — Daniel : "le bouton ... il faut quil ouvre un chat
 // avec un amis qui choisis". Helper qui hit POST /conversations/friend
 // avec { targetUserId, targetUserRole } et retourne la conversation id.

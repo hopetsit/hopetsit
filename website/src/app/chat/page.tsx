@@ -23,6 +23,7 @@ import {
   requestFollowByConversation,
   respondPawfollowRequest,
   sendMessage,
+  sendMessageWithAttachments,
   startFriendConversation,
 } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
@@ -239,6 +240,26 @@ export default function ChatPage() {
       alert(e instanceof Error ? e.message : "Erreur");
     } finally {
       setFollowBusy(false);
+    }
+  }
+
+  // v413 — envoi de photo(s) dans le chat web (max 5).
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  async function handlePhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!activeId || files.length === 0 || !user) return;
+    setSending(true);
+    try {
+      const saved = await sendMessageWithAttachments(activeId, files, draft.trim());
+      setDraft("");
+      setMessages((prev) =>
+        prev.some((m) => m.id === saved.id) ? prev : [...prev, saved],
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -561,6 +582,29 @@ export default function ChatPage() {
                           }`}
                         >
                           {m.body}
+                          {/* v413 — photos jointes. */}
+                          {Array.isArray(m.attachments) &&
+                            m.attachments.filter((a) => a?.url).length > 0 && (
+                              <div className="mt-1 flex flex-col gap-1">
+                                {m.attachments
+                                  .filter((a) => a?.url)
+                                  .map((a, i) => (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <a
+                                      key={i}
+                                      href={a.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <img
+                                        src={a.url}
+                                        alt=""
+                                        className="max-h-48 w-full rounded-lg object-cover"
+                                      />
+                                    </a>
+                                  ))}
+                              </div>
+                            )}
                           <div
                             className={`mt-0.5 text-[10px] ${
                               mine ? "text-white/70" : "text-ink-muted"
@@ -580,8 +624,26 @@ export default function ChatPage() {
               </div>
               <form
                 onSubmit={handleSend}
-                className="flex gap-2 border-t border-ink/5 p-3"
+                className="flex items-center gap-2 border-t border-ink/5 p-3"
               >
+                {/* v413 — envoi de photo dans le chat web. */}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handlePhotoSelected}
+                />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={sending}
+                  aria-label="Photo"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 text-lg hover:bg-bg-soft disabled:opacity-60"
+                >
+                  📷
+                </button>
                 <input
                   type="text"
                   value={draft}
