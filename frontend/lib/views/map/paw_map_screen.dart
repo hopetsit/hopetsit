@@ -706,7 +706,14 @@ class _PawMapScreenState extends State<PawMapScreen>
     _haloTimer?.cancel();
     _followWorker?.dispose();
     _myFollowWorker?.dispose();
-    _liveMap.stopBroadcasting();
+    // v414 — Daniel : "qd l'app se ferme le direct s'éteint, je veux qu'il
+    // reste allumé". On NE coupe PLUS le broadcast quand l'écran PawMap est
+    // disposé (sortie d'écran / app en arrière-plan). LiveMapService est un
+    // service PERMANENT et son foreground service Android (notif persistante)
+    // garde le GPS + le socket vivants en arrière-plan. Le partage s'arrête
+    // uniquement via : (1) le bouton « Stop » du bandeau Live actif, (2) le
+    // cap de session 2 h, (3) l'auto-stop après 30 min d'immobilité.
+    // _liveMap.stopBroadcasting();  // ← retiré volontairement (v414)
     _cityCtrl.dispose();
     super.dispose();
   }

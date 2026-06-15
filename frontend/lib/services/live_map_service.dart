@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 // permissions FOREGROUND_SERVICE(_LOCATION) + ACCESS_BACKGROUND_LOCATION sont
 // déjà dans AndroidManifest.xml.
 import 'package:geolocator_android/geolocator_android.dart' as gloc_android;
+import 'package:geolocator_apple/geolocator_apple.dart' as gloc_apple;
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -280,6 +281,19 @@ class LiveMapService extends GetxService {
           enableWakeLock: true,
           setOngoing: true,
         ),
+      );
+    }
+    // v414 — Daniel : "le direct s'éteint quand l'app se ferme". Sur iOS,
+    // AppleSettings.allowBackgroundLocationUpdates garde le GPS vivant en
+    // arrière-plan (UIBackgroundModes>location est déjà dans Info.plist) et
+    // showBackgroundLocationIndicator affiche la barre bleue obligatoire.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return gloc_apple.AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+        allowBackgroundLocationUpdates: true,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
       );
     }
     return const LocationSettings(

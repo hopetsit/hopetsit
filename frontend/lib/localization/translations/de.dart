@@ -3000,8 +3000,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'report_section_free_hint': 'Für alle verfügbar, mit 1 Tipp.',
     'report_section_premium': 'Premium',
     'report_section_premium_hint':
-      'premium_signals_note': 'Jedes aktive Abo (PawFollow, PawFamily, PawSpot oder Paw Premium) schaltet ALLE Premium-Meldungen frei.',
         'Erfordert PawFollow- / PawFamily-Plan.',
+    'premium_signals_note': 'Jedes aktive Abo (PawFollow, PawFamily, PawSpot oder Paw Premium) schaltet ALLE Premium-Meldungen frei.',
     'report_what_to_report': 'Was möchtest du melden?',
     'tracking_sheet_address': 'Abfahrtsadresse',
     'tracking_sheet_available': 'Verfügbar',

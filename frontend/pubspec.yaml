@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.413+413
+version: 23.1.415+415
 
 environment:
   sdk: ^3.9.2
@@ -68,6 +68,10 @@ dependencies:
   country_code_picker: ^3.4.1
   geolocator: ^14.0.2
   geolocator_android: ^5.0.2
+  # v414 — dépendance directe (déjà transitive) pour utiliser AppleSettings
+  # (allowBackgroundLocationUpdates) → le suivi en direct survit en
+  # arrière-plan sur iOS aussi (UIBackgroundModes>location déjà dans Info.plist).
+  geolocator_apple: ^2.3.13
   google_maps_flutter: ^2.14.0
   geocoding: ^4.0.0
   google_places_flutter: ^2.1.1

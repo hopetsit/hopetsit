@@ -2833,8 +2833,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'report_section_free_hint': 'Disponível para todos, em 1 toque.',
     'report_section_premium': 'Premium',
     'report_section_premium_hint':
-      'premium_signals_note': 'Qualquer subscrição ativa (PawFollow, PawFamily, PawSpot ou Paw Premium) desbloqueia TODOS os alertas premium.',
         'Requer plano PawFollow / PawFamily.',
+    'premium_signals_note': 'Qualquer subscrição ativa (PawFollow, PawFamily, PawSpot ou Paw Premium) desbloqueia TODOS os alertas premium.',
     'report_what_to_report': 'O que queres reportar?',
     'tracking_sheet_address': 'Endereço de partida',
     'tracking_sheet_available': 'Disponível',
