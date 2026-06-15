@@ -10,7 +10,6 @@ import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:hopetsit/views/auth/choose_service_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
@@ -316,16 +315,14 @@ class OtpVerificationController extends GetxController {
       // Clear OTP state before navigating
       resetVerificationState();
 
-      // Navigate based on verification type
-      if (verificationType == VerificationType.signup) {
-        // For signup, navigate to Choose Service screen
-        if (userType != null) {
-          Get.off(() => ChooseServiceScreen(userType: userType!, email: email));
-        }
-      } else {
-        // For login, automatically retry login after email verification
-        await _retryLoginAfterVerification();
-      }
+      // v419 — Daniel : "après Créer mon compte sitter, une page owner
+      // (garderie/promenades + ajouter animal) réapparaît et me bascule en
+      // propriétaire". CAUSE : le signup routait vers ChooseServiceScreen
+      // (ancien onboarding owner) alors que le wizard 5 étapes collecte DÉJÀ
+      // tout (services, animaux, tarifs…). FIX : signup ET login → auto-login
+      // + redirection vers le home du BON rôle (owner = orange, sitter = bleu,
+      // walker = vert). Plus aucune page garderie/add-animal après l'inscription.
+      await _retryLoginAfterVerification();
     }
   }
 

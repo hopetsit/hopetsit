@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
+import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -699,6 +700,20 @@ class SignUpController extends GetxController {
         title: 'signup_account_created_title'.tr,
         message: 'signup_account_created_message'.tr,
       );
+      // v419 — Daniel : "après Créer mon compte sitter, une page owner
+      // garderie/add-animal réapparaît et me bascule en propriétaire". CAUSE :
+      // l'OTP routait TOUS les inscrits vers ChooseServiceScreen (ancien
+      // onboarding owner) alors que le wizard 5 étapes collecte déjà tout.
+      // FIX : on pré-remplit AuthController pour l'auto-login après l'OTP →
+      // l'OTP route ensuite vers le home du BON rôle (sitter = bleu), sans
+      // ChooseServiceScreen.
+      try {
+        if (Get.isRegistered<AuthController>()) {
+          final auth = Get.find<AuthController>();
+          auth.emailController.text = email.trim();
+          auth.passwordController.text = passwordController.text;
+        }
+      } catch (_) {/* non-fatal : l'OTP retombera sur le login manuel */}
       Get.off(
         () => OtpVerificationScreen(
           email: email,
