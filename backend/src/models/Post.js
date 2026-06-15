@@ -77,6 +77,8 @@ const postSchema = new mongoose.Schema(
         trim: true,
       },
     ],
+    // v405 — afficher le caractère des animaux dans l'annonce (toggle maquette).
+    showAnimalCharacter: { type: Boolean, default: true },
     images: [
       {
         url: { type: String, default: '' },

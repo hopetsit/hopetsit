@@ -482,6 +482,15 @@ const getSitterProfile = async (req, res) => {
       // Boost status
       isBoosted: sitter.boostExpiry && new Date(sitter.boostExpiry) > new Date() ? true : false,
       boostTier: sitter.boostExpiry && new Date(sitter.boostExpiry) > new Date() ? (sitter.boostTier || null) : null,
+      // v406 refonte — champs maquette pour la fiche/carte publique du sitter.
+      // ⚠️ Réponse hand-built (pas sanitizeUser) → SANS ces lignes ces champs
+      // n'apparaissent jamais dans l'API publique (cf mémoire getSitterProfile).
+      dateOfBirth: sitter.dateOfBirth || '',
+      experienceTags: Array.isArray(sitter.experienceTags) ? sitter.experienceTags : [],
+      acceptedPetTypes: Array.isArray(sitter.acceptedPetTypes) ? sitter.acceptedPetTypes : [],
+      availableDays: Array.isArray(sitter.availableDays) ? sitter.availableDays : [],
+      coverageRadiusKm: sitter.coverageRadiusKm ?? 20,
+      responseTimeMinutes: sitter.responseTimeMinutes ?? null,
       createdAt: sitter.createdAt,
       updatedAt: sitter.updatedAt,
     };

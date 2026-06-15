@@ -324,6 +324,19 @@ const walkerSchema = new mongoose.Schema(
         default: 'standard',
       },
     },
+    // ─── v405 refonte — champs additifs (maquettes). 100% ADDITIF.
+    dateOfBirth: { type: String, default: '' },
+    experienceTags: [{ type: String, trim: true }],
+    availableDays: [{ type: String, trim: true }], // monday..sunday
+    responseTimeMinutes: { type: Number, default: null },
+    twoFactorEnabled: { type: Boolean, default: false },
+    preferences: {
+      sendPhotosVideos: { type: Boolean, default: true },
+      quickReplies: { type: Boolean, default: true },
+      flexibleCancellation: { type: Boolean, default: true },
+      pawMapInsurance: { type: Boolean, default: true },
+      notifications: { type: Boolean, default: true },
+    },
   },
   { timestamps: true }
 );

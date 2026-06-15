@@ -108,6 +108,49 @@ const petSchema = new mongoose.Schema(
     },
     emergencyInterventionAuthorization: { type: Boolean, default: false },
     emergencyAuthorizationText: { type: String, default: '' },
+
+    // ─── v405 refonte — fiche animal enrichie (onglets À propos / Santé /
+    // Habitudes). 100% ADDITIF : tous optionnels, défauts vides → aucune casse.
+    // À propos
+    characterTraits: [{ type: String, trim: true }], // ex: energetic, smart, protective, playful, social
+    compatibilities: {
+      // 'compatible' | 'supervised' | 'no' | '' (non renseigné)
+      withDogs: { type: String, default: '' },
+      withCats: { type: String, default: '' },
+      withChildren: { type: String, default: '' },
+    },
+    history: { type: String, default: '', trim: true, maxlength: 2000 },
+    particularities: [{ type: String, trim: true }],
+    notes: { type: String, default: '', trim: true, maxlength: 2000 },
+    // Santé
+    vaccinationStatus: { type: String, default: '' }, // 'up_to_date' | 'late' | 'unknown'
+    deworming: {
+      lastDate: { type: Date, default: null },
+      frequency: { type: String, default: '', trim: true },
+    },
+    currentTreatments: { type: String, default: '', trim: true },
+    bloodGroup: { type: String, default: '', trim: true },
+    healthInsurance: {
+      name: { type: String, default: '', trim: true },
+      number: { type: String, default: '', trim: true },
+    },
+    // Habitudes
+    habits: {
+      energyLevel: { type: String, default: '', trim: true },
+      preferredActivity: { type: String, default: '', trim: true },
+      education: { type: String, default: '', trim: true },
+      aloneTolerance: { type: String, default: '', trim: true },
+      barking: { type: String, default: '', trim: true },
+      likes: { type: String, default: '', trim: true },
+      dislikes: { type: String, default: '', trim: true },
+      transport: { type: String, default: '', trim: true },
+      brushing: { type: String, default: '', trim: true },
+      food: { type: String, default: '', trim: true },
+      allowedTreats: { type: String, default: '', trim: true },
+      favoriteObjects: { type: String, default: '', trim: true },
+      favoritePlaces: { type: String, default: '', trim: true },
+      remarks: { type: String, default: '', trim: true, maxlength: 2000 },
+    },
   },
   {
     timestamps: true,

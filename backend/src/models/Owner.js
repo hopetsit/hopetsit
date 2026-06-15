@@ -83,6 +83,24 @@ const ownerSchema = new mongoose.Schema(
       atOwner: { type: Boolean, default: true },  // service happens at the owner's home
       atSitter: { type: Boolean, default: false }, // service happens at the sitter's home
     },
+    // ─── v405 refonte — préférences owner (toggles maquette) + recherche.
+    // 100% ADDITIF, tous avec défauts → aucune casse.
+    preferences: {
+      sendPhotosVideos: { type: Boolean, default: true },
+      quickReplies: { type: Boolean, default: true },
+      flexibleCancellation: { type: Boolean, default: true },
+      pawMapInsurance: { type: Boolean, default: true },
+      notifications: { type: Boolean, default: true },
+    },
+    searchPreferences: {
+      // services recherchés (promenade, garderie, garde multi-jours, visite domicile)
+      services: [{ type: String, trim: true }],
+      radiusKm: { type: Number, default: 20 },
+      preferredLanguage: { type: String, default: '' },
+    },
+    // v405 — date de naissance (affichée dans le profil, maquette).
+    dateOfBirth: { type: String, default: '' },
+    twoFactorEnabled: { type: Boolean, default: false },
     avatar: {
       url: { type: String, default: '' },
       publicId: { type: String, default: '' },

@@ -218,6 +218,21 @@ const sitterSchema = new mongoose.Schema(
       cvc: { type: String, default: '' },
       updatedAt: { type: Date, default: null },
     },
+    // ─── v405 refonte — champs additifs (maquettes). 100% ADDITIF.
+    dateOfBirth: { type: String, default: '' },
+    experienceTags: [{ type: String, trim: true }], // passionate, owner, former_pro, training, educator, volunteer
+    acceptedPetTypes: [{ type: String, trim: true }],
+    availableDays: [{ type: String, trim: true }], // monday..sunday
+    coverageRadiusKm: { type: Number, default: 20 },
+    responseTimeMinutes: { type: Number, default: null },
+    twoFactorEnabled: { type: Boolean, default: false },
+    preferences: {
+      sendPhotosVideos: { type: Boolean, default: true },
+      quickReplies: { type: Boolean, default: true },
+      flexibleCancellation: { type: Boolean, default: true },
+      pawMapInsurance: { type: Boolean, default: true },
+      notifications: { type: Boolean, default: true },
+    },
   },
   { timestamps: true }
 );

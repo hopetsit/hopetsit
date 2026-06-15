@@ -218,6 +218,18 @@ const updateProfile = async (req, res) => {
       };
     }
 
+    // v405 refonte — nouveaux champs additifs (profil owner/sitter/walker).
+    // Mongoose (strict) ignore à l'écriture les champs absents du schéma du rôle
+    // concerné → on peut tous les passer ; seul le rôle qui les possède les garde.
+    const _b = req.body || {};
+    for (const k of [
+      'dateOfBirth', 'experienceTags', 'acceptedPetTypes', 'availableDays',
+      'coverageRadiusKm', 'responseTimeMinutes', 'twoFactorEnabled',
+      'preferences', 'searchPreferences',
+    ]) {
+      if (_b[k] !== undefined) update[k] = _b[k];
+    }
+
     // Process location if provided
     let locationUpdate = null;
     let unsetLocation = false;
