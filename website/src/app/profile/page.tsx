@@ -37,6 +37,15 @@ export default function ProfilePage() {
   const [countryCode, setCountryCode] = useState("");
   const [address, setAddress] = useState("");
   const [bio, setBio] = useState("");
+  // v413 — parité app : préférences + 2FA (synchro app↔web).
+  const [prefs, setPrefs] = useState({
+    notifications: true,
+    quickReplies: true,
+    sendPhotosVideos: true,
+    pawMapInsurance: true,
+    flexibleCancellation: true,
+  });
+  const [twoFactor, setTwoFactor] = useState(false);
 
   // v23.1 part 146 — upload avatar.
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +87,16 @@ export default function ProfilePage() {
         setCountryCode(p.countryCode || "");
         setAddress(p.address || "");
         setBio(p.bio || "");
+        // v413 — préférences (synchro avec l'app). Défauts = activé.
+        const pr = p.preferences || {};
+        setPrefs({
+          notifications: pr.notifications !== false,
+          quickReplies: pr.quickReplies !== false,
+          sendPhotosVideos: pr.sendPhotosVideos !== false,
+          pawMapInsurance: pr.pawMapInsurance !== false,
+          flexibleCancellation: pr.flexibleCancellation !== false,
+        });
+        setTwoFactor(p.twoFactorEnabled === true);
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
           router.replace("/login");
@@ -132,6 +151,8 @@ export default function ProfilePage() {
         countryCode: countryCode.trim() || undefined,
         address: address.trim() || undefined,
         bio: bio.trim() || undefined,
+        preferences: prefs,
+        twoFactorEnabled: twoFactor,
       });
       setProfile(updated);
       setSavedAt(Date.now());
@@ -308,6 +329,51 @@ export default function ProfilePage() {
             className="w-full resize-none rounded-xl border border-ink/15 px-4 py-2.5 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
           />
         </Field>
+
+        {/* v413 — Préférences (synchro app↔web). */}
+        <div className="space-y-3 rounded-2xl border border-ink/10 bg-ink/[0.02] p-4">
+          <h3 className="text-sm font-semibold text-ink">Préférences</h3>
+          {[
+            { key: "notifications" as const, label: "Notifications", hint: "Push, e-mail et badges" },
+            { key: "sendPhotosVideos" as const, label: "Envoyer photos & vidéos", hint: "Pendant les gardes/promenades" },
+            { key: "quickReplies" as const, label: "Réponses rapides", hint: "Suggestions dans la messagerie" },
+            { key: "flexibleCancellation" as const, label: "Annulation flexible", hint: "Conditions d'annulation souples" },
+            { key: "pawMapInsurance" as const, label: "Assurance PawMap", hint: "Couverture sur les trajets" },
+          ].map((row) => (
+            <label
+              key={row.key}
+              className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-ink">{row.label}</span>
+                <span className="block text-xs text-ink/50">{row.hint}</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={prefs[row.key]}
+                onChange={(e) => setPrefs((p) => ({ ...p, [row.key]: e.target.checked }))}
+                className="h-5 w-5 shrink-0 accent-walker"
+              />
+            </label>
+          ))}
+        </div>
+
+        {/* v413 — Sécurité : double authentification. */}
+        <div className="space-y-3 rounded-2xl border border-ink/10 bg-ink/[0.02] p-4">
+          <h3 className="text-sm font-semibold text-ink">Sécurité</h3>
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5">
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-ink">Authentification à deux facteurs</span>
+              <span className="block text-xs text-ink/50">Code de vérification à la connexion</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={twoFactor}
+              onChange={(e) => setTwoFactor(e.target.checked)}
+              className="h-5 w-5 shrink-0 accent-walker"
+            />
+          </label>
+        </div>
 
         {error && (
           <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">

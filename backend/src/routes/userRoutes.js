@@ -36,7 +36,18 @@ const upload = multer({
  *       403:
  *         description: Only owners can access this endpoint
  */
-router.get('/me/profile', requireAuth, requireRole('owner'), getOwnerProfile);
+router.get('/me/profile', requireAuth, getOwnerProfile);
+
+// v414 — parité site web : le site PUT /users/me/profile (role-agnostic) pour
+// enregistrer nom/bio/préférences/2FA. Sans cette route, la requête tombait sur
+// `/:id/profile` avec id='me' → CastError → 400 "Invalid user id." On résout
+// l'id depuis le token (peu importe le rôle) puis on délègue à updateProfile,
+// qui sait déjà persister preferences/twoFactorEnabled (v405) et synchroniser
+// les champs partagés vers les autres rôles du même compte.
+router.put('/me/profile', requireAuth, (req, res, next) => {
+  req.params.id = req.user.id;
+  return updateProfile(req, res, next);
+});
 
 // v23.1 part 114 — Daniel : "le boost marche pas" / "aucun des paw spot ne marche".
 // Endpoint léger qui renvoie les flags d'avantages actifs (boostExpiry,

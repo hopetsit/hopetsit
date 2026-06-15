@@ -336,6 +336,15 @@ export type UserProfile = {
   avatar?: { url?: string; publicId?: string };
   verified?: boolean;
   role: AuthRole;
+  // v413 — parité app : préférences + 2FA (synchro app↔web, mêmes champs).
+  preferences?: {
+    sendPhotosVideos?: boolean;
+    quickReplies?: boolean;
+    flexibleCancellation?: boolean;
+    pawMapInsurance?: boolean;
+    notifications?: boolean;
+  };
+  twoFactorEnabled?: boolean;
   // v23.1 part 146 — devise préférée (sitter facture en cette unité).
   currency?: "EUR" | "USD";
   // Sitter/Walker-specific

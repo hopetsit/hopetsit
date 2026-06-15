@@ -796,8 +796,18 @@ const getOwnerProfile = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
     }
 
+    // v414 — parité site web : les sitters/walkers chargent aussi leur profil
+    // via GET /me/profile (le site est role-agnostic). On leur renvoie un profil
+    // léger (sanitizeUser, qui inclut bio/preferences/twoFactorEnabled en
+    // pass-through) sans les relations owner (pets/bookings/posts). L'app mobile
+    // n'utilise pas cette route pour les sitters/walkers → changement additif.
     if (userRole !== 'owner') {
-      return res.status(403).json({ error: 'This endpoint is only accessible to owners.' });
+      const Model = userRole === 'walker' ? Walker : Sitter;
+      const account = await Model.findById(ownerId);
+      if (!account) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+      return res.json({ profile: sanitizeUser(account, { includeEmail: true }) });
     }
 
     const owner = await Owner.findById(ownerId);
