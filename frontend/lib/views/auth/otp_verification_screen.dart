@@ -5,7 +5,6 @@ import 'package:pinput/pinput.dart';
 import 'package:hopetsit/controllers/otp_verification_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
-import 'package:hopetsit/widgets/rounded_text_button.dart';
 
 class OtpVerificationScreen extends StatelessWidget {
   final String email;
@@ -40,15 +39,25 @@ class OtpVerificationScreen extends StatelessWidget {
             permanent: true, // Prevents disposal during navigation
           );
 
+    // v420 — Daniel : "la page de vérification email ne suit pas le code
+    // couleur (que orange) et n'est pas centrée". On colore selon le rôle en
+    // cours d'inscription (owner=orange, sitter=bleu, walker=vert) et on centre
+    // tout le contenu.
+    final Color accent = userType == 'pet_sitter'
+        ? AppColors.sitterAccent
+        : userType == 'pet_walker'
+            ? AppColors.greenColor
+            : AppColors.primaryColor;
+
     final defaultPinTheme = PinTheme(
-      width: 50.w,
-      height: 50.h,
-      margin: EdgeInsets.zero,
+      width: 48.w,
+      height: 52.h,
+      margin: EdgeInsets.symmetric(horizontal: 3.w),
       padding: EdgeInsets.zero,
       textStyle: TextStyle(
-        fontSize: 24.sp,
+        fontSize: 22.sp,
         color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w600,
       ),
       decoration: BoxDecoration(
         border: Border.all(color: AppColors.divider(context)),
@@ -59,14 +68,14 @@ class OtpVerificationScreen extends StatelessWidget {
 
     final focusedPinTheme = defaultPinTheme.copyWith(
       decoration: defaultPinTheme.decoration!.copyWith(
-        border: Border.all(color: AppColors.primaryColor),
+        border: Border.all(color: accent, width: 1.8),
       ),
     );
 
     final submittedPinTheme = defaultPinTheme.copyWith(
       decoration: defaultPinTheme.decoration!.copyWith(
-        border: Border.all(color: AppColors.primaryColor),
-        color: AppColors.inputFill(context),
+        border: Border.all(color: accent),
+        color: accent.withValues(alpha: 0.06),
       ),
     );
 
@@ -74,7 +83,6 @@ class OtpVerificationScreen extends StatelessWidget {
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
-          // Clear OTP state when going back
           controller.resetVerificationState();
         }
       },
@@ -82,119 +90,143 @@ class OtpVerificationScreen extends StatelessWidget {
         backgroundColor: AppColors.scaffold(context),
         body: SafeArea(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title
-                SizedBox(height: 10.h),
-                BackButton(),
-                SizedBox(height: 10.h),
-                PoppinsText(
-                  text: 'Email Verification',
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                ),
-
-                SizedBox(height: 5.h),
-
-                // Instructions
-                InterText(
-                  text: 'Enter verification code send on',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textPrimary(context),
-                ),
-
-                // Masked Email
-                InterText(
-                  text: controller.getMaskedEmail(),
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary(context),
-                ),
-
-                SizedBox(height: 40.h),
-
-                // Pin Input
-                Pinput(
-                  controller: controller.pinController,
-                  length: 6,
-                  defaultPinTheme: defaultPinTheme,
-                  focusedPinTheme: focusedPinTheme,
-                  submittedPinTheme: submittedPinTheme,
-                  showCursor: true,
-                  onCompleted: (pin) =>
-                      controller.handleVerificationWithNavigation(),
-                  keyboardType: TextInputType.number,
-                ),
-
-                SizedBox(height: 24.h),
-
-                // Resend Code
-                Obx(
-                  () => Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (!controller.isResendEnabled.value)
-                        InterText(
-                          text: 'Resend code in: ',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textPrimary(context),
-                        ),
-                      GestureDetector(
-                        onTap:
-                            (controller.isResendEnabled.value &&
-                                !controller.isResending.value)
-                            ? controller.resendCode
-                            : null,
-                        child: controller.isResending.value
-                            ? SizedBox(
-                                width: 16.w,
-                                height: 16.h,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.primaryColor,
+                SizedBox(height: 6.h),
+                Align(alignment: Alignment.centerLeft, child: BackButton()),
+                // Contenu centré verticalement + horizontalement.
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Icône e-mail dans un cercle à la couleur du rôle.
+                          Container(
+                            width: 76.w,
+                            height: 76.w,
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.mark_email_unread_rounded,
+                                color: accent, size: 38.sp),
+                          ),
+                          SizedBox(height: 18.h),
+                          PoppinsText(
+                            text: 'otp_title'.tr,
+                            fontSize: 22.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 6.h),
+                          InterText(
+                            text: 'otp_subtitle'.tr,
+                            fontSize: 14.sp,
+                            color: AppColors.textSecondary(context),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 2.h),
+                          InterText(
+                            text: controller.getMaskedEmail(),
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 30.h),
+                          Pinput(
+                            controller: controller.pinController,
+                            length: 6,
+                            defaultPinTheme: defaultPinTheme,
+                            focusedPinTheme: focusedPinTheme,
+                            submittedPinTheme: submittedPinTheme,
+                            showCursor: true,
+                            onCompleted: (pin) =>
+                                controller.handleVerificationWithNavigation(),
+                            keyboardType: TextInputType.number,
+                          ),
+                          SizedBox(height: 22.h),
+                          Obx(
+                            () => Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (!controller.isResendEnabled.value)
+                                  InterText(
+                                    text: 'otp_resend_in'.tr,
+                                    fontSize: 14.sp,
+                                    color: AppColors.textSecondary(context),
                                   ),
+                                GestureDetector(
+                                  onTap: (controller.isResendEnabled.value &&
+                                          !controller.isResending.value)
+                                      ? controller.resendCode
+                                      : null,
+                                  child: controller.isResending.value
+                                      ? SizedBox(
+                                          width: 16.w,
+                                          height: 16.h,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    accent),
+                                          ),
+                                        )
+                                      : InterText(
+                                          text: controller.isResendEnabled.value
+                                              ? 'otp_resend'.tr
+                                              : controller.formatTime(controller
+                                                  .countdownSeconds.value),
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w700,
+                                          color: (controller
+                                                      .isResendEnabled.value &&
+                                                  !controller.isResending.value)
+                                              ? accent
+                                              : AppColors.greyColor,
+                                        ),
                                 ),
-                              )
-                            : InterText(
-                                text: controller.isResendEnabled.value
-                                    ? 'Resend'
-                                    : controller.formatTime(
-                                        controller.countdownSeconds.value,
-                                      ),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    (controller.isResendEnabled.value &&
-                                        !controller.isResending.value)
-                                    ? AppColors.primaryColor
-                                    : AppColors.greyColor,
-                              ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-
-                const Spacer(),
-
-                // Continue Button
+                // Bouton Continuer à la couleur du rôle.
                 Obx(
-                  () => CustomButton(
-                    title: controller.isLoading.value
-                        ? 'Verifying...'
-                        : 'Continue',
-                    onTap: controller.isLoading.value
-                        ? null
-                        : () => controller.handleVerificationWithNavigation(),
+                  () => SizedBox(
+                    width: double.infinity,
+                    height: 52.h,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      onPressed: controller.isLoading.value
+                          ? null
+                          : () =>
+                              controller.handleVerificationWithNavigation(),
+                      child: InterText(
+                        text: controller.isLoading.value
+                            ? 'otp_verifying'.tr
+                            : 'otp_continue'.tr,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-
-                SizedBox(height: 40.h),
+                SizedBox(height: 30.h),
               ],
             ),
           ),
