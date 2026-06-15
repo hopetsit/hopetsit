@@ -74,7 +74,7 @@ const resolveUser = async (role, userId) => {
     role === 'walker' ? Walker :
     null;
   if (!Model) return null;
-  const primary = await Model.findById(userId).select('email language appLocale fcmTokens name').lean();
+  const primary = await Model.findById(userId).select('email language appLocale fcmTokens name oldId').lean();
   if (primary) return primary;
 
   // v23.1 part 49 — cross-collection fallback. The destructive switchRole
@@ -95,7 +95,7 @@ const resolveUser = async (role, userId) => {
   const fallbackModels = [Owner, Sitter, Walker].filter((m) => m !== Model);
   for (const Fb of fallbackModels) {
     try {
-      const found = await Fb.findById(userId).select('email language appLocale fcmTokens name').lean();
+      const found = await Fb.findById(userId).select('email language appLocale fcmTokens name oldId').lean();
       if (found) {
         logger.warn(
           `[notif.fallback] user ${userId} expected in ${role} collection but ` +
@@ -107,6 +107,39 @@ const resolveUser = async (role, userId) => {
     } catch (_) { /* try next */ }
   }
   return null;
+};
+
+/**
+ * v407 — Daniel : "push tel pas reçu alors que l'email oui" (demande de suivi).
+ * CAUSE RACINE : registerFcmToken écrit le token UNIQUEMENT sur le doc du rôle
+ * COURANT. Avec 1 compte = 3 profils (Owner/Sitter/Walker séparés), notifier le
+ * rôle X lit X.fcmTokens — vides si le token a été enregistré sous un autre
+ * rôle → sendPush saute ("no_tokens"). L'email partait quand même (résolu
+ * cross-collection). FIX : on UNIT les fcmTokens des 3 docs de la MÊME personne
+ * (même email / oldId / _id) avant d'envoyer le push → le push atteint le
+ * device quel que soit le rôle sous lequel le token a été enregistré.
+ * Bénéficie à TOUTES les notifs push, pas seulement au suivi.
+ */
+const gatherFcmTokens = async (primary, userId) => {
+  const tokens = new Set((primary?.fcmTokens || []).filter(Boolean));
+  try {
+    const or = [{ _id: userId }];
+    if (primary?.email) or.push({ email: primary.email });
+    if (primary?.oldId) or.push({ oldId: primary.oldId });
+    const [owners, sitters, walkers] = await Promise.all([
+      Owner.find({ $or: or }).select('fcmTokens').lean(),
+      Sitter.find({ $or: or }).select('fcmTokens').lean(),
+      Walker.find({ $or: or }).select('fcmTokens').lean(),
+    ]);
+    [...owners, ...sitters, ...walkers].forEach((d) => {
+      (d.fcmTokens || []).forEach((t) => {
+        if (t) tokens.add(t);
+      });
+    });
+  } catch (e) {
+    logger.warn(`[notif.push] gatherFcmTokens failed : ${e?.message || e}`);
+  }
+  return Array.from(tokens);
 };
 
 const sendPush = async (tokens, title, body, data, { userId, role } = {}) => {
@@ -236,7 +269,9 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
   const emailSubject = render(tmpl.emailSubject, renderData);
   const emailBody = render(tmpl.emailBody, renderData);
   const email = decrypt(user.email || '');
-  const tokenCount = Array.isArray(user.fcmTokens) ? user.fcmTokens.length : 0;
+  // v407 — union des fcmTokens sur les 3 docs de rôle (fix push multi-profils).
+  const allTokens = await gatherFcmTokens(user, userId);
+  const tokenCount = allTokens.length;
   logger.info(
     `[notif.send] type=${type} role=${role} userId=${userId} ` +
     `locale=${locale} fcmTokens=${tokenCount} ` +
@@ -297,7 +332,7 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
     // lit data.notificationId) ne pouvait jamais rapprocher le push et l'event
     // socket → badge compté 2×. On injecte notificationId dans le data push.
     sendPush(
-      user.fcmTokens,
+      allTokens,
       title,
       body,
       {

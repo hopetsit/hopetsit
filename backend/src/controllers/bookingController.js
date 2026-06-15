@@ -4873,11 +4873,22 @@ const requestLiveTracking = async (req, res) => {
           pawfollowMessageId = msg._id;
           // v23.1.191 — Met aussi a jour lastMessage avec un preview
           // clair, sinon la chat list affiche du garbage hérité.
+          // v407 — Daniel : "le badge 1 dans le menu message n'apparaît pas".
+          // CAUSE : ce message pawfollow_request ne bumpait PAS unreadCount →
+          // au resync le badge restait à 0 (seul le socket live le montrait, et
+          // pas en background). On incrémente l'unread du DESTINATAIRE comme un
+          // message normal (cf conversationService). Le walker partage
+          // sitterUnreadCount (= unread "côté prestataire").
+          const unreadField =
+            userRole === 'owner' ? 'sitterUnreadCount' : 'ownerUnreadCount';
           await Conversation.findByIdAndUpdate(conversation._id, {
-            lastMessage: '📍 Demande de suivi en direct',
-            lastMessageAt: new Date(),
-            // v23.1.256 — réapparition si un participant avait masqué la conv.
-            clearedFor: [],
+            $set: {
+              lastMessage: '📍 Demande de suivi en direct',
+              lastMessageAt: new Date(),
+              // v23.1.256 — réapparition si un participant avait masqué la conv.
+              clearedFor: [],
+            },
+            $inc: { [unreadField]: 1 },
           });
           // v23.1.255 — Daniel : "la demande de suivre mon animal ne
           // s'affiche pas sur les 3 profils". CAUSE RACINE : ce broadcast
@@ -5243,12 +5254,29 @@ const requestLiveTrackingByConversation = async (req, res) => {
     // v23.1.191 — Daniel : "[SUIVI_REQUEST] souhaite voi..." dans la
     // chat list. Cause : on n'ecrivait pas lastMessage → l'ancien
     // texte garbage restait. On set un preview clair multi-lang.
-    await Conversation.findByIdAndUpdate(conversation._id, {
+    // v407 — Daniel : "badge 1 menu message n'apparaît pas". On incrémente
+    // l'unread du DESTINATAIRE (sinon badge=0 au resync). friendChat →
+    // participants[].unreadCount ; booking → owner/sitterUnreadCount (le
+    // walker partage sitterUnreadCount = unread "côté prestataire").
+    const _setUpdate = {
       lastMessage: '📍 Demande de suivi en direct',
       lastMessageAt: new Date(),
       // v23.1.256 — réapparition si un participant avait masqué la conv.
       clearedFor: [],
-    });
+    };
+    if (conversation.friendChat === true && responderId) {
+      await Conversation.updateOne(
+        { _id: conversation._id, 'participants.userId': responderId },
+        { $set: _setUpdate, $inc: { 'participants.$.unreadCount': 1 } },
+      );
+    } else {
+      const unreadField =
+        responderRole === 'owner' ? 'ownerUnreadCount' : 'sitterUnreadCount';
+      await Conversation.findByIdAndUpdate(conversation._id, {
+        $set: _setUpdate,
+        $inc: { [unreadField]: 1 },
+      });
+    }
 
     // v23.1.255 — emitChatMessage (au lieu de emitToConversation) pour que
     // la carte arrive en temps réel ET bump le badge même si le destinataire
