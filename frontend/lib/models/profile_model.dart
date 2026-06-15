@@ -30,6 +30,17 @@ class ProfileModel {
   final double averageRating;
   final int completedServicesCount;
   final bool isTopSitter;
+  // v406 refonte — onglets Profil/Préférences/Sécurité + champs prestataire.
+  final String bio;
+  final String dateOfBirth;
+  final bool twoFactorEnabled;
+  final ProfilePreferences preferences;
+  final ProfileSearchPrefs searchPreferences;
+  final List<String> experienceTags;
+  final List<String> acceptedPetTypes;
+  final List<String> availableDays;
+  final int coverageRadiusKm;
+  final int? responseTimeMinutes;
 
   ProfileModel({
     required this.id,
@@ -60,6 +71,16 @@ class ProfileModel {
     this.averageRating = 0.0,
     this.completedServicesCount = 0,
     this.isTopSitter = false,
+    this.bio = '',
+    this.dateOfBirth = '',
+    this.twoFactorEnabled = false,
+    this.preferences = const ProfilePreferences(),
+    this.searchPreferences = const ProfileSearchPrefs(),
+    this.experienceTags = const [],
+    this.acceptedPetTypes = const [],
+    this.availableDays = const [],
+    this.coverageRadiusKm = 20,
+    this.responseTimeMinutes,
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
@@ -117,6 +138,27 @@ class ProfileModel {
       isTopSitter: (json['isTopSitter'] as bool?) ??
           (json['isTopWalker'] as bool?) ??
           false,
+      bio: json['bio'] as String? ?? '',
+      dateOfBirth: json['dateOfBirth'] as String? ?? '',
+      twoFactorEnabled: json['twoFactorEnabled'] as bool? ?? false,
+      preferences: ProfilePreferences.fromJson(
+          json['preferences'] as Map<String, dynamic>? ?? const {}),
+      searchPreferences: ProfileSearchPrefs.fromJson(
+          json['searchPreferences'] as Map<String, dynamic>? ?? const {}),
+      experienceTags: (json['experienceTags'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      acceptedPetTypes: (json['acceptedPetTypes'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      availableDays: (json['availableDays'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      coverageRadiusKm: (json['coverageRadiusKm'] as num?)?.toInt() ?? 20,
+      responseTimeMinutes: (json['responseTimeMinutes'] as num?)?.toInt(),
     );
   }
 
@@ -146,8 +188,98 @@ class ProfileModel {
       'reviewsGiven': reviewsGiven,
       'reviewsReceived': reviewsReceived,
       'stats': stats.toJson(),
+      'bio': bio,
+      'dateOfBirth': dateOfBirth,
+      'twoFactorEnabled': twoFactorEnabled,
+      'preferences': preferences.toJson(),
+      'searchPreferences': searchPreferences.toJson(),
+      'experienceTags': experienceTags,
+      'acceptedPetTypes': acceptedPetTypes,
+      'availableDays': availableDays,
+      'coverageRadiusKm': coverageRadiusKm,
+      if (responseTimeMinutes != null) 'responseTimeMinutes': responseTimeMinutes,
     };
   }
+}
+
+/// v406 — préférences utilisateur (toggles maquette « Mes préférences »).
+class ProfilePreferences {
+  final bool sendPhotosVideos;
+  final bool quickReplies;
+  final bool flexibleCancellation;
+  final bool pawMapInsurance;
+  final bool notifications;
+
+  const ProfilePreferences({
+    this.sendPhotosVideos = true,
+    this.quickReplies = true,
+    this.flexibleCancellation = true,
+    this.pawMapInsurance = true,
+    this.notifications = true,
+  });
+
+  factory ProfilePreferences.fromJson(Map<String, dynamic> json) {
+    return ProfilePreferences(
+      sendPhotosVideos: json['sendPhotosVideos'] as bool? ?? true,
+      quickReplies: json['quickReplies'] as bool? ?? true,
+      flexibleCancellation: json['flexibleCancellation'] as bool? ?? true,
+      pawMapInsurance: json['pawMapInsurance'] as bool? ?? true,
+      notifications: json['notifications'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'sendPhotosVideos': sendPhotosVideos,
+        'quickReplies': quickReplies,
+        'flexibleCancellation': flexibleCancellation,
+        'pawMapInsurance': pawMapInsurance,
+        'notifications': notifications,
+      };
+
+  ProfilePreferences copyWith({
+    bool? sendPhotosVideos,
+    bool? quickReplies,
+    bool? flexibleCancellation,
+    bool? pawMapInsurance,
+    bool? notifications,
+  }) =>
+      ProfilePreferences(
+        sendPhotosVideos: sendPhotosVideos ?? this.sendPhotosVideos,
+        quickReplies: quickReplies ?? this.quickReplies,
+        flexibleCancellation: flexibleCancellation ?? this.flexibleCancellation,
+        pawMapInsurance: pawMapInsurance ?? this.pawMapInsurance,
+        notifications: notifications ?? this.notifications,
+      );
+}
+
+/// v406 — préférences de recherche (owner) : services, rayon, langue.
+class ProfileSearchPrefs {
+  final List<String> services;
+  final int radiusKm;
+  final String preferredLanguage;
+
+  const ProfileSearchPrefs({
+    this.services = const [],
+    this.radiusKm = 20,
+    this.preferredLanguage = '',
+  });
+
+  factory ProfileSearchPrefs.fromJson(Map<String, dynamic> json) {
+    return ProfileSearchPrefs(
+      services: (json['services'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      radiusKm: (json['radiusKm'] as num?)?.toInt() ?? 20,
+      preferredLanguage: json['preferredLanguage'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'services': services,
+        'radiusKm': radiusKm,
+        'preferredLanguage': preferredLanguage,
+      };
 }
 
 class ProfileAvatar {
