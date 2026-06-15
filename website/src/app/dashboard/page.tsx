@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getStoredUser, openInApp, switchRole } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { disconnectSocket } from "@/lib/socket";
+import NotificationBanner from "@/components/NotificationBanner";
 
 export default function DashboardPage() {
   const { t } = useT();
@@ -320,6 +321,10 @@ export default function DashboardPage() {
           {switchMsg && <p className="mt-2 text-sm text-white/90">{switchMsg}</p>}
         </div>
       </div>
+
+      {/* v409 — Daniel : bandeau de notifications (demandes reçues,
+          acceptations, paiements) sous le titre, comme dans l'app. */}
+      <NotificationBanner />
 
       {/* v23.1.394 — Daniel : « mon compte web en titre, mettre en valeur
           les boutons ». Titre de section + cards relookées (NavCard). */}

@@ -255,6 +255,33 @@ export async function requestOneTimeToken(): Promise<OneTimeTokenRaw> {
   return request<OneTimeTokenRaw>("/auth/one-time-token", { method: "POST" });
 }
 
+// v409 — Daniel : bandeau de notifications sur le compte web (demandes reçues,
+// acceptations, paiements). Réutilise l'API mobile GET /notifications/my.
+export type AppNotification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export async function getMyNotifications(limit = 20): Promise<AppNotification[]> {
+  const res = await request<{ notifications?: AppNotification[] }>(
+    `/notifications/my?limit=${limit}`,
+  );
+  return res.notifications ?? [];
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await request(`/notifications/my/${id}/read`, { method: "PATCH" });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await request(`/notifications/my/read-all`, { method: "PATCH" });
+}
+
 /**
  * Ouvre l'app mobile HoPetSit en transférant la session web (auto-login).
  *
