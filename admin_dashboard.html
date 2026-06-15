@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v416'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v417'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -220,7 +220,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v416</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v417</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -472,7 +472,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </p>
         <div style="overflow-x:auto;margin-bottom:18px">
           <table class="data-table"><thead><tr>
-            <th>Date</th><th>Prestataire</th><th>Rôle</th><th>Owner</th><th>Net</th><th>Statut</th><th>Erreur</th><th></th>
+            <th>Date</th><th>Prestataire</th><th>Rôle</th><th>Propriétaire</th><th>Net</th><th>Statut</th><th>Erreur</th><th></th>
           </tr></thead><tbody id="provider-payouts-wrap"><tr><td colspan="8" style="color:var(--text-muted)">Chargement…</td></tr></tbody></table>
         </div>
         <div class="section-title" style="font-size:15px">🏧 Retraits wallet des prestataires
@@ -1031,7 +1031,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- BUG REPORTS (v20.0.8) -->
       <div id="page-bugs" class="page">
-        <div class="section-title">🐛 Bug Reports</div>
+        <div class="section-title">🐛 Bugs signalés</div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:720px">
           Tous les bugs signalés par les utilisateurs depuis leur profil. Un email part automatiquement à hopetsit@gmail.com à chaque signalement.
         </p>
@@ -1722,7 +1722,7 @@ async function toggleAllPayments() {
     const limit = _allPaymentsShown ? 1000 : 5;
     const d = await api(`/admin/bookings?limit=${limit}&paymentStatus=paid`);
     const html = d.bookings.length ? `
-      <table><thead><tr><th>Date</th><th>Owner</th><th>Prestataire</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
+      <table><thead><tr><th>Date</th><th>Propriétaire</th><th>Prestataire</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
       ${d.bookings.map(b => `
         <tr>
           <td>${fmtDate(b.createdAt)}</td>
@@ -3474,7 +3474,7 @@ async function loadDashboard() {
   try {
     const d = await api('/admin/bookings?limit=5&paymentStatus=paid');
     const html = d.bookings.length ? `
-      <table><thead><tr><th>Date</th><th>Owner</th><th>Sitter</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+      <table><thead><tr><th>Date</th><th>Propriétaire</th><th>Pet-sitter</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
       ${d.bookings.map(b => `
         <tr>
           <td>${fmtDate(b.createdAt)}</td>
@@ -3520,7 +3520,7 @@ function renderBookings() {
   if (!filtered.length) { document.getElementById('bookings-table-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><div>Aucune réservation trouvée.</div></div>'; return; }
   // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep sur bookings.
   document.getElementById('bookings-table-body').innerHTML = `
-    <table><thead><tr><th>Date</th><th>Owner</th><th>Sitter</th><th>Service</th><th>Total</th><th>Status</th><th>Payment</th><th>Action</th></tr></thead>
+    <table><thead><tr><th>Date</th><th>Propriétaire</th><th>Pet-sitter</th><th>Service</th><th>Total</th><th>Statut</th><th>Paiement</th><th>Action</th></tr></thead>
     <tbody>${filtered.map(b => `
       <tr>
         <td>${fmtDate(b.createdAt)}</td>
@@ -3530,7 +3530,7 @@ function renderBookings() {
         <td>€${(b.totalAmount||b.basePrice||0).toFixed(2)}</td>
         <td>${statusBadge(b.status)}</td>
         <td>${payBadge(b.paymentStatus)}</td>
-        <td><button class="action-btn btn-primary" onclick="openBookingModal('${b._id}')">Edit</button></td>
+        <td><button class="action-btn btn-primary" onclick="openBookingModal('${b._id}')">Modifier</button></td>
       </tr>
     `).join('')}</tbody></table>
   `;
@@ -3542,8 +3542,8 @@ function openBookingModal(id) {
   document.getElementById('modal-booking-title').textContent = `Booking ${id.slice(-6).toUpperCase()}`;
   // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('modal-booking-content').innerHTML = `
-    <div class="modal-field"><label class="modal-label">Owner</label><div class="modal-value">${escapeHtml(b.owner?.name||'-')} (${escapeHtml(b.owner?.email||'-')})</div></div>
-    <div class="modal-field"><label class="modal-label">Sitter</label><div class="modal-value">${escapeHtml(b.sitter?.name||'-')}</div></div>
+    <div class="modal-field"><label class="modal-label">Propriétaire</label><div class="modal-value">${escapeHtml(b.owner?.name||'-')} (${escapeHtml(b.owner?.email||'-')})</div></div>
+    <div class="modal-field"><label class="modal-label">Pet-sitter</label><div class="modal-value">${escapeHtml(b.sitter?.name||'-')}</div></div>
     <div class="modal-field"><label class="modal-label">Total Amount</label><div class="modal-value">€${(b.totalAmount||0).toFixed(2)}</div></div>
     <div class="modal-field"><label class="modal-label">Pricing Tier</label><div class="modal-value">${b.pricing?.pricingTier||'hourly'}</div></div>
     <div class="modal-field">
@@ -3691,7 +3691,7 @@ function renderOwners() {
   }
   // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
   document.getElementById('owners-table-body').innerHTML = `
-    <table><thead><tr><th>Role</th><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Staff</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Rôle</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Inscrit le</th><th>Staff</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(u => {
       const b = _ROLE_BADGE[u._role] || _ROLE_BADGE.owner;
       return `
@@ -3875,11 +3875,11 @@ async function loadInvoices(role) {
         <thead>
           <tr>
             <th>Invoice #</th>
-            <th>Owner</th>
+            <th>Propriétaire</th>
             <th>Provider</th>
             <th>Service</th>
-            <th>Amount</th>
-            <th>Status</th>
+            <th>Montant</th>
+            <th>Statut</th>
             <th></th>
           </tr>
         </thead>
@@ -4101,14 +4101,14 @@ function renderPaymentsTable(payments, total) {
       <thead>
         <tr>
           <th>Date</th>
-          <th>Owner</th>
-          <th>Sitter</th>
+          <th>Propriétaire</th>
+          <th>Pet-sitter</th>
           <th>Service</th>
           <th>Total</th>
           <th>Commission</th>
           <th>Sitter Gets</th>
           <th>Provider</th>
-          <th>Payment</th>
+          <th>Paiement</th>
           <th>Payout</th>
           <th>Payout Date</th>
           <th>Actions</th>
@@ -4358,7 +4358,7 @@ async function loadIbanSitters() {
     }
     // v23.1 part 128 — Phase 4 audit P4-3 : escapeHtml sweep.
     document.getElementById('iban-table-body').innerHTML = `
-      <table><thead><tr><th>Provider</th><th>Rôle</th><th>Email</th><th>Account Holder</th><th>IBAN (masked)</th><th>BIC</th><th>Status</th><th>Action</th></tr></thead>
+      <table><thead><tr><th>Provider</th><th>Rôle</th><th>Email</th><th>Account Holder</th><th>IBAN (masked)</th><th>BIC</th><th>Statut</th><th>Action</th></tr></thead>
       <tbody>${sitters.map(s => `
         <tr>
           <td><strong>${escapeHtml(s.name||'-')}</strong></td>
@@ -4427,9 +4427,9 @@ async function loadIbanPending() {
         <thead>
           <tr>
             <th>Provider</th>
-            <th>Role</th>
-            <th>Owner</th>
-            <th>Amount</th>
+            <th>Rôle</th>
+            <th>Propriétaire</th>
+            <th>Montant</th>
             <th>IBAN (masked)</th>
             <th>BIC</th>
             <th>Queued</th>
@@ -4576,7 +4576,7 @@ function renderBoostsTable(purchases, total) {
     </tr>`;
   }
   container.innerHTML = `<table><thead><tr>
-    <th>Date</th><th>User</th><th>Role</th><th>Product</th><th>Tier</th><th>Amount</th><th>Provider</th><th>Status</th>
+    <th>Date</th><th>User</th><th>Rôle</th><th>Product</th><th>Tier</th><th>Montant</th><th>Provider</th><th>Statut</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -4711,7 +4711,7 @@ async function loadAdminWallets() {
       const cur = escapeHtml(w.currency || 'EUR');
       return '<tr><td>'+role+'</td><td><strong>'+escapeHtml(w.name||'-')+'</strong></td><td>'+escapeHtml(w.email||'-')+'</td><td>'+(w.balance||0).toFixed(2)+' '+cur+'</td><td>'+((w.hasIban ?? w.stripeAccountId) ? '<span class="badge badge-green">OK</span>' : '<span class="badge badge-orange">-</span>')+'</td></tr>';
     }).join('');
-    if (tbl) tbl.innerHTML = '<table class="table"><thead><tr><th>Role</th><th>Nom</th><th>Email</th><th>Solde</th><th>IBAN Airwallex</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun wallet</td></tr>') + '</tbody></table>';
+    if (tbl) tbl.innerHTML = '<table class="table"><thead><tr><th>Rôle</th><th>Nom</th><th>Email</th><th>Solde</th><th>IBAN Airwallex</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:var(--text-muted)">Aucun wallet</td></tr>') + '</tbody></table>';
   } catch (e) {
     if (tbl) tbl.innerHTML = '<div style="color:var(--error)">' + e.message + '</div>';
   }
@@ -5541,7 +5541,7 @@ async function loadBugReports() {
         '<td style="display:flex;gap:4px;flex-wrap:wrap">' +
           '<button class="action-btn" onclick="updateBugStatus(\''+r._id+'\',\'in_progress\')">In progress</button>' +
           '<button class="action-btn btn-verify" onclick="updateBugStatus(\''+r._id+'\',\'fixed\')">Fixed</button>' +
-          '<button class="action-btn btn-delete" onclick="deleteBugReport(\''+r._id+'\')">Delete</button>' +
+          '<button class="action-btn btn-delete" onclick="deleteBugReport(\''+r._id+'\')">Supprimer</button>' +
         '</td>' +
       '</tr>';
     }).join('');
