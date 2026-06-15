@@ -7,6 +7,9 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
 import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
+import 'package:hopetsit/repositories/user_repository.dart';
+import 'package:hopetsit/controllers/user_controller.dart';
+import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
@@ -50,6 +53,10 @@ class SitterProfileController extends GetxController {
   final RxString profileImageUrl = ''.obs;
   final RxString selectedCountryCode = '+1'.obs;
   final Rxn<ProfileModel> profile = Rxn<ProfileModel>();
+
+  // v406 refonte — onglet profil + sauvegarde préférences/2FA.
+  final RxInt profileTab = 0.obs;
+  final RxBool prefsSaving = false.obs;
 
   // Blocked users list
   final RxList<BlockedUser> blockedUsers = <BlockedUser>[].obs;
@@ -422,6 +429,53 @@ class SitterProfileController extends GetxController {
 
   void navigateToBookings() {
     Get.to(() => const SitterBookingsScreen());
+  }
+
+  // v406 — sauvegarde préférences/2FA via PATCH profil (PUT /users/:id/profile).
+  UserController _userController() {
+    if (Get.isRegistered<UserController>()) return Get.find<UserController>();
+    return Get.put(UserController(UserRepository(Get.find<ApiClient>())));
+  }
+
+  Future<void> savePreferences(Map<String, dynamic> prefsJson) async {
+    final id = profile.value?.id;
+    if (id == null || id.isEmpty) return;
+    prefsSaving.value = true;
+    try {
+      await _userController().updateUserProfile(id, {'preferences': prefsJson});
+      await loadMyProfile();
+    } catch (error) {
+      AppLogger.logError('Failed to save sitter preferences', error: error);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'profile_update_failed'.tr,
+      );
+    } finally {
+      prefsSaving.value = false;
+    }
+  }
+
+  Future<void> setTwoFactor(bool enabled) async {
+    final id = profile.value?.id;
+    if (id == null || id.isEmpty) return;
+    prefsSaving.value = true;
+    try {
+      await _userController()
+          .updateUserProfile(id, {'twoFactorEnabled': enabled});
+      await loadMyProfile();
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: enabled ? 'profile_2fa_enabled'.tr : 'profile_2fa_disabled'.tr,
+      );
+    } catch (error) {
+      AppLogger.logError('Failed to toggle sitter 2FA', error: error);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'profile_update_failed'.tr,
+      );
+    } finally {
+      prefsSaving.value = false;
+    }
   }
 
   void showDeleteAccountDialog(BuildContext context) {

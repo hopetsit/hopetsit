@@ -9,6 +9,8 @@ import 'package:get/get.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
+import 'package:hopetsit/models/profile_model.dart';
+import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
@@ -614,7 +616,62 @@ class WalkerProfileScreen extends StatelessWidget {
   // SETTINGS
   // ═════════════════════════════════════════════════════════════════════════
 
+  // v406 refonte — section paramètres en onglets Profil / Préférences /
+  // Sécurité (maquette). Walker accent = vert.
   Widget _buildSettingsSection(
+    BuildContext context,
+    ProfileController controller,
+  ) {
+    return Obx(() {
+      final tab = controller.profileTab.value;
+      final p = controller.profile.value;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileTabBar(
+            index: tab,
+            accent: _accent,
+            onChanged: (i) => controller.profileTab.value = i,
+          ),
+          SizedBox(height: 16.h),
+          if (tab == 1) ...[
+            ProfilePreferencesTab(
+              accent: _accent,
+              prefs: p?.preferences ?? const ProfilePreferences(),
+              saving: controller.prefsSaving.value,
+              onSave: (u) => controller.savePreferences(u.toJson()),
+              onLanguage: controller.showLanguageDialog,
+            ),
+            _settingsTile(
+              'theme_setting_title'.tr,
+              Icons.brightness_6_rounded,
+              () => _showThemeDialog(),
+              subtitle: 'theme_setting_subtitle'.tr,
+              color: const Color(0xFF8B5CF6),
+            ),
+          ],
+          if (tab == 2)
+            ProfileSecurityTab(
+              accent: _accent,
+              twoFactorEnabled: p?.twoFactorEnabled ?? false,
+              emailVerified: p?.verified ?? false,
+              phoneVerified: (p?.mobile.isNotEmpty ?? false),
+              saving: controller.prefsSaving.value,
+              onToggle2FA: controller.setTwoFactor,
+              onChangePassword: () =>
+                  Get.to(() => const ChangePasswordScreen()),
+              onBlockedUsers: () => Get.to(
+                  () => const BlockedUsersScreen(userType: 'pet_walker')),
+              onDeleteAccount: () =>
+                  controller.showDeleteAccountDialog(context),
+            ),
+          if (tab == 0) _buildProfilTab(context, controller),
+        ],
+      );
+    });
+  }
+
+  Widget _buildProfilTab(
     BuildContext context,
     ProfileController controller,
   ) {
@@ -744,38 +801,7 @@ class WalkerProfileScreen extends StatelessWidget {
           color: const Color(0xFFE8A00A),
         ),
 
-        _sectionHeader('profile_section_preferences'.tr),
-        _settingsTile(
-          'profile_change_language'.tr,
-          Icons.language_rounded,
-          controller.showLanguageDialog,
-          subtitle: 'profile_change_language_subtitle'.tr,
-          color: _accent,
-        ),
-        _settingsTile(
-          'theme_setting_title'.tr,
-          Icons.brightness_6_rounded,
-          () => _showThemeDialog(),
-          subtitle: 'theme_setting_subtitle'.tr,
-          color: const Color(0xFF8B5CF6),
-        ),
-
-        _sectionHeader('profile_section_security'.tr),
-        _settingsTile(
-          'profile_password'.tr,
-          Icons.lock_outline_rounded,
-          () => Get.to(() => const ChangePasswordScreen()),
-          subtitle: 'profile_change_password_subtitle'.tr,
-          color: _accent,
-        ),
-        _settingsTile(
-          'profile_blocked_users'.tr,
-          Icons.block_rounded,
-          () =>
-              Get.to(() => const BlockedUsersScreen(userType: 'pet_walker')),
-          subtitle: 'profile_blocked_users_subtitle'.tr,
-          color: AppColors.errorColor,
-        ),
+        // v406 — PRÉFÉRENCES + SÉCURITÉ déplacés dans les onglets dédiés.
 
         _sectionHeader('profile_section_legal'.tr),
         _settingsTile(
@@ -803,13 +829,8 @@ class WalkerProfileScreen extends StatelessWidget {
           color: const Color(0xFFF59E0B),
         ),
 
-        _sectionHeader('profile_section_danger'.tr),
-        _settingsTileDanger(
-          'profile_delete_account'.tr,
-          Icons.delete_outline_rounded,
-          () => controller.showDeleteAccountDialog(Get.context!),
-          subtitle: 'profile_delete_account_subtitle'.tr,
-        ),
+        // v406 — ZONE DANGER (supprimer le compte) déplacée dans l'onglet
+        // Sécurité (ProfileSecurityTab).
       ],
     );
   }
@@ -896,70 +917,8 @@ class WalkerProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _settingsTileDanger(
-    String title,
-    IconData icon,
-    VoidCallback onTap, {
-    String subtitle = '',
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Builder(
-        builder: (context) => Container(
-          margin: EdgeInsets.only(bottom: 8.h),
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-          decoration: BoxDecoration(
-            color: AppColors.errorColor.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(
-              color: AppColors.errorColor.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38.w,
-                height: 38.w,
-                decoration: BoxDecoration(
-                  color: AppColors.errorColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(icon, size: 18.sp, color: AppColors.errorColor),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PoppinsText(
-                      text: title,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.errorColor,
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      SizedBox(height: 2.h),
-                      InterText(
-                        text: subtitle,
-                        fontSize: 11.sp,
-                        color: AppColors.errorColor.withValues(alpha: 0.7),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 14.sp,
-                color: AppColors.errorColor,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // v406 — _settingsTileDanger retiré : suppression du compte rendue par
+  // ProfileSecurityTab (onglet Sécurité).
 
   void _showThemeDialog() {
     final tc = Get.find<ThemeController>();

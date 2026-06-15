@@ -11,6 +11,8 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
+import 'package:hopetsit/models/profile_model.dart';
+import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
@@ -438,22 +440,74 @@ class SitterProfileScreen extends StatelessWidget {
   static const Color _palePurple = Color(0xFF6A5AE0);
   static const Color _paleOrange = Color(0xFFE9A73B);
 
+  // v406 refonte — section paramètres découpée en onglets Profil / Préférences
+  // / Sécurité (maquette). KYC + boost + switch-rôle restent au-dessus.
   Widget _buildSettingsSection(
+    BuildContext context,
+    SitterProfileController controller,
+  ) {
+    return Obx(() {
+      final tab = controller.profileTab.value;
+      final p = controller.profile.value;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // v23.1 part 115 — Banner KYC : « Vérifier mon identité » CTA quand
+          // l'utilisateur n'a pas encore complété sa vérif, sinon badge ✓.
+          const KycStatusBanner(),
+          // v18.6 — Booster mon profil (bleu sitter).
+          BoostProfileCard(role: 'sitter'),
+          SizedBox(height: 16.h),
+          // Switch Role Cards — shows the 2 other roles (3-way switch).
+          _buildSwitchRoleCards(context),
+          SizedBox(height: 8.h),
+          ProfileTabBar(
+            index: tab,
+            accent: _sitterAccent,
+            onChanged: (i) => controller.profileTab.value = i,
+          ),
+          SizedBox(height: 16.h),
+          if (tab == 1) ...[
+            ProfilePreferencesTab(
+              accent: _sitterAccent,
+              prefs: p?.preferences ?? const ProfilePreferences(),
+              saving: controller.prefsSaving.value,
+              onSave: (u) => controller.savePreferences(u.toJson()),
+              onLanguage: controller.showLanguageDialog,
+            ),
+            _buildSettingsTile(
+              'theme_setting_title'.tr,
+              'theme_setting_subtitle'.tr,
+              Icons.brightness_6_rounded,
+              _palePurple,
+              () => _showThemeDialog(),
+            ),
+          ],
+          if (tab == 2)
+            ProfileSecurityTab(
+              accent: _sitterAccent,
+              twoFactorEnabled: p?.twoFactorEnabled ?? false,
+              emailVerified: p?.verified ?? false,
+              phoneVerified: (p?.mobile.isNotEmpty ?? false),
+              saving: controller.prefsSaving.value,
+              onToggle2FA: controller.setTwoFactor,
+              onChangePassword: controller.navigateToChangePassword,
+              onBlockedUsers: controller.navigateToBlockedUsers,
+              onDeleteAccount: () => controller.showDeleteAccountDialog(context),
+            ),
+          if (tab == 0) _buildProfilTab(context, controller),
+        ],
+      );
+    });
+  }
+
+  Widget _buildProfilTab(
     BuildContext context,
     SitterProfileController controller,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // v23.1 part 115 — Banner KYC : « Vérifier mon identité » CTA quand
-        // l'utilisateur n'a pas encore complété sa vérif, sinon badge ✓.
-        const KycStatusBanner(),
-        // v18.6 — Booster mon profil (bleu sitter).
-        BoostProfileCard(role: 'sitter'),
-        SizedBox(height: 16.h),
-        // Switch Role Cards — shows the 2 other roles (3-way switch).
-        _buildSwitchRoleCards(context),
-
         // ── COMPTE ─────────────────────────────────────────
         _sectionHeader('profile_section_account'.tr),
         _buildSettingsTile(
@@ -556,32 +610,7 @@ class SitterProfileScreen extends StatelessWidget {
           () => Get.to(() => const PawspotLeaderboardScreen()),
         ),
 
-        // ── PRÉFÉRENCES ───────────────────────────────────
-        _sectionHeader('profile_section_preferences'.tr),
-        _buildSettingsTile(
-          'profile_change_language'.tr,
-          'profile_change_language_subtitle'.tr,
-          Icons.language_rounded,
-          _sitterAccent,
-          controller.showLanguageDialog,
-        ),
-        _buildSettingsTile(
-          'theme_setting_title'.tr,
-          'theme_setting_subtitle'.tr,
-          Icons.brightness_6_rounded,
-          _palePurple,
-          () => _showThemeDialog(),
-        ),
-
-        // ── SÉCURITÉ ──────────────────────────────────────
-        _sectionHeader('profile_section_security'.tr),
-        _buildSettingsTile(
-          'profile_change_password'.tr,
-          'profile_change_password_subtitle'.tr,
-          Icons.lock_outline_rounded,
-          _sitterAccent,
-          controller.navigateToChangePassword,
-        ),
+        // v406 — PRÉFÉRENCES + SÉCURITÉ déplacés dans les onglets dédiés.
 
         // ── LÉGAL ─────────────────────────────────────────
         _sectionHeader('profile_section_legal'.tr),
@@ -611,14 +640,8 @@ class SitterProfileScreen extends StatelessWidget {
           () => Get.to(() => const BugReportScreen()),
         ),
 
-        // ── ZONE DANGER ───────────────────────────────────
-        _sectionHeader('profile_section_danger'.tr),
-        _buildSettingsTileDanger(
-          'profile_delete_account'.tr,
-          'profile_delete_account_subtitle'.tr,
-          Icons.delete_outline_rounded,
-          () => controller.showDeleteAccountDialog(context),
-        ),
+        // v406 — ZONE DANGER (supprimer le compte) déplacée dans l'onglet
+        // Sécurité (ProfileSecurityTab).
       ],
     );
   }
@@ -741,70 +764,8 @@ class SitterProfileScreen extends StatelessWidget {
     );
   }
 
-  /// Danger variant — red accent + red outline for irreversible actions.
-  Widget _buildSettingsTileDanger(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Builder(
-        builder: (context) => Container(
-          margin: EdgeInsets.only(bottom: 8.h),
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(14.r),
-            boxShadow: AppColors.cardShadow(context),
-            border: Border.all(
-              color: AppColors.errorColor.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38.w,
-                height: 38.w,
-                decoration: BoxDecoration(
-                  color: AppColors.errorColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(icon, size: 18.sp, color: AppColors.errorColor),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PoppinsText(
-                      text: title,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.errorColor,
-                    ),
-                    SizedBox(height: 2.h),
-                    InterText(
-                      text: subtitle,
-                      fontSize: 11.sp,
-                      color: AppColors.textSecondary(context),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 14.sp,
-                color: AppColors.errorColor,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // v406 — _buildSettingsTileDanger retiré : suppression du compte rendue par
+  // ProfileSecurityTab (onglet Sécurité).
 
   /// Renders the switch cards for the 2 other roles the user can move to.
   Widget _buildSwitchRoleCards(BuildContext context) {

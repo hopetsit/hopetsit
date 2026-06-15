@@ -491,6 +491,12 @@ const getSitterProfile = async (req, res) => {
       availableDays: Array.isArray(sitter.availableDays) ? sitter.availableDays : [],
       coverageRadiusKm: sitter.coverageRadiusKm ?? 20,
       responseTimeMinutes: sitter.responseTimeMinutes ?? null,
+      // v406 — préférences + 2FA (onglets Préférences/Sécurité). Hand-built →
+      // SANS ces lignes, le reload après sauvegarde les perdrait (cf mémoire
+      // getSitterProfile). preferences a des défauts si absent.
+      preferences: sitter.preferences || {},
+      searchPreferences: sitter.searchPreferences || {},
+      twoFactorEnabled: sitter.twoFactorEnabled === true,
       createdAt: sitter.createdAt,
       updatedAt: sitter.updatedAt,
     };
