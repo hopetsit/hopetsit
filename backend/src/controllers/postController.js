@@ -189,6 +189,14 @@ const createPost = async (req, res) => {
     // v404 — nombre d'animaux + types (annonce).
     applyAnimalFields(postPayload, animalCount, animalTypes);
 
+    // v411 — toggle « Afficher le caractère des animaux » (maquette). Défaut
+    // true ; false uniquement si explicitement désactivé (bool ou 'false'
+    // string en multipart).
+    {
+      const sac = req.body?.showAnimalCharacter;
+      postPayload.showAnimalCharacter = !(sac === false || sac === 'false');
+    }
+
     // Sprint 5 step 2 — service location preference.
     if (['at_owner', 'at_sitter', 'both'].includes(serviceLocation)) {
       postPayload.serviceLocation = serviceLocation;
@@ -1288,6 +1296,12 @@ const createPostWithMedia = async (req, res) => {
 
     // v404 — nombre d'animaux + types (annonce avec photos).
     applyAnimalFields(postPayload, animalCount, animalTypes);
+
+    // v411 — toggle « Afficher le caractère des animaux » (défaut true).
+    {
+      const sac = req.body?.showAnimalCharacter;
+      postPayload.showAnimalCharacter = !(sac === false || sac === 'false');
+    }
 
     // Create the post
     const newPost = await Post.create(postPayload);

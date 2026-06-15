@@ -3187,4 +3187,7 @@ const Map<String, String> enUSTranslations = <String, String>{
   'day_fri': 'Friday',
   'day_sat': 'Saturday',
   'day_sun': 'Sunday',
+
+  'publish_show_character': 'Show pets\' character',
+  'publish_show_character_hint': 'Auto preview from your pets\' profiles.',
 };

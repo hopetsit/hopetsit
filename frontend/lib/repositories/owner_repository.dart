@@ -44,6 +44,7 @@ class OwnerRepository {
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
+    bool showAnimalCharacter = true,
   }) async {
     final effectiveIds = petIds.isNotEmpty
         ? petIds
@@ -54,6 +55,8 @@ class OwnerRepository {
       'endDate': endDate.toUtc().toIso8601String(),
       'serviceTypes': serviceTypes,
       'petIds': effectiveIds,
+      // v411 — toggle « Afficher le caractère des animaux » (maquette).
+      'showAnimalCharacter': showAnimalCharacter,
       // Legacy field kept for backend backward-compat.
       if (effectiveIds.isNotEmpty) 'petId': effectiveIds.first,
       'location': {
@@ -103,6 +106,7 @@ class OwnerRepository {
     String? notes,
     String? houseSittingVenue,
     String? serviceLocation,
+    bool showAnimalCharacter = true,
     required List<File> imageFiles,
   }) async {
     final effectiveIds = petIds.isNotEmpty
@@ -122,6 +126,8 @@ class OwnerRepository {
       // Multipart : petIds passed as a JSON-stringified array.
       'petIds': jsonEncode(effectiveIds),
       if (effectiveIds.isNotEmpty) 'petId': effectiveIds.first,
+      // v411 — toggle « Afficher le caractère des animaux » (string multipart).
+      'showAnimalCharacter': showAnimalCharacter.toString(),
       'location': jsonEncode(location),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (houseSittingVenue != null && houseSittingVenue.isNotEmpty)

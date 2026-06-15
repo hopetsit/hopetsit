@@ -3147,4 +3147,7 @@ const Map<String, String> esESTranslations = <String, String>{
   'day_fri': 'Viernes',
   'day_sat': 'Sábado',
   'day_sun': 'Domingo',
+
+  'publish_show_character': 'Mostrar el carácter de los animales',
+  'publish_show_character_hint': 'Vista previa automática desde los perfiles.',
 };

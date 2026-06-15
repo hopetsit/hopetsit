@@ -3185,4 +3185,7 @@ const Map<String, String> itITTranslations = <String, String>{
   'day_fri': 'Venerdì',
   'day_sat': 'Sabato',
   'day_sun': 'Domenica',
+
+  'publish_show_character': 'Mostra il carattere degli animali',
+  'publish_show_character_hint': 'Anteprima automatica dai profili.',
 };

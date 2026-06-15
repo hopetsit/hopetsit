@@ -3190,4 +3190,7 @@ const Map<String, String> deDETranslations = <String, String>{
   'day_fri': 'Freitag',
   'day_sat': 'Samstag',
   'day_sun': 'Sonntag',
+
+  'publish_show_character': 'Charakter der Tiere anzeigen',
+  'publish_show_character_hint': 'Automatische Vorschau aus den Profilen.',
 };

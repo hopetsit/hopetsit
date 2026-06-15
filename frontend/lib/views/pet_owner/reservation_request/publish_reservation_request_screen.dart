@@ -69,6 +69,31 @@ class _PublishReservationRequestScreenState
                   child: _buildPetsSection(),
                 ),
                 SizedBox(height: 16.h),
+                // v411 — toggle « Afficher le caractère des animaux » (maquette).
+                _buildSectionCard(
+                  icon: Icons.visibility_rounded,
+                  title: 'publish_show_character'.tr,
+                  child: Obx(
+                    () => Row(
+                      children: [
+                        Expanded(
+                          child: InterText(
+                            text: 'publish_show_character_hint'.tr,
+                            fontSize: 12.sp,
+                            color: AppColors.textSecondary(context),
+                          ),
+                        ),
+                        Switch(
+                          value: controller.showAnimalCharacter.value,
+                          onChanged: (v) =>
+                              controller.showAnimalCharacter.value = v,
+                          activeTrackColor: AppColors.primaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16.h),
                 // v18.8 — ordre demandé : Animaux / Type de service / Dates.
                 // Avant v18.8, les dates venaient avant le type de service, ce
                 // qui obligeait l'owner à choisir une date avant même de savoir

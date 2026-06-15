@@ -3205,4 +3205,7 @@ const Map<String, String> frFRTranslations = <String, String>{
   'day_fri': 'Vendredi',
   'day_sat': 'Samedi',
   'day_sun': 'Dimanche',
+
+  'publish_show_character': 'Afficher le caractère des animaux',
+  'publish_show_character_hint': 'Aperçu automatique depuis les profils de vos animaux.',
 };

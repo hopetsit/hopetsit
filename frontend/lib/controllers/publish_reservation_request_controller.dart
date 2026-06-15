@@ -67,6 +67,9 @@ class PublishReservationRequestController extends GetxController {
 
   final RxBool isSubmitting = false.obs;
 
+  // v411 — toggle maquette « Afficher le caractère des animaux » (défaut ON).
+  final RxBool showAnimalCharacter = true.obs;
+
   final RxList<File> imageFiles = <File>[].obs;
 
   /// Service catalog — session avril 2026 simplification from 5 to 3 services.
@@ -422,6 +425,7 @@ class PublishReservationRequestController extends GetxController {
           city: city,
           notes: notes,
           houseSittingVenue: venue,
+          showAnimalCharacter: showAnimalCharacter.value,
         );
       } else {
         await _ownerRepository.createReservationRequestWithMedia(
@@ -433,6 +437,7 @@ class PublishReservationRequestController extends GetxController {
           city: city,
           notes: notes,
           houseSittingVenue: venue,
+          showAnimalCharacter: showAnimalCharacter.value,
           imageFiles: imageFiles.toList(),
         );
       }

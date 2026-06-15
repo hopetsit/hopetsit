@@ -3023,4 +3023,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'day_fri': 'Sexta',
   'day_sat': 'Sábado',
   'day_sun': 'Domingo',
+
+  'publish_show_character': 'Mostrar o carácter dos animais',
+  'publish_show_character_hint': 'Pré-visualização automática dos perfis.',
 };
