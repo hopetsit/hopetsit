@@ -2,6 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- v413 — Daniel : "pas de notification push sur iPhone alors que c'est
+	     activé". CAUSE : l'entitlement `aps-environment` était ABSENTE → iOS
+	     refuse d'enregistrer l'app pour les notifications distantes (APNs), donc
+	     FCM ne peut RIEN livrer sur iPhone (Android n'a pas besoin de ça → il
+	     marchait). On l'ajoute. Avec "Automatically manage signing" dans Xcode,
+	     la valeur 'development' est promue en 'production' au moment de l'archive
+	     de distribution (TestFlight/App Store). ⚠️ Il faut AUSSI : (1) cocher la
+	     capability "Push Notifications" dans Xcode (Signing & Capabilities), et
+	     (2) uploader la clé d'authentification APNs (.p8) dans Firebase Console
+	     → Project settings → Cloud Messaging → Apple app configuration. -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<!-- v23.1 part 146 — Universal Links iOS.
 	     Quand l'utilisateur tape sur un lien `https://hopetsit.com/pay/xxx`
 	     depuis Safari, Mail, WhatsApp etc., iOS vérifie le fichier
