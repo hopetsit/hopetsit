@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:hopetsit/routes/app_routes.dart';
 import 'package:hopetsit/views/splash/splash_screen.dart';
 import 'package:hopetsit/views/auth/login_screen.dart';
-import 'package:hopetsit/views/auth/sign_up_screen.dart';
+import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
@@ -25,7 +25,7 @@ class AppPages {
     GetPage(name: AppRoutes.login, page: () => const LoginScreen()),
     GetPage(
       name: AppRoutes.signup,
-      page: () => SignUpScreen(
+      page: () => SignupWizardScreen(
         userType: (Get.arguments is Map && (Get.arguments as Map)['userType'] is String)
             ? (Get.arguments as Map)['userType'] as String
             : 'pet_owner',

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
@@ -41,6 +42,24 @@ class SignUpController extends GetxController {
   // v20 — Photo de profil uploadée pendant l'inscription. Assignée par
   // _SignupPhotoPicker. Uploadée en post-signup via users/me/profile-picture.
   File? profileImageFile;
+  // v409 — avatar réactif (aperçu live dans le wizard). profileImageFile reste
+  // synchronisé pour la file d'upload post-OTP.
+  final Rxn<File> profileImageRx = Rxn<File>();
+  final ImagePicker _imagePicker = ImagePicker();
+
+  Future<void> pickProfileImage() async {
+    try {
+      final x = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (x != null) {
+        final f = File(x.path);
+        profileImageRx.value = f;
+        profileImageFile = f;
+      }
+    } catch (_) {/* annulé / refusé */}
+  }
 
   // Observable state - Sign Up
   final RxBool isLoading = false.obs;
@@ -58,6 +77,46 @@ class SignUpController extends GetxController {
   final Rxn<double> userLatitude = Rxn<double>();
   final Rxn<double> userLongitude = Rxn<double>();
   final RxString userCity = ''.obs;
+
+  // ─── v409 refonte — inscription en wizard 5 étapes (maquette). 100% additif :
+  // ces champs alimentent _buildUserPayload (le backend accepte déjà
+  // dateOfBirth/bio/experienceTags/acceptedPetTypes/availableDays/
+  // coverageRadiusKm/preferences/searchPreferences/dailyRate via les schémas).
+  final dobController = TextEditingController();           // date de naissance
+  final confirmPasswordController = TextEditingController();
+  final bioController = TextEditingController();            // « À propos de vous »
+  final ratePerDayController = TextEditingController();     // sitter : tarif journée (+10h)
+  final walkerRate120Controller = TextEditingController();  // walker : tarif 2h
+  final extraAnimalController = TextEditingController();    // tarif animal supplémentaire
+  final RxInt currentStep = 0.obs;
+  final RxString passwordLive = ''.obs;                     // pour la checklist live
+  final RxList<String> selectedServices = <String>[].obs;   // services proposés/recherchés
+  final RxList<String> acceptedAnimals = <String>[].obs;    // animaux acceptés/promenés
+  final RxList<String> availableDays = <String>[].obs;      // walker : disponibilités
+  final RxList<String> selectedDurations = <String>[].obs;  // walker : '30' | '60' | '120'
+  final RxList<String> experienceTags = <String>[].obs;     // expérience (cases)
+  final RxString coverageRadius = '20'.obs;                 // rayon km (recherche/intervention)
+  // Préférences owner (toggles maquette).
+  final RxBool prefNotifications = true.obs;
+  final RxBool prefQuickReplies = true.obs;
+  final RxBool prefPhotos = true.obs;
+  final RxBool prefInsurance = true.obs;
+  final RxBool prefFlexCancel = true.obs;
+
+  void toggleInList(RxList<String> list, String value) {
+    if (list.contains(value)) {
+      list.remove(value);
+    } else {
+      list.add(value);
+    }
+  }
+
+  /// Règles mot de passe (pour la checklist live de l'étape 1).
+  bool get pwMinLength => passwordLive.value.length >= 8;
+  bool get pwHasUpper => passwordLive.value.contains(RegExp(r'[A-Z]'));
+  bool get pwHasDigit => passwordLive.value.contains(RegExp(r'[0-9]'));
+  bool get pwHasSpecial =>
+      passwordLive.value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-]'));
 
   final List<String> languageOptions = const ['English', 'Urdu', 'French'];
   final List<String> currencyOptions = CurrencyHelper.supportedCurrencies
@@ -503,6 +562,70 @@ class SignUpController extends GetxController {
       data['currency'] = selectedCurrency.value;
     }
 
+    // ─── v409 refonte — champs collectés par le wizard 5 étapes. Additifs :
+    // Mongoose strict mode ne garde que ceux présents dans le schéma du rôle.
+    final dob = dobController.text.trim();
+    if (dob.isNotEmpty) data['dateOfBirth'] = dob;
+    final bio = bioController.text.trim();
+    if (bio.isNotEmpty) data['bio'] = bio;
+    if (experienceTags.isNotEmpty) {
+      data['experienceTags'] = experienceTags.toList();
+    }
+    final extra = double.tryParse(
+      extraAnimalController.text.trim().replaceAll(',', '.'),
+    );
+
+    if (userType == 'pet_owner') {
+      data['searchPreferences'] = {
+        'services': selectedServices.toList(),
+        'radiusKm': int.tryParse(coverageRadius.value) ?? 20,
+        'preferredLanguage': selectedLanguage.value,
+      };
+      data['preferences'] = {
+        'sendPhotosVideos': prefPhotos.value,
+        'quickReplies': prefQuickReplies.value,
+        'flexibleCancellation': prefFlexCancel.value,
+        'pawMapInsurance': prefInsurance.value,
+        'notifications': prefNotifications.value,
+      };
+    }
+
+    if (userType == 'pet_sitter') {
+      if (selectedServices.isNotEmpty) data['service'] = selectedServices.toList();
+      if (acceptedAnimals.isNotEmpty) {
+        data['acceptedPetTypes'] = acceptedAnimals.toList();
+      }
+      data['coverageRadiusKm'] = int.tryParse(coverageRadius.value) ?? 20;
+      final daily = double.tryParse(
+        ratePerDayController.text.trim().replaceAll(',', '.'),
+      );
+      if (daily != null && daily > 0) data['dailyRate'] = daily;
+      if (extra != null && extra >= 0) data['additionalAnimalFee'] = extra;
+    }
+
+    if (userType == 'pet_walker') {
+      if (acceptedAnimals.isNotEmpty) {
+        data['acceptedPetTypes'] = acceptedAnimals.toList();
+      }
+      if (availableDays.isNotEmpty) data['availableDays'] = availableDays.toList();
+      data['coverageRadiusKm'] = int.tryParse(coverageRadius.value) ?? 15;
+      // Tarif 2h en plus des 30/60 min déjà ajoutés au bloc walker ci-dessus.
+      final r120 = double.tryParse(
+        walkerRate120Controller.text.trim().replaceAll(',', '.'),
+      );
+      if (r120 != null && r120 > 0) {
+        final rates = (data['walkRates'] as List?)?.cast<Map<String, dynamic>>() ??
+            <Map<String, dynamic>>[];
+        rates.add({
+          'durationMinutes': 120,
+          'basePrice': r120,
+          'currency': selectedCurrency.value,
+        });
+        data['walkRates'] = rates;
+      }
+      if (extra != null && extra >= 0) data['additionalAnimalFee'] = extra;
+    }
+
     return data;
   }
 
@@ -520,6 +643,77 @@ class SignUpController extends GetxController {
       case 'pet_sitter':
       default:
         return 'sitter';
+    }
+  }
+
+  /// v409 — validation de l'étape 1 du wizard (infos perso), sans formKey
+  /// (les champs des autres étapes ne sont pas montés dans un Form unique).
+  String? validateStep1() {
+    final e = validateName(nameController.text) ??
+        validateEmail(emailController.text) ??
+        validatePassword(passwordController.text);
+    if (e != null) return e;
+    if (confirmPasswordController.text != passwordController.text) {
+      return 'signup_pw_mismatch'.tr;
+    }
+    return null;
+  }
+
+  /// v409 — soumission depuis le wizard 5 étapes. Validation MANUELLE (le
+  /// wizard n'utilise pas un Form unique), puis réutilise exactement le même
+  /// flux que handleSignUp (signup → file photo → OTP).
+  Future<void> handleWizardSignUp({required String email}) async {
+    final err = validateStep1();
+    if (err != null) {
+      CustomSnackbar.showError(
+        title: 'error_invalid_details_title'.tr,
+        message: err,
+      );
+      currentStep.value = 0; // ramène à l'étape infos perso
+      return;
+    }
+    if (!agreeToTerms.value) {
+      CustomSnackbar.showWarning(
+        title: 'error_terms_required_title'.tr,
+        message: 'error_terms_required_message'.tr,
+      );
+      return;
+    }
+    isLoading.value = true;
+    try {
+      await _authRepository.signup(role: _apiRole, user: _buildUserPayload());
+      try {
+        final pending = profileImageFile;
+        if (pending != null && pending.existsSync()) {
+          await GetStorage().write(
+            StorageKeys.pendingSignupPhotoPath,
+            pending.path,
+          );
+        }
+      } catch (_) {/* non-fatal */}
+      CustomSnackbar.showSuccess(
+        title: 'signup_account_created_title'.tr,
+        message: 'signup_account_created_message'.tr,
+      );
+      Get.off(
+        () => OtpVerificationScreen(
+          email: email,
+          verificationType: VerificationType.signup,
+          userType: userType,
+        ),
+      );
+    } on ApiException catch (error) {
+      CustomSnackbar.showError(
+        title: 'signup_failed_title'.tr,
+        message: error.message,
+      );
+    } catch (_) {
+      CustomSnackbar.showError(
+        title: 'signup_failed_title'.tr,
+        message: 'common_error_generic'.tr,
+      );
+    } finally {
+      isLoading.value = false;
     }
   }
 

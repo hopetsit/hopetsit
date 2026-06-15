@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/views/auth/sign_up_screen.dart';
+import 'package:hopetsit/views/auth/signup_wizard_screen.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -79,7 +79,7 @@ class SignUpAsScreen extends StatelessWidget {
                   subtitleKey: 'role_pet_owner_desc',
                   iconEmoji: '🏠',
                   accentColor: AppColors.primaryColor,
-                  onTap: () => Get.off(() => SignUpScreen(userType: 'pet_owner')),
+                  onTap: () => Get.off(() => SignupWizardScreen(userType: 'pet_owner')),
                 ),
                 SizedBox(height: 16.h),
                 _RoleCard(
@@ -88,7 +88,7 @@ class SignUpAsScreen extends StatelessWidget {
                   subtitleKey: 'role_pet_sitter_desc',
                   iconEmoji: '🛏️',
                   accentColor: AppColors.sitterAccent,
-                  onTap: () => Get.off(() => SignUpScreen(userType: 'pet_sitter')),
+                  onTap: () => Get.off(() => SignupWizardScreen(userType: 'pet_sitter')),
                 ),
                 SizedBox(height: 16.h),
                 _RoleCard(
@@ -97,7 +97,7 @@ class SignUpAsScreen extends StatelessWidget {
                   subtitleKey: 'role_pet_walker_desc',
                   iconEmoji: '🐕‍🦺',
                   accentColor: AppColors.greenColor,
-                  onTap: () => Get.off(() => SignUpScreen(userType: 'pet_walker')),
+                  onTap: () => Get.off(() => SignupWizardScreen(userType: 'pet_walker')),
                 ),
                 SizedBox(height: 24.h),
                 // v23.1 part 138 — lien vers login si l'utilisateur arrive
