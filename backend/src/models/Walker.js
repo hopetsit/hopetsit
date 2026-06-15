@@ -108,11 +108,15 @@ const walkerSchema = new mongoose.Schema(
     // Firebase Cloud Messaging registration tokens (one per device).
     fcmTokens: { type: [String], default: [] },
 
-    // Walker-specific: accepted pet sizes/types.
+    // Walker-specific: accepted pet types. v417 — Daniel : l'inscription
+    // promeneur PLANTAIT ("Validation failed on acceptedPetTypes.0") car le
+    // wizard envoie les clés de catégorie ('dog','cat','small','nac') alors que
+    // l'enum n'acceptait que des tailles ('dog_small'…). On retire l'enum
+    // (chaînes libres, comme Sitter) → l'inscription passe. Données existantes
+    // ('dog_small' etc.) restent valides.
     acceptedPetTypes: {
       type: [String],
-      enum: ['dog_small', 'dog_medium', 'dog_large', 'cat', 'other'],
-      default: ['dog_small', 'dog_medium', 'dog_large'],
+      default: ['dog'],
     },
     // Maximum number of pets per walk (group walks).
     maxPetsPerWalk: { type: Number, default: 1, min: 1, max: 10 },
