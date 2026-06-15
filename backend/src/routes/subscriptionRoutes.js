@@ -294,6 +294,33 @@ router.post('/subscribe', requireAuth, async (req, res) => {
       logger.warn(`[subscription] referral discount check failed: ${e.message}`);
     }
 
+    // v416 — réduction PawPoints (récompense échangée -10/-25/-50%). On
+    // consomme la 1re réduction en attente qui s'applique à CE plan, on réduit
+    // le montant et on marque la redemption "fulfilled" (1 seule fois).
+    let pawDiscountApplied = 0;
+    try {
+      const PawRewardRedemption = require('../models/PawRewardRedemption');
+      const pending = await PawRewardRedemption.find({
+        userId, rewardKey: { $regex: '^sub_disc_' }, status: 'pending',
+      }).sort({ createdAt: 1 });
+      const match = pending.find((r) => {
+        const plans = (r.snapshot && r.snapshot.plans) || [];
+        return Array.isArray(plans) && plans.includes(plan);
+      });
+      if (match) {
+        const pct = Number(match.snapshot.percent) || 0;
+        if (pct > 0) {
+          pricing.amount = Math.round(pricing.amount * (1 - pct / 100) * 100) / 100;
+          pawDiscountApplied = pct;
+          match.status = 'fulfilled';
+          await match.save();
+          logger.info(`[subscription] réduction PawPoints -${pct}% appliquée pour ${role} ${userId} → ${pricing.amount} ${pricing.currency}`);
+        }
+      }
+    } catch (e) {
+      logger.warn(`[subscription] pawpoints discount check failed: ${e.message}`);
+    }
+
     const amountCents = Math.round(pricing.amount * 100);
 
     // ─── v23.1 part 84 — pay-with-wallet (walker/sitter only)

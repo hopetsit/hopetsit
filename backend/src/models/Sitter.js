@@ -29,6 +29,8 @@ const sitterSchema = new mongoose.Schema(
     // v23.1.353 — PawSpot communautaire : PawPoints (+badges 🥉🥈🥇👑) et
     // récompenses premium (couleur badge, cadre doré, bannière).
     pawPoints: { type: Number, default: 0, index: true },
+    // v416 — points DÉPENSABLES (cf Owner.js + pawPointsService).
+    pawPointsSpendable: { type: Number, default: 0 },
     pawBadgeColor: { type: String, default: '' },
     pawGoldFrame: { type: Boolean, default: false },
     pawBannerUrl: { type: String, default: '' },

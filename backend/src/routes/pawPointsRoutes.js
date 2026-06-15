@@ -1,18 +1,14 @@
 /**
- * pawPointsRoutes — v414 (Daniel : "améliore la liste de points et de
- * récompenses", "que je vois le classement", "gérer les offres et récompenses
- * directement de l'admin sans rebuild", "visible sur le site web").
+ * pawPointsRoutes — v416 (refonte niveaux + récompenses, Daniel).
  *
- * Endpoints PUBLICS / utilisateur (la gestion admin des récompenses est dans
- * adminRoutes.js sous /admin/pawpoints/rewards) :
- *   GET  /pawpoints/catalog        → liste des récompenses actives (app + site).
- *                                     Pas d'auth : l'accueil/landing peut l'afficher.
- *   GET  /pawpoints/me             → mes points, badge, prochain badge, comment
- *                                     gagner des points (role-agnostic, auth).
- *   POST /pawpoints/redeem/:id     → échanger mes points contre une récompense.
+ *   GET  /pawpoints/catalog   → niveaux, barème, récompenses abonnement (fixes)
+ *                               + récompenses admin custom. PUBLIC.
+ *   GET  /pawpoints/me        → mon état (points à vie + dépensables + niveau +
+ *                               progression) + récompenses déjà réclamées. AUTH.
+ *   POST /pawpoints/redeem/:id → échange. id = sub_* (abonnement, auto-appliqué,
+ *                               1×/user) OU ObjectId (récompense admin custom).
  *
- * 100% ADDITIF — aucune route existante touchée. L'app LIT le catalogue depuis
- * le backend → on peut ajouter/retirer une récompense sans rebuild.
+ * 100% ADDITIF. L'app + le site LISENT le catalogue → modif admin sans rebuild.
  */
 
 const express = require('express');
@@ -24,6 +20,7 @@ const Owner = require('../models/Owner');
 const Sitter = require('../models/Sitter');
 const Walker = require('../models/Walker');
 const pawPoints = require('../services/pawPointsService');
+const { grantFreePeriod } = require('../services/subscriptionGrantService');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -34,9 +31,6 @@ const modelFor = (role) => {
   return r === 'walker' ? Walker : r === 'sitter' ? Sitter : Owner;
 };
 
-// Comment gagner des points (miroir de pawPointsService.POINTS, libellés FR).
-// Renvoyé tel quel : l'app/site affiche ce que le backend dit → pas de rebuild
-// si on change les montants côté service.
 const earnRules = () => ([
   { key: 'spotCreated', points: pawPoints.POINTS.spotCreated, label: 'Ajouter un PawSpot', icon: '📍' },
   { key: 'photoAdded', points: pawPoints.POINTS.photoAdded, label: 'Ajouter une photo', icon: '📷' },
@@ -46,29 +40,27 @@ const earnRules = () => ([
   { key: 'spotPopular', points: pawPoints.POINTS.spotPopular, label: 'Spot très populaire (50 likes)', icon: '⭐' },
 ]);
 
-const badgesList = () => pawPoints.BADGES.map((b) => ({ key: b.key, emoji: b.emoji, min: b.min }))
-  .sort((a, b) => a.min - b.min);
+// Niveaux exposés (avec index, label, seuil, couleur, emoji, bonus, perks).
+const levelsList = () => pawPoints.LEVELS.map((l) => ({
+  index: l.index, key: l.key, label: l.label, min: l.min,
+  emoji: l.emoji, color: l.color, bonusPct: l.bonusPct, perks: l.perks,
+}));
 
-// ─── GET /pawpoints/catalog — récompenses actives + barème + badges. PUBLIC.
+// ─── GET /catalog ───────────────────────────────────────────────────────────
 router.get('/catalog', async (req, res) => {
   try {
-    const rewards = await PawReward.find({ isActive: true })
-      .sort({ sortOrder: 1, cost: 1 })
-      .lean();
-    const list = rewards.map((r) => ({
-      id: String(r._id),
-      title: r.title,
-      description: r.description || '',
-      icon: r.icon || '🎁',
-      cost: r.cost || 0,
-      kind: r.kind || 'discount',
-      valueLabel: r.valueLabel || '',
-      soldOut: !!(r.stock && r.stock > 0 && (r.redeemedCount || 0) >= r.stock),
-    }));
+    const customRewards = await PawReward.find({ isActive: true })
+      .sort({ sortOrder: 1, cost: 1 }).lean();
     res.json({
-      rewards: list,
+      subscriptionRewards: pawPoints.SUBSCRIPTION_REWARDS,
+      rewards: customRewards.map((r) => ({
+        id: String(r._id), title: r.title, description: r.description || '',
+        icon: r.icon || '🎁', cost: r.cost || 0, kind: r.kind || 'discount',
+        valueLabel: r.valueLabel || '',
+        soldOut: !!(r.stock && r.stock > 0 && (r.redeemedCount || 0) >= r.stock),
+      })),
+      levels: levelsList(),
       earnRules: earnRules(),
-      badges: badgesList(),
       goldCreatorMin: pawPoints.GOLD_CREATOR_MIN,
     });
   } catch (e) {
@@ -77,19 +69,28 @@ router.get('/catalog', async (req, res) => {
   }
 });
 
-// ─── GET /pawpoints/me — mes points + badge (tous rôles).
+// ─── GET /me ─────────────────────────────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
   try {
     const role = req.user?.role || 'owner';
-    const points = await pawPoints.getPoints(req.user.id, role);
+    const st = await pawPoints.getPawState(req.user.id, role);
+    // Récompenses abonnement déjà réclamées (1×/user).
+    const claimed = await PawRewardRedemption.find({
+      userId: req.user.id, rewardKey: { $regex: '^sub_' },
+      status: { $ne: 'cancelled' },
+    }).select('rewardKey status').lean();
     res.json({
-      points,
-      badge: pawPoints.badgeFor(points),
-      nextBadge: pawPoints.nextBadgeFor(points),
-      isGoldCreator: pawPoints.isGoldCreator(points),
-      goldCreatorMin: pawPoints.GOLD_CREATOR_MIN,
+      points: st.lifetime,           // total à vie (= niveau)
+      lifetime: st.lifetime,
+      spendable: st.spendable,        // solde dépensable
+      level: st.level,
+      nextLevel: st.nextLevel,
+      bonusPct: st.bonusPct,
+      isGoldCreator: st.isGoldCreator,
+      goldCreatorMin: st.goldCreatorMin,
+      levels: levelsList(),
       earnRules: earnRules(),
-      badges: badgesList(),
+      claimedRewardKeys: claimed.map((c) => c.rewardKey),
     });
   } catch (e) {
     logger.error('[pawpoints/me]', e);
@@ -97,45 +98,100 @@ router.get('/me', requireAuth, async (req, res) => {
   }
 });
 
-// ─── POST /pawpoints/redeem/:id — échanger des points contre une récompense.
+// Débit atomique du solde dépensable (anti double-dépense).
+async function spendPoints(Model, userId, cost) {
+  // Backfill paresseux : si pawPointsSpendable absent, = pawPoints (à vie).
+  await Model.updateOne(
+    { _id: userId, pawPointsSpendable: { $exists: false } },
+    [{ $set: { pawPointsSpendable: { $ifNull: ['$pawPoints', 0] } } }],
+  ).catch(() => {});
+  const debited = await Model.findOneAndUpdate(
+    { _id: userId, pawPointsSpendable: { $gte: cost } },
+    { $inc: { pawPointsSpendable: -cost } },
+    { new: true },
+  ).select('pawPointsSpendable');
+  return debited ? Number(debited.pawPointsSpendable) : null;
+}
+
+// ─── POST /redeem/:id ─────────────────────────────────────────────────────────
 router.post('/redeem/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
+    const role = String(req.user?.role || 'owner').toLowerCase();
+    const userModel = ROLE_TO_MODEL_NAME[role] || 'Owner';
+    const Model = modelFor(role);
+
+    // ── Récompense ABONNEMENT (code-définie) ───────────────────────────────
+    const subReward = pawPoints.subscriptionRewardById(id);
+    if (subReward) {
+      // 1×/user.
+      const already = await PawRewardRedemption.findOne({
+        userId: req.user.id, rewardKey: subReward.id, status: { $ne: 'cancelled' },
+      }).lean();
+      if (already) {
+        return res.status(409).json({ error: 'Récompense déjà utilisée.', code: 'ALREADY_CLAIMED' });
+      }
+      const newBalance = await spendPoints(Model, req.user.id, subReward.cost);
+      if (newBalance === null) {
+        return res.status(400).json({ error: 'Pas assez de PawPoints.', code: 'INSUFFICIENT' });
+      }
+
+      let applied = 'pending';
+      try {
+        if (subReward.kind === 'free_month') {
+          // Choix de plan possible (200k : PawFollow ou PawSpot).
+          const chosen = typeof req.body?.plan === 'string' && req.body.plan
+            ? req.body.plan : subReward.plan;
+          await grantFreePeriod({ userId: req.user.id, role, plan: chosen, days: subReward.days });
+          applied = 'fulfilled';
+        }
+        // discount → reste 'pending', consommé au prochain /subscribe.
+      } catch (e) {
+        // Si l'octroi échoue, on rembourse les points dépensés.
+        logger.error('[pawpoints/redeem] grant failed, refunding', e);
+        await Model.updateOne({ _id: req.user.id }, { $inc: { pawPointsSpendable: subReward.cost } }).catch(() => {});
+        return res.status(500).json({ error: 'Échec de l\'application, points remboursés.' });
+      }
+
+      const me = await Model.findById(req.user.id).select('name email').lean();
+      const redemption = await PawRewardRedemption.create({
+        rewardKey: subReward.id,
+        title: subReward.kind === 'discount'
+          ? `-${subReward.percent}% ${subReward.target}`
+          : `${subReward.days >= 90 ? '3 mois' : '1 mois'} gratuit ${subReward.target}`,
+        cost: subReward.cost,
+        userId: req.user.id, userModel, role,
+        userName: me?.name || '', userEmail: me?.email || '',
+        status: applied,
+        snapshot: { ...subReward },
+      });
+      logger.info(`🎁 [pawpoints] redeem ${subReward.id} (-${subReward.cost}) → ${role}:${req.user.id} (${applied})`);
+      return res.json({
+        ok: true, newBalance, applied,
+        redemptionId: String(redemption._id),
+        reward: { id: subReward.id, kind: subReward.kind, cost: subReward.cost },
+      });
+    }
+
+    // ── Récompense ADMIN custom (ObjectId) ──────────────────────────────────
     if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ error: 'Récompense invalide.' });
+      return res.status(404).json({ error: 'Récompense indisponible.' });
     }
     const reward = await PawReward.findById(id);
     if (!reward || !reward.isRedeemable()) {
       return res.status(404).json({ error: 'Récompense indisponible.' });
     }
-    const role = req.user?.role || 'owner';
-    const Model = modelFor(role);
-    const me = await Model.findById(req.user.id).select('name email pawPoints');
-    if (!me) return res.status(404).json({ error: 'Utilisateur introuvable.' });
-    const have = Number(me.pawPoints) || 0;
-    if (have < reward.cost) {
-      return res.status(400).json({ error: 'Pas assez de PawPoints.', need: reward.cost, have });
-    }
-    // Débit atomique conditionné au solde (anti double-dépense en concurrence).
-    const debited = await Model.findOneAndUpdate(
-      { _id: req.user.id, pawPoints: { $gte: reward.cost } },
-      { $inc: { pawPoints: -reward.cost } },
-      { new: true },
-    ).select('pawPoints');
-    if (!debited) {
-      return res.status(400).json({ error: 'Pas assez de PawPoints.' });
+    const newBalance = await spendPoints(Model, req.user.id, reward.cost);
+    if (newBalance === null) {
+      return res.status(400).json({ error: 'Pas assez de PawPoints.', code: 'INSUFFICIENT' });
     }
     reward.redeemedCount = (reward.redeemedCount || 0) + 1;
     await reward.save();
+    const me = await Model.findById(req.user.id).select('name email').lean();
     const redemption = await PawRewardRedemption.create({
-      rewardId: reward._id,
-      title: reward.title,
-      cost: reward.cost,
-      userId: req.user.id,
-      userModel: ROLE_TO_MODEL_NAME[String(role).toLowerCase()] || 'Owner',
-      role,
-      userName: me.name || '',
-      userEmail: me.email || '',
+      rewardId: reward._id, title: reward.title, cost: reward.cost,
+      userId: req.user.id, userModel, role,
+      userName: me?.name || '', userEmail: me?.email || '',
       status: 'pending',
       snapshot: {
         kind: reward.kind, plan: reward.plan, intervalDays: reward.intervalDays,
@@ -143,9 +199,8 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
       },
     });
     logger.info(`🎁 [pawpoints] redeem "${reward.title}" (-${reward.cost}) → ${role}:${req.user.id}`);
-    res.json({
-      ok: true,
-      newBalance: debited.pawPoints,
+    return res.json({
+      ok: true, newBalance, applied: 'pending',
       redemptionId: String(redemption._id),
       reward: { id: String(reward._id), title: reward.title, cost: reward.cost },
     });

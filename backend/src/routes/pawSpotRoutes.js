@@ -688,6 +688,31 @@ router.post('/subscribe', requireAuth, async (req, res) => {
 
     const userId = req.user.id;
     const role = req.user.role;
+
+    // v416 — réduction PawPoints applicable à PawSpot (sentinelle 'pawspot'
+    // dans snapshot.plans). Consomme la 1re réduction en attente, 1×/user.
+    try {
+      const PawRewardRedemption = require('../models/PawRewardRedemption');
+      const pending = await PawRewardRedemption.find({
+        userId, rewardKey: { $regex: '^sub_disc_' }, status: 'pending',
+      }).sort({ createdAt: 1 });
+      const match = pending.find((r) => {
+        const plans = (r.snapshot && r.snapshot.plans) || [];
+        return Array.isArray(plans) && plans.includes('pawspot');
+      });
+      if (match) {
+        const pct = Number(match.snapshot.percent) || 0;
+        if (pct > 0) {
+          pricing.amount = Math.round(pricing.amount * (1 - pct / 100) * 100) / 100;
+          match.status = 'fulfilled';
+          await match.save();
+          logger.info(`[pawspots] réduction PawPoints -${pct}% appliquée pour ${role} ${userId} → ${pricing.amount}`);
+        }
+      }
+    } catch (e) {
+      logger.warn(`[pawspots] pawpoints discount check failed: ${e.message}`);
+    }
+
     const amountCents = Math.round(pricing.amount * 100);
 
     // Staff = gratuit (aligné boost / subscriptions / map-boost / chat).

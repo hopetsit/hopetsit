@@ -5,9 +5,14 @@ const mongoose = require('mongoose');
 // ADDITIF.
 const pawRewardRedemptionSchema = new mongoose.Schema(
   {
+    // v414 : récompense admin custom (ObjectId). v416 : pour les récompenses
+    // "abonnement" code-définies (sub_*), rewardId est absent et rewardKey
+    // porte la clé (sub_disc_10, sub_free_pp_3m…) → contrôle 1 fois/user +
+    // consommation de la réduction au prochain achat.
     rewardId: {
-      type: mongoose.Schema.Types.ObjectId, ref: 'PawReward', required: true, index: true,
+      type: mongoose.Schema.Types.ObjectId, ref: 'PawReward', index: true,
     },
+    rewardKey: { type: String, default: '', index: true },
     title: { type: String, default: '' },
     cost: { type: Number, default: 0 },
     userId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },

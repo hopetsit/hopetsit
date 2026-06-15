@@ -28,6 +28,10 @@ const ownerSchema = new mongoose.Schema(
     // v23.1.353 — PawSpot communautaire : PawPoints (+badges 🥉🥈🥇👑) et
     // récompenses premium (couleur badge, cadre doré, bannière).
     pawPoints: { type: Number, default: 0, index: true },
+    // v416 — points DÉPENSABLES (échangés contre récompenses). pawPoints reste
+    // le total À VIE (= niveau, ne baisse jamais). Backfill paresseux côté
+    // pawPointsService.getPawState pour les comptes antérieurs.
+    pawPointsSpendable: { type: Number, default: 0 },
     pawBadgeColor: { type: String, default: '' },
     pawGoldFrame: { type: Boolean, default: false },
     pawBannerUrl: { type: String, default: '' },
