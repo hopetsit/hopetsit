@@ -1584,20 +1584,50 @@ export type PawReward = {
 };
 export type PawEarnRule = { key: string; points: number; label: string; icon: string };
 export type PawBadge = { key: string; emoji: string; min: number };
+// v416 — niveau (palier de points à vie) + avantages.
+export type PawLevel = {
+  index: number;
+  key: string;
+  label: string;
+  min: number;
+  emoji: string;
+  color: string;
+  bonusPct: number;
+  perks: string[];
+};
+// v416 — récompense abonnement (réduction / mois gratuit), auto-appliquée.
+export type PawSubReward = {
+  id: string;
+  tier: number;
+  cost: number;
+  kind: "discount" | "free_month";
+  percent?: number;
+  days?: number;
+  target: string;
+  plan?: string;
+  plans?: string[];
+};
 export type PawCatalog = {
+  subscriptionRewards: PawSubReward[];
   rewards: PawReward[];
+  levels: PawLevel[];
   earnRules: PawEarnRule[];
-  badges: PawBadge[];
   goldCreatorMin: number;
 };
 export type MyPawPoints = {
-  points: number;
-  badge: PawBadge | null;
-  nextBadge: PawBadge | null;
+  points: number;      // total à vie (= niveau)
+  lifetime: number;
+  spendable: number;   // solde dépensable
+  contributions: number;
+  spotsLiked: number;
+  level: PawLevel | null;
+  nextLevel: PawLevel | null;
+  bonusPct: number;
   isGoldCreator: boolean;
   goldCreatorMin: number;
+  levels: PawLevel[];
   earnRules: PawEarnRule[];
-  badges: PawBadge[];
+  claimedRewardKeys: string[];
 };
 
 // Public : pas besoin d'être connecté pour voir le catalogue.
@@ -1610,11 +1640,15 @@ export async function getMyPawPoints(): Promise<MyPawPoints> {
   return await request<MyPawPoints>("/pawpoints/me");
 }
 
-// Échanger des points contre une récompense.
+// Échanger des points contre une récompense (id = sub_* ou ObjectId admin).
 export async function redeemPawReward(
   rewardId: string,
-): Promise<{ ok: boolean; newBalance: number; redemptionId: string }> {
-  return await request(`/pawpoints/redeem/${rewardId}`, { method: "POST" });
+  plan?: string,
+): Promise<{ ok: boolean; newBalance: number; applied?: string; redemptionId: string }> {
+  return await request(`/pawpoints/redeem/${rewardId}`, {
+    method: "POST",
+    body: JSON.stringify(plan ? { plan } : {}),
+  });
 }
 
 export async function subscribeToPlan(

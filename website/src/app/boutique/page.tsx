@@ -262,6 +262,22 @@ export default function BoutiquePage() {
       {/* v23.1.390 — chips « jours restants » comme dans l'app (Daniel). */}
       <BenefitsChips status={subStatus} boost={boostStatus} />
 
+      {/* v416 — Daniel : "rajoute ça dans la boutique dans mes PawPoints".
+          Bandeau vers la page PawPoints (niveaux + récompenses échangeables). */}
+      <Link
+        href="/pawpoints"
+        className="mt-5 flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white p-4 shadow-card transition hover:brightness-[1.02]"
+      >
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-2xl">🐾</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-extrabold text-amber-700">Mes PawPoints &amp; récompenses</span>
+          <span className="block text-xs text-ink-muted">
+            Échange tes points contre des réductions (-10 / -25 / -50 %) ou des mois gratuits d'abonnement.
+          </span>
+        </span>
+        <span className="shrink-0 text-amber-600">→</span>
+      </Link>
+
       {/* Tabs sections — ordre Daniel : PawBoost · PawFollow · PawSpot · Premium */}
       <div className="mt-6 inline-flex flex-wrap gap-2 rounded-full bg-ink/5 p-1">
         {isProvider && (

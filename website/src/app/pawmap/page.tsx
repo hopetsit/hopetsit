@@ -319,6 +319,38 @@ export default function PawMapPage() {
         <p className="mx-auto mt-4 max-w-2xl rounded-2xl border border-walker/20 bg-walker-light/40 px-5 py-3 text-center text-sm font-semibold text-walker-dark">
           {t("premium_signals_note")}
         </p>
+
+        {/* v416 — Daniel : "rajoute toute l'explication PawPoints là où tu
+            présentes PawSpot". Encart PawPoints : gains, niveaux, récompenses. */}
+        <div className="mx-auto mt-14 max-w-3xl rounded-3xl border-2 border-amber-300 bg-gradient-to-b from-amber-50 to-white p-8 text-center shadow-card">
+          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-3xl">🐾</div>
+          <h3 className="font-display text-2xl font-extrabold text-amber-700">PawPoints</h3>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-ink-muted">
+            Chaque PawSpot ajouté, chaque photo, chaque signalement confirmé te rapporte des{" "}
+            <strong>PawPoints</strong>. Tu montes parmi 7 niveaux (d'Explorateur à 👑 Paw Legend),
+            tu débloques des badges et des bonus, et tu <strong>échanges tes points</strong> contre des
+            réductions ou des mois gratuits d'abonnement.
+          </p>
+          <div className="mx-auto mt-5 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4 text-left">
+            {[
+              { e: "📍", t: "+10 PawSpot" },
+              { e: "📷", t: "+5 photo" },
+              { e: "✅", t: "+10 validé" },
+              { e: "⭐", t: "+25 populaire" },
+            ].map((x) => (
+              <div key={x.t} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-ink shadow-sm">
+                <span className="mr-1">{x.e}</span>
+                {x.t}
+              </div>
+            ))}
+          </div>
+          <Link
+            href="/pawpoints"
+            className="mt-6 inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-bold text-white hover:brightness-110"
+          >
+            Voir mes PawPoints &amp; récompenses →
+          </Link>
+        </div>
       </div>
 
       <div className="mt-16 text-center">

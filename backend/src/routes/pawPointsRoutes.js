@@ -74,6 +74,16 @@ router.get('/me', requireAuth, async (req, res) => {
   try {
     const role = req.user?.role || 'owner';
     const st = await pawPoints.getPawState(req.user.id, role);
+    // v416 — stats contributions (design : "Tes contributions" + "Spots aimés").
+    let contributions = 0;
+    let spotsLiked = 0;
+    try {
+      const MapReport = require('../models/MapReport');
+      const PawSpot = require('../models/PawSpot');
+      contributions = await MapReport.countDocuments({ reporterId: req.user.id });
+      const spots = await PawSpot.find({ creatorId: req.user.id }).select('likesCount').lean();
+      spotsLiked = spots.reduce((s, x) => s + (Number(x.likesCount) || 0), 0);
+    } catch (_) { /* best-effort */ }
     // Récompenses abonnement déjà réclamées (1×/user).
     const claimed = await PawRewardRedemption.find({
       userId: req.user.id, rewardKey: { $regex: '^sub_' },
@@ -83,6 +93,8 @@ router.get('/me', requireAuth, async (req, res) => {
       points: st.lifetime,           // total à vie (= niveau)
       lifetime: st.lifetime,
       spendable: st.spendable,        // solde dépensable
+      contributions,                  // nb de signalements créés
+      spotsLiked,                     // total de likes sur mes PawSpots
       level: st.level,
       nextLevel: st.nextLevel,
       bonusPct: st.bonusPct,
