@@ -87,6 +87,22 @@ const markAllRead = async ({ recipientRole, recipientId }) => {
   return result.modifiedCount || 0;
 };
 
+// v409 — Daniel : "effacer notification" (app + web). Suppression scoping
+// strict au destinataire pour qu'on ne puisse jamais effacer celle d'autrui.
+const deleteNotification = async ({ recipientRole, recipientId, notificationId }) => {
+  const result = await Notification.deleteOne({
+    _id: notificationId,
+    recipientRole,
+    recipientId,
+  });
+  return result.deletedCount || 0;
+};
+
+const clearNotifications = async ({ recipientRole, recipientId }) => {
+  const result = await Notification.deleteMany({ recipientRole, recipientId });
+  return result.deletedCount || 0;
+};
+
 module.exports = {
   createNotification,
   createNotificationSafe,
@@ -94,5 +110,7 @@ module.exports = {
   getUnreadCount,
   markNotificationRead,
   markAllRead,
+  deleteNotification,
+  clearNotifications,
 };
 

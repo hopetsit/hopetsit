@@ -4,6 +4,8 @@ const {
   getUnreadCount,
   markNotificationRead,
   markAllRead,
+  deleteNotification,
+  clearNotifications,
 } = require('../services/notificationService');
 
 const mapNotification = (n) => ({
@@ -124,10 +126,57 @@ const markMyNotificationsReadAll = async (req, res) => {
   }
 };
 
+// v409 — Daniel : "effacer notification" (web + app).
+const deleteMyNotification = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    const { id } = req.params;
+    if (!userId || !role) {
+      return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
+    }
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+    const deleted = await deleteNotification({
+      recipientRole: role,
+      recipientId: userId,
+      notificationId: id,
+    });
+    if (!deleted) {
+      return res.status(404).json({ error: 'Notification not found.' });
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Delete notification error', error);
+    res.status(500).json({ error: 'Unable to delete notification. Please try again later.' });
+  }
+};
+
+const clearMyNotifications = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    if (!userId || !role) {
+      return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
+    }
+    if (!['owner', 'sitter', 'walker'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role. Expected "owner", "sitter" or "walker".' });
+    }
+    const deletedCount = await clearNotifications({ recipientRole: role, recipientId: userId });
+    res.json({ deletedCount });
+  } catch (error) {
+    logger.error('Clear notifications error', error);
+    res.status(500).json({ error: 'Unable to clear notifications. Please try again later.' });
+  }
+};
+
 module.exports = {
   getMyNotifications,
   getMyUnreadCount,
   markMyNotificationRead,
   markMyNotificationsReadAll,
+  deleteMyNotification,
+  clearMyNotifications,
 };
 

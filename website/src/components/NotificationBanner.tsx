@@ -6,6 +6,8 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useSocketEvent } from "@/lib/useSocket";
 import {
   AppNotification,
+  clearAllNotifications,
+  deleteNotification,
   getMyNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -133,6 +135,26 @@ export default function NotificationBanner() {
     }
   }
 
+  // v409 — effacer une notif (× sur l'item).
+  async function onDelete(id: string) {
+    setItems((prev) => prev.filter((x) => x.id !== id));
+    try {
+      await deleteNotification(id);
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  // v409 — tout effacer.
+  async function onClearAll() {
+    setItems([]);
+    try {
+      await clearAllNotifications();
+    } catch {
+      /* best-effort */
+    }
+  }
+
   // N'affiche rien tant que pas chargé OU si zéro notif (pas de bandeau vide
   // inutile sous le titre).
   if (!loaded || items.length === 0) return null;
@@ -149,15 +171,24 @@ export default function NotificationBanner() {
             </span>
           )}
         </h2>
-        {unread.length > 0 && (
+        <div className="flex items-center gap-3">
+          {unread.length > 0 && (
+            <button
+              type="button"
+              onClick={onMarkAll}
+              className="text-xs font-semibold text-owner hover:underline"
+            >
+              {t("notif_mark_all_read")}
+            </button>
+          )}
           <button
             type="button"
-            onClick={onMarkAll}
-            className="text-xs font-semibold text-owner hover:underline"
+            onClick={onClearAll}
+            className="text-xs font-semibold text-ink-muted hover:underline"
           >
-            {t("notif_mark_all_read")}
+            {t("notif_clear_all")}
           </button>
-        )}
+        </div>
       </div>
 
       <ul
@@ -166,11 +197,11 @@ export default function NotificationBanner() {
         }`}
       >
         {(expanded ? items : items.slice(0, COLLAPSED)).map((n) => (
-          <li key={n.id}>
+          <li key={n.id} className="relative">
             <button
               type="button"
               onClick={() => onItemClick(n)}
-              className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:bg-bg-soft ${
+              className={`flex w-full items-start gap-3 rounded-xl border py-2.5 pl-3 pr-9 text-left transition hover:bg-bg-soft ${
                 n.readAt
                   ? "border-transparent bg-bg-soft/40"
                   : "border-owner/20 bg-owner-light/30"
@@ -193,6 +224,17 @@ export default function NotificationBanner() {
                   {new Date(n.createdAt).toLocaleString()}
                 </span>
               </span>
+            </button>
+            <button
+              type="button"
+              aria-label={t("notif_clear_all")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(n.id);
+              }}
+              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-ink-muted transition hover:bg-ink/10 hover:text-ink"
+            >
+              ✕
             </button>
           </li>
         ))}

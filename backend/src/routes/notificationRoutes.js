@@ -6,6 +6,8 @@ const {
   getMyUnreadCount,
   markMyNotificationRead,
   markMyNotificationsReadAll,
+  deleteMyNotification,
+  clearMyNotifications,
 } = require('../controllers/notificationController');
 const { sendNotification } = require('../services/notificationSender');
 const logger = require('../utils/logger');
@@ -174,6 +176,11 @@ router.patch('/my/:id/read', requireAuth, markMyNotificationRead);
  *         description: Unauthorized
  */
 router.patch('/my/read-all', requireAuth, markMyNotificationsReadAll);
+
+// v409 — Daniel : "effacer notification". Suppression d'une notif ou de toutes
+// (scoping strict au destinataire côté service).
+router.delete('/my/clear', requireAuth, clearMyNotifications);
+router.delete('/my/:id', requireAuth, deleteMyNotification);
 
 module.exports = router;
 

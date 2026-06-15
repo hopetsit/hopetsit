@@ -282,6 +282,14 @@ export async function markAllNotificationsRead(): Promise<void> {
   await request(`/notifications/my/read-all`, { method: "PATCH" });
 }
 
+export async function deleteNotification(id: string): Promise<void> {
+  await request(`/notifications/my/${id}`, { method: "DELETE" });
+}
+
+export async function clearAllNotifications(): Promise<void> {
+  await request(`/notifications/my/clear`, { method: "DELETE" });
+}
+
 /**
  * Ouvre l'app mobile HoPetSit en transférant la session web (auto-login).
  *
