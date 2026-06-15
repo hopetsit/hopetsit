@@ -45,7 +45,7 @@ f.append(Paragraph("git pull origin main", C))
 f.append(Paragraph("cd frontend && flutter clean && flutter pub get", C))
 f.append(Paragraph("cd ios && pod install --repo-update", C))
 f.append(Paragraph("Ouvrir Runner.xcworkspace dans Xcode -> Product -> Archive -> Distribute (TestFlight / App Store).", C))
-f.append(Paragraph("Version : 23.1.417 (build 416). Pense a incrementer le build number dans Xcode si TestFlight refuse un doublon.", P))
+f.append(Paragraph("Version : 23.1.417 (build 417). Pense a incrementer le build number dans Xcode si TestFlight refuse un doublon.", P))
 
 f.append(Spacer(1, 0.2*cm))
 f.append(Paragraph("6. Android (pour memoire)", H2))
