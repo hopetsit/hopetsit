@@ -2798,6 +2798,12 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'pawmap_quick_alerts_sub': 'Reportes',
     // v23.1 part 243 — etiquetas curtas de 1 palavra por botão.
     'pawmap_quick_family': 'O meu círculo',
+      'pawmap_quick_circle_sub': 'Ver membros',
+      'pawmap_quick_live': 'Ao vivo',
+      'pawmap_quick_live_sub': 'Ver amigos',
+      'pawmap_quick_my_reports': 'Os meus alertas',
+      'pawmap_quick_my_reports_sub': 'Histórico',
+      'pawmap_live_share_off': 'Partilhar a minha posição',
     'pawmap_quick_family_sub': 'Adicionar',
     'pawmap_quick_follow': 'Seguir-me',
     'family_member_pending': 'Pendente',

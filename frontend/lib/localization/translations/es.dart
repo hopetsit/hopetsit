@@ -2924,6 +2924,12 @@ const Map<String, String> esESTranslations = <String, String>{
     'pawmap_quick_alerts_sub': 'Reportes',
     // v23.1 part 243 — etiquetas cortas de 1 palabra por botón.
     'pawmap_quick_family': 'Mi círculo',
+      'pawmap_quick_circle_sub': 'Ver miembros',
+      'pawmap_quick_live': 'En directo',
+      'pawmap_quick_live_sub': 'Ver amigos',
+      'pawmap_quick_my_reports': 'Mis reportes',
+      'pawmap_quick_my_reports_sub': 'Historial',
+      'pawmap_live_share_off': 'Compartir mi posición',
     'pawmap_quick_family_sub': 'Añadir',
     'pawmap_quick_follow': 'Seguirme',
     'family_member_pending': 'Pendiente',

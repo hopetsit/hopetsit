@@ -27,7 +27,6 @@ import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
 import 'package:hopetsit/views/map/report_category_grid_screen.dart';
-import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -3017,217 +3016,160 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// map. Remplace les anciens _buildQuickSignalRow + _buildEmergencyRow
   /// qui faisaient doublon avec le FAB et chargeaient l'ecran.
   Widget _buildQuickActionsRow() {
-    return Container(
-      padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 6.h),
-      // v23.1.191 — Daniel : "les gros icone doive etre toute lissible
-      // et de la meme taille". IntrinsicHeight force les 4 Expanded a
-      // adopter la hauteur de la plus grande card (Famille & Amis qui
-      // wrap sur 2 lignes) → toutes les cards identiques.
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-          // v23.1 part 243 — Daniel : "met juste un titre par bouton cour
-          // quon comprene et que ce sois traducible ds tte les langue".
-          // Sublabels supprimes, labels raccourcis a 1 mot par bouton.
-          //
-          // 1. Suivre — toggle broadcast (= je partage ma position aux
-          // amis qui peuvent me suivre). Etat actif → vert + icon plein.
-          Expanded(
-            child: Obx(() {
-              final on = _liveMap.broadcasting.value;
-              return _quickActionCard(
-                icon: on
-                    ? Icons.gps_fixed_rounded
-                    : Icons.location_searching_rounded,
-                // v23.1 part 243 — un seul label qui change selon l'etat.
-                label: on
-                    ? 'pawmap_quick_follow_on'.tr
-                    : 'pawmap_quick_follow'.tr,
-                color: on
-                    ? const Color(0xFF16A34A)
-                    : const Color(0xFFEF4324),
-                onTap: _toggleBroadcast,
-                // v23.1.273 — "Me suivre" sur une seule ligne.
-                maxLines: 1,
-              );
-            }),
+    // v418 — refonte maquette Daniel : grille 2×2 de cartes larges (icône
+    // ronde colorée + titre + sous-titre + chevron). Mon cercle (violet) /
+    // Alertes (orange) / En direct (vert) / Mes signalements (rouge).
+    // Le toggle « Suivre » est désormais la bannière verte « Tu es en direct ».
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 4.h),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Obx(() {
+                  final pending = _friendController.incomingRequests.length;
+                  return _gridActionCard(
+                    icon: Icons.group_rounded,
+                    title: 'pawmap_quick_family'.tr,
+                    subtitle: 'pawmap_quick_circle_sub'.tr,
+                    color: const Color(0xFF8B5CF6),
+                    badgeCount: pending,
+                    onTap: () => Get.to(() => const FriendsScreen()),
+                  );
+                }),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: _gridActionCard(
+                  icon: Icons.notifications_rounded,
+                  title: 'pawmap_quick_alerts'.tr,
+                  subtitle: 'pawmap_quick_alerts_sub'.tr,
+                  color: const Color(0xFFF59E0B),
+                  onTap: () => Get.to(() => const AlertsScreen()),
+                ),
+              ),
+            ],
           ),
-          SizedBox(width: 8.w),
-          // 2. Famille & Amis — ouvre FriendsScreen.
-          // v23.1.255 — badge avec le nombre de demandes d'amis en attente
-          // (FriendController.incomingRequests). Obx → se met à jour en
-          // temps réel quand une demande arrive (socket friend_request:received).
-          Expanded(
-            child: Obx(() {
-              final pending = _friendController.incomingRequests.length;
-              return _quickActionCard(
-                icon: Icons.people_alt_rounded,
-                label: 'pawmap_quick_family'.tr,
-                color: const Color(0xFF8B5CF6),
-                badgeCount: pending,
-                onTap: () => Get.to(() => const FriendsScreen()),
-              );
-            }),
-          ),
-          SizedBox(width: 8.w),
-          // 3. Personnes live position — screen autonome PeopleLiveScreen.
-          Expanded(
-            child: _quickActionCard(
-              icon: Icons.gps_fixed_rounded,
-              label: 'pawmap_quick_people_live'.tr,
-              color: const Color(0xFF10B981),
-              onTap: () => Get.to(() => const PeopleLiveScreen()),
-            ),
-          ),
-          SizedBox(width: 8.w),
-          // 4. Alertes — ouvre l'ecran AlertsScreen dedie.
-          Expanded(
-            child: _quickActionCard(
-              icon: Icons.notifications_active_rounded,
-              label: 'pawmap_quick_alerts'.tr,
-              color: const Color(0xFFF59E0B),
-              onTap: () => Get.to(() => const AlertsScreen()),
-            ),
-          ),
-          SizedBox(width: 8.w),
-          // 5. Signaler — ouvre la grille 2x3 ReportCategoryGridScreen.
-          Expanded(
-            child: _quickActionCard(
-              icon: Icons.add_circle_rounded,
-              label: 'pawmap_quick_report'.tr,
-              color: const Color(0xFFDC2626),
-              onTap: () async {
-                final created = await Get.to(
-                  () => const ReportCategoryGridScreen(),
-                );
-                if (created == true) await _reloadAtCenter();
-              },
-            ),
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              Expanded(
+                child: _gridActionCard(
+                  icon: Icons.my_location_rounded,
+                  title: 'pawmap_quick_live'.tr,
+                  subtitle: 'pawmap_quick_live_sub'.tr,
+                  color: const Color(0xFF16A34A),
+                  onTap: () => Get.to(() => const PeopleLiveScreen()),
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: _gridActionCard(
+                  icon: Icons.verified_user_rounded,
+                  title: 'pawmap_quick_my_reports'.tr,
+                  subtitle: 'pawmap_quick_my_reports_sub'.tr,
+                  color: const Color(0xFFDC2626),
+                  onTap: () => Get.to(() => const AlertsScreen()),
+                ),
+              ),
+            ],
           ),
         ],
-      ),
       ),
     );
   }
 
-  /// Carte unique du header — gros bloc carré arrondi avec icône blanche
-  /// sur cercle coloré + label en gras.
-  /// v23.1 part 243 — Daniel : "met juste un titre par bouton cour quon
-  /// comprene et que ce sois traducible ds tte les langue". On supprime
-  /// le sublabel (deuxieme ligne grisee en dessous) qui faisait double
-  /// emploi avec le label principal et compliquait les traductions.
-  Widget _quickActionCard({
+  /// v418 — carte large 2×2 (maquette PawMap) : pastille ronde colorée +
+  /// titre + sous-titre + chevron, sur fond blanc arrondi.
+  Widget _gridActionCard({
     required IconData icon,
-    required String label,
+    required String title,
+    required String subtitle,
     required Color color,
     required VoidCallback onTap,
-    // v23.1.255 — Daniel : "badge 1 sur le quick bouton" pour les demandes
-    // d'amis en attente. >0 → pastille rouge en coin haut-droit.
     int badgeCount = 0,
-    // v23.1.273 — Daniel : "Me suivre sur une ligne". maxLines=1 + FittedBox
-    // scaleDown → le label reste sur 1 ligne et la police se réduit au besoin.
-    int maxLines = 2,
   }) {
-    final card = Material(
-      color: Colors.transparent,
+    return Material(
+      color: AppColors.card(context),
+      borderRadius: BorderRadius.circular(16.r),
+      elevation: 0,
       child: InkWell(
         borderRadius: BorderRadius.circular(16.r),
         onTap: onTap,
         child: Container(
-          // v23.1 part 248 — Daniel : "les bouton quick action peux etre
-          // reduit encore la police des titre pour que tt sois aligner et
-          // lissible dand tte les langue". Padding horizontal reduit
-          // (6 -> 4) pour donner plus de place au texte ; vertical
-          // legerement reduit (12 -> 10) pour cards plus compactes.
-          padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 4.w),
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(
-              color: color.withValues(alpha: 0.25),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.10),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: AppColors.greyText.withValues(alpha: 0.12)),
           ),
-          child: Column(
-            // v23.1.191 — IntrinsicHeight parent uniformise les hauteurs ;
-            // on centre verticalement le contenu pour que toutes les
-            // cards aient leur icone + label aligne meme si elles
-            // n'ont pas le meme nombre de lignes de label.
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Row(
             children: [
-              // v23.1 part 248 — cercle icone 38 -> 34 + icon 20 -> 18
-              // pour laisser plus de place au label en langues longues
-              // (allemand "Warnungen", italien "Avvisi").
-              Container(
-                width: 34.w,
-                height: 34.w,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.45),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 38.w,
+                    height: 38.w,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 20.sp),
+                  ),
+                  if (badgeCount > 0)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                        padding: EdgeInsets.all(4.w),
+                        constraints: BoxConstraints(minWidth: 16.w, minHeight: 16.w),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFDC2626),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: InterText(
+                            text: '$badgeCount',
+                            fontSize: 9.sp,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InterText(
+                      text: title,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    InterText(
+                      text: subtitle,
+                      fontSize: 10.sp,
+                      color: AppColors.greyText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-                child: Icon(icon, color: Colors.white, size: 18.sp),
               ),
-              SizedBox(height: 5.h),
-              // v248 — police 12 -> 10.5 (compromis lisibilite / parite
-              // visuelle entre les 5 langues). minFontSize via FittedBox
-              // pour eviter le wrap quand la traduction depasse de 1-2 px.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: InterText(
-                  text: label,
-                  fontSize: 10.5.sp,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                  maxLines: maxLines,
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: AppColors.greyText, size: 18.sp),
             ],
           ),
         ),
       ),
-    );
-    if (badgeCount <= 0) return card;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        card,
-        Positioned(
-          top: -5,
-          right: -3,
-          child: Container(
-            width: 18.w,
-            height: 18.w,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4324),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 1.5),
-            ),
-            child: InterText(
-              text: badgeCount > 9 ? '9+' : '$badgeCount',
-              fontSize: 9.5.sp,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -3608,41 +3550,54 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// en gras a droite, ombre douce + halo coloré soft.
   /// pour que le user comprenne qu'il est visible par ses amis.
   Widget _buildLiveBroadcastBanner() {
+    // v418 — maquette Daniel : bannière verte TOUJOURS visible avec interrupteur
+    // ON/OFF (« Tu es en direct / Tes amis & ta famille voient ta position »).
+    // C'est LE contrôle du partage en direct (l'ancienne carte « Suivre » est
+    // remplacée par cette bannière). OFF → gris, ON → vert.
     return Obx(() {
-      if (!_liveMap.broadcasting.value) return const SizedBox.shrink();
+      final on = _liveMap.broadcasting.value;
       return Container(
         margin: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF16A34A), Color(0xFF059669)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(14.r),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF16A34A).withValues(alpha: 0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          gradient: on
+              ? const LinearGradient(
+                  colors: [Color(0xFF16A34A), Color(0xFF059669)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                )
+              : null,
+          color: on ? null : AppColors.card(context),
+          borderRadius: BorderRadius.circular(16.r),
+          border: on
+              ? null
+              : Border.all(color: AppColors.greyText.withValues(alpha: 0.18)),
+          boxShadow: on
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
-            // Pulsing live dot
             Container(
               width: 10.w,
               height: 10.w,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: on ? Colors.white : AppColors.greyText,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    blurRadius: 6,
-                  ),
-                ],
+                boxShadow: on
+                    ? [
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          blurRadius: 6,
+                        ),
+                      ]
+                    : null,
               ),
             ),
             SizedBox(width: 10.w),
@@ -3651,36 +3606,33 @@ class _PawMapScreenState extends State<PawMapScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   InterText(
-                    text: 'pawmap_live_banner_title'.tr,
-                    fontSize: 13.sp,
+                    text: on
+                        ? 'pawmap_live_banner_title'.tr
+                        : 'pawmap_live_share_off'.tr,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: on ? Colors.white : AppColors.textPrimary(context),
                   ),
                   SizedBox(height: 1.h),
                   InterText(
                     text: 'pawmap_live_banner_msg'.tr,
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.95),
+                    color: on
+                        ? Colors.white.withValues(alpha: 0.95)
+                        : AppColors.greyText,
                   ),
                 ],
               ),
             ),
-            GestureDetector(
-              onTap: _toggleBroadcast,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(14.r),
-                ),
-                child: InterText(
-                  text: 'pawmap_btn_stop'.tr,
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
+            // Interrupteur ON/OFF (maquette : toggle blanc sur vert).
+            Switch(
+              value: on,
+              onChanged: (_) => _toggleBroadcast(),
+              activeThumbColor: const Color(0xFF16A34A),
+              activeTrackColor: Colors.white,
+              inactiveThumbColor: Colors.white,
+              inactiveTrackColor: AppColors.greyText.withValues(alpha: 0.4),
             ),
           ],
         ),
@@ -3695,11 +3647,10 @@ class _PawMapScreenState extends State<PawMapScreen>
     // (icône seule) avec mini label dessous pour rester clair, plus petit que
     // l'ancien FAB étendu.
     Future<void> onTap() async {
-      final created = await CreateReportSheet.show(
-        context,
-        initialPoint: _currentCenter,
-      );
-      if (created) await _reloadAtCenter();
+      // v418 — le bouton Signaler ouvre la grille des catégories (gratuit +
+      // premium), comme le flux « Signaler » de la maquette.
+      final created = await Get.to(() => const ReportCategoryGridScreen());
+      if (created == true) await _reloadAtCenter();
     }
 
     return Column(
@@ -3710,11 +3661,12 @@ class _PawMapScreenState extends State<PawMapScreen>
           height: 48.w,
           child: FloatingActionButton(
             heroTag: 'reportFab',
-            backgroundColor: AppColors.primaryColor,
+            // v418 — maquette : bouton Signaler ROUGE avec bouclier blanc.
+            backgroundColor: const Color(0xFFDC2626),
             elevation: 6,
             shape: const CircleBorder(),
             onPressed: onTap,
-            child: Icon(Icons.add_alert_rounded,
+            child: Icon(Icons.add_moderator_rounded,
                 color: Colors.white, size: 22.sp),
           ),
         ),
@@ -3735,7 +3687,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           child: InterText(
             text: 'pawmap_btn_send'.tr,
             fontSize: 10.sp,
-            color: AppColors.primaryColor,
+            color: const Color(0xFFDC2626),
             fontWeight: FontWeight.w800,
           ),
         ),

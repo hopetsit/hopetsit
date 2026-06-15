@@ -2965,6 +2965,12 @@ const Map<String, String> deDETranslations = <String, String>{
     'pawmap_quick_alerts_sub': 'Meldungen',
     // v23.1 part 243 — kurze 1-Wort-Labels pro Button.
     'pawmap_quick_family': 'Mein Kreis',
+      'pawmap_quick_circle_sub': 'Mitglieder ansehen',
+      'pawmap_quick_live': 'Live',
+      'pawmap_quick_live_sub': 'Freunde ansehen',
+      'pawmap_quick_my_reports': 'Meine Meldungen',
+      'pawmap_quick_my_reports_sub': 'Verlauf',
+      'pawmap_live_share_off': 'Position teilen',
     'pawmap_quick_family_sub': 'Hinzufügen',
     'pawmap_quick_follow': 'Mir folgen',
     'family_member_pending': 'Ausstehend',

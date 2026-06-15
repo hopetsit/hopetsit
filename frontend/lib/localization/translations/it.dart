@@ -2961,6 +2961,12 @@ const Map<String, String> itITTranslations = <String, String>{
     'pawmap_quick_alerts_sub': 'Segnalazioni',
     // v23.1 part 243 — etichette corte di 1 parola per bottone.
     'pawmap_quick_family': 'La mia cerchia',
+      'pawmap_quick_circle_sub': 'Vedi membri',
+      'pawmap_quick_live': 'In diretta',
+      'pawmap_quick_live_sub': 'Vedi amici',
+      'pawmap_quick_my_reports': 'Le mie segnalazioni',
+      'pawmap_quick_my_reports_sub': 'Cronologia',
+      'pawmap_live_share_off': 'Condividi la posizione',
     'pawmap_quick_family_sub': 'Aggiungi',
     'pawmap_quick_follow': 'Seguimi',
     'family_member_pending': 'In attesa',
