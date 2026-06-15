@@ -83,10 +83,10 @@ export default function NotificationBanner() {
   const router = useRouter();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
-  // v409 — Daniel : "ça fait une liste de plus en plus longue". On replie à
-  // 4 récentes ; « Voir tout » déroule un panneau défilant (hauteur max).
-  const [expanded, setExpanded] = useState(false);
-  const COLLAPSED = 4;
+  // v411 — Daniel : "le bandeau en liste déroulée gêne". On le replie en une
+  // BARRE COMPACTE (🔔 + compteur) ; le clic ouvre un panneau défilant. Fermé
+  // par défaut → plus de longue liste sous le titre.
+  const [open, setOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -145,24 +145,30 @@ export default function NotificationBanner() {
     }
   }
 
-  // v409 — tout effacer.
+  // v409 — tout effacer. v411 : on resynchronise avec le serveur après coup
+  // pour éviter qu'un refetch concurrent (socket) ne les fasse réapparaître.
   async function onClearAll() {
     setItems([]);
     try {
       await clearAllNotifications();
+      await refresh();
     } catch {
       /* best-effort */
     }
   }
 
-  // N'affiche rien tant que pas chargé OU si zéro notif (pas de bandeau vide
-  // inutile sous le titre).
+  // N'affiche rien tant que pas chargé OU si zéro notif.
   if (!loaded || items.length === 0) return null;
 
   return (
-    <section className="mt-6 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 font-display text-lg font-extrabold text-ink">
+    <section className="mt-6 overflow-hidden rounded-2xl border border-ink/5 bg-white shadow-card">
+      {/* Barre compacte (repliée par défaut) — clic pour ouvrir le panneau. */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-bg-soft"
+      >
+        <span className="flex items-center gap-2 font-display text-base font-extrabold text-ink">
           <span>🔔</span>
           {t("notif_banner_title")}
           {unread.length > 0 && (
@@ -170,86 +176,90 @@ export default function NotificationBanner() {
               {unread.length}
             </span>
           )}
-        </h2>
-        <div className="flex items-center gap-3">
-          {unread.length > 0 && (
-            <button
-              type="button"
-              onClick={onMarkAll}
-              className="text-xs font-semibold text-owner hover:underline"
-            >
-              {t("notif_mark_all_read")}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="text-xs font-semibold text-ink-muted hover:underline"
+        </span>
+        <span className="flex items-center gap-2 text-ink-muted">
+          <span className="text-xs">{items.length}</span>
+          <svg
+            className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
           >
-            {t("notif_clear_all")}
-          </button>
-        </div>
-      </div>
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </span>
+      </button>
 
-      <ul
-        className={`flex flex-col gap-2 ${
-          expanded ? "max-h-[26rem] overflow-y-auto pr-1" : ""
-        }`}
-      >
-        {(expanded ? items : items.slice(0, COLLAPSED)).map((n) => (
-          <li key={n.id} className="relative">
+      {/* Panneau défilant, uniquement quand ouvert. */}
+      {open && (
+        <div className="border-t border-ink/5 px-4 pb-4 pt-3">
+          <div className="mb-2 flex justify-end gap-3">
+            {unread.length > 0 && (
+              <button
+                type="button"
+                onClick={onMarkAll}
+                className="text-xs font-semibold text-owner hover:underline"
+              >
+                {t("notif_mark_all_read")}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => onItemClick(n)}
-              className={`flex w-full items-start gap-3 rounded-xl border py-2.5 pl-3 pr-9 text-left transition hover:bg-bg-soft ${
-                n.readAt
-                  ? "border-transparent bg-bg-soft/40"
-                  : "border-owner/20 bg-owner-light/30"
-              }`}
+              onClick={onClearAll}
+              className="text-xs font-semibold text-ink-muted hover:underline"
             >
-              <span className="mt-0.5 text-xl">{iconForType(n.type)}</span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span className="truncate font-semibold text-ink">{n.title}</span>
-                  {!n.readAt && (
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-owner" aria-hidden />
-                  )}
-                </span>
-                {n.body && (
-                  <span className="mt-0.5 block text-sm text-ink-muted line-clamp-2">
-                    {n.body}
+              {t("notif_clear_all")}
+            </button>
+          </div>
+          <ul className="flex max-h-[22rem] flex-col gap-2 overflow-y-auto pr-1">
+            {items.map((n) => (
+              <li key={n.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => onItemClick(n)}
+                  className={`flex w-full items-start gap-3 rounded-xl border py-2.5 pl-3 pr-9 text-left transition hover:bg-bg-soft ${
+                    n.readAt
+                      ? "border-transparent bg-bg-soft/40"
+                      : "border-owner/20 bg-owner-light/30"
+                  }`}
+                >
+                  <span className="mt-0.5 text-xl">{iconForType(n.type)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-semibold text-ink">{n.title}</span>
+                      {!n.readAt && (
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-owner" aria-hidden />
+                      )}
+                    </span>
+                    {n.body && (
+                      <span className="mt-0.5 block text-sm text-ink-muted line-clamp-2">
+                        {n.body}
+                      </span>
+                    )}
+                    <span className="mt-0.5 block text-xs text-ink-muted/70">
+                      {new Date(n.createdAt).toLocaleString()}
+                    </span>
                   </span>
-                )}
-                <span className="mt-0.5 block text-xs text-ink-muted/70">
-                  {new Date(n.createdAt).toLocaleString()}
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
-              aria-label={t("notif_clear_all")}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(n.id);
-              }}
-              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-ink-muted transition hover:bg-ink/10 hover:text-ink"
-            >
-              ✕
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {items.length > COLLAPSED && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-3 w-full rounded-xl border border-ink/10 py-2 text-sm font-semibold text-ink-muted transition hover:bg-bg-soft"
-        >
-          {expanded
-            ? t("notif_show_less")
-            : `${t("notif_show_all")} (${items.length})`}
-        </button>
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("notif_clear_all")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(n.id);
+                  }}
+                  className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-ink-muted transition hover:bg-ink/10 hover:text-ink"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );
