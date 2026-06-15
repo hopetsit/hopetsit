@@ -559,7 +559,11 @@ export default function ChatPage() {
                             )}
                             {status === "accepted" && (
                               <a
-                                href={bookingId ? `/walk/${bookingId}` : "/pawmap"}
+                                href={
+                                  bookingId
+                                    ? `/walk/${bookingId}`
+                                    : "/friends/live"
+                                }
                                 className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-owner px-4 py-1.5 text-xs font-semibold text-white"
                               >
                                 🗺️ {t("chat_follow_view_map")}
