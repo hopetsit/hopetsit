@@ -140,6 +140,63 @@ async function listPositionListeners(userId, role) {
   return listeners;
 }
 
+// v416 — Daniel : "le direct doit rester allumé même app fermée de force".
+// Relais HTTP réutilisable (même logique que le handler socket map:position-update)
+// pour que le SERVICE DE FOND Android (isolate séparé, survit au swipe-kill via
+// foreground service) puisse pousser la position SANS socket — il POST sur
+// /friends/live-position et on diffuse ici aux amis/famille comme d'habitude.
+async function relayLivePosition({ userId, role, lat, lng, city, offline }) {
+  const r = String(role || '').toLowerCase();
+  let Model = null;
+  if (r === 'walker') Model = require('../models/Walker');
+  else if (r === 'sitter') Model = require('../models/Sitter');
+  else Model = require('../models/Owner');
+
+  if (offline) {
+    try {
+      await Model.updateOne(
+        { _id: userId },
+        { $unset: { 'location.coordinates': '' } },
+      );
+    } catch (e) {
+      logger.warn(`[relayLivePosition] offline unset failed : ${e.message}`);
+    }
+    const listeners = await listPositionListeners(userId, r);
+    for (const l of listeners) {
+      emitToUser(l.role, l.userId, 'map:friend-offline', {
+        userId, role: r, at: new Date().toISOString(),
+      });
+    }
+    return 0;
+  }
+
+  try {
+    await Model.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          location: {
+            type: 'Point',
+            coordinates: [lng, lat],
+            ...(city ? { city: String(city) } : {}),
+          },
+        },
+      },
+    );
+  } catch (e) {
+    logger.warn(`[relayLivePosition] persist failed : ${e.message}`);
+  }
+
+  const listeners = await listPositionListeners(userId, r);
+  const event = {
+    userId, role: r, lat, lng, at: new Date().toISOString(), city: city || '',
+  };
+  for (const l of listeners) {
+    emitToUser(l.role, l.userId, 'map:friend-position', event);
+  }
+  return listeners.length;
+}
+
 function registerMapHandlers(io, socket) {
   socket.on('map:identify', (payload = {}, callback) => {
     const { userId, role } = payload;
@@ -286,3 +343,5 @@ function registerMapHandlers(io, socket) {
 }
 
 module.exports = registerMapHandlers;
+module.exports.relayLivePosition = relayLivePosition;
+module.exports.listPositionListeners = listPositionListeners;

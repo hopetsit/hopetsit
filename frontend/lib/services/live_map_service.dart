@@ -12,6 +12,9 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/data/network/api_client.dart';
+import 'package:hopetsit/data/network/api_config.dart';
+import 'package:hopetsit/data/network/secure_token_store.dart';
+import 'package:hopetsit/services/live_tracking_bg.dart';
 import 'package:hopetsit/services/socket_service.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 
@@ -227,6 +230,23 @@ class LiveMapService extends GetxService {
     if (broadcasting.value) return;
     broadcasting.value = true;
 
+    // v416 — Daniel : "le direct doit rester allumé même app fermée de force".
+    // On arme le SERVICE DE FOND (isolate séparé, survit au swipe-kill sur
+    // Android) : on lui dépose le token + l'URL + la ville dans GetStorage
+    // (il n'a pas accès au secure storage), puis on le démarre. Best-effort :
+    // si ça échoue, le flux socket en avant-plan continue de fonctionner.
+    try {
+      final token = SecureTokenStore.instance.tokenSync ??
+          _storage.read<String>(StorageKeys.authToken);
+      _storage.write(kBgLiveActive, true);
+      _storage.write(kBgToken, token ?? '');
+      _storage.write(kBgBaseUrl, ApiConfig.baseUrl);
+      _storage.write(kBgCity, city ?? '');
+      startLiveTrackingService();
+    } catch (e) {
+      debugPrint('[LiveMap] background service start failed: $e');
+    }
+
     // Init last known from the closure (typically _userPosition fresh).
     final initial = latestPosition();
     _lastKnownGps = initial;
@@ -347,6 +367,13 @@ class LiveMapService extends GetxService {
     broadcasting.value = false;
     final svc = Get.find<SocketService>();
     svc.socket?.emit('map:go-offline');
+    // v416 — coupe aussi le service de fond (il enverra un ping offline final).
+    try {
+      _storage.write(kBgLiveActive, false);
+      stopLiveTrackingService();
+    } catch (e) {
+      debugPrint('[LiveMap] background service stop failed: $e');
+    }
   }
 
   void _emitPosition(LatLng pos, {String? city}) {

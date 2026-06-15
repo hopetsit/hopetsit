@@ -13,6 +13,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/firebase_options.dart';
 import 'package:hopetsit/helper/dependency_injection.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
+import 'package:hopetsit/services/live_tracking_bg.dart';
 import 'package:hopetsit/services/push_notification_service.dart'
     show firebaseMessagingBackgroundHandler;
 import 'package:hopetsit/localization/app_translations.dart';
@@ -81,6 +82,10 @@ void main() async {
   // vers flutter_secure_storage (Keystore Android / Keychain iOS) au boot,
   // AVANT que les controllers / api_client ne tentent de le lire.
   await SecureTokenStore.instance.migrateFromLegacyIfNeeded();
+
+  // v416 — enregistre le service de fond du suivi en direct (survit au
+  // swipe-kill sur Android). Non bloquant + non fatal (try/catch interne).
+  await configureLiveTrackingService();
 
   var initialNotification = await flutterLocalNotificationsPlugin
       .getNotificationAppLaunchDetails();

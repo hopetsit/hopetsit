@@ -119,6 +119,16 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBw11dPKfWj67XM_xOQdL5VU0au2GijxuI" />
+        <!-- v416 — Daniel : "le suivi en direct doit rester allumé même app
+             fermée de force". flutter_background_service déclare son service
+             SANS foregroundServiceType ; Android 14+ (API 34) EXIGE le type
+             "location" sur la déclaration pour démarrer un foreground service
+             de localisation. On fusionne l'attribut sur le service de la lib. -->
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="location"
+            tools:node="merge" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -34,6 +34,36 @@ function me(req) {
   };
 }
 
+// v416 — Daniel : "le suivi en direct doit rester allumé même quand l'app est
+// fermée de force". Le SERVICE DE FOND Android (isolate séparé qui survit au
+// swipe-kill) ne peut pas tenir une connexion socket → il POST sa position ici
+// toutes les ~15 s avec son Bearer token. On relaie aux amis/famille via la
+// MÊME logique que le handler socket (relayLivePosition). { lat, lng, city?,
+// offline? }. offline:true = je coupe le partage (équiv. map:go-offline).
+router.post('/live-position', requireAuth, async (req, res) => {
+  try {
+    const { relayLivePosition } = require('../sockets/mapSocket');
+    const u = me(req);
+    const { lat, lng, city, offline } = req.body || {};
+    if (offline === true) {
+      await relayLivePosition({ userId: u.id, role: u.role, offline: true });
+      return res.json({ ok: true, offline: true });
+    }
+    const la = Number(lat);
+    const ln = Number(lng);
+    if (!Number.isFinite(la) || !Number.isFinite(ln) || (la === 0 && ln === 0)) {
+      return res.status(400).json({ error: 'lat and lng are required.' });
+    }
+    const listeners = await relayLivePosition({
+      userId: u.id, role: u.role, lat: la, lng: ln, city,
+    });
+    return res.json({ ok: true, listeners });
+  } catch (e) {
+    logger.error('[friends/live-position]', e);
+    return res.status(500).json({ error: 'Unable to relay live position.' });
+  }
+});
+
 /**
  * v23.1.266 — Résout l'abonnement PawFollow Famille DONT L'UTILISATEUR EST
  * TITULAIRE, avec SELF-HEAL.
