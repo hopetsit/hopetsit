@@ -3188,4 +3188,10 @@ const Map<String, String> itITTranslations = <String, String>{
 
   'publish_show_character': 'Mostra il carattere degli animali',
   'publish_show_character_hint': 'Anteprima automatica dai profili.',
+
+  'application_gain_title': 'Il tuo guadagno stimato',
+  'application_gain_owner_total': 'Totale pagato dal proprietario',
+  'application_gain_commission': 'Commissione PawMap',
+  'application_gain_you_receive': 'Tu ricevi',
+  'application_gain_hint': 'L\'importo finale può variare in base alle opzioni.',
 };

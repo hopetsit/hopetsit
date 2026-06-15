@@ -303,13 +303,18 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
     );
   }
 
-  /// v18.5 — #20 : petite carte qui affiche le prix payé par l'owner
-  /// et la part nette (80%) que le provider touchera. Colorée selon le
-  /// rôle. Affichée SEULEMENT si totalPrice > 0.
+  /// v411 refonte — carte « Votre gain estimé » (maquette Postuler).
+  /// Total payé par l'owner → − Commission PawMap (taux RÉEL) → Vous recevez.
+  /// La commission est déduite des vraies valeurs (total payé − net), donc le
+  /// taux affiché reflète 20 % (ou 15 % pour un prestataire Top). Affichée
+  /// SEULEMENT si totalPrice > 0.
   Widget _buildPriceBreakdownCard() {
     final currency = application.currency ?? 'EUR';
     final total = application.totalPrice ?? 0;
     final net = application.netPayout ?? (total * 0.8);
+    final commission = (total - net).clamp(0, double.infinity).toDouble();
+    // Taux réel = commission / net (≈ 20 % ou 15 % Top). Net = base prestataire.
+    final ratePct = net > 0 ? (commission / net * 100).round() : 20;
     final currencySymbol = currency.toUpperCase() == 'EUR'
         ? '€'
         : currency.toUpperCase() == 'GBP'
@@ -317,9 +322,32 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
             : currency.toUpperCase() == 'USD'
                 ? '\$'
                 : '';
-    String fmt(double v) {
-      final s = v.toStringAsFixed(2);
-      return '$currencySymbol$s';
+    String fmt(double v) => '$currencySymbol${v.toStringAsFixed(2)}';
+
+    Widget row(String label, String value, {Color? valueColor, bool bold = false}) {
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 3.h),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: InterText(
+                text: label,
+                fontSize: bold ? 13.sp : 12.sp,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                color: bold ? _roleAccent : AppColors.textSecondary(context),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            PoppinsText(
+              text: value,
+              fontSize: bold ? 18.sp : 13.sp,
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+              color: valueColor ?? AppColors.textPrimary(context),
+            ),
+          ],
+        ),
+      );
     }
 
     return Container(
@@ -329,44 +357,40 @@ class _PetSitterApplicationCardState extends State<PetSitterApplicationCard> {
         border: Border.all(color: _roleAccent.withValues(alpha: 0.35)),
         borderRadius: BorderRadius.circular(14.r),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.euro_rounded,
-            color: _roleAccent,
-            size: 22.sp,
+          Row(
+            children: [
+              Icon(Icons.account_balance_wallet_rounded,
+                  color: _roleAccent, size: 20.sp),
+              SizedBox(width: 8.w),
+              PoppinsText(
+                text: 'application_gain_title'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+                color: _roleAccent,
+              ),
+            ],
           ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InterText(
-                  text: 'application_card_price_label'.tr,
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary(context),
-                ),
-                SizedBox(height: 2.h),
-                PoppinsText(
-                  text: 'application_card_you_receive'.trParams({
-                    'amount': fmt(net),
-                  }),
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
-                  color: _roleAccent,
-                ),
-                SizedBox(height: 2.h),
-                InterText(
-                  text: 'application_card_owner_pays'.trParams({
-                    'amount': fmt(total),
-                  }),
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary(context),
-                ),
-              ],
-            ),
+          SizedBox(height: 8.h),
+          row('application_gain_owner_total'.tr, fmt(total)),
+          row(
+            '${'application_gain_commission'.tr} ($ratePct%)',
+            '-${fmt(commission)}',
+            valueColor: AppColors.errorColor,
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 6.h),
+            child: Divider(height: 1, color: _roleAccent.withValues(alpha: 0.25)),
+          ),
+          row('application_gain_you_receive'.tr, fmt(net),
+              valueColor: _roleAccent, bold: true),
+          SizedBox(height: 6.h),
+          InterText(
+            text: 'application_gain_hint'.tr,
+            fontSize: 10.sp,
+            color: AppColors.textSecondary(context),
           ),
         ],
       ),

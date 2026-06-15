@@ -3190,4 +3190,10 @@ const Map<String, String> enUSTranslations = <String, String>{
 
   'publish_show_character': 'Show pets\' character',
   'publish_show_character_hint': 'Auto preview from your pets\' profiles.',
+
+  'application_gain_title': 'Your estimated earnings',
+  'application_gain_owner_total': 'Total paid by the owner',
+  'application_gain_commission': 'PawMap commission',
+  'application_gain_you_receive': 'You receive',
+  'application_gain_hint': 'The final amount may vary with options and possible fees.',
 };

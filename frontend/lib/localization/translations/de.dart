@@ -3193,4 +3193,10 @@ const Map<String, String> deDETranslations = <String, String>{
 
   'publish_show_character': 'Charakter der Tiere anzeigen',
   'publish_show_character_hint': 'Automatische Vorschau aus den Profilen.',
+
+  'application_gain_title': 'Dein geschätzter Verdienst',
+  'application_gain_owner_total': 'Vom Halter gezahlter Betrag',
+  'application_gain_commission': 'PawMap-Provision',
+  'application_gain_you_receive': 'Du erhältst',
+  'application_gain_hint': 'Der Endbetrag kann je nach Optionen variieren.',
 };

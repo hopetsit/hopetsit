@@ -3150,4 +3150,10 @@ const Map<String, String> esESTranslations = <String, String>{
 
   'publish_show_character': 'Mostrar el carácter de los animales',
   'publish_show_character_hint': 'Vista previa automática desde los perfiles.',
+
+  'application_gain_title': 'Tu ganancia estimada',
+  'application_gain_owner_total': 'Total pagado por el dueño',
+  'application_gain_commission': 'Comisión PawMap',
+  'application_gain_you_receive': 'Tú recibes',
+  'application_gain_hint': 'El importe final puede variar según las opciones.',
 };

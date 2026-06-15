@@ -3026,4 +3026,10 @@ const Map<String, String> ptPTTranslations = <String, String>{
 
   'publish_show_character': 'Mostrar o carácter dos animais',
   'publish_show_character_hint': 'Pré-visualização automática dos perfis.',
+
+  'application_gain_title': 'O seu ganho estimado',
+  'application_gain_owner_total': 'Total pago pelo dono',
+  'application_gain_commission': 'Comissão PawMap',
+  'application_gain_you_receive': 'Você recebe',
+  'application_gain_hint': 'O valor final pode variar consoante as opções.',
 };

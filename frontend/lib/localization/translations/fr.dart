@@ -3208,4 +3208,10 @@ const Map<String, String> frFRTranslations = <String, String>{
 
   'publish_show_character': 'Afficher le caractère des animaux',
   'publish_show_character_hint': 'Aperçu automatique depuis les profils de vos animaux.',
+
+  'application_gain_title': 'Votre gain estimé',
+  'application_gain_owner_total': 'Total payé par le propriétaire',
+  'application_gain_commission': 'Commission PawMap',
+  'application_gain_you_receive': 'Vous recevez',
+  'application_gain_hint': 'Le montant final peut varier selon les options et frais éventuels.',
 };
