@@ -35,6 +35,10 @@ export default function NotificationBanner() {
   const { t } = useT();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // v409 — Daniel : "ça fait une liste de plus en plus longue". On replie à
+  // 4 récentes ; « Voir tout » déroule un panneau défilant (hauteur max).
+  const [expanded, setExpanded] = useState(false);
+  const COLLAPSED = 4;
 
   const refresh = useCallback(async () => {
     try {
@@ -108,8 +112,12 @@ export default function NotificationBanner() {
         )}
       </div>
 
-      <ul className="flex flex-col gap-2">
-        {items.slice(0, 8).map((n) => (
+      <ul
+        className={`flex flex-col gap-2 ${
+          expanded ? "max-h-[26rem] overflow-y-auto pr-1" : ""
+        }`}
+      >
+        {(expanded ? items : items.slice(0, COLLAPSED)).map((n) => (
           <li key={n.id}>
             <button
               type="button"
@@ -141,6 +149,18 @@ export default function NotificationBanner() {
           </li>
         ))}
       </ul>
+
+      {items.length > COLLAPSED && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-3 w-full rounded-xl border border-ink/10 py-2 text-sm font-semibold text-ink-muted transition hover:bg-bg-soft"
+        >
+          {expanded
+            ? t("notif_show_less")
+            : `${t("notif_show_all")} (${items.length})`}
+        </button>
+      )}
     </section>
   );
 }
