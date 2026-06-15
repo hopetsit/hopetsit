@@ -226,14 +226,16 @@ export default function DashboardPage() {
         }`}
       >
         <div className="flex items-center justify-between">
+          {/* v406 — Daniel : le rôle s'affichait en brut (« OWNER »). On le
+              traduit (Propriétaire / Pet-sitter / Promeneur). */}
           <div className="text-sm font-medium uppercase tracking-wider opacity-80">
-            {user?.role}
+            {user?.role ? t(`dash_role_${user.role}`) : ""}
           </div>
           {/* v23.1 part 146 — indicateur de connexion socket temps réel.
               Vert si connecté (events live arrivent), gris sinon. */}
           <div
             className="flex items-center gap-1.5 text-xs opacity-75"
-            title={socketConnected ? "Connecté en temps réel" : "Hors ligne"}
+            title={socketConnected ? t("dash_live") : t("dash_offline")}
           >
             <span
               className={`inline-block h-2 w-2 rounded-full ${
@@ -241,7 +243,7 @@ export default function DashboardPage() {
               }`}
               aria-hidden="true"
             />
-            <span>{socketConnected ? "Live" : "Offline"}</span>
+            <span>{socketConnected ? t("dash_live") : t("dash_offline")}</span>
           </div>
         </div>
         <h1 className="mt-2 flex flex-wrap items-center gap-3 font-display text-3xl font-extrabold md:text-4xl">

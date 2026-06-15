@@ -90,25 +90,46 @@ const deLeet = (s) =>
     .replace(/4/g, 'a')
     .replace(/[._\-*]/g, ''); // retire séparateurs « f.u.c.k »
 
+// v406 — on sépare MOTS simples (matchés token par token sur la version
+// dé-leetée) et PHRASES multi-mots (« sale arabe », « hijo de puta »…) qui,
+// elles, doivent être cherchées sur le TEXTE ENTIER (un seul token ne peut
+// jamais contenir un espace). Sans ça les entrées multi-mots ne bloquaient
+// JAMAIS — bug signalé par Daniel sur le filtre admin.
+const _isPhrase = (w) => /\s/.test(String(w || '').trim());
+const PROFANITY_WORDS = PROFANITY.filter((w) => !_isPhrase(w));
+const PROFANITY_PHRASES = PROFANITY.filter(_isPhrase);
+
 // Construit une regex de détection des insultes (sur la version dé-leetée).
 const PROFANITY_RE = new RegExp(
-  '(' + PROFANITY.map((w) => escapeRe(deLeet(w))).join('|') + ')',
+  '(' + PROFANITY_WORDS.map((w) => escapeRe(deLeet(w))).join('|') + ')',
   'gi',
 );
+// Regex plein-texte pour les phrases (insensible à la casse).
+const PROFANITY_PHRASE_RE = PROFANITY_PHRASES.length
+  ? new RegExp('(' + PROFANITY_PHRASES.map((w) => escapeRe(w)).join('|') + ')', 'gi')
+  : null;
 
 // v404 — mots interdits SUPPLÉMENTAIRES gérés par l'admin (modèle BannedWord),
 // chargés en mémoire au boot + à chaque ajout/suppression. S'appliquent app+web
 // (cette modération tourne côté serveur sur les annonces + messages).
+// v406 — idem : mots simples → EXTRA_RE (par token), phrases → EXTRA_PHRASE_RE
+// (plein-texte). refreshBannedWords (adminRoutes) éclate déjà les blocs collés
+// en mots individuels et purge les variantes « [auto] » non traduites.
 let EXTRA_RE = null;
+let EXTRA_PHRASE_RE = null;
 function setExtraWords(words) {
   const list = (words || [])
     .map((w) => String(w || '').trim())
-    .filter(Boolean);
-  if (!list.length) {
-    EXTRA_RE = null;
-    return;
-  }
-  EXTRA_RE = new RegExp('(' + list.map((w) => escapeRe(deLeet(w))).join('|') + ')', 'gi');
+    .filter(Boolean)
+    .filter((w) => !w.startsWith('[auto]')); // purge fallback non traduit
+  const wordsOnly = list.filter((w) => !_isPhrase(w));
+  const phrases = list.filter(_isPhrase);
+  EXTRA_RE = wordsOnly.length
+    ? new RegExp('(' + wordsOnly.map((w) => escapeRe(deLeet(w))).join('|') + ')', 'gi')
+    : null;
+  EXTRA_PHRASE_RE = phrases.length
+    ? new RegExp('(' + phrases.map((w) => escapeRe(w)).join('|') + ')', 'gi')
+    : null;
 }
 
 const STARS = (w) => '*'.repeat(Math.max(3, w.length));
@@ -134,9 +155,26 @@ function moderateText(text) {
     }
   }
 
-  // 2) Insultes : détection sur la version dé-leetée, censure sur le texte
-  // original mot par mot (on remplace tout mot dont la forme dé-leetée matche).
   let profanity = false;
+
+  // 2a) PHRASES multi-mots (« sale arabe », « hijo de puta », blocs admin
+  // multi-mots) : censure sur le TEXTE ENTIER (le passage token par token
+  // ci-dessous ne peut pas matcher un espace). v406.
+  const censorPhrases = (re) => {
+    if (!re) return;
+    re.lastIndex = 0;
+    if (re.test(working)) {
+      profanity = true;
+      re.lastIndex = 0;
+      working = working.replace(re, (m) => STARS(m.replace(/\s+/g, '')));
+    }
+  };
+  censorPhrases(PROFANITY_PHRASE_RE);
+  censorPhrases(EXTRA_PHRASE_RE);
+
+  // 2b) Insultes (mots simples) : détection sur la version dé-leetée, censure
+  // sur le texte original mot par mot (on remplace tout mot dont la forme
+  // dé-leetée matche).
   const clean = working.replace(/[\p{L}\p{N}@$._\-*]+/gu, (token) => {
     const normalized = deLeet(token);
     PROFANITY_RE.lastIndex = 0;

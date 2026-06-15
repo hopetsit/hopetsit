@@ -191,11 +191,26 @@ async function refreshBannedWords() {
   const { setExtraWords } = require('../services/textModerationService');
   const docs = await BannedWord.find().lean();
   const all = [];
+  // v406 — on PURGE les variantes « [auto] » (fallback non traduit) et on
+  // ÉCLATE toute entrée multi-mots (ex : bloc d'insultes collé d'un coup) en
+  // mots individuels → chacun devient détectable token par token. On garde
+  // aussi la phrase entière (utile si c'est une vraie expression).
+  const pushItem = (raw) => {
+    const s = String(raw || '').trim();
+    if (!s || s.toLowerCase().startsWith('[auto]')) return;
+    all.push(s);
+    if (/\s/.test(s)) {
+      s.split(/[\s,;]+/).forEach((tok) => {
+        const t = tok.trim();
+        if (t.length >= 2) all.push(t);
+      });
+    }
+  };
   docs.forEach((d) => {
-    if (d.word) all.push(d.word);
-    (d.variants || []).forEach((v) => all.push(v));
+    pushItem(d.word);
+    (d.variants || []).forEach(pushItem);
   });
-  setExtraWords(all);
+  setExtraWords(Array.from(new Set(all)));
 }
 
 router.get('/moderation/words', requireAdmin, async (req, res) => {
@@ -217,14 +232,21 @@ router.post('/moderation/words', requireAdmin, async (req, res) => {
     const translate = req.body?.translate !== false;
     if (!raw) return res.status(400).json({ error: 'Mot requis.' });
     let variants = [];
-    if (translate) {
+    // v406 — si l'admin colle PLUSIEURS mots d'un coup, on les éclate en mots
+    // individuels (variants) → chacun bloque token par token. Sinon, on tente
+    // la traduction (best-effort) en filtrant les fallbacks « [auto] ».
+    if (/\s/.test(raw)) {
+      variants = Array.from(new Set(
+        raw.split(/[\s,;]+/).map((t) => t.trim()).filter((t) => t.length >= 2),
+      ));
+    } else if (translate) {
       try {
         const { translateToAll } = require('../services/translationService');
         const out = await translateToAll(raw, 'fr');
         variants = Array.from(new Set(
           Object.values(out.translations || {})
             .map((v) => String(v || '').trim().toLowerCase())
-            .filter((v) => v && v !== raw),
+            .filter((v) => v && v !== raw && !v.startsWith('[auto]')),
         ));
       } catch (_) { /* traduction best-effort */ }
     }
