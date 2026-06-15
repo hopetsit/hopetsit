@@ -65,7 +65,7 @@ class SignUpController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isGettingLocation = false.obs;
   final RxBool agreeToTerms = false.obs;
-  final RxString selectedLanguage = 'English'.obs;
+  final RxString selectedLanguage = 'Français'.obs;
   final RxString selectedCountryCode = '+1'.obs;
   /// Sprint 6.5 step 2 — ISO 3166-1 alpha-2 country code (e.g. 'FR').
   /// Populated from CountryCodePicker.onChanged(country.code).
@@ -118,7 +118,11 @@ class SignUpController extends GetxController {
   bool get pwHasSpecial =>
       passwordLive.value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-]'));
 
-  final List<String> languageOptions = const ['English', 'Urdu', 'French'];
+  // v417 — Daniel : "ya que 3 langues c'est n'importe quoi". L'app gère 6
+  // langues (fr/en/es/de/it/pt) → on les propose toutes (et on retire 'Urdu').
+  final List<String> languageOptions = const [
+    'Français', 'English', 'Español', 'Deutsch', 'Italiano', 'Português',
+  ];
   final List<String> currencyOptions = CurrencyHelper.supportedCurrencies
       .map((c) => CurrencyHelper.label(c))
       .toList();

@@ -630,10 +630,26 @@ class SignupWizardScreen extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary(context),
                     ),
+                    if (!_isOwner)
+                      Padding(
+                        padding: EdgeInsets.only(top: 2.h, bottom: 2.h),
+                        child: InterText(
+                          text: '⭐ ${'signup_new_profile'.tr}',
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w600,
+                          color: _accent,
+                        ),
+                      ),
                     if (c.cityController.text.trim().isNotEmpty)
                       InterText(
-                        text: c.cityController.text.trim(),
+                        text: '📍 ${c.cityController.text.trim()}',
                         fontSize: 12.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    if (!_isOwner)
+                      InterText(
+                        text: '⏱ ${'signup_response_15'.tr}  ·  🟢 ${'signup_available_today'.tr}',
+                        fontSize: 11.sp,
                         color: AppColors.textSecondary(context),
                       ),
                   ],
@@ -642,6 +658,12 @@ class SignupWizardScreen extends StatelessWidget {
             ],
           ),
         ),
+        // v417 — Daniel : "l'aperçu doit montrer services + tarifs comme la
+        // maquette". Récap Services proposés + Mes tarifs pour sitter/walker.
+        if (!_isOwner) ...[
+          SizedBox(height: 12.h),
+          _reviewProviderRecap(context, c),
+        ],
         SizedBox(height: 14.h),
         Container(
           padding: EdgeInsets.all(12.w),
@@ -685,6 +707,111 @@ class SignupWizardScreen extends StatelessWidget {
               ],
             )),
       ],
+    );
+  }
+
+  // v417 — récap "Aperçu de mon profil" : services + tarifs (comme la maquette).
+  Widget _reviewProviderRecap(BuildContext context, SignUpController c) {
+    String v(TextEditingController ctrl) {
+      final t = ctrl.text.trim();
+      return t.isEmpty ? '—' : t;
+    }
+
+    final List<List<String>> tarifs = _isWalker
+        ? [
+            ['${v(c.walkerRate30Controller)} €', '/ 30 min'],
+            ['${v(c.walkerRate60Controller)} €', '/ 1 heure'],
+            ['${v(c.walkerRate120Controller)} €', '/ 2 heures'],
+          ]
+        : [
+            ['${v(c.ratePerDayController)} €', '/ jour (+10h)'],
+            ['${v(c.ratePerWeekController)} €', '/ semaine'],
+            ['${v(c.ratePerMonthController)} €', '/ mois'],
+          ];
+
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: _accent.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InterText(
+            text: 'signup_review_services'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 6.h),
+          Obx(() => Wrap(
+                spacing: 6.w,
+                runSpacing: 6.h,
+                children: c.acceptedAnimals.isEmpty
+                    ? [
+                        InterText(
+                          text: '—',
+                          fontSize: 12.sp,
+                          color: AppColors.greyText,
+                        )
+                      ]
+                    : c.acceptedAnimals
+                        .map((a) => Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 10.w, vertical: 5.h),
+                              decoration: BoxDecoration(
+                                color: _accent.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(20.r),
+                              ),
+                              child: InterText(
+                                text: 'pet_animal_$a'.tr,
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.w600,
+                                color: _accent,
+                              ),
+                            ))
+                        .toList(),
+              )),
+          Divider(height: 20.h, color: AppColors.greyText.withValues(alpha: 0.15)),
+          InterText(
+            text: 'signup_review_rates'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+          ),
+          SizedBox(height: 6.h),
+          ...tarifs.map((t) => Padding(
+                padding: EdgeInsets.symmetric(vertical: 2.h),
+                child: Row(
+                  children: [
+                    PoppinsText(
+                      text: t[0],
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w800,
+                      color: _accent,
+                    ),
+                    SizedBox(width: 6.w),
+                    InterText(
+                      text: t[1],
+                      fontSize: 12.sp,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ],
+                ),
+              )),
+          Padding(
+            padding: EdgeInsets.only(top: 2.h),
+            child: InterText(
+              text: '+ ${c.extraAnimalController.text.trim().isEmpty ? '8' : c.extraAnimalController.text.trim()} € ${'signup_per_extra_animal'.tr}',
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
