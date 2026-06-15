@@ -400,6 +400,13 @@ export default function DashboardPage() {
           title={t("dash_card_map_title")}
           subtitle={t("dash_card_map_sub")}
         />
+        {/* v414 — PawPoints visibles sur le web (barème + récompenses). */}
+        <NavCard
+          href="/pawpoints"
+          emoji="🐾"
+          title={t("dash_card_pawpoints_title")}
+          subtitle={t("dash_card_pawpoints_sub")}
+        />
         {/* v23.1.358 — Daniel : "efface amis en direct" — la carte « Mes
             amis en direct » est supprimée : la couche PawFollow vit dans la
             carte unique /map (chip PawFollow), déjà accessible via PawMap. */}

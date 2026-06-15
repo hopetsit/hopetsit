@@ -4752,4 +4752,104 @@ router.get('/pawpoints/leaderboard', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── v414 — PAWPOINTS : gestion des RÉCOMPENSES éditables sans rebuild (Daniel :
+// "je peux aussi gérer les offres et récompenses directement de l'admin"). CRUD
+// complet sur le modèle PawReward + suivi des échanges (PawRewardRedemption).
+const PawReward = require('../models/PawReward');
+const PawRewardRedemption = require('../models/PawRewardRedemption');
+
+const REWARD_FIELDS = [
+  'title', 'description', 'icon', 'cost', 'kind', 'valueLabel', 'plan',
+  'intervalDays', 'boostTier', 'discountPercent', 'discountAmount',
+  'sortOrder', 'isActive', 'stock',
+];
+const pickReward = (body) => {
+  const out = {};
+  for (const k of REWARD_FIELDS) {
+    if (body[k] !== undefined) out[k] = body[k];
+  }
+  return out;
+};
+
+// Liste TOUTES les récompenses (actives + inactives) pour l'admin.
+router.get('/pawpoints/rewards', requireAdmin, async (req, res) => {
+  try {
+    const rewards = await PawReward.find({}).sort({ sortOrder: 1, cost: 1 }).lean();
+    return res.json({ rewards, total: rewards.length });
+  } catch (e) {
+    logger.error('[admin/pawpoints/rewards GET]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
+router.post('/pawpoints/rewards', requireAdmin, async (req, res) => {
+  try {
+    const data = pickReward(req.body || {});
+    if (!data.title || String(data.title).trim() === '') {
+      return res.status(400).json({ error: 'Titre requis.' });
+    }
+    if (data.cost === undefined || Number(data.cost) < 0) {
+      return res.status(400).json({ error: 'Coût invalide.' });
+    }
+    const reward = await PawReward.create(data);
+    return res.json({ reward });
+  } catch (e) {
+    logger.error('[admin/pawpoints/rewards POST]', e);
+    return res.status(500).json({ error: 'Erreur création.' });
+  }
+});
+
+router.put('/pawpoints/rewards/:id', requireAdmin, async (req, res) => {
+  try {
+    const data = pickReward(req.body || {});
+    const reward = await PawReward.findByIdAndUpdate(req.params.id, { $set: data }, { new: true });
+    if (!reward) return res.status(404).json({ error: 'Récompense introuvable.' });
+    return res.json({ reward });
+  } catch (e) {
+    logger.error('[admin/pawpoints/rewards PUT]', e);
+    return res.status(500).json({ error: 'Erreur mise à jour.' });
+  }
+});
+
+router.delete('/pawpoints/rewards/:id', requireAdmin, async (req, res) => {
+  try {
+    const r = await PawReward.findByIdAndDelete(req.params.id);
+    if (!r) return res.status(404).json({ error: 'Récompense introuvable.' });
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('[admin/pawpoints/rewards DELETE]', e);
+    return res.status(500).json({ error: 'Erreur suppression.' });
+  }
+});
+
+// Échanges effectués (qui a échangé quoi) + marquer comme traité.
+router.get('/pawpoints/redemptions', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 200, 1000);
+    const redemptions = await PawRewardRedemption.find({})
+      .sort({ createdAt: -1 }).limit(limit).lean();
+    return res.json({ redemptions, total: redemptions.length });
+  } catch (e) {
+    logger.error('[admin/pawpoints/redemptions GET]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
+router.put('/pawpoints/redemptions/:id', requireAdmin, async (req, res) => {
+  try {
+    const status = String(req.body?.status || '').toLowerCase();
+    if (!['pending', 'fulfilled', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Statut invalide.' });
+    }
+    const r = await PawRewardRedemption.findByIdAndUpdate(
+      req.params.id, { $set: { status } }, { new: true },
+    );
+    if (!r) return res.status(404).json({ error: 'Échange introuvable.' });
+    return res.json({ redemption: r });
+  } catch (e) {
+    logger.error('[admin/pawpoints/redemptions PUT]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
 module.exports = router;

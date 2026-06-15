@@ -1566,6 +1566,52 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   return await request<SubscriptionStatus>("/subscriptions/status");
 }
 
+// ─── v414 — PawPoints : barème, badges, catalogue de récompenses (visible web).
+export type PawReward = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  cost: number;
+  kind: "discount" | "subscription" | "boost" | "badge" | "goodie";
+  valueLabel: string;
+  soldOut?: boolean;
+};
+export type PawEarnRule = { key: string; points: number; label: string; icon: string };
+export type PawBadge = { key: string; emoji: string; min: number };
+export type PawCatalog = {
+  rewards: PawReward[];
+  earnRules: PawEarnRule[];
+  badges: PawBadge[];
+  goldCreatorMin: number;
+};
+export type MyPawPoints = {
+  points: number;
+  badge: PawBadge | null;
+  nextBadge: PawBadge | null;
+  isGoldCreator: boolean;
+  goldCreatorMin: number;
+  earnRules: PawEarnRule[];
+  badges: PawBadge[];
+};
+
+// Public : pas besoin d'être connecté pour voir le catalogue.
+export async function getPawPointsCatalog(): Promise<PawCatalog> {
+  return await request<PawCatalog>("/pawpoints/catalog");
+}
+
+// Mes points (auth requise, tous rôles).
+export async function getMyPawPoints(): Promise<MyPawPoints> {
+  return await request<MyPawPoints>("/pawpoints/me");
+}
+
+// Échanger des points contre une récompense.
+export async function redeemPawReward(
+  rewardId: string,
+): Promise<{ ok: boolean; newBalance: number; redemptionId: string }> {
+  return await request(`/pawpoints/redeem/${rewardId}`, { method: "POST" });
+}
+
 export async function subscribeToPlan(
   // v23.1.387 — + family_yearly, premium_monthly, premium_yearly.
   plan: string,
