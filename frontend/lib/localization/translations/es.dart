@@ -3177,6 +3177,7 @@ const Map<String, String> esESTranslations = <String, String>{
   'signup_sitsvc_vet_transport': 'Transporte veterinario',
   'signup_step_about': 'Sobre ti',
   'signup_about_you': 'Cuéntanos sobre ti',
+      'signup_about_hint_owner': 'Cuéntanos sobre ti y tus animales (visible en tu anuncio)',
   'signup_about_hint': 'Describe tu experiencia con animales…',
   'signup_experience': 'Experiencia',
   'signup_exp_passionate': 'Apasionado por los animales',

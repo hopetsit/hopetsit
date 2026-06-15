@@ -3053,6 +3053,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'signup_sitsvc_vet_transport': 'Transporte veterinário',
   'signup_step_about': 'Sobre si',
   'signup_about_you': 'Fale-nos de si',
+      'signup_about_hint_owner': 'Fala-nos de ti e dos teus animais (visível no teu anúncio)',
   'signup_about_hint': 'Descreva a sua experiência com animais…',
   'signup_experience': 'Experiência',
   'signup_exp_passionate': 'Apaixonado por animais',

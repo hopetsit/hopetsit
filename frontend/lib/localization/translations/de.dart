@@ -3220,6 +3220,7 @@ const Map<String, String> deDETranslations = <String, String>{
   'signup_sitsvc_vet_transport': 'Tierarzt-Transport',
   'signup_step_about': 'Über dich',
   'signup_about_you': 'Erzähl uns von dir',
+      'signup_about_hint_owner': 'Erzähl etwas über dich und deine Tiere (auf deiner Anzeige sichtbar)',
   'signup_about_hint': 'Beschreibe deine Erfahrung mit Tieren…',
   'signup_experience': 'Erfahrung',
   'signup_exp_passionate': 'Tierliebhaber',

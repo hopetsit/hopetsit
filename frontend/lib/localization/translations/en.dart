@@ -3217,6 +3217,7 @@ const Map<String, String> enUSTranslations = <String, String>{
   'signup_sitsvc_vet_transport': 'Vet transport',
   'signup_step_about': 'About you',
   'signup_about_you': 'Tell us about yourself',
+      'signup_about_hint_owner': 'Tell us about you and your pets (shown on your listing)',
   'signup_about_hint': 'Describe your experience with animals…',
   'signup_experience': 'Experience',
   'signup_exp_passionate': 'Animal lover',

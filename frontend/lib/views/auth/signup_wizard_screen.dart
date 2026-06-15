@@ -370,6 +370,21 @@ class SignupWizardScreen extends StatelessWidget {
         SizedBox(height: 14.h),
         _label('signup_search_radius'.tr),
         _radiusDropdown(c),
+        SizedBox(height: 16.h),
+        // v419 — Daniel : "il manque À propos de moi (max 250) qui s'affichera
+        // sur ma publication owner, visible par walker/sitter". L'owner décrit
+        // ses animaux / attentes ; ce bio est envoyé (data['bio']) et apparaît
+        // sur l'annonce.
+        _label('signup_about_you'.tr),
+        TextField(
+          controller: c.bioController,
+          maxLines: 4,
+          maxLength: 250,
+          decoration: InputDecoration(
+            hintText: 'signup_about_hint_owner'.tr,
+            border: const OutlineInputBorder(),
+          ),
+        ),
       ],
     );
   }

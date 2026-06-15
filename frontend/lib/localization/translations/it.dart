@@ -3215,6 +3215,7 @@ const Map<String, String> itITTranslations = <String, String>{
   'signup_sitsvc_vet_transport': 'Trasporto veterinario',
   'signup_step_about': 'Su di te',
   'signup_about_you': 'Parlaci di te',
+      'signup_about_hint_owner': 'Parlaci di te e dei tuoi animali (visibile sul tuo annuncio)',
   'signup_about_hint': 'Descrivi la tua esperienza con gli animali…',
   'signup_experience': 'Esperienza',
   'signup_exp_passionate': 'Amante degli animali',
