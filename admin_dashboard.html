@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v410</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v411</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -1533,6 +1533,14 @@ function refreshPaymentsPage() {
   try { loadProviderPayouts(); } catch (_) {}
 }
 
+// v410 — Daniel : la colonne Méthode affichait « stripe » (legacy). Stripe est
+// retiré depuis v21 → tous les payouts prestataires passent par IBAN/Airwallex.
+function payoutMethodLabel(m) {
+  const v = String(m || '').toLowerCase();
+  if (v === 'paypal') return 'PayPal';
+  return 'IBAN (Airwallex)';
+}
+
 async function loadProviderPayouts() {
   const role = (document.getElementById('pp-role-filter') || {}).value || 'all';
   try {
@@ -1560,7 +1568,7 @@ async function loadProviderPayouts() {
         <td>${escapeHtml(w.userName)}</td>
         <td>${w.role === 'walker' ? '🐕 walker' : '🏠 sitter'}</td>
         <td style="font-weight:700">€${Number(w.amount).toFixed(2)}</td>
-        <td>${w.method}</td>
+        <td>${payoutMethodLabel(w.method)}</td>
         <td>${badge(w.status)}</td>
         <td style="font-size:11px">${escapeHtml(w.airwallexId || '—')}</td>
         <td style="max-width:200px;color:#E53935;font-size:12px">${escapeHtml(w.failureReason || '')}</td>
@@ -1854,7 +1862,11 @@ async function loadPromotions() {
     document.getElementById('promo-rows').innerHTML =
       '<tr><td colspan="7" style="color:#EF4324">' + e.message + '</td></tr>';
   }
-  if (_promoClients.length === 0) await loadPromoClients();
+  // v410 — Daniel : "les nouveaux mails n'apparaissent pas". AVANT on ne
+  // rechargeait les destinataires que si la liste était vide → après l'ajout
+  // d'un sitter/walker, rouvrir l'onglet n'actualisait rien. On recharge
+  // TOUJOURS la liste à l'ouverture de l'onglet Promotions.
+  await loadPromoClients();
   renderPromoClients();
   promoToggleReward();
 }
@@ -1920,7 +1932,7 @@ async function revokePromo(id) {
 async function loadPromoClients() {
   try {
     const res = await Promise.all([
-      api('/admin/owners?limit=300'), api('/admin/sitters?limit=300'), api('/admin/walkers?limit=300'),
+      api('/admin/owners?limit=1000'), api('/admin/sitters?limit=1000'), api('/admin/walkers?limit=1000'),
     ]);
     const norm = function (arr, role) {
       return (arr || []).map(function (u) { return { name: u.name || '', email: u.email || '', role: role }; });
