@@ -291,6 +291,17 @@ function PetFormModal({
   const [breed, setBreed] = useState(initial?.breed || "");
   const [vaccination, setVaccination] = useState(initial?.vaccination || "");
   const [bio, setBio] = useState(initial?.bio || "");
+  // v413 — parité app : fiche animal enrichie (synchro app↔web).
+  const [gender, setGender] = useState(initial?.gender || "");
+  const [weight, setWeight] = useState(initial?.weight || "");
+  const [height, setHeight] = useState(initial?.height || "");
+  const [character, setCharacter] = useState((initial?.characterTraits || []).join(", "));
+  const [vaccinationStatus, setVaccinationStatus] = useState(initial?.vaccinationStatus || "");
+  const [allergies, setAllergies] = useState(initial?.medicationAllergies || "");
+  const [history, setHistory] = useState(initial?.history || "");
+  const [habitsRemarks, setHabitsRemarks] = useState(
+    (initial?.habits?.remarks as string) || "",
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -305,6 +316,17 @@ function PetFormModal({
         breed: breed.trim() || undefined,
         vaccination: vaccination.trim() || "Up to date",
         bio: bio.trim() || undefined,
+        // v413 — champs enrichis (mêmes clés que l'app → synchro).
+        gender: gender || undefined,
+        weight: weight.trim() || undefined,
+        height: height.trim() || undefined,
+        characterTraits: character.trim()
+          ? character.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined,
+        vaccinationStatus: vaccinationStatus || undefined,
+        medicationAllergies: allergies.trim() || undefined,
+        history: history.trim() || undefined,
+        habits: habitsRemarks.trim() ? { remarks: habitsRemarks.trim() } : undefined,
       };
       const saved = initial
         ? await updatePet(initial.id, payload)
@@ -387,7 +409,90 @@ function PetFormModal({
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={3}
-              placeholder="Caractère, habitudes, allergies…"
+              placeholder="Présentation de l'animal…"
+              className="w-full resize-none rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+            />
+          </Field>
+
+          {/* v413 — parité app : caractère / santé / habitudes (synchro). */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Sexe">
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+              >
+                <option value="">—</option>
+                <option value="male">Mâle</option>
+                <option value="female">Femelle</option>
+              </select>
+            </Field>
+            <Field label="Statut vaccinal">
+              <select
+                value={vaccinationStatus}
+                onChange={(e) => setVaccinationStatus(e.target.value)}
+                className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+              >
+                <option value="">—</option>
+                <option value="up_to_date">À jour</option>
+                <option value="late">En retard</option>
+                <option value="unknown">Inconnu</option>
+              </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Poids (kg)">
+              <input
+                type="text"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="ex. 12"
+                className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+              />
+            </Field>
+            <Field label="Taille (cm)">
+              <input
+                type="text"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                placeholder="ex. 45"
+                className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+              />
+            </Field>
+          </div>
+          <Field label="Caractère (traits séparés par des virgules)">
+            <input
+              type="text"
+              value={character}
+              onChange={(e) => setCharacter(e.target.value)}
+              placeholder="Affectueux, joueur, protecteur…"
+              className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+            />
+          </Field>
+          <Field label="Allergies / traitements">
+            <input
+              type="text"
+              value={allergies}
+              onChange={(e) => setAllergies(e.target.value)}
+              placeholder="Aucune allergie connue…"
+              className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+            />
+          </Field>
+          <Field label="Histoire">
+            <textarea
+              value={history}
+              onChange={(e) => setHistory(e.target.value)}
+              rows={2}
+              placeholder="Comment il est arrivé, son passé…"
+              className="w-full resize-none rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
+            />
+          </Field>
+          <Field label="Habitudes / remarques">
+            <textarea
+              value={habitsRemarks}
+              onChange={(e) => setHabitsRemarks(e.target.value)}
+              rows={2}
+              placeholder="Niveau d'énergie, alimentation, ce qu'il aime…"
               className="w-full resize-none rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-owner focus:outline-none focus:ring-2 focus:ring-owner/20"
             />
           </Field>

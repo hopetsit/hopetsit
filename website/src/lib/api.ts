@@ -468,6 +468,13 @@ export type Pet = {
   bio?: string;
   profileView?: "public" | "private";
   avatar?: { url?: string; publicId?: string };
+  // v413 — parité app : fiche animal enrichie (synchro app↔web, mêmes champs).
+  gender?: string; // 'male' | 'female' | ''
+  characterTraits?: string[];
+  vaccinationStatus?: string; // 'up_to_date' | 'late' | 'unknown'
+  history?: string;
+  notes?: string;
+  habits?: { remarks?: string; [k: string]: unknown };
 };
 
 export async function getMyPets(): Promise<Pet[]> {
