@@ -949,6 +949,21 @@ export type ChatMessage = {
   metadata?: Record<string, unknown>;
 };
 
+// v413 — PawFamily : ajouter/retirer un membre depuis le web (réutilise le
+// type FamilyMember + getMyFamily existants plus haut).
+export async function inviteFamilyByEmail(
+  email: string,
+): Promise<{ success?: boolean; mode?: string; remainingSlots?: number; error?: string }> {
+  return request("/friends/family/invite-by-email", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function removeFamilyMember(userId: string): Promise<{ success?: boolean }> {
+  return request(`/friends/family/member/${userId}`, { method: "DELETE" });
+}
+
 /** v413 — Demande de suivi en direct depuis une conversation (chat web). */
 export async function requestFollowByConversation(
   conversationId: string,

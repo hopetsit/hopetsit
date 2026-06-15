@@ -343,6 +343,13 @@ export default function DashboardPage() {
           title={t("dash_card_profile_title")}
           subtitle={t("dash_card_profile_sub")}
         />
+        {/* v413 — PawFamily : gérer jusqu'à 5 membres. */}
+        <NavCard
+          href="/family"
+          emoji="👨‍👩‍👧"
+          title={t("family_title")}
+          subtitle={t("family_subtitle")}
+        />
         <NavCard
           href="/bookings"
           emoji="📅"
