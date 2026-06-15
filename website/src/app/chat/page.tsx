@@ -20,6 +20,8 @@ import {
   getMessages,
   getMyFriends,
   getStoredUser,
+  requestFollowByConversation,
+  respondPawfollowRequest,
   sendMessage,
   startFriendConversation,
 } from "@/lib/api";
@@ -219,6 +221,40 @@ export default function ChatPage() {
       setDraft(body); // restore le draft si erreur
     } finally {
       setSending(false);
+    }
+  }
+
+  // v413 — Daniel : suivi animal dans le chat web. Demande de suivi en direct
+  // (POST /conversations/:id/follow-request) → crée une carte pawfollow_request
+  // que l'autre peut accepter/refuser. On recharge les messages après.
+  const [followBusy, setFollowBusy] = useState(false);
+  async function handleRequestFollow() {
+    if (!activeId || followBusy) return;
+    setFollowBusy(true);
+    try {
+      await requestFollowByConversation(activeId);
+      const list = await getMessages(activeId);
+      setMessages(list);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
+  async function handleRespondFollow(messageId: string, action: "accept" | "refuse") {
+    if (followBusy) return;
+    setFollowBusy(true);
+    try {
+      await respondPawfollowRequest(messageId, action);
+      if (activeId) {
+        const list = await getMessages(activeId);
+        setMessages(list);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setFollowBusy(false);
     }
   }
 
@@ -432,13 +468,23 @@ export default function ChatPage() {
             </div>
           ) : (
             <>
-              <div className="border-b border-ink/5 p-4 md:hidden">
+              <div className="flex items-center justify-between gap-2 border-b border-ink/5 p-3">
                 <button
                   type="button"
                   onClick={() => setActiveId(null)}
-                  className="text-sm text-ink-muted hover:text-ink"
+                  className="text-sm text-ink-muted hover:text-ink md:hidden"
                 >
                   ← Conversations
+                </button>
+                <span className="hidden md:block" />
+                {/* v413 — Demander à suivre l'animal en direct (PawFollow). */}
+                <button
+                  type="button"
+                  onClick={handleRequestFollow}
+                  disabled={followBusy}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-owner/40 px-3 py-1.5 text-xs font-semibold text-owner transition hover:bg-owner-light/40 disabled:opacity-60"
+                >
+                  📍 {t("chat_request_follow")}
                 </button>
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
@@ -451,6 +497,57 @@ export default function ChatPage() {
                 ) : (
                   messages.map((m) => {
                     const mine = m.senderId === user?.id;
+                    // v413 — carte « Demande de suivi en direct » (pawfollow).
+                    if (m.type === "pawfollow_request") {
+                      const status = (m.metadata?.status as string) || "pending";
+                      const bookingId = m.metadata?.bookingId as string | undefined;
+                      const canRespond = status === "pending" && !mine;
+                      const statusLabel =
+                        status === "accepted"
+                          ? t("chat_follow_accepted")
+                          : status === "refused"
+                            ? t("chat_follow_refused")
+                            : t("chat_follow_pending");
+                      return (
+                        <div key={m.id} className="flex justify-center">
+                          <div className="w-full max-w-[88%] rounded-2xl border border-owner/30 bg-owner-light/30 p-3">
+                            <div className="flex items-center gap-2 text-sm font-bold text-owner">
+                              <span>📍</span>
+                              {t("chat_follow_card_title")}
+                            </div>
+                            <div className="mt-1 text-xs text-ink-muted">{statusLabel}</div>
+                            {canRespond && (
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={followBusy}
+                                  onClick={() => handleRespondFollow(m.id, "accept")}
+                                  className="rounded-full bg-[#16A34A] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                                >
+                                  {t("chat_follow_accept")}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={followBusy}
+                                  onClick={() => handleRespondFollow(m.id, "refuse")}
+                                  className="rounded-full border border-ink/15 px-4 py-1.5 text-xs font-semibold text-ink-muted disabled:opacity-60"
+                                >
+                                  {t("chat_follow_refuse")}
+                                </button>
+                              </div>
+                            )}
+                            {status === "accepted" && (
+                              <a
+                                href={bookingId ? `/walk/${bookingId}` : "/pawmap"}
+                                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-owner px-4 py-1.5 text-xs font-semibold text-white"
+                              >
+                                🗺️ {t("chat_follow_view_map")}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
                       <div
                         key={m.id}

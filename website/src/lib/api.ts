@@ -943,7 +943,32 @@ export type ChatMessage = {
   senderId: string;
   createdAt: string;
   attachments?: Array<{ type?: string; url: string; publicId?: string }>;
+  // v413 — suivi animal dans le chat web : type 'pawfollow_request' + metadata
+  // (status pending/accepted/refused, responderRole, bookingId…).
+  type?: string;
+  metadata?: Record<string, unknown>;
 };
+
+/** v413 — Demande de suivi en direct depuis une conversation (chat web). */
+export async function requestFollowByConversation(
+  conversationId: string,
+): Promise<{ success?: boolean; chatMessageId?: string }> {
+  return request(`/conversations/${conversationId}/follow-request`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+/** v413 — Répondre à une demande de suivi (carte pawfollow_request). */
+export async function respondPawfollowRequest(
+  messageId: string,
+  action: "accept" | "refuse",
+): Promise<{ ok?: boolean }> {
+  return request(`/bookings/pawfollow-request/${messageId}/respond`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}
 
 export async function getConversations(): Promise<Conversation[]> {
   const raw = await request<{ conversations?: Conversation[] }>(
