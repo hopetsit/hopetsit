@@ -59,7 +59,19 @@ async function resolvePremium(req) {
       ((sub.plan === 'famille' || sub.plan === 'family') &&
         sub.currentPeriodEnd &&
         new Date(sub.currentPeriodEnd) > now));
-  const isPremium = !!(indivActive || familyActive);
+  // v413 — Daniel : "les signaux premium débloqués si un abonnement acheté, sur
+  // TOUS mes abonnements". On débloque donc les signalements premium dès qu'un
+  // abonnement actif existe : Premium (premiumExpiry), PawFamily (familyExpiry),
+  // PawFollow (currentPeriodEnd) OU PawSpot (pawspotExpiry).
+  const premiumActive =
+    sub && sub.premiumExpiry && new Date(sub.premiumExpiry) > now;
+  const pawFollowActive =
+    sub && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now;
+  const pawspotActive =
+    sub && sub.pawspotExpiry && new Date(sub.pawspotExpiry) > now;
+  const isPremium = !!(
+    indivActive || familyActive || premiumActive || pawFollowActive || pawspotActive
+  );
   return { isPremium, sub };
 }
 
