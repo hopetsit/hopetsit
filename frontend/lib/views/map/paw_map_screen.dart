@@ -2357,12 +2357,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // pour séparer clairement les deux affordances : géoloc en
                 // haut, signaler en bas. La zone centrale de la map reste
                 // dégagée.
+                // v418 — Daniel : "le bouton signaler en bas à gauche petit".
+                // On le déplace en BAS À GAUCHE (était bottom-right) et on le
+                // rend compact (rond, icône seule). La carte « Autour de vous »
+                // est remontée pour ne plus le chevaucher (cf _buildAroundYouCard).
                 Positioned(
-                  right: 12.w,
-                  // v401 — Daniel : "boutons trop bas, ils passent sous la
-                  // barre de navigation Android". On ajoute l'inset système
-                  // (viewPadding.bottom) pour que le FAB Signaler reste
-                  // au-dessus de la zone de gestes/3-boutons.
+                  left: 12.w,
                   bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
                   child: _buildReportFab(),
                 ),
@@ -2381,9 +2381,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // (le bandeau distance + "Effacer" prend sa place).
                 if (_routePolylines.isEmpty)
                   Positioned(
-                    left: 12.w,
+                    // v418 — le FAB Signaler est passé en bas à GAUCHE : on
+                    // décale la carte « Autour de vous » pour ne pas le couvrir.
+                    left: 72.w,
                     right: 12.w,
-                    // v401 — au-dessus de la barre système (cf. FAB Signaler).
                     bottom: 12.h + MediaQuery.of(context).viewPadding.bottom,
                     child: _buildAroundYouCard(),
                   )
@@ -3690,36 +3691,55 @@ class _PawMapScreenState extends State<PawMapScreen>
   // Premium users see all 9 types. The CreateReportSheet handles the per-type
   // lock UI and the final submit guard.
   Widget _buildReportFab() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryColor.withValues(alpha: 0.45),
-            blurRadius: 18,
-            spreadRadius: 2,
-            offset: const Offset(0, 4),
+    // v418 — Daniel : bouton « Signaler » compact en bas à gauche. FAB rond
+    // (icône seule) avec mini label dessous pour rester clair, plus petit que
+    // l'ancien FAB étendu.
+    Future<void> onTap() async {
+      final created = await CreateReportSheet.show(
+        context,
+        initialPoint: _currentCenter,
+      );
+      if (created) await _reloadAtCenter();
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 48.w,
+          height: 48.w,
+          child: FloatingActionButton(
+            heroTag: 'reportFab',
+            backgroundColor: AppColors.primaryColor,
+            elevation: 6,
+            shape: const CircleBorder(),
+            onPressed: onTap,
+            child: Icon(Icons.add_alert_rounded,
+                color: Colors.white, size: 22.sp),
           ),
-        ],
-      ),
-      child: FloatingActionButton.extended(
-        backgroundColor: AppColors.primaryColor,
-        elevation: 6,
-        icon: Icon(Icons.add_alert_rounded, color: Colors.white, size: 22.sp),
-        label: InterText(
-          text: 'pawmap_btn_send'.tr,
-          fontSize: 14.sp,
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
         ),
-        onPressed: () async {
-                final created = await CreateReportSheet.show(
-            context,
-            initialPoint: _currentCenter,
-          );
-          if (created) await _reloadAtCenter();
-        },
-      ),
+        SizedBox(height: 4.h),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8.r),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: InterText(
+            text: 'pawmap_btn_send'.tr,
+            fontSize: 10.sp,
+            color: AppColors.primaryColor,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 
