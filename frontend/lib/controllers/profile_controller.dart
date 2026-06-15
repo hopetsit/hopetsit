@@ -68,6 +68,11 @@ class ProfileController extends GetxController {
   final Rxn<ProfileModel> profile = Rxn<ProfileModel>();
   final RxBool isUploadingImage = false.obs;
 
+  // v406 refonte — onglet actif du profil (0=Profil, 1=Préférences, 2=Sécurité)
+  // + état de sauvegarde des préférences/2FA.
+  final RxInt profileTab = 0.obs;
+  final RxBool prefsSaving = false.obs;
+
   // Blocked users list
   final RxList<BlockedUser> blockedUsers = <BlockedUser>[].obs;
   final RxBool isLoadingBlockedUsers = false.obs;
@@ -415,6 +420,55 @@ class ProfileController extends GetxController {
         await deleteAccount();
       },
     );
+  }
+
+  /// v406 — sauvegarde les préférences (toggles maquette) via PATCH profil.
+  /// Met à jour optimistement profile.value puis persiste (additif backend).
+  Future<void> savePreferences(Map<String, dynamic> prefsJson) async {
+    final id = profile.value?.id;
+    if (id == null || id.isEmpty) return;
+    prefsSaving.value = true;
+    try {
+      final uc = Get.isRegistered<UserController>()
+          ? Get.find<UserController>()
+          : Get.put(UserController(_userRepository));
+      await uc.updateUserProfile(id, {'preferences': prefsJson});
+      await loadMyProfile();
+    } catch (error) {
+      AppLogger.logError('Failed to save preferences', error: error);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'profile_update_failed'.tr,
+      );
+    } finally {
+      prefsSaving.value = false;
+    }
+  }
+
+  /// v406 — active/désactive la double authentification (2FA).
+  Future<void> setTwoFactor(bool enabled) async {
+    final id = profile.value?.id;
+    if (id == null || id.isEmpty) return;
+    prefsSaving.value = true;
+    try {
+      final uc = Get.isRegistered<UserController>()
+          ? Get.find<UserController>()
+          : Get.put(UserController(_userRepository));
+      await uc.updateUserProfile(id, {'twoFactorEnabled': enabled});
+      await loadMyProfile();
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: enabled ? 'profile_2fa_enabled'.tr : 'profile_2fa_disabled'.tr,
+      );
+    } catch (error) {
+      AppLogger.logError('Failed to toggle 2FA', error: error);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'profile_update_failed'.tr,
+      );
+    } finally {
+      prefsSaving.value = false;
+    }
   }
 
   Future<void> deleteAccount() async {
