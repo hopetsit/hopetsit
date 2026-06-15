@@ -35,6 +35,9 @@ class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key, this.initialIndex = 0});
   final int initialIndex;
 
+  // v414 — « Mon cercle » (famille & amis PawFollow) = VIOLET, pas bleu/orange.
+  static const Color _circleViolet = Color(0xFF8B5CF6);
+
   @override
   Widget build(BuildContext context) {
     final FriendController controller = Get.isRegistered<FriendController>()
@@ -100,13 +103,13 @@ class FriendsScreen extends StatelessWidget {
             // v23.1.174 — Accès à la liste des bloqués depuis la barre d'app.
             IconButton(
               icon: Icon(Icons.block_rounded,
-                  color: AppColors.primaryColor, size: 22.sp),
+                  color: _circleViolet, size: 22.sp),
               tooltip: 'friend_blocked_list'.tr,
               onPressed: () => Get.to(() => const BlockedUsersScreen()),
             ),
             IconButton(
               icon: Icon(Icons.ios_share_rounded,
-                  color: AppColors.primaryColor, size: 22.sp),
+                  color: _circleViolet, size: 22.sp),
               tooltip: 'friends_invite_link_tooltip'.tr,
               onPressed: () async {
                 try {
@@ -150,9 +153,11 @@ class FriendsScreen extends StatelessWidget {
             // la viewport quand on swipe, et les tabs ont du padding
             // symetrique.
             tabAlignment: TabAlignment.center,
-            labelColor: AppColors.primaryColor,
+            // v414 — Daniel : "la page cercle code couleur pas bleu mais
+            // violet". Mon cercle (famille & amis PawFollow) = VIOLET partout.
+            labelColor: _circleViolet,
             unselectedLabelColor: AppColors.greyText,
-            indicatorColor: AppColors.primaryColor,
+            indicatorColor: _circleViolet,
             tabs: [
               // 1. Mes amis — accepted friendships + status + distance.
               Tab(icon: const Icon(Icons.people_rounded),

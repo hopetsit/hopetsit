@@ -1358,7 +1358,12 @@ export type MapReportType =
   | "stray_pet"
   | "construction"
   | "food"
-  | "trash";
+  | "trash"
+  // v414 — nouveaux types de signalements.
+  | "vet_open"
+  | "leash_required"
+  | "heat_hot_ground"
+  | "tick_zone";
 
 export type MapReport = {
   _id: string;

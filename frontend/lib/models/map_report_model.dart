@@ -108,6 +108,12 @@ class ReportTypes {
   // v23.1.293 — 2 nouveaux types GRATUITS (Daniel).
   static const String food = 'food'; // nourriture laissée dans la rue
   static const String trash = 'trash'; // détritus / poubelle abandonnés
+  // v414 — 4 nouveaux types (Daniel : "nouveau detail signeaux"). vetOpen est
+  // GRATUIT (utile à la communauté), les 3 autres sont Premium.
+  static const String vetOpen = 'vet_open'; // véto ouvert / de garde — FREE
+  static const String leashRequired = 'leash_required'; // laisse obligatoire
+  static const String heatHotGround = 'heat_hot_ground'; // sol brûlant / canicule
+  static const String tickZone = 'tick_zone'; // zone à tiques / parasites
 
   static const List<String> all = [
     // Gratuits
@@ -137,6 +143,11 @@ class ReportTypes {
     // v23.1.293 — gratuits
     food,
     trash,
+    // v414 — nouveaux
+    vetOpen,
+    leashRequired,
+    heatHotGround,
+    tickZone,
   ];
 
   /// Freemium whitelist — 3 signalements gratuits pour tous les profils
@@ -153,6 +164,8 @@ class ReportTypes {
     // v23.1.293 — nouveaux gratuits.
     food,
     trash,
+    // v414 — véto ouvert : utile à toute la communauté → gratuit.
+    vetOpen,
   ];
 
   /// Returns true if [type] is usable by a free user (no Premium required).
@@ -188,6 +201,11 @@ class ReportTypes {
       // FREE - v23.1.293
       case food:          return 0xFF8BC34A; // light green
       case trash:         return 0xFF607D8B; // blue grey
+      // v414 — nouveaux
+      case vetOpen:       return 0xFF00897B; // teal (santé)
+      case leashRequired: return 0xFF455A64; // blue grey
+      case heatHotGround: return 0xFFFF5722; // deep orange (chaleur)
+      case tickZone:      return 0xFF6D4C41; // brown (herbes/parasites)
       case other:
       default:            return 0xFF9E9E9E; // neutral grey
     }
@@ -243,6 +261,15 @@ class ReportTypes {
         return '🍖';
       case trash:
         return '🗑️';
+      // v414 — nouveaux
+      case vetOpen:
+        return '🏥';
+      case leashRequired:
+        return '🦮';
+      case heatHotGround:
+        return '🌡️';
+      case tickZone:
+        return '🕷️';
       default:
         return '📍';
     }

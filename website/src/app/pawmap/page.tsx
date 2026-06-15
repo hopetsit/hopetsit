@@ -116,6 +116,11 @@ export default function PawMapPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-16 md:py-24">
+      {/* v414 — logo PawMap (patte bleu→vert + chien & chat). */}
+      <div className="mb-4 flex justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pawmap_logo.svg" alt="PawMap" width={96} height={96} />
+      </div>
       <h1 className="text-center font-display text-4xl font-extrabold tracking-tight md:text-5xl">
         {t("pawmap_title")}
       </h1>
@@ -308,6 +313,11 @@ export default function PawMapPage() {
         </div>
         <p className="mx-auto mt-6 max-w-xl text-center text-xs text-ink-muted">
           {t("pawspot_footer_note")}
+        </p>
+        {/* v414 — Daniel : "met signalement premium débloqué si un abonnement
+            acheté sur tous les abonnements et précise-le dans la description". */}
+        <p className="mx-auto mt-4 max-w-2xl rounded-2xl border border-walker/20 bg-walker-light/40 px-5 py-3 text-center text-sm font-semibold text-walker-dark">
+          {t("premium_signals_note")}
         </p>
       </div>
 

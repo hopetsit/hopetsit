@@ -338,6 +338,7 @@ export const t: Bundle = {
     pawspot_yearly_name: "PawSpot Yearly",
     pawspot_yearly_details: "Everything in Monthly, save 33% — the community at its best, all year long",
     pawspot_footer_note: "7-day free trial for new users. PawPoints: +10 per spot, +5 per photo, +10 community-validated, +25 very popular. Badges from Explorer 🥉 to PawMaster 👑.",
+    premium_signals_note: "✨ Any active subscription (PawFollow, PawFamily, PawSpot or Paw Premium) unlocks ALL premium PawMap report types.",
 
     // Legal — short labels (full text lives in dedicated pages).
     terms_title:        "Terms of Service",
@@ -843,6 +844,7 @@ export const t: Bundle = {
     pawspot_yearly_name: "PawSpot Annuel",
     pawspot_yearly_details: "Tout le Mensuel, avec 33% d'économie — la communauté au top toute l'année",
     pawspot_footer_note: "7 jours d'essai gratuit pour les nouveaux utilisateurs. PawPoints : +10 par spot, +5 par photo, +10 validé par la communauté, +25 très populaire. Badges d'Explorateur 🥉 à PawMaster 👑.",
+    premium_signals_note: "✨ Tout abonnement actif (PawFollow, PawFamily, PawSpot ou Paw Premium) débloque TOUS les signalements premium de la PawMap.",
 
     terms_title:        "Conditions générales d'utilisation",
     privacy_title:      "Politique de confidentialité",
@@ -1273,6 +1275,7 @@ export const t: Bundle = {
     pawspot_yearly_name: "PawSpot Anual",
     pawspot_yearly_details: "Todo lo del Mensual con un 33% de ahorro — la comunidad al máximo todo el año",
     pawspot_footer_note: "7 días de prueba gratis para nuevos usuarios. PawPoints: +10 por spot, +5 por foto, +10 validado por la comunidad, +25 muy popular. Insignias de Explorador 🥉 a PawMaster 👑.",
+    premium_signals_note: "✨ Cualquier suscripción activa (PawFollow, PawFamily, PawSpot o Paw Premium) desbloquea TODOS los reportes premium de la PawMap.",
     terms_title: "Términos de Servicio", privacy_title: "Política de privacidad",
     refund_title: "Política de reembolso", imprint_title: "Aviso legal",
     legal_auto_translated_notice: "Este documento ha sido traducido automáticamente para tu comodidad. Las versiones en inglés y francés son las referencias oficiales — en caso de discrepancia, la versión en inglés prevalece legalmente.",
@@ -1655,6 +1658,7 @@ export const t: Bundle = {
     pawspot_yearly_name: "PawSpot Jährlich",
     pawspot_yearly_details: "Alles aus Monatlich, 33% sparen — die Community in Bestform, das ganze Jahr",
     pawspot_footer_note: "7 Tage gratis testen für neue Nutzer. PawPoints: +10 pro Spot, +5 pro Foto, +10 Community-bestätigt, +25 sehr beliebt. Abzeichen vom Entdecker 🥉 bis zum PawMaster 👑.",
+    premium_signals_note: "✨ Jedes aktive Abo (PawFollow, PawFamily, PawSpot oder Paw Premium) schaltet ALLE Premium-Meldungen der PawMap frei.",
     terms_title: "Nutzungsbedingungen", privacy_title: "Datenschutzerklärung",
     refund_title: "Erstattungsrichtlinie", imprint_title: "Impressum",
     legal_auto_translated_notice: "Dieses Dokument wurde zu deiner Bequemlichkeit automatisch übersetzt. Die englische und französische Version sind die offiziellen Referenzen — bei Abweichungen gilt rechtlich die englische Version.",
@@ -2036,6 +2040,7 @@ export const t: Bundle = {
     pawspot_yearly_name: "PawSpot Annuale",
     pawspot_yearly_details: "Tutto il Mensile con il 33% di risparmio — la community al top tutto l'anno",
     pawspot_footer_note: "7 giorni di prova gratuita per i nuovi utenti. PawPoints: +10 per spot, +5 per foto, +10 convalidato dalla community, +25 molto popolare. Badge da Esploratore 🥉 a PawMaster 👑.",
+    premium_signals_note: "✨ Qualsiasi abbonamento attivo (PawFollow, PawFamily, PawSpot o Paw Premium) sblocca TUTTE le segnalazioni premium della PawMap.",
     terms_title: "Termini di servizio", privacy_title: "Politica sulla privacy",
     refund_title: "Politica di rimborso", imprint_title: "Note legali",
     legal_auto_translated_notice: "Questo documento è stato tradotto automaticamente per tua comodità. Le versioni inglese e francese sono i riferimenti ufficiali — in caso di discrepanze, la versione inglese prevale legalmente.",
@@ -2417,6 +2422,7 @@ export const t: Bundle = {
     pawspot_yearly_name: "PawSpot Anual",
     pawspot_yearly_details: "Tudo do Mensal com 33% de poupança — a comunidade no topo o ano inteiro",
     pawspot_footer_note: "7 dias de teste grátis para novos utilizadores. PawPoints: +10 por spot, +5 por foto, +10 validado pela comunidade, +25 muito popular. Distintivos de Explorador 🥉 a PawMaster 👑.",
+    premium_signals_note: "✨ Qualquer subscrição ativa (PawFollow, PawFamily, PawSpot ou Paw Premium) desbloqueia TODOS os alertas premium da PawMap.",
     terms_title: "Termos de Serviço", privacy_title: "Política de privacidade",
     refund_title: "Política de reembolso", imprint_title: "Aviso legal",
     legal_auto_translated_notice: "Este documento foi traduzido automaticamente para o teu conforto. As versões em inglês e francês são as referências oficiais — em caso de divergência, a versão em inglês prevalece legalmente.",

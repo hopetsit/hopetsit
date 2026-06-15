@@ -52,6 +52,12 @@ const REPORT_TYPES = [
   // frontend ReportTypes.all + website.
   'food',              // nourriture laissée dans la rue (gamelle/croquettes) — FREE
   'trash',             // détritus / poubelle abandonnés — FREE
+  // v414 — Daniel : "ya des nouveau detail signeaux". 4 nouveaux types. DOIT
+  // rester synchronisé avec frontend ReportTypes.all + website REPORT_TYPES.
+  'vet_open',          // vétérinaire ouvert / de garde repéré ici — FREE
+  'leash_required',    // zone où la laisse est obligatoire
+  'heat_hot_ground',   // sol brûlant / canicule (danger coussinets)
+  'tick_zone',         // zone à tiques / parasites (herbes hautes)
 ];
 
 const REPORT_TTL_MS = 48 * 60 * 60 * 1000; // 48h

@@ -34,7 +34,7 @@ const ROLE_TO_MODEL_NAME = { owner: 'Owner', sitter: 'Sitter', walker: 'Walker' 
 // Avant, hazard et dead_animal étaient présentés comme gratuits côté app mais
 // renvoyaient 402 côté backend → "Envío imposible" pour les free users.
 // v23.1.293 — 'food' + 'trash' ajoutés en GRATUIT (Daniel).
-const FREE_REPORT_TYPES = ['aggressive_dog', 'hazard', 'water_active', 'dead_animal', 'food', 'trash'];
+const FREE_REPORT_TYPES = ['aggressive_dog', 'hazard', 'water_active', 'dead_animal', 'food', 'trash', 'vet_open'];
 
 function parseFloatOr(value, fallback) {
   const n = parseFloat(value);

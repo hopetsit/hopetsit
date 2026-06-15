@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -2085,7 +2086,12 @@ class _PawMapScreenState extends State<PawMapScreen>
         backgroundColor: AppColors.appBar(context),
         title: Row(
           children: [
-            Text('🗺️', style: TextStyle(fontSize: 20.sp)),
+            // v414 — logo PawMap officiel (patte bleu→vert + chien & chat).
+            SvgPicture.asset(
+              'assets/images/pawmap_logo.svg',
+              width: 26.w,
+              height: 26.w,
+            ),
             SizedBox(width: 8.w),
             InterText(
               text: 'PawMap',
@@ -3414,6 +3420,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                     active: active,
                     premiumBadge: true,
                     count: count,
+                    // v414 — Mon cercle = VIOLET (code couleur PawFollow).
+                    activeColor: const Color(0xFF8B5CF6),
                     onTap: () => _showFriends.value = !_showFriends.value,
                   );
                 }),
@@ -4506,6 +4514,7 @@ class _LayerToggle extends StatelessWidget {
     required this.onTap,
     this.premiumBadge = false,
     this.count,
+    this.activeColor,
   });
 
   final String label;
@@ -4514,6 +4523,10 @@ class _LayerToggle extends StatelessWidget {
   final VoidCallback onTap;
   final bool premiumBadge;
 
+  /// v414 — couleur d'accent quand actif (défaut = orange brand). « Mon
+  /// cercle » passe en VIOLET pour suivre le code couleur PawFollow.
+  final Color? activeColor;
+
   /// Optional inline count pill rendered to the right of the label. Used
   /// e.g. to show the number of active reports next to the "Signalements"
   /// toggle instead of as a separate badge that used to overflow the row.
@@ -4521,6 +4534,7 @@ class _LayerToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color accent = activeColor ?? AppColors.primaryColor;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -4532,11 +4546,11 @@ class _LayerToggle extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 11.w, vertical: 9.h),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.primaryColor.withValues(alpha: 0.10)
+              ? accent.withValues(alpha: 0.10)
               : Colors.white,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: active ? AppColors.primaryColor : const Color(0xFFE0E0E0),
+            color: active ? accent : const Color(0xFFE0E0E0),
             width: 1.3,
           ),
           boxShadow: [
@@ -4556,8 +4570,7 @@ class _LayerToggle extends StatelessWidget {
               text: label,
               fontSize: 12.sp,
               fontWeight: FontWeight.w800,
-              color:
-                  active ? AppColors.primaryColor : const Color(0xFF1F2937),
+              color: active ? accent : const Color(0xFF1F2937),
             ),
             if (premiumBadge) ...[
               SizedBox(width: 4.w),

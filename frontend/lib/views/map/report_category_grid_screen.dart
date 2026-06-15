@@ -64,6 +64,13 @@ class ReportCategoryGridScreen extends StatelessWidget {
       icon: Icons.delete_rounded,
       color: Color(0xFF607D8B),
     ),
+    // v414 — véto ouvert / de garde : gratuit (utile à toute la communauté).
+    _CategoryDef(
+      type: ReportTypes.vetOpen,
+      labelKey: 'report_cat_vet_open',
+      icon: Icons.local_hospital_rounded,
+      color: Color(0xFF00897B),
+    ),
   ];
 
   // v23.1.192 — Categories PREMIUM (mockup bottom section).
@@ -133,6 +140,25 @@ class ReportCategoryGridScreen extends StatelessWidget {
       labelKey: 'report_cat_wildlife',
       icon: Icons.cruelty_free_rounded,
       color: Color(0xFF14B8A6),
+    ),
+    // v414 — 3 nouveaux types Premium (Daniel : "nouveau detail signeaux").
+    _CategoryDef(
+      type: ReportTypes.leashRequired,
+      labelKey: 'report_cat_leash_required',
+      icon: Icons.pets_rounded,
+      color: Color(0xFF455A64),
+    ),
+    _CategoryDef(
+      type: ReportTypes.heatHotGround,
+      labelKey: 'report_cat_heat_hot_ground',
+      icon: Icons.local_fire_department_outlined,
+      color: Color(0xFFFF5722),
+    ),
+    _CategoryDef(
+      type: ReportTypes.tickZone,
+      labelKey: 'report_cat_tick_zone',
+      icon: Icons.bug_report_rounded,
+      color: Color(0xFF6D4C41),
     ),
     _CategoryDef(
       type: ReportTypes.other,
@@ -222,6 +248,33 @@ class ReportCategoryGridScreen extends StatelessWidget {
               color: const Color(0xFFF59E0B),
               label: 'report_section_premium'.tr,
               hint: 'report_section_premium_hint'.tr,
+            ),
+            SizedBox(height: 8.h),
+            // v414 — Daniel : "précise que tout abonnement débloque les
+            // signalements premium". Note visible sous l'en-tête Premium.
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Text('✨', style: TextStyle(fontSize: 13.sp)),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: InterText(
+                      text: 'premium_signals_note'.tr,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF7C3AED),
+                      maxLines: 3,
+                    ),
+                  ),
+                ],
+              ),
             ),
             SizedBox(height: 10.h),
             GridView.builder(
