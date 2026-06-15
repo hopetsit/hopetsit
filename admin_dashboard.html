@@ -7,6 +7,29 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<!-- v415 — Daniel voyait un admin PÉRIMÉ (récompenses PawPoints absentes,
+     payout "stripe") = copie en cache du navigateur. Auto-réparation : on
+     compare la version embarquée dans CE fichier avec celle réellement servie
+     par le backend (GET /__build). Si elles diffèrent → cette page est périmée
+     → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
+<script>
+(function () {
+  var EMBEDDED = 'v415'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  try {
+    fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        var m = String(t).match(/v(\d+)/);
+        var live = m ? ('v' + m[1]) : null;
+        if (live && live !== EMBEDDED && sessionStorage.getItem('admin_stale_reloaded') !== live) {
+          sessionStorage.setItem('admin_stale_reloaded', live);
+          location.reload();
+        }
+      })
+      .catch(function () {});
+  } catch (e) {}
+})();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
 :root {
