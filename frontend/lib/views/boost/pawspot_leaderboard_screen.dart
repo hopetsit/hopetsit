@@ -91,7 +91,7 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         appBar: AppBar(
@@ -112,6 +112,8 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
             ],
           ),
           bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.center,
             labelColor: _gold,
             unselectedLabelColor: AppColors.greyText,
             indicatorColor: _gold,
@@ -122,18 +124,26 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
               Tab(text: 'pawspot_lb_city'.tr),
               Tab(text: 'pawspot_lb_country'.tr),
               Tab(text: 'pawspot_lb_europe'.tr),
+              // v420 — onglet Récompenses à droite de Europe (Daniel).
+              Tab(text: '🎁 ${'pawpoints_rewards_title'.tr}'),
             ],
           ),
         ),
         body: Column(
           children: [
             _buildMyPointsHeader(context),
-            const Expanded(
+            Expanded(
               child: TabBarView(
                 children: [
-                  _LeaderboardList(scope: 'city'),
-                  _LeaderboardList(scope: 'country'),
-                  _LeaderboardList(scope: 'europe'),
+                  const _LeaderboardList(scope: 'city'),
+                  const _LeaderboardList(scope: 'country'),
+                  const _LeaderboardList(scope: 'europe'),
+                  // v420 — 4e onglet : récompenses listées inline (pas un sheet).
+                  _RewardsSheet(
+                    inTab: true,
+                    myPoints: (_me['points'] as num?)?.toInt() ?? 0,
+                    onChanged: _loadMyPoints,
+                  ),
                 ],
               ),
             ),
@@ -270,10 +280,16 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
 /// niveau, réductions/mois gratuits sur abonnements (échange auto, 1×/user),
 /// 7 niveaux exclusifs + objectif Paw Legend, et barème de gains.
 class _RewardsSheet extends StatefulWidget {
-  const _RewardsSheet({required this.myPoints, required this.onChanged});
+  const _RewardsSheet({
+    required this.myPoints,
+    required this.onChanged,
+    this.inTab = false,
+  });
 
   final int myPoints;
   final Future<void> Function() onChanged;
+  // v420 — true = rendu inline dans l'onglet « Récompenses » (pas un sheet).
+  final bool inTab;
 
   @override
   State<_RewardsSheet> createState() => _RewardsSheetState();
@@ -421,8 +437,44 @@ class _RewardsSheetState extends State<_RewardsSheet> {
     }
   }
 
+  Widget _rewardsList(ScrollController? scroll) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    return ListView(
+      controller: scroll,
+      padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 28.h),
+      children: [
+        _statsRow(context),
+        SizedBox(height: 12.h),
+        _levelBar(context),
+        SizedBox(height: 22.h),
+        _sectionTitle(context, 'pawpoints_sub_rewards_title'.tr,
+            'pawpoints_sub_rewards_sub'.tr),
+        SizedBox(height: 10.h),
+        ..._subRewards.map((r) => _subRewardRow(context, r)),
+        SizedBox(height: 22.h),
+        _sectionTitle(context, 'pawpoints_levels_title'.tr,
+            'pawpoints_levels_sub'.tr),
+        SizedBox(height: 10.h),
+        ..._levels.map((l) => _levelCard(context, l)),
+        SizedBox(height: 16.h),
+        _pawLegendCard(context),
+        SizedBox(height: 22.h),
+        if (_earn.isNotEmpty) ...[
+          _sectionTitle(context, 'pawpoints_how_to_earn'.tr, ''),
+          SizedBox(height: 10.h),
+          ..._earn.map((e) => _earnRow(context, e)),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // v420 — Daniel : "à droite de Europe, un onglet Récompenses avec tout
+    // listé". inTab=true → on rend la liste directement (pas de bottom sheet).
+    if (widget.inTab) {
+      return _rewardsList(null);
+    }
     return DraggableScrollableSheet(
       initialChildSize: 0.92,
       minChildSize: 0.5,
@@ -445,38 +497,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               ),
             ),
             SizedBox(height: 10.h),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView(
-                      controller: scroll,
-                      padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 28.h),
-                      children: [
-                        _statsRow(context),
-                        SizedBox(height: 12.h),
-                        _levelBar(context),
-                        SizedBox(height: 22.h),
-                        _sectionTitle(context, 'pawpoints_sub_rewards_title'.tr,
-                            'pawpoints_sub_rewards_sub'.tr),
-                        SizedBox(height: 10.h),
-                        ..._subRewards.map((r) => _subRewardRow(context, r)),
-                        SizedBox(height: 22.h),
-                        _sectionTitle(context, 'pawpoints_levels_title'.tr,
-                            'pawpoints_levels_sub'.tr),
-                        SizedBox(height: 10.h),
-                        ..._levels.map((l) => _levelCard(context, l)),
-                        SizedBox(height: 16.h),
-                        _pawLegendCard(context),
-                        SizedBox(height: 22.h),
-                        if (_earn.isNotEmpty) ...[
-                          _sectionTitle(
-                              context, 'pawpoints_how_to_earn'.tr, ''),
-                          SizedBox(height: 10.h),
-                          ..._earn.map((e) => _earnRow(context, e)),
-                        ],
-                      ],
-                    ),
-            ),
+            Expanded(child: _rewardsList(scroll)),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
+import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -136,11 +137,29 @@ class SignUpController extends GetxController {
     super.onClose();
   }
 
+  // v420 — Daniel : "ce n'est pas langue parlée, c'est la langue de l'app, et
+  // la changer doit VRAIMENT changer la langue". On mappe le nom affiché vers
+  // le code locale et on bascule l'app immédiatement (LocalizationService).
+  static const Map<String, String> _langToLocale = {
+    'Français': 'fr',
+    'English': 'en',
+    'Español': 'es',
+    'Deutsch': 'de',
+    'Italiano': 'it',
+    'Português': 'pt',
+  };
+
   void updateLanguage(String? value) {
     if (value == null || value.isEmpty) {
       return;
     }
     selectedLanguage.value = value;
+    final code = _langToLocale[value];
+    if (code != null) {
+      try {
+        LocalizationService.updateLocale(code);
+      } catch (_) {/* best-effort : le changement de langue ne doit pas crasher */}
+    }
   }
 
   void updateCurrency(String? label) {

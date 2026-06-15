@@ -3175,7 +3175,7 @@ const Map<String, String> enUSTranslations = <String, String>{
   'signup_step_personal': 'Personal information',
   'signup_field_name': 'Full name',
   'signup_field_dob': 'Date of birth',
-  'signup_field_language': 'Spoken language',
+  'signup_field_language': 'App language',
   'signup_field_phone': 'Phone',
   'signup_field_email': 'Email',
   'signup_field_password': 'Password',

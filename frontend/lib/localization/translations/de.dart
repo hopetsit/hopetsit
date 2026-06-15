@@ -3178,7 +3178,7 @@ const Map<String, String> deDETranslations = <String, String>{
   'signup_step_personal': 'Persönliche Daten',
   'signup_field_name': 'Vollständiger Name',
   'signup_field_dob': 'Geburtsdatum',
-  'signup_field_language': 'Gesprochene Sprache',
+  'signup_field_language': 'App-Sprache',
   'signup_field_phone': 'Telefon',
   'signup_field_email': 'E-Mail',
   'signup_field_password': 'Passwort',

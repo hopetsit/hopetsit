@@ -3173,7 +3173,7 @@ const Map<String, String> itITTranslations = <String, String>{
   'signup_step_personal': 'Informazioni personali',
   'signup_field_name': 'Nome completo',
   'signup_field_dob': 'Data di nascita',
-  'signup_field_language': 'Lingua parlata',
+  'signup_field_language': 'Lingua dell’app',
   'signup_field_phone': 'Telefono',
   'signup_field_email': 'Email',
   'signup_field_password': 'Password',

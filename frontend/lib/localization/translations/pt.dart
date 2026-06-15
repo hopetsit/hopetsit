@@ -3011,7 +3011,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'signup_step_personal': 'Informações pessoais',
   'signup_field_name': 'Nome completo',
   'signup_field_dob': 'Data de nascimento',
-  'signup_field_language': 'Idioma falado',
+  'signup_field_language': 'Idioma da app',
   'signup_field_phone': 'Telefone',
   'signup_field_email': 'Email',
   'signup_field_password': 'Palavra-passe',

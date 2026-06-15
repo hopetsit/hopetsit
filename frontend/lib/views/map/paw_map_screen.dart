@@ -742,6 +742,9 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// v19.1.3 — Modernized search bar: pill-shaped glassmorphic surface with
   /// subtle green accent border, matching the Signaler FAB so the top and
   /// bottom controls feel like one system.
+  /// v420 — retirée de la carte (recherche désormais dans l'AppBar) ; gardée
+  /// pour réutilisation éventuelle.
+  // ignore: unused_element
   Widget _buildCitySearchBar(BuildContext context) {
     // v21.1.1 — Search pill modernisée :
     //   * BorderRadius 32 (vraie pill)
@@ -2337,14 +2340,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // les boutons + / - / geoloc sont regroupes dans un
                 // pill vertical blanc plein a droite (style Google Maps
                 // moderne) avec un divider fin entre chaque action.
+                // v420 — Daniel : "enlève la barre rechercher sur la map, il y
+                // a déjà rechercher en haut à droite" (icône 🔍 de l'AppBar).
+                // La pill de recherche ville flottante est retirée. Les
+                // contrôles +/-/géoloc remontent en haut à droite.
                 Positioned(
                   top: 12.h,
-                  left: 12.w,
-                  right: 12.w,
-                  child: _buildCitySearchBar(context),
-                ),
-                Positioned(
-                  top: 74.h,
                   right: 12.w,
                   child: _buildMapControlsStack(),
                 ),

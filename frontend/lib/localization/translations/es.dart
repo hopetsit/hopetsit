@@ -3135,7 +3135,7 @@ const Map<String, String> esESTranslations = <String, String>{
   'signup_step_personal': 'Información personal',
   'signup_field_name': 'Nombre completo',
   'signup_field_dob': 'Fecha de nacimiento',
-  'signup_field_language': 'Idioma hablado',
+  'signup_field_language': 'Idioma de la app',
   'signup_field_phone': 'Teléfono',
   'signup_field_email': 'Correo',
   'signup_field_password': 'Contraseña',

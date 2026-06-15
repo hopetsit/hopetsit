@@ -3193,7 +3193,7 @@ const Map<String, String> frFRTranslations = <String, String>{
   'signup_step_personal': 'Informations personnelles',
   'signup_field_name': 'Nom complet',
   'signup_field_dob': 'Date de naissance',
-  'signup_field_language': 'Langue parlée',
+  'signup_field_language': 'Langue de l’app',
   'signup_field_phone': 'Téléphone',
   'signup_field_email': 'Email',
   'signup_field_password': 'Mot de passe',
