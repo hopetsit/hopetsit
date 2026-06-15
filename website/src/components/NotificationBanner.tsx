@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useSocketEvent } from "@/lib/useSocket";
 import {
@@ -18,6 +19,50 @@ import {
  * les events socket déjà émis (booking:paid / accepted, application:new,
  * notification.new).
  */
+/**
+ * v409 — Daniel : "quand on clique sur la notif, ça doit nous amener au bon
+ * onglet ou action". Route web cible selon le type + data de la notification.
+ * Renvoie null si aucune action pertinente (on se contente de marquer lu).
+ */
+function routeForNotification(n: AppNotification): string | null {
+  const ty = (n.type || "").toLowerCase();
+  const d = (n.data || {}) as Record<string, unknown>;
+  const conversationId = typeof d.conversationId === "string" ? d.conversationId : "";
+  const bookingId = typeof d.bookingId === "string" ? d.bookingId : "";
+
+  // Suivi en direct (PawFollow) — carte dans le chat, sinon page de balade.
+  if (ty.includes("tracking") || ty.includes("pawfollow") || ty.includes("follow")) {
+    if (conversationId) return `/chat?c=${conversationId}`;
+    if (bookingId) return `/walk/${bookingId}`;
+    return "/chat";
+  }
+  // Messages → chat (deep-link conversation).
+  if (ty.includes("message") || ty.includes("chat")) {
+    return conversationId ? `/chat?c=${conversationId}` : "/chat";
+  }
+  // Demandes d'amis → page amis ; autres demandes/candidatures → réservations.
+  if (ty.includes("friend")) return "/friends/live";
+  if (ty.includes("application") || ty.includes("candidat") || ty.includes("request"))
+    return "/bookings";
+  // Paiements / réservations / acceptations / refus / annulations → réservations.
+  if (
+    ty.includes("paid") || ty.includes("payment") || ty.includes("payout") ||
+    ty.includes("booking") || ty.includes("accept") || ty.includes("refus") ||
+    ty.includes("declin") || ty.includes("reject") || ty.includes("cancel")
+  ) {
+    return "/bookings";
+  }
+  // Avis → profil ; abonnements/promo/boost → boutique.
+  if (ty.includes("review") || ty.includes("rating")) return "/profile";
+  if (
+    ty.includes("promo") || ty.includes("subscription") || ty.includes("premium") ||
+    ty.includes("pawspot") || ty.includes("boost")
+  ) {
+    return "/boutique";
+  }
+  return null;
+}
+
 function iconForType(type: string): string {
   const t = (type || "").toLowerCase();
   if (t.includes("paid") || t.includes("payment") || t.includes("payout")) return "💰";
@@ -33,6 +78,7 @@ function iconForType(type: string): string {
 
 export default function NotificationBanner() {
   const { t } = useT();
+  const router = useRouter();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
   // v409 — Daniel : "ça fait une liste de plus en plus longue". On replie à
@@ -65,15 +111,17 @@ export default function NotificationBanner() {
   const unread = items.filter((n) => !n.readAt);
 
   async function onItemClick(n: AppNotification) {
-    if (n.readAt) return;
-    setItems((prev) =>
-      prev.map((x) => (x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x)),
-    );
-    try {
-      await markNotificationRead(n.id);
-    } catch {
-      /* best-effort */
+    // Marque lu (optimiste) puis route vers le bon onglet/action.
+    if (!n.readAt) {
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x,
+        ),
+      );
+      markNotificationRead(n.id).catch(() => {});
     }
+    const route = routeForNotification(n);
+    if (route) router.push(route);
   }
 
   async function onMarkAll() {
