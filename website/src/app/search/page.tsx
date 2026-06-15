@@ -174,12 +174,13 @@ function ProviderCard({
       className="group block rounded-2xl border border-ink/5 bg-white p-5 shadow-card transition hover:border-ink/15 hover:shadow-lg"
     >
       <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink/10 text-xl font-bold text-ink-muted">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-owner-light text-2xl">
           {provider.avatar?.url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={provider.avatar.url} alt="" className="h-full w-full object-cover" />
           ) : (
-            provider.name?.charAt(0).toUpperCase() || "?"
+            /* v404 — Daniel : emoji chien 🐶 au lieu de l'icône grise quand pas de photo. */
+            <span aria-hidden="true">🐶</span>
           )}
         </div>
         <div className="min-w-0 flex-1">

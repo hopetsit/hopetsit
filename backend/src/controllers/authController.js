@@ -177,6 +177,36 @@ const signup = async (req, res) => {
     const existingForRole =
       role === 'owner' ? existingOwner : role === 'sitter' ? existingSitter : existingWalker;
     if (existingForRole) {
+      // v404 — Daniel : "ça dit compte existe déjà alors que j'ai pas vérifié
+      // mon mail". Si le compte existe mais N'EST PAS vérifié, on ne bloque PAS :
+      // on (re)génère + renvoie le code de vérif et on répond comme un signup
+      // frais (200, SANS token, needsVerification) → web ET app basculent sur la
+      // saisie du code (l'app gère déjà "pas de token → écran de vérification").
+      if (existingForRole.verified === false) {
+        try {
+          const verificationCode = generateVerificationCode();
+          await VerificationCode.findOneAndUpdate(
+            { email, purpose: 'email_verification' },
+            {
+              email,
+              code: hashCode(verificationCode),
+              expiresAt: dayjs().add(10, 'minute').toDate(),
+              purpose: 'email_verification',
+              verified: false,
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true },
+          );
+          await sendVerificationEmail(email, verificationCode);
+        } catch (e) {
+          logger.error('[signup] resend code for unverified existing account failed', e);
+        }
+        return res.status(200).json({
+          role,
+          user: sanitizeUser(existingForRole, { includeEmail: true }),
+          message: 'Account exists but not verified. Verification code re-sent.',
+          needsVerification: true,
+        });
+      }
       return res.status(409).json({ error: 'User with this email already exists.' });
     }
     // Compte frère le plus pertinent comme source de copie (sitter/walker

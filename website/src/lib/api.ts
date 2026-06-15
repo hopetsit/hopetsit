@@ -1011,6 +1011,8 @@ export type RequestPost = {
   startDate?: string;
   endDate?: string;
   houseSittingVenue?: string | null;
+  animalCount?: number;
+  animalTypes?: string[];
   postType?: string;
   status?: string;
   createdAt?: string;
@@ -1034,6 +1036,8 @@ export type CreatePostInput = {
   petId?: string;
   notes?: string;
   location?: { city?: string; lat?: number; lng?: number };
+  animalCount?: number;
+  animalTypes?: string[];
 };
 
 // Canonical service keys (match the app + backend filtering: dog_walking is
@@ -1065,6 +1069,8 @@ export async function createPostWithMedia(input: CreatePostInput, files: File[])
   if (input.startDate) fd.append("startDate", input.startDate);
   if (input.endDate) fd.append("endDate", input.endDate);
   if (input.notes) fd.append("notes", input.notes);
+  if (input.animalCount) fd.append("animalCount", String(input.animalCount));
+  (input.animalTypes || []).forEach((tp) => fd.append("animalTypes", tp));
   files.forEach((f) => fd.append("photos", f));
   const raw = await request<{ post?: RequestPost } & RequestPost>("/posts/with-media", {
     method: "POST",

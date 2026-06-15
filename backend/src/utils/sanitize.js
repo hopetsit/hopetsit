@@ -346,6 +346,9 @@ const sanitizePost = (postDoc) => {
   } else {
     post.videos = [];
   }
+  // v404 — Daniel : nombre d'animaux + types (chien/chat/NAC…) sur l'annonce.
+  post.animalCount = typeof postDoc.animalCount === 'number' ? postDoc.animalCount : 0;
+  post.animalTypes = Array.isArray(postDoc.animalTypes) ? postDoc.animalTypes : [];
   if (Array.isArray(postDoc.likes)) {
     post.likes = postDoc.likes.map((like) => ({
       userId: like.userId?.toString() || '',

@@ -96,6 +96,21 @@ const PROFANITY_RE = new RegExp(
   'gi',
 );
 
+// v404 — mots interdits SUPPLÉMENTAIRES gérés par l'admin (modèle BannedWord),
+// chargés en mémoire au boot + à chaque ajout/suppression. S'appliquent app+web
+// (cette modération tourne côté serveur sur les annonces + messages).
+let EXTRA_RE = null;
+function setExtraWords(words) {
+  const list = (words || [])
+    .map((w) => String(w || '').trim())
+    .filter(Boolean);
+  if (!list.length) {
+    EXTRA_RE = null;
+    return;
+  }
+  EXTRA_RE = new RegExp('(' + list.map((w) => escapeRe(deLeet(w))).join('|') + ')', 'gi');
+}
+
 const STARS = (w) => '*'.repeat(Math.max(3, w.length));
 
 /**
@@ -125,7 +140,12 @@ function moderateText(text) {
   const clean = working.replace(/[\p{L}\p{N}@$._\-*]+/gu, (token) => {
     const normalized = deLeet(token);
     PROFANITY_RE.lastIndex = 0;
-    if (PROFANITY_RE.test(normalized)) {
+    let hit = PROFANITY_RE.test(normalized);
+    if (!hit && EXTRA_RE) {
+      EXTRA_RE.lastIndex = 0;
+      hit = EXTRA_RE.test(normalized);
+    }
+    if (hit) {
       profanity = true;
       return STARS(token.replace(/[._\-*@$]/g, ''));
     }
@@ -146,4 +166,4 @@ function isClean(text) {
   return !r.profanity && !r.threat;
 }
 
-module.exports = { moderateText, isClean, PROFANITY, THREAT_PATTERNS };
+module.exports = { moderateText, isClean, setExtraWords, PROFANITY, THREAT_PATTERNS };

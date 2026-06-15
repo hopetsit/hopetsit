@@ -58,9 +58,24 @@ const _detectContactInfo = (text) => {
   return { hasContact: types.length > 0, types };
 };
 
+// v404 — applique nombre d'animaux (0–50) + types (max 10, libres) au payload.
+// Accepte animalTypes en array OU string unique OU JSON string (multipart).
+function applyAnimalFields(payload, animalCount, animalTypes) {
+  const ac = Number(animalCount);
+  if (Number.isFinite(ac) && ac > 0) payload.animalCount = Math.min(Math.round(ac), 50);
+  let at = animalTypes;
+  if (typeof at === 'string') {
+    try { const parsed = JSON.parse(at); if (Array.isArray(parsed)) at = parsed; else at = [at]; }
+    catch (_) { at = at.split(',').map((s) => s.trim()).filter(Boolean); }
+  }
+  if (!Array.isArray(at)) at = at != null ? [at] : [];
+  const norm = at.map((x) => String(x).trim()).filter(Boolean).slice(0, 10);
+  if (norm.length) payload.animalTypes = norm;
+}
+
 const createPost = async (req, res) => {
   try {
-    const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation } = req.body || {};
+    const { body, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, serviceLocation, animalCount, animalTypes } = req.body || {};
     const ownerId = req.user?.id;
 
     if (!ownerId) {
@@ -170,6 +185,9 @@ const createPost = async (req, res) => {
       postPayload.notes = require('../services/textModerationService')
         .moderateText(notes.trim()).clean;
     }
+
+    // v404 — nombre d'animaux + types (annonce).
+    applyAnimalFields(postPayload, animalCount, animalTypes);
 
     // Sprint 5 step 2 — service location preference.
     if (['at_owner', 'at_sitter', 'both'].includes(serviceLocation)) {
@@ -1075,7 +1093,7 @@ const createPostWithMedia = async (req, res) => {
   try {
     const ownerId = req.user?.id;
     const userRole = req.user?.role;
-    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, postType: rawPostType } = req.body || {};
+    const { body, folder, startDate, endDate, serviceTypes, petId, petIds, location, notes, houseSittingVenue, postType: rawPostType, animalCount, animalTypes } = req.body || {};
 
     if (!ownerId) {
       return res.status(401).json({ error: 'Authentication required. Please provide a valid token.' });
@@ -1267,6 +1285,9 @@ const createPostWithMedia = async (req, res) => {
       postPayload.notes = require('../services/textModerationService')
         .moderateText(notes.trim()).clean;
     }
+
+    // v404 — nombre d'animaux + types (annonce avec photos).
+    applyAnimalFields(postPayload, animalCount, animalTypes);
 
     // Create the post
     const newPost = await Post.create(postPayload);

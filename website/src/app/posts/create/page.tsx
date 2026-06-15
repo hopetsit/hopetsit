@@ -24,7 +24,24 @@ export default function CreatePostPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [animalCount, setAnimalCount] = useState(1);
+  const [animalTypes, setAnimalTypes] = useState<string[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
+
+  // v404 — types d'animaux concernés par l'annonce (clés stables + emoji).
+  const ANIMAL_TYPES: { key: string; emoji: string }[] = [
+    { key: "dog", emoji: "🐶" },
+    { key: "cat", emoji: "🐱" },
+    { key: "nac", emoji: "🐹" },
+    { key: "bird", emoji: "🐦" },
+    { key: "reptile", emoji: "🦎" },
+    { key: "other", emoji: "🐾" },
+  ];
+  function toggleAnimalType(k: string) {
+    setAnimalTypes((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  }
+  const animalTypeLabel = (k: string) =>
+    ({ dog: t("posts_animal_dog"), cat: t("posts_animal_cat"), nac: t("posts_animal_nac"), bird: t("posts_animal_bird"), reptile: t("posts_animal_reptile"), other: t("posts_animal_other") } as Record<string, string>)[k] || k;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -80,6 +97,8 @@ export default function CreatePostPage() {
         startDate: startDate ? new Date(startDate).toISOString() : undefined,
         endDate: endDate ? new Date(endDate).toISOString() : undefined,
         notes: notes.trim() || undefined,
+        animalCount: animalCount > 0 ? animalCount : undefined,
+        animalTypes: animalTypes.length ? animalTypes : undefined,
       };
       // Avec photos → /posts/with-media (postType=request) ; sinon → /posts.
       if (photos.length > 0) {
@@ -202,6 +221,38 @@ export default function CreatePostPage() {
             placeholder={t("posts_notes_ph")}
             className="mt-1.5 w-full rounded-xl border border-ink/15 bg-bg-soft px-3.5 py-2.5 text-sm text-ink focus:border-owner focus:outline-none"
           />
+        </div>
+
+        {/* v404 — Animaux concernés : nombre + types */}
+        <div>
+          <label className="block text-sm font-medium text-ink">{t("posts_animals_label")}</label>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={animalCount}
+              onChange={(e) => setAnimalCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+              className="w-20 rounded-xl border border-ink/15 bg-bg-soft px-3 py-2.5 text-center text-sm text-ink focus:border-owner focus:outline-none"
+            />
+            <span className="text-sm text-ink-muted">{t("posts_animals_count_hint")}</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ANIMAL_TYPES.map((a) => (
+              <button
+                key={a.key}
+                type="button"
+                onClick={() => toggleAnimalType(a.key)}
+                className={`rounded-full border px-3.5 py-2 text-sm font-semibold transition ${
+                  animalTypes.includes(a.key)
+                    ? "border-owner bg-owner-light text-owner-dark"
+                    : "border-ink/15 bg-white text-ink hover:border-ink/30"
+                }`}
+              >
+                {a.emoji} {animalTypeLabel(a.key)}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* v402 — Photos de l'annonce (ajouter / supprimer avant publication) */}

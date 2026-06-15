@@ -183,6 +183,76 @@ router.post('/promo/send-campaign', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── MODÉRATION : mots interdits (v404) ───────────────────────────────────────
+// Liste éditable, traduite 6 langues, lue par textModerationService → s'applique
+// aux annonces + messages, côté APP comme côté WEB (modération serveur).
+async function refreshBannedWords() {
+  const BannedWord = require('../models/BannedWord');
+  const { setExtraWords } = require('../services/textModerationService');
+  const docs = await BannedWord.find().lean();
+  const all = [];
+  docs.forEach((d) => {
+    if (d.word) all.push(d.word);
+    (d.variants || []).forEach((v) => all.push(v));
+  });
+  setExtraWords(all);
+}
+
+router.get('/moderation/words', requireAdmin, async (req, res) => {
+  try {
+    const BannedWord = require('../models/BannedWord');
+    const words = await BannedWord.find().sort({ createdAt: -1 }).lean();
+    return res.json({ words });
+  } catch (e) {
+    logger.error('[admin/moderation/words]', e);
+    return res.status(500).json({ error: 'Erreur.' });
+  }
+});
+
+// POST { word, translate } — ajoute un mot interdit, traduit en 6 langues.
+router.post('/moderation/words', requireAdmin, async (req, res) => {
+  try {
+    const BannedWord = require('../models/BannedWord');
+    const raw = String(req.body?.word || '').trim().toLowerCase();
+    const translate = req.body?.translate !== false;
+    if (!raw) return res.status(400).json({ error: 'Mot requis.' });
+    let variants = [];
+    if (translate) {
+      try {
+        const { translateToAll } = require('../services/translationService');
+        const out = await translateToAll(raw, 'fr');
+        variants = Array.from(new Set(
+          Object.values(out.translations || {})
+            .map((v) => String(v || '').trim().toLowerCase())
+            .filter((v) => v && v !== raw),
+        ));
+      } catch (_) { /* traduction best-effort */ }
+    }
+    const doc = await BannedWord.findOneAndUpdate(
+      { word: raw },
+      { word: raw, variants, createdBy: req.user?.email || 'admin' },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    await refreshBannedWords();
+    return res.json({ ok: true, word: doc });
+  } catch (e) {
+    logger.error('[admin/moderation/words POST]', e);
+    return res.status(500).json({ error: 'Ajout échoué.' });
+  }
+});
+
+router.delete('/moderation/words/:id', requireAdmin, async (req, res) => {
+  try {
+    const BannedWord = require('../models/BannedWord');
+    await BannedWord.findByIdAndDelete(req.params.id);
+    await refreshBannedWords();
+    return res.json({ ok: true });
+  } catch (e) {
+    logger.error('[admin/moderation/words DELETE]', e);
+    return res.status(500).json({ error: 'Suppression échouée.' });
+  }
+});
+
 // ─── DASHBOARD STATS ─────────────────────────────────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
   try {

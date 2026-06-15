@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { ApiError, AuthUser, AuthRole, clearAuth, getStoredUser, openInApp, switchRole } from "@/lib/api";
+import { ApiError, AuthUser, AuthRole, clearAuth, getConversations, getStoredUser, openInApp, switchRole } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/useSocket";
 import { disconnectSocket } from "@/lib/socket";
 
@@ -45,6 +45,21 @@ export default function DashboardPage() {
       } catch { /* pas connecté / pas premium → rien */ }
     })();
   }, []);
+  // v404 — Daniel : badge de messages non lus sur la carte « Mes messages ».
+  const [unreadMsg, setUnreadMsg] = useState(0);
+  useEffect(() => {
+    (async () => {
+      try {
+        const convs = await getConversations();
+        const total = convs.reduce(
+          (n, c) => n + (Number(c.unreadCount) || 0),
+          0,
+        );
+        setUnreadMsg(total);
+      } catch { /* pas connecté → 0 */ }
+    })();
+  }, []);
+
   const showLiveToast = (icon: string, text: string) => {
     setLiveToast({ icon, text });
     // Auto-dismiss après 6s.
@@ -363,6 +378,7 @@ export default function DashboardPage() {
           emoji="💬"
           title={t("dash_card_messages_title")}
           subtitle={t("dash_card_messages_sub")}
+          badge={unreadMsg}
         />
         <NavCard
           href="/map"
@@ -428,19 +444,26 @@ function NavCard({
   emoji,
   title,
   subtitle,
+  badge,
 }: {
   href: string;
   emoji: string;
   title: string;
   subtitle: string;
+  badge?: number;
 }) {
   return (
     <Link
       href={href}
       className="group flex items-center gap-4 rounded-2xl border-2 border-ink/5 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:border-owner/40 hover:shadow-xl"
     >
-      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-owner-light to-amber-50 text-2xl shadow-sm transition group-hover:scale-110">
+      <span className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-owner-light to-amber-50 text-2xl shadow-sm transition group-hover:scale-110">
         {emoji}
+        {badge && badge > 0 ? (
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white shadow">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        ) : null}
       </span>
       <span className="flex-1">
         <span className="block text-sm font-extrabold text-ink">{title}</span>

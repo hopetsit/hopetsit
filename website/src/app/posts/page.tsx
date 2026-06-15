@@ -21,6 +21,22 @@ import {
 //   • Owner   : ses annonces + bouton "Publier une annonce".
 //   • Sitter/Walker : feed des demandes (filtré par rôle côté backend) avec
 //     Contacter (→ chat), like et commentaire.
+// v404 — emoji + libellé des types d'animaux (annonce).
+const ANIMAL_EMOJI: Record<string, string> = {
+  dog: "🐶", cat: "🐱", nac: "🐹", bird: "🐦", reptile: "🦎", other: "🐾",
+};
+function animalLabel(t: (k: string) => string, k: string): string {
+  const map: Record<string, string> = {
+    dog: t("posts_animal_dog"),
+    cat: t("posts_animal_cat"),
+    nac: t("posts_animal_nac"),
+    bird: t("posts_animal_bird"),
+    reptile: t("posts_animal_reptile"),
+    other: t("posts_animal_other"),
+  };
+  return map[k] || k;
+}
+
 export default function PostsPage() {
   const { t } = useT();
   const router = useRouter();
@@ -239,6 +255,15 @@ function PostCard({
             </span>
           ))}
         </div>
+      )}
+
+      {(post.animalCount || (post.animalTypes && post.animalTypes.length > 0)) && (
+        <p className="mt-2 text-xs text-ink-muted">
+          🐾 {post.animalCount ? `${post.animalCount} ` : ""}
+          {(post.animalTypes || [])
+            .map((k) => `${ANIMAL_EMOJI[k] || "🐾"} ${animalLabel(t, k)}`)
+            .join(" · ")}
+        </p>
       )}
 
       {dateRange && <p className="mt-2 text-xs text-ink-muted">📅 {dateRange}</p>}

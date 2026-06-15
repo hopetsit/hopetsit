@@ -197,7 +197,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v404</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v405</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -245,6 +245,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="nav-item" onclick="showPage('pawpremium')"><span class="nav-icon">👑</span> <span data-i18n="nav_pawpremium">Paw Premium</span></div>
       <div class="nav-item" onclick="showPage('pawspot')"><span class="nav-icon">🐾</span> <span data-i18n="nav_pawspot">PawSpot</span></div>
       <div class="nav-item" onclick="showPage('promotions')"><span class="nav-icon">🎟️</span> <span data-i18n="nav_promotions">Promotions</span></div>
+      <div class="nav-item" onclick="showPage('filtre')"><span class="nav-icon">🛡️</span> <span data-i18n="nav_filtre">Filtre &amp; modération</span></div>
 
       <!-- Activité -->
       <div class="nav-section" style="margin-top:18px">📅 <span data-i18n="navsec_activity">Activité</span></div>
@@ -834,14 +835,48 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </div>
         </div>
         <div class="section-title" style="font-size:14px;margin-top:18px">Destinataires
-          <input id="promo-search" type="text" placeholder="Filtrer nom/email…" class="search-input" style="margin-left:10px;width:240px" oninput="renderPromoClients()">
-          <button class="action-btn" style="margin-left:8px" onclick="promoSelectAll(true)">Tout cocher</button>
+          <input id="promo-search" type="text" placeholder="Filtrer nom/email…" class="search-input" style="margin-left:10px;width:220px" oninput="renderPromoClients()">
+          <button class="action-btn" style="margin-left:8px" onclick="refreshPromoClients()" title="Recharger la liste (nouveaux utilisateurs)">🔄 Actualiser</button>
+          <button class="action-btn" style="margin-left:6px" onclick="promoSelectAll(true)">Tout cocher</button>
           <button class="action-btn" style="margin-left:6px" onclick="promoSelectAll(false)">Tout décocher</button>
+          <label class="action-btn" style="margin-left:6px;cursor:pointer" title="Importer une liste d'emails (CSV/texte)">⬆️ Importer CSV
+            <input id="promo-import-file" type="file" accept=".csv,.txt,text/csv,text/plain" style="display:none" onchange="importPromoCsv(this)">
+          </label>
+          <button class="action-btn" style="margin-left:6px" onclick="exportPromoClientsCsv()" title="Exporter les emails clients en CSV">⬇️ Exporter CSV</button>
           <span id="promo-selected-count" style="margin-left:12px;color:var(--text-muted);font-size:13px"></span>
         </div>
         <div id="promo-clients" style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px;margin-top:8px;background:var(--bg)"></div>
         <button class="action-btn" style="margin-top:14px;background:#EF4324;color:#fff" onclick="sendPromoCampaign()">📧 Envoyer la campagne</button>
         <div id="promo-send-result" style="margin-top:12px"></div>
+      </div>
+
+      <!-- FILTRE & MODÉRATION (v404) -->
+      <div id="page-filtre" class="page">
+        <div class="section-title">🛡️ Filtre &amp; modération</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;max-width:860px;line-height:1.6">
+          Les gros mots ci-dessous sont <strong style="color:var(--text)">masqués automatiquement</strong> (***) dans les annonces et les messages, <strong style="color:var(--text)">sur l'app ET le web</strong>. À l'ajout, le mot est <strong style="color:var(--text)">traduit dans les 6 langues</strong> de l'app.
+        </p>
+
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;max-width:640px">
+          <label style="flex:1;min-width:200px;font-size:12px;color:var(--text-muted)">Mot à interdire
+            <input id="bw-input" class="search-input" style="width:100%;margin-top:5px" placeholder="ex. un gros mot" onkeydown="if(event.key==='Enter')addBannedWord()">
+          </label>
+          <label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:9px"><input type="checkbox" id="bw-translate" checked> Traduire 6 langues</label>
+          <button class="action-btn" style="background:#EF4324;color:#fff;margin-bottom:4px" onclick="addBannedWord()">Ajouter</button>
+        </div>
+        <div id="bw-result" style="margin-top:8px"></div>
+
+        <div style="overflow-x:auto;margin-top:14px">
+          <table class="data-table"><thead><tr>
+            <th>Mot</th><th>Variantes (traductions)</th><th></th>
+          </tr></thead><tbody id="bw-rows"><tr><td colspan="3" style="color:var(--text-muted)">—</td></tr></tbody></table>
+        </div>
+
+        <div class="section-title" style="font-size:15px;margin-top:30px">🖼️ Photos &amp; contenu</div>
+        <p style="color:var(--text-muted);font-size:14px;max-width:860px;line-height:1.6">
+          Les photos pornographiques ou violentes sont <strong style="color:var(--text)">bloquées automatiquement à l'envoi</strong> (Google Vision), sur l'app et le web — elles ne sont jamais publiées.
+          Pour retirer un contenu déjà publié : onglet <strong style="color:var(--text)">« Annonces »</strong> (bannir une annonce) ou <strong style="color:var(--text)">« Modération users »</strong> / <strong style="color:var(--text)">« Signalements »</strong>.
+        </p>
       </div>
 
       <!-- PAYOUTS / REVENUE (v20.0.8 → v23.1 part 99) -->
@@ -1781,6 +1816,7 @@ function showPage(name) {
   if (name === 'pawpremium') loadPawPremiumAdmin();
   if (name === 'pawspot') loadPawSpotSubs();
   if (name === 'promotions') loadPromotions();
+  if (name === 'filtre') loadFiltre();
   if (name === 'payments') loadProviderPayouts();
   if (name === 'payouts') loadCompanySweeps();
   if (name === 'annonces') loadAnnonces();
@@ -1965,6 +2001,103 @@ async function sendPromoCampaign() {
   } catch (e) {
     out.innerHTML = '<span style="color:#EF4324">' + e.message + '</span>';
   }
+}
+
+// v404 — Actualiser la liste clients (nouveaux utilisateurs non apparus).
+async function refreshPromoClients() {
+  _promoClients = [];
+  await loadPromoClients();
+  renderPromoClients();
+}
+
+// v404 — Importer une liste d'emails (CSV/texte) comme destinataires.
+function importPromoCsv(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function () {
+    const text = String(reader.result || '');
+    const found = text.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g) || [];
+    const uniq = Array.from(new Set(found.map(function (e) { return e.toLowerCase(); })));
+    uniq.forEach(function (email) {
+      _promoSelected.add(email);
+      if (!_promoClients.some(function (u) { return u.email === email; })) {
+        _promoClients.push({ name: '(importé)', email: email, role: 'importé' });
+      }
+    });
+    renderPromoClients();
+    alert(uniq.length + ' email(s) importé(s) et sélectionné(s).');
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// v404 — Exporter la liste clients (name,email,role) en CSV.
+function exportPromoClientsCsv() {
+  if (!_promoClients.length) { alert('Aucun client à exporter (clique Actualiser).'); return; }
+  const rows = [['name', 'email', 'role']].concat(
+    _promoClients.map(function (u) { return [u.name || '', u.email || '', u.role || '']; }),
+  );
+  const csv = rows.map(function (r) {
+    return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hopetsit_clients.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── FILTRE / MODÉRATION (v404) ────────────────────────────────────────────────
+async function loadFiltre() {
+  try {
+    const data = await api('/admin/moderation/words');
+    renderBannedWords(data.words || []);
+  } catch (e) {
+    document.getElementById('bw-rows').innerHTML =
+      '<tr><td colspan="3" style="color:#EF4324">' + e.message + '</td></tr>';
+  }
+}
+
+function renderBannedWords(words) {
+  const tb = document.getElementById('bw-rows');
+  if (!words.length) {
+    tb.innerHTML = '<tr><td colspan="3" style="color:var(--text-muted)">Aucun mot interdit personnalisé.</td></tr>';
+    return;
+  }
+  tb.innerHTML = words.map(function (w) {
+    const variants = (w.variants || []).join(', ') || '—';
+    return '<tr><td style="font-weight:700">' + w.word + '</td><td style="color:var(--text-muted)">'
+      + variants + '</td><td><button class="action-btn" style="background:#EF4324;color:#fff;font-size:12px" onclick="deleteBannedWord(\''
+      + w._id + '\')">Supprimer</button></td></tr>';
+  }).join('');
+}
+
+async function addBannedWord() {
+  const input = document.getElementById('bw-input');
+  const word = (input.value || '').trim();
+  const translate = document.getElementById('bw-translate').checked;
+  const out = document.getElementById('bw-result');
+  if (!word) { out.innerHTML = '<span style="color:#EF4324">Entre un mot.</span>'; return; }
+  out.innerHTML = '<span style="color:var(--text-muted)">Ajout' + (translate ? ' + traduction' : '') + '…</span>';
+  try {
+    await api('/admin/moderation/words', 'POST', { word: word, translate: translate });
+    input.value = '';
+    out.innerHTML = '<span style="color:var(--green)">✓ Ajouté</span>';
+    loadFiltre();
+  } catch (e) {
+    out.innerHTML = '<span style="color:#EF4324">' + e.message + '</span>';
+  }
+}
+
+async function deleteBannedWord(id) {
+  if (!confirm('Supprimer ce mot interdit ?')) return;
+  try { await api('/admin/moderation/words/' + id, 'DELETE'); loadFiltre(); }
+  catch (e) { alert(e.message); }
 }
 
 // ── ANNONCES ─────────────────────────────────────────────────────────────────

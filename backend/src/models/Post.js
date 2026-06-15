@@ -63,6 +63,20 @@ const postSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    // v404 — Daniel : nombre d'animaux + types (chien/chat/NAC/oiseau/…) que
+    // l'annonce concerne. Champs libres (l'owner n'a pas forcément ses animaux
+    // enregistrés). Additif → aucun impact sur l'existant.
+    animalCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    animalTypes: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     images: [
       {
         url: { type: String, default: '' },

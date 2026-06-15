@@ -28,6 +28,22 @@ async function startServer() {
     // Load the admin-editable service catalog (duration presets, active
     // flags, label overrides) the same way.
     await serviceCatalogService.init();
+    // v404 — charge les mots interdits admin (BannedWord) dans le service de
+    // modération texte → s'applique app + web. Non bloquant.
+    try {
+      const BannedWord = require('./models/BannedWord');
+      const { setExtraWords } = require('./services/textModerationService');
+      const docs = await BannedWord.find().lean();
+      const all = [];
+      docs.forEach((d) => {
+        if (d.word) all.push(d.word);
+        (d.variants || []).forEach((v) => all.push(v));
+      });
+      setExtraWords(all);
+      logger.info(`[boot] banned words loaded: ${all.length}`);
+    } catch (e) {
+      logger.error('[boot] banned words load failed (non-fatal)', e);
+    }
     // v21.1.1 — Auto-seed/resync the root admin from ADMIN_SEED_EMAIL +
     // ADMIN_SEED_PASSWORD env vars at every boot. If the env vars are
     // missing, this is a no-op. If the admin exists, the password gets
