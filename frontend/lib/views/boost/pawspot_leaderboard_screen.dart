@@ -49,27 +49,38 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
     switch (key) {
       case 'explorer':
         return 'pawspot_badge_explorer'.tr;
+      case 'contributor':
+        return 'Contributeur';
       case 'expert':
         return 'pawspot_badge_expert'.tr;
       case 'ambassador':
         return 'pawspot_badge_ambassador'.tr;
       case 'pawmaster':
         return 'pawspot_badge_pawmaster'.tr;
+      case 'legend':
+        return 'Légendaire';
+      case 'paw_legend':
+        return 'Paw Legend';
       default:
         return key;
     }
   }
 
   /// Mapping key backend → emoji seul (pour les rangées du classement).
+  /// v416 — aligné sur les 7 niveaux (cf pawPointsService.LEVELS).
   static String badgeEmoji(String badge) {
     switch (badge) {
       case 'explorer':
-        return '🥉';
+        return '🧭';
+      case 'contributor':
+        return '🐾';
       case 'expert':
-        return '🥈';
+        return '⭐';
       case 'ambassador':
-        return '🥇';
+        return '🦴';
       case 'pawmaster':
+      case 'legend':
+      case 'paw_legend':
         return '👑';
       default:
         // Le backend peut renvoyer directement un emoji.
@@ -255,9 +266,9 @@ class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
     );
   }
 }
-
-/// v414 — Feuille « Récompenses » : barème (comment gagner) + catalogue éditable
-/// côté admin (sans rebuild) + échange de points.
+/// v416 — Feuille « Mes PawPoints » (refonte design Daniel) : stats, barre de
+/// niveau, réductions/mois gratuits sur abonnements (échange auto, 1×/user),
+/// 7 niveaux exclusifs + objectif Paw Legend, et barème de gains.
 class _RewardsSheet extends StatefulWidget {
   const _RewardsSheet({required this.myPoints, required this.onChanged});
 
@@ -272,17 +283,33 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   static const Color _gold = Color(0xFFE8A00A);
 
   bool _loading = true;
-  int _points = 0;
-  List<Map<String, dynamic>> _rewards = const [];
-  List<Map<String, dynamic>> _earn = const [];
   String? _busyId;
+
+  // /me
+  int _lifetime = 0;
+  int _spendable = 0;
+  int _contributions = 0;
+  int _spotsLiked = 0;
+  int _bonusPct = 0;
+  Map<String, dynamic>? _level;
+  Map<String, dynamic>? _nextLevel;
+  List<Map<String, dynamic>> _levels = const [];
+  List<Map<String, dynamic>> _earn = const [];
+  Set<String> _claimed = {};
+  // /catalog
+  List<Map<String, dynamic>> _subRewards = const [];
 
   @override
   void initState() {
     super.initState();
-    _points = widget.myPoints;
+    _spendable = widget.myPoints;
     _load();
   }
+
+  List<Map<String, dynamic>> _list(dynamic v) => (v as List? ?? [])
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
 
   Future<void> _load() async {
     try {
@@ -292,33 +319,81 @@ class _RewardsSheetState extends State<_RewardsSheet> {
       if (!mounted) return;
       setState(() {
         if (cat is Map) {
-          _rewards = ((cat['rewards'] as List?) ?? [])
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
-          _earn = ((cat['earnRules'] as List?) ?? [])
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
+          _subRewards = _list(cat['subscriptionRewards']);
         }
-        if (me is Map && me['points'] is num) {
-          _points = (me['points'] as num).toInt();
+        if (me is Map) {
+          _lifetime = (me['lifetime'] as num?)?.toInt() ?? 0;
+          _spendable = (me['spendable'] as num?)?.toInt() ?? _spendable;
+          _contributions = (me['contributions'] as num?)?.toInt() ?? 0;
+          _spotsLiked = (me['spotsLiked'] as num?)?.toInt() ?? 0;
+          _bonusPct = (me['bonusPct'] as num?)?.toInt() ?? 0;
+          _level = me['level'] is Map ? Map<String, dynamic>.from(me['level']) : null;
+          _nextLevel = me['nextLevel'] is Map ? Map<String, dynamic>.from(me['nextLevel']) : null;
+          _levels = _list(me['levels']);
+          _earn = _list(me['earnRules']);
+          // claimedRewardKeys est une liste de strings (sub_*).
+          final ck = me['claimedRewardKeys'];
+          _claimed = ck is List ? ck.map((e) => e.toString()).toSet() : <String>{};
         }
       });
     } catch (_) {
-      // Best-effort.
+      // best-effort
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  static Color _hex(String? h) {
+    if (h == null || h.isEmpty) return _gold;
+    final c = h.replaceAll('#', '');
+    if (c.length != 6) return _gold;
+    final v = int.tryParse(c, radix: 16);
+    return v == null ? _gold : Color(0xFF000000 | v);
+  }
+
+  static const Map<int, String> _tierIcon = {
+    1: '🥉', 2: '🥈', 3: '🥇', 4: '🟣', 5: '🟡', 6: '🌸',
+  };
+
+  String _perkLabel(String p) {
+    switch (p) {
+      case 'badge':
+        return 'pawpoints_perk_badge'.tr;
+      case 'chests_basic':
+        return 'pawpoints_perk_chests'.tr;
+      case 'map_visibility':
+        return 'pawpoints_perk_map'.tr;
+      case 'bonus_5':
+        return 'pawpoints_perk_bonus5'.tr;
+      case 'bonus_10':
+        return 'pawpoints_perk_bonus10'.tr;
+      case 'free_pawboost':
+        return 'pawpoints_perk_boost'.tr;
+      case 'legendary_frame':
+        return 'pawpoints_perk_frame'.tr;
+      case 'legendary_status':
+        return 'pawpoints_perk_status'.tr;
+      case 'pink_crown':
+        return 'pawpoints_perk_crown'.tr;
+      case 'ultimate':
+        return 'pawpoints_perk_ultimate'.tr;
+      default:
+        return p;
     }
   }
 
   Future<void> _redeem(Map<String, dynamic> r) async {
     final id = (r['id'] ?? '').toString();
     final cost = (r['cost'] as num?)?.toInt() ?? 0;
-    final title = (r['title'] ?? '').toString();
+    final kind = (r['kind'] ?? '').toString();
     if (id.isEmpty || _busyId != null) return;
-    if (_points < cost) {
-      Get.snackbar('pawpoints_not_enough'.tr, title,
+    if (_claimed.contains(id)) {
+      Get.snackbar('pawpoints_already_claimed'.tr, '',
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    if (_spendable < cost) {
+      Get.snackbar('pawpoints_not_enough'.tr, '',
           snackPosition: SnackPosition.BOTTOM);
       return;
     }
@@ -327,16 +402,19 @@ class _RewardsSheetState extends State<_RewardsSheet> {
       final res = await Get.find<ApiClient>()
           .post('/pawpoints/redeem/$id', body: const {}, requiresAuth: true);
       if (!mounted) return;
-      final nb = (res is Map && res['newBalance'] is num)
-          ? (res['newBalance'] as num).toInt()
-          : (_points - cost);
-      setState(() => _points = nb);
+      final applied = (res is Map ? res['applied'] : '')?.toString();
+      Get.snackbar(
+        'pawpoints_redeemed'.tr,
+        kind == 'free_month' || applied == 'fulfilled'
+            ? 'pawpoints_applied_now'.tr
+            : 'pawpoints_applied_next'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
+      );
       await widget.onChanged();
       await _load();
-      Get.snackbar('pawpoints_redeemed'.tr, title,
-          snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
-      Get.snackbar('Erreur', e.toString(),
+      Get.snackbar('common_error'.tr, e.toString(),
           snackPosition: SnackPosition.BOTTOM);
     } finally {
       if (mounted) setState(() => _busyId = null);
@@ -346,7 +424,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.85,
+      initialChildSize: 0.92,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
@@ -366,77 +444,36 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                 borderRadius: BorderRadius.circular(4.r),
               ),
             ),
-            SizedBox(height: 12.h),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 18.w),
-              child: Row(
-                children: [
-                  Text('🎁', style: TextStyle(fontSize: 20.sp)),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: PoppinsText(
-                      text: 'pawpoints_rewards_title'.tr,
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary(context),
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-                    decoration: BoxDecoration(
-                      color: _gold.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
-                    child: PoppinsText(
-                      text: '$_points pts',
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w800,
-                      color: _gold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 8.h),
+            SizedBox(height: 10.h),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : ListView(
                       controller: scroll,
-                      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 28.h),
+                      padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 28.h),
                       children: [
+                        _statsRow(context),
+                        SizedBox(height: 12.h),
+                        _levelBar(context),
+                        SizedBox(height: 22.h),
+                        _sectionTitle(context, 'pawpoints_sub_rewards_title'.tr,
+                            'pawpoints_sub_rewards_sub'.tr),
+                        SizedBox(height: 10.h),
+                        ..._subRewards.map((r) => _subRewardRow(context, r)),
+                        SizedBox(height: 22.h),
+                        _sectionTitle(context, 'pawpoints_levels_title'.tr,
+                            'pawpoints_levels_sub'.tr),
+                        SizedBox(height: 10.h),
+                        ..._levels.map((l) => _levelCard(context, l)),
+                        SizedBox(height: 16.h),
+                        _pawLegendCard(context),
+                        SizedBox(height: 22.h),
                         if (_earn.isNotEmpty) ...[
-                          InterText(
-                            text: 'pawpoints_how_to_earn'.tr,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                          ),
-                          SizedBox(height: 8.h),
-                          ..._earn.map(_buildEarnRow),
-                          SizedBox(height: 18.h),
+                          _sectionTitle(
+                              context, 'pawpoints_how_to_earn'.tr, ''),
+                          SizedBox(height: 10.h),
+                          ..._earn.map((e) => _earnRow(context, e)),
                         ],
-                        InterText(
-                          text: 'pawpoints_rewards_title'.tr,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
-                        ),
-                        SizedBox(height: 8.h),
-                        if (_rewards.isEmpty)
-                          Padding(
-                            padding: EdgeInsets.symmetric(vertical: 20.h),
-                            child: Center(
-                              child: InterText(
-                                text: 'pawpoints_rewards_empty'.tr,
-                                fontSize: 13.sp,
-                                color: AppColors.greyText,
-                              ),
-                            ),
-                          )
-                        else
-                          ..._rewards.map(_buildRewardCard),
                       ],
                     ),
             ),
@@ -446,7 +483,391 @@ class _RewardsSheetState extends State<_RewardsSheet> {
     );
   }
 
-  Widget _buildEarnRow(Map<String, dynamic> r) {
+  Widget _sectionTitle(BuildContext context, String title, String sub) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PoppinsText(
+          text: title,
+          fontSize: 17.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(context),
+        ),
+        if (sub.isNotEmpty) ...[
+          SizedBox(height: 2.h),
+          InterText(text: sub, fontSize: 12.sp, color: AppColors.greyText),
+        ],
+      ],
+    );
+  }
+
+  Widget _statsRow(BuildContext context) {
+    Widget card(String emoji, String value, String label, {bool accent = false}) {
+      return Expanded(
+        child: Container(
+          margin: EdgeInsets.symmetric(horizontal: 3.w),
+          padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 6.w),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(14.r),
+            border: accent
+                ? Border.all(color: _gold.withValues(alpha: 0.5), width: 1.2)
+                : null,
+            boxShadow: AppColors.cardShadow(context),
+          ),
+          child: Column(
+            children: [
+              Text(emoji, style: TextStyle(fontSize: 18.sp)),
+              SizedBox(height: 4.h),
+              PoppinsText(
+                text: value,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w800,
+                color: accent ? _gold : AppColors.textPrimary(context),
+              ),
+              SizedBox(height: 2.h),
+              InterText(
+                text: label,
+                fontSize: 9.sp,
+                color: AppColors.greyText,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final levelLabel = _level != null ? (_level!['label'] ?? '').toString() : '—';
+    return Row(
+      children: [
+        card('🚩', '$_contributions', 'pawpoints_stat_contributions'.tr),
+        card('❤️', '$_spotsLiked', 'pawpoints_stat_liked'.tr),
+        card('🏅', levelLabel, 'pawpoints_stat_level'.tr, accent: true),
+        card('🪙', '$_spendable', 'pawpoints_stat_points'.tr, accent: true),
+      ],
+    );
+  }
+
+  Widget _levelBar(BuildContext context) {
+    final prevMin = _level != null ? ((_level!['min'] as num?)?.toInt() ?? 0) : 0;
+    final nextMin =
+        _nextLevel != null ? ((_nextLevel!['min'] as num?)?.toInt() ?? prevMin) : prevMin;
+    final hasNext = _nextLevel != null;
+    final span = (nextMin - prevMin);
+    final frac = hasNext && span > 0
+        ? ((_lifetime - prevMin) / span).clamp(0.0, 1.0)
+        : 1.0;
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: InterText(
+                  text: hasNext
+                      ? 'pawpoints_to_next'.trParams({
+                          'pts': '${(nextMin - _lifetime).clamp(0, nextMin)}',
+                          'level': (_nextLevel!['label'] ?? '').toString(),
+                        })
+                      : 'pawpoints_max_level'.tr,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              InterText(
+                text: hasNext ? '$_lifetime / $nextMin' : '$_lifetime',
+                fontSize: 11.sp,
+                color: AppColors.greyText,
+              ),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6.r),
+            child: LinearProgressIndicator(
+              value: frac,
+              minHeight: 10.h,
+              backgroundColor: AppColors.greyText.withValues(alpha: 0.15),
+              valueColor: const AlwaysStoppedAnimation(_gold),
+            ),
+          ),
+          if (_bonusPct > 0) ...[
+            SizedBox(height: 8.h),
+            InterText(
+              text: 'pawpoints_bonus_active'.trParams({'pct': '$_bonusPct'}),
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w600,
+              color: _gold,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _subRewardRow(BuildContext context, Map<String, dynamic> r) {
+    final id = (r['id'] ?? '').toString();
+    final cost = (r['cost'] as num?)?.toInt() ?? 0;
+    final tier = (r['tier'] as num?)?.toInt() ?? 1;
+    final kind = (r['kind'] ?? '').toString();
+    final percent = (r['percent'] as num?)?.toInt() ?? 0;
+    final days = (r['days'] as num?)?.toInt() ?? 0;
+    final target = (r['target'] ?? '').toString();
+    final claimed = _claimed.contains(id);
+    final affordable = _spendable >= cost;
+    final busy = _busyId == id;
+    final value = kind == 'discount'
+        ? '-$percent%'
+        : (days >= 90 ? 'pawpoints_3m_free'.tr : 'pawpoints_1m_free'.tr);
+    final free = kind == 'free_month';
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.all(10.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42.w,
+            height: 42.w,
+            decoration: BoxDecoration(
+              color: _gold.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(_tierIcon[tier] ?? '🪙',
+                  style: TextStyle(fontSize: 20.sp)),
+            ),
+          ),
+          SizedBox(width: 10.w),
+          SizedBox(
+            width: 64.w,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PoppinsText(
+                  text: '$cost',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary(context),
+                ),
+                InterText(text: 'pts', fontSize: 9.sp, color: AppColors.greyText),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+            decoration: BoxDecoration(
+              color: free ? const Color(0xFF7C3AED) : _gold.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+            child: InterText(
+              text: value,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w800,
+              color: free ? Colors.white : _gold,
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InterText(
+                  text: target,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                InterText(
+                  text: 'pawpoints_once'.tr,
+                  fontSize: 9.sp,
+                  color: AppColors.greyText,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 6.w),
+          SizedBox(
+            height: 30.h,
+            child: ElevatedButton(
+              onPressed: (claimed || !affordable || busy) ? null : () => _redeem(r),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                disabledBackgroundColor: AppColors.greyText.withValues(alpha: 0.3),
+                padding: EdgeInsets.symmetric(horizontal: 10.w),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r)),
+              ),
+              child: busy
+                  ? SizedBox(
+                      width: 14.w,
+                      height: 14.w,
+                      child: const CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : InterText(
+                      text: claimed
+                          ? 'pawpoints_used'.tr
+                          : affordable
+                              ? 'pawpoints_redeem'.tr
+                              : 'pawpoints_locked'.tr,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _levelCard(BuildContext context, Map<String, dynamic> l) {
+    final color = _hex((l['color'] as String?));
+    final reached = _lifetime >= ((l['min'] as num?)?.toInt() ?? 0);
+    final perks = (l['perks'] as List? ?? []).map((e) => e.toString()).toList();
+    return Container(
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        border: reached ? Border.all(color: color.withValues(alpha: 0.5), width: 1.2) : null,
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42.w,
+            height: 42.w,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Center(
+              child: Text((l['emoji'] ?? '🐾').toString(),
+                  style: TextStyle(fontSize: 20.sp)),
+            ),
+          ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: PoppinsText(
+                        text: '${l['index']}. ${l['label']}',
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                    if (reached)
+                      Icon(Icons.check_circle, color: color, size: 16.sp),
+                  ],
+                ),
+                InterText(
+                  text: '${l['min']} pts',
+                  fontSize: 10.sp,
+                  color: AppColors.greyText,
+                ),
+                SizedBox(height: 4.h),
+                ...perks.map((p) => Padding(
+                      padding: EdgeInsets.only(top: 2.h),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InterText(text: '✓ ', fontSize: 11.sp, color: color),
+                          Expanded(
+                            child: InterText(
+                              text: _perkLabel(p),
+                              fontSize: 11.sp,
+                              color: AppColors.textPrimary(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pawLegendCard(BuildContext context) {
+    final pawLegendMin =
+        _levels.isNotEmpty ? ((_levels.last['min'] as num?)?.toInt() ?? 1000000) : 1000000;
+    final remaining = (pawLegendMin - _lifetime).clamp(0, pawLegendMin);
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFCE7F3), Color(0xFFFEF3C7)],
+        ),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: const Color(0xFFF472B6), width: 1.4),
+      ),
+      child: Row(
+        children: [
+          Text('👑', style: TextStyle(fontSize: 30.sp)),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PoppinsText(
+                  text: 'pawpoints_legend_title'
+                      .trParams({'pts': '$pawLegendMin'}),
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFDB2777),
+                ),
+                SizedBox(height: 2.h),
+                InterText(
+                  text: 'pawpoints_legend_sub'.tr,
+                  fontSize: 11.sp,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 3,
+                ),
+                SizedBox(height: 4.h),
+                InterText(
+                  text: 'pawpoints_legend_remaining'
+                      .trParams({'pts': '$remaining'}),
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w700,
+                  color: _gold,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _earnRow(BuildContext context, Map<String, dynamic> r) {
     final icon = (r['icon'] ?? '➕').toString();
     final label = (r['label'] ?? '').toString();
     final pts = (r['points'] as num?)?.toInt() ?? 0;
@@ -468,125 +889,6 @@ class _RewardsSheetState extends State<_RewardsSheet> {
             fontSize: 14.sp,
             fontWeight: FontWeight.w800,
             color: _gold,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRewardCard(Map<String, dynamic> r) {
-    final id = (r['id'] ?? '').toString();
-    final icon = (r['icon'] ?? '🎁').toString();
-    final title = (r['title'] ?? '').toString();
-    final desc = (r['description'] ?? '').toString();
-    final valueLabel = (r['valueLabel'] ?? '').toString();
-    final cost = (r['cost'] as num?)?.toInt() ?? 0;
-    final soldOut = r['soldOut'] == true;
-    final affordable = _points >= cost;
-    final busy = _busyId == id;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46.w,
-            height: 46.w,
-            decoration: BoxDecoration(
-              color: _gold.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Center(child: Text(icon, style: TextStyle(fontSize: 22.sp))),
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InterText(
-                  text: title,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                ),
-                if (valueLabel.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(top: 2.h),
-                    child: InterText(
-                      text: valueLabel,
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w700,
-                      color: _gold,
-                    ),
-                  ),
-                if (desc.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(top: 2.h),
-                    child: InterText(
-                      text: desc,
-                      fontSize: 11.sp,
-                      color: AppColors.greyText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PoppinsText(
-                text: '$cost',
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w800,
-                color: _gold,
-              ),
-              InterText(text: 'pts', fontSize: 9.sp, color: AppColors.greyText),
-              SizedBox(height: 6.h),
-              SizedBox(
-                height: 30.h,
-                child: ElevatedButton(
-                  onPressed: (soldOut || !affordable || busy)
-                      ? null
-                      : () => _redeem(r),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _gold,
-                    disabledBackgroundColor:
-                        AppColors.greyText.withValues(alpha: 0.3),
-                    padding: EdgeInsets.symmetric(horizontal: 12.w),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                  ),
-                  child: busy
-                      ? SizedBox(
-                          width: 14.w,
-                          height: 14.w,
-                          child: const CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : InterText(
-                          text: soldOut
-                              ? 'pawpoints_sold_out'.tr
-                              : affordable
-                                  ? 'pawpoints_redeem'.tr
-                                  : 'pawpoints_locked'.tr,
-                          fontSize: 11.sp,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
