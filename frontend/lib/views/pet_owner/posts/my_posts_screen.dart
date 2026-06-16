@@ -12,8 +12,11 @@ import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
-import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
+// v441 — « Modifier » ouvre désormais le formulaire de publication complet en
+// mode édition (pré-rempli) au lieu de l'ancien EditPostScreen minimal.
+import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 // v23.1 — B3+B5 : multi-candidatures banner above each owner's post card.
 import 'package:hopetsit/controllers/applications_controller.dart';
 import 'package:hopetsit/views/pet_owner/posts/widgets/post_candidates_banner.dart';
@@ -73,6 +76,24 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     );
   }
 
+  /// v441 — ouvre le formulaire de publication COMPLET en mode édition,
+  /// pré-rempli avec l'annonce. Au retour (save réussi), la liste se
+  /// rafraîchit. L'édition n'est proposée que tant que la réservation n'est
+  /// pas payée (cf `_canEditPost`) ; le backend refuse de toute façon l'update
+  /// d'une annonce payée (409 POST_PAID_LOCKED).
+  Future<void> _openEditPost(
+    PostModel post,
+    PostsController postsController,
+  ) async {
+    await Get.to(() => PublishReservationRequestScreen(editPost: post));
+    await postsController.refreshPosts();
+  }
+
+  /// v441 — « Modifier » visible uniquement tant que la réservation n'est PAS
+  /// payée. isPaidLocked vient de l'annotation backend (listPosts /
+  /// getMediaPosts) : true dès que le booking lié est payé / terminé.
+  bool _canEditPost(PostModel post) => !post.isPaidLocked;
+
   String _serviceTypesDisplay(List<String> types) {
     if (types.isEmpty) return '';
     // v21 — translate each raw service key (e.g. 'day_care' → 'Garderie' in
@@ -92,16 +113,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     }).join(', ');
   }
 
-  String? _postDateRangeLabel(PostModel post) {
-    final s = post.startDate;
-    final e = post.endDate;
-    if (s != null && e != null) {
-      return '${s.day}/${s.month}/${s.year} - ${e.day}/${e.month}/${e.year}';
-    }
-    if (s != null) return '${s.day}/${s.month}/${s.year}';
-    if (e != null) return '${e.day}/${e.month}/${e.year}';
-    return null;
-  }
+  // v440 — délègue au helper partagé qui inclut l'heure (HH:mm) quand
+  // l'annonce porte un horaire (promenade / garde). Cf PostDateLabel.
+  String? _postDateRangeLabel(PostModel post) => PostDateLabel.forPost(post);
 
   List<PostModel> _filterAndSortMyPosts(
     List<PostModel> media,
@@ -249,10 +263,12 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           onComment: () => PostCommentSheet.show(context, post),
           onDelete: () =>
               _confirmAndDeletePost(context, post.id, postsController),
-          onEdit: () {
-            // v18.6 — stylo "Modifier" sur mes propres publications.
-            Get.to(() => EditPostScreen(post: post));
-          },
+          // v441 — « Modifier » ouvre le formulaire complet pré-rempli en mode
+          // édition (tant que la résa n'est pas payée). Masqué (null) une fois
+          // l'annonce payée → le stylo disparaît.
+          onEdit: _canEditPost(post)
+              ? () => _openEditPost(post, postsController)
+              : null,
           isReserved: post.reservedBy != null,
           reservedProviderRole: post.reservedBy?.providerRole,
           ownerViewOfOwnPost: true,
@@ -328,9 +344,11 @@ isOwnerBoosted: post.isOwnerBoosted ||
         onComment: () => PostCommentSheet.show(context, post),
         onDelete: () =>
             _confirmAndDeletePost(context, post.id, postsController),
-        onEdit: () {
-          Get.to(() => EditPostScreen(post: post));
-        },
+        // v441 — « Modifier » → formulaire complet pré-rempli (tant que non
+        // payé) ; masqué une fois l'annonce payée.
+        onEdit: _canEditPost(post)
+            ? () => _openEditPost(post, postsController)
+            : null,
         isReserved: post.reservedBy != null,
         reservedProviderRole: post.reservedBy?.providerRole,
         ownerViewOfOwnPost: true,

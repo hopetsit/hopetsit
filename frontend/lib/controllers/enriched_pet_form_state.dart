@@ -19,6 +19,8 @@ class EnrichedPetFormState {
   final RxString compatDogs = ''.obs;
   final RxString compatCats = ''.obs;
   final RxString compatChildren = ''.obs;
+  // v440 — compatibilité avec les NAC (additif).
+  final RxString compatNac = ''.obs;
 
   final TextEditingController historyController = TextEditingController();
 
@@ -28,8 +30,13 @@ class EnrichedPetFormState {
   final TextEditingController notesController = TextEditingController();
 
   // ── Santé ────────────────────────────────────────────────────────────────
-  /// '' | 'up_to_date' | 'late' | 'unknown'
+  /// '' | 'up_to_date' | 'partial' | 'late' | 'unknown'
   final RxString vaccinationStatus = ''.obs;
+  // v440 — santé additive : stérilisé / pucé / restrictions alimentaires.
+  final RxBool sterilized = false.obs;
+  final RxBool microchipped = false.obs;
+  final TextEditingController foodRestrictionsController =
+      TextEditingController();
   final TextEditingController dewormingLastDateController =
       TextEditingController();
   final TextEditingController dewormingFrequencyController =
@@ -44,6 +51,14 @@ class EnrichedPetFormState {
   // ── Habitudes ──────────────────────────────────────────────────────────
   /// '' | 'low' | 'medium' | 'high'
   final RxString energyLevel = ''.obs;
+  // v440 — habitudes additives (segmentées + textes).
+  /// '' | 'indoor' | 'outdoor' | 'crate'
+  final RxString sleep = ''.obs;
+  /// '' | 'yes' | 'learning'
+  final RxString housetrained = ''.obs;
+  /// '' | 'off_leash' | 'on_leash' | 'reliable_recall'
+  final RxString leashBehaviour = ''.obs;
+  final TextEditingController fearsController = TextEditingController();
   final TextEditingController preferredActivityController =
       TextEditingController();
   final TextEditingController educationController = TextEditingController();
@@ -65,16 +80,18 @@ class EnrichedPetFormState {
   /// Presets de traits de caractère (tokens stockés en base ; labels i18n via
   /// la clé `pet_trait_<token>`).
   static const List<String> characterPresets = [
-    'energetic',
-    'calm',
-    'playful',
-    'social',
     'affectionate',
+    'playful',
     'protective',
-    'smart',
-    'independent',
-    'shy',
+    'calm',
     'curious',
+    'social',
+    'shy',
+    'energetic',
+    'dominant',
+    'independent',
+    // conservés (utilisés sur d'anciens profils) :
+    'smart',
     'gentle',
     'obedient',
   ];
@@ -87,11 +104,15 @@ class EnrichedPetFormState {
     compatDogs.value = p.compatibilities.withDogs;
     compatCats.value = p.compatibilities.withCats;
     compatChildren.value = p.compatibilities.withChildren;
+    compatNac.value = p.compatibilities.withNac;
     historyController.text = p.history;
     particularities.assignAll(p.particularities);
     notesController.text = p.notes;
 
     vaccinationStatus.value = p.vaccinationStatus;
+    sterilized.value = p.sterilized;
+    microchipped.value = p.microchipped;
+    foodRestrictionsController.text = p.foodRestrictions;
     // Backend renvoie une ISO date ; on garde juste la partie YYYY-MM-DD.
     final dw = p.deworming.lastDate;
     dewormingLastDateController.text =
@@ -116,6 +137,10 @@ class EnrichedPetFormState {
     favoriteObjectsController.text = p.habits.favoriteObjects;
     favoritePlacesController.text = p.habits.favoritePlaces;
     remarksController.text = p.habits.remarks;
+    sleep.value = p.habits.sleep;
+    housetrained.value = p.habits.housetrained;
+    leashBehaviour.value = p.habits.leashBehaviour;
+    fearsController.text = p.habits.fears;
   }
 
   /// Champs additifs à fusionner dans le payload create/update.
@@ -127,11 +152,15 @@ class EnrichedPetFormState {
         'withDogs': compatDogs.value,
         'withCats': compatCats.value,
         'withChildren': compatChildren.value,
+        'withNac': compatNac.value,
       },
       'history': historyController.text.trim(),
       'particularities': particularities.toList(),
       'notes': notesController.text.trim(),
       'vaccinationStatus': vaccinationStatus.value,
+      'sterilized': sterilized.value,
+      'microchipped': microchipped.value,
+      'foodRestrictions': foodRestrictionsController.text.trim(),
       'deworming': {
         if (dewormingLastDateController.text.trim().isNotEmpty)
           'lastDate': dewormingLastDateController.text.trim(),
@@ -158,6 +187,10 @@ class EnrichedPetFormState {
         'favoriteObjects': favoriteObjectsController.text.trim(),
         'favoritePlaces': favoritePlacesController.text.trim(),
         'remarks': remarksController.text.trim(),
+        'sleep': sleep.value,
+        'housetrained': housetrained.value,
+        'leashBehaviour': leashBehaviour.value,
+        'fears': fearsController.text.trim(),
       },
     };
   }
@@ -182,6 +215,8 @@ class EnrichedPetFormState {
   void dispose() {
     historyController.dispose();
     notesController.dispose();
+    foodRestrictionsController.dispose();
+    fearsController.dispose();
     dewormingLastDateController.dispose();
     dewormingFrequencyController.dispose();
     currentTreatmentsController.dispose();

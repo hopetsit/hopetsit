@@ -192,8 +192,13 @@ class PostRepository {
 
   /// Updates an existing post. Owner-only (enforced by the backend).
   ///
-  /// PATCH /posts/:id — backend whitelists editable fields: body, startDate,
-  /// endDate, serviceTypes, petId, location, notes, houseSittingVenue.
+  /// PUT/PATCH /posts/:id — backend whitelists editable fields: body, startDate,
+  /// endDate, serviceTypes, petId/petIds, location, notes, houseSittingVenue,
+  /// serviceLocation, showAnimalCharacter. The backend refuses the update when
+  /// the post's booking is already paid/confirmed (409 PAID_LOCKED).
+  ///
+  /// v441 — added petIds (multi-pet), serviceLocation and showAnimalCharacter
+  /// so the owner "Modifier" full-edit form persists every field it captures.
   Future<Map<String, dynamic>> updatePost(
     String postId, {
     String? body,
@@ -201,20 +206,28 @@ class PostRepository {
     DateTime? endDate,
     List<String>? serviceTypes,
     String? petId,
+    List<String>? petIds,
     Map<String, dynamic>? location,
     String? notes,
     String? houseSittingVenue,
+    String? serviceLocation,
+    bool? showAnimalCharacter,
   }) async {
     final payload = <String, dynamic>{};
     if (body != null) payload['body'] = body;
     if (startDate != null) payload['startDate'] = startDate.toIso8601String();
     if (endDate != null) payload['endDate'] = endDate.toIso8601String();
     if (serviceTypes != null) payload['serviceTypes'] = serviceTypes;
+    if (petIds != null) payload['petIds'] = petIds;
     if (petId != null) payload['petId'] = petId;
     if (location != null) payload['location'] = location;
     if (notes != null) payload['notes'] = notes;
     if (houseSittingVenue != null) {
       payload['houseSittingVenue'] = houseSittingVenue;
+    }
+    if (serviceLocation != null) payload['serviceLocation'] = serviceLocation;
+    if (showAnimalCharacter != null) {
+      payload['showAnimalCharacter'] = showAnimalCharacter;
     }
 
     final response = await _apiClient.patch(

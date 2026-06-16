@@ -5,7 +5,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
 import 'package:hopetsit/models/pet_model.dart';
+import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -15,7 +17,13 @@ import 'package:hopetsit/views/profile/my_pets_screen.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
-  const PublishReservationRequestScreen({super.key});
+  const PublishReservationRequestScreen({super.key, this.editPost});
+
+  /// v441 — quand non null, l'écran ouvre le formulaire de publication en mode
+  /// « Modifier » : pré-rempli avec l'annonce existante, et l'enregistrement
+  /// met à jour le post au lieu d'en créer un nouveau. Réservé à l'owner et
+  /// uniquement tant que la réservation n'est pas payée (gardé côté backend).
+  final PostModel? editPost;
 
   @override
   State<PublishReservationRequestScreen> createState() =>
@@ -29,7 +37,9 @@ class _PublishReservationRequestScreenState
   @override
   void initState() {
     super.initState();
-    controller = Get.put(PublishReservationRequestController());
+    controller = Get.put(
+      PublishReservationRequestController(editPost: widget.editPost),
+    );
   }
 
   @override
@@ -52,7 +62,10 @@ class _PublishReservationRequestScreenState
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         centerTitle: true,
         title: PoppinsText(
-          text: 'publish_request_title'.tr,
+          // v441 — titre adapté au mode (création vs « Modifier »).
+          text: controller.isEditMode
+              ? 'edit_post_title'.tr
+              : 'publish_request_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
@@ -94,11 +107,11 @@ class _PublishReservationRequestScreenState
                                 color: AppColors.textSecondary(context),
                               ),
                             ),
-                            Switch(
+                            AppSwitch(
                               value: controller.showAnimalCharacter.value,
                               onChanged: (v) =>
                                   controller.showAnimalCharacter.value = v,
-                              activeTrackColor: AppColors.primaryColor,
+                              accent: AppColors.primaryColor,
                             ),
                           ],
                         ),
@@ -195,18 +208,27 @@ class _PublishReservationRequestScreenState
                     radius: 16,
                   ),
                 ),
-                SizedBox(height: 16.h),
-                _buildSectionCard(
-                  icon: Icons.photo_library_rounded,
-                  title: 'publish_request_images_label'.tr,
-                  child: _buildImagesSection(),
-                ),
+                // v441 — section photos masquée en mode édition : la mise à
+                // jour d'annonce ne ré-uploade pas les médias (les photos
+                // existantes sont conservées telles quelles côté backend).
+                if (!controller.isEditMode) ...[
+                  SizedBox(height: 16.h),
+                  _buildSectionCard(
+                    icon: Icons.photo_library_rounded,
+                    title: 'publish_request_images_label'.tr,
+                    child: _buildImagesSection(),
+                  ),
+                ],
                 SizedBox(height: 24.h),
                 Obx(
                   () => CustomButton(
+                    // v441 — libellé adapté au mode : « Enregistrer » en édition,
+                    // « Publier la demande » en création.
                     title: controller.isSubmitting.value
                         ? null
-                        : 'publish_request_publish_button'.tr,
+                        : (controller.isEditMode
+                            ? 'edit_post_save_button'.tr
+                            : 'publish_request_publish_button'.tr),
                     onTap: controller.isSubmitting.value
                         ? null
                         : () => controller.submit(),
@@ -944,33 +966,35 @@ class _PublishReservationRequestScreenState
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
           child: Theme(
             data: Theme.of(context).copyWith(
+              // v442 — TimePicker theme-aware (suit clair/sombre, plus de fond
+              // blanc forcé en dark mode).
               timePickerTheme: TimePickerThemeData(
-                backgroundColor: AppColors.whiteColor,
+                backgroundColor: AppColors.card(context),
                 hourMinuteShape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 hourMinuteColor: WidgetStateColor.resolveWith((states) =>
                     states.contains(WidgetState.selected)
                         ? AppColors.primaryColor
-                        : AppColors.lightGrey),
+                        : AppColors.inputFill(context)),
                 hourMinuteTextColor: WidgetStateColor.resolveWith((states) =>
                     states.contains(WidgetState.selected)
                         ? AppColors.whiteColor
-                        : AppColors.blackColor),
+                        : AppColors.textPrimary(context)),
                 dialHandColor: AppColors.primaryColor,
-                dialBackgroundColor: AppColors.lightGrey,
+                dialBackgroundColor: AppColors.inputFill(context),
                 entryModeIconColor: AppColors.primaryColor,
                 helpTextStyle: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.grey700Color,
+                  color: AppColors.textSecondary(context),
                 ),
               ),
-              colorScheme: ColorScheme.light(
+              colorScheme: Theme.of(context).colorScheme.copyWith(
                 primary: AppColors.primaryColor,
                 onPrimary: AppColors.whiteColor,
-                surface: AppColors.whiteColor,
-                onSurface: AppColors.blackColor,
+                surface: AppColors.card(context),
+                onSurface: AppColors.textPrimary(context),
               ),
             ),
             child: child!,

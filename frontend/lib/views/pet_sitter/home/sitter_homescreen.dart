@@ -22,7 +22,9 @@ import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dialog.dart';
 import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
+import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -59,6 +61,21 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   SitterFeedSortOrder _sortOrder = SitterFeedSortOrder.newestFirst;
   Position? _userPosition;
 
+  // v441 — barre « Autour de moi » + rayon km (maquettes 50/51, partagée avec
+  // l'accueil owner via AroundMeSearchBar). Le provider (walker/sitter)
+  // parcourt les annonces owner autour d'un point choisi, filtrées par
+  // distance. Source UNIQUE du rayon + de l'ancre de recherche pour le feed.
+  //   _searchCityLabel : libellé affiché (« Paris, France ») ; vide ⇒ position.
+  //   _anchorLat/Lng   : point d'ancrage du filtre distance ; null ⇒ GPS
+  //                      (_userPosition) puis profil.
+  //   _radiusKm        : rayon courant (50 → 500 km), défaut 50.
+  // Par défaut on amorce l'ancre sur la localisation enregistrée du profil
+  // (comme l'accueil owner) ; cf _seedAnchorFromProfile().
+  String _searchCityLabel = '';
+  double? _anchorLat;
+  double? _anchorLng;
+  double _radiusKm = 50.0;
+
   // v16.3i — provider rates cache for estimated-earning block on post cards.
   // Walker: walkRates from /walkers/me/rates (per-duration prices).
   // Sitter: hourly/daily/weekly/monthly from GET /sitters/:id.
@@ -76,6 +93,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   @override
   void initState() {
     super.initState();
+    _seedAnchorFromProfile();
     _loadPendingApplications();
     _loadUserPosition();
     _loadProviderRates();
@@ -171,6 +189,228 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     }
   }
 
+  // v441 — accent du rôle pour la barre « Autour de moi » : walker vert
+  // (#16A34A), sitter bleu (#2563EB). Le rôle est détecté au runtime car cet
+  // écran est partagé entre les deux nav wrappers.
+  static const Color _kSitterAccent = Color(0xFF2563EB);
+  static const Color _kWalkerAccent = Color(0xFF16A34A);
+
+  bool get _isWalkerViewer {
+    final role = Get.isRegistered<AuthController>()
+        ? (Get.find<AuthController>().userRole.value ?? '').toLowerCase()
+        : (GetStorage().read(StorageKeys.userRole) ?? '')
+            .toString()
+            .toLowerCase();
+    return role == 'walker';
+  }
+
+  Color get _accent => _isWalkerViewer ? _kWalkerAccent : _kSitterAccent;
+
+  /// v441 — amorce l'ancre du filtre distance sur la localisation enregistrée
+  /// du profil (ville + lat/lng), comme le fait l'accueil owner. Tant que
+  /// l'utilisateur n'a pas choisi une autre ville, le feed est filtré autour
+  /// de chez lui. Silencieux si le profil n'a pas de coordonnées.
+  void _seedAnchorFromProfile() {
+    try {
+      final profile =
+          GetStorage().read(StorageKeys.userProfile) as Map<String, dynamic>?;
+      if (profile == null) return;
+      String city = '';
+      String country = '';
+      double? lat;
+      double? lng;
+      final loc = profile['location'];
+      if (loc is Map) {
+        city = (loc['city'] as String?)?.trim() ?? '';
+        country = (loc['country'] as String?)?.trim() ?? '';
+        lat = (loc['lat'] as num?)?.toDouble() ??
+            (loc['latitude'] as num?)?.toDouble();
+        lng = (loc['lng'] as num?)?.toDouble() ??
+            (loc['longitude'] as num?)?.toDouble();
+      }
+      if (city.isEmpty) city = (profile['city'] as String?)?.trim() ?? '';
+      if (country.isEmpty) {
+        country = (profile['country'] as String?)?.trim() ?? '';
+      }
+      lat ??= (profile['lat'] as num?)?.toDouble() ??
+          (profile['latitude'] as num?)?.toDouble();
+      lng ??= (profile['lng'] as num?)?.toDouble() ??
+          (profile['longitude'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        _anchorLat = lat;
+        _anchorLng = lng;
+      }
+      final parts = [city, country].where((s) => s.isNotEmpty).toList();
+      if (parts.isNotEmpty) _searchCityLabel = parts.join(', ');
+    } catch (_) {/* noop */}
+  }
+
+  /// Libellé de la carte « Autour de moi » : ville choisie/profil sinon GPS.
+  String _anchorCityLabel() {
+    if (_searchCityLabel.isNotEmpty) return _searchCityLabel;
+    return 'home_my_position'.tr;
+  }
+
+  /// Point d'ancrage effectif du filtre distance : ville choisie/profil en
+  /// priorité, sinon la position GPS de l'appareil. Null si rien de connu (on
+  /// n'applique alors aucun filtre distance → toutes les annonces visibles).
+  ({double lat, double lng})? get _effectiveAnchor {
+    if (_anchorLat != null && _anchorLng != null) {
+      return (lat: _anchorLat!, lng: _anchorLng!);
+    }
+    if (_userPosition != null) {
+      return (lat: _userPosition!.latitude, lng: _userPosition!.longitude);
+    }
+    return null;
+  }
+
+  /// v441 — filtre distance (Haversine via Geolocator.distanceBetween) des
+  /// annonces owner autour de l'ancre « Autour de moi », dans le rayon courant.
+  /// Toujours actif (le slider est en permanence visible, comme l'accueil
+  /// owner). Tolérance : une annonce SANS coordonnées GPS reste affichée — on
+  /// ne masque pas un owner qui n'a pas saisi son adresse précise.
+  List<PostModel> _filterByRadius(List<PostModel> source) {
+    final anchor = _effectiveAnchor;
+    if (anchor == null) return source; // pas d'ancre → pas de filtre.
+    final radiusKm = _radiusKm.clamp(_kMinRadiusKm, _kMaxRadiusKm);
+    return source.where((post) {
+      final lat = post.location?.lat;
+      final lng = post.location?.lng;
+      if (lat == null || lng == null) return true; // tolérance sans coords.
+      final meters = Geolocator.distanceBetween(
+        anchor.lat,
+        anchor.lng,
+        lat,
+        lng,
+      );
+      return (meters / 1000) <= radiusKm;
+    }).toList();
+  }
+
+  /// v441 — barre « Autour de moi » + rayon (widget partagé). Le slider pilote
+  /// le rayon du filtre distance ; le tap localisation ouvre le picker de
+  /// ville. Accent = couleur du rôle (vert walker / bleu sitter).
+  Widget _buildAroundMeBar(BuildContext context) {
+    return AroundMeSearchBar(
+      accent: _accent,
+      cityLabel: _anchorCityLabel(),
+      radiusKm: _radiusKm,
+      minRadiusKm: _kMinRadiusKm,
+      maxRadiusKm: _kMaxRadiusKm,
+      onTapCity: () => _showAroundMeCityPicker(context),
+      // Glissement : mise à jour LOCALE de la valeur affichée seulement (pas
+      // de re-filtre à chaque pixel — le feed ne recalcule qu'au relâchement).
+      onRadiusChanged: (v) => setState(() => _radiusKm = v),
+      // Relâchement : on garde la valeur (le feed se re-filtre via setState).
+      onRadiusCommit: (v) => setState(() => _radiusKm = v),
+    );
+  }
+
+  /// v441 — compteur résultats : « N résultats trouvés » (clé existante
+  /// home_results_found réutilisée). Reflète le nombre d'annonces affichées
+  /// après filtre distance.
+  Widget _buildAroundMeResults(BuildContext context, int count) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text('🎯', style: TextStyle(fontSize: 14.sp)),
+        SizedBox(width: 6.w),
+        Expanded(
+          child: PoppinsText(
+            text: 'home_around_me'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        SizedBox(width: 6.w),
+        InterText(
+          text: 'home_results_found'.trParams({'count': count.toString()}),
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w600,
+          color: _accent,
+        ),
+      ],
+    );
+  }
+
+  /// v441 — sheet de changement de ville (réutilise CityLocationPicker, comme
+  /// l'accueil owner). Choisir une ville fixe l'ancre + relance le filtre ;
+  /// le bouton géoloc remet l'ancre sur la position GPS de l'appareil.
+  void _showAroundMeCityPicker(BuildContext context) {
+    final cityController = TextEditingController(text: _searchCityLabel);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.card(ctx),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+              20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 14.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.divider(ctx),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              PoppinsText(
+                text: 'home_change_city_title'.tr,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(ctx),
+              ),
+              SizedBox(height: 4.h),
+              InterText(
+                text: 'home_change_city_hint'.tr,
+                fontSize: 12.sp,
+                color: AppColors.textSecondary(ctx),
+              ),
+              SizedBox(height: 12.h),
+              CityLocationPicker(
+                cityController: cityController,
+                isGettingLocation: false,
+                onGetLocation: () {
+                  // Retour à la géoloc de l'appareil (efface l'ancre ville).
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _searchCityLabel = '';
+                    _anchorLat = null;
+                    _anchorLng = null;
+                  });
+                },
+                detectedCity: _searchCityLabel,
+                onLocationSelected: (city, lat, lng) {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _searchCityLabel = city.trim();
+                    _anchorLat = lat;
+                    _anchorLng = lng;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _loadUserPosition() async {
     try {
       final permission = await Geolocator.checkPermission();
@@ -236,35 +476,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
         }
       }
 
-      // v23.1 part 240 — slider toujours actif (min 50km enforced UI side).
-      // On applique le filtre meme si maxDistanceKm est null en lui
-      // assignant le minimum 50km par defaut. Plus de mode "0 = no filter".
-      final radiusKm = _filterState.maxDistanceKm ?? _kMinRadiusKm;
-      if (radiusKm > 0 && _userPosition != null) {
-        final postLat = post.location?.lat;
-        final postLng = post.location?.lng;
-        // v23.1.147 — Daniel : "si on met 20 km le paseador disparaît".
-        // Avant : un post sans coordonnées GPS était EXCLU dès qu'un filtre
-        // distance était actif → frustrant pour les owners qui n'ont pas
-        // saisi leur adresse précise. On garde la tolerance : posts sans
-        // coords restent visibles (sinon l'owner sans adresse precise est
-        // invisible).
-        if (postLat == null || postLng == null) {
-          return true;
-        }
-
-        final distanceInMeters = Geolocator.distanceBetween(
-          _userPosition!.latitude,
-          _userPosition!.longitude,
-          postLat,
-          postLng,
-        );
-        final distanceInKm = distanceInMeters / 1000;
-
-        if (distanceInKm > radiusKm) {
-          return false;
-        }
-      }
+      // v441 — le filtre DISTANCE n'est plus géré ici : il l'est en amont par
+      // _filterByRadius (barre « Autour de moi » + rayon, source unique). On
+      // ne garde dans ce dialog que les filtres ville-texte / service / dates.
 
       return true;
     }).toList();
@@ -568,87 +782,6 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     );
   }
 
-  void _showNearMeBottomSheet(BuildContext context) {
-    // v23.1 part 240 — slider toujours actif avec min 50km (cf inline
-    // slider plus bas). Init au plus a 50km si pas de valeur stockee.
-    double tempDistance = (_filterState.maxDistanceKm ?? _kMinRadiusKm)
-        .clamp(_kMinRadiusKm, _kMaxRadiusKm)
-        .toDouble();
-
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setBottomSheetState) => Container(
-          color: AppColors.card(context),
-          padding: EdgeInsets.fromLTRB(24.w, 20.h, 24.w, 30.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              InterText(
-                text: 'filter_near_me'.tr,
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary(context),
-              ),
-              SizedBox(height: 20.h),
-              Slider(
-                value: tempDistance,
-                min: _kMinRadiusKm,
-                max: _kMaxRadiusKm,
-                divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
-                label: '${tempDistance.toInt()} km',
-                onChanged: (value) {
-                  final v = value
-                      .clamp(_kMinRadiusKm, _kMaxRadiusKm)
-                      .toDouble();
-                  setBottomSheetState(() => tempDistance = v);
-                },
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18.w),
-                child: InterText(
-                  text: 'filter_distance_km'
-                      .trParams({'km': tempDistance.toInt().toString()}),
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary(context),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              SizedBox(height: 24.h),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  foregroundColor: AppColors.whiteColor,
-                  elevation: 0,
-                  padding: EdgeInsets.symmetric(vertical: 14.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.r),
-                  ),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _filterState = _filterState.copyWith(
-                      maxDistanceKm: tempDistance,
-                    );
-                  });
-                  Navigator.of(context).pop();
-                },
-                child: InterText(
-                  text: 'filter_apply'.tr,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.whiteColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final PostsController postsController = Get.put(PostsController());
@@ -812,69 +945,35 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                       rolePrefiltered = uniquePosts;
                     }
 
+                    // v441 — filtre distance « Autour de moi » TOUJOURS appliqué
+                    // (barre + slider visibles en permanence). Les autres
+                    // filtres (ville texte / service / dates) du dialog
+                    // s'ajoutent par-dessus quand actifs.
+                    final distanceFiltered = _filterByRadius(rolePrefiltered);
                     final feedPosts = _filterState.hasActiveFilters
-                        ? _applyRequestFilters(rolePrefiltered)
-                        : rolePrefiltered;
+                        ? _applyRequestFilters(distanceFiltered)
+                        : distanceFiltered;
 
                     final sortedFeed = _sortFeedPosts(feedPosts);
 
                     return Column(
                       children: [
-                        // Near me and Filters row
+                        // v441 — barre « Autour de moi » + rayon km (maquettes
+                        // 50/51, partagée avec l'accueil owner). Remplace
+                        // l'ancien bouton « Près de chez moi » + l'inline
+                        // slider : SOURCE UNIQUE du rayon + de l'ancre de
+                        // recherche du feed. Accent vert (walker) / bleu
+                        // (sitter).
+                        _buildAroundMeBar(context),
+                        SizedBox(height: 10.h),
+                        // Compteur « 🎯 Autour de moi · N résultats trouvés ».
+                        _buildAroundMeResults(context, sortedFeed.length),
+                        SizedBox(height: 10.h),
+                        // Bouton filtres avancés (ville texte / service / dates)
+                        // — distinct du filtre distance ci-dessus.
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            // Near me button
-                            GestureDetector(
-                              onTap: () => _showNearMeBottomSheet(context),
-                              child: Builder(
-                                builder: (context) => Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 14.w,
-                                    vertical: 10.h,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.card(context),
-                                    borderRadius: BorderRadius.circular(24.r),
-                                    border: Border.all(
-                                      color: (_filterState.maxDistanceKm !=
-                                              null &&
-                                          _filterState.maxDistanceKm! > 0)
-                                          ? AppColors.primaryColor
-                                          : AppColors.divider(context),
-                                      width: 1.2,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.near_me_rounded,
-                                        size: 20.sp,
-                                        color: (_filterState.maxDistanceKm !=
-                                                null &&
-                                            _filterState.maxDistanceKm! > 0)
-                                            ? AppColors.primaryColor
-                                            : AppColors.textSecondary(
-                                                context,
-                                              ),
-                                      ),
-                                      SizedBox(width: 8.w),
-                                      InterText(
-                                        text: 'filter_near_me'.tr,
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppColors.textSecondary(
-                                          context,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            // Filters button
                             GestureDetector(
                               onTap: () {
                                 ReservationRequestFilterDialog.show(
@@ -902,7 +1001,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                     borderRadius: BorderRadius.circular(24.r),
                                     border: Border.all(
                                       color: _filterState.hasActiveFilters
-                                          ? AppColors.primaryColor
+                                          ? _accent
                                           : AppColors.divider(context),
                                       width: 1.2,
                                     ),
@@ -914,7 +1013,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                         Icons.tune_rounded,
                                         size: 20.sp,
                                         color: _filterState.hasActiveFilters
-                                            ? AppColors.primaryColor
+                                            ? _accent
                                             : AppColors.textSecondary(
                                                 context,
                                               ),
@@ -937,11 +1036,6 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                             ),
                           ],
                         ),
-                        // ── INLINE DISTANCE SLIDER (0-500 km) ──
-                        // Filtre rapide "Près de chez moi" visible en
-                        // permanence dans le feed. 0 = toutes les distances.
-                        SizedBox(height: 10.h),
-                        _buildInlineDistanceSlider(context),
 
                         if (_filterState.hasActiveFilters) ...[
                           SizedBox(height: 10.h),
@@ -968,12 +1062,8 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                   '${_formatDateShort(_filterState.dateRange!.start)} – ${_formatDateShort(_filterState.dateRange!.end)}',
                                   Icons.calendar_today_outlined,
                                 ),
-                              if (_filterState.maxDistanceKm != null &&
-                                  _filterState.maxDistanceKm! > 0)
-                                _activeFilterChip(
-                                  '< ${_filterState.maxDistanceKm!.toInt()} km',
-                                  Icons.near_me_outlined,
-                                ),
+                              // v441 — la puce distance a disparu : le rayon est
+                              // désormais porté par la barre « Autour de moi ».
                             ],
                           ),
                         ],
@@ -1864,34 +1954,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   /// chaque profile et chaque barre dans owner sitter et walker". Sitter
   /// side : meme contrainte que owner home — slider min 50 km, plus de
   /// mode "toutes les distances".
+  // v441 — bornes du rayon « Autour de moi » (slider 50 → 500 km). L'ancien
+  // _buildInlineDistanceSlider + le StatefulWidget _InlineDistanceSlider ont
+  // été supprimés : le rayon est maintenant porté par la barre partagée
+  // AroundMeSearchBar (cf _buildAroundMeBar).
   static const double _kMinRadiusKm = 50.0;
   static const double _kMaxRadiusKm = 500.0;
-
-  Widget _buildInlineDistanceSlider(BuildContext context) {
-    // v23.1 part 251 — Daniel : "la barre pres de chez moi dans lacceuil
-    // rame un peux". Root cause : l'ancien onChanged appelait setState +
-    // _filterState.copyWith a CHAQUE tick de drag → re-filtre + re-trie +
-    // rebuild TOUT le feed (toutes les cartes) a chaque pixel. Sur low-end
-    // c'est saccade.
-    //
-    // Fix : on delegue a _InlineDistanceSlider, un StatefulWidget dedie qui
-    // gere sa propre valeur de drag EN LOCAL (le thumb bouge fluide, la
-    // valeur s'affiche), et n'appelle le callback onCommit (= re-filtre du
-    // feed) QU'AU RELACHEMENT du doigt (onChangeEnd). Le feed ne recalcule
-    // donc qu'UNE fois, pas a chaque pixel.
-    final raw = _filterState.maxDistanceKm ?? _kMinRadiusKm;
-    final current = raw.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
-    return _InlineDistanceSlider(
-      initial: current,
-      min: _kMinRadiusKm,
-      max: _kMaxRadiusKm,
-      onCommit: (v) {
-        setState(() {
-          _filterState = _filterState.copyWith(maxDistanceKm: v);
-        });
-      },
-    );
-  }
 
   /// Stub — report post flow. The real implementation opens ReportDialog.
   /// Kept lightweight so the feed still compiles while the report UI is
@@ -1899,128 +1967,5 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   void _handleReportPost({required String postId}) {
     // TODO: wire ReportDialog.show(context: context, targetType: 'post', targetId: postId)
     AppLogger.logUserAction('Report post pressed', data: {'postId': postId});
-  }
-}
-
-/// v23.1 part 251 — slider distance "Près de chez moi" autonome.
-///
-/// Gere sa valeur de drag EN LOCAL : le thumb bouge fluide et le label
-/// "X km" se met a jour pendant le glissement SANS rebuild du feed parent.
-/// Le callback [onCommit] n'est appele qu'au RELACHEMENT du doigt
-/// (onChangeEnd), donc le feed (filter + sort + cartes) ne recalcule
-/// qu'une seule fois au lieu d'a chaque pixel. Fix le lag low-end signale
-/// par Daniel.
-class _InlineDistanceSlider extends StatefulWidget {
-  const _InlineDistanceSlider({
-    required this.initial,
-    required this.min,
-    required this.max,
-    required this.onCommit,
-  });
-
-  final double initial;
-  final double min;
-  final double max;
-  final ValueChanged<double> onCommit;
-
-  @override
-  State<_InlineDistanceSlider> createState() => _InlineDistanceSliderState();
-}
-
-class _InlineDistanceSliderState extends State<_InlineDistanceSlider> {
-  late double _value;
-
-  @override
-  void initState() {
-    super.initState();
-    _value = widget.initial.clamp(widget.min, widget.max).toDouble();
-  }
-
-  @override
-  void didUpdateWidget(_InlineDistanceSlider old) {
-    super.didUpdateWidget(old);
-    // Si le parent change la valeur initiale (ex. reset filtre), on
-    // resynchronise — mais seulement si differente pour eviter de casser
-    // un drag en cours.
-    final clamped = widget.initial.clamp(widget.min, widget.max).toDouble();
-    if (clamped != old.initial.clamp(widget.min, widget.max).toDouble()) {
-      _value = clamped;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final label =
-        'distance_slider_km'.trParams({'km': _value.toInt().toString()});
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.primaryColor, width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.near_me_rounded,
-                  size: 18.sp, color: AppColors.primaryColor),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: label,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-            ],
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: AppColors.primaryColor,
-              inactiveTrackColor: AppColors.primaryColor.withValues(alpha: 0.2),
-              thumbColor: AppColors.primaryColor,
-              overlayColor: AppColors.primaryColor.withValues(alpha: 0.15),
-              trackHeight: 4,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
-            ),
-            child: Slider(
-              value: _value,
-              min: widget.min,
-              max: widget.max,
-              divisions: ((widget.max - widget.min) ~/ 10),
-              label: '${_value.toInt()} km',
-              // Drag : update LOCAL seulement (pas de rebuild feed).
-              onChanged: (v) {
-                setState(() {
-                  _value = v.clamp(widget.min, widget.max).toDouble();
-                });
-              },
-              // Relachement : commit au parent → re-filtre le feed 1x.
-              onChangeEnd: (v) {
-                widget.onCommit(v.clamp(widget.min, widget.max).toDouble());
-              },
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              InterText(
-                text: '${widget.min.toInt()} km',
-                fontSize: 10.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              InterText(
-                text: '${widget.max.toInt()} km',
-                fontSize: 10.sp,
-                color: AppColors.textSecondary(context),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }

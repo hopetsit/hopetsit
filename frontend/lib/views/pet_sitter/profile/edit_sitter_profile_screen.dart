@@ -12,6 +12,8 @@ import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
+import 'package:hopetsit/utils/pet_species_color.dart';
 
 class EditSitterProfileScreen extends StatelessWidget {
   const EditSitterProfileScreen({super.key});
@@ -358,9 +360,9 @@ class EditSitterProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
-                    // Bio Field
+                    // Bio Field — label « À propos de moi » (champ bio conservé).
                     CustomTextField(
-                      labelText: 'label_bio'.tr,
+                      labelText: 'label_about_me'.tr,
                       hintText: 'hint_bio'.tr,
                       controller: controller.bioController,
                       textInputAction: TextInputAction.next,
@@ -473,6 +475,7 @@ class EditSitterProfileScreen extends StatelessWidget {
                           ].map((e) => [e[0], e[1].tr]).toList(),
                           selected: controller.acceptedAnimals,
                           onToggle: (v) => _toggle(controller.acceptedAnimals, v),
+                          emojiFor: petSpeciesEmoji,
                         )),
 
                     SizedBox(height: 20.h),
@@ -501,6 +504,13 @@ class EditSitterProfileScreen extends StatelessWidget {
                           value: controller.coverageRadius.value,
                           onChanged: (v) => controller.coverageRadius.value = v,
                         )),
+
+                    SizedBox(height: 24.h),
+
+                    // v441 — Apparence (Clair/Sombre/Système) + Langue de l'app.
+                    const AppearanceLanguageSection(
+                      accent: AppColors.sitterAccent,
+                    ),
 
                     SizedBox(height: 40.h),
 

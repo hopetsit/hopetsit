@@ -20,6 +20,7 @@ import 'package:hopetsit/services/friend_marker_service.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/friends_screen.dart';
@@ -3937,12 +3938,10 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
           Transform.scale(
             scale: 0.62,
-            child: Switch(
+            child: AppSwitch(
               value: value,
               onChanged: onChanged,
-              activeTrackColor: accent,
-              activeThumbColor: Colors.white,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              accent: accent,
             ),
           ),
         ],

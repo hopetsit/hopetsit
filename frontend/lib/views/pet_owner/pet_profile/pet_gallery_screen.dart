@@ -81,6 +81,14 @@ class _PetGalleryScreenState extends State<PetGalleryScreen> {
 
   Future<void> _addPhoto() async {
     if (_busy) return;
+    // v440 — limite : 20 photos max.
+    if (_photos.length >= 20) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'pet_gallery_limit_photos'.tr,
+      );
+      return;
+    }
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -113,6 +121,14 @@ class _PetGalleryScreenState extends State<PetGalleryScreen> {
 
   Future<void> _addVideo() async {
     if (_busy) return;
+    // v440 — limite : 5 vidéos max.
+    if (_videos.length >= 5) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'pet_gallery_limit_videos'.tr,
+      );
+      return;
+    }
     try {
       final XFile? video = await _picker.pickVideo(
         source: ImageSource.gallery,
@@ -218,6 +234,42 @@ class _PetGalleryScreenState extends State<PetGalleryScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Visionneuse plein écran (tap sur une photo). Zoom via InteractiveViewer.
+  void _openFullscreen(String url) {
+    Get.to(
+      () => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          iconTheme: const IconThemeData(color: Colors.white),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Get.back(),
+          ),
+        ),
+        body: Center(
+          child: InteractiveViewer(
+            minScale: 0.8,
+            maxScale: 4,
+            child: CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.contain,
+              placeholder: (c, _) => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+              errorWidget: (c, _, __) => const Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 48,
+              ),
+            ),
+          ),
+        ),
+      ),
+      transition: Transition.fadeIn,
+    );
   }
 
   // ── build ──────────────────────────────────────────────────────────────────
@@ -334,27 +386,30 @@ class _PetGalleryScreenState extends State<PetGalleryScreen> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12.r),
-              child: isVideo
-                  ? Container(
-                      color: Colors.black87,
-                      child: Center(
-                        child: Icon(Icons.play_circle_fill_rounded,
-                            color: Colors.white, size: 34.sp),
+            GestureDetector(
+              onTap: isVideo ? null : () => _openFullscreen(item.url),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: isVideo
+                    ? Container(
+                        color: Colors.black87,
+                        child: Center(
+                          child: Icon(Icons.play_circle_fill_rounded,
+                              color: Colors.white, size: 34.sp),
+                        ),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: item.url,
+                        fit: BoxFit.cover,
+                        placeholder: (c, _) =>
+                            Container(color: AppColors.lightGreyColor),
+                        errorWidget: (c, _, __) => Container(
+                          color: AppColors.lightGreyColor,
+                          child: Icon(Icons.broken_image,
+                              color: AppColors.greyColor),
+                        ),
                       ),
-                    )
-                  : CachedNetworkImage(
-                      imageUrl: item.url,
-                      fit: BoxFit.cover,
-                      placeholder: (c, _) =>
-                          Container(color: AppColors.lightGreyColor),
-                      errorWidget: (c, _, __) => Container(
-                        color: AppColors.lightGreyColor,
-                        child:
-                            Icon(Icons.broken_image, color: AppColors.greyColor),
-                      ),
-                    ),
+              ),
             ),
             // Bouton supprimer.
             Positioned(

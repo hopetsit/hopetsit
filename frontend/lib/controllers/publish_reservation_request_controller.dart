@@ -6,8 +6,10 @@ import 'package:hopetsit/controllers/home_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/pet_model.dart';
+import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/repositories/owner_repository.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
+import 'package:hopetsit/repositories/post_repository.dart';
 import 'package:hopetsit/services/location_service.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -20,15 +22,32 @@ class PublishReservationRequestController extends GetxController {
     LocationService? locationService,
     ImagePicker? imagePicker,
     OwnerRepository? ownerRepository,
+    PostRepository? postRepository,
+    PostModel? editPost,
   }) : _petRepository = petRepository ?? Get.find<PetRepository>(),
        _locationService = locationService ?? LocationService(),
        _imagePicker = imagePicker ?? ImagePicker(),
-       _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>();
+       _ownerRepository = ownerRepository ?? Get.find<OwnerRepository>(),
+       _postRepository = postRepository ?? Get.find<PostRepository>(),
+       _editPost = editPost;
 
   final PetRepository _petRepository;
   final LocationService _locationService;
   final ImagePicker _imagePicker;
   final OwnerRepository _ownerRepository;
+  final PostRepository _postRepository;
+
+  // v441 — édition d'une annonce existante (owner « Modifier »). Quand non
+  // null, le formulaire est pré-rempli et `submit()` PUT/PATCH le post au lieu
+  // d'en créer un nouveau. L'édition n'est autorisée que tant que la
+  // réservation n'est PAS payée (gardée côté backend updatePost).
+  final PostModel? _editPost;
+
+  /// True quand le formulaire édite une annonce existante (mode Modifier).
+  bool get isEditMode => _editPost != null;
+
+  /// L'id du post en cours d'édition (vide en mode création).
+  String get editPostId => _editPost?.id ?? '';
 
   final formKey = GlobalKey<FormState>();
 
@@ -170,7 +189,78 @@ class PublishReservationRequestController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // v441 — en mode édition, on pré-remplit les champs scalaires AVANT le
+    // chargement des animaux (pas besoin d'attendre le réseau pour les dates /
+    // service / localisation). La sélection des animaux est rétablie une fois
+    // myPets chargé (cf loadMyPets).
+    if (isEditMode) {
+      _prefillFromEditPost();
+    }
     loadMyPets();
+  }
+
+  /// v441 — pré-remplit tous les champs du formulaire à partir de l'annonce en
+  /// cours d'édition (mode « Modifier »). Couvre dates+heures, type de service,
+  /// durée (promenade), lieu de garde (serviceLocation), ville/GPS, notes et le
+  /// toggle « Afficher le caractère des animaux ». La sélection des animaux est
+  /// rétablie séparément une fois la liste myPets chargée.
+  void _prefillFromEditPost() {
+    final p = _editPost!;
+
+    // Notes / détails : l'annonce stocke le texte libre dans `notes` (et le
+    // recopie dans `body`). On pré-remplit avec notes en priorité, sinon body.
+    final preset = p.notes.trim().isNotEmpty ? p.notes.trim() : p.body.trim();
+    notesController.text = preset;
+
+    // Type de service (premier élément de serviceTypes).
+    if (p.serviceTypes.isNotEmpty) {
+      selectedServiceType.value = p.serviceTypes.first.trim();
+    }
+
+    // Dates + heures (start/end). On extrait le TimeOfDay de chaque DateTime.
+    if (p.startDate != null) {
+      final s = p.startDate!;
+      startDate.value = DateTime(s.year, s.month, s.day);
+      startTime.value = TimeOfDay(hour: s.hour, minute: s.minute);
+    }
+    if (p.endDate != null) {
+      final e = p.endDate!;
+      endDate.value = DateTime(e.year, e.month, e.day);
+      endTime.value = TimeOfDay(hour: e.hour, minute: e.minute);
+    }
+
+    // Promenade : recalcule la durée sélectionnée depuis l'écart start→end pour
+    // que la puce de durée soit correctement mise en surbrillance.
+    if (selectedServiceType.value == 'dog_walking' &&
+        p.startDate != null &&
+        p.endDate != null) {
+      final diffMin = p.endDate!.difference(p.startDate!).inMinutes;
+      if (diffMin > 0) selectedDuration.value = diffMin.toString();
+    }
+
+    // Lieu de garde (at_owner / at_sitter / both).
+    final svcLoc = p.serviceLocation?.trim();
+    if (svcLoc != null && svcLoc.isNotEmpty) {
+      serviceLocation.value = svcLoc;
+    }
+
+    // Lieu de house-sitting legacy (owners_home / sitters_home).
+    final venue = p.houseSittingVenue?.trim();
+    if (venue != null && venue.isNotEmpty) {
+      houseSittingVenue.value = venue;
+    }
+
+    // Ville + coordonnées GPS.
+    final city = p.location?.city.trim() ?? '';
+    if (city.isNotEmpty) {
+      cityController.text = city;
+      detectedCity.value = city;
+    }
+    if (p.location?.lat != null) userLat.value = p.location!.lat;
+    if (p.location?.lng != null) userLng.value = p.location!.lng;
+
+    // Toggle « Afficher le caractère des animaux ».
+    showAnimalCharacter.value = p.showAnimalCharacter;
   }
 
   @override
@@ -186,6 +276,20 @@ class PublishReservationRequestController extends GetxController {
     try {
       final response = await _petRepository.getMyPets();
       myPets.assignAll(response);
+      // v441 — mode édition : rétablir la sélection des animaux de l'annonce
+      // une fois la liste chargée. On matche par id ; on ne garde que les ids
+      // qui existent encore dans myPets (un animal supprimé entre-temps est
+      // simplement omis).
+      if (isEditMode) {
+        final existing = myPets.map((p) => p.id).toSet();
+        final preselected = _editPost!.pets
+            .map((p) => p.id)
+            .where((id) => id.isNotEmpty && existing.contains(id))
+            .toList();
+        if (preselected.isNotEmpty) {
+          selectedPetIds.assignAll(preselected);
+        }
+      }
     } catch (e) {
       AppLogger.logError('Failed to load owner pets', error: e);
       myPets.clear();
@@ -425,6 +529,41 @@ class PublishReservationRequestController extends GetxController {
 
     isSubmitting.value = true;
     try {
+      if (isEditMode) {
+        // v441 — mode « Modifier » : on met à jour l'annonce existante via
+        // PUT /posts/:id (le backend refuse si la réservation est déjà payée).
+        // Les photos ne sont pas ré-uploadées ici (l'UI masque la section
+        // photos en édition) ; tous les autres champs du formulaire sont
+        // persistés. Le lieu de garde city/lat/lng est ré-envoyé en bloc.
+        final location = <String, dynamic>{
+          'city': city,
+          if (userLat.value != null) 'lat': userLat.value,
+          if (userLng.value != null) 'lng': userLng.value,
+        };
+        await _postRepository.updatePost(
+          editPostId,
+          body: body,
+          startDate: start,
+          endDate: end,
+          serviceTypes: services,
+          petIds: petIdsList,
+          location: location,
+          notes: notes,
+          houseSittingVenue: venue,
+          serviceLocation: svcLocation,
+          showAnimalCharacter: showAnimalCharacter.value,
+        );
+
+        await _refreshFeedsAfterPublish();
+
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'edit_post_saved'.tr,
+        );
+        Get.back();
+        return;
+      }
+
       if (imageFiles.isEmpty) {
         await _ownerRepository.createReservationRequest(
           body: body,

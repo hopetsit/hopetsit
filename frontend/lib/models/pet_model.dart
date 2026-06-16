@@ -38,7 +38,11 @@ class PetModel {
   final List<String> particularities;
   final String notes;
   // Santé
-  final String vaccinationStatus; // '' | 'up_to_date' | 'late' | 'unknown'
+  final String vaccinationStatus; // '' | 'up_to_date' | 'partial' | 'late' | 'unknown'
+  // v440 — santé additive : stérilisé / pucé / restrictions alimentaires.
+  final bool sterilized;
+  final bool microchipped;
+  final String foodRestrictions;
   final PetDeworming deworming;
   final String currentTreatments;
   final String bloodGroup;
@@ -83,6 +87,9 @@ class PetModel {
     this.particularities = const [],
     this.notes = '',
     this.vaccinationStatus = '',
+    this.sterilized = false,
+    this.microchipped = false,
+    this.foodRestrictions = '',
     this.deworming = const PetDeworming(),
     this.currentTreatments = '',
     this.bloodGroup = '',
@@ -184,6 +191,9 @@ class PetModel {
           [],
       notes: json['notes'] as String? ?? '',
       vaccinationStatus: json['vaccinationStatus'] as String? ?? '',
+      sterilized: json['sterilized'] == true,
+      microchipped: json['microchipped'] == true,
+      foodRestrictions: json['foodRestrictions'] as String? ?? '',
       deworming: PetDeworming.fromJson(
           json['deworming'] as Map<String, dynamic>? ?? const {}),
       currentTreatments: json['currentTreatments'] as String? ?? '',
@@ -233,6 +243,9 @@ class PetModel {
       'particularities': particularities,
       'notes': notes,
       'vaccinationStatus': vaccinationStatus,
+      'sterilized': sterilized,
+      'microchipped': microchipped,
+      'foodRestrictions': foodRestrictions,
       'deworming': deworming.toJson(),
       'currentTreatments': currentTreatments,
       'bloodGroup': bloodGroup,
@@ -248,11 +261,14 @@ class PetCompatibilities {
   final String withDogs;
   final String withCats;
   final String withChildren;
+  // v440 — compatibilité avec les NAC (additif).
+  final String withNac;
 
   const PetCompatibilities({
     this.withDogs = '',
     this.withCats = '',
     this.withChildren = '',
+    this.withNac = '',
   });
 
   factory PetCompatibilities.fromJson(Map<String, dynamic> json) {
@@ -260,6 +276,7 @@ class PetCompatibilities {
       withDogs: json['withDogs'] as String? ?? '',
       withCats: json['withCats'] as String? ?? '',
       withChildren: json['withChildren'] as String? ?? '',
+      withNac: json['withNac'] as String? ?? '',
     );
   }
 
@@ -267,10 +284,14 @@ class PetCompatibilities {
         'withDogs': withDogs,
         'withCats': withCats,
         'withChildren': withChildren,
+        'withNac': withNac,
       };
 
   bool get isEmpty =>
-      withDogs.isEmpty && withCats.isEmpty && withChildren.isEmpty;
+      withDogs.isEmpty &&
+      withCats.isEmpty &&
+      withChildren.isEmpty &&
+      withNac.isEmpty;
 }
 
 /// v406 — vermifuge (dernière date + fréquence).
@@ -330,6 +351,11 @@ class PetHabits {
   final String favoriteObjects;
   final String favoritePlaces;
   final String remarks;
+  // v440 — habitudes additives (onglet Habitudes maquette).
+  final String sleep; // '' | 'indoor' | 'outdoor' | 'crate'
+  final String housetrained; // '' | 'yes' | 'learning'
+  final String leashBehaviour; // '' | 'off_leash' | 'on_leash' | 'reliable_recall'
+  final String fears;
 
   const PetHabits({
     this.energyLevel = '',
@@ -346,6 +372,10 @@ class PetHabits {
     this.favoriteObjects = '',
     this.favoritePlaces = '',
     this.remarks = '',
+    this.sleep = '',
+    this.housetrained = '',
+    this.leashBehaviour = '',
+    this.fears = '',
   });
 
   factory PetHabits.fromJson(Map<String, dynamic> json) {
@@ -364,6 +394,10 @@ class PetHabits {
       favoriteObjects: json['favoriteObjects'] as String? ?? '',
       favoritePlaces: json['favoritePlaces'] as String? ?? '',
       remarks: json['remarks'] as String? ?? '',
+      sleep: json['sleep'] as String? ?? '',
+      housetrained: json['housetrained'] as String? ?? '',
+      leashBehaviour: json['leashBehaviour'] as String? ?? '',
+      fears: json['fears'] as String? ?? '',
     );
   }
 
@@ -382,6 +416,10 @@ class PetHabits {
         'favoriteObjects': favoriteObjects,
         'favoritePlaces': favoritePlaces,
         'remarks': remarks,
+        'sleep': sleep,
+        'housetrained': housetrained,
+        'leashBehaviour': leashBehaviour,
+        'fears': fears,
       };
 
   bool get isEmpty =>
@@ -398,7 +436,11 @@ class PetHabits {
       allowedTreats.isEmpty &&
       favoriteObjects.isEmpty &&
       favoritePlaces.isEmpty &&
-      remarks.isEmpty;
+      remarks.isEmpty &&
+      sleep.isEmpty &&
+      housetrained.isEmpty &&
+      leashBehaviour.isEmpty &&
+      fears.isEmpty;
 }
 
 class PetVet {

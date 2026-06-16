@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// v406 refonte — contenu de l'onglet « Préférences » du profil (maquette).
@@ -140,10 +141,10 @@ class ProfilePreferencesTab extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
+          AppSwitch(
             value: value,
             onChanged: saving ? null : onChanged,
-            activeTrackColor: accent,
+            accent: accent,
           ),
         ],
       ),
@@ -273,10 +274,10 @@ class ProfileSecurityTab extends StatelessWidget {
                   ],
                 ),
               ),
-              Switch(
+              AppSwitch(
                 value: twoFactorEnabled,
                 onChanged: saving ? null : onToggle2FA,
-                activeTrackColor: accent,
+                accent: accent,
               ),
             ],
           ),

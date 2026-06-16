@@ -16,6 +16,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
+import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/sitter_card.dart';
 import 'package:hopetsit/views/pet_owner/home/widgets/walker_card.dart';
@@ -33,6 +34,7 @@ import 'package:hopetsit/widgets/expandable_post_input.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/views/notifications/notifications_screen.dart';
+import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:share_plus/share_plus.dart';
 
 enum HomeMyPostsSortOrder { newestFirst, oldestFirst }
@@ -122,16 +124,9 @@ class _HomeScreenState extends State<HomeScreen> {
         .join(', ');
   }
 
-  static String? _postDateRangeLabel(PostModel post) {
-    final s = post.startDate;
-    final e = post.endDate;
-    if (s != null && e != null) {
-      return '${s.day}/${s.month}/${s.year} - ${e.day}/${e.month}/${e.year}';
-    }
-    if (s != null) return '${s.day}/${s.month}/${s.year}';
-    if (e != null) return '${e.day}/${e.month}/${e.year}';
-    return null;
-  }
+  // v440 — délègue au helper partagé qui inclut l'heure (HH:mm) si présente.
+  static String? _postDateRangeLabel(PostModel post) =>
+      PostDateLabel.forPost(post);
 
   // ignore: unused_element
   static bool _postHasDisplayableMedia(PostModel post) {
@@ -474,161 +469,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Bloc recherche premium : chip localisation (gauche) + rayon (droite).
+  /// v441 — extrait dans le widget partagé [AroundMeSearchBar] (réutilisé par
+  /// les accueils sitter/walker). Comportement owner INCHANGÉ : le slider
+  /// déclenche loadNearbySitters/loadNearbyWalkers, le tap ville ouvre le
+  /// picker. Le wrapper Obx garde le rebuild réactif sur nearMeRadiusKm.
   Widget _buildSearchBlock(BuildContext context) {
-    final accent = _accent;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.divider(context), width: 1),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Gauche : chip localisation (tappable, no-op pour l'instant) ──
-          Expanded(
-            flex: 5,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12.r),
-              // v435 — Daniel : permettre de CHANGER de ville depuis la carte
-              // "Autour de moi". Tap → bottomsheet picker de ville.
-              onTap: () => _showCityPickerSheet(context),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 4.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_rounded,
-                            size: 16.sp, color: accent),
-                        SizedBox(width: 4.w),
-                        Flexible(
-                          child: PoppinsText(
-                            text: 'home_around_me'.tr,
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: InterText(
-                            text: _ownerCityCountryLabel(),
-                            fontSize: 11.sp,
-                            color: AppColors.textSecondary(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Icon(Icons.keyboard_arrow_down_rounded,
-                            size: 16.sp,
-                            color: AppColors.textSecondary(context)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 10.w),
-          Container(width: 1, height: 48.h, color: AppColors.divider(context)),
-          SizedBox(width: 10.w),
-          // ── Droite : rayon (label + valeur + slider + ticks) ──
-          Expanded(
-            flex: 7,
-            child: Obx(() {
-              final current = _homeController.nearMeRadiusKm.value
-                  .clamp(_kMinRadiusKm, _kMaxRadiusKm)
-                  .toDouble();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      InterText(
-                        text: 'home_radius'.tr,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      PoppinsText(
-                        text: '${current.toInt()} km',
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w800,
-                        color: accent,
-                      ),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: accent,
-                      inactiveTrackColor: accent.withValues(alpha: 0.18),
-                      thumbColor: accent,
-                      overlayColor: accent.withValues(alpha: 0.15),
-                      trackHeight: 4,
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 9),
-                    ),
-                    child: Slider(
-                      value: current,
-                      min: _kMinRadiusKm,
-                      max: _kMaxRadiusKm,
-                      divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
-                      label: '${current.toInt()} km',
-                      onChanged: (value) {
-                        final v = value
-                            .clamp(_kMinRadiusKm, _kMaxRadiusKm)
-                            .toDouble();
-                        _homeController.nearMeRadiusKm.value = v;
-                        _homeController.offersNearMeEnabled.value = true;
-                      },
-                      onChangeEnd: (value) {
-                        final v = value
-                            .clamp(_kMinRadiusKm, _kMaxRadiusKm)
-                            .toDouble();
-                        // MÊMES appels que l'ancien slider → recherche intacte.
-                        _homeController.loadNearbySitters(radiusKm: v.round());
-                        _homeController.loadNearbyWalkers(radiusKm: v.round());
-                      },
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      InterText(
-                        text: '${_kMinRadiusKm.toInt()} km',
-                        fontSize: 9.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      InterText(
-                        text: '50 km',
-                        fontSize: 9.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      InterText(
-                        text: '${_kMaxRadiusKm.toInt()} km',
-                        fontSize: 9.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            }),
-          ),
-        ],
-      ),
-    );
+    return Obx(() {
+      final current = _homeController.nearMeRadiusKm.value
+          .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+          .toDouble();
+      return AroundMeSearchBar(
+        accent: _accent,
+        cityLabel: _ownerCityCountryLabel(),
+        radiusKm: current,
+        minRadiusKm: _kMinRadiusKm,
+        maxRadiusKm: _kMaxRadiusKm,
+        midTickKm: 50,
+        onTapCity: () => _showCityPickerSheet(context),
+        onRadiusChanged: (v) {
+          _homeController.nearMeRadiusKm.value = v;
+          _homeController.offersNearMeEnabled.value = true;
+        },
+        onRadiusCommit: (v) {
+          // MÊMES appels que l'ancien slider → recherche intacte.
+          _homeController.loadNearbySitters(radiusKm: v.round());
+          _homeController.loadNearbyWalkers(radiusKm: v.round());
+        },
+      );
+    });
   }
 
   /// Rangée de 3 chips filtre. Animaux/Promenades + Disponibilité ouvrent un
@@ -935,9 +803,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final weekEnd = today.add(const Duration(days: 7));
 
-    bool availMatch(List<DateTime> dates) {
+    // v440 — la dispo matche les DATES du calendrier + les CRÉNEAUX
+    // hebdomadaires récurrents (availableTimeSlots). Un prestataire qui a
+    // configuré des créneaux récurrents est considéré dispo « cette semaine »
+    // (et aujourd'hui si le créneau couvre le jour courant) même sans dates
+    // ponctuelles. Connecté au même calendrier que la carte (availableDates).
+    bool availMatch(List<DateTime> dates, List<dynamic> slots) {
       if (_availabilityFilter == null) return true;
-      if (dates.isEmpty) return false;
       for (final d in dates) {
         final day = DateTime(d.year, d.month, d.day);
         if (_availabilityFilter == 'today') {
@@ -946,24 +818,49 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!day.isBefore(today) && day.isBefore(weekEnd)) return true;
         }
       }
+      // Créneaux récurrents : présents = dispo cette semaine. Pour
+      // « aujourd'hui », on tente de matcher le jour de la semaine si le
+      // créneau l'indique (dayOfWeek/weekday/day), sinon on l'accepte.
+      if (slots.isNotEmpty) {
+        if (_availabilityFilter == 'week') return true;
+        final todayWeekday = today.weekday % 7; // 0=Dim … 6=Sam (compat)
+        for (final s in slots) {
+          if (s is Map) {
+            final dow = s['dayOfWeek'] ?? s['weekday'] ?? s['day'];
+            if (dow == null) return true;
+            final dowInt = dow is num ? dow.toInt() : int.tryParse('$dow');
+            if (dowInt == null) return true;
+            if (dowInt % 7 == todayWeekday || dowInt == today.weekday) {
+              return true;
+            }
+          } else {
+            return true;
+          }
+        }
+      }
       return false;
     }
 
     if (_isWalkerTab) {
-      // Walker a acceptedPetTypes → filtre type réel ; availableDates → dispo.
+      // Walker a acceptedPetTypes → filtre type réel ; availableDates +
+      // availableTimeSlots → dispo.
       final filtered = _homeController.walkers.where((w) {
         final typeOk = _petTypeFilter == null ||
             w.acceptedPetTypes
                 .map((e) => e.toLowerCase())
                 .contains(_petTypeFilter);
-        return typeOk && availMatch(w.availableDates);
+        return typeOk && availMatch(w.availableDates, w.availableTimeSlots);
       }).toList();
       _homeController.walkers.assignAll(filtered);
     } else {
-      // Sitter n'expose pas acceptedPetTypes côté client → le filtre type est
-      // un no-op (on ne masque personne) ; la dispo s'applique via availableDates.
+      // v440 — le sitter expose désormais acceptedPetTypes → le filtre type
+      // s'applique vraiment ; la dispo via availableDates + availableTimeSlots.
       final filtered = _homeController.sitters.where((s) {
-        return availMatch(s.availableDates);
+        final typeOk = _petTypeFilter == null ||
+            s.acceptedPetTypes
+                .map((e) => e.toLowerCase())
+                .contains(_petTypeFilter);
+        return typeOk && availMatch(s.availableDates, s.availableTimeSlots);
       }).toList();
       _homeController.sitters.assignAll(filtered);
     }

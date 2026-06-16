@@ -7,6 +7,7 @@ import 'package:hopetsit/controllers/sign_up_controller.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
 /// v409 refonte — inscription en wizard 5 étapes (maquette « S'INSCRIRE COMME …
@@ -270,7 +271,9 @@ class SignupWizardScreen extends StatelessWidget {
                   c.selectedCountryCode.value = cc.dialCode ?? '+1';
                   if (cc.code != null) c.selectedCountry.value = cc.code!;
                 },
-                initialSelection: 'FR',
+                // v441 — préremplissage région : indicatif déduit de la locale
+                // du device (region ES → +34). L'utilisateur peut changer.
+                initialSelection: c.initialCountryIso,
                 favorite: const ['FR', 'BE', 'CH', 'US'],
                 showFlagDialog: true,
                 padding: EdgeInsets.zero,
@@ -1065,7 +1068,7 @@ class SignupWizardScreen extends StatelessWidget {
                 color: AppColors.textPrimary(context),
               ),
             ),
-            Switch(value: value, onChanged: onChanged, activeTrackColor: _accent),
+            AppSwitch(value: value, onChanged: onChanged, accent: _accent),
           ],
         ),
       ),

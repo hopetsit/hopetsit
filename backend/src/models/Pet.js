@@ -118,12 +118,18 @@ const petSchema = new mongoose.Schema(
       withDogs: { type: String, default: '' },
       withCats: { type: String, default: '' },
       withChildren: { type: String, default: '' },
+      // v440 — compatibilité avec les NAC (additif).
+      withNac: { type: String, default: '' },
     },
     history: { type: String, default: '', trim: true, maxlength: 2000 },
     particularities: [{ type: String, trim: true }],
     notes: { type: String, default: '', trim: true, maxlength: 2000 },
     // Santé
-    vaccinationStatus: { type: String, default: '' }, // 'up_to_date' | 'late' | 'unknown'
+    vaccinationStatus: { type: String, default: '' }, // 'up_to_date' | 'partial' | 'late' | 'unknown'
+    // v440 — santé additive : stérilisé / pucé / restrictions alimentaires.
+    sterilized: { type: Boolean, default: false },
+    microchipped: { type: Boolean, default: false },
+    foodRestrictions: { type: String, default: '', trim: true },
     deworming: {
       lastDate: { type: Date, default: null },
       frequency: { type: String, default: '', trim: true },
@@ -150,6 +156,11 @@ const petSchema = new mongoose.Schema(
       favoriteObjects: { type: String, default: '', trim: true },
       favoritePlaces: { type: String, default: '', trim: true },
       remarks: { type: String, default: '', trim: true, maxlength: 2000 },
+      // v440 — habitudes additives (onglet Habitudes maquette).
+      sleep: { type: String, default: '', trim: true }, // 'indoor' | 'outdoor' | 'crate'
+      housetrained: { type: String, default: '', trim: true }, // 'yes' | 'learning'
+      leashBehaviour: { type: String, default: '', trim: true }, // 'off_leash' | 'on_leash' | 'reliable_recall'
+      fears: { type: String, default: '', trim: true },
     },
   },
   {

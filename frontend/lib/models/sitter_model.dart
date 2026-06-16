@@ -34,6 +34,14 @@ class SitterModel {
   final List<DateTime> availableDates;
   final List<DateTime> unavailableDates;
 
+  /// v440 — espèces gardées (chien/chat/…), pour les petites pastilles
+  /// animaux sur la carte de recherche owner + le filtre type d'animal.
+  final List<String> acceptedPetTypes;
+
+  /// v440 — créneaux hebdomadaires récurrents. Sert, avec availableDates, à
+  /// décider si la carte doit afficher « Indisponible » (aucune dispo).
+  final List<dynamic> availableTimeSlots;
+
   /// Sprint 5 step 7 — identity verification flag exposed publicly.
   final bool identityVerified;
 
@@ -101,6 +109,8 @@ class SitterModel {
     this.defaultRateType = 'hour',
     this.availableDates = const <DateTime>[],
     this.unavailableDates = const <DateTime>[],
+    this.acceptedPetTypes = const <String>[],
+    this.availableTimeSlots = const <dynamic>[],
     this.identityVerified = false,
     this.isTopSitter = false,
     this.completedServicesCount = 0,
@@ -186,6 +196,12 @@ class SitterModel {
           .map((e) => DateTime.tryParse(e.toString()))
           .whereType<DateTime>()
           .toList(),
+      acceptedPetTypes: json['acceptedPetTypes'] is List
+          ? (json['acceptedPetTypes'] as List).map((e) => e.toString()).toList()
+          : <String>[],
+      availableTimeSlots: json['availableTimeSlots'] is List
+          ? (json['availableTimeSlots'] as List)
+          : const <dynamic>[],
       identityVerified: json['identityVerified'] == true,
       isTopSitter: json['isTopSitter'] == true,
       isBoosted: json['isBoosted'] == true,

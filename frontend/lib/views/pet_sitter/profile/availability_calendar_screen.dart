@@ -155,6 +155,38 @@ class _AvailabilityCalendarScreenState
             firstDay: DateTime.utc(2024, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: _focusedDay,
+            // v441 — styles theme-aware : sans ça, table_calendar rend les
+            // numéros de jour / en-têtes / libellés de semaine en texte sombre
+            // → invisibles sur fond sombre (le bug « dark bleeding through »).
+            headerStyle: HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+              titleTextStyle: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+              leftChevronIcon: Icon(Icons.chevron_left,
+                  color: AppColors.textPrimary(context)),
+              rightChevronIcon: Icon(Icons.chevron_right,
+                  color: AppColors.textPrimary(context)),
+            ),
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle: TextStyle(color: AppColors.textSecondary(context)),
+              weekendStyle: TextStyle(color: AppColors.textSecondary(context)),
+            ),
+            calendarStyle: CalendarStyle(
+              defaultTextStyle:
+                  TextStyle(color: AppColors.textPrimary(context)),
+              weekendTextStyle:
+                  TextStyle(color: AppColors.textPrimary(context)),
+              outsideTextStyle:
+                  TextStyle(color: AppColors.textSecondary(context)),
+              todayTextStyle: const TextStyle(color: Colors.white),
+              todayDecoration: BoxDecoration(
+                color: AppColors.primaryColor.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+            ),
             onDayLongPressed: (sel, foc) {
               setState(() => _focusedDay = foc);
               _toggle(sel);
@@ -192,6 +224,7 @@ class _AvailabilityCalendarScreenState
             child: Text(
               'availability_instructions'.tr,
               textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary(context)),
             ),
           ),
         ],

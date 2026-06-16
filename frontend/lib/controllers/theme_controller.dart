@@ -8,10 +8,12 @@ class ThemeController extends GetxController {
   static const String _storageKey = 'theme_mode';
   final GetStorage _storage = GetStorage();
 
-  // Default to LIGHT so the app never accidentally renders in dark mode
-  // just because the user's OS is set to dark (reported bug: dark mode
-  // bleeding through on the availability calendar, dialogs, etc.).
-  final Rx<ThemeMode> themeMode = ThemeMode.light.obs;
+  // v441 — décision produit : le thème suit le SYSTÈME par défaut (Clair /
+  // Sombre / Système, choisi sous « Modifier le profil »). L'ancien défaut
+  // forcé en clair (bug « dark bleeding through » sur le calendrier de
+  // disponibilité + dialogs) est remplacé : ces surfaces ont été auditées et
+  // rendues theme-aware. La persistance reste 'light' | 'dark' | 'system'.
+  final Rx<ThemeMode> themeMode = ThemeMode.system.obs;
 
   @override
   void onInit() {
@@ -30,7 +32,8 @@ class ThemeController extends GetxController {
         return ThemeMode.system;
       // ignore: unreachable_switch_default
       default:
-        return ThemeMode.light;
+        // v441 — rien de stocké → on suit l'OS (décision produit).
+        return ThemeMode.system;
     }
   }
 

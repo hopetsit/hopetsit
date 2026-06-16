@@ -156,9 +156,10 @@ class PetExtraFields extends StatelessWidget {
               ),
             ),
             _label('pet_compatibilities'.tr),
+            _compatRow('pet_compat_children'.tr, state.compatChildren),
             _compatRow('pet_compat_dogs'.tr, state.compatDogs),
             _compatRow('pet_compat_cats'.tr, state.compatCats),
-            _compatRow('pet_compat_children'.tr, state.compatChildren),
+            _compatRow('pet_compat_nac'.tr, state.compatNac),
             const SizedBox(height: 8),
             _tf(state.historyController, 'pet_history'.tr, maxLines: 3),
             _label('pet_particularities'.tr),
@@ -176,13 +177,39 @@ class PetExtraFields extends StatelessWidget {
             _label('pet_vaccination_status'.tr),
             _segmented(state.vaccinationStatus, [
               MapEntry('up_to_date', 'pet_vax_up_to_date'.tr),
+              MapEntry('partial', 'pet_vax_partial'.tr),
               MapEntry('late', 'pet_vax_late'.tr),
               MapEntry('unknown', 'pet_vax_unknown'.tr),
             ]),
+            // v440 — puce électronique + stérilisé (booléens).
+            Obx(
+              () => CheckboxListTile(
+                value: state.microchipped.value,
+                onChanged: (v) => state.microchipped.value = v ?? false,
+                title: Text('pet_microchipped'.tr),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                activeColor: accent,
+              ),
+            ),
+            Obx(
+              () => CheckboxListTile(
+                value: state.sterilized.value,
+                onChanged: (v) => state.sterilized.value = v ?? false,
+                title: Text('pet_sterilized'.tr),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                activeColor: accent,
+              ),
+            ),
             const SizedBox(height: 4),
             _tf(state.dewormingLastDateController, 'pet_deworming_last_date'.tr),
             _tf(state.dewormingFrequencyController, 'pet_deworming_frequency'.tr),
             _tf(state.currentTreatmentsController, 'pet_current_treatments'.tr,
+                maxLines: 2),
+            _tf(state.foodRestrictionsController, 'pet_food_restrictions'.tr,
                 maxLines: 2),
             _tf(state.bloodGroupController, 'pet_blood_group'.tr),
             _label('pet_health_insurance'.tr),
@@ -197,6 +224,23 @@ class PetExtraFields extends StatelessWidget {
           childrenPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           children: [
+            _label('pet_sleep'.tr),
+            _segmented(state.sleep, [
+              MapEntry('indoor', 'pet_sleep_indoor'.tr),
+              MapEntry('outdoor', 'pet_sleep_outdoor'.tr),
+              MapEntry('crate', 'pet_sleep_crate'.tr),
+            ]),
+            _label('pet_housetrained'.tr),
+            _segmented(state.housetrained, [
+              MapEntry('yes', 'pet_housetrained_yes'.tr),
+              MapEntry('learning', 'pet_housetrained_learning'.tr),
+            ]),
+            _label('pet_leash'.tr),
+            _segmented(state.leashBehaviour, [
+              MapEntry('off_leash', 'pet_leash_off'.tr),
+              MapEntry('on_leash', 'pet_leash_on'.tr),
+              MapEntry('reliable_recall', 'pet_leash_recall'.tr),
+            ]),
             _label('pet_energy_level'.tr),
             _segmented(state.energyLevel, [
               MapEntry('low', 'pet_energy_low'.tr),
@@ -204,6 +248,7 @@ class PetExtraFields extends StatelessWidget {
               MapEntry('high', 'pet_energy_high'.tr),
             ]),
             const SizedBox(height: 4),
+            _tf(state.fearsController, 'pet_fears'.tr, maxLines: 2),
             _tf(state.preferredActivityController, 'pet_preferred_activity'.tr),
             _tf(state.educationController, 'pet_education'.tr),
             _tf(state.aloneToleranceController, 'pet_alone_tolerance'.tr),

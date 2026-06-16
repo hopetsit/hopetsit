@@ -323,6 +323,10 @@ const findNearbySitters = async (req, res) => {
         responseTimeMinutes: sitter.responseTimeMinutes ?? null,
         availableDates: Array.isArray(sitter.availableDates) ? sitter.availableDates : [],
         unavailableDates: Array.isArray(sitter.unavailableDates) ? sitter.unavailableDates : [],
+        // v440 — la SitterCard owner lit ces champs : petites pastilles
+        // d'animaux gardés + détection « Indisponible » (calendrier vide).
+        acceptedPetTypes: Array.isArray(sitter.acceptedPetTypes) ? sitter.acceptedPetTypes : [],
+        availableTimeSlots: Array.isArray(sitter.availableTimeSlots) ? sitter.availableTimeSlots : [],
         completedServicesCount: sitter.completedServicesCount || 0,
         averageRating: sitter.averageRating || 0,
         identityVerified:

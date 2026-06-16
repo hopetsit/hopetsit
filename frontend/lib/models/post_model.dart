@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:hopetsit/models/pet_model.dart';
+
 class PostModel {
   final String id;
   final String postType;
@@ -12,8 +14,14 @@ class PostModel {
   /// 'at_owner' | 'at_sitter' | 'both'. Affiché sur la carte d'annonce.
   final String? serviceLocation;
   final String? petId;
+  /// v441 — ids des animaux sélectionnés pour l'annonce (multi-animaux). Sert
+  /// au pré-remplissage du formulaire « Modifier » côté owner.
+  final List<String> petIds;
   final PostLocation? location;
   final String notes;
+  /// v441 — toggle « Afficher le caractère des animaux » de l'annonce.
+  /// Persisté côté backend (défaut true) ; pré-rempli en mode édition.
+  final bool showAnimalCharacter;
   final List<PostImage> images;
   final List<PostVideo> videos;
   final List<PostLike> likes;
@@ -39,6 +47,14 @@ class PostModel {
   final bool isOwnerBoosted;
   final String? ownerBoostTier;
 
+  /// v441 — true quand la réservation liée est déjà payée/confirmée. L'owner
+  /// ne peut alors PLUS modifier l'annonce (le bouton « Modifier » est masqué
+  /// et le backend refuse l'update). Faux par défaut (annonce éditable).
+  final bool isPaidLocked;
+
+  /// v441 — l'owner peut éditer son annonce tant qu'elle n'est pas payée.
+  bool get isEditableByOwner => !isPaidLocked;
+
   PostModel({
     required this.id,
     required this.postType,
@@ -49,8 +65,10 @@ class PostModel {
     this.houseSittingVenue,
     this.serviceLocation,
     this.petId,
+    this.petIds = const <String>[],
     this.location,
     required this.notes,
+    this.showAnimalCharacter = true,
     required this.images,
     required this.videos,
     required this.likes,
@@ -66,6 +84,7 @@ class PostModel {
     this.reservedBy,
     this.isOwnerBoosted = false,
     this.ownerBoostTier,
+    this.isPaidLocked = false,
   });
 
   /// True if the post has an active reservation (owner accepted a sitter
@@ -134,8 +153,15 @@ class PostModel {
       houseSittingVenue: json['houseSittingVenue'] as String?,
       serviceLocation: json['serviceLocation'] as String?,
       petId: json['petId'] as String?,
+      petIds: (json['petIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .where((s) => s.isNotEmpty)
+              .toList() ??
+          const <String>[],
       location: parseLocation(json['location']),
       notes: json['notes'] as String? ?? '',
+      // Défaut true : une annonce sans le champ (ancienne) affiche le caractère.
+      showAnimalCharacter: json['showAnimalCharacter'] == false ? false : true,
       images:
           (json['images'] as List<dynamic>?)
               ?.whereType<Map<String, dynamic>>()
@@ -193,6 +219,8 @@ class PostModel {
       // v23.1 part 116 — owner Boost flags (du backend listPosts enrichi).
       isOwnerBoosted: json['isOwnerBoosted'] == true,
       ownerBoostTier: json['ownerBoostTier'] as String?,
+      // v441 — verrou paiement (backend listPosts / getMediaPosts enrichi).
+      isPaidLocked: json['isPaidLocked'] == true,
     );
   }
 
@@ -213,8 +241,10 @@ class PostModel {
       houseSittingVenue: houseSittingVenue,
       serviceLocation: serviceLocation,
       petId: petId,
+      petIds: petIds,
       location: location,
       notes: notes,
+      showAnimalCharacter: showAnimalCharacter,
       images: images,
       videos: videos,
       likes: likes ?? this.likes,
@@ -230,6 +260,7 @@ class PostModel {
       reservedBy: reservedBy,
       isOwnerBoosted: isOwnerBoosted,
       ownerBoostTier: ownerBoostTier,
+      isPaidLocked: isPaidLocked,
     );
   }
 }
@@ -432,6 +463,18 @@ class PostPet {
   final String breed;
   final String bio;
 
+  /// v442 — âge (en années) + sexe ('male' | 'female' | '') de l'animal, pour
+  /// la bande animaux du détail d'annonce prestataire (« 4 ans », chip « Mâle »).
+  final int? age;
+  final String sex;
+
+  /// v440 — compatibilité + statut vaccins + stérilisé/pucé, pour afficher
+  /// ces infos clés sur l'annonce / le profil public de l'animal.
+  final PetCompatibilities compatibilities;
+  final String vaccinationStatus;
+  final bool sterilized;
+  final bool microchipped;
+
   PostPet({
     required this.id,
     required this.petName,
@@ -441,6 +484,12 @@ class PostPet {
     this.characterTraits = const <String>[],
     this.breed = '',
     this.bio = '',
+    this.age,
+    this.sex = '',
+    this.compatibilities = const PetCompatibilities(),
+    this.vaccinationStatus = '',
+    this.sterilized = false,
+    this.microchipped = false,
   });
 
   factory PostPet.fromJson(Map<String, dynamic> json) {
@@ -461,6 +510,13 @@ class PostPet {
           const <String>[],
       breed: json['breed'] as String? ?? '',
       bio: json['bio'] as String? ?? '',
+      age: json['age'] is num ? (json['age'] as num).toInt() : null,
+      sex: (json['sex'] ?? json['gender'] ?? '').toString(),
+      compatibilities: PetCompatibilities.fromJson(
+          json['compatibilities'] as Map<String, dynamic>? ?? const {}),
+      vaccinationStatus: json['vaccinationStatus'] as String? ?? '',
+      sterilized: json['sterilized'] == true,
+      microchipped: json['microchipped'] == true,
     );
   }
 }

@@ -11,6 +11,7 @@ import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
+import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
@@ -176,7 +177,6 @@ class WalkerProfileScreen extends StatelessWidget {
                         // v23.1 part 247 — Daniel : "met un badge jolie".
                         // Row contenant la role pill + le badge KYC verifie.
                         Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
                             // Role badge.
                             Container(
@@ -209,6 +209,10 @@ class WalkerProfileScreen extends StatelessWidget {
                             SizedBox(width: 6.w),
                             // v247 badge KYC reactive (auto-refresh sur tick).
                             const MyKycVerifiedBadge(large: true),
+                            const Spacer(),
+                            // v441 — cloche de notifications (demandes / amis /
+                            // paiements) en haut à droite du hero.
+                            const ProfileNotificationBell(role: 'walker'),
                           ],
                         ),
                         SizedBox(height: 10.h),

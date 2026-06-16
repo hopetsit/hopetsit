@@ -6,6 +6,7 @@ import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
+import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
@@ -177,6 +178,10 @@ class ProfileScreen extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                               color: Colors.white.withValues(alpha: 0.9),
                             ),
+                            const Spacer(),
+                            // v441 — cloche de notifications (demandes / amis /
+                            // paiements) en haut du hero, à gauche de l'avatar.
+                            const ProfileNotificationBell(role: 'owner'),
                           ],
                         ),
                         SizedBox(height: 6.h),

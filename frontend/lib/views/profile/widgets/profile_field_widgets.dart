@@ -36,12 +36,19 @@ class ProfileChoiceChips extends StatelessWidget {
   final List<String> selected;
   final void Function(String value) onToggle;
 
+  /// v440 — emoji d'espèce optionnel rendu AVANT le libellé (sélecteur
+  /// d'animaux gardés / promenés). Reçoit la `value` canonique (dog/cat/…) et
+  /// renvoie l'emoji ('' = aucune icône). Laissé null pour les chips sans
+  /// icône (services, expérience) afin de conserver leur rendu d'origine.
+  final String Function(String value)? emojiFor;
+
   const ProfileChoiceChips({
     super.key,
     required this.accent,
     required this.options,
     required this.selected,
     required this.onToggle,
+    this.emojiFor,
   });
 
   @override
@@ -53,6 +60,7 @@ class ProfileChoiceChips extends StatelessWidget {
         final value = o[0];
         final label = o[1];
         final isSel = selected.contains(value);
+        final emoji = emojiFor?.call(value) ?? '';
         return GestureDetector(
           onTap: () => onToggle(value),
           child: Container(
@@ -65,11 +73,20 @@ class ProfileChoiceChips extends StatelessWidget {
                 width: isSel ? 1.6 : 1,
               ),
             ),
-            child: InterText(
-              text: label,
-              fontSize: 13.sp,
-              fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
-              color: isSel ? accent : AppColors.textPrimary(context),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (emoji.isNotEmpty) ...[
+                  Text(emoji, style: TextStyle(fontSize: 14.sp)),
+                  SizedBox(width: 6.w),
+                ],
+                InterText(
+                  text: label,
+                  fontSize: 13.sp,
+                  fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
+                  color: isSel ? accent : AppColors.textPrimary(context),
+                ),
+              ],
             ),
           ),
         );

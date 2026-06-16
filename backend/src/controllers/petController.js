@@ -359,6 +359,67 @@ const getPetById = async (req, res) => {
         : null,
       // Vaccinations array
       vaccinations: vaccinations,
+      // v440 — fiche animal enrichie : la réponse était hand-built et
+      // PERDAIT tous les champs À propos / Santé / Habitudes (round-trip
+      // édition cassé + fiche vide après reload galerie). On les renvoie tous.
+      gender: pet.gender || '',
+      characterTraits: Array.isArray(pet.characterTraits) ? pet.characterTraits : [],
+      compatibilities: {
+        withDogs: pet.compatibilities?.withDogs || '',
+        withCats: pet.compatibilities?.withCats || '',
+        withChildren: pet.compatibilities?.withChildren || '',
+        withNac: pet.compatibilities?.withNac || '',
+      },
+      history: pet.history || '',
+      particularities: Array.isArray(pet.particularities) ? pet.particularities : [],
+      notes: pet.notes || '',
+      vaccinationStatus: pet.vaccinationStatus || '',
+      sterilized: pet.sterilized === true,
+      microchipped: pet.microchipped === true,
+      foodRestrictions: pet.foodRestrictions || '',
+      deworming: {
+        lastDate: pet.deworming?.lastDate || null,
+        frequency: pet.deworming?.frequency || '',
+      },
+      currentTreatments: pet.currentTreatments || '',
+      bloodGroup: pet.bloodGroup || '',
+      healthInsurance: {
+        name: pet.healthInsurance?.name || '',
+        number: pet.healthInsurance?.number || '',
+      },
+      habits: {
+        energyLevel: pet.habits?.energyLevel || '',
+        preferredActivity: pet.habits?.preferredActivity || '',
+        education: pet.habits?.education || '',
+        aloneTolerance: pet.habits?.aloneTolerance || '',
+        barking: pet.habits?.barking || '',
+        likes: pet.habits?.likes || '',
+        dislikes: pet.habits?.dislikes || '',
+        transport: pet.habits?.transport || '',
+        brushing: pet.habits?.brushing || '',
+        food: pet.habits?.food || '',
+        allowedTreats: pet.habits?.allowedTreats || '',
+        favoriteObjects: pet.habits?.favoriteObjects || '',
+        favoritePlaces: pet.habits?.favoritePlaces || '',
+        remarks: pet.habits?.remarks || '',
+        sleep: pet.habits?.sleep || '',
+        housetrained: pet.habits?.housetrained || '',
+        leashBehaviour: pet.habits?.leashBehaviour || '',
+        fears: pet.habits?.fears || '',
+      },
+      behavior: pet.behavior || '',
+      regularVet: {
+        name: pet.regularVet?.name || '',
+        phone: pet.regularVet?.phone || '',
+        address: pet.regularVet?.address || '',
+      },
+      emergencyVet: {
+        name: pet.emergencyVet?.name || '',
+        phone: pet.emergencyVet?.phone || '',
+        address: pet.emergencyVet?.address || '',
+      },
+      emergencyInterventionAuthorization: pet.emergencyInterventionAuthorization === true,
+      emergencyAuthorizationText: pet.emergencyAuthorizationText || '',
       // Owner information
       owner: ownerData,
       createdAt: pet.createdAt,
@@ -528,6 +589,40 @@ const updatePetProfile = async (req, res) => {
     }
     if (normalizedData.profileView !== undefined) {
       updateData.profileView = normalizedData.profileView.trim();
+    }
+
+    // v440 — refonte fiche animal : la fiche À propos / Santé / Habitudes
+    // envoie désormais des champs enrichis que le PUT /pets/:id doit
+    // PERSISTER (avant ils étaient silencieusement ignorés → round-trip
+    // cassé). 100% ADDITIF : on ne touche aux champs que s'ils sont fournis.
+    const ENRICHED_PASSTHROUGH = [
+      'gender',
+      'characterTraits',
+      'compatibilities',
+      'history',
+      'particularities',
+      'notes',
+      'vaccinationStatus',
+      'sterilized',
+      'microchipped',
+      'foodRestrictions',
+      'deworming',
+      'currentTreatments',
+      'bloodGroup',
+      'healthInsurance',
+      'habits',
+      'behavior',
+      'age',
+      'vaccinations',
+      'regularVet',
+      'emergencyVet',
+      'emergencyInterventionAuthorization',
+      'emergencyAuthorizationText',
+    ];
+    for (const key of ENRICHED_PASSTHROUGH) {
+      if (normalizedData[key] !== undefined) {
+        updateData[key] = normalizedData[key];
+      }
     }
     // Note: Media fields (avatar, photos, videos, passportImage) should be updated via updatePetMedia endpoint
 

@@ -32,6 +32,36 @@ const resolvePostPets = async (post, ownerId) => {
   return Pet.find({ ownerId }).sort({ createdAt: -1 });
 };
 
+// v441 — Daniel : « Modifier » l'annonce doit ouvrir le formulaire complet et
+// rester éditable TANT QUE la réservation n'est PAS payée. Une fois payée /
+// confirmée, l'annonce est verrouillée (read-only).
+//
+// Le seul verrou pertinent est l'état de PAIEMENT du booking lié (référencé par
+// post.reservedBy.bookingId). reservedBy est posé dès que l'owner ACCEPTE une
+// candidature (booking 'agreed') — donc AVANT paiement — l'édition reste donc
+// permise à ce stade. On verrouille uniquement quand le booking est payé /
+// terminé. Retourne { locked: bool, reason }.
+const PAID_BOOKING_STATUSES = ['paid', 'completed'];
+const isPostPaidLocked = async (post) => {
+  try {
+    const bookingId = post?.reservedBy?.bookingId;
+    if (!bookingId) return false;
+    const Booking = require('../models/Booking');
+    const booking = await Booking.findById(bookingId)
+      .select('status paymentStatus')
+      .lean();
+    if (!booking) return false;
+    const status = String(booking.status || '').toLowerCase();
+    const paymentStatus = String(booking.paymentStatus || '').toLowerCase();
+    return PAID_BOOKING_STATUSES.includes(status) || paymentStatus === 'paid';
+  } catch (e) {
+    // En cas d'erreur de lookup on NE verrouille pas (édition non bloquante) —
+    // le défaut sûr ici est de laisser l'owner modifier son annonce.
+    logger.warn('[isPostPaidLocked] lookup failed', e?.message || e);
+    return false;
+  }
+};
+
 const normalizeHouseSittingVenue = (value) => {
   if (value == null) return null;
   const normalized = String(value).trim().toLowerCase();
@@ -408,7 +438,27 @@ const listPosts = async (req, res) => {
           // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
           breed: pet.breed || '',
           bio: pet.bio || '',
+          // v442 — âge + sexe pour la bande animaux du détail d'annonce
+          // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
+          age: typeof pet.age === 'number' ? pet.age : null,
+          sex: pet.gender || '',
+          // v440 — compatibilité + statut vaccins + stérilisé/pucé pour
+          // afficher ces infos sur l'annonce / le profil public de l'animal.
+          compatibilities: {
+            withDogs: pet.compatibilities?.withDogs || '',
+            withCats: pet.compatibilities?.withCats || '',
+            withChildren: pet.compatibilities?.withChildren || '',
+            withNac: pet.compatibilities?.withNac || '',
+          },
+          vaccinationStatus: pet.vaccinationStatus || '',
+          sterilized: pet.sterilized === true,
+          microchipped: pet.microchipped === true,
         }));
+
+        // v441 — verrou paiement : l'owner peut éditer son annonce tant que la
+        // réservation liée n'est pas payée. On expose isPaidLocked pour que
+        // « Mes publications » masque/désactive « Modifier » au bon moment.
+        const isPaidLocked = await isPostPaidLocked(post);
 
         return {
           ...sanitizedPost,
@@ -421,6 +471,7 @@ const listPosts = async (req, res) => {
           isOwnerBoosted: isOwnerBoosted,
           ownerBoostTier: effectiveBoostTier,
           ownerBoostExpiry: isOwnerBoosted ? ownerBoostExpiry : null,
+          isPaidLocked,
         };
       })
     );
@@ -496,18 +547,38 @@ const getMediaPosts = async (req, res) => {
           // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
           breed: pet.breed || '',
           bio: pet.bio || '',
+          // v442 — âge + sexe pour la bande animaux du détail d'annonce
+          // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
+          age: typeof pet.age === 'number' ? pet.age : null,
+          sex: pet.gender || '',
+          // v440 — compatibilité + statut vaccins + stérilisé/pucé pour
+          // afficher ces infos sur l'annonce / le profil public de l'animal.
+          compatibilities: {
+            withDogs: pet.compatibilities?.withDogs || '',
+            withCats: pet.compatibilities?.withCats || '',
+            withChildren: pet.compatibilities?.withChildren || '',
+            withNac: pet.compatibilities?.withNac || '',
+          },
+          vaccinationStatus: pet.vaccinationStatus || '',
+          sterilized: pet.sterilized === true,
+          microchipped: pet.microchipped === true,
         }));
         
+        // v441 — verrou paiement : voir listPosts. Permet à « Mes
+        // publications » de masquer « Modifier » une fois la résa payée.
+        const isPaidLocked = await isPostPaidLocked(post);
+
         return {
           ...sanitizedPost,
           owner: ownerData,
           pets: petsData,
           likesCount: sanitizedPost.likesCount || 0,
           commentsCount: sanitizedPost.commentsCount || 0,
+          isPaidLocked,
         };
       })
     );
-    
+
     res.json({
       posts: enhancedPosts,
       count: enhancedPosts.length,
@@ -648,6 +719,21 @@ const getRequestPosts = async (req, res) => {
           // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
           breed: pet.breed || '',
           bio: pet.bio || '',
+          // v442 — âge + sexe pour la bande animaux du détail d'annonce
+          // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
+          age: typeof pet.age === 'number' ? pet.age : null,
+          sex: pet.gender || '',
+          // v440 — compatibilité + statut vaccins + stérilisé/pucé pour
+          // afficher ces infos sur l'annonce / le profil public de l'animal.
+          compatibilities: {
+            withDogs: pet.compatibilities?.withDogs || '',
+            withCats: pet.compatibilities?.withCats || '',
+            withChildren: pet.compatibilities?.withChildren || '',
+            withNac: pet.compatibilities?.withNac || '',
+          },
+          vaccinationStatus: pet.vaccinationStatus || '',
+          sterilized: pet.sterilized === true,
+          microchipped: pet.microchipped === true,
         }));
 
         return {
@@ -1404,17 +1490,33 @@ const updatePost = async (req, res) => {
       return res.status(403).json({ error: 'You can only edit your own posts.' });
     }
 
+    // v441 — verrou paiement : on refuse l'édition quand la réservation liée
+    // est déjà payée / confirmée. L'édition reste permise tant que le booking
+    // est seulement 'pending'/'accepted'/'agreed' (non payé) ou qu'aucune
+    // réservation n'est attachée.
+    if (await isPostPaidLocked(post)) {
+      return res.status(409).json({
+        error: 'This reservation is already paid and can no longer be edited.',
+        code: 'POST_PAID_LOCKED',
+      });
+    }
+
     // Whitelist of editable fields only. Never allow ownerId, postType, images, videos,
     // likes, comments or timestamps to be overwritten via this endpoint.
+    // v441 — added petIds (multi-pet), serviceLocation and showAnimalCharacter so
+    // the owner full-edit form persists every field the publish form captures.
     const {
       body,
       startDate,
       endDate,
       serviceTypes,
       petId,
+      petIds,
       location,
       notes,
       houseSittingVenue,
+      serviceLocation,
+      showAnimalCharacter,
     } = req.body || {};
 
     if (typeof body === 'string') {
@@ -1422,7 +1524,18 @@ const updatePost = async (req, res) => {
       if (!trimmed) {
         return res.status(400).json({ error: 'Post body cannot be empty.' });
       }
-      post.body = trimmed;
+      // v441 — parité createPost : anti-leak email/téléphone + auto-modération
+      // gros mots sur le corps édité.
+      const contactCheck = _detectContactInfo(trimmed);
+      if (contactCheck.hasContact) {
+        return res.status(400).json({
+          error: 'Pour ta sécurité, les emails et numéros de téléphone sont interdits dans les annonces. Utilise le chat HoPetSit pour partager tes coordonnées avec un sitter/walker une fois la réservation acceptée.',
+          code: 'CONTACT_INFO_FORBIDDEN',
+          detected: contactCheck.types,
+        });
+      }
+      post.body = require('../services/textModerationService')
+        .moderateText(trimmed).clean;
     }
 
     if (startDate !== undefined) {
@@ -1443,16 +1556,46 @@ const updatePost = async (req, res) => {
       post.houseSittingVenue = normalized;
     }
 
-    if (petId !== undefined) {
+    // v441 — multi-pet : petIds prend le pas sur petId quand fourni. On garde
+    // petId aligné sur le premier animal pour la retrocompat (anciens clients).
+    if (petIds !== undefined) {
+      const ids = (Array.isArray(petIds) ? petIds : [petIds])
+        .map((x) => (x == null ? '' : String(x).trim()))
+        .filter(Boolean);
+      post.petIds = ids;
+      post.petId = ids.length > 0 ? ids[0] : null;
+    } else if (petId !== undefined) {
       post.petId = petId || null;
+      post.petIds = petId ? [petId] : [];
     }
 
     if (location !== undefined) {
-      post.location = location || null;
+      let parsedLocation = location;
+      if (typeof parsedLocation === 'string') {
+        try { parsedLocation = JSON.parse(parsedLocation); }
+        catch (_) { parsedLocation = null; }
+      }
+      post.location = parsedLocation && typeof parsedLocation === 'object'
+        ? parsedLocation
+        : null;
     }
 
     if (typeof notes === 'string') {
-      post.notes = notes.trim();
+      // v441 — auto-modération sur les notes (parité avec createPost).
+      post.notes = require('../services/textModerationService')
+        .moderateText(notes.trim()).clean;
+    }
+
+    // v441 — lieu de garde (at_owner / at_sitter / both).
+    if (serviceLocation !== undefined) {
+      if (['at_owner', 'at_sitter', 'both'].includes(serviceLocation)) {
+        post.serviceLocation = serviceLocation;
+      }
+    }
+
+    // v441 — toggle « Afficher le caractère des animaux ».
+    if (showAnimalCharacter !== undefined) {
+      post.showAnimalCharacter = !(showAnimalCharacter === false || showAnimalCharacter === 'false');
     }
 
     await post.save();

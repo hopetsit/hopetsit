@@ -48,3 +48,37 @@ Color petSpeciesColor(String? category) {
 
   return AppColors.primaryColor; // défaut : orange
 }
+
+/// Emoji d'espèce pour les chips de sélection (édition profil) et les petites
+/// pastilles d'animaux acceptés/promenés sur les cartes de recherche owner.
+/// Accepte le token canonique (dog/cat/small/nac/bird/rodent/reptile/horse) ou
+/// les valeurs free-text multilingues (chien/chat/perro…).
+String petSpeciesEmoji(String? category) {
+  final c = (category ?? '').trim().toLowerCase();
+
+  const dog = {'dog', 'chien', 'perro', 'hund', 'cane', 'cão', 'cao'};
+  const cat = {'cat', 'chat', 'gato', 'katze', 'gatto'};
+  const bird = {
+    'bird', 'oiseau', 'pájaro', 'pajaro', 'vogel', 'uccello', 'pássaro',
+    'passaro'
+  };
+  const rodent = {
+    'rabbit', 'lapin', 'conejo', 'kaninchen', 'coniglio', 'coelho',
+    'rongeur', 'rodent', 'roedor', 'nager', 'roditore', 'hamster',
+    'guineapig', 'guinea_pig'
+  };
+  const reptile = {'reptile', 'reptil', 'rettile', 'réptil', 'reptilien'};
+  const horse = {'horse', 'cheval', 'caballo', 'pferd', 'cavallo', 'cavalo'};
+  // NAC / petits animaux : pas d'emoji d'espèce unique → patte générique.
+  const small = {'small', 'nac', 'petit'};
+
+  if (dog.contains(c)) return '🐕';
+  if (cat.contains(c)) return '🐈';
+  if (bird.contains(c)) return '🐦';
+  if (rodent.contains(c)) return '🐹';
+  if (reptile.contains(c)) return '🦎';
+  if (horse.contains(c)) return '🐴';
+  if (small.contains(c)) return '🐾';
+
+  return '🐾'; // défaut : patte
+}

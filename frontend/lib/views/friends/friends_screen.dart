@@ -11,6 +11,7 @@ import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/services/live_map_service.dart';
 import 'package:hopetsit/models/friendship_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/friends/blocked_users_screen.dart';
@@ -594,10 +595,10 @@ class _FriendTile extends StatelessWidget {
             children: [
               Transform.scale(
                 scale: 0.75,
-                child: Switch(
+                child: AppSwitch(
                   value: friendship.mySharePosition,
                   // v419 — toggle violet (accent « Mon cercle », maquette violet).
-                  activeThumbColor: _circleViolet,
+                  accent: _circleViolet,
                   onChanged: (v) =>
                       controller.setSharePosition(friendship.id, v),
                 ),

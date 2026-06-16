@@ -60,6 +60,39 @@ class PetProfileScreen extends StatelessWidget {
   void _openGallery() =>
       Get.to(() => PetGalleryScreen(pet: pet, accent: _accent));
 
+  /// v440 — visionneuse plein écran (tap sur une photo de la galerie fiche).
+  void _openFullscreen(String url) {
+    Get.to(
+      () => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          iconTheme: const IconThemeData(color: Colors.white),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Get.back(),
+          ),
+        ),
+        body: Center(
+          child: InteractiveViewer(
+            minScale: 0.8,
+            maxScale: 4,
+            child: CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.contain,
+              placeholder: (c, _) => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+              errorWidget: (c, _, __) =>
+                  const Icon(Icons.broken_image, color: Colors.white54, size: 48),
+            ),
+          ),
+        ),
+      ),
+      transition: Transition.fadeIn,
+    );
+  }
+
   /// v433 — Daniel : « modifier la photo de profil ouvre la galerie ». Le
   /// crayon de l'avatar + « Changer la photo » ouvrent désormais le sélecteur
   /// de PHOTO DE PROFIL dédié (pick → upload comme avatar), PAS la galerie.
@@ -385,36 +418,48 @@ class PetProfileScreen extends StatelessWidget {
 
   // ── ABOUT ─────────────────────────────────────────────────────────────────
   Widget _aboutTab(BuildContext context) {
+    final sexLabel = _genderLabel(pet.gender);
+    final hasChar = pet.characterTraits.isNotEmpty;
+    final hasCompat = !pet.compatibilities.isEmpty;
     return ListView(
       padding: EdgeInsets.all(16.w),
       children: [
-        if (pet.characterTraits.isNotEmpty)
+        // ❤️ Présentation (bio libre).
+        if (pet.bio.isNotEmpty)
+          _section('pet_presentation'.tr,
+              icon: Icons.favorite_rounded, [_paragraph(pet.bio)]),
+        // 📏 Caractéristiques.
+        _section('pet_characteristics'.tr, icon: Icons.straighten_rounded, [
+          if (pet.breed.isNotEmpty) _kv('pet_breed'.tr, pet.breed),
+          if (pet.age.isNotEmpty) _kv('pet_age'.tr, '${pet.age} ${'pet_age_unit'.tr}'),
+          if (sexLabel.isNotEmpty) _kv('pet_sex'.tr, sexLabel),
+          if (pet.weight.isNotEmpty) _kv('pet_weight'.tr, '${pet.weight} kg'),
+          if (pet.height.isNotEmpty) _kv('pet_height'.tr, '${pet.height} cm'),
+          if (pet.colour.isNotEmpty) _kv('pet_color'.tr, pet.colour),
+        ]),
+        // 🐾 Caractère (chips).
+        if (hasChar)
           _section('pet_character_traits'.tr,
               icon: Icons.bolt_rounded,
               [_chips(pet.characterTraits.map((t) => 'pet_trait_$t'.tr).toList())]),
-        if (pet.bio.isNotEmpty)
-          _section('pet_bio'.tr,
-              icon: Icons.favorite_rounded, [_paragraph(pet.bio)]),
-        if (!pet.compatibilities.isEmpty)
+        // 🤝 Compatibilité.
+        if (hasCompat)
           _section('pet_compatibilities'.tr,
               icon: Icons.group_rounded, [
+            if (pet.compatibilities.withChildren.isNotEmpty)
+              _compatRow(
+                  'pet_compat_children'.tr, pet.compatibilities.withChildren),
             if (pet.compatibilities.withDogs.isNotEmpty)
               _compatRow('pet_compat_dogs'.tr, pet.compatibilities.withDogs),
             if (pet.compatibilities.withCats.isNotEmpty)
               _compatRow('pet_compat_cats'.tr, pet.compatibilities.withCats),
-            if (pet.compatibilities.withChildren.isNotEmpty)
-              _compatRow(
-                  'pet_compat_children'.tr, pet.compatibilities.withChildren),
+            if (pet.compatibilities.withNac.isNotEmpty)
+              _compatRow('pet_compat_nac'.tr, pet.compatibilities.withNac),
           ]),
+        // Particularités libres (conservé).
         if (pet.particularities.isNotEmpty)
           _section('pet_particularities'.tr,
               icon: Icons.star_rounded, [_chips(pet.particularities)]),
-        _section('pet_physical'.tr, icon: Icons.straighten_rounded, [
-          if (pet.breed.isNotEmpty) _kv('my_pets_breed_label'.tr, pet.breed),
-          if (pet.colour.isNotEmpty) _kv('my_pets_color_label'.tr, pet.colour),
-          if (pet.weight.isNotEmpty) _kv('edit_pet_weight'.tr, '${pet.weight} kg'),
-          if (pet.height.isNotEmpty) _kv('edit_pet_height'.tr, '${pet.height} cm'),
-        ]),
       ],
     );
   }
@@ -424,12 +469,14 @@ class PetProfileScreen extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.all(16.w),
       children: [
-        _section('pet_vaccinations'.tr,
+        // 🏥 Vaccins + Puce + Stérilisé regroupés.
+        _section('pet_section_health'.tr,
             icon: Icons.vaccines_rounded,
             trailing: _isUpToDate ? _miniUpToDate() : null, [
-          if (pet.vaccinations.where((s) => s.trim().isNotEmpty).isEmpty &&
-              pet.vaccinationStatus.isNotEmpty)
-            _checkRow(_vaxLabel(pet.vaccinationStatus)),
+          _kv('pet_vaccination_status'.tr, _vaxLabel(pet.vaccinationStatus)),
+          _yesNoRow('pet_microchipped'.tr, pet.microchipped),
+          _yesNoRow('pet_sterilized'.tr, pet.sterilized),
+          // Vaccins listés (libre), conservés s'ils existent.
           ...pet.vaccinations
               .where((s) => s.trim().isNotEmpty)
               .map((v) => _checkRow(v)),
@@ -456,9 +503,25 @@ class PetProfileScreen extends StatelessWidget {
           _section('my_pets_allergies_label'.tr,
               icon: Icons.warning_amber_rounded,
               [_paragraph(pet.medicationAllergies, danger: true)]),
+        if (pet.foodRestrictions.isNotEmpty)
+          _section('pet_food_restrictions'.tr,
+              icon: Icons.no_food_rounded,
+              [_paragraph(pet.foodRestrictions)]),
         if (pet.bloodGroup.isNotEmpty)
           _section('pet_blood_group'.tr,
               icon: Icons.bloodtype_rounded, [_paragraph(pet.bloodGroup)]),
+        // 📄 Documents : carnet de santé / passeport européen (info + galerie).
+        _section('pet_documents'.tr, icon: Icons.folder_rounded, [
+          _docRow('pet_doc_health_book'.tr),
+          _docRow('pet_doc_passport'.tr,
+              available: pet.passportImage.url.isNotEmpty),
+          SizedBox(height: 6.h),
+          InterText(
+            text: 'pet_doc_add_hint'.tr,
+            fontSize: 11.sp,
+            color: AppColors.greyText,
+          ),
+        ]),
         if (!pet.healthInsurance.isEmpty)
           _section('pet_health_insurance'.tr,
               icon: Icons.shield_rounded, [
@@ -492,9 +555,19 @@ class PetProfileScreen extends StatelessWidget {
   Widget _habitsTab(BuildContext context) {
     final h = pet.habits;
     final rows = <Widget>[
+      if (h.sleep.isNotEmpty)
+        _iconRow(Icons.bed_rounded, 'pet_sleep'.tr, _sleepLabel(h.sleep)),
+      if (h.housetrained.isNotEmpty)
+        _iconRow(Icons.cleaning_services_rounded, 'pet_housetrained'.tr,
+            _housetrainedLabel(h.housetrained)),
+      if (h.leashBehaviour.isNotEmpty)
+        _iconRow(Icons.directions_walk_rounded, 'pet_leash'.tr,
+            _leashLabel(h.leashBehaviour)),
       if (h.energyLevel.isNotEmpty)
         _iconRow(Icons.bolt_rounded, 'pet_energy_level'.tr,
             _energyLabel(h.energyLevel)),
+      if (h.fears.isNotEmpty)
+        _iconRow(Icons.sentiment_dissatisfied_rounded, 'pet_fears'.tr, h.fears),
       if (h.preferredActivity.isNotEmpty)
         _iconRow(Icons.directions_run_rounded, 'pet_preferred_activity'.tr,
             h.preferredActivity),
@@ -575,15 +648,19 @@ class PetProfileScreen extends StatelessWidget {
               crossAxisSpacing: 10.w,
             ),
             itemCount: urls.length,
-            itemBuilder: (context, i) => ClipRRect(
-              borderRadius: BorderRadius.circular(12.r),
-              child: CachedNetworkImage(
-                imageUrl: urls[i],
-                fit: BoxFit.cover,
-                placeholder: (c, _) => Container(color: AppColors.lightGreyColor),
-                errorWidget: (c, _, __) => Container(
-                  color: AppColors.lightGreyColor,
-                  child: Icon(Icons.broken_image, color: AppColors.greyColor),
+            itemBuilder: (context, i) => GestureDetector(
+              onTap: () => _openFullscreen(urls[i]),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: CachedNetworkImage(
+                  imageUrl: urls[i],
+                  fit: BoxFit.cover,
+                  placeholder: (c, _) =>
+                      Container(color: AppColors.lightGreyColor),
+                  errorWidget: (c, _, __) => Container(
+                    color: AppColors.lightGreyColor,
+                    child: Icon(Icons.broken_image, color: AppColors.greyColor),
+                  ),
                 ),
               ),
             ),
@@ -752,6 +829,64 @@ class PetProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Ligne « Label : Oui/Non » avec pastille colorée (santé : pucé, stérilisé).
+  Widget _yesNoRow(String label, bool value) {
+    final color =
+        value ? const Color(0xFF16A34A) : const Color(0xFF9CA3AF);
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 5.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: InterText(
+              text: label,
+              fontSize: 13.sp,
+              color: AppColors.textPrimary(Get.context!),
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: InterText(
+              text: value ? 'pet_yes'.tr : 'pet_no'.tr,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Ligne document (carnet de santé / passeport) avec icône d'état.
+  Widget _docRow(String label, {bool available = false}) => Padding(
+        padding: EdgeInsets.symmetric(vertical: 4.h),
+        child: Row(
+          children: [
+            Icon(
+              available
+                  ? Icons.check_circle_rounded
+                  : Icons.description_outlined,
+              size: 17.sp,
+              color: available ? const Color(0xFF16A34A) : AppColors.greyText,
+            ),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: InterText(
+                text: label,
+                fontSize: 13.sp,
+                color: AppColors.textPrimary(Get.context!),
+              ),
+            ),
+          ],
+        ),
+      );
+
   Widget _kv(String label, String value) => Padding(
         padding: EdgeInsets.symmetric(vertical: 4.h),
         child: Row(
@@ -847,10 +982,61 @@ class PetProfileScreen extends StatelessWidget {
     switch (v) {
       case 'up_to_date':
         return 'pet_vax_up_to_date'.tr;
+      case 'partial':
+        return 'pet_vax_partial'.tr;
       case 'late':
         return 'pet_vax_late'.tr;
       case 'unknown':
         return 'pet_vax_unknown'.tr;
+      default:
+        // Vide ou valeur inconnue ⇒ « Non renseignés » (jamais de clé brute).
+        return 'pet_vax_not_provided'.tr;
+    }
+  }
+
+  String _genderLabel(String g) {
+    switch (g) {
+      case 'male':
+        return 'pet_gender_male'.tr;
+      case 'female':
+        return 'pet_gender_female'.tr;
+      default:
+        return '';
+    }
+  }
+
+  String _sleepLabel(String v) {
+    switch (v) {
+      case 'indoor':
+        return 'pet_sleep_indoor'.tr;
+      case 'outdoor':
+        return 'pet_sleep_outdoor'.tr;
+      case 'crate':
+        return 'pet_sleep_crate'.tr;
+      default:
+        return v;
+    }
+  }
+
+  String _housetrainedLabel(String v) {
+    switch (v) {
+      case 'yes':
+        return 'pet_housetrained_yes'.tr;
+      case 'learning':
+        return 'pet_housetrained_learning'.tr;
+      default:
+        return v;
+    }
+  }
+
+  String _leashLabel(String v) {
+    switch (v) {
+      case 'off_leash':
+        return 'pet_leash_off'.tr;
+      case 'on_leash':
+        return 'pet_leash_on'.tr;
+      case 'reliable_recall':
+        return 'pet_leash_recall'.tr;
       default:
         return v;
     }

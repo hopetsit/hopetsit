@@ -53,6 +53,10 @@ class WalkerModel {
   final List<DateTime> availableDates;
   final List<DateTime> unavailableDates;
 
+  /// v440 — créneaux hebdomadaires récurrents. Sert, avec availableDates, à
+  /// décider si la carte doit afficher « Indisponible » (aucune dispo).
+  final List<dynamic> availableTimeSlots;
+
   /// Identity verification flag (publicly exposed).
   final bool identityVerified;
 
@@ -119,6 +123,7 @@ class WalkerModel {
     this.coverageRadiusKm = 3,
     this.availableDates = const <DateTime>[],
     this.unavailableDates = const <DateTime>[],
+    this.availableTimeSlots = const <dynamic>[],
     this.identityVerified = false,
     this.isTopWalker = false,
     this.completedWalksCount = 0,
@@ -231,6 +236,9 @@ class WalkerModel {
           .map((e) => DateTime.tryParse(e.toString()))
           .whereType<DateTime>()
           .toList(),
+      availableTimeSlots: json['availableTimeSlots'] is List
+          ? (json['availableTimeSlots'] as List)
+          : const <dynamic>[],
       identityVerified: json['identityVerified'] == true,
       isTopWalker: json['isTopWalker'] == true,
       isBoosted: json['isBoosted'] == true,

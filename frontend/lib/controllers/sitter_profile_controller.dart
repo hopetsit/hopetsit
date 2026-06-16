@@ -1,16 +1,15 @@
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/data/network/secure_token_store.dart';
-import 'package:hopetsit/localization/app_translations.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
@@ -25,7 +24,6 @@ import 'package:hopetsit/views/pet_sitter/profile/edit_sitter_profile_screen.dar
 import 'package:hopetsit/views/pet_sitter/booking/sitter_bookings_screen.dart';
 import 'package:hopetsit/views/auth/choose_service_screen.dart';
 import 'package:hopetsit/models/profile_model.dart';
-import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -356,34 +354,11 @@ class SitterProfileController extends GetxController {
   }
 
   void showLanguageDialog() {
-    final currentCode = LocalizationService.getCurrentLanguageCode();
-    final entries = LocalizationService.languageLabels.entries.toList();
-
-    Get.defaultDialog(
-      title: 'language_dialog_title'.tr,
-      backgroundColor: AppColors.whiteColor,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: entries.map((entry) {
-          final isSelected = entry.key == currentCode;
-          return ListTile(
-            title: InterText(
-              text: entry.value,
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w500,
-            ),
-            trailing: isSelected
-                ? const Icon(Icons.check, color: Colors.green)
-                : null,
-            onTap: () async {
-              await LocalizationService.updateLocale(entry.key);
-              Get.back();
-            },
-          );
-        }).toList(),
-      ),
-      textCancel: 'common_cancel'.tr,
-    );
+    // v441 — sélecteur 6 langues propre (bottom sheet theme-aware).
+    final ctx = Get.context;
+    if (ctx != null) {
+      showAppLanguagePicker(ctx, AppColors.sitterAccent);
+    }
   }
 
   void navigateToBlockedUsers() {

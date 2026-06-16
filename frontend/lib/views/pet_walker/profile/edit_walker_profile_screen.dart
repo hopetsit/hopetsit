@@ -12,6 +12,8 @@ import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
+import 'package:hopetsit/views/profile/widgets/appearance_language_section.dart';
+import 'package:hopetsit/utils/pet_species_color.dart';
 
 /// Dedicated "Edit profile" screen for walkers. Mirrors EditOwnerProfileScreen
 /// visually but with walker-specific bits: a 60-minute walk rate field and a
@@ -376,9 +378,9 @@ class EditWalkerProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
-                    // Bio
+                    // Bio — label « À propos de moi » (champ bio conservé).
                     CustomTextField(
-                      labelText: 'label_bio'.tr,
+                      labelText: 'label_about_me'.tr,
                       hintText: 'hint_bio'.tr,
                       controller: controller.bioController,
                       textInputAction: TextInputAction.next,
@@ -477,6 +479,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                           ].map((e) => [e[0], e[1].tr]).toList(),
                           selected: controller.acceptedAnimals,
                           onToggle: (v) => _toggle(controller.acceptedAnimals, v),
+                          emojiFor: petSpeciesEmoji,
                         )),
 
                     SizedBox(height: 20.h),
@@ -530,6 +533,13 @@ class EditWalkerProfileScreen extends StatelessWidget {
                         onChanged: (v) =>
                             controller.pickupAtOwner.value = v,
                       ),
+                    ),
+
+                    SizedBox(height: 24.h),
+
+                    // v441 — Apparence (Clair/Sombre/Système) + Langue de l'app.
+                    const AppearanceLanguageSection(
+                      accent: AppColors.walkerAccent,
                     ),
 
                     SizedBox(height: 40.h),

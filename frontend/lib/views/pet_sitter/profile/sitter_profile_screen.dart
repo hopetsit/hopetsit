@@ -13,6 +13,7 @@ import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/models/profile_model.dart';
 import 'package:hopetsit/views/profile/widgets/profile_settings_tabs.dart';
+import 'package:hopetsit/views/profile/widgets/profile_notification_bell.dart';
 import 'package:hopetsit/views/pet_sitter/profile/iban_setup_screen.dart';
 import 'package:hopetsit/views/profile/my_rates_screen.dart';
 import 'package:hopetsit/views/reviews/my_reviews_screen.dart';
@@ -190,6 +191,10 @@ class SitterProfileScreen extends StatelessWidget {
                             // declenche par notifyChanged() en fin de KYC.
                             SizedBox(width: 6.w),
                             const MyKycVerifiedBadge(large: true),
+                            const Spacer(),
+                            // v441 — cloche de notifications (demandes / amis /
+                            // paiements) en haut à droite du hero.
+                            const ProfileNotificationBell(role: 'sitter'),
                           ],
                         ),
                         SizedBox(height: 8.h),

@@ -113,6 +113,37 @@ class SignUpController extends GetxController {
     }
   }
 
+  // v441 — préremplissage région à la PREMIÈRE entrée du wizard. La langue de
+  // l'app ET l'indicatif téléphonique sont déduits de la locale du device
+  // (Get.deviceLocale) : region ES → langue Español + indicatif +34. On ne fixe
+  // QUE la valeur initiale (l'utilisateur reste libre de changer les deux).
+  /// ISO 3166-1 alpha-2 du device (ex. 'ES'/'FR'), fallback 'FR'. Utilisé comme
+  /// `initialSelection` du CountryCodePicker dans le wizard d'inscription.
+  String get initialCountryIso {
+    final iso = Get.deviceLocale?.countryCode?.toUpperCase();
+    if (iso != null && RegExp(r'^[A-Z]{2}$').hasMatch(iso)) return iso;
+    return 'FR';
+  }
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Langue de l'app par défaut = langue du device si supportée (sinon on
+    // garde 'Français'). Mappe le code locale vers le libellé affiché.
+    final lang = Get.deviceLocale?.languageCode;
+    if (lang != null) {
+      for (final e in _langToLocale.entries) {
+        if (e.value == lang) {
+          selectedLanguage.value = e.key;
+          break;
+        }
+      }
+    }
+    // Indicatif + pays par défaut = région du device (ISO-2 → on garde l'ISO
+    // pour le CountryCodePicker, qui renverra l'indicatif via onChanged).
+    selectedCountry.value = initialCountryIso;
+  }
+
   /// Règles mot de passe (pour la checklist live de l'étape 1).
   bool get pwMinLength => passwordLive.value.length >= 8;
   bool get pwHasUpper => passwordLive.value.contains(RegExp(r'[A-Z]'));

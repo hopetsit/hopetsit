@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hopetsit/controllers/petsitter_onboarding_controller.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_switch.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
@@ -373,12 +374,12 @@ class _PetsitterOnboardingScreenState extends State<PetsitterOnboardingScreen> {
                     color: AppColors.textPrimary(context),
                   ),
                 ),
-                Switch(
+                AppSwitch(
                   value: _controller.availability[day] ?? false,
                   onChanged: (value) {
                     _controller.setAvailability(day, value);
                   },
-                  activeThumbColor: AppColors.primaryColor,
+                  accent: AppColors.primaryColor,
                 ),
               ],
             ),
