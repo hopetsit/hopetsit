@@ -28,7 +28,6 @@ import 'package:hopetsit/views/service_provider/service_provider_detail_screen.d
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
-import 'package:hopetsit/widgets/custom_segmented_control.dart';
 import 'package:hopetsit/widgets/expandable_post_input.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
@@ -36,6 +35,11 @@ import 'package:hopetsit/views/notifications/notifications_screen.dart';
 import 'package:share_plus/share_plus.dart';
 
 enum HomeMyPostsSortOrder { newestFirst, oldestFirst }
+
+/// v426 — tri client-side de la liste de prestataires affichée (bouton
+/// "Trier" du nouveau bloc recherche). Distance = plus proche d'abord ;
+/// Note = meilleure note d'abord.
+enum HomeProviderSortOrder { distance, rating }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,17 +52,19 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedTabIndex = 0;
   HomeMyPostsSortOrder _myPostsSortOrder = HomeMyPostsSortOrder.newestFirst;
 
-  // v23.1 part 240 — Daniel : "quand la barre est a 0 sa dois mafficher
-  // uniquement les profile de 0 a 50km de chez moi". Slider minimum =
-  // 50km. Defaut 50km. Plus de mode "toutes les distances" (qui ramenait
-  // sitters a 250km dans le filtre 120km). Constants utilises par le
-  // slider + le label + l'init de _maxDistanceKm.
-  static const double _kMinRadiusKm = 50.0;
+  // v426 — tri client-side de la liste de prestataires (bouton "Trier" du
+  // bloc recherche premium). Defaut : par distance (plus proche d'abord).
+  HomeProviderSortOrder _providerSortOrder = HomeProviderSortOrder.distance;
+
+  // v426 — refonte header recherche (maquettes 50/51) : la valeur du rayon
+  // est portée par le HomeController (nearMeRadiusKm) ; on n'a plus besoin
+  // du flag offersNearMeEnabled côté UI. Bornes du slider : 10 → 500 km.
+  static const double _kMinRadiusKm = 10.0;
   static const double _kMaxRadiusKm = 500.0;
 
-  /// Inline "Près de chez moi" filter — shared by Pet-sitters + Promeneurs
-  /// tabs. 0 = toutes les distances (pas de filtre).
-  double _maxDistanceKm = _kMinRadiusKm; // v240 — was 0 ("toutes"), now 50km min.
+  /// Accent de l'onglet actif (bleu pet-sitters / vert promeneurs).
+  static const Color _kSitterAccent = Color(0xFF2563EB);
+  static const Color _kWalkerAccent = Color(0xFF16A34A);
 
   late final HomeController _homeController;
   late final ProfileController _profileController;
@@ -311,105 +317,600 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  /// Inline "Près de chez moi" slider — partagé par les onglets Pet-sitters
-  /// et Promeneurs. 0 km = toutes les distances. Connecté directement au
-  /// [HomeController] pour que `loadNearbySitters()` soit appelé sur drag.
-  Widget _buildInlineDistanceSlider(BuildContext context) {
-    return Obx(() {
-      final current = _homeController.offersNearMeEnabled.value
-          ? _homeController.nearMeRadiusKm.value
-          : _maxDistanceKm;
-      return _distanceSliderBody(context, current);
-    });
+  // ==========================================================================
+  // v426 — Refonte header recherche owner (maquettes 50 = pet-sitters bleu,
+  // 51 = promeneurs vert). Remplace l'ancien slider rouge "Près de chez moi".
+  //   1) bloc recherche (chip localisation + slider rayon 10→500 km)
+  //   2) rangée de filtres (chips Animaux gardés / Disponibilité / Trier)
+  //   3) en-tête résultats (compteur autour de moi + résultats trouvés)
+  // Le slider déclenche les MÊMES appels que l'ancien (loadNearbySitters /
+  // loadNearbyWalkers) → la recherche par rayon fonctionne à l'identique.
+  // ==========================================================================
+
+  bool get _isWalkerTab => _selectedTabIndex == 2;
+  Color get _accent => _isWalkerTab ? _kWalkerAccent : _kSitterAccent;
+
+  /// Ville + pays de l'owner depuis le profil persistant (sinon "Ma position").
+  String _ownerCityCountryLabel() {
+    try {
+      final profile =
+          _storage.read(StorageKeys.userProfile) as Map<String, dynamic>?;
+      String city = '';
+      String country = '';
+      final loc = profile?['location'];
+      if (loc is Map) {
+        city = (loc['city'] as String?)?.trim() ?? '';
+        country = (loc['country'] as String?)?.trim() ?? '';
+      }
+      if (city.isEmpty) city = (profile?['city'] as String?)?.trim() ?? '';
+      if (country.isEmpty) {
+        country = (profile?['country'] as String?)?.trim() ?? '';
+      }
+      final parts = [city, country].where((s) => s.isNotEmpty).toList();
+      if (parts.isNotEmpty) return parts.join(', ');
+    } catch (_) {/* noop */}
+    return 'home_my_position'.tr;
   }
 
-  Widget _distanceSliderBody(BuildContext context, double current) {
-    // v23.1 part 240 — Slider toujours actif, minimum 50 km (Daniel :
-    // "deja quand la barre est a 0 sa dois mafficher uniquement les
-    // profile de 0 a 50km"). Plus de mode "toutes les distances" qui
-    // ramenait des sitters a 250km par fallback list complete.
-    final clamped = current.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
-    final label = 'distance_slider_km'
-        .trParams({'km': clamped.toInt().toString()});
+  /// v426 — barre d'onglets pill (icône + label) façon maquettes 50/51.
+  /// Garde EXACTEMENT la logique de switch (setState _selectedTabIndex).
+  /// Actif : pill plein coloré (orange/bleu/vert) + texte blanc ;
+  /// inactif : transparent + texte gris.
+  Widget _buildTabBar(BuildContext context) {
+    final allPosts = <PostModel>[
+      ..._postsController.posts,
+      ..._postsController.postsWithoutMedia,
+    ];
+    final myCount = _userId == null
+        ? 0
+        : allPosts.where((p) => p.owner.id == _userId).length;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      height: 52.h,
+      padding: EdgeInsets.all(6.w),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color: AppColors.primaryColor,
-          width: 1.2,
-        ),
+        border: Border.all(color: AppColors.divider(context), width: 1),
+        boxShadow: AppColors.cardShadow(context),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.near_me_rounded,
-                size: 18.sp,
-                color: AppColors.primaryColor,
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: label,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-            ],
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: AppColors.primaryColor,
-              inactiveTrackColor:
-                  AppColors.primaryColor.withValues(alpha: 0.2),
-              thumbColor: AppColors.primaryColor,
-              overlayColor:
-                  AppColors.primaryColor.withValues(alpha: 0.15),
-              trackHeight: 4,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 9),
-            ),
-            child: Slider(
-              value: clamped,
-              min: _kMinRadiusKm,
-              max: _kMaxRadiusKm,
-              // (500 - 50) / 9 ~ 50 → 9 divisions de 50km (50/100/.../500).
-              divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
-              label: '${clamped.toInt()} km',
-              onChanged: (value) {
-                final v = value.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
-                setState(() => _maxDistanceKm = v);
-                _homeController.nearMeRadiusKm.value = v;
-                _homeController.offersNearMeEnabled.value = true;
-              },
-              onChangeEnd: (value) {
-                final v = value.clamp(_kMinRadiusKm, _kMaxRadiusKm).toDouble();
-                _homeController.loadNearbySitters(radiusKm: v.round());
-                _homeController.loadNearbyWalkers(radiusKm: v.round());
-              },
+          Expanded(
+            child: _tabPill(
+              context,
+              index: 0,
+              icon: Icons.article_rounded,
+              label: '${'my_posts_title'.tr} ($myCount)',
+              activeColor: AppColors.primaryColor,
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              InterText(
-                text: '${_kMinRadiusKm.toInt()} km',
-                fontSize: 10.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              InterText(
-                text: '${_kMaxRadiusKm.toInt()} km',
-                fontSize: 10.sp,
-                color: AppColors.textSecondary(context),
-              ),
-            ],
+          SizedBox(width: 6.w),
+          Expanded(
+            child: _tabPill(
+              context,
+              index: 1,
+              icon: Icons.pets_rounded,
+              label: 'home_segment_sitters'.tr,
+              activeColor: _kSitterAccent,
+            ),
+          ),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: _tabPill(
+              context,
+              index: 2,
+              icon: Icons.directions_walk_rounded,
+              label: 'home_segment_walkers'.tr,
+              activeColor: _kWalkerAccent,
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _tabPill(
+    BuildContext context, {
+    required int index,
+    required IconData icon,
+    required String label,
+    required Color activeColor,
+  }) {
+    final selected = _selectedTabIndex == index;
+    final fg = selected ? AppColors.whiteColor : AppColors.grey500Color;
+    return GestureDetector(
+      onTap: () {
+        if (_selectedTabIndex == index) return;
+        setState(() => _selectedTabIndex = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeInOut,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: selected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 15.sp, color: fg),
+                SizedBox(width: 4.w),
+                Flexible(
+                  child: InterText(
+                    text: label,
+                    textAlign: TextAlign.center,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w700,
+                    color: fg,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Bloc recherche premium : chip localisation (gauche) + rayon (droite).
+  Widget _buildSearchBlock(BuildContext context) {
+    final accent = _accent;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: AppColors.divider(context), width: 1),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Gauche : chip localisation (tappable, no-op pour l'instant) ──
+          Expanded(
+            flex: 5,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12.r),
+              onTap: () {
+                // Pas de city picker câblé sur cette page → feedback discret.
+                CustomSnackbar.showInfo(
+                  title: 'home_around_me'.tr,
+                  message: _ownerCityCountryLabel(),
+                );
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 4.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.location_on_rounded,
+                            size: 16.sp, color: accent),
+                        SizedBox(width: 4.w),
+                        Flexible(
+                          child: PoppinsText(
+                            text: 'home_around_me'.tr,
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: InterText(
+                            text: _ownerCityCountryLabel(),
+                            fontSize: 11.sp,
+                            color: AppColors.textSecondary(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(Icons.keyboard_arrow_down_rounded,
+                            size: 16.sp,
+                            color: AppColors.textSecondary(context)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Container(width: 1, height: 48.h, color: AppColors.divider(context)),
+          SizedBox(width: 10.w),
+          // ── Droite : rayon (label + valeur + slider + ticks) ──
+          Expanded(
+            flex: 7,
+            child: Obx(() {
+              final current = _homeController.nearMeRadiusKm.value
+                  .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+                  .toDouble();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InterText(
+                        text: 'home_radius'.tr,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      PoppinsText(
+                        text: '${current.toInt()} km',
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                        color: accent,
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: accent,
+                      inactiveTrackColor: accent.withValues(alpha: 0.18),
+                      thumbColor: accent,
+                      overlayColor: accent.withValues(alpha: 0.15),
+                      trackHeight: 4,
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 9),
+                    ),
+                    child: Slider(
+                      value: current,
+                      min: _kMinRadiusKm,
+                      max: _kMaxRadiusKm,
+                      divisions: ((_kMaxRadiusKm - _kMinRadiusKm) ~/ 10),
+                      label: '${current.toInt()} km',
+                      onChanged: (value) {
+                        final v = value
+                            .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+                            .toDouble();
+                        _homeController.nearMeRadiusKm.value = v;
+                        _homeController.offersNearMeEnabled.value = true;
+                      },
+                      onChangeEnd: (value) {
+                        final v = value
+                            .clamp(_kMinRadiusKm, _kMaxRadiusKm)
+                            .toDouble();
+                        // MÊMES appels que l'ancien slider → recherche intacte.
+                        _homeController.loadNearbySitters(radiusKm: v.round());
+                        _homeController.loadNearbyWalkers(radiusKm: v.round());
+                      },
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InterText(
+                        text: '${_kMinRadiusKm.toInt()} km',
+                        fontSize: 9.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      InterText(
+                        text: '50 km',
+                        fontSize: 9.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      InterText(
+                        text: '${_kMaxRadiusKm.toInt()} km',
+                        fontSize: 9.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Rangée de 3 chips filtre. Animaux/Promenades + Disponibilité ouvrent un
+  /// bottomsheet placeholder léger ; "Trier" ouvre un sheet de tri fonctionnel.
+  Widget _buildFilterRow(BuildContext context) {
+    final accent = _accent;
+    final keptLabel =
+        _isWalkerTab ? 'home_filter_walks'.tr : 'home_filter_kept_pets'.tr;
+    final keptIcon =
+        _isWalkerTab ? Icons.directions_walk_rounded : Icons.pets_rounded;
+    return Row(
+      children: [
+        Expanded(
+          child: _filterChip(
+            context,
+            icon: keptIcon,
+            label: keptLabel,
+            showChevron: true,
+            onTap: () => _showComingSoonSheet(context, keptLabel),
+          ),
+        ),
+        SizedBox(width: 8.w),
+        Expanded(
+          child: _filterChip(
+            context,
+            icon: Icons.event_available_rounded,
+            label: 'home_filter_availability'.tr,
+            showChevron: true,
+            onTap: () => _showComingSoonSheet(
+                context, 'home_filter_availability'.tr),
+          ),
+        ),
+        SizedBox(width: 8.w),
+        Expanded(
+          child: _filterChip(
+            context,
+            icon: Icons.tune_rounded,
+            label: 'home_filter_sort'.tr,
+            showChevron: false,
+            accent: accent,
+            onTap: () => _showSortSheet(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _filterChip(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required bool showChevron,
+    required VoidCallback onTap,
+    Color? accent,
+  }) {
+    final fg = accent ?? AppColors.textPrimary(context);
+    return Material(
+      color: AppColors.inputFill(context),
+      borderRadius: BorderRadius.circular(12.r),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12.r),
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: AppColors.divider(context), width: 1),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15.sp, color: fg),
+              SizedBox(width: 5.w),
+              Flexible(
+                child: InterText(
+                  text: label,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (showChevron)
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 16.sp, color: AppColors.textSecondary(context)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// En-tête résultats : "🎯 N pet-sitters/promeneurs autour de moi" + count.
+  Widget _buildResultsHeader(BuildContext context) {
+    return Obx(() {
+      final count = _isWalkerTab
+          ? _homeController.walkers.length
+          : _homeController.sitters.length;
+      final leftText = _isWalkerTab
+          ? 'home_results_walkers'.trParams({'count': count.toString()})
+          : 'home_results_sitters'.trParams({'count': count.toString()});
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text('🎯', style: TextStyle(fontSize: 14.sp)),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: PoppinsText(
+              text: leftText,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(width: 6.w),
+          InterText(
+            text: 'home_results_found'.trParams({'count': count.toString()}),
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: _accent,
+          ),
+        ],
+      );
+    });
+  }
+
+  /// Bottomsheet de tri fonctionnel — applique un tri client-side (Distance /
+  /// Note) sur la liste de prestataires actuellement affichée.
+  void _showSortSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.card(ctx),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+            20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36.w,
+                height: 4.h,
+                margin: EdgeInsets.only(bottom: 14.h),
+                decoration: BoxDecoration(
+                  color: AppColors.divider(ctx),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+            ),
+            PoppinsText(
+              text: 'home_filter_sort'.tr,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(ctx),
+            ),
+            SizedBox(height: 8.h),
+            _sortTile(
+              ctx,
+              icon: Icons.near_me_rounded,
+              label: 'home_sort_distance'.tr,
+              selected: _providerSortOrder == HomeProviderSortOrder.distance,
+              onTap: () {
+                Navigator.pop(ctx);
+                _applyProviderSort(HomeProviderSortOrder.distance);
+              },
+            ),
+            _sortTile(
+              ctx,
+              icon: Icons.star_rounded,
+              label: 'home_sort_rating'.tr,
+              selected: _providerSortOrder == HomeProviderSortOrder.rating,
+              onTap: () {
+                Navigator.pop(ctx);
+                _applyProviderSort(HomeProviderSortOrder.rating);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sortTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final accent = _accent;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12.r),
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 4.w),
+        child: Row(
+          children: [
+            Icon(icon, size: 20.sp, color: selected ? accent : AppColors.greyColor),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: InterText(
+                text: label,
+                fontSize: 14.sp,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: AppColors.textPrimary(context),
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_rounded, size: 18.sp, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Applique le tri choisi sur la liste réactive du HomeController. Le tri
+  /// est purement client-side et ne touche pas au chargement réseau.
+  void _applyProviderSort(HomeProviderSortOrder order) {
+    setState(() => _providerSortOrder = order);
+    if (_isWalkerTab) {
+      final list = _homeController.walkers.toList();
+      list.sort((a, b) {
+        if (order == HomeProviderSortOrder.rating) {
+          return b.rating.compareTo(a.rating);
+        }
+        final da = a.distanceKm ?? double.infinity;
+        final db = b.distanceKm ?? double.infinity;
+        return da.compareTo(db);
+      });
+      _homeController.walkers.assignAll(list);
+    } else {
+      final list = _homeController.sitters.toList();
+      list.sort((a, b) {
+        if (order == HomeProviderSortOrder.rating) {
+          return b.rating.compareTo(a.rating);
+        }
+        final da = a.distanceKm ?? double.infinity;
+        final db = b.distanceKm ?? double.infinity;
+        return da.compareTo(db);
+      });
+      _homeController.sitters.assignAll(list);
+    }
+  }
+
+  /// Bottomsheet placeholder léger pour les filtres pas encore disponibles.
+  void _showComingSoonSheet(BuildContext context, String title) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.card(ctx),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+            20.w, 14.h, 20.w, 24.h + MediaQuery.of(ctx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36.w,
+                height: 4.h,
+                margin: EdgeInsets.only(bottom: 14.h),
+                decoration: BoxDecoration(
+                  color: AppColors.divider(ctx),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+            ),
+            PoppinsText(
+              text: title,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(ctx),
+            ),
+            SizedBox(height: 8.h),
+            InterText(
+              text: 'home_filter_coming_soon'.tr,
+              fontSize: 13.sp,
+              color: AppColors.textSecondary(ctx),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -830,52 +1331,45 @@ class _HomeScreenState extends State<HomeScreen> {
               const SliverToBoxAdapter(
                 child: HomeQuickActionBar(role: 'owner'),
               ),
-              const SliverToBoxAdapter(
-                child: ExpandablePostInput(),
-              ),
-              SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+              // v426 — le composer "Publication" n'apparaît que sur l'onglet
+              // "Mes publications" (absent des maquettes 50/51 prestataires).
+              if (_selectedTabIndex == 0) ...[
+                const SliverToBoxAdapter(
+                  child: ExpandablePostInput(),
+                ),
+                SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+              ] else
+                SliverToBoxAdapter(child: SizedBox(height: 12.h)),
 
-              // ── Segmented control (Mes posts / Pet-sitters / Promeneurs) ──
+              // ── Tabs (Mes publications / Pet-sitters / Promeneurs) ──
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  child: Obx(() {
-                    final allPosts = <PostModel>[
-                      ..._postsController.posts,
-                      ..._postsController.postsWithoutMedia,
-                    ];
-                    final myCount = _userId == null
-                        ? 0
-                        : allPosts.where((p) => p.owner.id == _userId).length;
-                    return CustomSegmentedControl(
-                      leftText: '${'my_posts_title'.tr} ($myCount)',
-                      middleText: 'home_segment_sitters'.tr,
-                      rightText: 'home_segment_walkers'.tr,
-                      selectedIndex: _selectedTabIndex,
-                      activeColorLeft: AppColors.primaryColor,
-                      activeColorMiddle: const Color(0xFF1A73E8),
-                      activeColorRight: AppColors.greenColor,
-                      onLeftTap: () {
-                        setState(() => _selectedTabIndex = 0);
-                      },
-                      onMiddleTap: () {
-                        setState(() => _selectedTabIndex = 1);
-                      },
-                      onRightTap: () {
-                        setState(() => _selectedTabIndex = 2);
-                      },
-                    );
-                  }),
+                  child: _buildTabBar(context),
                 ),
               ),
               SliverToBoxAdapter(child: SizedBox(height: 12.h)),
 
-              // ── Slider "Près de chez moi" (sitters/walkers tabs only) ──
+              // ── Header recherche premium (sitters/walkers tabs only) ──
               if (_selectedTabIndex != 0) ...[
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    child: _buildInlineDistanceSlider(context),
+                    child: _buildSearchBlock(context),
+                  ),
+                ),
+                SliverToBoxAdapter(child: SizedBox(height: 10.h)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: _buildFilterRow(context),
+                  ),
+                ),
+                SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: _buildResultsHeader(context),
                   ),
                 ),
                 SliverToBoxAdapter(child: SizedBox(height: 10.h)),

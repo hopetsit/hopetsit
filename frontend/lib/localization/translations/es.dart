@@ -1299,6 +1299,20 @@ const Map<String, String> esESTranslations = <String, String>{
       // v23.1.147 — Daniel : "No hace falta poner 'de mascotas'".
       'home_segment_sitters': 'Cuidadores',
       'home_segment_walkers': 'Paseadores',
+      // v426 — rediseño del encabezado de búsqueda del owner (maquetas 50/51).
+      'home_around_me': 'A mi alrededor',
+      'home_my_position': 'Mi ubicación',
+      'home_radius': 'Radio',
+      'home_filter_kept_pets': 'Mascotas aceptadas',
+      'home_filter_walks': 'Paseos',
+      'home_filter_availability': 'Disponibilidad',
+      'home_filter_sort': 'Ordenar',
+      'home_sort_distance': 'Distancia',
+      'home_sort_rating': 'Valoración',
+      'home_results_sitters': '@count cuidadores a mi alrededor',
+      'home_results_walkers': '@count paseadores a mi alrededor',
+      'home_results_found': '@count resultados encontrados',
+      'home_filter_coming_soon': 'Próximamente',
       'my_posts_no_posts': 'No se encontraron publicaciones',
       'my_posts_empty_subtitle': 'Publica una solicitud para encontrar un cuidador o paseador cerca de ti.', // v23.1 part 253
       'my_posts_delete_title': 'Eliminar publicacion?',
