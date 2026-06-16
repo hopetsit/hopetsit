@@ -389,7 +389,12 @@ class ChatController extends GetxController {
           // N'incrémente PAS si c'est nous-mêmes qui avons envoyé.
           if (senderId.isNotEmpty && senderId != userId) {
             if (Get.isRegistered<NotificationsController>()) {
-              Get.find<NotificationsController>().unreadChat.value++;
+              // v444 — NE PAS ré-incrémenter ici : NotificationsController.
+              // _onSocketMessageNew (dédupé par id de message) est désormais
+              // l'UNIQUE source du badge chat. Avant, ce ++ s'ajoutait à celui
+              // de _onSocketMessageNew → double comptage (« badge 1 puis 5 »).
+              // On déclenche juste une réconciliation débouncée sur le serveur.
+              Get.find<NotificationsController>().scheduleChatBadgeResync();
             }
           }
         } catch (_) { /* noop */ }
@@ -685,6 +690,12 @@ class ChatController extends GetxController {
       //    /conversations/list ne le ressort plus au reload/reconnexion.
       _socketService.markConversationRead(chatId);
       _chatRepository.markConversationRead(conversationId: chatId);
+      // v444 — après avoir marqué la conv lue côté serveur, recale le badge
+      // GLOBAL sur la vérité serveur (sinon il restait gonflé jusqu'au prochain
+      // démarrage). Débouncé court pour laisser le POST /read se propager.
+      if (Get.isRegistered<NotificationsController>()) {
+        Get.find<NotificationsController>().scheduleChatBadgeResync(ms: 900);
+      }
 
       // Fetch messages from API
       final response = await _chatRepository.getConversationMessages(

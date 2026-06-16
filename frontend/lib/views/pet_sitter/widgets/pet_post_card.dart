@@ -106,6 +106,12 @@ class PetPostCard extends StatelessWidget {
   /// « Mes publications » de l'owner sur sa propre annonce).
   final VoidCallback? onOwnerTap;
 
+  /// DEEP WORK — tap sur un animal de la bande « animaux » de l'annonce :
+  /// ouvre la fiche complète de CET animal (PetRepository.getPetById →
+  /// PetDetailScreen, même chemin que onViewPetDetails). Reçoit l'id de
+  /// l'animal tapé. Null ⇒ la bande animaux n'est pas cliquable.
+  final void Function(String petId)? onPetTap;
+
   const PetPostCard({
     super.key,
     required this.userName,
@@ -147,6 +153,7 @@ class PetPostCard extends StatelessWidget {
     this.walkTimesPerDay,
     this.serviceTime,
     this.onOwnerTap,
+    this.onPetTap,
     // v23.1 part 116 — Daniel : "sitter et walker aussi vois que lannonce
     // et booster et en haut". Quand isOwnerBoosted=true, on affiche un
     // ruban "🚀 Urgent" en haut de la card pour attirer l'œil.
@@ -822,7 +829,7 @@ class PetPostCard extends StatelessWidget {
             children: [
               for (int i = 0; i < pets!.length; i++) ...[
                 if (i > 0) SizedBox(width: 12.w),
-                Expanded(child: _buildPetStripCard(context, pets![i])),
+                Expanded(child: _wrapPetTap(pets![i], _buildPetStripCard(context, pets![i]))),
               ],
             ],
           ),
@@ -836,45 +843,62 @@ class PetPostCard extends StatelessWidget {
         runSpacing: 10.h,
         children: pets!.map((p) {
           final count = p.photos.length;
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                radius: 18.r,
-                backgroundColor: _accent.withValues(alpha: 0.12),
-                backgroundImage: p.avatar.isNotEmpty
-                    ? CachedNetworkImageProvider(p.avatar, maxWidth: 150)
-                        as ImageProvider
-                    : null,
-                child: p.avatar.isEmpty
-                    ? Icon(Icons.pets, size: 16.sp, color: _accent)
-                    : null,
-              ),
-              SizedBox(width: 8.w),
-              Text(_speciesEmoji(p.category), style: TextStyle(fontSize: 13.sp)),
-              SizedBox(width: 4.w),
-              InterText(
-                text: p.petName,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary(context),
-              ),
-              SizedBox(width: 6.w),
-              InterText(
-                text: count <= 1
-                    ? '• $count ${'post_photos_count_one'.tr}'
-                    : '• $count ${'post_photos_count'.tr}',
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w600,
-                color: _accent,
-              ),
-              SizedBox(width: 2.w),
-              Icon(Icons.chevron_right_rounded,
-                  size: 16.sp, color: AppColors.greyColor),
-            ],
+          return _wrapPetTap(
+            p,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 18.r,
+                  backgroundColor: _accent.withValues(alpha: 0.12),
+                  backgroundImage: p.avatar.isNotEmpty
+                      ? CachedNetworkImageProvider(p.avatar, maxWidth: 150)
+                          as ImageProvider
+                      : null,
+                  child: p.avatar.isEmpty
+                      ? Icon(Icons.pets, size: 16.sp, color: _accent)
+                      : null,
+                ),
+                SizedBox(width: 8.w),
+                Text(_speciesEmoji(p.category),
+                    style: TextStyle(fontSize: 13.sp)),
+                SizedBox(width: 4.w),
+                InterText(
+                  text: p.petName,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary(context),
+                ),
+                SizedBox(width: 6.w),
+                InterText(
+                  text: count <= 1
+                      ? '• $count ${'post_photos_count_one'.tr}'
+                      : '• $count ${'post_photos_count'.tr}',
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: _accent,
+                ),
+                SizedBox(width: 2.w),
+                Icon(Icons.chevron_right_rounded,
+                    size: 16.sp, color: AppColors.greyColor),
+              ],
+            ),
           );
         }).toList(),
       ),
+    );
+  }
+
+  /// DEEP WORK — rend un élément de la bande animaux cliquable → ouvre la fiche
+  /// de l'animal tapé via [onPetTap]. Si onPetTap est null ou l'animal n'a pas
+  /// d'id, l'élément reste inerte (pas de feedback tactile).
+  Widget _wrapPetTap(PostPet p, Widget child) {
+    final id = p.id.trim();
+    if (onPetTap == null || id.isEmpty) return child;
+    return InkWell(
+      onTap: () => onPetTap!(id),
+      borderRadius: BorderRadius.circular(14.r),
+      child: child,
     );
   }
 
@@ -1347,13 +1371,12 @@ class PetPostCard extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
       decoration: BoxDecoration(
-        // v443 — Daniel : « le cadre gris propriétaire doit être en jaune ».
-        // Le cadre « À propos de moi » (propriétaire) passe en JAUNE clair
-        // (au lieu de l'orange pâle v441).
-        color: const Color(0xFFFFF8E1),
+        // v444 — Daniel (répété) : cadre owner « À propos de moi » CLAIREMENT
+        // jaune (le 0xFFFFF8E1 crème quasi-blanc se lisait encore gris).
+        color: const Color(0xFFFFF3C4),
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(
-          color: const Color(0xFFF6C343).withValues(alpha: 0.5),
+          color: const Color(0xFFF6C343).withValues(alpha: 0.85),
         ),
       ),
       child: Column(
@@ -1456,7 +1479,6 @@ class PetPostCard extends StatelessWidget {
         'post_field_service'.tr,
         value.trim(),
         valueColor: _serviceTextColor,
-        timeLabel: (serviceTime ?? '').trim(),
       ));
     }
 
@@ -1470,7 +1492,7 @@ class PetPostCard extends StatelessWidget {
       }
       add(Icons.repeat_rounded, 'post_field_walk_frequency'.tr,
           _walkFrequencyLabel());
-      return _gridFromCells(cells);
+      return _gridWithTime(cells);
     }
 
     // v442 — maquette SITTER : grille Dates / Lieu / Animaux (compte) / Service.
@@ -1487,7 +1509,7 @@ class PetPostCard extends StatelessWidget {
       if (svcLoc.isNotEmpty) {
         add(Icons.home_rounded, 'post_field_service_location'.tr, svcLoc);
       }
-      return _gridFromCells(cells);
+      return _gridWithTime(cells);
     }
 
     // Owner / feed — grille générique historique (inchangée).
@@ -1511,7 +1533,40 @@ class PetPostCard extends StatelessWidget {
       add(Icons.pets_rounded, 'post_field_animals'.tr, petName!.trim());
     }
 
-    return _gridFromCells(cells);
+    return _gridWithTime(cells);
+  }
+
+  /// v444 — Daniel : l'heure ne s'affiche plus SOUS « Service » (garderie) mais
+  /// sur une ligne dédiée APRÈS la grille (donc après « Détails ») : petite
+  /// horloge ORANGE + heure en horizontal. Affichée seulement si heure réelle.
+  Widget _gridWithTime(List<Widget> cells) {
+    final time = (serviceTime ?? '').trim();
+    final grid = _gridFromCells(cells);
+    if (time.isEmpty) return grid;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        grid,
+        SizedBox(height: 8.h),
+        Row(
+          children: [
+            Icon(Icons.schedule_rounded,
+                size: 15.sp, color: const Color(0xFFF59E0B)),
+            SizedBox(width: 6.w),
+            Flexible(
+              child: InterText(
+                text: time,
+                fontSize: 12.5.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFF59E0B),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   /// v442 — agence une liste de cases en grille 3 colonnes (factorisé pour les

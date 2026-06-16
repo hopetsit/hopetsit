@@ -1635,7 +1635,63 @@ const getPostById = async (req, res) => {
     if (post.hidden) {
       return res.status(404).json({ error: 'Post is no longer available.' });
     }
-    return res.json({ post: sanitizePost(post) });
+
+    // DEEP WORK — enrichit la fiche d'UNE annonce (deep-link / partage /
+    // ouverture directe) avec les MÊMES champs que le feed (getRequestPosts) :
+    //   • owner : { id, name, email, avatar, bio } — pour « À propos de moi »
+    //     du propriétaire côté prestataire.
+    //   • pets : [...] (résolus via resolvePostPets, fallback legacy) — pour la
+    //     bande animaux cliquable + la carte « Caractère des animaux ».
+    // Additif : sanitizePost ne portait ni owner.bio ni pets ; cet endpoint
+    // renvoyait donc une annonce « nue » (cause possible d'animaux/bio absents
+    // quand l'annonce est ouverte hors du feed enrichi).
+    const sanitizedPost = sanitizePost(post);
+    const owner = post.ownerId;
+    const ownerData = {
+      id: owner?._id?.toString() || sanitizedPost.ownerId || '',
+      name: owner?.name || '',
+      email: owner?.email || '',
+      avatar: owner?.avatar?.url || '',
+      bio: owner?.bio || '',
+    };
+    const pets = await resolvePostPets(post, owner?._id || owner);
+    const petsData = pets.map((pet) => ({
+      id: pet._id.toString(),
+      petName: pet.petName || '',
+      avatar: pet.avatar?.url || '',
+      photos: Array.isArray(pet.photos)
+        ? pet.photos.map((photo) => ({
+            url: photo.url || '',
+            publicId: photo.publicId || '',
+            uploadedAt: photo.uploadedAt || null,
+          }))
+        : [],
+      category: pet.category || '',
+      characterTraits: Array.isArray(pet.characterTraits)
+        ? pet.characterTraits
+        : [],
+      breed: pet.breed || '',
+      bio: pet.bio || '',
+      age: typeof pet.age === 'number' ? pet.age : null,
+      sex: pet.gender || '',
+      compatibilities: {
+        withDogs: pet.compatibilities?.withDogs || '',
+        withCats: pet.compatibilities?.withCats || '',
+        withChildren: pet.compatibilities?.withChildren || '',
+        withNac: pet.compatibilities?.withNac || '',
+      },
+      vaccinationStatus: pet.vaccinationStatus || '',
+      sterilized: pet.sterilized === true,
+      microchipped: pet.microchipped === true,
+    }));
+
+    return res.json({
+      post: {
+        ...sanitizedPost,
+        owner: ownerData,
+        pets: petsData,
+      },
+    });
   } catch (error) {
     logger.error('Get post by id error', error);
     if (error.name === 'CastError') {

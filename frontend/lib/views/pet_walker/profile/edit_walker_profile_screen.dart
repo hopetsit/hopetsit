@@ -389,16 +389,9 @@ class EditWalkerProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
-                    // Skills
-                    CustomTextField(
-                      labelText: 'label_skills'.tr,
-                      hintText: 'hint_skills'.tr,
-                      controller: controller.skillsController,
-                      textInputAction: TextInputAction.next,
-                      maxLines: 3,
-                    ),
-
-                    SizedBox(height: 20.h),
+                    // v444 — Daniel : champ « Compétences » (texte libre) RETIRÉ
+                    // (doublon des puces « Expérience » ci-dessous ; rendait un
+                    // grand cadre gris vide). skillsController reste alimenté.
 
                     // v18.6 — Langue en multi-select chips, cohérent
                     // avec sitter/owner (plus de champ texte).

@@ -189,10 +189,6 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     // v23.1.280 — suffixe jours localisé (« · 5 j » / « · 5 d » / « · 5 T. »…)
     // au lieu du « j » hardcodé FR, pour que les 3 profils soient propres dans
     // les 6 langues.
-    String withDays(String base, int days) => days > 0
-        ? '$base · ${'pawmap_time_days_short'.trParams({'n': '$days'})}'
-        : base;
-
     // v23.1.387 — Paw Premium (bundle) : badge 👑 noir/or EN PREMIER (le
     // plus prestigieux), jours au plafond comme PawSpot.
     final premiumActive = p['premiumActive'] == true;
@@ -203,36 +199,35 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
       final days = premiumExpiry != null
           ? (premiumExpiry.difference(now).inHours / 24).ceil()
           : 0;
-      children.add(_badge(
-          context, '👑', withDays('Paw Premium', days), const Color(0xFFB8860B)));
+      // v444 — Daniel : badge discret = jours restants dans une pastille
+      // pleine NOIRE (Premium = le plus prestigieux).
+      children.add(_badge(context, '👑', days, const Color(0xFF111111)));
     }
     if (hasIndividualPawFollow) {
       final days = pawFollowExpiry != null
           ? pawFollowExpiry.difference(now).inDays
           : 0;
-      // v23.1.387 — violet PawFollow (nouveau logo pin violet, canon couleur).
-      children.add(_badge(
-          context, '📍', withDays('PawFollow', days), const Color(0xFF7C3AED)));
+      // Violet PawFollow.
+      children.add(_badge(context, '📍', days, const Color(0xFF7C3AED)));
     }
     if (familyActive) {
       final days =
           familyExpiry != null ? familyExpiry.difference(now).inDays : 0;
-      children.add(_badge(context, '👨‍👩‍👧',
-          withDays('friends_tab_family'.tr, days), const Color(0xFF8B5CF6)));
+      // Violet Famille (légèrement plus clair que PawFollow).
+      children.add(_badge(context, '👨‍👩‍👧', days, const Color(0xFF8B5CF6)));
     }
     if (boostActive) {
       final days = boostExpiry.difference(now).inDays;
-      // v23.1.387 — Daniel : Boost devient PawBoost.
-      children.add(_badge(
-          context, '🚀', withDays('PawBoost', days), const Color(0xFFE8472A)));
+      // Rouge PawBoost.
+      children.add(_badge(context, '🚀', days, const Color(0xFFE8472A)));
     }
     if (pawSpotActive) {
       // Jours au PLAFOND (29,9 j → 30) pour coller à l'abonnement acheté.
       final days = pawspotExpiry != null
           ? (pawspotExpiry.difference(now).inHours / 24).ceil()
           : 0;
-      children.add(_badge(
-          context, '🐾', withDays('PawSpot', days), const Color(0xFFE8A00A)));
+      // Jaune/doré PawSpot.
+      children.add(_badge(context, '🐾', days, const Color(0xFFE8A00A)));
     }
     if (children.isEmpty) return const SizedBox.shrink();
     // v23.1.282 — Daniel : "plus aucun badge n'apparaît". RÉGRESSION v281 : la
@@ -272,61 +267,44 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
     );
   }
 
-  Widget _badge(BuildContext context, String emoji, String label, Color color) {
-    // v23.1 part 123 — Daniel : "owner le boost marche tjr pas" / "le badge
-    // ne s'affiche pas sur le profil owner". Le bug : le badge orange Boost
-    // (#E8472A à 15% d'opacité) sur un hero orange owner = invisible. En
-    // mode compact (= utilisé dans les headers colorés), on inverse le
-    // contraste : fond plein + texte blanc + bordure blanche translucide.
-    if (widget.compact) {
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: Colors.white, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.35),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: TextStyle(fontSize: 11.sp)),
-            SizedBox(width: 4.w),
-            InterText(
-              text: label,
-              fontSize: 10.sp,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ],
-        ),
-      );
-    }
-    // Mode non-compact (anciens écrans) : tons clairs, pour fonds clairs.
+  /// v444 — Daniel : badge DISCRET & CLASSE = uniquement les JOURS RESTANTS
+  /// dans une pastille PLEINE à la couleur de l'ABONNEMENT (noir Premium /
+  /// violet PawFollow-Famille / jaune PawSpot / rouge PawBoost). Plus de nom
+  /// d'abonnement ni de cadre couleur-rôle : l'emoji + la couleur identifient.
+  Widget _badge(BuildContext context, String emoji, int days, Color color) {
+    final daysLabel =
+        days > 0 ? 'pawmap_time_days_short'.trParams({'n': '$days'}) : '';
+    // Texte SOMBRE sur le jaune PawSpot (contraste), BLANC sinon.
+    final onColor = color == const Color(0xFFE8A00A)
+        ? const Color(0xFF1A1A1A)
+        : Colors.white;
+    final double fs = widget.compact ? 10.sp : 11.sp;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color,
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(emoji, style: TextStyle(fontSize: 13.sp)),
-          SizedBox(width: 4.w),
-          InterText(
-            text: label,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
+          Text(emoji, style: TextStyle(fontSize: fs)),
+          if (daysLabel.isNotEmpty) ...[
+            SizedBox(width: 4.w),
+            InterText(
+              text: daysLabel,
+              fontSize: fs,
+              fontWeight: FontWeight.w800,
+              color: onColor,
+            ),
+          ],
         ],
       ),
     );

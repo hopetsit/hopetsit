@@ -90,6 +90,10 @@ class SignUpController extends GetxController {
   final ratePerDayController = TextEditingController();     // sitter : tarif journée (+10h)
   final walkerRate120Controller = TextEditingController();  // walker : tarif 2h
   final extraAnimalController = TextEditingController();    // tarif animal supplémentaire
+  // v444 — temps de réponse type (minutes), aligné sur my_rates_screen
+  // (responseTimeController). Persisté en `responseTimeMinutes` pour que la
+  // valeur saisie à l'inscription corresponde à ce que montre le profil.
+  final responseTimeController = TextEditingController();   // sitter+walker : temps de réponse (min)
   final RxInt currentStep = 0.obs;
   final RxString passwordLive = ''.obs;                     // pour la checklist live
   final RxList<String> selectedServices = <String>[].obs;   // services proposés/recherchés
@@ -629,6 +633,12 @@ class SignUpController extends GetxController {
     final extra = double.tryParse(
       extraAnimalController.text.trim().replaceAll(',', '.'),
     );
+    // v444 — temps de réponse type (minutes), aligné sur my_rates_screen. On le
+    // persiste en `responseTimeMinutes` pour les 2 rôles prestataires (sitter
+    // et walker) → la valeur saisie à l'inscription matche celle du profil.
+    final responseTime = int.tryParse(
+      responseTimeController.text.trim().replaceAll(RegExp(r'[^\d]'), ''),
+    );
 
     if (userType == 'pet_owner') {
       data['searchPreferences'] = {
@@ -655,7 +665,16 @@ class SignUpController extends GetxController {
         ratePerDayController.text.trim().replaceAll(',', '.'),
       );
       if (daily != null && daily > 0) data['dailyRate'] = daily;
-      if (extra != null && extra >= 0) data['additionalAnimalFee'] = extra;
+      // v444 — on envoie l'animal suppl. sous les DEUX clés : `extraPetRate`
+      // (lue/sauvegardée par my_rates_screen via Sitter.extraPetRate) ET
+      // `additionalAnimalFee` (legacy) pour un round-trip propre vers le profil.
+      if (extra != null && extra >= 0) {
+        data['additionalAnimalFee'] = extra;
+        data['extraPetRate'] = extra;
+      }
+      if (responseTime != null && responseTime > 0) {
+        data['responseTimeMinutes'] = responseTime;
+      }
     }
 
     if (userType == 'pet_walker') {
@@ -678,7 +697,15 @@ class SignUpController extends GetxController {
         });
         data['walkRates'] = rates;
       }
-      if (extra != null && extra >= 0) data['additionalAnimalFee'] = extra;
+      // v444 — idem côté walker : `extraPetRate` (Walker.extraPetRate, lu par
+      // my_rates_screen) + `additionalAnimalFee` (legacy) + `responseTimeMinutes`.
+      if (extra != null && extra >= 0) {
+        data['additionalAnimalFee'] = extra;
+        data['extraPetRate'] = extra;
+      }
+      if (responseTime != null && responseTime > 0) {
+        data['responseTimeMinutes'] = responseTime;
+      }
     }
 
     return data;

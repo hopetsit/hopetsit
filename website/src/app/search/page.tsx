@@ -162,10 +162,14 @@ function ProviderCard({
   kind: ProviderKind;
 }) {
   const rating = provider.averageRating ?? provider.rating ?? 0;
+  const cheapestWalk = (provider.walkRates || [])
+    .filter((r) => r.enabled !== false)
+    .map((r) => r.basePrice)
+    .sort((a, b) => a - b)[0];
   const startingPrice =
     kind === "walker"
-      ? provider.walkRates?.walkSolo30 || provider.hourlyRate
-      : provider.hourlyRate;
+      ? cheapestWalk ?? provider.hourlyRate
+      : provider.dailyRate || provider.hourlyRate;
   const color = kind === "walker" ? "walker" : "sitter";
 
   return (

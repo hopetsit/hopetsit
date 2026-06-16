@@ -15,4 +15,8 @@ class StorageKeys {
   // dismissed booking does not reappear on next app open. Cleared at logout
   // to avoid leaking dismiss state across accounts.
   static const String dismissedBannerBookings = 'dismissed_banner_bookings';
+  // Dernier code promo "% de réduction" appliqué (validé + consommé côté
+  // serveur). Persisté localement pour pré-remplir la boutique. JSON :
+  // { code, discountPercent, plan }. Effacé au logout (compte-spécifique).
+  static const String redeemedPromoDiscount = 'redeemed_promo_discount';
 }

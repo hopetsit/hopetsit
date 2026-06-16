@@ -371,16 +371,9 @@ class EditSitterProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
-                    // Skills Field
-                    CustomTextField(
-                      labelText: 'label_skills'.tr,
-                      hintText: 'hint_skills'.tr,
-                      controller: controller.skillsController,
-                      textInputAction: TextInputAction.next,
-                      maxLines: 3,
-                    ),
-
-                    SizedBox(height: 20.h),
+                    // v444 — Daniel : champ « Compétences » (texte libre) RETIRÉ
+                    // (doublon des puces « Expérience » ci-dessous ; rendait un
+                    // grand cadre gris vide). skillsController reste alimenté.
 
                     // v20.0.19 — Toute la section "Tarifs" (hourly/daily/weekly/
                     // monthly + devise) a été déplacée vers l'écran dédié

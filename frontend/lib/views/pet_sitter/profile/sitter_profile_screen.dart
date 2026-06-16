@@ -29,6 +29,7 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/top_sitter_card.dart';
 // v23.1.332 — parrainage RÉACTIVÉ pour sitter (récompense -10% PawFollow/Family).
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
+import 'package:hopetsit/views/profile/promo_code_screen.dart';
 import 'package:hopetsit/views/profile/terms_and_conditions_screen.dart';
 import 'package:hopetsit/views/profile/privacy_policy_screen.dart';
 import 'package:hopetsit/views/map/paw_map_screen.dart';
@@ -371,17 +372,18 @@ class SitterProfileScreen extends StatelessWidget {
   Widget _buildSitterQuickActions(SitterProfileController controller, Color accent, Color accentLight) {
     return Row(
       children: [
-        _sitterQuickAction('💼', 'wallet_menu_title'.tr, accent, accentLight,
-            () => Get.to(() => const WalletScreen())),
-        SizedBox(width: 8.w),
         _sitterQuickAction('📅', 'profile_my_availability'.tr, accent, accentLight,
             () => Get.to(() => const AvailabilityCalendarScreen())),
         SizedBox(width: 8.w),
         _sitterQuickAction('🛒', 'boost_shop_title'.tr, accent, accentLight,
             () => Get.to(() => const CoinShopScreen())),
         SizedBox(width: 8.w),
+        // v444 — Daniel : « Mon Wallet » juste À CÔTÉ de l'IBAN.
         _sitterQuickAction('🏦', 'iban_title'.tr, accent, accentLight,
             () => Get.to(() => const IbanSetupScreen())),
+        SizedBox(width: 8.w),
+        _sitterQuickAction('💼', 'wallet_menu_title'.tr, accent, accentLight,
+            () => Get.to(() => const WalletScreen())),
       ],
     );
   }
@@ -614,6 +616,14 @@ class SitterProfileScreen extends StatelessWidget {
           Icons.group_add_rounded,
           _paleOrange,
           () => Get.to(() => const MyReferralsScreen()),
+        ),
+        // Code promo — saisie d'un code émis par l'admin (abo offert ou -%).
+        _buildSettingsTile(
+          'promo_screen_title'.tr,
+          'promo_profile_tile_subtitle'.tr,
+          Icons.confirmation_number_rounded,
+          _palePurple,
+          () => Get.to(() => const PromoCodeScreen(accent: _sitterAccent)),
         ),
         // Refonte PawSpot — accès direct au classement PawPoints (doré).
         _buildSettingsTile(

@@ -752,11 +752,23 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   style: TextStyle(fontSize: 20.sp)),
             ),
           ),
-          SizedBox(width: 10.w),
-          SizedBox(
-            width: 64.w,
+          SizedBox(width: 8.w),
+          // v443 — Daniel : « valable un mois » s'affichait À LA VERTICALE
+          // (une lettre par ligne) dans la boutique PawSpot. CAUSE : encart
+          // récompenses imbriqué dans une carte étroite (double padding 16+16)
+          // → trop d'enfants à largeur fixe dans la Row ; le badge de valeur
+          // (« 1 mois GRATUIT » / « 3 mois GRATUITS ») et la colonne libellé
+          // se faisaient écraser à ~0px et se repliaient caractère par
+          // caractère. FIX : la colonne points devient Flexible (plus de
+          // largeur fixe 64), le badge passe en maxLines:1 + ellipsis et est
+          // enveloppé dans Flexible pour qu'il cède de l'espace au lieu de
+          // déborder/écraser. Le texte se lit désormais normalement sur une
+          // ligne.
+          Flexible(
+            flex: 0,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 PoppinsText(
                   text: '$cost',
@@ -768,17 +780,22 @@ class _RewardsSheetState extends State<_RewardsSheet> {
               ],
             ),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              color: free ? const Color(0xFF7C3AED) : _gold.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10.r),
-            ),
-            child: InterText(
-              text: value,
-              fontSize: 11.sp,
-              fontWeight: FontWeight.w800,
-              color: free ? Colors.white : _gold,
+          SizedBox(width: 8.w),
+          Flexible(
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: free ? const Color(0xFF7C3AED) : _gold.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: InterText(
+                text: value,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w800,
+                color: free ? Colors.white : _gold,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
           SizedBox(width: 8.w),
@@ -798,6 +815,8 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   text: 'pawpoints_once'.tr,
                   fontSize: 9.sp,
                   color: AppColors.greyText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

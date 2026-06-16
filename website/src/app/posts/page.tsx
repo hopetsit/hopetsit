@@ -127,9 +127,13 @@ function PostCard({
   const id = postId(post);
   const ownerObj =
     post.owner ||
-    (typeof post.ownerId === "object" ? (post.ownerId as { id?: string; _id?: string; name?: string }) : undefined);
+    (typeof post.ownerId === "object"
+      ? (post.ownerId as { id?: string; _id?: string; name?: string; bio?: string })
+      : undefined);
   const ownerId = String(ownerObj?.id || (ownerObj as { _id?: string })?._id || (typeof post.ownerId === "string" ? post.ownerId : "") || "");
   const ownerName = ownerObj?.name || "";
+  const ownerBio = (ownerObj as { bio?: string })?.bio || "";
+  const ownerAvatar = (ownerObj as { avatar?: string })?.avatar || "";
 
   const svcLabel = (s: string) =>
     s === "house_sitting"
@@ -210,18 +214,60 @@ function PostCard({
     .map((d) => new Date(d as string).toLocaleDateString())
     .join(" → ");
 
+  // Lieu de garde : combine serviceLocation (at_owner/at_sitter/both) et le
+  // legacy houseSittingVenue (owners_home/sitters_home).
+  const locationLabel = (() => {
+    const sl = post.serviceLocation;
+    if (sl === "at_owner") return t("posts_loc_at_owner");
+    if (sl === "at_sitter") return t("posts_loc_at_sitter");
+    if (sl === "both") return t("posts_loc_both");
+    if (post.houseSittingVenue === "owners_home") return t("posts_loc_at_owner");
+    if (post.houseSittingVenue === "sitters_home") return t("posts_loc_at_sitter");
+    return "";
+  })();
+
+  const pets = post.pets || [];
+  const serviceLabels = (post.serviceTypes || []).map(svcLabel).join(" · ");
+  // Résumé animaux pour la grille : nombre + types (legacy animalTypes quand
+  // aucun animal détaillé n'est attaché au post).
+  const animalTypesLabel = (post.animalTypes || [])
+    .map((k) => `${ANIMAL_EMOJI[k] || "🐾"} ${animalLabel(t, k)}`)
+    .join(" · ");
+  const animalsSummary =
+    pets.length > 0
+      ? String(pets.length)
+      : post.animalCount
+        ? `${post.animalCount}${animalTypesLabel ? ` · ${animalTypesLabel}` : ""}`
+        : animalTypesLabel || "";
+
+  // Animaux ayant des données de caractère (bio ou traits) → carte « Caractère ».
+  const petsWithCharacter = pets.filter(
+    (p) => (p.bio && p.bio.trim()) || (p.characterTraits && p.characterTraits.length > 0),
+  );
+
   return (
     <div className="rounded-2xl border border-ink/5 bg-white p-5 shadow-card">
+      {/* En-tête : propriétaire + badge boost + supprimer (owner). */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {!isOwner && ownerName && (
-            <p className="text-sm font-bold text-ink">{ownerName}</p>
-          )}
-          {post.isOwnerBoosted && (
-            <span className="mt-0.5 inline-block rounded-full bg-owner-light px-2 py-0.5 text-xs font-bold text-owner-dark">
-              🚀 {t("posts_boosted")}
+        <div className="flex min-w-0 items-center gap-2.5">
+          {!isOwner && (ownerAvatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={ownerAvatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+          ) : ownerName ? (
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-owner-light text-sm font-bold text-owner-dark">
+              {ownerName.slice(0, 1).toUpperCase()}
             </span>
-          )}
+          ) : null)}
+          <div className="min-w-0">
+            {!isOwner && ownerName && (
+              <p className="truncate text-sm font-bold text-ink">{ownerName}</p>
+            )}
+            {post.isOwnerBoosted && (
+              <span className="mt-0.5 inline-block rounded-full bg-owner-light px-2 py-0.5 text-xs font-bold text-owner-dark">
+                🚀 {t("posts_boosted")}
+              </span>
+            )}
+          </div>
         </div>
         {isOwner && (
           <button
@@ -247,27 +293,93 @@ function PostCard({
         </div>
       )}
 
-      {Array.isArray(post.serviceTypes) && post.serviceTypes.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {post.serviceTypes.map((s) => (
-            <span key={s} className="rounded-full bg-bg-soft px-2.5 py-1 text-xs font-medium text-ink">
-              {svcLabel(s)}
-            </span>
-          ))}
+      {/* Grille « Demande de réservation » : Dates / Lieu / Animaux / Service /
+          Horaire (parité maquette app). */}
+      <div className="mt-3 rounded-2xl border border-owner/15 bg-owner/5 p-3">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-owner-dark">
+          {t("posts_reservation_title")}
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {dateRange && <ResCell icon="📅" label={t("posts_field_dates")} value={dateRange} />}
+          {locationLabel && <ResCell icon="📍" label={t("posts_field_location")} value={locationLabel} />}
+          {animalsSummary && <ResCell icon="🐾" label={t("posts_field_animals")} value={animalsSummary} />}
+          {serviceLabels && <ResCell icon="🛎️" label={t("posts_field_service")} value={serviceLabels} />}
+          {post.timeSlot && <ResCell icon="🕑" label={t("posts_field_time")} value={post.timeSlot} />}
+          {post.notes && <ResCell icon="📝" label={t("posts_field_details")} value={post.notes} />}
+        </div>
+      </div>
+
+      {/* Bande animaux : nom · race · âge · sexe + nombre de photos. */}
+      {pets.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {pets.map((p) => {
+            const photosCount = (p.photos || []).filter((x) => x?.url).length;
+            const meta = [
+              p.breed,
+              typeof p.age === "number" ? t("posts_age_years").replace("@n", String(p.age)) : "",
+              p.sex === "male" ? t("posts_sex_male") : p.sex === "female" ? t("posts_sex_female") : "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <div key={p.id || p.petName} className="flex items-center gap-3 rounded-xl border border-ink/5 bg-bg-soft px-3 py-2">
+                {p.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+                ) : (
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-lg">
+                    {ANIMAL_EMOJI[p.category || "other"] || "🐾"}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-ink">{p.petName || t("posts_animal_other")}</p>
+                  {meta && <p className="truncate text-xs text-ink-muted">{meta}</p>}
+                </div>
+                {photosCount > 0 && (
+                  <span className="shrink-0 text-xs font-medium text-ink-muted">📷 {photosCount}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {(post.animalCount || (post.animalTypes && post.animalTypes.length > 0)) && (
-        <p className="mt-2 text-xs text-ink-muted">
-          🐾 {post.animalCount ? `${post.animalCount} ` : ""}
-          {(post.animalTypes || [])
-            .map((k) => `${ANIMAL_EMOJI[k] || "🐾"} ${animalLabel(t, k)}`)
-            .join(" · ")}
-        </p>
+      {/* Caractère des animaux (bio + traits). */}
+      {petsWithCharacter.length > 0 && (
+        <div className="mt-3 rounded-2xl border border-ink/5 bg-white p-3 shadow-card">
+          <p className="mb-2 text-sm font-bold text-ink">{t("posts_character_title")}</p>
+          <div className="space-y-2.5">
+            {petsWithCharacter.map((p) => (
+              <div key={`char-${p.id || p.petName}`}>
+                <p className="text-sm font-semibold text-ink">
+                  {ANIMAL_EMOJI[p.category || "other"] || "🐾"} {p.petName}
+                  {p.breed && <span className="font-normal text-ink-muted"> · {p.breed}</span>}
+                </p>
+                {p.characterTraits && p.characterTraits.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {p.characterTraits.map((tr) => (
+                      <span key={tr} className="rounded-full bg-bg-soft px-2 py-0.5 text-xs text-ink">
+                        {tr}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {p.bio && p.bio.trim() && (
+                  <p className="mt-1 text-xs text-ink-muted">{p.bio}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      {dateRange && <p className="mt-2 text-xs text-ink-muted">📅 {dateRange}</p>}
-      {post.notes && <p className="mt-1 text-xs text-ink-muted">📝 {post.notes}</p>}
+      {/* À propos de moi (propriétaire) — visible pour le prestataire. */}
+      {!isOwner && ownerBio && ownerBio.trim() && (
+        <div className="mt-3 rounded-2xl border border-ink/5 bg-bg-soft p-3">
+          <p className="mb-1 text-sm font-bold text-ink">{t("posts_owner_about_title")}</p>
+          <p className="text-sm text-ink-muted">{ownerBio}</p>
+        </div>
+      )}
 
       {/* Actions provider : Contacter + like + commentaire */}
       {!isOwner && (
@@ -318,6 +430,18 @@ function PostCard({
           {commentSent && <p className="text-xs text-green-600">{t("posts_comment_done")}</p>}
         </div>
       )}
+    </div>
+  );
+}
+
+// Cellule de la grille « Demande de réservation » (icône + libellé + valeur).
+function ResCell({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-white px-2.5 py-2">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">
+        <span aria-hidden="true">{icon}</span> {label}
+      </p>
+      <p className="mt-0.5 break-words text-sm font-semibold text-ink">{value}</p>
     </div>
   );
 }

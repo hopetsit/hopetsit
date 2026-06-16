@@ -1,7 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hopetsit/controllers/chat_addon_controller.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
@@ -10,11 +12,113 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_purchase_refresh.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/golden_paw_coin.dart';
+
+/// v444 — réduction promo « % » appliquée à l'affichage des prix de la boutique.
+///
+/// Le flux code promo (PromoController) persiste, après consommation d'un code
+/// de type `percent_discount`, un JSON `{code, discountPercent, plan}` dans
+/// GetStorage sous [StorageKeys.redeemedPromoDiscount]. Ici on le RELIT et on
+/// l'applique à l'AFFICHAGE des forfaits correspondants (prix barré + prix
+/// réduit + note « code promo -X% »).
+///
+/// IMPORTANT : c'est purement de l'AFFICHAGE. Le montant réellement débité par
+/// Airwallex reste calculé côté serveur (les contrôleurs d'achat ne sont pas
+/// modifiés ici) — appliquer la réduction au montant facturé exigerait un
+/// changement backend + SubscriptionController hors de ce périmètre.
+class _PromoDiscount {
+  const _PromoDiscount({
+    required this.code,
+    required this.percent,
+    required this.plan,
+  });
+
+  final String code;
+  final int percent;
+  final String plan; // valeur canonique admin (cf promo_code_screen._planLabel)
+
+  bool get isUsable => percent > 0 && percent < 100;
+
+  /// Relit la réduction persistée. Renvoie `null` si absente / invalide.
+  static _PromoDiscount? read() {
+    try {
+      final raw = GetStorage().read(StorageKeys.redeemedPromoDiscount);
+      if (raw == null) return null;
+      final map = raw is String ? jsonDecode(raw) : raw;
+      if (map is! Map) return null;
+      final percent = (map['discountPercent'] as num?)?.toInt() ?? 0;
+      final d = _PromoDiscount(
+        code: (map['code'] ?? '').toString(),
+        percent: percent,
+        plan: (map['plan'] ?? '').toString().toLowerCase(),
+      );
+      return d.isUsable ? d : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Le code s'applique-t-il au forfait boutique [boutiquePlan] ?
+  ///
+  /// Mappe les valeurs canoniques admin vers les identifiants de plan utilisés
+  /// dans la boutique. Un `plan` vide = code générique → s'applique à tous les
+  /// abonnements (mais jamais au PawBoost ponctuel).
+  bool appliesTo(String boutiquePlan) {
+    final p = boutiquePlan.toLowerCase();
+    if (plan.isEmpty || plan == 'all' || plan == 'subscription') return true;
+    switch (plan) {
+      case 'premium':
+        return p == 'premium_monthly' || p == 'premium_yearly';
+      case 'pawfollow':
+        return p == 'monthly' || p == 'yearly';
+      case 'pawfamily':
+      case 'famille':
+        return p == 'family' || p == 'famille' || p == 'family_yearly';
+      case 'pawspot':
+        return p == 'pawspot';
+      default:
+        // Sinon : correspondance exacte (premium_monthly, family_yearly…).
+        return plan == p;
+    }
+  }
+
+  /// Prix réduit (arrondi à 2 décimales).
+  double discounted(double original) =>
+      (original * (100 - percent) / 100 * 100).round() / 100;
+}
+
+/// v444 — petite étiquette « 🎟️ code promo -X% » affichée sous un prix réduit.
+/// [accent] colore le ruban (couleur du forfait : violet PawFollow, doré
+/// PawSpot/Premium…).
+class _PromoBadge extends StatelessWidget {
+  const _PromoBadge({required this.percent, required this.accent});
+
+  final int percent;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: InterText(
+        text: 'shop_promo_discount_note'.trParams({'percent': '$percent'}),
+        fontSize: 9.sp,
+        fontWeight: FontWeight.w700,
+        color: accent,
+        maxLines: 1,
+      ),
+    );
+  }
+}
 
 /// Boutique screen — 4 tabs:
 ///   1. PawBoost    — one-time profile boost (renommé v23.1.387, Daniel)
@@ -44,11 +148,6 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
     // Ensure SubscriptionController is available.
     if (!Get.isRegistered<SubscriptionController>()) {
       Get.put(SubscriptionController());
-    }
-    // Chat add-on (session v3.2) — lazy register so the Premium tab can
-    // show the cheap chat tile under the main Premium plans.
-    if (!Get.isRegistered<ChatAddonController>()) {
-      Get.put(ChatAddonController());
     }
 
     return DefaultTabController(
@@ -931,133 +1030,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                       p.plan == 'family_yearly')
                   .map((p) => _buildPlanCard(context, controller, p)),
               SizedBox(height: 20.h),
-              // Session v3.2 — Chat add-on tile for free users who just want
-              // chat with friends without going full Premium.
-              _buildChatAddonTile(context),
-              SizedBox(height: 20.h),
               _buildFeaturesList(context),
               SizedBox(height: 40.h),
             ],
           ),
-        ),
-      );
-    });
-  }
-
-  /// Secondary tile: cheap chat add-on. Hidden for active Premium users
-  /// (they already have chat with everyone).
-  Widget _buildChatAddonTile(BuildContext context) {
-    final sub = Get.find<SubscriptionController>();
-    final chat = Get.find<ChatAddonController>();
-    return Obx(() {
-      final isPremium = sub.status.value?.isPremium ?? false;
-      if (isPremium) return const SizedBox.shrink();
-
-      final plan = chat.plan.value;
-      final status = chat.status.value;
-      final alreadyActive = status?.isActive == true;
-      final priceText = plan == null || plan.amount == 0
-          ? '—'
-          : '${CurrencyHelper.symbol(plan.currency)}${plan.amount.toStringAsFixed(2)}';
-
-      return Container(
-        padding: EdgeInsets.all(14.w),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(
-            color: alreadyActive
-                ? Colors.green
-                : AppColors.primaryColor.withValues(alpha: 0.35),
-            width: 1.3,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42.w,
-              height: 42.w,
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 22.sp,
-                color: AppColors.primaryColor,
-              ),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: 'coin_shop_chat_friends_title'.tr,
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary(context),
-                  ),
-                  SizedBox(height: 3.h),
-                  InterText(
-                    text: alreadyActive
-                        ? 'coin_shop_chat_friends_active'.tr
-                        : 'coin_shop_chat_friends_desc'.tr,
-                    fontSize: 12.sp,
-                    color: AppColors.greyText,
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: 10.w),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                InterText(
-                  text: priceText,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryColor,
-                ),
-                SizedBox(height: 4.h),
-                GestureDetector(
-                  onTap: chat.isPurchasing.value
-                      ? null
-                      : () async {
-                          final ok = await chat.purchase();
-                          if (ok && mounted) {
-                            CustomSnackbar.showSuccess(
-                              title: 'Chat débloqué',
-                              message: 'Tu peux maintenant chatter avec tes amis.',
-                            );
-                          }
-                        },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 10.w,
-                      vertical: 6.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: chat.isPurchasing.value
-                          ? Colors.grey.shade300
-                          : AppColors.primaryColor,
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
-                    child: InterText(
-                      text: chat.isPurchasing.value
-                          ? '…'
-                          : (alreadyActive
-                              ? 'shop_button_renew'.tr
-                              : 'shop_button_buy'.tr),
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
       );
     });
@@ -1305,6 +1281,15 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
             ? const Color(0xFFE8A00A) // gold profond annuel
             : const Color(0xFFFFC83D); // gold clair mensuel
 
+    // v444 — réduction promo « % » (affichage). On lit le code consommé et on
+    // l'applique au prix de CE forfait s'il correspond. Display-only : le
+    // montant débité reste calculé serveur (cf. _PromoDiscount doc).
+    final promo = _PromoDiscount.read();
+    final promoApplies = promo != null && promo.appliesTo(plan.plan);
+    final shownAmount =
+        promoApplies ? promo.discounted(plan.amount) : plan.amount;
+    const priceColor = Color(0xFF7C3AED);
+
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
       child: Stack(
@@ -1383,20 +1368,33 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      // v444 — prix d'origine barré quand un code promo % s'applique.
+                      if (promoApplies)
+                        Text(
+                          CurrencyHelper.format(plan.currency, plan.amount),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: AppColors.greyText,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: AppColors.greyText,
+                          ),
+                        ),
                       PoppinsText(
-                        text: CurrencyHelper.format(plan.currency, plan.amount),
+                        text: CurrencyHelper.format(plan.currency, shownAmount),
                         fontSize: 22.sp,
                         fontWeight: FontWeight.w700,
                         // v23.1.276 — prix violet pour PawFollow Famille.
-                        color: isFamily
-                            ? const Color(0xFF7C3AED)
-                            : const Color(0xFF7C3AED),
+                        color: priceColor,
                       ),
                       InterText(
                         text: '${CurrencyHelper.format(plan.currency, plan.amountPerDay)}${'pawfollow_per_day_suffix'.tr}',
                         fontSize: 10.sp,
                         color: AppColors.greyText,
                       ),
+                      if (promoApplies) ...[
+                        SizedBox(height: 4.h),
+                        _PromoBadge(percent: promo.percent, accent: priceColor),
+                      ],
                     ],
                   ),
                   SizedBox(width: 8.w),
@@ -1492,10 +1490,10 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     // v19.1.5 — i18n : all Premium features are pulled from translation keys
     // so the list follows the current locale instead of staying in French.
     final features = <Map<String, dynamic>>[
-      {
-        'icon': Icons.warning_amber_rounded,
-        'text': 'premium_feature_alerts'.tr,
-      },
+      // #106 — la ligne « 18 types d'alertes » (premium_feature_alerts) est
+      // retirée : elle faisait doublon / contradiction avec la ligne
+      // « 20 signalements premium utilisables » (shop_premium_reports_included)
+      // ajoutée plus bas dans cette même liste.
       {
         'icon': Icons.notifications_active_outlined,
         'text': 'premium_feature_notifications'.tr,
@@ -1956,8 +1954,11 @@ class _PawSpotTabState extends State<_PawSpotTab>
             _buildPlanFeatures(context),
             SizedBox(height: 20.h),
             _buildPointsCard(context),
-            SizedBox(height: 14.h),
-            _buildHowToEarnCard(context),
+            // v443 — Daniel : suppression de l'ancienne carte « Gagner des
+            // points » (hardcodée, 6 lignes) qui faisait DOUBLON avec la
+            // section « Comment gagner des points » de la page de récompenses
+            // PawPoints désormais ouverte inline ci-dessous (_buildRewardsCard
+            // → PawPointsRewardsList, gains lus depuis /pawpoints/me).
             // v440 — Daniel : "vires les badges, mets les nouveaux ; au lieu
             // d'un onglet « voir les récompenses » je veux la page complète
             // écrite ouverte". La carte Badges (anciens niveaux figés) est
@@ -2149,6 +2150,12 @@ class _PawSpotTabState extends State<_PawSpotTab>
     final isPurchasing = _purchasingPlan != null;
     final isThisPlan = _purchasingPlan == plan;
     final isYearly = plan == 'yearly';
+    // v444 — réduction promo « % » (affichage). L'abo PawSpot est un seul
+    // forfait (plan canonique 'pawspot') → on applique au prix mensuel comme
+    // annuel. Display-only (le montant débité reste calculé serveur).
+    final promo = _PromoDiscount.read();
+    final promoApplies = promo != null && promo.appliesTo('pawspot');
+    final shownPrice = promoApplies ? promo.discounted(price) : price;
     return GestureDetector(
       onTap: isPurchasing ? null : () => _subscribe(plan),
       // Wallet (sitter/walker) — même raccourci long-press que le Boost tab.
@@ -2201,11 +2208,27 @@ class _PawSpotTabState extends State<_PawSpotTab>
                           color: _gold,
                         ),
                       )
-                    : PoppinsText(
-                        text: CurrencyHelper.format('EUR', price),
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.w800,
-                        color: _gold,
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // v444 — prix barré quand un code promo % s'applique.
+                          if (promoApplies)
+                            Text(
+                              CurrencyHelper.format('EUR', price),
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: AppColors.greyText,
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: AppColors.greyText,
+                              ),
+                            ),
+                          PoppinsText(
+                            text: CurrencyHelper.format('EUR', shownPrice),
+                            fontSize: 22.sp,
+                            fontWeight: FontWeight.w800,
+                            color: _gold,
+                          ),
+                        ],
                       ),
                 SizedBox(height: 4.h),
                 InterText(
@@ -2215,6 +2238,10 @@ class _PawSpotTabState extends State<_PawSpotTab>
                   fontSize: 11.sp,
                   color: AppColors.greyText,
                 ),
+                if (promoApplies) ...[
+                  SizedBox(height: 4.h),
+                  _PromoBadge(percent: promo.percent, accent: _gold),
+                ],
               ],
             ),
           ),
@@ -2249,6 +2276,9 @@ class _PawSpotTabState extends State<_PawSpotTab>
       'pawspot_feature_unlimited'.tr,
       'pawspot_feature_all'.tr,
       'pawspot_feature_top'.tr,
+      // v444 — la communauté PawSpot tourne autour des PawPoints + badges :
+      // on l'expose explicitement dans la liste des avantages de l'abo.
+      'pawspot_feature_points_badges'.tr,
       'pawspot_feature_rewards'.tr,
       // #106 — 20 signalements premium utilisables inclus dans l'abo PawSpot.
       'shop_premium_reports_included'.tr,
@@ -2385,71 +2415,6 @@ class _PawSpotTabState extends State<_PawSpotTab>
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  /// e. Comment gagner des points — 6 lignes.
-  Widget _buildHowToEarnCard(BuildContext context) {
-    final rows = <Map<String, dynamic>>[
-      {'icon': Icons.add_location_alt_rounded, 'text': 'pawspot_points_add'.tr},
-      {'icon': Icons.photo_camera_rounded, 'text': 'pawspot_points_photo'.tr},
-      {'icon': Icons.verified_rounded, 'text': 'pawspot_points_validated'.tr},
-      {
-        'icon': Icons.chat_bubble_outline_rounded,
-        'text': 'pawspot_points_comment'.tr,
-      },
-      {'icon': Icons.flag_rounded, 'text': 'pawspot_points_report'.tr},
-      {'icon': Icons.favorite_rounded, 'text': 'pawspot_points_popular'.tr},
-    ];
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InterText(
-            text: 'pawspot_points_how_title'.tr,
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 12.h),
-          ...rows.map(
-            (r) => Padding(
-              padding: EdgeInsets.only(bottom: 10.h),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28.w,
-                    height: 28.w,
-                    decoration: BoxDecoration(
-                      color: _gold.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: Icon(
-                      r['icon'] as IconData,
-                      size: 15.sp,
-                      color: _gold,
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: InterText(
-                      text: r['text'] as String,
-                      fontSize: 13.sp,
-                      color: AppColors.textPrimary(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -3026,6 +2991,12 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
     final isPurchasing = _purchasingPlan != null;
     final isThisPlan = _purchasingPlan == plan;
     final pct = (100 - price / separatePrice * 100).round();
+    // v444 — réduction promo « % » (affichage) sur le prix du bundle. On garde
+    // le prix « 2 abos séparés » barré (économie structurelle) ET on applique
+    // en plus le code promo si présent. Display-only (montant débité = serveur).
+    final promo = _PromoDiscount.read();
+    final promoApplies = promo != null && promo.appliesTo(plan);
+    final shownPrice = promoApplies ? promo.discounted(price) : price;
     return GestureDetector(
       onTap: isPurchasing ? null : () => _subscribe(plan),
       // Wallet (sitter/walker) — même raccourci long-press que les autres tabs.
@@ -3064,15 +3035,18 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                         ),
                       )
                     : PoppinsText(
-                        text: CurrencyHelper.format('EUR', price),
+                        text: CurrencyHelper.format('EUR', shownPrice),
                         fontSize: 20.sp,
                         fontWeight: FontWeight.w800,
                         color: _goldLight,
                       ),
                 SizedBox(height: 2.h),
-                // Prix barré des deux abos séparés
+                // Prix barré des deux abos séparés (+ prix bundle plein barré
+                // si un code promo % réduit encore le bundle).
                 Text(
-                  CurrencyHelper.format('EUR', separatePrice),
+                  promoApplies
+                      ? '${CurrencyHelper.format('EUR', price)} · ${CurrencyHelper.format('EUR', separatePrice)}'
+                      : CurrencyHelper.format('EUR', separatePrice),
                   style: TextStyle(
                     fontSize: 11.sp,
                     color: Colors.white.withValues(alpha: 0.5),
@@ -3080,6 +3054,10 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
                     decorationColor: Colors.white.withValues(alpha: 0.5),
                   ),
                 ),
+                if (promoApplies) ...[
+                  SizedBox(height: 4.h),
+                  _PromoBadge(percent: promo.percent, accent: _goldLight),
+                ],
               ],
             ),
           ),

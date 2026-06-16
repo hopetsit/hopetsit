@@ -541,6 +541,23 @@ export async function uploadPetAvatar(petId: string, file: File): Promise<Pet> {
 
 // ─── Search providers (v23.1 part 146) ──────────────────────────────────────
 
+// Tarif de promenade (walker) : { durationMinutes, basePrice, currency }.
+export type WalkRate = {
+  durationMinutes: number;
+  basePrice: number;
+  currency?: string;
+  enabled?: boolean;
+};
+
+export type ProviderReview = {
+  id: string;
+  reviewerName?: string;
+  reviewerImage?: string;
+  rating: number;
+  comment?: string;
+  createdAt?: string;
+};
+
 export type ProviderProfile = {
   id: string;
   name: string;
@@ -549,13 +566,26 @@ export type ProviderProfile = {
   skills?: string;
   service?: string;
   avatar?: { url?: string; publicId?: string };
+  // Sitter : tarifs jour / semaine / mois (+ legacy hourlyRate).
   hourlyRate?: number;
+  dailyRate?: number;
   weeklyRate?: number;
   monthlyRate?: number;
-  walkRates?: { walkSolo30?: number; walkSolo60?: number; walkGroup30?: number; walkGroup60?: number };
+  // Walker : tableau de tarifs par durée (30/60/90/120 min…).
+  walkRates?: WalkRate[];
+  // v435 — animal supplémentaire + temps de réponse moyen (sitter & walker).
+  extraPetRate?: number;
+  responseTimeMinutes?: number | null;
+  // Animaux acceptés (sitter) / promenés (walker) + expérience.
+  acceptedPetTypes?: string[];
+  experienceTags?: string[];
   rating?: number;
   averageRating?: number;
   reviewsCount?: number;
+  reviews?: ProviderReview[];
+  // Prestations réalisées (loyalty) : gardes (sitter) / promenades (walker).
+  completedServicesCount?: number;
+  completedWalksCount?: number;
   location?: { city?: string; lat?: number; lng?: number };
   isBoosted?: boolean;
   isMapBoosted?: boolean;
@@ -622,23 +652,77 @@ export type BookingStatus =
   | "rejected"
   | "completed";
 
+// v23.1.259 — flux de confirmation de service (séquestre du paiement).
+//   none / awaiting_start  → provider peut "J'ai récupéré l'animal" (start)
+//   in_progress            → provider peut "J'ai rendu l'animal"   (complete)
+//   awaiting_confirmation  → owner peut "Tout est ok" (confirm) / "Signaler" (dispute)
+//   confirmed              → paiement libéré au prestataire
+//   disputed               → paiement bloqué
+export type ConfirmationStatus =
+  | "none"
+  | "awaiting_start"
+  | "in_progress"
+  | "awaiting_confirmation"
+  | "confirmed"
+  | "disputed";
+
+// Animal embarqué dans une réservation (renvoyé par GET /bookings/my).
+export type BookingPet = {
+  id: string;
+  petName?: string;
+  breed?: string;
+  category?: string;
+  avatar?: { url?: string; publicId?: string };
+};
+
+// Contrepartie d'une réservation (sitter/walker vue par l'owner, ou owner vu
+// par le prestataire) telle que renvoyée par GET /bookings/my.
+export type BookingOtherParty = {
+  id: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+  phone?: string;
+  rating?: number;
+  reviewsCount?: number;
+  location?: string;
+};
+
 export type Booking = {
   id: string;
-  ownerId: string;
+  ownerId?: string;
   sitterId?: string;
   walkerId?: string;
   petIds?: string[];
+  pets?: BookingPet[];
   status: BookingStatus;
   serviceType?: string;
   serviceDate?: string;
+  date?: string;
+  timeSlot?: string;
   startDate?: string;
   endDate?: string;
   basePrice?: number;
   totalAmount?: number;
   currency?: string;
-  paymentStatus?: "pending" | "paid" | "cancelled" | "refund";
+  paymentStatus?: "pending" | "paid" | "cancelled" | "refund" | "refunded";
   paidAt?: string;
   createdAt?: string;
+  // v23.1.259 — confirmation de service + timestamps associés.
+  confirmationStatus?: ConfirmationStatus;
+  serviceStartedAt?: string | null;
+  serviceEndedAt?: string | null;
+  autoReleaseAt?: string | null;
+  // GET /bookings/my renvoie une contrepartie agrégée + pricing détaillé.
+  otherParty?: BookingOtherParty;
+  pricing?: {
+    basePrice?: number;
+    totalPrice?: number;
+    netPayout?: number;
+    platformFee?: number;
+    currency?: string;
+  };
+  houseSittingVenue?: string | null;
   // Souvent populé côté backend pour faciliter l'UI :
   ownerName?: string;
   sitterName?: string;
@@ -891,6 +975,116 @@ export async function respondToBooking(
   return raw.booking;
 }
 
+// ─── Confirmation de service (v23.1.259 — parité app) ───────────────────────
+// Mêmes endpoints que l'app mobile. Le flux gate la libération du paiement :
+// le prestataire démarre puis termine, l'owner confirme (= "Mission terminée")
+// ce qui LIBÈRE le paiement, ou signale un problème (paiement bloqué).
+//
+// Réponse commune : { success, confirmationStatus, ... }.
+type ServiceActionResult = {
+  success?: boolean;
+  confirmationStatus?: ConfirmationStatus;
+  serviceStartedAt?: string;
+  serviceEndedAt?: string;
+  autoReleaseAt?: string;
+  ownerConfirmedAt?: string;
+  disputedAt?: string;
+  alreadyConfirmed?: boolean;
+};
+
+/** Provider (sitter/walker) : "🐾 J'ai récupéré l'animal" → confirmationStatus=in_progress. */
+export async function startService(bookingId: string): Promise<ServiceActionResult> {
+  return request<ServiceActionResult>(`/bookings/${bookingId}/service/start`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+/** Provider (sitter/walker) : "✅ J'ai rendu l'animal" → confirmationStatus=awaiting_confirmation. */
+export async function completeService(bookingId: string): Promise<ServiceActionResult> {
+  return request<ServiceActionResult>(`/bookings/${bookingId}/service/complete`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+/** Owner : "Tout est ok ✅" (Mission terminée) → confirmationStatus=confirmed + libère le paiement. */
+export async function confirmService(bookingId: string): Promise<ServiceActionResult> {
+  return request<ServiceActionResult>(`/bookings/${bookingId}/service/confirm`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+/** Owner : "Signaler un problème" → confirmationStatus=disputed + bloque le paiement. */
+export async function disputeService(
+  bookingId: string,
+  reason?: string,
+): Promise<ServiceActionResult> {
+  return request<ServiceActionResult>(`/bookings/${bookingId}/service/dispute`, {
+    method: "POST",
+    body: JSON.stringify(reason ? { reason } : {}),
+  });
+}
+
+// ─── Avis / Reviews (v23.1.290 — parité app) ────────────────────────────────
+// L'owner note le prestataire (et inversement) APRÈS un service payé/confirmé.
+// Le backend exige une réservation 'paid' ou 'completed' entre les 2 parties
+// (trust-chain) + un seul avis par réservation.
+export type MyReview = {
+  id?: string;
+  _id?: string;
+  rating: number;
+  comment?: string;
+  bookingId?: string;
+  revieweeId?: string;
+  createdAt?: string;
+};
+
+/** Soumet un avis (note 1-5 + commentaire) sur le prestataire ou l'owner. */
+export async function submitReview(input: {
+  revieweeId: string;
+  rating: number;
+  comment?: string;
+  bookingId?: string;
+  revieweeRole?: "sitter" | "walker" | "owner";
+}): Promise<{ reviewId?: string; id?: string }> {
+  const body: Record<string, unknown> = {
+    revieweeId: input.revieweeId,
+    rating: input.rating,
+    comment: input.comment || "",
+  };
+  if (input.bookingId) body.bookingId = input.bookingId;
+  if (input.revieweeRole) body.revieweeRole = input.revieweeRole;
+  return request(`/reviews`, { method: "POST", body: JSON.stringify(body) });
+}
+
+/** Récupère l'avis déjà laissé par l'utilisateur pour une réservation (ou null). */
+export async function getMyReview(bookingId: string): Promise<MyReview | null> {
+  try {
+    const raw = await request<{ review?: MyReview | null }>(
+      `/reviews/mine?bookingId=${encodeURIComponent(bookingId)}`,
+    );
+    return raw.review ?? null;
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 404 || e.status === 401)) return null;
+    throw e;
+  }
+}
+
+/** Modifie un avis existant (note + commentaire). */
+export async function updateReview(
+  reviewId: string,
+  rating: number,
+  comment: string,
+): Promise<MyReview> {
+  const raw = await request<{ review?: MyReview } & MyReview>(`/reviews/${reviewId}`, {
+    method: "PUT",
+    body: JSON.stringify({ rating, comment }),
+  });
+  return (raw.review as MyReview) || (raw as MyReview);
+}
+
 // ─── Invoices (v23.1 part 146) ──────────────────────────────────────────────
 
 export type Invoice = {
@@ -1113,6 +1307,25 @@ export type PostComment = {
   createdAt?: string;
 };
 
+// Animal enrichi tel que renvoyé par /posts/requests, /posts/my, /posts/by-id.
+// Le backend (postController) sérialise nom/race/âge/sexe + traits de caractère
+// + photos pour la carte « Caractère des animaux » et la bande animaux.
+export type PostPet = {
+  id?: string;
+  petName?: string;
+  avatar?: string;
+  category?: string;
+  breed?: string;
+  bio?: string;
+  age?: number | null;
+  sex?: string; // 'male' | 'female' | ''
+  characterTraits?: string[];
+  vaccinationStatus?: string;
+  sterilized?: boolean;
+  microchipped?: boolean;
+  photos?: Array<{ url?: string; publicId?: string }>;
+};
+
 export type RequestPost = {
   id?: string;
   _id?: string;
@@ -1121,19 +1334,25 @@ export type RequestPost = {
   serviceTypes?: string[];
   startDate?: string;
   endDate?: string;
+  timeSlot?: string;
   houseSittingVenue?: string | null;
+  // v436 — lieu de garde : at_owner | at_sitter | both.
+  serviceLocation?: string;
   animalCount?: number;
   animalTypes?: string[];
   postType?: string;
   status?: string;
   createdAt?: string;
-  owner?: { id?: string; name?: string; email?: string; avatar?: string };
+  // v420 — bio owner pour la section « À propos de moi » du détail d'annonce.
+  owner?: { id?: string; name?: string; email?: string; avatar?: string; bio?: string };
   ownerId?: string | { _id?: string; id?: string; name?: string };
   isOwnerBoosted?: boolean;
   ownerBoostTier?: string | null;
   likes?: Array<{ userId?: string }>;
+  likesCount?: number;
+  commentsCount?: number;
   comments?: PostComment[];
-  pets?: Array<{ id?: string; petName?: string; avatar?: string }>;
+  pets?: PostPet[];
   media?: Array<{ url: string; type?: string }>;
   images?: Array<{ url: string }>;
 };

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -94,6 +96,9 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
       // App returned to foreground — pull latest notifs so the bell badge
       // is up to date (covers both push-arrived-while-bg and missed pushes).
       refreshAll();
+      // v444 — recale le badge CHAT sur la vérité serveur au retour (messages
+      // reçus pendant la pause → badge = vrai total, jamais un compteur dérivé).
+      syncChatBadgeFromServer();
       // v23.1 part 228 — Daniel : "fais que en background l'app reste
       // connecter". L'OS suspend les sockets en background ; au resume
       // on force la reconnexion + on re-fetch les conversations pour
@@ -112,6 +117,7 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     try {
       WidgetsBinding.instance.removeObserver(this);
     } catch (_) {}
+    _chatResyncTimer?.cancel();
     super.onClose();
   }
 
@@ -133,6 +139,55 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
   // the badge only increments once per notification even if both paths
   // deliver the same event (FCM push + socket emit run in parallel).
   final Set<String> _seenNotifIds = <String>{};
+
+  // v444 — Daniel : « badge messages 1 puis 5 qui revient ». DEUX causes :
+  //  (1) le backend émet message:new aux 3 rooms de rôle ; un compte
+  //      multi-rôles (owner+sitter+walker) recevait le MÊME message plusieurs
+  //      fois + rejeu à la reconnexion → unreadChat sur-comptait.
+  //  (2) le badge optimiste local ne se réconciliait pas toujours avec la
+  //      vérité serveur.
+  // Fix : dédup par id de message (chaque message ne compte qu'1×) + resync
+  // DÉBOUNCÉ sur la somme serveur des unreadCount après chaque bump/lecture
+  // → le badge converge TOUJOURS vers le vrai total, sans flicker.
+  final Set<String> _seenChatMsgIds = <String>{};
+  Timer? _chatResyncTimer;
+
+  /// Extrait l'id unique d'un message d'un payload `message:new`
+  /// ({message:{_id|id}} | {sentMessage:{...}} | {messageId}). '' si absent.
+  String _chatMsgId(Map<String, dynamic> map) {
+    dynamic inner = map['message'] ?? map['sentMessage'];
+    if (inner is Map) {
+      final id = inner['_id'] ?? inner['id'];
+      if (id != null && id.toString().isNotEmpty) return id.toString();
+    }
+    final mid = map['messageId'] ?? map['_id'] ?? map['id'];
+    return mid?.toString() ?? '';
+  }
+
+  /// true si ce message a déjà été compté (dédup multi-rooms / rejeu / FCM+socket).
+  bool _chatMsgSeenOrDupe(String msgId) {
+    if (msgId.isEmpty) return false;
+    if (_seenChatMsgIds.contains(msgId)) return true;
+    _seenChatMsgIds.add(msgId);
+    if (_seenChatMsgIds.length > 300) {
+      final drop = _seenChatMsgIds.take(150).toList();
+      for (final k in drop) {
+        _seenChatMsgIds.remove(k);
+      }
+    }
+    return false;
+  }
+
+  /// Resync DÉBOUNCÉ du badge chat sur la vérité serveur. Appelé après chaque
+  /// bump optimiste / lecture de conversation : les appels rapprochés se
+  /// regroupent en un seul fetch → badge final = somme serveur exacte.
+  void scheduleChatBadgeResync({int ms = 1500}) {
+    _chatResyncTimer?.cancel();
+    _chatResyncTimer = Timer(Duration(milliseconds: ms), () {
+      syncChatBadgeFromServer();
+    });
+  }
+
   bool _markSeenOrDupe(Map<String, dynamic> data) {
     final id = (data['id'] ?? data['_id'] ?? data['notificationId'] ?? '')
         .toString();
@@ -175,8 +230,13 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
         }
       }
     } catch (_) {/* best-effort */}
+    // v444 — dédup : un même message livré via plusieurs rooms de rôle (compte
+    // multi-rôles) ou rejoué à la reconnexion ne doit compter qu'UNE fois.
+    if (_chatMsgSeenOrDupe(_chatMsgId(map))) return;
     unreadChat.value = unreadChat.value + 1;
     _storage.write(_kUnreadChat, unreadChat.value);
+    // Réconcilie sur la vérité serveur peu après (corrige tout écart).
+    scheduleChatBadgeResync();
   }
 
   void _attachSocketListener() {
@@ -389,9 +449,17 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
   // bottom-nav Chat / Réservations badges only updated when the parallel
   // socket event arrived, which lagged behind the phone push by 1-2s in
   // the field (and never arrived at all when the socket was offline).
-  void bumpUnreadChatImmediate() {
+  void bumpUnreadChatImmediate({String? messageId}) {
+    // v444 — dédup PARTAGÉE avec le socket message:new : si ce message a déjà
+    // été compté (FCM push + socket arrivent en parallèle), on ne re-bumpe pas ;
+    // on réconcilie quand même sur la vérité serveur.
+    if (messageId != null && _chatMsgSeenOrDupe(messageId)) {
+      scheduleChatBadgeResync();
+      return;
+    }
     unreadChat.value = unreadChat.value + 1;
     _storage.write(_kUnreadChat, unreadChat.value);
+    scheduleChatBadgeResync();
   }
 
   void bumpUnreadBookingsImmediate() {

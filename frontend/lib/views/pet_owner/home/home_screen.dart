@@ -836,6 +836,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // ponctuelles. Connecté au même calendrier que la carte (availableDates).
     bool availMatch(List<DateTime> dates, List<dynamic> slots) {
       if (_availabilityFilter == null) return true;
+      // v444 — Daniel : un prestataire qui n'a RIEN configuré (ni dates ni
+      // créneaux récurrents) doit quand même APPARAÎTRE quand l'owner filtre
+      // « aujourd'hui » / « cette semaine » (on ne l'exclut pas par défaut).
+      if (dates.isEmpty && slots.isEmpty) return true;
       for (final d in dates) {
         final day = DateTime(d.year, d.month, d.day);
         if (_availabilityFilter == 'today') {
@@ -1154,6 +1158,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     location: locationLabel,
                     isNetworkImage: post.images.isNotEmpty,
                     likeCount: post.likesCount,
+                    // v444 — Daniel : « le like de la publication marche pas ».
+                    // Le like n'était pas câblé sur l'accueil owner (Mes
+                    // publications) → cœur inerte. On câble isLiked + onLike.
+                    isLiked: _postsController.isPostLiked(post.id),
+                    onLike: () => _postsController.toggleLike(post.id),
                     commentCount: post.commentsCount,
                     isReserved: post.reservedBy != null,
                     reservedProviderRole: post.reservedBy?.providerRole,

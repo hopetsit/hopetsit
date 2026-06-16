@@ -155,10 +155,26 @@ export default function BookPage() {
   }
 
   const color = providerType === "walker" ? "walker" : "sitter";
+  const enabledWalkRates = (provider.walkRates || [])
+    .filter((r) => r.enabled !== false)
+    .sort((a, b) => a.durationMinutes - b.durationMinutes);
   const startingPrice =
     providerType === "walker"
-      ? provider.walkRates?.walkSolo30 || provider.hourlyRate
-      : provider.hourlyRate;
+      ? enabledWalkRates[0]?.basePrice ?? provider.hourlyRate
+      : provider.dailyRate || provider.hourlyRate;
+  const completed =
+    providerType === "walker"
+      ? provider.completedWalksCount ?? provider.completedServicesCount
+      : provider.completedServicesCount;
+  const animalLabels: Record<string, string> = {
+    dog: t("posts_animal_dog"),
+    cat: t("posts_animal_cat"),
+    nac: t("posts_animal_nac"),
+    small: t("posts_animal_nac"),
+    bird: t("posts_animal_bird"),
+    reptile: t("posts_animal_reptile"),
+    other: t("posts_animal_other"),
+  };
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 md:py-16">
@@ -199,8 +215,95 @@ export default function BookPage() {
         )}
       </div>
 
+      {/* Profil détaillé (parité app) : stats + tarifs + animaux acceptés. */}
+      <div className="mt-4 space-y-4">
+        {/* Stats : prestations réalisées + temps de réponse + note. */}
+        {(completed || provider.responseTimeMinutes != null || (provider.reviewsCount ?? 0) > 0) && (
+          <div className="grid grid-cols-3 gap-3">
+            <Stat
+              value={completed ? String(completed) : "—"}
+              label={providerType === "walker" ? t("book_stat_walks") : t("book_stat_services")}
+            />
+            <Stat
+              value={
+                provider.responseTimeMinutes != null
+                  ? t("book_response_under").replace("@n", String(provider.responseTimeMinutes))
+                  : "—"
+              }
+              label={t("book_stat_response")}
+            />
+            <Stat
+              value={
+                (provider.averageRating ?? provider.rating ?? 0) > 0
+                  ? `★ ${(provider.averageRating ?? provider.rating ?? 0).toFixed(1)}`
+                  : "—"
+              }
+              label={
+                provider.reviewsCount
+                  ? t("book_stat_reviews").replace("@n", String(provider.reviewsCount))
+                  : t("book_stat_rating")
+              }
+            />
+          </div>
+        )}
+
+        {/* Tarifs. */}
+        <div className="rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
+          <p className="mb-2 text-sm font-bold text-ink">{t("book_rates_title")}</p>
+          <div className="flex flex-wrap gap-2">
+            {providerType === "walker" ? (
+              enabledWalkRates.length > 0 ? (
+                enabledWalkRates.map((r) => (
+                  <RatePill
+                    key={r.durationMinutes}
+                    label={`${r.durationMinutes} min`}
+                    value={`${r.basePrice} ${r.currency || "€"}`}
+                  />
+                ))
+              ) : (
+                <span className="text-sm text-ink-muted">{t("book_rate_on_request")}</span>
+              )
+            ) : (
+              <>
+                {provider.dailyRate ? (
+                  <RatePill label={t("book_rate_day")} value={`${provider.dailyRate} €`} />
+                ) : null}
+                {provider.weeklyRate ? (
+                  <RatePill label={t("book_rate_week")} value={`${provider.weeklyRate} €`} />
+                ) : null}
+                {provider.monthlyRate ? (
+                  <RatePill label={t("book_rate_month")} value={`${provider.monthlyRate} €`} />
+                ) : null}
+                {!provider.dailyRate && !provider.weeklyRate && !provider.monthlyRate && (
+                  <span className="text-sm text-ink-muted">{t("book_rate_on_request")}</span>
+                )}
+              </>
+            )}
+            {provider.extraPetRate ? (
+              <RatePill label={t("book_rate_extra_pet")} value={`+${provider.extraPetRate} €`} />
+            ) : null}
+          </div>
+        </div>
+
+        {/* Animaux acceptés / promenés. */}
+        {(provider.acceptedPetTypes || []).length > 0 && (
+          <div className="rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
+            <p className="mb-2 text-sm font-bold text-ink">
+              {providerType === "walker" ? t("book_walked_animals") : t("book_accepted_animals")}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(provider.acceptedPetTypes || []).map((a) => (
+                <span key={a} className="rounded-full bg-bg-soft px-2.5 py-1 text-xs font-medium text-ink">
+                  {animalLabels[a] || a}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <h1 className="mt-8 font-display text-2xl font-extrabold md:text-3xl">
-        Détails de la réservation
+        {t("book_reservation_details")}
       </h1>
 
       {error && (
@@ -336,5 +439,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </span>
       {children}
     </label>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-2xl border border-ink/5 bg-white p-3 text-center shadow-card">
+      <p className="text-base font-extrabold text-ink">{value}</p>
+      <p className="mt-0.5 text-[11px] leading-tight text-ink-muted">{label}</p>
+    </div>
+  );
+}
+
+function RatePill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-bg-soft px-3 py-2">
+      <p className="text-[11px] text-ink-muted">{label}</p>
+      <p className="text-sm font-bold text-ink">{value}</p>
+    </div>
   );
 }

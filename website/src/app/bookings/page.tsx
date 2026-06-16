@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import {
   ApiError,
+  AuthRole,
   AuthUser,
   Booking,
   BookingStatus,
@@ -19,17 +20,18 @@ import {
   getStoredUser,
   respondToBooking,
 } from "@/lib/api";
+import { ServiceConfirmationCard } from "@/components/ServiceConfirmation";
 import { useSocketEvent } from "@/lib/useSocket";
 
-const STATUS_LABELS: Record<BookingStatus, { label: string; color: string }> = {
-  pending: { label: "En attente", color: "bg-amber-100 text-amber-800" },
-  accepted: { label: "Acceptée", color: "bg-blue-100 text-blue-800" },
-  agreed: { label: "Confirmée", color: "bg-blue-100 text-blue-800" },
-  paid: { label: "Payée", color: "bg-green-100 text-green-800" },
-  completed: { label: "Terminée", color: "bg-slate-100 text-slate-700" },
-  cancelled: { label: "Annulée", color: "bg-red-100 text-red-700" },
-  rejected: { label: "Refusée", color: "bg-red-100 text-red-700" },
-  refunded: { label: "Remboursée", color: "bg-slate-100 text-slate-700" },
+const STATUS_META: Record<BookingStatus, { key: string; color: string }> = {
+  pending: { key: "booking_status_pending", color: "bg-amber-100 text-amber-800" },
+  accepted: { key: "booking_status_accepted", color: "bg-blue-100 text-blue-800" },
+  agreed: { key: "booking_status_agreed", color: "bg-blue-100 text-blue-800" },
+  paid: { key: "booking_status_paid", color: "bg-green-100 text-green-800" },
+  completed: { key: "booking_status_completed", color: "bg-slate-100 text-slate-700" },
+  cancelled: { key: "booking_status_cancelled", color: "bg-red-100 text-red-700" },
+  rejected: { key: "booking_status_rejected", color: "bg-red-100 text-red-700" },
+  refunded: { key: "booking_status_refunded", color: "bg-slate-100 text-slate-700" },
 };
 
 export default function BookingsPage() {
@@ -77,10 +79,7 @@ export default function BookingsPage() {
   }
 
   async function handleRespond(id: string, action: "accept" | "reject") {
-    if (
-      action === "reject" &&
-      !confirm("Refuser cette demande ? Le client devra recommencer.")
-    ) {
+    if (action === "reject" && !confirm(t("bookings_reject_confirm"))) {
       return;
     }
     setRespondingId(id);
@@ -104,6 +103,10 @@ export default function BookingsPage() {
   useSocketEvent<{ bookingId: string; status?: string }>("booking:paid", () =>
     refresh(),
   );
+  // Confirmation de service (start/complete/confirm/dispute) → refresh.
+  useSocketEvent<{ bookingId: string }>("booking:service-updated", () =>
+    refresh(),
+  );
 
   if (loading) {
     return (
@@ -119,24 +122,22 @@ export default function BookingsPage() {
     <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
       <div className="mb-6 flex items-center justify-between">
         <Link href="/dashboard" className="text-sm text-ink-muted hover:text-ink">
-          ← Dashboard
+          ← {t("nav_dashboard")}
         </Link>
         <button
           type="button"
           onClick={refresh}
           className="text-xs text-ink-muted hover:text-ink"
         >
-          ↻ Actualiser
+          ↻ {t("bookings_refresh")}
         </button>
       </div>
 
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-        Mes réservations
+        {t("bookings_title")}
       </h1>
       <p className="mt-2 text-ink-muted">
-        {isOwner
-          ? "Suivi de tes demandes de pet-sitting / promenade."
-          : "Les demandes que tu as reçues. Réponds rapidement pour augmenter ton taux d'acceptation."}
+        {isOwner ? t("bookings_sub_owner") : t("bookings_sub_provider")}
       </p>
 
       {error && (
@@ -148,11 +149,9 @@ export default function BookingsPage() {
       {bookings.length === 0 ? (
         <div className="mt-12 rounded-3xl border border-dashed border-ink/15 px-6 py-16 text-center">
           <p className="text-2xl">📭</p>
-          <p className="mt-3 font-semibold text-ink">Aucune réservation pour l&apos;instant</p>
+          <p className="mt-3 font-semibold text-ink">{t("bookings_empty_title")}</p>
           <p className="mt-1 text-sm text-ink-muted">
-            {isOwner
-              ? "Trouve un sitter ou walker dans l'app pour créer ta première demande."
-              : "Quand un owner choisira ton profil, sa demande apparaîtra ici."}
+            {isOwner ? t("bookings_empty_owner") : t("bookings_empty_provider")}
           </p>
         </div>
       ) : (
@@ -161,10 +160,12 @@ export default function BookingsPage() {
             <BookingCard
               key={booking.id}
               booking={booking}
+              role={user?.role || "owner"}
               isOwner={isOwner}
               responding={respondingId === booking.id}
               onAccept={() => handleRespond(booking.id, "accept")}
               onReject={() => handleRespond(booking.id, "reject")}
+              onServiceChanged={refresh}
             />
           ))}
         </div>
@@ -175,27 +176,43 @@ export default function BookingsPage() {
 
 function BookingCard({
   booking,
+  role,
   isOwner,
   responding,
   onAccept,
   onReject,
+  onServiceChanged,
 }: {
   booking: Booking;
+  role: AuthRole;
   isOwner: boolean;
   responding: boolean;
   onAccept: () => void;
   onReject: () => void;
+  onServiceChanged: () => void;
 }) {
-  const statusInfo = STATUS_LABELS[booking.status] || {
-    label: booking.status,
-    color: "bg-slate-100 text-slate-700",
+  const { t } = useT();
+  const meta = STATUS_META[booking.status];
+  const statusInfo = {
+    label: meta ? t(meta.key) : booking.status,
+    color: meta?.color || "bg-slate-100 text-slate-700",
   };
   const showActions = !isOwner && booking.status === "pending";
-  const counterpart = isOwner
-    ? booking.sitterName || booking.walkerName || "Service provider"
-    : booking.ownerName || "Owner";
-  const price = booking.basePrice ?? booking.totalAmount ?? 0;
-  const currency = booking.currency || "EUR";
+  // Le backend renvoie `otherParty` (contrepartie agrégée) sur /bookings/my.
+  const counterpart =
+    booking.otherParty?.name ||
+    (isOwner
+      ? booking.sitterName || booking.walkerName || t("bookings_provider")
+      : booking.ownerName || t("bookings_owner"));
+  const price =
+    booking.pricing?.totalPrice ??
+    booking.basePrice ??
+    booking.totalAmount ??
+    0;
+  const currency = booking.pricing?.currency || booking.currency || "EUR";
+  const serviceDate = booking.serviceDate || booking.startDate || booking.date;
+  const paid = (booking.paymentStatus || "").toLowerCase() === "paid";
+  const pets = booking.pets || [];
 
   return (
     <div className="rounded-2xl border border-ink/5 bg-white p-5 shadow-card">
@@ -208,15 +225,21 @@ function BookingCard({
             </span>
           </div>
           <div className="mt-1 text-xs text-ink-muted">
-            {booking.serviceType || "Pet care"}
-            {booking.serviceDate && (
+            {booking.serviceType || t("bookings_pet_care")}
+            {serviceDate && (
               <>
                 {" · "}
-                {new Date(booking.serviceDate).toLocaleDateString("fr-FR", {
+                {new Date(serviceDate).toLocaleDateString(undefined, {
                   day: "numeric",
                   month: "short",
                   year: "numeric",
                 })}
+              </>
+            )}
+            {booking.timeSlot && (
+              <>
+                {" · "}
+                <span className="inline-flex items-center gap-0.5">🕑 {booking.timeSlot}</span>
               </>
             )}
             {price > 0 && (
@@ -228,10 +251,22 @@ function BookingCard({
               </>
             )}
           </div>
+          {/* Animaux concernés (nom · race). */}
+          {pets.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {pets.map((p) => (
+                <span
+                  key={p.id}
+                  className="inline-flex items-center gap-1 rounded-full bg-bg-soft px-2.5 py-1 text-xs font-medium text-ink"
+                >
+                  🐾 {p.petName || t("bookings_pet")}
+                  {p.breed && <span className="text-ink-muted">· {p.breed}</span>}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="text-xs text-ink-muted">
-          #{booking.id.slice(-6)}
-        </div>
+        <div className="text-xs text-ink-muted">#{booking.id.slice(-6)}</div>
       </div>
 
       {showActions && (
@@ -240,9 +275,9 @@ function BookingCard({
             type="button"
             onClick={onAccept}
             disabled={responding}
-            className="flex-1 rounded-full bg-green-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+            className="flex-1 rounded-full bg-walker px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
           >
-            {responding ? "…" : "Accepter"}
+            {responding ? "…" : t("bookings_accept")}
           </button>
           <button
             type="button"
@@ -250,30 +285,40 @@ function BookingCard({
             disabled={responding}
             className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
           >
-            Refuser
+            {t("bookings_reject")}
           </button>
         </div>
       )}
 
-      {booking.status === "paid" && (
+      {paid && (
         <div className="mt-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
           <span>
-            ✓ Paiement reçu{" "}
+            ✓ {t("bookings_payment_received")}{" "}
             {booking.paidAt &&
-              `le ${new Date(booking.paidAt).toLocaleDateString("fr-FR")}`}
+              new Date(booking.paidAt).toLocaleDateString(undefined)}
           </span>
-          {/* v23.1 part 146 — bouton suivi live (visible owner uniquement, et
-              pour les services walking). */}
+          {/* v23.1 part 146 — bouton suivi live (owner + services walking). */}
           {isOwner &&
             (booking.serviceType || "").toLowerCase().includes("walk") && (
               <Link
                 href={`/walk/${booking.id}`}
                 className="rounded-full bg-walker px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
               >
-                🗺️ Suivre en direct
+                🗺️ {t("bookings_track_live")}
               </Link>
             )}
         </div>
+      )}
+
+      {/* v23.1.259 — carte de confirmation de service (paiement en séquestre).
+          Provider : récupéré / rendu l'animal. Owner : Mission terminée / litige
+          + invitation à noter. */}
+      {paid && (
+        <ServiceConfirmationCard
+          booking={booking}
+          role={role}
+          onChanged={onServiceChanged}
+        />
       )}
     </div>
   );

@@ -201,6 +201,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   Timer? _haloTimer;
   final RxDouble _haloPhase = 0.0.obs;
 
+  // v23.1.444 — Daniel : "les amis/abonnés en HALO ANIMÉ coloré". Palette
+  // unique des halos vivants de la PawMap (cohérente avec la légende et le
+  // FriendMarkerService) : vert PawFollow / or PawSpot / violet PawFamily.
+  static const Color _greenPawFollow = Color(0xFF16A34A);
+  static const Color _goldPawSpot = Color(0xFFE8A00A);
+  static const Color _violetPawFamily = Color(0xFF8B5CF6);
+
   /// v23.1 part 243 round 3 — perf : cache des markers (Daniel : "sur
   /// certain portable sa lague"). Le Obx GoogleMap rebuild a chaque tick
   /// halo (600ms), ce qui appelait _buildMarkers() qui re-itere TOUS les
@@ -1309,23 +1316,34 @@ class _PawMapScreenState extends State<PawMapScreen>
       // voit toujours vert (walker) / bleu (sitter) autour de chaque pin
       // sur la map, meme quand personne a PawSpot autour de lui.
       final role = (p['_role'] ?? '').toString().toLowerCase();
-      final roleColor = role == 'walker'
-          ? const Color(0xFF16A34A) // vert walker
-          : role == 'sitter'
-              ? const Color(0xFF2563EB) // bleu sitter
-              : const Color(0xFFEF4324); // orange owner (fallback)
+      // v23.1.444 — Daniel : "les amis/abonnés en HALO ANIMÉ au lieu de
+      // pins". Le PawSpot (provider map-boosté) prend un halo OR pulsant ;
+      // sinon couleur du rôle (walker vert / sitter bleu / owner orange).
+      // L'anneau RESPIRE désormais avec _haloPhase (effet beacon) au lieu
+      // d'être un cercle statique.
+      final bool providerPawSpot = p['isMapBoosted'] == true;
+      final roleColor = providerPawSpot
+          ? _goldPawSpot // or PawSpot
+          : role == 'walker'
+              ? const Color(0xFF16A34A) // vert walker
+              : role == 'sitter'
+                  ? const Color(0xFF2563EB) // bleu sitter
+                  : const Color(0xFFEF4324); // orange owner (fallback)
+      final providerHp = _haloPhase.value; // 0..1
       circles.add(
         Circle(
           circleId: CircleId('halo_role_$id'),
           center: LatLng(lat, lng),
-          radius: 25,
-          fillColor: roleColor.withValues(alpha: 0.22),
-          strokeColor: roleColor.withValues(alpha: 0.9),
+          radius: 25 + 35 * providerHp, // respiration 25 → 60m
+          fillColor: roleColor.withValues(
+            alpha: (0.22 * (1 - providerHp)).clamp(0.0, 1.0),
+          ),
+          strokeColor: roleColor.withValues(
+            alpha: (0.9 * (1 - providerHp) + 0.1).clamp(0.0, 1.0),
+          ),
           strokeWidth: 3,
         ),
       );
-      // v23.1.353 — refonte PawSpot : le halo TIER pulsant (`halo_$id`,
-      // bronze/silver/gold/platinum) des providers map-boostés est supprimé.
       }
     }
 
@@ -1391,8 +1409,9 @@ class _PawMapScreenState extends State<PawMapScreen>
       // violet empile) au profit d'une PRIORITE FAMILLE : famille -> un
       // unique halo violet ; sinon couleur du role (walker vert / sitter
       // bleu / owner orange / ami argent). Un seul cercle par personne.
-      const silver = Color(0xFFC0C0C0);
-      const familyViolet = Color(0xFF8B5CF6);
+      // v23.1.444 — palette unique des halos vivants (cf constantes de
+      // classe) : vert PawFollow / or PawSpot / violet PawFamily.
+      const familyViolet = _violetPawFamily;
 
       for (final pos in _liveMap.friendPositions.values) {
         // v23.1.356 — switch PawFollow OFF → halos amis/famille masqués.
@@ -1421,10 +1440,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         Color color;
         String tag;
         if (isPremiumMember) {
-          color = const Color(0xFFE8A00A); // or Paw Premium
+          color = _goldPawSpot; // or PawSpot / Paw Premium
           tag = 'premium';
         } else if (isFamily) {
-          color = familyViolet;
+          color = familyViolet; // violet PawFamily
           tag = 'family';
         } else if (role == 'walker') {
           color = AppColors.greenColor;
@@ -1436,7 +1455,9 @@ class _PawMapScreenState extends State<PawMapScreen>
           color = AppColors.primaryColor;
           tag = 'owner';
         } else {
-          color = silver;
+          // v23.1.444 — Daniel : "halo VERT pour les amis PawFollow qui
+          // partagent leur position" (au lieu de l'ancien argent neutre).
+          color = _greenPawFollow;
           tag = 'friend';
         }
         // Halo UNIQUE — violet si famille, sinon couleur du role. Centre =
@@ -3673,12 +3694,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Padding(
       padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
       child: Obx(() {
+        // v449 — Daniel : les 3 switches doivent refléter l'ABONNEMENT RÉEL,
+        // pas un simple toggle de couche. ON uniquement si l'abo est actif
+        // (payé / essai / staff) ; OFF → ne s'allume PAS tout seul, on route
+        // vers la boutique. Les flags viennent de PawSpotController qui les
+        // lit depuis GET /users/me/benefits :
+        //   followActive  = pawFollowActive OU familyActive OU premium
+        //   pawspotActive = pawspotActive OU premium
+        //   premiumActive = premiumActive
         final followSub = _pawSpotController.followActive.value;
         final spotSub = _pawSpotController.pawspotActive.value;
-        // v447 — Daniel : 3 boutons fonctionnalité sur UNE ligne, sans
-        // slide : PawFollow | PawSpot | PawPremium. Chacun affiche son LOGO
-        // OFFICIEL (PawFollow png · pièce dorée GoldenPawCoin pour PawSpot ·
-        // PawPremium png) + un switch compact.
         final premiumOn = _pawSpotController.premiumActive.value;
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -3692,8 +3717,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                     assetIcon: 'assets/images/pawfollow_logo.png',
                     accent: const Color(0xFF7C3AED),
                     subscribed: followSub,
-                    value: _showLiveLayer.value,
-                    onChanged: (v) => _showLiveLayer.value = v,
+                    // v449 — ON = abo PawFollow/PawFamily (ou Premium) actif.
+                    value: followSub,
+                    onChanged: (_) => unawaited(_togglePawFollow()),
                   ),
                 ),
                 SizedBox(width: 6.w),
@@ -3706,10 +3732,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                     coinIcon: true,
                     accent: const Color(0xFFE8A00A),
                     subscribed: spotSub,
-                    value: _showPawSpots.value,
-                    // v23.1.371 — un seul chemin (toggle) : l'OFF manuel y
-                    // est mémorisé pour ne pas se rallumer tout seul.
-                    onChanged: (_) => unawaited(_togglePawSpotLayer()),
+                    // v449 — ON = abo PawSpot (ou Premium) actif. Pas
+                    // d'activation locale sans abo ; OFF→ON route en boutique.
+                    value: spotSub,
+                    onChanged: (_) => unawaited(_togglePawSpot()),
                   ),
                 ),
                 SizedBox(width: 6.w),
@@ -3763,16 +3789,20 @@ class _PawMapScreenState extends State<PawMapScreen>
   }
 
   /// Légende des types de spots (pastille couleur + libellé court).
-  /// v447 — Daniel : "aucun slide". On remplace le SingleChildScrollView
-  /// horizontal par un Wrap → la légende passe à la ligne si besoin, jamais
-  /// de scroll. On affiche les 5 types de la maquette (Chemin · Chill · Aire
-  /// de jeux · Baignade · Rest.) ; le type générique « Autre » est masqué.
+  /// v449 — Daniel : "sur UNE seule ligne, aucun slide". On remplace le Wrap
+  /// (qui pouvait déborder sur 2 lignes) par UN SEUL Row de 5 items compacts,
+  /// chacun dans un Expanded → ils se partagent exactement la largeur, jamais
+  /// de scroll horizontal. Le libellé passe par un FittedBox(scaleDown) : il
+  /// reste ENTIER (jamais d'« … ») et se réduit un poil si la place manque
+  /// (libellés longs comme « Aire de jeux » / « Balneazione »). Petite
+  /// pastille + petite police + gaps serrés pour que les 5 tiennent sur un
+  /// écran de téléphone normal. Le type générique « Autre » est masqué.
   Widget _buildSpotLegend() {
     final legendTypes =
         PawSpotTypes.all.where((t) => t != 'other').toList();
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14.r),
@@ -3781,39 +3811,49 @@ class _PawMapScreenState extends State<PawMapScreen>
           width: 1,
         ),
       ),
-      child: Wrap(
-        spacing: 10.w,
-        runSpacing: 4.h,
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Row(
         children: [
           for (final t in legendTypes)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 14.w,
-                  height: 14.w,
-                  decoration: BoxDecoration(
-                    color: PawSpotTypes.color(t),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: PawSpotTypes.color(t).withValues(alpha: 0.4),
-                        blurRadius: 3,
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 1.w),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 9.w,
+                      height: 9.w,
+                      decoration: BoxDecoration(
+                        color: PawSpotTypes.color(t),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                PawSpotTypes.color(t).withValues(alpha: 0.4),
+                            blurRadius: 2,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(width: 2.w),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: InterText(
+                          text: 'pawspot_type_short_$t'.tr,
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1F2937),
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 4.w),
-                InterText(
-                  text: 'pawspot_type_short_$t'.tr,
-                  fontSize: 9.5.sp,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1F2937),
-                ),
-              ],
+              ),
             ),
         ],
       ),
@@ -3851,10 +3891,16 @@ class _PawMapScreenState extends State<PawMapScreen>
     required ValueChanged<bool> onChanged,
   }) {
     final Color tone = subscribed ? accent : AppColors.greyText;
-    // v447 — 3 chips sur une ligne (PawFollow / PawSpot / PawPremium) :
-    // padding + logo + switch resserrés pour tenir sans slide.
+    // v449 — Daniel : « tout doit être lisible, rien de coupé ». 3 chips sur
+    // une ligne (PawFollow / PawSpot / PawPremium). On resserre logo + switch
+    // et on rend le LIBELLÉ via FittedBox(scaleDown) → la marque s'affiche
+    // TOUJOURS en entier (jamais d'« … »), elle se réduit légèrement si la
+    // largeur du chip est trop juste. Le Switch Material garde une emprise de
+    // ~52 px même mis à l'échelle 0.52 ; on la borne dans un SizedBox pour
+    // libérer la place du libellé.
+    const double switchBox = 30.0;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
         color: subscribed
             ? accent.withValues(alpha: 0.08)
@@ -3877,7 +3923,7 @@ class _PawMapScreenState extends State<PawMapScreen>
           if (coinIcon)
             Opacity(
               opacity: subscribed ? 1.0 : 0.55,
-              child: GoldenPawCoin(size: 18.w),
+              child: GoldenPawCoin(size: 16.w),
             )
           else if (assetIcon != null)
             ColorFiltered(
@@ -3890,12 +3936,12 @@ class _PawMapScreenState extends State<PawMapScreen>
                       0.2126, 0.7152, 0.0722, 0, 0,
                       0, 0, 0, 1, 0,
                     ]),
-              child: Image.asset(assetIcon, width: 18.w, height: 18.w),
+              child: Image.asset(assetIcon, width: 16.w, height: 16.w),
             )
           else
             Container(
-              width: 18.w,
-              height: 18.w,
+              width: 16.w,
+              height: 16.w,
               decoration: BoxDecoration(
                 color: subscribed
                     ? accent
@@ -3904,31 +3950,100 @@ class _PawMapScreenState extends State<PawMapScreen>
               ),
               child: emoji != null
                   ? Center(
-                      child: Text(emoji, style: TextStyle(fontSize: 10.sp)))
-                  : Icon(icon, size: 12.sp, color: Colors.white),
+                      child: Text(emoji, style: TextStyle(fontSize: 9.sp)))
+                  : Icon(icon, size: 11.sp, color: Colors.white),
             ),
           SizedBox(width: 3.w),
-          Flexible(
-            child: InterText(
-              text: label,
-              fontSize: 9.5.sp,
-              fontWeight: FontWeight.w800,
-              color: subscribed ? accent : const Color(0xFF1F2937),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          // Libellé pleine lisibilité : FittedBox.scaleDown → jamais tronqué.
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: InterText(
+                text: label,
+                fontSize: 10.5.sp,
+                fontWeight: FontWeight.w800,
+                color: subscribed ? accent : const Color(0xFF1F2937),
+                maxLines: 1,
+              ),
             ),
           ),
-          Transform.scale(
-            scale: 0.52,
-            child: AppSwitch(
-              value: value,
-              onChanged: onChanged,
-              accent: accent,
+          // Switch borné : emprise réduite pour ne pas voler la place du label.
+          SizedBox(
+            width: switchBox,
+            child: Center(
+              child: Transform.scale(
+                scale: 0.52,
+                child: AppSwitch(
+                  value: value,
+                  onChanged: onChanged,
+                  accent: accent,
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// v449 — toggle PawFollow. Le switch reflète l'ABONNEMENT réel
+  /// (followActive = PawFollow/PawFamily/Premium). Déjà abonné → info ; pas
+  /// abonné → onglet PawFollow de la boutique (CoinShop onglet 1), JAMAIS
+  /// d'activation locale. Au retour on re-vérifie les benefits.
+  Future<void> _togglePawFollow() async {
+    if (_pawSpotController.followActive.value) {
+      // Abo actif : la couche live reste affichée ; on rappelle où la gérer.
+      _showLiveLayer.value = true;
+      CustomSnackbar.showInfo(
+        title: 'pawmap_premium_on_title'.tr,
+        message: 'pawmap_premium_on_msg'.tr,
+      );
+      return;
+    }
+    CustomSnackbar.showWarning(
+      title: 'pawspot_subscribe_required'.tr,
+      message: 'pawspot_shop_subtitle'.tr,
+    );
+    await Get.to(() => const CoinShopScreen(initialTab: 1));
+    await _pawSpotController.refreshBenefits();
+    if (mounted) setState(() {});
+  }
+
+  /// v449 — toggle PawSpot. Le switch reflète l'ABONNEMENT réel
+  /// (pawspotActive = PawSpot/Premium). Abonné → on s'assure que la couche
+  /// spots est affichée + on rappelle « Voir les spots » ; pas abonné → on
+  /// route vers la boutique PawSpot (jamais d'activation locale sans abo).
+  Future<void> _togglePawSpot() async {
+    final active = _pawSpotController.pawspotActive.value;
+    if (active) {
+      // Abo actif : on (ré)active la couche spots pour qu'ils s'affichent et
+      // que la légende + « Voir les spots » apparaissent.
+      if (!_showPawSpots.value) {
+        _showPawSpots.value = true;
+        GetStorage().write('pawspot_layer_on', true);
+        await _pawSpotController.loadNearby(_currentCenter);
+      }
+      CustomSnackbar.showInfo(
+        title: 'pawmap_premium_on_title'.tr,
+        message: 'pawmap_premium_on_msg'.tr,
+      );
+      return;
+    }
+    // Pas abonné → boutique PawSpot ; au retour, si l'abo vient d'être pris,
+    // on allume la couche.
+    CustomSnackbar.showWarning(
+      title: 'pawspot_subscribe_required'.tr,
+      message: 'pawspot_shop_subtitle'.tr,
+    );
+    await Get.to(() => const CoinShopScreen(initialTab: 2));
+    final nowActive = await _pawSpotController.refreshBenefits();
+    if (nowActive && mounted) {
+      _showPawSpots.value = true;
+      GetStorage().write('pawspot_layer_on', true);
+      await _pawSpotController.loadNearby(_currentCenter);
+      setState(() {});
+    }
   }
 
   /// v447 — toggle PawPremium de la rangée fonctionnalité. ON = abonnement
@@ -3944,6 +4059,10 @@ class _PawMapScreenState extends State<PawMapScreen>
       );
       return;
     }
+    CustomSnackbar.showWarning(
+      title: 'pawspot_subscribe_required'.tr,
+      message: 'pawspot_shop_subtitle'.tr,
+    );
     await Get.to(() => const CoinShopScreen(initialTab: 3));
     await _pawSpotController.refreshBenefits();
     if (mounted) setState(() {});

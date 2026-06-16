@@ -584,6 +584,11 @@ class SignupWizardScreen extends StatelessWidget {
         ],
         _field(c.extraAnimalController, 'signup_rate_extra_animal'.tr,
             kb: TextInputType.number, suffix: '€'),
+        // v444 — « Temps de réponse » (minutes), identique à my_rates_screen
+        // (sitter + walker). Persisté en responseTimeMinutes → cohérent avec
+        // ce qu'affiche l'onglet Tarifs du profil après l'inscription.
+        _field(c.responseTimeController, 'signup_rate_response_time'.tr,
+            kb: TextInputType.number, suffix: 'min'),
         SizedBox(height: 8.h),
         Container(
           padding: EdgeInsets.all(12.w),

@@ -697,6 +697,23 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return 30;
   }
 
+  /// DEEP WORK — résout l'id de l'animal à utiliser pour la demande envoyée par
+  /// le prestataire. Ordre : 1) premier animal résolu de l'annonce (post.pets,
+  /// le plus fiable car enrichi par le backend), 2) premier id du tableau
+  /// post.petIds (multi-animaux), 3) post.petId (legacy mono-animal). Retourne
+  /// null UNIQUEMENT s'il n'y a réellement aucun animal rattaché à l'annonce.
+  static String? _resolvePostPetId(PostModel post) {
+    if (post.pets.isNotEmpty && post.pets.first.id.trim().isNotEmpty) {
+      return post.pets.first.id.trim();
+    }
+    if (post.petIds.isNotEmpty && post.petIds.first.trim().isNotEmpty) {
+      return post.petIds.first.trim();
+    }
+    final single = post.petId?.trim() ?? '';
+    if (single.isNotEmpty) return single;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final PostsController postsController = Get.put(PostsController());
@@ -944,9 +961,13 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                           final petName = post.pets.isNotEmpty
                               ? post.pets.first.petName
                               : null;
-                          final petId = post.pets.isNotEmpty
-                              ? post.pets.first.id
-                              : null;
+                          // DEEP WORK — résolution robuste du petId pour la
+                          // demande : on prend l'animal résolu de l'annonce en
+                          // priorité (post.pets), puis on retombe sur post.petIds
+                          // / post.petId pour les anciennes annonces où la liste
+                          // d'animaux sérialisée serait vide alors qu'un pet
+                          // existe bien. Évite le faux « annonce incomplète ».
+                          final petId = _resolvePostPetId(post);
                           final ownerId = post.owner.id.isNotEmpty
                               ? post.owner.id
                               : '';
@@ -1017,6 +1038,10 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               onOwnerTap: ownerId.isNotEmpty
                                   ? () => _openOwnerProfile(post, ownerId)
                                   : null,
+                              // DEEP WORK — chaque animal de la bande annonce
+                              // est cliquable → fiche complète (même chemin que
+                              // « Voir les animaux »).
+                              onPetTap: (id) => _handleCardTap(id),
                               // Session v17.1 — show the "Réservé" badge when
                               // the owner has already accepted someone for
                               // this post.

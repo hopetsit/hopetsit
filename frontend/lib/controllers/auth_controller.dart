@@ -1412,6 +1412,9 @@ class AuthController extends GetxController {
     await _storage.remove(StorageKeys.authToken);
     await _storage.remove(StorageKeys.userProfile);
     await _storage.remove(StorageKeys.userRole);
+    // Code promo "% de réduction" appliqué : compte-spécifique → on purge au
+    // logout pour ne pas le réutiliser sur un autre compte.
+    await _storage.remove(StorageKeys.redeemedPromoDiscount);
     // v23.1 — keep StorageKeys.dismissedBannerBookings across logout: the
     // stored values are MongoDB ObjectIds unique to a booking, so they
     // cannot leak between accounts. Clearing them caused the dismissed

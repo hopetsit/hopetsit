@@ -4,7 +4,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/walker_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
@@ -61,10 +60,11 @@ class WalkerCard extends StatelessWidget {
       walker.availableDates.isEmpty && walker.availableTimeSlots.isEmpty;
 
   /// Availability label derived from the walker's calendar.
-  /// v440 — « Indisponible » quand AUCUNE disponibilité n'est renseignée
-  /// (calendrier vide + aucun créneau récurrent) ; sinon reflète le calendrier.
+  /// v445 — par défaut « Disponible aujourd'hui » : un prestataire qui ne
+  /// configure RIEN est TOUJOURS disponible. On ne reflète « Indisponible » /
+  /// une dispo précise que lorsqu'il a renseigné des dates concrètes.
   String _availabilityLabel() {
-    if (_hasNoAvailability) return 'card_unavailable'.tr;
+    if (_hasNoAvailability) return 'card_available_today'.tr;
     bool sameDay(DateTime a, DateTime b) =>
         a.year == b.year && a.month == b.month && a.day == b.day;
     final now = DateTime.now();
@@ -152,10 +152,6 @@ class WalkerCard extends StatelessWidget {
             if (cells.isNotEmpty) ...[
               SizedBox(height: 14.h),
               _buildTariffGroup(context, cells),
-            ],
-            if (walker.acceptedPetTypes.isNotEmpty) ...[
-              SizedBox(height: 12.h),
-              _buildAnimalChips(context),
             ],
             if (bio.isNotEmpty) ...[
               SizedBox(height: 14.h),
@@ -454,48 +450,6 @@ class WalkerCard extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-
-  /// v440 — petite ligne d'icônes des espèces promenées (chien/chat/NAC…),
-  /// dérivée de acceptedPetTypes. Pastilles neutres rondes avec l'emoji.
-  Widget _buildAnimalChips(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Icon(Icons.pets_rounded, size: 13.sp, color: _accent),
-        SizedBox(width: 6.w),
-        InterText(
-          text: 'card_walked_animals'.tr,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary(context),
-        ),
-        SizedBox(width: 8.w),
-        Expanded(
-          child: Wrap(
-            spacing: 6.w,
-            runSpacing: 6.h,
-            children: walker.acceptedPetTypes
-                .map((t) => _animalDot(context, petSpeciesEmoji(t)))
-                .toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _animalDot(BuildContext context, String emoji) {
-    return Container(
-      width: 26.w,
-      height: 26.w,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: _accent.withValues(alpha: 0.08),
-        shape: BoxShape.circle,
-        border: Border.all(color: _accent.withValues(alpha: 0.20), width: 1),
-      ),
-      child: Text(emoji, style: TextStyle(fontSize: 13.sp)),
     );
   }
 

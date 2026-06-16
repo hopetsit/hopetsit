@@ -54,14 +54,8 @@ class ProfilePreferencesTab extends StatelessWidget {
           value: prefs.sendPhotosVideos,
           onChanged: (v) => onSave(prefs.copyWith(sendPhotosVideos: v)),
         ),
-        _toggle(
-          context,
-          icon: Icons.shield_rounded,
-          label: 'profile_pref_pawmap_insurance'.tr,
-          sub: 'profile_pref_pawmap_insurance_sub'.tr,
-          value: prefs.pawMapInsurance,
-          onChanged: (v) => onSave(prefs.copyWith(pawMapInsurance: v)),
-        ),
+        // v444 — Daniel : « Assurance PawMap » retiré des Préférences (n'existe
+        // pas). Le champ prefs.pawMapInsurance reste dans le modèle (inoffensif).
         _toggle(
           context,
           icon: Icons.event_available_rounded,

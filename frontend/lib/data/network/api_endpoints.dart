@@ -161,4 +161,12 @@ class ApiEndpoints {
   /// v444 — Favoris prestataires (cœur sur les cartes de recherche owner).
   /// GET / POST '${myFavorites}' ; DELETE '${myFavorites}/$providerId'.
   static const String myFavorites = '/users/me/favorites';
+
+  /// Codes promo (redemption côté utilisateur). Backend additif déjà déployé :
+  ///   POST '${promoCheck}'  { code } → prévisualise la récompense sans consommer.
+  ///   POST '${promoRedeem}' { code } → consomme + active la récompense.
+  /// Les codes sont émis par l'admin (onglet Promotions → /admin/promo/*) sur le
+  /// même modèle PromoCode lu ici.
+  static const String promoCheck = '/promo/check';
+  static const String promoRedeem = '/promo/redeem';
 }

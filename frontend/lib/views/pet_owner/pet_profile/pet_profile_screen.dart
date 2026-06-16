@@ -158,6 +158,24 @@ class PetProfileScreen extends StatelessWidget {
       length: 4,
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
+        // v444 — Daniel : « dans les 3 onglets je peux rien faire, je dois
+        // pouvoir tout modifier ». Bouton « Modifier » flottant visible sur
+        // TOUS les onglets (À propos / Santé / Habitudes / Galerie) → ouvre le
+        // formulaire complet (EditPetScreen, toutes les sections éditables).
+        floatingActionButton: editable
+            ? FloatingActionButton.extended(
+                onPressed: _openEdit,
+                backgroundColor: _accent,
+                foregroundColor: Colors.white,
+                icon: Icon(Icons.edit_rounded, size: 18.sp),
+                label: InterText(
+                  text: 'post_action_edit'.tr,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              )
+            : null,
         appBar: AppBar(
           backgroundColor: AppColors.appBar(context),
           elevation: 0,

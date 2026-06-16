@@ -66,11 +66,16 @@ class ProfileChoiceChips extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
             decoration: BoxDecoration(
-              color: isSel ? accent.withValues(alpha: 0.15) : AppColors.inputFill(context),
+              // v444 — Daniel : « Ce que vous recherchez » paraissait un cadre
+              // gris vide. Cause : le fond des chips non sélectionnées
+              // (inputFill) = EXACTEMENT la couleur du scaffold → pastilles
+              // invisibles, zone perçue comme vide. Fond carte (blanc) +
+              // bordure plus marquée → chips toujours nettement visibles.
+              color: isSel ? accent.withValues(alpha: 0.15) : AppColors.card(context),
               borderRadius: BorderRadius.circular(20.r),
               border: Border.all(
                 color: isSel ? accent : AppColors.divider(context),
-                width: isSel ? 1.6 : 1,
+                width: isSel ? 1.6 : 1.2,
               ),
             ),
             child: Row(

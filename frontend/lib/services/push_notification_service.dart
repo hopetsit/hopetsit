@@ -213,7 +213,16 @@ class PushNotificationService extends GetxService {
           if (homeTypes.contains(rawType)) {
             nc.bumpUnreadHomeImmediate();
           } else if (chatTypes.contains(rawType)) {
-            nc.bumpUnreadChatImmediate();
+            // v444 — passe l'id du message (si présent dans le payload FCM) pour
+            // PARTAGER la dédup avec le socket message:new → un même message
+            // n'incrémente le badge qu'une fois (sinon le resync corrige).
+            final msgId = (data['messageId'] ??
+                    data['message_id'] ??
+                    data['msgId'] ??
+                    '')
+                .toString();
+            nc.bumpUnreadChatImmediate(
+                messageId: msgId.isNotEmpty ? msgId : null);
           } else if (bookingTypes.contains(rawType)) {
             nc.bumpUnreadBookingsImmediate();
           }

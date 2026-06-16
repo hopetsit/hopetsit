@@ -124,7 +124,11 @@ class CustomNavigationBar extends StatelessWidget {
           if (Get.isRegistered<NotificationsController>()) {
             final nc = Get.find<NotificationsController>();
             if (index == 0) nc.clearHomeBadge();
-            if (index == 1) nc.clearChatBadge();
+            // v444 — onglet Chat : NE PAS forcer le badge à 0 (sinon le vrai
+            // total non-lu « revient » au prochain resync — bug « 1 puis 5 »).
+            // On recale sur la vérité serveur ; le badge se vide ensuite
+            // conversation par conversation, à la lecture RÉELLE.
+            if (index == 1) nc.syncChatBadgeFromServer();
             if (index == 3) nc.clearBookingsBadge();
           }
           onTap(index);

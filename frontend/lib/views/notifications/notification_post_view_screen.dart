@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/post_model.dart';
+import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/repositories/sitter_repository.dart';
 import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
@@ -13,9 +15,11 @@ import 'package:hopetsit/utils/logger.dart';
 import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
+import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/post_comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -214,6 +218,139 @@ class _NotificationPostViewScreenState
     );
   }
 
+  /// DEEP WORK — ouvre la fiche complète d'un animal de l'annonce (même chemin
+  /// que sitter_homescreen._handleCardTap / OwnerProfileViewScreen :
+  /// PetRepository.getPetById → PetDetailScreen).
+  Future<void> _openPetDetails(String petId) async {
+    if (petId.trim().isEmpty) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+              ),
+              SizedBox(height: 16.h),
+              InterText(
+                text: 'pet_detail_loading'.tr,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final petRepository = Get.find<PetRepository>();
+      final pet = await petRepository.getPetById(petId);
+
+      if (mounted) Navigator.of(context).pop();
+
+      final age = pet.age.isNotEmpty ? pet.age : 'label_not_available'.tr;
+      final gender = 'pet_detail_gender_unknown'.tr;
+      final weight = pet.weight.isNotEmpty
+          ? '${pet.weight} kg'
+          : 'label_not_available'.tr;
+      final height = pet.height.isNotEmpty
+          ? '${pet.height} cm'
+          : 'label_not_available'.tr;
+      final description =
+          pet.bio.isNotEmpty ? pet.bio : 'pet_detail_no_description'.tr;
+
+      final List<String> galleryImages = [];
+      if (pet.photos.isNotEmpty) {
+        for (var photo in pet.photos) {
+          if (photo is Map<String, dynamic> && photo['url'] != null) {
+            galleryImages.add(photo['url'].toString());
+          } else if (photo is String) {
+            galleryImages.add(photo);
+          }
+        }
+      }
+
+      final vaccinations = pet.vaccinations.isNotEmpty
+          ? pet.vaccinations
+          : ['pet_detail_no_vaccinations'.tr];
+
+      final List<String> petImages = [];
+      if (pet.avatar.url.isNotEmpty) {
+        petImages.add(pet.avatar.url);
+      }
+      for (var galleryImage in galleryImages) {
+        if (!petImages.contains(galleryImage)) {
+          petImages.add(galleryImage);
+        }
+      }
+
+      final passportNumber =
+          pet.passportNumber.isNotEmpty ? pet.passportNumber : null;
+      final chipNumber = pet.chipNumber.isNotEmpty ? pet.chipNumber : null;
+      final medicationAllergies =
+          pet.medicationAllergies.isNotEmpty ? pet.medicationAllergies : null;
+      final dob = pet.dob.isNotEmpty ? pet.dob : null;
+      final category = pet.category.isNotEmpty ? pet.category : null;
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PetDetailScreen(
+              petName: pet.petName,
+              breed: pet.breed.isNotEmpty
+                  ? pet.breed
+                  : 'pet_detail_breed_unknown'.tr,
+              age: age,
+              gender: gender,
+              weight: weight,
+              height: height,
+              description: description,
+              vaccinations: vaccinations,
+              galleryImages: galleryImages,
+              petImages: petImages,
+              ownerName: pet.owner?.name,
+              ownerAvatar: pet.owner?.avatar,
+              ownerCity: pet.owner?.city,
+              ownerCreatedAt: pet.owner?.createdAt,
+              ownerUpdatedAt: pet.owner?.updatedAt,
+              passportNumber: passportNumber,
+              chipNumber: chipNumber,
+              medicationAllergies: medicationAllergies,
+              dob: dob,
+              category: category,
+            ),
+          ),
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) Navigator.of(context).pop();
+      AppLogger.logError('Failed to load pet details', error: error.message);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: error.message,
+      );
+    } catch (error) {
+      if (mounted) Navigator.of(context).pop();
+      AppLogger.logError('Failed to load pet details', error: error);
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'pet_detail_load_error'.tr,
+      );
+    }
+  }
+
   PostModel _livePost(PostsController c) {
     for (final p in c.posts) {
       if (p.id == widget.post.id) return p;
@@ -300,6 +437,8 @@ class _NotificationPostViewScreenState
               onOwnerTap: (isProvider && post.owner.id.isNotEmpty)
                   ? () => _openOwnerProfile(post)
                   : null,
+              // DEEP WORK — bande animaux cliquable → fiche de l'animal tapé.
+              onPetTap: (id) => _openPetDetails(id),
               priceEstimate: isProvider ? _estimateForPost(post) : null,
               publishedLabel:
                   isProvider ? _publishedLabel(post.createdAt) : null,

@@ -16,6 +16,7 @@ import 'package:hopetsit/controllers/theme_controller.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/loyalty_card.dart';
 import 'package:hopetsit/views/profile/my_referrals_screen.dart';
+import 'package:hopetsit/views/profile/promo_code_screen.dart';
 import 'package:hopetsit/views/boost/coin_shop_screen.dart';
 import 'package:hopetsit/views/boost/pawspot_leaderboard_screen.dart';
 import 'package:hopetsit/widgets/boost_profile_card.dart';
@@ -524,6 +525,14 @@ class ProfileScreen extends StatelessWidget {
           Icons.group_add_rounded,
           _paleOrange,
           () => Get.to(() => const MyReferralsScreen()),
+        ),
+        // Code promo — saisie d'un code émis par l'admin (abo offert ou -%).
+        _buildSettingsTile(
+          'promo_screen_title'.tr,
+          'promo_profile_tile_subtitle'.tr,
+          Icons.confirmation_number_rounded,
+          _palePurple,
+          () => Get.to(() => PromoCodeScreen(accent: AppColors.primaryColor)),
         ),
         // Refonte PawSpot — accès direct au classement PawPoints (doré).
         _buildSettingsTile(

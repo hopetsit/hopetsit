@@ -240,6 +240,8 @@ const signup = async (req, res) => {
       email,
       mobile,
       countryCode,
+      // Sprint 6.5 step 2 — ISO-2 country collecté au wizard (indicatif/devise).
+      country: (user.country || '').toString().toUpperCase().trim(),
       password: user.password,
       language: user.language || '',
       address: user.address || '',
@@ -249,6 +251,39 @@ const signup = async (req, res) => {
       verified: false,
     };
     if (location) ownerPayload.location = location;
+    // v445 — synchro inscription↔profil (owner) : champs collectés par le wizard
+    // 5 étapes (cf sign_up_controller _buildUserPayload). Sans ça, Owner.create
+    // ne persistait QUE les champs ci-dessus → bio / dateOfBirth / préférences /
+    // recherche saisis à l'inscription étaient DROPPÉS (réapparaissaient vides
+    // dans « Modifier le profil »). Tous ADDITIFS (présents dans Owner.js).
+    if (typeof user.bio === 'string' && user.bio.trim()) {
+      ownerPayload.bio = user.bio.trim();
+    }
+    if (typeof user.dateOfBirth === 'string' && user.dateOfBirth.trim()) {
+      ownerPayload.dateOfBirth = user.dateOfBirth.trim();
+    }
+    if (user.searchPreferences && typeof user.searchPreferences === 'object') {
+      ownerPayload.searchPreferences = {
+        services: Array.isArray(user.searchPreferences.services)
+          ? user.searchPreferences.services
+          : [],
+        radiusKm:
+          Number.isFinite(Number(user.searchPreferences.radiusKm)) &&
+          Number(user.searchPreferences.radiusKm) > 0
+            ? Number(user.searchPreferences.radiusKm)
+            : 20,
+        preferredLanguage: (user.searchPreferences.preferredLanguage || '').toString(),
+      };
+    }
+    if (user.preferences && typeof user.preferences === 'object') {
+      ownerPayload.preferences = {
+        sendPhotosVideos: user.preferences.sendPhotosVideos !== false,
+        quickReplies: user.preferences.quickReplies !== false,
+        flexibleCancellation: user.preferences.flexibleCancellation !== false,
+        pawMapInsurance: user.preferences.pawMapInsurance !== false,
+        notifications: user.preferences.notifications !== false,
+      };
+    }
 
     const sitterPayload = {
       name: user.name,
@@ -276,6 +311,47 @@ const signup = async (req, res) => {
       reviewsCount: Number(user.reviewsCount) || 0,
       feedback: Array.isArray(user.feedback) ? user.feedback : [],
     };
+    // v444 — supplément « animal supplémentaire » + temps de réponse saisis au
+    // wizard d'inscription (cf sign_up_controller). Persistés ici pour que la
+    // valeur corresponde à ce que montre l'onglet Tarifs du profil (my_rates).
+    {
+      const extraPet = Number(user.extraPetRate ?? user.additionalAnimalFee);
+      if (Number.isFinite(extraPet) && extraPet >= 0) {
+        sitterPayload.extraPetRate = extraPet;
+      }
+      const rtm = Number(user.responseTimeMinutes);
+      if (Number.isFinite(rtm) && rtm > 0) {
+        sitterPayload.responseTimeMinutes = Math.round(rtm);
+      }
+    }
+    // v445 — synchro inscription↔profil (sitter) : champs du wizard 5 étapes
+    // qui n'étaient PAS recopiés dans sitterPayload → Sitter.create les
+    // DROPPAIT (dateOfBirth / animaux acceptés / expérience / rayon / pays /
+    // préférences réapparaissaient vides dans « Modifier le profil »). ADDITIF
+    // (tous présents dans Sitter.js).
+    sitterPayload.country = (user.country || '').toString().toUpperCase().trim();
+    if (typeof user.dateOfBirth === 'string' && user.dateOfBirth.trim()) {
+      sitterPayload.dateOfBirth = user.dateOfBirth.trim();
+    }
+    if (Array.isArray(user.experienceTags)) {
+      sitterPayload.experienceTags = user.experienceTags;
+    }
+    if (Array.isArray(user.acceptedPetTypes)) {
+      sitterPayload.acceptedPetTypes = user.acceptedPetTypes;
+    }
+    {
+      const km = Number(user.coverageRadiusKm);
+      if (Number.isFinite(km) && km > 0) sitterPayload.coverageRadiusKm = km;
+    }
+    if (user.preferences && typeof user.preferences === 'object') {
+      sitterPayload.preferences = {
+        sendPhotosVideos: user.preferences.sendPhotosVideos !== false,
+        quickReplies: user.preferences.quickReplies !== false,
+        flexibleCancellation: user.preferences.flexibleCancellation !== false,
+        pawMapInsurance: user.preferences.pawMapInsurance !== false,
+        notifications: user.preferences.notifications !== false,
+      };
+    }
     if (paypalEmail) {
       if (!isValidEmail(paypalEmail)) {
         return res.status(400).json({ error: 'paypalEmail must be a valid email address.' });
@@ -356,6 +432,42 @@ const signup = async (req, res) => {
           : 30,
       feedback: [],
     };
+    // v444 — supplément animal + temps de réponse saisis au wizard (walker).
+    // Persistés pour matcher l'onglet Tarifs du profil (my_rates_screen).
+    {
+      const extraPet = Number(user.extraPetRate ?? user.additionalAnimalFee);
+      if (Number.isFinite(extraPet) && extraPet >= 0) {
+        walkerPayload.extraPetRate = extraPet;
+      }
+      const rtm = Number(user.responseTimeMinutes);
+      if (Number.isFinite(rtm) && rtm > 0) {
+        walkerPayload.responseTimeMinutes = Math.round(rtm);
+      }
+    }
+    // v445 — synchro inscription↔profil (walker) : champs du wizard 5 étapes
+    // non recopiés dans walkerPayload → Walker.create les DROPPAIT (date de
+    // naissance / expérience / jours dispo / pays / préférences réapparaissaient
+    // vides). acceptedPetTypes + coverageRadiusKm sont déjà gérés plus haut.
+    // ADDITIF (tous présents dans Walker.js).
+    walkerPayload.country = (user.country || '').toString().toUpperCase().trim();
+    if (typeof user.dateOfBirth === 'string' && user.dateOfBirth.trim()) {
+      walkerPayload.dateOfBirth = user.dateOfBirth.trim();
+    }
+    if (Array.isArray(user.experienceTags)) {
+      walkerPayload.experienceTags = user.experienceTags;
+    }
+    if (Array.isArray(user.availableDays)) {
+      walkerPayload.availableDays = user.availableDays;
+    }
+    if (user.preferences && typeof user.preferences === 'object') {
+      walkerPayload.preferences = {
+        sendPhotosVideos: user.preferences.sendPhotosVideos !== false,
+        quickReplies: user.preferences.quickReplies !== false,
+        flexibleCancellation: user.preferences.flexibleCancellation !== false,
+        pawMapInsurance: user.preferences.pawMapInsurance !== false,
+        notifications: user.preferences.notifications !== false,
+      };
+    }
     if (paypalEmail) {
       // paypalEmail was already validated above for sitter payload.
       walkerPayload.paypalEmail = paypalEmail;
