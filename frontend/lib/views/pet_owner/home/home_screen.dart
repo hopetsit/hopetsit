@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:hopetsit/controllers/favorites_controller.dart';
 import 'package:hopetsit/controllers/home_controller.dart';
 import 'package:hopetsit/controllers/notifications_controller.dart';
 import 'package:hopetsit/controllers/posts_controller.dart';
@@ -27,6 +28,7 @@ import 'package:hopetsit/widgets/active_benefits_row.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
+import 'package:hopetsit/views/service_provider/walker_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/custom_confirmation_dialog.dart';
@@ -53,7 +55,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTabIndex = 0;
-  HomeMyPostsSortOrder _myPostsSortOrder = HomeMyPostsSortOrder.newestFirst;
+  // v443 — Daniel : « le tri Plus récent en premier sur l'accueil sert à
+  // rien ». Sélecteur de tri RETIRÉ ; les publications restent en ordre
+  // chronologique fixe (plus ancien d'abord).
+  final HomeMyPostsSortOrder _myPostsSortOrder = HomeMyPostsSortOrder.oldestFirst;
 
   // v426 — tri client-side de la liste de prestataires (bouton "Trier" du
   // bloc recherche premium). Defaut : par distance (plus proche d'abord).
@@ -83,6 +88,8 @@ class _HomeScreenState extends State<HomeScreen> {
   late final ProfileController _profileController;
   late final NotificationsController _notificationsController;
   late final PostsController _postsController;
+  // v444 — Favoris prestataires (cœur sur les cartes de recherche).
+  late final FavoritesController _favoritesController;
   late final GetStorage _storage;
   String? _userId;
 
@@ -103,6 +110,13 @@ class _HomeScreenState extends State<HomeScreen> {
         : Get.put(NotificationsController(), permanent: true);
 
     _postsController = Get.put(PostsController());
+
+    // v444 — Favoris : permanent (partagé entre onglets), chargé une fois.
+    _favoritesController = Get.isRegistered<FavoritesController>()
+        ? Get.find<FavoritesController>()
+        : Get.put(FavoritesController(), permanent: true);
+    _favoritesController.ensureLoaded();
+
     _storage = Get.find<GetStorage>();
 
     final userProfile =
@@ -125,8 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // v440 — délègue au helper partagé qui inclut l'heure (HH:mm) si présente.
+  // v443 — date SEULE dans la grille ; l'heure part dans l'horloge sous
+  // « Service » (serviceTime ci-dessous).
   static String? _postDateRangeLabel(PostModel post) =>
-      PostDateLabel.forPost(post);
+      PostDateLabel.dateOnly(post);
 
   // ignore: unused_element
   static bool _postHasDisplayableMedia(PostModel post) {
@@ -299,23 +315,33 @@ class _HomeScreenState extends State<HomeScreen> {
               if (r.durationMinutes == 30) halfHour = r.basePrice;
               if (r.durationMinutes == 60) hour = r.basePrice;
             }
-            return WalkerCard(
-              walker: walker,
-              onRequestWalk: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SendRequestScreen(
-                      serviceProviderName: walker.name,
-                      serviceProviderId: walker.id,
-                      serviceProviderRole: 'walker',
-                      walkerHalfHourRate: halfHour,
-                      walkerHourlyRate: hour,
-                      currencyCode: walker.currency,
+            // v444 — Obx pour que le cœur favori reflète l'état réactif du
+            // FavoritesController (mise à jour optimiste au tap).
+            return Obx(
+              () => WalkerCard(
+                walker: walker,
+                isFavorite: _favoritesController.isFavorite(walker.id),
+                onToggleFavorite: () =>
+                    _favoritesController.toggle(walker.id, 'walker'),
+                onTap: () {
+                  Get.to(() => WalkerDetailScreen(walkerId: walker.id));
+                },
+                onRequestWalk: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SendRequestScreen(
+                        serviceProviderName: walker.name,
+                        serviceProviderId: walker.id,
+                        serviceProviderRole: 'walker',
+                        walkerHalfHourRate: halfHour,
+                        walkerHourlyRate: hour,
+                        currencyCode: walker.currency,
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             );
           },
         ),
@@ -1101,11 +1127,9 @@ class _HomeScreenState extends State<HomeScreen> {
       return SliverPadding(
         padding: EdgeInsets.symmetric(horizontal: 20.w),
         sliver: SliverList.builder(
-          // +1 pour le SortBar en index 0.
-          itemCount: sortedMine.length + 1,
+          itemCount: sortedMine.length,
           itemBuilder: (context, idx) {
-            if (idx == 0) return _buildMyPostsSortBar();
-            final index = idx - 1;
+            final index = idx;
             final post = sortedMine[index];
                   final rawCity = post.location?.city.trim();
                   final locationLabel = (rawCity != null && rawCity.isNotEmpty)
@@ -1126,6 +1150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     postBody: post.body,
                     serviceTypes: _serviceTypesDisplay(post.serviceTypes),
                     dateRange: _postDateRangeLabel(post),
+                    serviceTime: PostDateLabel.timeLabel(post),
                     location: locationLabel,
                     isNetworkImage: post.images.isNotEmpty,
                     likeCount: post.likesCount,
@@ -1215,47 +1240,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget _buildMyPostsSortBar() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 4.h),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          DropdownButtonHideUnderline(
-            child: DropdownButton<HomeMyPostsSortOrder>(
-              value: _myPostsSortOrder,
-              icon: Icon(Icons.sort, size: 18.sp, color: AppColors.textSecondary(context)),
-              style: TextStyle(
-                  fontSize: 13.sp, color: AppColors.textPrimary(context)),
-              items: [
-                DropdownMenuItem(
-                  value: HomeMyPostsSortOrder.newestFirst,
-                  child: InterText(
-                    text: 'my_posts_sort_newest'.tr,
-                    fontSize: 14.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: HomeMyPostsSortOrder.oldestFirst,
-                  child: InterText(
-                    text: 'my_posts_sort_oldest'.tr,
-                    fontSize: 14.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _myPostsSortOrder = value);
-                }
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // v23.1 part 240 — SITTERS tab simplifiee : retourne UN sliver, plus de
   // duplicata "Offers Near Me" button (le slider inline en haut de la home
@@ -1340,58 +1324,65 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                     }
 
-                    return SitterCard(
-                      sitter: sitter,
-                      estimatedCost: estCost,
-                      estimatedDays: estDays,
-                      onTap: () {
-                        Get.to(
-                          () => ServiceProviderDetailScreen(
-                            sitterId: sitter.id,
-                            status: 'status_available'.tr,
-                          ),
-                        );
-                      },
-                      onSendRequest: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SendRequestScreen(
-                              serviceProviderName: sitter.name,
-                              serviceProviderId: sitter.id,
-                              serviceProviderRole: 'sitter',
-                              // Session v15 — pass rates so the Total row
-                              // on the request screen can compute live.
-                              sitterDailyRate: sitter.dailyRate > 0
-                                  ? sitter.dailyRate
-                                  : null,
-                              sitterWeeklyRate: sitter.weeklyRate > 0
-                                  ? sitter.weeklyRate
-                                  : null,
-                              sitterMonthlyRate: sitter.monthlyRate > 0
-                                  ? sitter.monthlyRate
-                                  : null,
-                              currencyCode: sitter.currency,
+                    // v444 — Obx pour que le cœur favori reflète l'état
+                    // réactif du FavoritesController (toggle optimiste).
+                    return Obx(
+                      () => SitterCard(
+                        sitter: sitter,
+                        estimatedCost: estCost,
+                        estimatedDays: estDays,
+                        isFavorite: _favoritesController.isFavorite(sitter.id),
+                        onToggleFavorite: () =>
+                            _favoritesController.toggle(sitter.id, 'sitter'),
+                        onTap: () {
+                          Get.to(
+                            () => ServiceProviderDetailScreen(
+                              sitterId: sitter.id,
+                              status: 'status_available'.tr,
                             ),
-                          ),
-                        );
-                      },
-                      onBlock: () {
-                        CustomConfirmationDialog.show(
-                          context: context,
-                          message: 'home_block_sitter_message'.trParams({
-                            'name': sitter.name,
-                          }),
-                          yesText: 'home_block_sitter_yes'.tr,
-                          cancelText: 'home_block_sitter_no'.tr,
-                          yesButtonColor: AppColors.whiteColor,
-                          cancelButtonColor: AppColors.primaryColor,
-                          onYes: () {},
-                          onCancel: () {
-                            _homeController.blockSitter(sitter.id);
-                          },
-                        );
-                      },
+                          );
+                        },
+                        onSendRequest: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SendRequestScreen(
+                                serviceProviderName: sitter.name,
+                                serviceProviderId: sitter.id,
+                                serviceProviderRole: 'sitter',
+                                // Session v15 — pass rates so the Total row
+                                // on the request screen can compute live.
+                                sitterDailyRate: sitter.dailyRate > 0
+                                    ? sitter.dailyRate
+                                    : null,
+                                sitterWeeklyRate: sitter.weeklyRate > 0
+                                    ? sitter.weeklyRate
+                                    : null,
+                                sitterMonthlyRate: sitter.monthlyRate > 0
+                                    ? sitter.monthlyRate
+                                    : null,
+                                currencyCode: sitter.currency,
+                              ),
+                            ),
+                          );
+                        },
+                        onBlock: () {
+                          CustomConfirmationDialog.show(
+                            context: context,
+                            message: 'home_block_sitter_message'.trParams({
+                              'name': sitter.name,
+                            }),
+                            yesText: 'home_block_sitter_yes'.tr,
+                            cancelText: 'home_block_sitter_no'.tr,
+                            yesButtonColor: AppColors.whiteColor,
+                            cancelButtonColor: AppColors.primaryColor,
+                            onYes: () {},
+                            onCancel: () {
+                              _homeController.blockSitter(sitter.id);
+                            },
+                          );
+                        },
+                      ),
                     );
                   },
                 ),

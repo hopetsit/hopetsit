@@ -22,6 +22,7 @@ import 'package:hopetsit/views/pet_sitter/widgets/pet_detail_screen.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/reservation_request_filter_dialog.dart';
 import 'package:hopetsit/views/notifications/sitter_notifications_screen.dart';
+import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/views/shared/widgets/around_me_search_bar.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
@@ -29,7 +30,6 @@ import 'package:hopetsit/widgets/custom_app_bar.dart';
 import 'package:hopetsit/widgets/home_quick_action_bar.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 // Comments removed from publications
-import 'package:hopetsit/utils/service_type_translator.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -56,9 +56,12 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
   // card render code; the fingerprint map is kept as a fallback for legacy
   // applications that pre-date v17.1 (no postId stored).
   final Map<String, String> _pendingApplicationIdsByPostId = {};
-  ReservationRequestFilterState _filterState =
+  // v442 — #100 : filtres avancés + bouton « Trier » retirés du feed (barre
+  // « Autour de moi » = source unique). Ces 2 champs gardent un défaut figé
+  // (pas de filtre, tri du plus récent) pour le reste du pipeline du feed.
+  final ReservationRequestFilterState _filterState =
       const ReservationRequestFilterState();
-  SitterFeedSortOrder _sortOrder = SitterFeedSortOrder.newestFirst;
+  final SitterFeedSortOrder _sortOrder = SitterFeedSortOrder.newestFirst;
   Position? _userPosition;
 
   // v441 — barre « Autour de moi » + rayon km (maquettes 50/51, partagée avec
@@ -490,18 +493,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return '${d.day} ${months.substring(i, i + 3)}';
   }
 
-  /// v16.3h — format a DateTime with time if the time is non-zero,
-  /// otherwise date only. Time format: "14h" or "14h30".
-  static String _formatDateWithTime(DateTime d) {
-    final dateStr = _formatDateShort(d);
-    // Treat midnight as "no time set" and display date only.
-    if (d.hour == 0 && d.minute == 0) return dateStr;
-    final h = d.hour.toString();
-    final m = d.minute.toString().padLeft(2, '0');
-    final timeStr = d.minute == 0 ? '${h}h' : '${h}h$m';
-    return '$dateStr, $timeStr';
-  }
 
+  // v443 — Daniel : la cellule « Dates » n'affiche plus que la DATE ; l'heure
+  // part dans une horloge sous « Service » (cf _postTimeLabel + serviceTime).
   static String? _postDateRangeLabel(PostModel post) {
     final s = post.startDate;
     final e = post.endDate;
@@ -509,19 +503,32 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
       final sl = s.toLocal();
       final el = e.toLocal();
       final sameDay = sl.year == el.year && sl.month == el.month && sl.day == el.day;
-      if (sameDay) {
-        // Single-day event (walker / day care). Show "30 Apr, 14h → 15h".
-        final dateStr = _formatDateShort(sl);
-        final startT = _formatTimeShort(sl);
-        final endT = _formatTimeShort(el);
-        if (startT.isEmpty && endT.isEmpty) return dateStr;
-        return '$dateStr, $startT → $endT';
-      }
-      return '${_formatDateWithTime(sl)} → ${_formatDateWithTime(el)}';
+      if (sameDay) return _formatDateShort(sl);
+      return '${_formatDateShort(sl)} → ${_formatDateShort(el)}';
     }
-    if (s != null) return _formatDateWithTime(s.toLocal());
-    if (e != null) return _formatDateWithTime(e.toLocal());
+    if (s != null) return _formatDateShort(s.toLocal());
+    if (e != null) return _formatDateShort(e.toLocal());
     return null;
+  }
+
+  // v443 — heure SEULE pour l'horloge sous « Service » (« 14h → 15h », « 14h »).
+  // '' si aucune heure réelle (minuit). Réutilise _formatTimeShort (style « 14h »).
+  static String _postTimeLabel(PostModel post) {
+    final s = post.startDate;
+    final e = post.endDate;
+    final sl = s?.toLocal();
+    final el = e?.toLocal();
+    final startT = sl == null ? '' : _formatTimeShort(sl);
+    final endT = el == null ? '' : _formatTimeShort(el);
+    if (startT.isEmpty && endT.isEmpty) return '';
+    if (sl != null && el != null) {
+      final sameDay =
+          sl.year == el.year && sl.month == el.month && sl.day == el.day;
+      if (sameDay && startT.isNotEmpty && endT.isNotEmpty) {
+        return '$startT → $endT';
+      }
+    }
+    return startT.isNotEmpty ? startT : endT;
   }
 
   static String _formatTimeShort(DateTime d) {
@@ -616,72 +623,6 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     return sorted;
   }
 
-  Widget _buildSortBar() {
-    return Builder(
-      builder: (context) => Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(
-            color: AppColors.divider(context).withValues(alpha: 0.5),
-          ),
-        ),
-      child: Row(
-        children: [
-          Icon(Icons.sort_rounded, size: 20.sp, color: AppColors.textSecondary(context)),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: InterText(
-              text: 'my_posts_sort_label'.tr,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary(context),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<SitterFeedSortOrder>(
-              value: _sortOrder,
-              icon: Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: AppColors.primaryColor,
-                size: 22.sp,
-              ),
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w500,
-              ),
-              items: [
-                DropdownMenuItem(
-                  value: SitterFeedSortOrder.newestFirst,
-                  child: InterText(
-                    text: 'my_posts_sort_newest'.tr,
-                    fontSize: 14.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: SitterFeedSortOrder.oldestFirst,
-                  child: InterText(
-                    text: 'my_posts_sort_oldest'.tr,
-                    fontSize: 14.sp,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _sortOrder = v);
-              },
-            ),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
   static String _defaultTimeSlotForPost(PostModel post) {
     final start = post.startDate?.toLocal();
     if (start != null) {
@@ -754,32 +695,6 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
     }
 
     return 30;
-  }
-
-  Widget _activeFilterChip(String label, IconData icon) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: AppColors.primaryColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(
-          color: AppColors.primaryColor.withValues(alpha: 0.4),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16.sp, color: AppColors.primaryColor),
-          SizedBox(width: 6.w),
-          InterText(
-            text: label,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.primaryColor,
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -968,109 +883,9 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                         SizedBox(height: 10.h),
                         // Compteur « 🎯 Autour de moi · N résultats trouvés ».
                         _buildAroundMeResults(context, sortedFeed.length),
-                        SizedBox(height: 10.h),
-                        // Bouton filtres avancés (ville texte / service / dates)
-                        // — distinct du filtre distance ci-dessus.
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                ReservationRequestFilterDialog.show(
-                                  context,
-                                  initialState: _filterState,
-                                  onApply: (state) {
-                                    setState(() => _filterState = state);
-                                  },
-                                  onClear: () {
-                                    setState(() {
-                                      _filterState =
-                                          const ReservationRequestFilterState();
-                                    });
-                                  },
-                                );
-                              },
-                              child: Builder(
-                                builder: (context) => Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 14.w,
-                                    vertical: 10.h,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.card(context),
-                                    borderRadius: BorderRadius.circular(24.r),
-                                    border: Border.all(
-                                      color: _filterState.hasActiveFilters
-                                          ? _accent
-                                          : AppColors.divider(context),
-                                      width: 1.2,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.tune_rounded,
-                                        size: 20.sp,
-                                        color: _filterState.hasActiveFilters
-                                            ? _accent
-                                            : AppColors.textSecondary(
-                                                context,
-                                              ),
-                                      ),
-                                      SizedBox(width: 8.w),
-                                      InterText(
-                                        text: _filterState.hasActiveFilters
-                                            ? 'sitter_filters_on'.tr
-                                            : 'sitter_filters'.tr,
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppColors.textSecondary(
-                                          context,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        if (_filterState.hasActiveFilters) ...[
-                          SizedBox(height: 10.h),
-                          Wrap(
-                            spacing: 8.w,
-                            runSpacing: 8.h,
-                            children: [
-                              if (_filterState.city != null &&
-                                  _filterState.city!.trim().isNotEmpty)
-                                _activeFilterChip(
-                                  _filterState.city!.trim(),
-                                  Icons.location_on_outlined,
-                                ),
-                              if (_filterState.serviceType != null &&
-                                  _filterState.serviceType!.isNotEmpty)
-                                _activeFilterChip(
-                                  // v23.1 — bug #34 : translate via translateServiceType
-                                  // so 'day_care' shows as 'Garderie' (FR) not raw.
-                                  translateServiceType(_filterState.serviceType),
-                                  Icons.pets_outlined,
-                                ),
-                              if (_filterState.dateRange != null)
-                                _activeFilterChip(
-                                  '${_formatDateShort(_filterState.dateRange!.start)} – ${_formatDateShort(_filterState.dateRange!.end)}',
-                                  Icons.calendar_today_outlined,
-                                ),
-                              // v441 — la puce distance a disparu : le rayon est
-                              // désormais porté par la barre « Autour de moi ».
-                            ],
-                          ),
-                        ],
-                        if (uniquePosts.isNotEmpty) ...[
-                          SizedBox(height: 12.h),
-                          _buildSortBar(),
-                        ],
+                        // v442 — #100 : anciens filtres avancés + bouton « Trier »
+                        // RETIRÉS (redondants avec la barre « Autour de moi » +
+                        // rayon ci-dessus, source unique du périmètre du feed).
                         SizedBox(height: 12.h),
                         if (sortedFeed.isEmpty)
                           Padding(
@@ -1188,11 +1003,20 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                                   ? null
                                   : serviceTypesLabel,
                               dateRange: dateRangeLabel,
+                              // v443 — heure → horloge sous « Service ».
+                              serviceTime: _postTimeLabel(post),
                               location: locationLabel,
                               isNetworkImage: imageUrls.isNotEmpty,
                               likeCount: post.likesCount,
                               priceEstimate: priceEstimate,
                               viewerRole: currentRole,
+                              // #107 — en-tête annonce cliquable côté
+                              // prestataire → profil propriétaire (lecture
+                              // seule) avec ses animaux. Désactivé si l'owner
+                              // est inconnu.
+                              onOwnerTap: ownerId.isNotEmpty
+                                  ? () => _openOwnerProfile(post, ownerId)
+                                  : null,
                               // Session v17.1 — show the "Réservé" badge when
                               // the owner has already accepted someone for
                               // this post.
@@ -1732,6 +1556,28 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
 
     // Do not send fallback for invalid/unknown provider pricing.
     return 0;
+  }
+
+  /// #107 — ouvre le profil PROPRIÉTAIRE en lecture seule depuis l'en-tête de
+  /// l'annonce. Réutilise les données déjà portées par le post (owner + pets) ;
+  /// les fiches animaux sont chargées au tap d'une carte (même chemin que
+  /// _handleCardTap).
+  void _openOwnerProfile(PostModel post, String ownerId) {
+    final rawCity = post.location?.city.trim();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OwnerProfileViewScreen(
+          ownerId: ownerId,
+          ownerName: post.owner.name,
+          ownerAvatar:
+              post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
+          ownerBio: post.owner.bio,
+          ownerCity: (rawCity != null && rawCity.isNotEmpty) ? rawCity : null,
+          pets: post.pets,
+        ),
+      ),
+    );
   }
 
   Future<void> _handleCardTap(String petId) async {

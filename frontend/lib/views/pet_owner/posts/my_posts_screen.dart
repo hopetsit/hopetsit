@@ -113,9 +113,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     }).join(', ');
   }
 
-  // v440 — délègue au helper partagé qui inclut l'heure (HH:mm) quand
-  // l'annonce porte un horaire (promenade / garde). Cf PostDateLabel.
-  String? _postDateRangeLabel(PostModel post) => PostDateLabel.forPost(post);
+  // v443 — Daniel : la cellule « Dates » n'affiche plus que la DATE ; l'heure
+  // part dans une horloge sous « Service » (cf serviceTime / PostDateLabel).
+  String? _postDateRangeLabel(PostModel post) => PostDateLabel.dateOnly(post);
 
   List<PostModel> _filterAndSortMyPosts(
     List<PostModel> media,
@@ -254,6 +254,8 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           petName: petName,
           serviceTypes: serviceTypesLabel.isEmpty ? null : serviceTypesLabel,
           dateRange: dateRangeLabel,
+          // v443 — heure → horloge sous « Service » (vide = pas d'heure).
+          serviceTime: PostDateLabel.timeLabel(post),
           location: locationLabel,
           isNetworkImage: false,
           likeCount: post.likesCount,
@@ -335,6 +337,8 @@ isOwnerBoosted: post.isOwnerBoosted ||
             ? null
             : _serviceTypesDisplay(post.serviceTypes),
         dateRange: _postDateRangeLabel(post),
+        // v443 — heure → horloge sous « Service » (vide = pas d'heure).
+        serviceTime: PostDateLabel.timeLabel(post),
         location: post.location?.city,
         isNetworkImage: imageUrls.isNotEmpty,
         likeCount: post.likesCount,

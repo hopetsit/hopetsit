@@ -140,208 +140,230 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     final premiumTypes =
         ReportTypes.all.where((t) => !ReportTypes.isFree(t)).toList();
 
+    // v447 — Daniel : "le bouton Publier oblige à scroller". Refonte de la
+    // structure : l'EN-TÊTE (titre/sous-titre) et le PIED (note + position +
+    // bouton Publier) sont FIXES ; seule la liste des types (Gratuits +
+    // Premium) défile dans un espace borné au milieu. Le bouton « Publier le
+    // signalement » est donc TOUJOURS visible sans scroll. La sheet est bornée
+    // à 82 % de la hauteur écran pour laisser voir la carte derrière.
+    final maxSheetHeight = MediaQuery.of(context).size.height * 0.82;
     return Padding(
       padding: EdgeInsets.only(bottom: viewInsets),
       child: Container(
+        constraints: BoxConstraints(maxHeight: maxSheetHeight),
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 16.h + safeBottom),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Grabber
-              Center(
-                child: Container(
-                  width: 40.w,
-                  height: 4.h,
-                  decoration: BoxDecoration(
-                    color: AppColors.divider(context),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
+        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h + safeBottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── En-tête FIXE ────────────────────────────────────────────
+            // Grabber
+            Center(
+              child: Container(
+                width: 40.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: AppColors.divider(context),
+                  borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
-              SizedBox(height: 10.h),
+            ),
+            SizedBox(height: 10.h),
 
-              // Title + subtitle compact
-              Row(
-                children: [
-                  Text('📣', style: TextStyle(fontSize: 20.sp)),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: PoppinsText(
-                      text: 'pawmap_signal_title'.tr,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary(context),
-                    ),
+            // Title + subtitle compact
+            Row(
+              children: [
+                Text('📣', style: TextStyle(fontSize: 20.sp)),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: PoppinsText(
+                    text: 'pawmap_signal_title'.tr,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
                   ),
-                  // v23.1.170-fix — Daniel : "sur la page signalement en
-                  // haut a droite met une croix pour fermer la page" —
-                  // c'est ce bottom sheet (Signaler autour de moi), pas
-                  // le bug_report_screen comme on l'avait cru en premier.
-                  IconButton(
-                    icon: Icon(Icons.close_rounded,
-                        size: 22.sp,
-                        color: AppColors.textSecondary(context)),
-                    tooltip: 'common_close'.tr,
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(
-                      minWidth: 32.w,
-                      minHeight: 32.h,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(false),
+                ),
+                // v23.1.170-fix — Daniel : "sur la page signalement en
+                // haut a droite met une croix pour fermer la page" —
+                // c'est ce bottom sheet (Signaler autour de moi), pas
+                // le bug_report_screen comme on l'avait cru en premier.
+                IconButton(
+                  icon: Icon(Icons.close_rounded,
+                      size: 22.sp,
+                      color: AppColors.textSecondary(context)),
+                  tooltip: 'common_close'.tr,
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(
+                    minWidth: 32.w,
+                    minHeight: 32.h,
                   ),
-                ],
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+              ],
+            ),
+            SizedBox(height: 2.h),
+            InterText(
+              text: _isPremium
+                  ? 'pawmap_signal_subtitle_premium'.tr
+                  : 'pawmap_signal_subtitle_free'.trParams({'count': freeTypes.length.toString()}),
+              fontSize: 11.sp,
+              color: AppColors.textSecondary(context),
+            ),
+            SizedBox(height: 12.h),
+
+            // ── Zone DÉFILANTE (types Gratuits + Premium uniquement) ──────
+            // Seule la liste des types défile : l'en-tête et le pied (note +
+            // bouton Publier) restent visibles en permanence.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Section 1 — Gratuits (fond vert pâle, toujours cliquables)
+                    _buildFreeSection(context, freeTypes),
+                    SizedBox(height: 10.h),
+
+                    // Section 2 — Premium (grille 3 colonnes, cadenassée pour
+                    // les non-Premium)
+                    _buildPremiumSection(context, premiumTypes),
+                  ],
+                ),
               ),
-              SizedBox(height: 2.h),
-              InterText(
-                text: _isPremium
-                    ? 'pawmap_signal_subtitle_premium'.tr
-                    : 'pawmap_signal_subtitle_free'.trParams({'count': freeTypes.length.toString()}),
-                fontSize: 11.sp,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(height: 12.h),
+            ),
 
-              // Section 1 — Gratuits (fond vert pâle, toujours cliquables)
-              _buildFreeSection(context, freeTypes),
-              SizedBox(height: 10.h),
-
-              // Section 2 — Premium (grille 3 colonnes, cadenassée pour
-              // les non-Premium)
-              _buildPremiumSection(context, premiumTypes),
-
-              // Hint sous la sélection — compact, disparaît par défaut.
-              if (_selectedType != null) ...[
-                SizedBox(height: 8.h),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 10.w, vertical: 6.h),
-                  decoration: BoxDecoration(
-                    color:
-                        AppColors.primaryColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline,
-                          size: 14.sp,
-                          color: AppColors.primaryColor),
-                      SizedBox(width: 6.w),
-                      Expanded(
-                        child: InterText(
-                          text: ReportTypes.hintFr(_selectedType!),
-                          fontSize: 11.sp,
-                          color: AppColors.textSecondary(context),
-                        ),
+            // ── Pied FIXE (hint + note + position + Publier) ──────────────
+            // Hint sous la sélection — compact, disparaît par défaut.
+            if (_selectedType != null) ...[
+              SizedBox(height: 8.h),
+              Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: 10.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color:
+                      AppColors.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 14.sp,
+                        color: AppColors.primaryColor),
+                    SizedBox(width: 6.w),
+                    Expanded(
+                      child: InterText(
+                        text: ReportTypes.hintFr(_selectedType!),
+                        fontSize: 11.sp,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 2,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            SizedBox(height: 8.h),
+
+            // Note field — 2 lignes par défaut, maxLength retiré du
+            // bas visuel pour gagner de la place.
+            InterText(
+              text: 'pawmap_note_label'.tr,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(context),
+            ),
+            SizedBox(height: 4.h),
+            TextField(
+              controller: _noteController,
+              maxLines: 2,
+              maxLength: 500,
+              style: TextStyle(fontSize: 13.sp),
+              decoration: InputDecoration(
+                hintText: 'pawmap_note_hint'.tr,
+                hintStyle: TextStyle(fontSize: 12.sp),
+                filled: true,
+                fillColor: AppColors.scaffold(context),
+                counterText: '',
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10.w, vertical: 10.h),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                  borderSide: BorderSide(
+                      color: AppColors.divider(context)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                  borderSide: BorderSide(
+                      color: AppColors.primaryColor, width: 1.5),
+                ),
+              ),
+            ),
+
+            SizedBox(height: 6.h),
+
+            // Location indicator compact
+            Row(
+              children: [
+                Icon(Icons.place,
+                    size: 13.sp, color: AppColors.primaryColor),
+                SizedBox(width: 4.w),
+                Expanded(
+                  child: InterText(
+                    text:
+                        '${widget.initialPoint.latitude.toStringAsFixed(5)}, ${widget.initialPoint.longitude.toStringAsFixed(5)}',
+                    fontSize: 10.sp,
+                    color: AppColors.greyText,
                   ),
                 ),
               ],
+            ),
 
-              SizedBox(height: 10.h),
+            SizedBox(height: 10.h),
 
-              // Note field — 2 lignes par défaut, maxLength retiré du
-              // bas visuel pour gagner de la place.
-              InterText(
-                text: 'pawmap_note_label'.tr,
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary(context),
-              ),
-              SizedBox(height: 4.h),
-              TextField(
-                controller: _noteController,
-                maxLines: 2,
-                maxLength: 500,
-                style: TextStyle(fontSize: 13.sp),
-                decoration: InputDecoration(
-                  hintText: 'pawmap_note_hint'.tr,
-                  hintStyle: TextStyle(fontSize: 12.sp),
-                  filled: true,
-                  fillColor: AppColors.scaffold(context),
-                  counterText: '',
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                      horizontal: 10.w, vertical: 10.h),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10.r),
-                    borderSide: BorderSide(
-                        color: AppColors.divider(context)),
+            // Submit button — TOUJOURS visible (pied fixe), pas de scroll.
+            Obx(() {
+              final controller = Get.isRegistered<MapReportController>()
+                  ? Get.find<MapReportController>()
+                  : null;
+              final submitting = controller?.isSubmitting.value ?? false;
+              return SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: submitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14.r),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10.r),
-                    borderSide: BorderSide(
-                        color: AppColors.primaryColor, width: 1.5),
+                  icon: submitting
+                      ? SizedBox(
+                          width: 14.w,
+                          height: 14.w,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(Icons.send_rounded,
+                          size: 16.sp, color: Colors.white),
+                  label: InterText(
+                    text: submitting ? 'pawmap_btn_submit_sending'.tr : 'pawmap_btn_submit'.tr,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
-              ),
-
-              SizedBox(height: 6.h),
-
-              // Location indicator compact
-              Row(
-                children: [
-                  Icon(Icons.place,
-                      size: 13.sp, color: AppColors.primaryColor),
-                  SizedBox(width: 4.w),
-                  Expanded(
-                    child: InterText(
-                      text:
-                          '${widget.initialPoint.latitude.toStringAsFixed(5)}, ${widget.initialPoint.longitude.toStringAsFixed(5)}',
-                      fontSize: 10.sp,
-                      color: AppColors.greyText,
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 10.h),
-
-              // Submit button — padding réduit pour économiser du vertical
-              Obx(() {
-                final controller = Get.isRegistered<MapReportController>()
-                    ? Get.find<MapReportController>()
-                    : null;
-                final submitting = controller?.isSubmitting.value ?? false;
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: submitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      padding: EdgeInsets.symmetric(vertical: 12.h),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                      ),
-                    ),
-                    icon: submitting
-                        ? SizedBox(
-                            width: 14.w,
-                            height: 14.w,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Icon(Icons.send_rounded,
-                            size: 16.sp, color: Colors.white),
-                    label: InterText(
-                      text: submitting ? 'pawmap_btn_submit_sending'.tr : 'pawmap_btn_submit'.tr,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
+              );
+            }),
+          ],
         ),
       ),
     );

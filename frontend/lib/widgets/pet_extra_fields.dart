@@ -107,6 +107,7 @@ class PetExtraFields extends StatelessWidget {
         // ── À PROPOS ────────────────────────────────────────────────────────
         ExpansionTile(
           title: Text('pet_section_about'.tr),
+          initiallyExpanded: true,
           childrenPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           children: [
@@ -171,6 +172,7 @@ class PetExtraFields extends StatelessWidget {
         // ── SANTÉ ───────────────────────────────────────────────────────────
         ExpansionTile(
           title: Text('pet_section_health'.tr),
+          initiallyExpanded: true,
           childrenPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           children: [
@@ -221,9 +223,33 @@ class PetExtraFields extends StatelessWidget {
         // ── HABITUDES ─────────────────────────────────────────────────────
         ExpansionTile(
           title: Text('pet_section_habits'.tr),
+          initiallyExpanded: true,
           childrenPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           children: [
+            // v443 — habitudes COCHABLES (≥10 presets), comme le caractère.
+            _label('pet_habits_quick'.tr),
+            Obx(
+              () => Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: EnrichedPetFormState.habitPresets.map((t) {
+                  final selected = state.habitTags.contains(t);
+                  return FilterChip(
+                    label: Text('pet_habit_$t'.tr),
+                    selected: selected,
+                    onSelected: (_) => state.toggleHabit(t),
+                    selectedColor: accent.withValues(alpha: 0.18),
+                    checkmarkColor: accent,
+                    labelStyle: TextStyle(
+                      color: selected ? accent : null,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 6),
             _label('pet_sleep'.tr),
             _segmented(state.sleep, [
               MapEntry('indoor', 'pet_sleep_indoor'.tr),
@@ -262,6 +288,37 @@ class PetExtraFields extends StatelessWidget {
             _tf(state.favoriteObjectsController, 'pet_favorite_objects'.tr),
             _tf(state.favoritePlacesController, 'pet_favorite_places'.tr),
             _tf(state.remarksController, 'pet_remarks'.tr, maxLines: 2),
+          ],
+        ),
+
+        // ── DOCUMENTS (v443) — cases à cocher des documents possédés ────────
+        ExpansionTile(
+          title: Text('pet_documents'.tr),
+          initiallyExpanded: true,
+          childrenPadding:
+              const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          children: [
+            _label('pet_documents_pick_hint'.tr),
+            Obx(
+              () => Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: EnrichedPetFormState.documentPresets.map((t) {
+                  final selected = state.documentTypes.contains(t);
+                  return FilterChip(
+                    label: Text('pet_doc_$t'.tr),
+                    selected: selected,
+                    onSelected: (_) => state.toggleDocument(t),
+                    selectedColor: accent.withValues(alpha: 0.18),
+                    checkmarkColor: accent,
+                    labelStyle: TextStyle(
+                      color: selected ? accent : null,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
           ],
         ),
       ],

@@ -23,11 +23,19 @@ class WalkerCard extends StatelessWidget {
     required this.walker,
     required this.onRequestWalk,
     this.onTap,
+    this.isFavorite = false,
+    this.onToggleFavorite,
   });
 
   final WalkerModel walker;
   final VoidCallback onRequestWalk;
   final VoidCallback? onTap;
+
+  /// v444 — Favoris : true quand l'owner a « liké » ce walker (cœur plein).
+  /// [onToggleFavorite] ajoute/retire des favoris. Quand le callback est null
+  /// (ex. rôle non-owner), le cœur n'est pas rendu.
+  final bool isFavorite;
+  final VoidCallback? onToggleFavorite;
 
   /// Walker accent — green premium mockup.
   static const Color _accent = AppColors.greenColor;
@@ -90,19 +98,19 @@ class WalkerCard extends StatelessWidget {
     final cells = <_TariffCell>[
       if (halfHourRate != null)
         _TariffCell(
-          label: 'Tarif 30 min',
+          label: 'card_tariff_30min'.tr,
           value: '${halfHourRate.toStringAsFixed(0)}€',
           sub: '',
         ),
       if (hourRate != null)
         _TariffCell(
-          label: 'Tarif 1h',
+          label: 'card_tariff_1h'.tr,
           value: '${hourRate.toStringAsFixed(0)}€',
           sub: '',
         ),
       if (twoHourRate != null)
         _TariffCell(
-          label: 'Tarif 2h',
+          label: 'card_tariff_2h'.tr,
           value: '${twoHourRate.toStringAsFixed(0)}€',
           sub: '',
         ),
@@ -110,7 +118,7 @@ class WalkerCard extends StatelessWidget {
         _TariffCell(
           label: 'card_extra_pet'.tr,
           value: '+ ${walker.extraPetRate.toStringAsFixed(0)}€',
-          sub: '/ animal',
+          sub: 'card_per_animal'.tr,
         ),
     ];
 
@@ -210,8 +218,9 @@ class WalkerCard extends StatelessWidget {
                 children: [
                   Flexible(
                     child: InterText(
-                      text:
-                          walker.name.isNotEmpty ? walker.name : 'Promeneur',
+                      text: walker.name.isNotEmpty
+                          ? walker.name
+                          : 'card_role_walker'.tr,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary(context),
@@ -276,7 +285,8 @@ class WalkerCard extends StatelessWidget {
               if (distance != null) ...[
                 SizedBox(height: 3.h),
                 InterText(
-                  text: 'À ${distance.toStringAsFixed(1)} km de vous',
+                  text: 'card_distance_from_you'
+                      .trParams({'km': distance.toStringAsFixed(1)}),
                   fontSize: 11,
                   color: AppColors.textSecondary(context),
                 ),
@@ -289,10 +299,16 @@ class WalkerCard extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (walker.isBoosted)
-              const BoostBadge()
-            else if (walker.isTopWalker)
-              const TopProviderBadge(),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onToggleFavorite != null) _buildFavoriteButton(context),
+                if (walker.isBoosted)
+                  const BoostBadge()
+                else if (walker.isTopWalker)
+                  const TopProviderBadge(),
+              ],
+            ),
             SizedBox(height: 4.h),
             _statRow(
               context,
@@ -312,6 +328,29 @@ class WalkerCard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  /// v444 — cœur favori. Plein rouge quand liké, contour sinon. Tap → toggle.
+  Widget _buildFavoriteButton(BuildContext context) {
+    const Color favRed = Color(0xFFE53935);
+    return Semantics(
+      button: true,
+      label: isFavorite
+          ? 'favorite_remove_tooltip'.tr
+          : 'favorite_add_tooltip'.tr,
+      child: InkResponse(
+        onTap: onToggleFavorite,
+        radius: 20.r,
+        child: Padding(
+          padding: EdgeInsets.all(2.w),
+          child: Icon(
+            isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            size: 20.sp,
+            color: isFavorite ? favRed : AppColors.textSecondary(context),
+          ),
+        ),
+      ),
     );
   }
 

@@ -161,7 +161,11 @@ const petSchema = new mongoose.Schema(
       housetrained: { type: String, default: '', trim: true }, // 'yes' | 'learning'
       leashBehaviour: { type: String, default: '', trim: true }, // 'off_leash' | 'on_leash' | 'reliable_recall'
       fears: { type: String, default: '', trim: true },
+      // v443 — habitudes COCHABLES (presets) : tokens cf habitPresets côté app.
+      tags: { type: [String], default: [] },
     },
+    // v443 — documents COCHABLES (carnet/passeport/vaccination…) possédés.
+    documentTypes: { type: [String], default: [] },
   },
   {
     timestamps: true,

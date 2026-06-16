@@ -191,10 +191,15 @@ class WalkerProfileScreen extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.directions_walk_rounded,
-                                    size: 12.sp,
-                                    color: Colors.white,
+                                  // v443 — logo de l'app à côté du rôle.
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(3.r),
+                                    child: Image.asset(
+                                      'assets/brand/png/ic_launcher.png',
+                                      width: 14.w,
+                                      height: 14.w,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                   SizedBox(width: 4.w),
                                   InterText(

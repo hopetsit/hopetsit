@@ -26,6 +26,8 @@ class SitterCard extends StatelessWidget {
     this.onBlock,
     this.estimatedCost,
     this.estimatedDays,
+    this.isFavorite = false,
+    this.onToggleFavorite,
   });
 
   final SitterModel sitter;
@@ -34,6 +36,12 @@ class SitterCard extends StatelessWidget {
 
   /// Optional "block this sitter" action shown in the card's ⋮ menu.
   final VoidCallback? onBlock;
+
+  /// v444 — Favoris : true quand l'owner a « liké » ce sitter (cœur plein).
+  /// [onToggleFavorite] ajoute/retire des favoris. Quand le callback est null
+  /// (ex. rôle non-owner), le cœur n'est pas rendu.
+  final bool isFavorite;
+  final VoidCallback? onToggleFavorite;
 
   /// Retained for constructor compatibility with the home screen. The premium
   /// card no longer renders an estimate line, so these may be unused.
@@ -96,27 +104,27 @@ class SitterCard extends StatelessWidget {
     final cells = <_TariffCell>[
       if (sitter.dailyRate > 0)
         _TariffCell(
-          label: 'Tarif jour',
+          label: 'card_tariff_day'.tr,
           value: '${sitter.dailyRate.toStringAsFixed(0)}$currency',
-          sub: '+ de 10h',
+          sub: 'card_sub_over_10h'.tr,
         ),
       if (sitter.weeklyRate > 0)
         _TariffCell(
-          label: 'Tarif semaine',
+          label: 'card_tariff_week'.tr,
           value: '${sitter.weeklyRate.toStringAsFixed(0)}$currency',
-          sub: '7 jours',
+          sub: 'card_sub_7_days'.tr,
         ),
       if (sitter.monthlyRate > 0)
         _TariffCell(
-          label: 'Tarif mois',
+          label: 'card_tariff_month'.tr,
           value: '${sitter.monthlyRate.toStringAsFixed(0)}$currency',
-          sub: '30 jours',
+          sub: 'card_sub_30_days'.tr,
         ),
       if (sitter.extraPetRate > 0)
         _TariffCell(
           label: 'card_extra_pet'.tr,
           value: '+ ${sitter.extraPetRate.toStringAsFixed(0)}$currency',
-          sub: '/ animal',
+          sub: 'card_per_animal'.tr,
         ),
     ];
 
@@ -215,7 +223,9 @@ class SitterCard extends StatelessWidget {
                 children: [
                   Flexible(
                     child: InterText(
-                      text: sitter.name.isNotEmpty ? sitter.name : 'Sitter',
+                      text: sitter.name.isNotEmpty
+                          ? sitter.name
+                          : 'card_role_sitter'.tr,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary(context),
@@ -280,7 +290,8 @@ class SitterCard extends StatelessWidget {
               if (distance != null) ...[
                 SizedBox(height: 3.h),
                 InterText(
-                  text: 'À ${distance.toStringAsFixed(1)} km de vous',
+                  text: 'card_distance_from_you'
+                      .trParams({'km': distance.toStringAsFixed(1)}),
                   fontSize: 11,
                   color: AppColors.textSecondary(context),
                 ),
@@ -296,6 +307,7 @@ class SitterCard extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (onToggleFavorite != null) _buildFavoriteButton(context),
                 if (sitter.isBoosted) const BoostBadge(),
                 if (onBlock != null)
                   PopupMenuButton<String>(
@@ -349,6 +361,29 @@ class SitterCard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  /// v444 — cœur favori. Plein rouge quand liké, contour sinon. Tap → toggle.
+  Widget _buildFavoriteButton(BuildContext context) {
+    const Color favRed = Color(0xFFE53935);
+    return Semantics(
+      button: true,
+      label: isFavorite
+          ? 'favorite_remove_tooltip'.tr
+          : 'favorite_add_tooltip'.tr,
+      child: InkResponse(
+        onTap: onToggleFavorite,
+        radius: 20.r,
+        child: Padding(
+          padding: EdgeInsets.all(2.w),
+          child: Icon(
+            isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            size: 20.sp,
+            color: isFavorite ? favRed : AppColors.textSecondary(context),
+          ),
+        ),
+      ),
     );
   }
 

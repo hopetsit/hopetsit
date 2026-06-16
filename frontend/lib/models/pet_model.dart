@@ -49,6 +49,9 @@ class PetModel {
   final PetHealthInsurance healthInsurance;
   // Habitudes
   final PetHabits habits;
+  // v443 — documents COCHABLES (carnet/passeport/vaccination…), tokens cf
+  // EnrichedPetFormState.documentPresets.
+  final List<String> documentTypes;
 
   PetModel({
     required this.id,
@@ -95,6 +98,7 @@ class PetModel {
     this.bloodGroup = '',
     this.healthInsurance = const PetHealthInsurance(),
     this.habits = const PetHabits(),
+    this.documentTypes = const [],
   });
 
   factory PetModel.fromJson(Map<String, dynamic> json) {
@@ -202,6 +206,11 @@ class PetModel {
           json['healthInsurance'] as Map<String, dynamic>? ?? const {}),
       habits: PetHabits.fromJson(
           json['habits'] as Map<String, dynamic>? ?? const {}),
+      documentTypes: (json['documentTypes'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList() ??
+          const [],
     );
   }
 
@@ -251,6 +260,7 @@ class PetModel {
       'bloodGroup': bloodGroup,
       'healthInsurance': healthInsurance.toJson(),
       'habits': habits.toJson(),
+      'documentTypes': documentTypes,
     };
   }
 }
@@ -356,6 +366,8 @@ class PetHabits {
   final String housetrained; // '' | 'yes' | 'learning'
   final String leashBehaviour; // '' | 'off_leash' | 'on_leash' | 'reliable_recall'
   final String fears;
+  // v443 — habitudes COCHABLES (presets), tokens cf EnrichedPetFormState.habitPresets.
+  final List<String> tags;
 
   const PetHabits({
     this.energyLevel = '',
@@ -376,6 +388,7 @@ class PetHabits {
     this.housetrained = '',
     this.leashBehaviour = '',
     this.fears = '',
+    this.tags = const [],
   });
 
   factory PetHabits.fromJson(Map<String, dynamic> json) {
@@ -398,6 +411,11 @@ class PetHabits {
       housetrained: json['housetrained'] as String? ?? '',
       leashBehaviour: json['leashBehaviour'] as String? ?? '',
       fears: json['fears'] as String? ?? '',
+      tags: (json['tags'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList() ??
+          const [],
     );
   }
 
@@ -420,6 +438,7 @@ class PetHabits {
         'housetrained': housetrained,
         'leashBehaviour': leashBehaviour,
         'fears': fears,
+        'tags': tags,
       };
 
   bool get isEmpty =>
@@ -440,7 +459,8 @@ class PetHabits {
       sleep.isEmpty &&
       housetrained.isEmpty &&
       leashBehaviour.isEmpty &&
-      fears.isEmpty;
+      fears.isEmpty &&
+      tags.isEmpty;
 }
 
 class PetVet {

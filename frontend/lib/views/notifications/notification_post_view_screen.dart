@@ -14,6 +14,7 @@ import 'package:hopetsit/utils/post_date_label.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/pet_sitter/widgets/pet_post_card.dart';
+import 'package:hopetsit/views/service_provider/owner_profile_view_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/post_comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
@@ -184,12 +185,33 @@ class _NotificationPostViewScreenState
     return m > 0 ? m : null;
   }
 
-  // v440 — délègue au helper partagé qui inclut l'heure (HH:mm) si présente.
+  // v443 — Daniel : la cellule « Dates » n'affiche plus que la DATE ; l'heure
+  // part dans une horloge sous « Service » (cf serviceTime / PostDateLabel).
   static String? _postDateRangeLabel(PostModel post) =>
-      PostDateLabel.forPost(post);
+      PostDateLabel.dateOnly(post);
 
   static String _serviceTypesDisplay(List<String> types) {
     return translateServiceTypes(types);
+  }
+
+  /// #107 — ouvre le profil PROPRIÉTAIRE en lecture seule depuis l'en-tête de
+  /// l'annonce (mêmes données que le feed : owner + pets du post).
+  void _openOwnerProfile(PostModel post) {
+    final rawCity = post.location?.city.trim();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OwnerProfileViewScreen(
+          ownerId: post.owner.id,
+          ownerName: post.owner.name,
+          ownerAvatar:
+              post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
+          ownerBio: post.owner.bio,
+          ownerCity: (rawCity != null && rawCity.isNotEmpty) ? rawCity : null,
+          pets: post.pets,
+        ),
+      ),
+    );
   }
 
   PostModel _livePost(PostsController c) {
@@ -263,6 +285,8 @@ class _NotificationPostViewScreenState
                   ? null
                   : serviceTypesLabel,
               dateRange: dateRangeLabel,
+              // v443 — heure → horloge sous « Service ».
+              serviceTime: PostDateLabel.timeLabel(post),
               location: locationLabel,
               isNetworkImage: imageUrls.isNotEmpty,
               likeCount: post.likesCount,
@@ -271,6 +295,11 @@ class _NotificationPostViewScreenState
               // bleu sitter), « Publié il y a … », durée de sortie, et
               // « Votre gain estimé » synchronisé au paiement réel.
               viewerRole: isProvider ? viewerRole : null,
+              // #107 — prestataire : en-tête cliquable → profil propriétaire
+              // (lecture seule) avec ses animaux. Owner/visiteur : inerte.
+              onOwnerTap: (isProvider && post.owner.id.isNotEmpty)
+                  ? () => _openOwnerProfile(post)
+                  : null,
               priceEstimate: isProvider ? _estimateForPost(post) : null,
               publishedLabel:
                   isProvider ? _publishedLabel(post.createdAt) : null,

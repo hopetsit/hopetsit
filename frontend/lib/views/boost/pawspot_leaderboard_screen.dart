@@ -42,6 +42,35 @@ Future<void> showPawPointsRewardsSheet(
   );
 }
 
+/// v440 — Daniel : "dans la boutique PawSpot, au lieu d'un onglet « voir les
+/// récompenses » je veux la page complète écrite ouverte". Cet encart rend le
+/// VRAI catalogue PawPoints (/pawpoints/catalog + /pawpoints/me, éditable par
+/// l'admin sans rebuild) DIRECTEMENT inline dans une page qui scrolle déjà
+/// (la boutique PawSpot) — pas derrière un bouton ni dans un bottom sheet.
+/// L'échange de récompenses reste fonctionnel (même flux que le sheet).
+/// [myPoints] = solde dépensable connu de l'appelant (affiché avant que la
+/// liste recharge /pawpoints/me). [onChanged] est appelé après un échange
+/// réussi pour rafraîchir l'appelant.
+class PawPointsRewardsList extends StatelessWidget {
+  const PawPointsRewardsList({
+    super.key,
+    this.myPoints = 0,
+    this.onChanged,
+  });
+
+  final int myPoints;
+  final Future<void> Function()? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return _RewardsSheet(
+      myPoints: myPoints,
+      onChanged: onChanged ?? () async {},
+      embedded: true,
+    );
+  }
+}
+
 class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
   static const Color _gold = Color(0xFFE8A00A);
   static const Color _goldLight = Color(0xFFFFD700);
@@ -307,12 +336,17 @@ class _RewardsSheet extends StatefulWidget {
     required this.myPoints,
     required this.onChanged,
     this.inTab = false,
+    this.embedded = false,
   });
 
   final int myPoints;
   final Future<void> Function() onChanged;
   // v420 — true = rendu inline dans l'onglet « Récompenses » (pas un sheet).
   final bool inTab;
+  // v440 — true = encart imbriqué dans une page qui scrolle déjà (boutique
+  // PawSpot). On rend une Column non-scrollable (shrinkWrap) au lieu d'une
+  // ListView pour éviter les conflits de scroll imbriqués.
+  final bool embedded;
 
   @override
   State<_RewardsSheet> createState() => _RewardsSheetState();
@@ -461,33 +495,52 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   }
 
   Widget _rewardsList(ScrollController? scroll) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      // v440 — encart imbriqué : pas de hauteur infinie (Center planterait
+      // dans un parent non-borné). On garde un spinner compact.
+      if (widget.embedded) {
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 24.h),
+          child: const Center(child: CircularProgressIndicator()),
+        );
+      }
+      return const Center(child: CircularProgressIndicator());
+    }
+    final children = <Widget>[
+      _statsRow(context),
+      SizedBox(height: 12.h),
+      _levelBar(context),
+      SizedBox(height: 22.h),
+      _sectionTitle(context, 'pawpoints_sub_rewards_title'.tr,
+          'pawpoints_sub_rewards_sub'.tr),
+      SizedBox(height: 10.h),
+      ..._subRewards.map((r) => _subRewardRow(context, r)),
+      SizedBox(height: 22.h),
+      _sectionTitle(context, 'pawpoints_levels_title'.tr,
+          'pawpoints_levels_sub'.tr),
+      SizedBox(height: 10.h),
+      ..._levels.map((l) => _levelCard(context, l)),
+      SizedBox(height: 16.h),
+      _pawLegendCard(context),
+      SizedBox(height: 22.h),
+      if (_earn.isNotEmpty) ...[
+        _sectionTitle(context, 'pawpoints_how_to_earn'.tr, ''),
+        SizedBox(height: 10.h),
+        ..._earn.map((e) => _earnRow(context, e)),
+      ],
+    ];
+    // v440 — encart boutique PawSpot : Column non-scrollable (le parent
+    // SingleChildScrollView gère le scroll).
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      );
+    }
     return ListView(
       controller: scroll,
       padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 28.h),
-      children: [
-        _statsRow(context),
-        SizedBox(height: 12.h),
-        _levelBar(context),
-        SizedBox(height: 22.h),
-        _sectionTitle(context, 'pawpoints_sub_rewards_title'.tr,
-            'pawpoints_sub_rewards_sub'.tr),
-        SizedBox(height: 10.h),
-        ..._subRewards.map((r) => _subRewardRow(context, r)),
-        SizedBox(height: 22.h),
-        _sectionTitle(context, 'pawpoints_levels_title'.tr,
-            'pawpoints_levels_sub'.tr),
-        SizedBox(height: 10.h),
-        ..._levels.map((l) => _levelCard(context, l)),
-        SizedBox(height: 16.h),
-        _pawLegendCard(context),
-        SizedBox(height: 22.h),
-        if (_earn.isNotEmpty) ...[
-          _sectionTitle(context, 'pawpoints_how_to_earn'.tr, ''),
-          SizedBox(height: 10.h),
-          ..._earn.map((e) => _earnRow(context, e)),
-        ],
-      ],
+      children: children,
     );
   }
 
@@ -495,7 +548,8 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   Widget build(BuildContext context) {
     // v420 — Daniel : "à droite de Europe, un onglet Récompenses avec tout
     // listé". inTab=true → on rend la liste directement (pas de bottom sheet).
-    if (widget.inTab) {
+    // v440 — embedded=true → encart imbriqué dans la boutique PawSpot (Column).
+    if (widget.inTab || widget.embedded) {
       return _rewardsList(null);
     }
     return DraggableScrollableSheet(

@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v442'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v443'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -220,7 +220,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v442</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v443</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>
@@ -935,13 +935,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
         <!-- v414 — RÉCOMPENSES éditables (sans rebuild). L'app + le site lisent
              GET /pawpoints/catalog → toute modif ici est visible instantanément. -->
-        <div class="section-title" style="margin-top:34px">🎁 Récompenses
+        <div class="section-title" style="margin-top:34px">🎁 Récompenses <span id="rewards-count" style="font-size:13px;color:var(--text-muted);font-weight:500"></span>
           <button class="action-btn" style="margin-left:10px" onclick="openRewardForm()">＋ Nouvelle récompense</button>
           <button class="action-btn" style="margin-left:6px" onclick="loadRewards()">🔄 Actualiser</button>
         </div>
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:14px;max-width:860px;line-height:1.6">
-          Ces récompenses sont affichées dans l'app et sur le site (boutique PawPoints). Ajoute, modifie ou désactive sans rebuild.
+          Ces récompenses sont affichées dans l'app et sur le site (boutique PawPoints). Ajoute, modifie ou désactive sans rebuild. La liste ci-dessous montre <strong>TOUTES</strong> les récompenses (actives ET désactivées).
         </p>
+        <div style="font-size:13px;color:var(--text-muted);font-weight:600;margin-bottom:6px">Récompenses personnalisées (éditables)</div>
         <div id="reward-form" style="display:none;background:var(--card-2,rgba(255,255,255,.04));border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;max-width:720px">
           <input type="hidden" id="rw-id">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -988,6 +989,16 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <table class="data-table"><thead><tr>
             <th>Icône</th><th>Titre</th><th>Type</th><th>Coût</th><th>Valeur</th><th>Stock / échangés</th><th>Active</th><th>Actions</th>
           </tr></thead><tbody id="rewards-rows"><tr><td colspan="8" style="color:var(--text-muted)">Charge l'onglet pour voir les récompenses.</td></tr></tbody></table>
+        </div>
+
+        <!-- Récompenses ABONNEMENT fixes (définies dans le code, lecture seule).
+             Affichées dans l'app/site via /pawpoints/catalog → on les liste ici
+             pour que l'admin voie TOUTES les récompenses, pas seulement les custom. -->
+        <div style="font-size:13px;color:var(--text-muted);font-weight:600;margin:22px 0 6px">Récompenses abonnement (intégrées · lecture seule)</div>
+        <div style="overflow-x:auto">
+          <table class="data-table"><thead><tr>
+            <th>Palier</th><th>Type</th><th>Coût</th><th>Avantage</th><th>Cible</th><th>Plans</th>
+          </tr></thead><tbody id="sub-rewards-rows"><tr><td colspan="6" style="color:var(--text-muted)">Charge l'onglet pour voir les récompenses.</td></tr></tbody></table>
         </div>
 
         <!-- Échanges effectués -->
@@ -2299,8 +2310,42 @@ async function loadRewards() {
         + '</td></tr>';
     }).join('');
     tb.innerHTML = rows || '<tr><td colspan="8" style="color:var(--text-muted)">Aucune récompense. Crée-en une avec « ＋ Nouvelle récompense ».</td></tr>';
+    const activeCount = _rewardsCache.filter(function (r) { return r.isActive !== false; }).length;
+    const cnt = document.getElementById('rewards-count');
+    if (cnt) cnt.textContent = '· ' + _rewardsCache.length + ' personnalisée(s) (' + activeCount + ' active(s))';
   } catch (e) {
     tb.innerHTML = '<tr><td colspan="8" style="color:#EF4324">' + e.message + '</td></tr>';
+  }
+  loadSubscriptionRewards();
+}
+// v414 — récompenses ABONNEMENT fixes (lecture seule), via /pawpoints/catalog →
+// subscriptionRewards (définies dans le code backend, non éditables ici). On les
+// affiche pour que l'admin voie TOUTES les récompenses du catalogue.
+const SUB_REWARD_KIND_LABEL = { discount: 'Réduction', free_month: 'Mois offert(s)' };
+async function loadSubscriptionRewards() {
+  const tb = document.getElementById('sub-rewards-rows');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>';
+  try {
+    const d = await api('/pawpoints/catalog');
+    const list = (d && d.subscriptionRewards) || [];
+    const rows = list.map(function (r) {
+      const benefit = r.kind === 'free_month'
+        ? ((r.days || 0) + ' jour(s) offert(s)')
+        : ('-' + (r.percent || 0) + '%');
+      const plans = Array.isArray(r.plans) ? r.plans.join(', ') : (r.plan || '—');
+      return '<tr>'
+        + '<td>' + (r.tier != null ? ('Palier ' + r.tier) : escapeHtml(r.id || '')) + '</td>'
+        + '<td>' + (SUB_REWARD_KIND_LABEL[r.kind] || escapeHtml(r.kind || '')) + '</td>'
+        + '<td style="font-weight:700;color:#E8A00A">' + (r.cost || 0) + '</td>'
+        + '<td>' + escapeHtml(benefit) + '</td>'
+        + '<td>' + escapeHtml(r.target || '—') + '</td>'
+        + '<td style="font-size:12px">' + escapeHtml(plans) + '</td>'
+        + '</tr>';
+    }).join('');
+    tb.innerHTML = rows || '<tr><td colspan="6" style="color:var(--text-muted)">Aucune récompense abonnement.</td></tr>';
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="6" style="color:#EF4324">' + e.message + '</td></tr>';
   }
 }
 function openRewardForm() {

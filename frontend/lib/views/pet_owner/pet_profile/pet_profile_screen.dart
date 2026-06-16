@@ -53,12 +53,37 @@ class PetProfileScreen extends StatelessWidget {
     return pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
   }
 
-  void _openEdit() => Get.to(() => EditPetScreen(petId: pet.id, petData: pet));
+  Future<void> _openEdit() async {
+    await Get.to(() => EditPetScreen(petId: pet.id, petData: pet));
+    await _reopenFresh();
+  }
 
   /// v428 — gestion des médias (photos/vidéos) déléguée à l'écran Galerie.
   /// (onglet Galerie → « Ajouter des photos »).
-  void _openGallery() =>
-      Get.to(() => PetGalleryScreen(pet: pet, accent: _accent));
+  Future<void> _openGallery() async {
+    await Get.to(() => PetGalleryScreen(pet: pet, accent: _accent));
+    await _reopenFresh();
+  }
+
+  /// v443 — Daniel : « la photo chargée n'apparaît qu'en sortant/rentrant ».
+  /// Au retour de la galerie ou de l'édition, on RECHARGE la fiche avec le pet
+  /// frais (Get.off) → photos/avatar/champs à jour immédiatement, sans manip.
+  Future<void> _reopenFresh() async {
+    try {
+      final fresh = await Get.find<PetRepository>().getPetById(pet.id);
+      if (Get.isRegistered<MyPetsController>()) {
+        await Get.find<MyPetsController>().refreshPets();
+      }
+      Get.off(() => PetProfileScreen(
+            pet: fresh,
+            accent: accent,
+            editable: editable,
+            onDelete: onDelete,
+          ));
+    } catch (_) {
+      // rechargement best-effort : on garde la fiche actuelle si l'API échoue.
+    }
+  }
 
   /// v440 — visionneuse plein écran (tap sur une photo de la galerie fiche).
   void _openFullscreen(String url) {
@@ -512,10 +537,39 @@ class PetProfileScreen extends StatelessWidget {
               icon: Icons.bloodtype_rounded, [_paragraph(pet.bloodGroup)]),
         // 📄 Documents : carnet de santé / passeport européen (info + galerie).
         _section('pet_documents'.tr, icon: Icons.folder_rounded, [
-          _docRow('pet_doc_health_book'.tr),
-          _docRow('pet_doc_passport'.tr,
-              available: pet.passportImage.url.isNotEmpty),
-          SizedBox(height: 6.h),
+          // v443 — documents COCHÉS par l'owner (carnet/passeport/vaccination…).
+          if (pet.documentTypes.isEmpty && pet.passportImage.url.isEmpty)
+            InterText(
+              text: 'pet_doc_none'.tr,
+              fontSize: 12.sp,
+              color: AppColors.greyText,
+            )
+          else ...[
+            for (final d in pet.documentTypes)
+              _docRow('pet_doc_$d'.tr, available: true),
+            if (pet.passportImage.url.isNotEmpty &&
+                !pet.documentTypes.contains('eu_passport'))
+              _docRow('pet_doc_passport'.tr, available: true),
+          ],
+          SizedBox(height: 8.h),
+          // v443 — « Ajouter un document » → écran Galerie (la pièce jointe est
+          // téléversée comme média de l'animal, visible dans la galerie).
+          GestureDetector(
+            onTap: _openGallery,
+            child: Row(
+              children: [
+                Icon(Icons.upload_file_rounded, size: 16.sp, color: _accent),
+                SizedBox(width: 6.w),
+                InterText(
+                  text: 'pet_doc_upload'.tr,
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: _accent,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 4.h),
           InterText(
             text: 'pet_doc_add_hint'.tr,
             fontSize: 11.sp,
@@ -601,19 +655,26 @@ class PetProfileScreen extends StatelessWidget {
       if (h.remarks.isNotEmpty)
         _iconRow(Icons.notes_rounded, 'pet_remarks'.tr, h.remarks),
     ];
-    if (rows.isEmpty) return _empty('pet_no_info'.tr);
+    final tags = pet.habits.tags;
+    if (rows.isEmpty && tags.isEmpty) return _empty('pet_no_info'.tr);
     return ListView(
       padding: EdgeInsets.all(16.w),
       children: [
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 4.h),
-          decoration: BoxDecoration(
-            color: Get.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: _accent.withValues(alpha: 0.15)),
+        // v443 — habitudes COCHABLES affichées en chips en tête de l'onglet.
+        if (tags.isNotEmpty)
+          _section('pet_habits_quick'.tr,
+              icon: Icons.bolt_rounded,
+              [_chips(tags.map((t) => 'pet_habit_$t'.tr).toList())]),
+        if (rows.isNotEmpty)
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 4.h),
+            decoration: BoxDecoration(
+              color: Get.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _accent.withValues(alpha: 0.15)),
+            ),
+            child: Column(children: rows),
           ),
-          child: Column(children: rows),
-        ),
       ],
     );
   }

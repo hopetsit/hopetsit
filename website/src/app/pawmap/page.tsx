@@ -137,7 +137,7 @@ export default function PawMapPage() {
           className="inline-flex items-center gap-2 rounded-full bg-walker px-6 py-3 text-sm font-semibold text-white shadow-cta hover:bg-walker-dark"
         >
           <span>🗺️</span>
-          <span>Ouvrir la PawMap interactive</span>
+          <span>{t("pawmap_open_interactive")}</span>
           <span>→</span>
         </Link>
         {/* v23.1.358 — Daniel : "efface amis en direct" — CTA supprimé,
@@ -324,19 +324,16 @@ export default function PawMapPage() {
             présentes PawSpot". Encart PawPoints : gains, niveaux, récompenses. */}
         <div className="mx-auto mt-14 max-w-3xl rounded-3xl border-2 border-amber-300 bg-gradient-to-b from-amber-50 to-white p-8 text-center shadow-card">
           <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-3xl">🐾</div>
-          <h3 className="font-display text-2xl font-extrabold text-amber-700">PawPoints</h3>
+          <h3 className="font-display text-2xl font-extrabold text-amber-700">{t("pawmap_pawpoints_title")}</h3>
           <p className="mx-auto mt-2 max-w-xl text-sm text-ink-muted">
-            Chaque PawSpot ajouté, chaque photo, chaque signalement confirmé te rapporte des{" "}
-            <strong>PawPoints</strong>. Tu montes parmi 7 niveaux (d'Explorateur à 👑 Paw Legend),
-            tu débloques des badges et des bonus, et tu <strong>échanges tes points</strong> contre des
-            réductions ou des mois gratuits d'abonnement.
+            {t("pawmap_pawpoints_desc")}
           </p>
           <div className="mx-auto mt-5 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4 text-left">
             {[
-              { e: "📍", t: "+10 PawSpot" },
-              { e: "📷", t: "+5 photo" },
-              { e: "✅", t: "+10 validé" },
-              { e: "⭐", t: "+25 populaire" },
+              { e: "📍", t: t("pawmap_pp_earn_spot") },
+              { e: "📷", t: t("pawmap_pp_earn_photo") },
+              { e: "✅", t: t("pawmap_pp_earn_validated") },
+              { e: "⭐", t: t("pawmap_pp_earn_popular") },
             ].map((x) => (
               <div key={x.t} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-ink shadow-sm">
                 <span className="mr-1">{x.e}</span>
@@ -348,7 +345,7 @@ export default function PawMapPage() {
             href="/pawpoints"
             className="mt-6 inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-bold text-white hover:brightness-110"
           >
-            Voir mes PawPoints &amp; récompenses →
+            {t("pawmap_pawpoints_cta")} →
           </Link>
         </div>
       </div>

@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 
-const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, updateAppLocale, getMyLoyalty, getMyReferralsRoute } = require('../controllers/userController');
+const { updateService, updateProfile, updateCard, deleteAccount, updateOwnerCardFromToken, deleteAccountFromToken, updateProfilePicture, getOwnerProfile, switchRole, registerFcmToken, unregisterFcmToken, acceptTerms, updateAppLocale, getMyLoyalty, getMyReferralsRoute, addFavoriteProvider, removeFavoriteProvider, getFavoriteProviders } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -564,6 +564,15 @@ router.get('/me/loyalty', requireAuth, requireRole('owner'), getMyLoyalty);
 
 // Sprint 7 step 3 — referral program (owner + sitter)
 router.get('/me/referrals', requireAuth, getMyReferralsRoute);
+
+// v444 — Favoris prestataires (cœur sur les cartes de recherche owner).
+// Owner-only. 100 % additif. Le cœur des SitterCard/WalkerCard les persiste.
+//   GET    /users/me/favorites               → liste [{providerId, providerRole}]
+//   POST   /users/me/favorites               → ajout idempotent {providerId, providerRole}
+//   DELETE /users/me/favorites/:providerId   → suppression
+router.get('/me/favorites', requireAuth, requireRole('owner'), getFavoriteProviders);
+router.post('/me/favorites', requireAuth, requireRole('owner'), addFavoriteProvider);
+router.delete('/me/favorites/:providerId', requireAuth, requireRole('owner'), removeFavoriteProvider);
 
 // v23.1 part 133 — Phase 7 audit P7-12 : RGPD article 15 (droit d'accès)
 // + article 20 (droit à la portabilité). Renvoie un JSON complet de

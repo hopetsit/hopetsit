@@ -58,6 +58,10 @@ class EnrichedPetFormState {
   final RxString housetrained = ''.obs;
   /// '' | 'off_leash' | 'on_leash' | 'reliable_recall'
   final RxString leashBehaviour = ''.obs;
+  // v443 — habitudes COCHABLES (presets), cf [habitPresets].
+  final RxList<String> habitTags = <String>[].obs;
+  // v443 — documents COCHABLES (carnet/passeport/…), cf [documentPresets].
+  final RxList<String> documentTypes = <String>[].obs;
   final TextEditingController fearsController = TextEditingController();
   final TextEditingController preferredActivityController =
       TextEditingController();
@@ -94,6 +98,34 @@ class EnrichedPetFormState {
     'smart',
     'gentle',
     'obedient',
+  ];
+
+  /// v443 — presets d'HABITUDES cochables (≥10) ; labels i18n `pet_habit_<token>`.
+  static const List<String> habitPresets = [
+    'likes_sleeping',
+    'calm',
+    'nervous',
+    'dislikes_cats',
+    'dislikes_dogs',
+    'playful',
+    'sociable',
+    'barks',
+    'greedy',
+    'fearful',
+    'clean',
+    'energetic',
+    'cuddly',
+    'independent',
+  ];
+
+  /// v443 — types de DOCUMENTS cochables ; labels i18n `pet_doc_<token>`.
+  static const List<String> documentPresets = [
+    'health_book',
+    'eu_passport',
+    'vaccination_card',
+    'sterilization_cert',
+    'identification',
+    'insurance_doc',
   ];
 
   void populateFrom(PetModel p) {
@@ -141,6 +173,8 @@ class EnrichedPetFormState {
     housetrained.value = p.habits.housetrained;
     leashBehaviour.value = p.habits.leashBehaviour;
     fearsController.text = p.habits.fears;
+    habitTags.assignAll(p.habits.tags);
+    documentTypes.assignAll(p.documentTypes);
   }
 
   /// Champs additifs à fusionner dans le payload create/update.
@@ -191,7 +225,9 @@ class EnrichedPetFormState {
         'housetrained': housetrained.value,
         'leashBehaviour': leashBehaviour.value,
         'fears': fearsController.text.trim(),
+        'tags': habitTags.toList(),
       },
+      'documentTypes': documentTypes.toList(),
     };
   }
 
@@ -200,6 +236,22 @@ class EnrichedPetFormState {
       characterTraits.remove(token);
     } else {
       characterTraits.add(token);
+    }
+  }
+
+  void toggleHabit(String token) {
+    if (habitTags.contains(token)) {
+      habitTags.remove(token);
+    } else {
+      habitTags.add(token);
+    }
+  }
+
+  void toggleDocument(String token) {
+    if (documentTypes.contains(token)) {
+      documentTypes.remove(token);
+    } else {
+      documentTypes.add(token);
     }
   }
 

@@ -1330,6 +1330,115 @@ const unregisterFcmToken = async (req, res) => {
   }
 };
 
+// ───────────────────────────────────────────────────────────────────────────
+// v444 — Favoris prestataires (cœur sur les cartes de recherche owner).
+// 100 % ADDITIF. Stockés sur Owner.favoriteProviders ([{providerId, providerRole}]).
+// Réservé à l'owner (seul rôle qui cherche/like des prestataires).
+// ───────────────────────────────────────────────────────────────────────────
+
+const VALID_PROVIDER_ROLES = ['sitter', 'walker'];
+
+/// POST /users/me/favorites { providerId, providerRole } → ajout idempotent.
+const addFavoriteProvider = async (req, res) => {
+  try {
+    if (req.user?.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners can have favorite providers.' });
+    }
+    const providerId = String(req.body?.providerId || '').trim();
+    const providerRole = String(req.body?.providerRole || '').trim().toLowerCase();
+    if (!providerId) {
+      return res.status(400).json({ error: 'providerId is required.' });
+    }
+    if (!VALID_PROVIDER_ROLES.includes(providerRole)) {
+      return res.status(400).json({
+        error: `providerRole must be one of: ${VALID_PROVIDER_ROLES.join(', ')}.`,
+      });
+    }
+
+    const owner = await Owner.findById(req.user.id).select('favoriteProviders');
+    if (!owner) {
+      return res.status(404).json({ error: 'Owner not found.' });
+    }
+
+    const list = Array.isArray(owner.favoriteProviders) ? owner.favoriteProviders : [];
+    const exists = list.some(
+      (f) => String(f.providerId) === providerId && f.providerRole === providerRole,
+    );
+    if (!exists) {
+      // $addToSet ne dédoublonne pas fiablement sur des sous-documents (addedAt
+      // diffère) → on contrôle l'existence à la main et on $push uniquement si neuf.
+      await Owner.updateOne(
+        { _id: req.user.id },
+        { $push: { favoriteProviders: { providerId, providerRole, addedAt: new Date() } } },
+      );
+    }
+
+    const fresh = await Owner.findById(req.user.id).select('favoriteProviders').lean();
+    const favorites = (fresh?.favoriteProviders || []).map((f) => ({
+      providerId: String(f.providerId),
+      providerRole: f.providerRole,
+    }));
+    return res.json({ favorites });
+  } catch (error) {
+    logger.error('addFavoriteProvider error', error);
+    return res.status(500).json({ error: 'Unable to add favorite. Please try again later.' });
+  }
+};
+
+/// DELETE /users/me/favorites/:providerId → suppression (idempotent).
+const removeFavoriteProvider = async (req, res) => {
+  try {
+    if (req.user?.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners can have favorite providers.' });
+    }
+    const providerId = String(req.params?.providerId || '').trim();
+    if (!providerId) {
+      return res.status(400).json({ error: 'providerId is required.' });
+    }
+
+    const owner = await Owner.findById(req.user.id).select('_id');
+    if (!owner) {
+      return res.status(404).json({ error: 'Owner not found.' });
+    }
+
+    await Owner.updateOne(
+      { _id: req.user.id },
+      { $pull: { favoriteProviders: { providerId } } },
+    );
+
+    const fresh = await Owner.findById(req.user.id).select('favoriteProviders').lean();
+    const favorites = (fresh?.favoriteProviders || []).map((f) => ({
+      providerId: String(f.providerId),
+      providerRole: f.providerRole,
+    }));
+    return res.json({ favorites });
+  } catch (error) {
+    logger.error('removeFavoriteProvider error', error);
+    return res.status(500).json({ error: 'Unable to remove favorite. Please try again later.' });
+  }
+};
+
+/// GET /users/me/favorites → liste de { providerId, providerRole }.
+const getFavoriteProviders = async (req, res) => {
+  try {
+    if (req.user?.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners can have favorite providers.' });
+    }
+    const owner = await Owner.findById(req.user.id).select('favoriteProviders').lean();
+    if (!owner) {
+      return res.status(404).json({ error: 'Owner not found.' });
+    }
+    const favorites = (owner.favoriteProviders || []).map((f) => ({
+      providerId: String(f.providerId),
+      providerRole: f.providerRole,
+    }));
+    return res.json({ favorites });
+  } catch (error) {
+    logger.error('getFavoriteProviders error', error);
+    return res.status(500).json({ error: 'Unable to load favorites. Please try again later.' });
+  }
+};
+
 module.exports = {
   updateService,
   updateProfile,
@@ -1346,6 +1455,9 @@ module.exports = {
   updateAppLocale,
   getMyLoyalty,
   getMyReferralsRoute,
+  addFavoriteProvider,
+  removeFavoriteProvider,
+  getFavoriteProviders,
 };
 
 // Sprint 7 step 3 — referral program.

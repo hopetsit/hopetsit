@@ -87,6 +87,21 @@ const ownerSchema = new mongoose.Schema(
       atOwner: { type: Boolean, default: true },  // service happens at the owner's home
       atSitter: { type: Boolean, default: false }, // service happens at the sitter's home
     },
+    // v444 — Favoris prestataires : l'owner peut « liker » (cœur) un sitter ou
+    // un walker depuis les cartes de recherche. 100 % ADDITIF (défaut []), aucune
+    // casse. providerRole = 'sitter' | 'walker' ; providerId = _id du prestataire
+    // (stocké en String pour rester agnostique du modèle référencé).
+    favoriteProviders: {
+      type: [
+        {
+          _id: false,
+          providerId: { type: String, required: true },
+          providerRole: { type: String, enum: ['sitter', 'walker'], required: true },
+          addedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
     // ─── v405 refonte — préférences owner (toggles maquette) + recherche.
     // 100% ADDITIF, tous avec défauts → aucune casse.
     preferences: {

@@ -157,4 +157,8 @@ class ApiEndpoints {
 
   /// Sprint 7 step 1 — owner loyalty stats
   static const String myLoyalty = '/users/me/loyalty';
+
+  /// v444 — Favoris prestataires (cœur sur les cartes de recherche owner).
+  /// GET / POST '${myFavorites}' ; DELETE '${myFavorites}/$providerId'.
+  static const String myFavorites = '/users/me/favorites';
 }

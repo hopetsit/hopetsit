@@ -29,6 +29,42 @@ class PostDateLabel {
     return build(s, e);
   }
 
+  /// v443 — Daniel : l'heure quitte la cellule « Dates » pour une petite
+  /// horloge sous « Service ». forPost (= dates + heure) reste utilisé
+  /// ailleurs ; la grille de réservation utilise désormais dateOnly + timeLabel.
+  ///
+  /// Libellé de période SANS heure (null si aucune date).
+  static String? dateOnly(PostModel post) {
+    final s = post.startDate?.toLocal();
+    final e = post.endDate?.toLocal();
+    if (s != null && e != null) {
+      final sameDay = s.year == e.year && s.month == e.month && s.day == e.day;
+      if (sameDay) return _date(s);
+      return '${_date(s)} → ${_date(e)}';
+    }
+    if (s != null) return _date(s);
+    if (e != null) return _date(e);
+    return null;
+  }
+
+  /// v443 — libellé d'heure SEUL pour la cellule « Service » (horloge).
+  /// '' si aucune heure réelle (minuit = « pas d'heure »). Même jour avec
+  /// heure de fin → « 14:00 → 15:00 », sinon « 14:00 ».
+  static String timeLabel(PostModel post) {
+    final s = post.startDate?.toLocal();
+    final e = post.endDate?.toLocal();
+    final st = s == null ? '' : _time(s);
+    final et = e == null ? '' : _time(e);
+    if (st.isEmpty && et.isEmpty) return '';
+    if (s != null && e != null) {
+      final sameDay = s.year == e.year && s.month == e.month && s.day == e.day;
+      if (sameDay && st.isNotEmpty && et.isNotEmpty) return '$st → $et';
+    }
+    // Pas de fenêtre même-jour exploitable : on affiche l'heure de début (ou
+    // de fin à défaut).
+    return st.isNotEmpty ? st : et;
+  }
+
   /// Construit le label depuis deux DateTime locaux. Affiche l'heure dès
   /// qu'une heure non nulle est présente. Même jour → « 20/06 14:00 → 15:00 ».
   static String? build(DateTime? s, DateTime? e) {

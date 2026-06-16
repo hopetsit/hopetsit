@@ -406,7 +406,11 @@ const getPetById = async (req, res) => {
         housetrained: pet.habits?.housetrained || '',
         leashBehaviour: pet.habits?.leashBehaviour || '',
         fears: pet.habits?.fears || '',
+        // v443 — habitudes COCHABLES (presets) renvoyées par le GET hand-built.
+        tags: Array.isArray(pet.habits?.tags) ? pet.habits.tags : [],
       },
+      // v443 — documents COCHABLES renvoyés par le GET hand-built (sinon dropés).
+      documentTypes: Array.isArray(pet.documentTypes) ? pet.documentTypes : [],
       behavior: pet.behavior || '',
       regularVet: {
         name: pet.regularVet?.name || '',
@@ -611,6 +615,8 @@ const updatePetProfile = async (req, res) => {
       'bloodGroup',
       'healthInsurance',
       'habits',
+      // v443 — documents COCHABLES (carnet/passeport/vaccination…).
+      'documentTypes',
       'behavior',
       'age',
       'vaccinations',

@@ -15,29 +15,23 @@
     </radialGradient>
   </defs>
 
-  <!-- halo doux bleu-vert -->
   <circle cx="256" cy="256" r="254" fill="url(#pmGlow)"/>
 
-  <!-- disque dégradé bleu→vert + liseré blanc -->
   <circle cx="256" cy="256" r="232" fill="url(#pmDisc)"/>
   <circle cx="256" cy="256" r="208" fill="none" stroke="#FFFFFF" stroke-width="10" opacity="0.95"/>
   <circle cx="256" cy="256" r="196" fill="url(#pmDisc)"/>
 
-  <!-- pin de localisation blanc (carte) -->
   <path d="M 256 392
            C 232 352 158 296 158 220
            A 98 98 0 1 1 354 220
            C 354 296 280 352 256 392 Z"
         fill="url(#pmPin)"/>
 
-  <!-- patte centrale (bleu côté gauche, vert côté droit via groupes) -->
   <g>
-    <!-- coussinets — chien (bleu) à gauche, chat (vert) à droite -->
     <ellipse cx="210" cy="182" rx="13" ry="19" transform="rotate(-22 210 182)" fill="#2563EB"/>
     <ellipse cx="238" cy="166" rx="13" ry="20" transform="rotate(-7 238 166)" fill="#2563EB"/>
     <ellipse cx="274" cy="166" rx="13" ry="20" transform="rotate(7 274 166)" fill="#16A34A"/>
     <ellipse cx="302" cy="182" rx="13" ry="19" transform="rotate(22 302 182)" fill="#16A34A"/>
-    <!-- grand coussinet : moitié bleu / moitié vert -->
     <path d="M 256 198
              C 232 198 214 214 214 235
              C 214 256 232 266 256 266 Z" fill="#2563EB"/>
@@ -46,15 +40,12 @@
              C 298 256 280 266 256 266 Z" fill="#16A34A"/>
   </g>
 
-  <!-- mini chien (bleu) + chat (vert) sous la patte -->
   <g transform="translate(206 296)" fill="#2563EB">
-    <!-- chien : tête + oreilles tombantes -->
     <circle cx="0" cy="6" r="13"/>
     <path d="M -12 -2 q -8 -8 -3 4 q 5 6 8 0 Z"/>
     <path d="M 12 -2 q 8 -8 3 4 q -5 6 -8 0 Z"/>
   </g>
   <g transform="translate(306 296)" fill="#16A34A">
-    <!-- chat : tête + oreilles pointues -->
     <circle cx="0" cy="6" r="13"/>
     <path d="M -11 -4 l -2 -12 l 9 7 Z"/>
     <path d="M 11 -4 l 2 -12 l -9 7 Z"/>

@@ -86,7 +86,12 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             // son NOUVEAU logo officiel (pin violet + patte), et l'onglet
             // Paw Premium (pièce or + couronne) rejoint la boutique.
             tabs: [
-              Tab(icon: const Icon(Icons.trending_up, size: 20), text: 'shop_tab_boost'.tr),
+              // v443 — Daniel : logo PawBoost dans l'onglet (fusée = identité
+              // « boost » ; pas d'asset logo PawBoost dédié pour l'instant).
+              Tab(
+                icon: const Icon(Icons.rocket_launch_rounded, size: 20),
+                text: 'shop_tab_boost'.tr,
+              ),
               Tab(
                 icon: Image.asset(
                   'assets/images/pawfollow_logo.png',
@@ -915,6 +920,9 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
                 subtitle: 'pawfollow_section_family_sub'.tr,
                 color: const Color(0xFF7C3AED),
               ),
+              SizedBox(height: 8.h),
+              // #106 — PawFamily inclut aussi 20 signalements premium utilisables.
+              _premiumReportsRow(context, const Color(0xFF7C3AED)),
               SizedBox(height: 12.h),
               ...controller.plans
                   .where((p) =>
@@ -1444,6 +1452,35 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
     );
   }
 
+  /// #106 — petite ligne « 🛡️ 20 signalements premium utilisables » réutilisée
+  /// sous la section PawFamily (la même bénéf est listée dans _buildFeaturesList
+  /// pour PawFollow). [accent] = couleur du bloc (violet famille).
+  Widget _premiumReportsRow(BuildContext context, Color accent) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.shield_outlined, size: 18.sp, color: accent),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: InterText(
+              text: 'shop_premium_reports_included'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary(context),
+              maxLines: 2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFeaturesList(BuildContext context) {
     // Session v15 — "PawMap complète" ligne retirée (les POIs vétos/parcs/
     // animaleries/points d'eau sont gratuits et publics). Les signalements
@@ -1490,6 +1527,11 @@ class _PremiumTabState extends State<_PremiumTab> with AutomaticKeepAliveClientM
       {
         'icon': Icons.verified_rounded,
         'text': 'premium_feature_badge'.tr,
+      },
+      // #106 — chaque abonnement inclut 20 signalements premium utilisables.
+      {
+        'icon': Icons.shield_outlined,
+        'text': 'shop_premium_reports_included'.tr,
       },
     ];
 
@@ -1916,12 +1958,13 @@ class _PawSpotTabState extends State<_PawSpotTab>
             _buildPointsCard(context),
             SizedBox(height: 14.h),
             _buildHowToEarnCard(context),
+            // v440 — Daniel : "vires les badges, mets les nouveaux ; au lieu
+            // d'un onglet « voir les récompenses » je veux la page complète
+            // écrite ouverte". La carte Badges (anciens niveaux figés) est
+            // retirée et le catalogue de récompenses PawPoints s'affiche
+            // OUVERT inline (plus de bouton « Voir les récompenses »).
             SizedBox(height: 14.h),
-            _buildBadgesCard(context),
-            if (_subscribed) ...[
-              SizedBox(height: 14.h),
-              _buildRewardsCard(context),
-            ],
+            _buildRewardsCard(context),
             SizedBox(height: 18.h),
             _buildLeaderboardButton(context),
             SizedBox(height: 40.h),
@@ -2207,6 +2250,8 @@ class _PawSpotTabState extends State<_PawSpotTab>
       'pawspot_feature_all'.tr,
       'pawspot_feature_top'.tr,
       'pawspot_feature_rewards'.tr,
+      // #106 — 20 signalements premium utilisables inclus dans l'abo PawSpot.
+      'shop_premium_reports_included'.tr,
     ];
     return Column(
       children: features
@@ -2410,74 +2455,16 @@ class _PawSpotTabState extends State<_PawSpotTab>
     );
   }
 
-  /// f. Liste des 4 badges — atteints en couleur, le reste grisé.
-  Widget _buildBadgesCard(BuildContext context) {
-    // Seuils alignés sur le backend (et sur les libellés traduits).
-    final rows = <Map<String, dynamic>>[
-      {'label': 'pawspot_badge_explorer'.tr, 'min': 100},
-      {'label': 'pawspot_badge_expert'.tr, 'min': 500},
-      {'label': 'pawspot_badge_ambassador'.tr, 'min': 1500},
-      {'label': 'pawspot_badge_pawmaster'.tr, 'min': 5000},
-    ];
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: AppColors.cardShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InterText(
-            text: 'pawspot_badges_title'.tr,
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
-          ),
-          SizedBox(height: 12.h),
-          ...rows.map((r) {
-            final reached = _points >= (r['min'] as int);
-            return Padding(
-              padding: EdgeInsets.only(bottom: 10.h),
-              child: Row(
-                children: [
-                  Icon(
-                    reached
-                        ? Icons.check_circle_rounded
-                        : Icons.lock_outline_rounded,
-                    size: 16.sp,
-                    color: reached ? _gold : AppColors.greyText,
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: InterText(
-                      text: r['label'] as String,
-                      fontSize: 13.sp,
-                      fontWeight:
-                          reached ? FontWeight.w700 : FontWeight.w500,
-                      color: reached
-                          ? AppColors.textPrimary(context)
-                          : AppColors.greyText,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  /// g. Récompenses à points (abonnés uniquement).
-  /// v435 — Daniel : "la boutique PawSpot n'est pas à jour". Avant, cette
-  /// carte listait 3 récompenses HARDCODÉES (couleur de badge / cadre doré /
-  /// bannière) échangées via /pawspots/rewards/redeem — déconnectées du
-  /// catalogue PawPoints actuel (éditable par l'admin). On remplace par un
-  /// accès au VRAI catalogue PawPoints (/pawpoints/catalog + /pawpoints/me)
-  /// qui affiche le solde dépensable réel et permet d'échanger les
-  /// récompenses admin + abonnement. Mêmes flux que le classement PawSpot.
+  /// g. Récompenses à points — page complète OUVERTE inline.
+  /// v435 — la boutique PawSpot ouvrait un VRAI catalogue PawPoints
+  /// (/pawpoints/catalog + /pawpoints/me) via un bouton « Voir les
+  /// récompenses ».
+  /// v440 — Daniel : "vires badges, au lieu d'un onglet voir les récompenses
+  /// je veux la page complète écrite ouverte". On retire le bouton + le sheet
+  /// et on rend le catalogue DIRECTEMENT inline (PawPointsRewardsList,
+  /// embedded), visible dès l'arrivée sur la boutique. L'échange reste
+  /// fonctionnel (même flux /pawpoints/redeem). Plus de gate « abonnés
+  /// uniquement » : la liste est lisible par tous.
   Widget _buildRewardsCard(BuildContext context) {
     // Solde dépensable réel (payload /pawspots/me/points expose pawPointsSpendable
     // ; fallback sur points à vie si le champ n'est pas encore présent).
@@ -2494,6 +2481,8 @@ class _PawSpotTabState extends State<_PawSpotTab>
         children: [
           Row(
             children: [
+              const Text('🎁', style: TextStyle(fontSize: 18)),
+              SizedBox(width: 8.w),
               Expanded(
                 child: InterText(
                   text: 'pawspot_rewards_title'.tr,
@@ -2526,30 +2515,13 @@ class _PawSpotTabState extends State<_PawSpotTab>
             maxLines: 3,
           ),
           SizedBox(height: 12.h),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => showPawPointsRewardsSheet(
-                context,
-                myPoints: spendable,
-                onChanged: _loadPoints,
-              ),
-              icon: const Text('🎁', style: TextStyle(fontSize: 16)),
-              label: Text(
-                'pawpoints_rewards_cta'.tr,
-                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _gold,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14.r),
-                ),
-              ),
-            ),
+          // v440 — la page de récompenses complète, écrite OUVERTE inline
+          // (stats, barre de niveau, récompenses abonnement, niveaux, gains).
+          PawPointsRewardsList(
+            myPoints: spendable,
+            onChanged: _loadPoints,
           ),
-          SizedBox(height: 10.h),
+          SizedBox(height: 4.h),
           // Mise en avant d'un spot : se fait depuis la fiche d'un de tes
           // spots sur la carte — simple ligne info ici.
           Row(
@@ -3016,6 +2988,8 @@ class _PawPremiumTabState extends State<_PawPremiumTab>
       'premium_bundle_feat_badge'.tr,
       'premium_bundle_feat_points'.tr,
       'premium_bundle_feat_priority'.tr,
+      // #106 — 20 signalements premium utilisables inclus dans Paw Premium.
+      'shop_premium_reports_included'.tr,
     ];
     return items
         .map(

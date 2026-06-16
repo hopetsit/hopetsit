@@ -170,7 +170,24 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.pets, color: Colors.white.withValues(alpha: 0.9), size: 20.sp),
+                            // v443 — Daniel : logo de l'app (ic_launcher) à la
+                            // place du pictogramme générique, à côté du rôle.
+                            Container(
+                              width: 26.w,
+                              height: 26.w,
+                              padding: EdgeInsets.all(2.w),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(7.r),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(5.r),
+                                child: Image.asset(
+                                  'assets/brand/png/ic_launcher.png',
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
                             SizedBox(width: 8.w),
                             PoppinsText(
                               text: 'role_pet_owner'.tr,

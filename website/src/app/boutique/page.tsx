@@ -270,9 +270,9 @@ export default function BoutiquePage() {
       >
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-2xl">🐾</span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-extrabold text-amber-700">Mes PawPoints &amp; récompenses</span>
+          <span className="block text-sm font-extrabold text-amber-700">{t("shop_pawpoints_banner_title")}</span>
           <span className="block text-xs text-ink-muted">
-            Échange tes points contre des réductions (-10 / -25 / -50 %) ou des mois gratuits d'abonnement.
+            {t("shop_pawpoints_banner_sub")}
           </span>
         </span>
         <span className="shrink-0 text-amber-600">→</span>

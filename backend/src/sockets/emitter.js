@@ -119,15 +119,28 @@ const emitChatMessage = (conversation, event, payload) => {
       }
     }
   } else {
-    if (conversation.ownerId) {
-      participants.push({ role: 'owner', userId: String(conversation.ownerId._id || conversation.ownerId) });
-    }
-    if (conversation.sitterId) {
-      participants.push({ role: 'sitter', userId: String(conversation.sitterId._id || conversation.sitterId) });
-    }
-    if (conversation.walkerId) {
-      participants.push({ role: 'walker', userId: String(conversation.walkerId._id || conversation.walkerId) });
-    }
+    // v441 — Daniel : "message reçu en sitter/walker → pas de badge 1". ROOT
+    // CAUSE : le chemin socket `message:send` (chatSocket.js) passe ici une
+    // conversation SANITISÉE (assertAccessAndFetch → sanitizeConversation).
+    // sanitizeConversation SUPPRIME ownerId/sitterId/walkerId quand ils sont
+    // peuplés et les remplace par owner/sitter/walker (objets { id, ... }).
+    // Du coup ownerId/sitterId/walkerId étaient tous undefined → participants
+    // vide → AUCUN emit user-room → badge chat muet quand l'envoi passait par
+    // le socket. On résout désormais l'id depuis (a) le champ *Id brut/peuplé
+    // OU (b) le champ sanitisé owner/sitter/walker (.id). emitChatMessage
+    // devient ainsi tolérant aux 3 formes (raw / populated / sanitized),
+    // quel que soit l'appelant.
+    const resolveId = (raw, sanitized) => {
+      if (raw) return String(raw._id || raw);
+      if (sanitized) return String(sanitized.id || sanitized._id || sanitized);
+      return null;
+    };
+    const ownerUid = resolveId(conversation.ownerId, conversation.owner);
+    const sitterUid = resolveId(conversation.sitterId, conversation.sitter);
+    const walkerUid = resolveId(conversation.walkerId, conversation.walker);
+    if (ownerUid) participants.push({ role: 'owner', userId: ownerUid });
+    if (sitterUid) participants.push({ role: 'sitter', userId: sitterUid });
+    if (walkerUid) participants.push({ role: 'walker', userId: walkerUid });
   }
   // v401 — Daniel : "qd je recoi des messages le badge 1 ds menu ne vient
   // pas". ROOT CAUSE pour les comptes STAFF multi-profils (1 compte = owner +

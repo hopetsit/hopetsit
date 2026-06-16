@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useT } from "@/lib/i18n/LanguageProvider";
 import {
   getPawPointsCatalog,
   getMyPawPoints,
@@ -26,23 +27,24 @@ const fmt = (n: number) => n.toLocaleString("fr-FR");
 // Médailles/pièces par tier (cf design).
 const TIER_ICON: Record<number, string> = { 1: "🥉", 2: "🥈", 3: "🥇", 4: "🟣", 5: "🟡", 6: "🌸" };
 
-function perkLabel(p: string): string {
+function perkLabel(p: string, t: (k: string) => string): string {
   const map: Record<string, string> = {
-    badge: "Badge exclusif",
-    chests_basic: "Accès aux coffres basiques",
-    map_visibility: "Visibilité sur la carte",
-    bonus_5: "Points bonus +5%",
-    bonus_10: "Points bonus +10%",
-    free_pawboost: "PawBoost gratuit",
-    legendary_frame: "Cadre légendaire",
-    legendary_status: "Statut Légendaire",
-    pink_crown: "Couronne rose",
-    ultimate: "Avantages ultimes",
+    badge: "pp_perk_badge",
+    chests_basic: "pp_perk_chests_basic",
+    map_visibility: "pp_perk_map_visibility",
+    bonus_5: "pp_perk_bonus_5",
+    bonus_10: "pp_perk_bonus_10",
+    free_pawboost: "pp_perk_free_pawboost",
+    legendary_frame: "pp_perk_legendary_frame",
+    legendary_status: "pp_perk_legendary_status",
+    pink_crown: "pp_perk_pink_crown",
+    ultimate: "pp_perk_ultimate",
   };
-  return map[p] || p;
+  return map[p] ? t(map[p]) : p;
 }
 
 export default function PawPointsPage() {
+  const { t } = useT();
   const [catalog, setCatalog] = useState<PawCatalog | null>(null);
   const [mine, setMine] = useState<MyPawPoints | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,30 +78,32 @@ export default function PawPointsPage() {
       return;
     }
     if (mine?.claimedRewardKeys?.includes(r.id)) {
-      setMsg("Tu as déjà utilisé cette récompense.");
+      setMsg(t("pp_already_used"));
       return;
     }
     if ((mine?.spendable ?? 0) < r.cost) {
-      setMsg(`Il te manque ${fmt(r.cost - (mine?.spendable ?? 0))} PawPoints pour cette récompense.`);
+      setMsg(t("pp_not_enough").replace("{pts}", fmt(r.cost - (mine?.spendable ?? 0))));
       return;
     }
     const label =
       r.kind === "discount"
-        ? `-${r.percent}% sur ${r.target}`
-        : `${(r.days ?? 0) >= 90 ? "3 mois" : "1 mois"} gratuit(s) ${r.target}`;
-    if (!confirm(`Échanger ${fmt(r.cost)} PawPoints contre « ${label} » ?\n(Valable 1 seule fois)`)) return;
+        ? t("pp_discount_label").replace("{pct}", String(r.percent)).replace("{target}", r.target)
+        : t("pp_free_label")
+            .replace("{months}", (r.days ?? 0) >= 90 ? t("pp_3_months") : t("pp_1_month"))
+            .replace("{target}", r.target);
+    if (!confirm(t("pp_redeem_confirm").replace("{cost}", fmt(r.cost)).replace("{label}", label))) return;
     setBusyId(r.id);
     setMsg(null);
     try {
       const res = await redeemPawReward(r.id);
       setMsg(
         res.applied === "fulfilled"
-          ? "✓ Récompense activée ! Ton abonnement a été crédité."
-          : "✓ Échangé ! La réduction s'appliquera automatiquement à ton prochain achat de cet abonnement.",
+          ? t("pp_redeem_fulfilled")
+          : t("pp_redeem_queued"),
       );
       await refresh();
     } catch (e) {
-      setMsg(e instanceof ApiError ? e.message : "Échange impossible.");
+      setMsg(e instanceof ApiError ? e.message : t("pp_redeem_error"));
     } finally {
       setBusyId(null);
     }
@@ -122,24 +126,23 @@ export default function PawPointsPage() {
         <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 text-4xl">🐾</div>
         <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-5xl">PawPoints</h1>
         <p className="mx-auto mt-3 max-w-2xl text-lg text-ink-muted">
-          Gagne des PawPoints en faisant vivre la communauté PawMap, monte de niveau, et échange tes
-          points contre des réductions ou des mois gratuits d'abonnement.
+          {t("pp_hero_sub")}
         </p>
       </div>
 
       {/* Stats du haut (connecté) */}
       {loggedIn && mine && (
         <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard emoji="🚩" value={fmt(mine.contributions)} label="signalements" hint="Tes contributions" />
-          <StatCard emoji="❤️" value={fmt(mine.spotsLiked)} label="spots aimés" hint="Merci pour ton soutien" />
+          <StatCard emoji="🚩" value={fmt(mine.contributions)} label={t("pp_stat_contributions")} hint={t("pp_stat_contributions_hint")} />
+          <StatCard emoji="❤️" value={fmt(mine.spotsLiked)} label={t("pp_stat_spots_liked")} hint={t("pp_stat_spots_liked_hint")} />
           <StatCard
             emoji="🏅"
             value={level ? `${level.index}` : "0"}
-            label={level ? level.label : "Aucun"}
-            hint="Niveau actuel"
+            label={level ? level.label : t("pp_stat_level_none")}
+            hint={t("pp_stat_level")}
             accent
           />
-          <StatCard emoji="🪙" value={fmt(mine.spendable)} label="pts à dépenser" hint="Points actuels" accent />
+          <StatCard emoji="🪙" value={fmt(mine.spendable)} label={t("pp_stat_spendable")} hint={t("pp_stat_spendable_hint")} accent />
         </div>
       )}
 
@@ -149,11 +152,11 @@ export default function PawPointsPage() {
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold text-ink">
               {nextLevel
-                ? `${fmt(Math.max(0, nextMin - lifetime))} pts pour passer ${nextLevel.label}`
-                : "Niveau maximum atteint 👑"}
+                ? t("pp_progress_to").replace("{pts}", fmt(Math.max(0, nextMin - lifetime))).replace("{level}", nextLevel.label)
+                : t("pp_progress_max")}
             </span>
             <span className="text-ink-muted">
-              {fmt(lifetime)} {nextLevel ? `/ ${fmt(nextMin)}` : "pts"}
+              {fmt(lifetime)} {nextLevel ? `/ ${fmt(nextMin)}` : t("pp_progress_pts")}
             </span>
           </div>
           <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-ink/10">
@@ -161,7 +164,7 @@ export default function PawPointsPage() {
           </div>
           {mine.bonusPct > 0 && (
             <p className="mt-2 text-xs font-semibold text-amber-700">
-              ⚡ Bonus de niveau actif : +{mine.bonusPct}% de PawPoints sur chaque gain.
+              {t("pp_bonus_active").replace("{pct}", String(mine.bonusPct))}
             </p>
           )}
         </div>
@@ -169,8 +172,8 @@ export default function PawPointsPage() {
 
       {!loggedIn && (
         <div className="mx-auto mt-8 max-w-md rounded-2xl border border-ink/10 bg-white p-5 text-center text-sm text-ink-muted shadow-card">
-          <Link href="/login" className="font-semibold text-amber-700 underline">Connecte-toi</Link>{" "}
-          pour voir ton niveau, ton solde et échanger tes points.
+          <Link href="/login" className="font-semibold text-amber-700 underline">{t("pp_login_prompt_link")}</Link>{" "}
+          {t("pp_login_prompt_rest")}
         </div>
       )}
 
@@ -180,17 +183,16 @@ export default function PawPointsPage() {
 
       {/* Réductions sur abonnements */}
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold">Réductions sur abonnements</h2>
+        <h2 className="font-display text-2xl font-extrabold">{t("pp_rewards_title")}</h2>
         <p className="mt-1 text-sm text-ink-muted">
-          Échange tes points contre des réductions ou des mois gratuits sur nos abonnements.
-          Chaque récompense est utilisable <strong>une seule fois</strong> et s'applique{" "}
-          <strong>automatiquement</strong>.
+          {t("pp_rewards_sub_a")} <strong>{t("pp_rewards_sub_once")}</strong> {t("pp_rewards_sub_b")}{" "}
+          <strong>{t("pp_rewards_sub_auto")}</strong>.
         </p>
         <div className="mt-5 space-y-3">
           {(catalog?.subscriptionRewards ?? []).map((r) => {
             const claimed = mine?.claimedRewardKeys?.includes(r.id);
             const affordable = (mine?.spendable ?? 0) >= r.cost;
-            const valueLabel = r.kind === "discount" ? `-${r.percent}%` : (r.days ?? 0) >= 90 ? "3 mois GRATUITS" : "1 mois GRATUIT";
+            const valueLabel = r.kind === "discount" ? `-${r.percent}%` : (r.days ?? 0) >= 90 ? t("pp_value_3_months") : t("pp_value_1_month");
             const free = r.kind === "free_month";
             return (
               <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
@@ -208,8 +210,8 @@ export default function PawPointsPage() {
                   {valueLabel}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-ink">sur {r.target}</div>
-                  <div className="text-xs text-ink-muted">Valable 1 fois</div>
+                  <div className="truncate text-sm font-semibold text-ink">{t("pp_reward_on").replace("{target}", r.target)}</div>
+                  <div className="text-xs text-ink-muted">{t("pp_reward_valid_once")}</div>
                 </div>
                 <button
                   disabled={busyId === r.id || claimed}
@@ -223,7 +225,7 @@ export default function PawPointsPage() {
                         : "bg-amber-500 text-white hover:brightness-110")
                   }
                 >
-                  {claimed ? "✓ Utilisé" : busyId === r.id ? "…" : loggedIn ? (affordable ? "Échanger" : "Pas assez") : "Se connecter"}
+                  {claimed ? t("pp_btn_used") : busyId === r.id ? "…" : loggedIn ? (affordable ? t("pp_btn_redeem") : t("pp_btn_not_enough")) : t("pp_btn_login")}
                 </button>
               </div>
             );
@@ -233,9 +235,9 @@ export default function PawPointsPage() {
 
       {/* Niveaux & paliers exclusifs */}
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold">Niveaux &amp; paliers exclusifs</h2>
+        <h2 className="font-display text-2xl font-extrabold">{t("pp_levels_title")}</h2>
         <p className="mt-1 text-sm text-ink-muted">
-          Plus tu contribues, plus tu débloques des récompenses uniques et un statut prestigieux.
+          {t("pp_levels_sub")}
         </p>
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {levels.map((l) => {
@@ -251,14 +253,14 @@ export default function PawPointsPage() {
                     <div className="text-sm font-bold" style={{ color: l.color }}>
                       {l.index}. {l.label}
                     </div>
-                    <div className="text-xs text-ink-muted">{fmt(l.min)} pts {reached ? "· atteint ✓" : ""}</div>
+                    <div className="text-xs text-ink-muted">{fmt(l.min)} pts {reached ? t("pp_level_reached") : ""}</div>
                   </div>
                 </div>
                 <ul className="mt-3 space-y-1">
                   {l.perks.map((p) => (
                     <li key={p} className="flex items-start gap-2 text-xs text-ink">
                       <span style={{ color: l.color }}>✓</span>
-                      {perkLabel(p)}
+                      {perkLabel(p, t)}
                     </li>
                   ))}
                 </ul>
@@ -272,17 +274,17 @@ export default function PawPointsPage() {
           <span className="text-4xl">👑</span>
           <div className="flex-1">
             <h3 className="font-display text-lg font-extrabold text-pink-600">
-              Atteins {fmt(pawLegendMin)} points pour devenir Paw Legend
+              {t("pp_legend_title").replace("{pts}", fmt(pawLegendMin))}
             </h3>
             <p className="mt-1 text-sm text-ink-muted">
-              Un statut unique, visible sur ton profil, qui donne accès aux avantages les plus exclusifs de PawWorld.
+              {t("pp_legend_sub")}
             </p>
           </div>
           {loggedIn && mine && (
             <div className="rounded-2xl bg-white px-5 py-3 text-center shadow-card">
               <div className="text-2xl font-extrabold" style={{ color: GOLD }}>{fmt(lifetime)} pts</div>
               <div className="text-xs text-ink-muted">
-                Plus que {fmt(Math.max(0, pawLegendMin - lifetime))} pts
+                {t("pp_legend_remaining").replace("{pts}", fmt(Math.max(0, pawLegendMin - lifetime)))}
               </div>
             </div>
           )}
@@ -291,7 +293,7 @@ export default function PawPointsPage() {
 
       {/* Comment gagner */}
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-extrabold">Comment gagner des points ?</h2>
+        <h2 className="font-display text-2xl font-extrabold">{t("pp_earn_title")}</h2>
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(catalog?.earnRules ?? mine?.earnRules ?? []).map((r) => (
             <div key={r.key} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
@@ -302,14 +304,13 @@ export default function PawPointsPage() {
           ))}
         </div>
         <p className="mx-auto mt-4 max-w-2xl text-center text-xs text-ink-muted">
-          🥇 À partir de {fmt(catalog?.goldCreatorMin ?? 1000)} pts, tu deviens <strong>Gold Creator</strong> :
-          empreinte dorée sur tous tes PawSpots. Avec un abonnement Paw Premium actif, tous tes gains sont <strong>doublés</strong>.
+          {t("pp_earn_footer").replace("{pts}", fmt(catalog?.goldCreatorMin ?? 1000))}
         </p>
       </section>
 
       <div className="mt-12 text-center">
         <Link href="/pawmap" className="inline-block rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white hover:brightness-110">
-          Découvrir la PawMap →
+          {t("pp_cta_discover")} →
         </Link>
       </div>
     </div>

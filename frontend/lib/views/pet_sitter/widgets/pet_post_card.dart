@@ -94,6 +94,18 @@ class PetPostCard extends StatelessWidget {
   /// défaut « 1 fois / jour » (cas le plus courant : une sortie).
   final int? walkTimesPerDay;
 
+  /// v443 — Daniel : l'heure quitte la cellule « Dates » (qui n'affiche plus
+  /// que la DATE) pour une petite horloge sous la cellule « Service » (ex.
+  /// « 14:00 → 15:00 »). Calculé par les appelants via PostDateLabel.timeLabel.
+  /// Null/vide ⇒ aucune horloge (annonce sans heure réelle).
+  final String? serviceTime;
+
+  /// #107 — quand un prestataire (promeneur / pet-sitter) consulte l'annonce
+  /// d'un owner, l'en-tête (avatar + nom) devient cliquable pour ouvrir le
+  /// profil PROPRIÉTAIRE en lecture seule. Null ⇒ en-tête non cliquable (cas
+  /// « Mes publications » de l'owner sur sa propre annonce).
+  final VoidCallback? onOwnerTap;
+
   const PetPostCard({
     super.key,
     required this.userName,
@@ -133,6 +145,8 @@ class PetPostCard extends StatelessWidget {
     this.distanceLabel,
     this.walkDurationMinutes,
     this.walkTimesPerDay,
+    this.serviceTime,
+    this.onOwnerTap,
     // v23.1 part 116 — Daniel : "sitter et walker aussi vois que lannonce
     // et booster et en haut". Quand isOwnerBoosted=true, on affiche un
     // ruban "🚀 Urgent" en haut de la card pour attirer l'œil.
@@ -165,12 +179,6 @@ class PetPostCard extends StatelessWidget {
   bool get _isSitterView => (viewerRole ?? '').toLowerCase() == 'sitter';
   bool get _isProviderView => _isWalkerView || _isSitterView;
 
-  /// v442 — Commission PawMap affichée au prestataire = 10 % du total payé par
-  /// le client (maquettes : 18 € → 16,20 € ; 120 € → 108 € = ×0,9). Le total
-  /// client provient du MÊME calcul que la charge réelle (PostPriceEstimate.brut
-  /// = ownerTotal du backend calculatePricingBreakdown), donc l'estimation
-  /// reste synchronisée avec ce qui est réellement facturé.
-  static const double _pawMapCommissionRate = 0.10;
 
   @override
   Widget build(BuildContext context) {
@@ -229,6 +237,16 @@ class PetPostCard extends StatelessWidget {
             ),
             child: Row(
               children: [
+                // #107 — en-tête (avatar + nom) cliquable côté prestataire :
+                // ouvre le profil propriétaire en lecture seule. Quand
+                // onOwnerTap est null (owner sur « Mes publications »), le
+                // GestureDetector reste inerte (pas d'onTap).
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onOwnerTap,
+                    child: Row(
+                      children: [
                 // v442 — avatar + pastille « vérifié » colorée au rôle
                 // (maquettes walker vert / sitter bleu) pour le détail
                 // prestataire ; sinon l'avatar simple (owner / feed).
@@ -353,6 +371,10 @@ class PetPostCard extends StatelessWidget {
                           color: AppColors.textSecondary(context),
                         ),
                     ],
+                  ),
+                ),
+                      ],
+                    ),
                   ),
                 ),
                 // v18.6 — stylo Modifier (désactivé si isReserved) + poubelle
@@ -1325,12 +1347,13 @@ class PetPostCard extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
       decoration: BoxDecoration(
-        // v441 — Daniel : cadre « À propos de moi » (propriétaire) en ORANGE
-        // PÂLE (au lieu du gris inputFill).
-        color: const Color(0xFFFFF1ED),
+        // v443 — Daniel : « le cadre gris propriétaire doit être en jaune ».
+        // Le cadre « À propos de moi » (propriétaire) passe en JAUNE clair
+        // (au lieu de l'orange pâle v441).
+        color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(
-          color: const Color(0xFFEF4324).withValues(alpha: 0.22),
+          color: const Color(0xFFF6C343).withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -1338,7 +1361,7 @@ class PetPostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.person_rounded, size: 15.sp, color: const Color(0xFFEF4324)),
+              Icon(Icons.person_rounded, size: 15.sp, color: const Color(0xFFB8860B)),
               SizedBox(width: 8.w),
               InterText(
                 text: 'post_about_owner'.tr,
@@ -1387,11 +1410,54 @@ class PetPostCard extends StatelessWidget {
   /// Ligne label : valeur de la demande de réservation.
   /// Grille 3 colonnes de la demande de réservation (maquette 221) :
   /// chaque case = pastille icône + libellé + valeur.
+  /// v443 — Daniel : couleur du texte du SERVICE dans la grille selon le type
+  /// (bleu pet-sitting / vert promenade) ; null = couleur de texte par défaut.
+  /// Détecté depuis serviceTypes (clés backend ou libellés localisés déjà
+  /// résolus). Inconnu ⇒ null (texte neutre).
+  Color? get _serviceTextColor {
+    final raw = (serviceTypes ?? '').toLowerCase();
+    if (raw.trim().isEmpty) return null;
+    final isWalk = raw.contains('walk') ||
+        raw.contains('promenade') ||
+        raw.contains('promeneur') ||
+        raw.contains('paseo') ||
+        raw.contains('passeggi') ||
+        raw.contains('gassi') ||
+        raw.contains('passeio');
+    if (isWalk) return const Color(0xFF16A34A);
+    final isSitting = raw.contains('sitting') ||
+        raw.contains('garde') ||
+        raw.contains('hébergement') ||
+        raw.contains('hebergement') ||
+        raw.contains('boarding') ||
+        raw.contains('care') ||
+        raw.contains('cuidado') ||
+        raw.contains('guardia') ||
+        raw.contains('betreuung') ||
+        raw.contains('custodia');
+    if (isSitting) return const Color(0xFF2563EB);
+    return null;
+  }
+
   Widget _buildReservationGrid(BuildContext context) {
     final cells = <Widget>[];
     void add(IconData icon, String label, String value) {
       if (value.trim().isEmpty) return;
       cells.add(_resCell(context, icon, label, value.trim()));
+    }
+
+    // v443 — cellule « Service » : valeur colorée par type (bleu/vert) + petite
+    // horloge sous le texte quand l'annonce porte une heure réelle.
+    void addService(String value) {
+      if (value.trim().isEmpty) return;
+      cells.add(_resCell(
+        context,
+        Icons.volunteer_activism_rounded,
+        'post_field_service'.tr,
+        value.trim(),
+        valueColor: _serviceTextColor,
+        timeLabel: (serviceTime ?? '').trim(),
+      ));
     }
 
     // v442 — maquette WALKER : grille Dates / Lieu / Durée / Fréquence.
@@ -1415,8 +1481,7 @@ class PetPostCard extends StatelessWidget {
         add(Icons.pets_rounded, 'post_field_pet_count'.tr, '${pets!.length}');
       }
       if ((serviceTypes ?? '').trim().isNotEmpty) {
-        add(Icons.volunteer_activism_rounded, 'post_field_service'.tr,
-            _localizedServices(serviceTypes!.trim()));
+        addService(_localizedServices(serviceTypes!.trim()));
       }
       final svcLoc = _localizedServiceLocation((serviceLocation ?? '').trim());
       if (svcLoc.isNotEmpty) {
@@ -1433,8 +1498,7 @@ class PetPostCard extends StatelessWidget {
     }
     add(Icons.category_rounded, 'post_field_pet_types'.tr, _petTypesLabel);
     if ((serviceTypes ?? '').trim().isNotEmpty) {
-      add(Icons.volunteer_activism_rounded, 'post_field_service'.tr,
-          _localizedServices(serviceTypes!.trim()));
+      addService(_localizedServices(serviceTypes!.trim()));
     }
     // v435 — Daniel : afficher le "Lieu de garde" choisi à la publication.
     final svcLoc = _localizedServiceLocation((serviceLocation ?? '').trim());
@@ -1475,7 +1539,9 @@ class PetPostCard extends StatelessWidget {
   }
 
   Widget _resCell(
-      BuildContext context, IconData icon, String label, String value) {
+      BuildContext context, IconData icon, String label, String value,
+      {Color? valueColor, String? timeLabel}) {
+    final hasTime = (timeLabel ?? '').trim().isNotEmpty;
     return Padding(
       padding: EdgeInsets.fromLTRB(0, 6.h, 6.w, 6.h),
       child: Column(
@@ -1502,9 +1568,33 @@ class PetPostCard extends StatelessWidget {
             text: value,
             fontSize: 11.5.sp,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
+            // v443 — texte du Service coloré par type (bleu sitting / vert
+            // promenade) ; sinon couleur de texte par défaut.
+            color: valueColor ?? AppColors.textPrimary(context),
             maxLines: 3,
           ),
+          // v443 — Daniel : l'heure quitte la cellule « Dates » pour une petite
+          // horloge sous « Service ». Affichée uniquement si une heure réelle
+          // existe (pas minuit).
+          if (hasTime) ...[
+            SizedBox(height: 4.h),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.schedule_rounded, size: 12.sp, color: _accent),
+                SizedBox(width: 3.w),
+                Expanded(
+                  child: InterText(
+                    text: timeLabel!.trim(),
+                    fontSize: 10.5.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary(context),
+                    maxLines: 2,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1831,22 +1921,19 @@ class PetPostCard extends StatelessWidget {
     );
   }
 
-  /// v442 — « 👛 Votre gain estimé » du prestataire (maquettes walker/sitter).
+  /// v442/v443 — « 👛 Votre gain estimé » du prestataire (maquettes walker/sitter).
   ///
-  /// SYNCHRO PAIEMENT : le total client = [est.brut] = `PostPriceEstimate.brut`,
-  /// qui est calculé par `estimatePostPrice` (utils/post_price_estimator.dart),
-  /// MIROIR client-side de la charge réelle backend `calculatePricingBreakdown`
-  /// (utils/pricing.js) → `ownerTotal` = ce que le client paie réellement
-  /// (tarif prestataire × paramètres de l'annonce + commission). On affiche
-  /// ensuite la commission PawMap (10 %) et le net = 0,9 × total, comme les
-  /// maquettes (18 € → 16,20 € ; 120 € → 108 €).
+  /// MODÈLE DE PAIEMENT (backend pricing.js) : la commission de 20% est payée
+  /// par le PROPRIÉTAIRE EN PLUS du tarif ; le prestataire reçoit son tarif
+  /// PLEIN (la commission n'est PAS déduite de son gain).
+  ///   • est.net  = ce que le prestataire reçoit (= son tarif plein)
+  ///   • est.brut = ce que le propriétaire paie (tarif + 20%)
+  /// → « Vous recevez » = est.net (gros chiffre), « Le client paie » = est.brut.
   Widget _buildProviderGainBlock(
       BuildContext context, PostPriceEstimate est, Color accent) {
     final clientTotal = est.brut;
-    final commission = clientTotal * _pawMapCommissionRate;
-    final providerEarnings = clientTotal - commission;
+    final providerEarnings = est.net;
     final totalLabel = _formatMoneyShort(clientTotal, est.currency);
-    final commissionLabel = _formatMoneyShort(commission, est.currency);
     final earningsLabel = _formatMoneyShort(providerEarnings, est.currency);
 
     Widget line(String label, String value, {Color? valueColor}) => Padding(
@@ -1904,8 +1991,6 @@ class PetPostCard extends StatelessWidget {
           ),
           SizedBox(height: 10.h),
           line('post_gain_client_pays'.tr, totalLabel),
-          line('post_gain_commission'.tr, '−$commissionLabel',
-              valueColor: AppColors.errorColor),
           Divider(
             height: 14.h,
             color: accent.withValues(alpha: 0.25),
