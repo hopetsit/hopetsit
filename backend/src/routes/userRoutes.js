@@ -191,15 +191,26 @@ router.get(
         logger.warn(`[users/me/benefits] pawspot lookup failed : ${e.message}`);
       }
 
+      // v426 — Premium Staff : un membre du staff (isStaff) a TOUS les abos
+      // gratuits (cf /subscriptions/status qui renvoie déjà isPremium:true).
+      // Avant, /users/me/benefits ne lisait que les timers (premiumExpiry,
+      // pawspotExpiry…) qui ne sont PAS posés pour un staff « free » → tous
+      // les flags retombaient à false → PawSpotController.premiumActive=false,
+      // ActiveBenefitsRow sans badge, PawFollow/PawSpot bloqués sur la carte,
+      // et ReportPremiumHelper.isUnlocked privé de sa 2e source. On force donc
+      // tous les drapeaux premium à true pour le staff (additif, lecture seule).
+      const isStaff = user.isStaff === true;
+
       const payload = {
         role,
+        isStaff,
         boostExpiry: user.boostExpiry || null,
         boostTier: user.boostTier || null,
         mapBoostExpiry: user.mapBoostExpiry || null,
         mapBoostTier: user.mapBoostTier || null,
-        pawspotActive,
+        pawspotActive: pawspotActive || isStaff,
         pawspotExpiry,
-        premiumActive,
+        premiumActive: premiumActive || isStaff,
         premiumExpiry,
         pawPoints: user.pawPoints || 0,
         mapBoostLocation: user.mapBoostLocation || null,
@@ -207,9 +218,9 @@ router.get(
         kycVerifiedAt: user.kycVerifiedAt || null,
         verified: !!user.verified,
         ibanVerified: !!user.ibanVerified,
-        isPremium: !!user.isPremium || subscriptionActive,
+        isPremium: !!user.isPremium || subscriptionActive || isStaff,
         subscriptionPlan,
-        pawFollowActive,
+        pawFollowActive: pawFollowActive || isStaff,
         pawFollowExpiry,
         familyActive,
         familyExpiry,

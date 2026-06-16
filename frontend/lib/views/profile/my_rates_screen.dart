@@ -131,6 +131,21 @@ class _WalkerRates extends StatelessWidget {
                   accent: accent,
                   errorText: 'walker_rate_invalid'.tr,
                 ),
+                SizedBox(height: 16.h),
+                // Additif — surcharge par animal supplémentaire.
+                _RateField(
+                  label: 'rates_extra_pet_label'.tr,
+                  hint: '0',
+                  controller: controller.extraPetRateController,
+                  accent: accent,
+                  errorText: 'walker_rate_invalid'.tr,
+                ),
+                SizedBox(height: 16.h),
+                // Additif — temps de réponse type (minutes).
+                _ResponseTimeField(
+                  controller: controller.responseTimeController,
+                  accent: accent,
+                ),
                 SizedBox(height: 32.h),
                 Obx(
                   () => CustomButton(
@@ -256,7 +271,22 @@ class _SitterRates extends StatelessWidget {
                   hintText: '0.00',
                   controller: controller.monthlyRateController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.done,
+                  textInputAction: TextInputAction.next,
+                ),
+                SizedBox(height: 16.h),
+                // Additif — surcharge par animal supplémentaire.
+                CustomTextField(
+                  labelText: 'rates_extra_pet_label'.tr,
+                  hintText: '0.00',
+                  controller: controller.extraPetRateController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                ),
+                SizedBox(height: 16.h),
+                // Additif — temps de réponse type (minutes).
+                _ResponseTimeField(
+                  controller: controller.responseTimeController,
+                  accent: accent,
                 ),
                 SizedBox(height: 32.h),
                 Obx(
@@ -395,6 +425,65 @@ class _RateField extends StatelessWidget {
             if (parsed == null || parsed < 0) return errorText;
             return null;
           },
+        ),
+      ],
+    );
+  }
+}
+
+/// Additif — temps de réponse type (minutes). Suffixe "min" au lieu de "€".
+class _ResponseTimeField extends StatelessWidget {
+  final TextEditingController controller;
+  final Color accent;
+
+  const _ResponseTimeField({
+    required this.controller,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InterText(
+          text: 'rates_response_time_label'.tr,
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary(context),
+        ),
+        SizedBox(height: 8.h),
+        TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+          ],
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(
+            hintText: '0',
+            suffixText: 'min',
+            suffixStyle: TextStyle(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: accent,
+            ),
+            filled: true,
+            fillColor: AppColors.inputFill(context),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 20.w,
+              vertical: 14.h,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30.r),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          style: TextStyle(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary(context),
+          ),
         ),
       ],
     );

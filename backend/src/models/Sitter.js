@@ -108,6 +108,21 @@ const sitterSchema = new mongoose.Schema(
     // Sprint 5 step 6 — availability calendar. Dates are stored as UTC midnight.
     availableDates: { type: [Date], default: [] },
     unavailableDates: { type: [Date], default: [] },
+    // Recurring weekly time-slots during which the sitter is available.
+    // Mirror of Walker.availableTimeSlots — additif, alimente l'éditeur de
+    // créneaux horaires (jours + heures) de l'écran "Mes tarifs".
+    availableTimeSlots: [
+      {
+        day: {
+          type: String,
+          enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+          required: true,
+        },
+        startHour: { type: Number, min: 0, max: 23, required: true },
+        endHour: { type: Number, min: 1, max: 24, required: true },
+        _id: false,
+      },
+    ],
     // Sprint 5 step 7 — identity verification. documentUrl is stored encrypted
     // (AES-256-GCM via utils/encryption) and is only readable by the sitter
     // themselves and admins. Never exposed via sanitizeUser.
@@ -157,6 +172,9 @@ const sitterSchema = new mongoose.Schema(
     dailyRate: { type: Number, default: 0 },
     weeklyRate: { type: Number, default: 0 },
     monthlyRate: { type: Number, default: 0 },
+    // Premium card — surcharge per extra animal (0 = not configured / hidden).
+    // Additif : alimente SitterCard "+X€ / animal" et le détail public.
+    extraPetRate: { type: Number, default: 0, min: 0 },
     defaultRateType: {
       type: String,
       enum: ['hour', 'day', 'week', 'month'],

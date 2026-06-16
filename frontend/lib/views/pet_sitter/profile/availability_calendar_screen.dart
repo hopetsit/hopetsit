@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
-/// Sprint 5 step 6 — Sitter availability calendar.
+/// Sprint 5 step 6 — Sitter / Walker availability calendar.
 /// Tap a day to toggle its availability.
 /// Green = available, red = blocked, plain = not set.
+///
+/// v426 — rendu role-aware : un walker partage le même écran mais doit taper
+/// /walkers/me/availability (les /sitters/me/* renvoient 403 pour un walker →
+/// le calendrier ne sauvait rien). Le rôle est résolu automatiquement depuis
+/// le profil persisté si non fourni explicitement.
 class AvailabilityCalendarScreen extends StatefulWidget {
-  const AvailabilityCalendarScreen({super.key});
+  const AvailabilityCalendarScreen({super.key, this.role});
+
+  /// 'sitter' | 'walker'. Si null, résolu depuis le profil persisté.
+  final String? role;
 
   @override
   State<AvailabilityCalendarScreen> createState() =>
@@ -27,6 +37,24 @@ class _AvailabilityCalendarScreenState
   DateTime _focusedDay = DateTime.now();
   bool _saving = false;
 
+  /// Resolved API base — '/walkers' for walkers, '/sitters' otherwise.
+  late final String _base = _resolveBase();
+
+  String _resolveBase() {
+    var role = widget.role;
+    if (role == null || role.isEmpty) {
+      try {
+        final profile =
+            GetStorage().read<Map<String, dynamic>>(StorageKeys.userProfile);
+        role = profile?['role']?.toString() ??
+            profile?['activeRole']?.toString();
+      } catch (_) {
+        role = null;
+      }
+    }
+    return role == 'walker' ? '/walkers' : '/sitters';
+  }
+
   DateTime _utcMidnight(DateTime d) =>
       DateTime.utc(d.year, d.month, d.day);
 
@@ -39,7 +67,7 @@ class _AvailabilityCalendarScreenState
   Future<void> _load() async {
     try {
       final resp = await _api.get(
-        '/sitters/me/availability',
+        '$_base/me/availability',
         requiresAuth: true,
       );
       if (resp is Map) {
@@ -67,7 +95,7 @@ class _AvailabilityCalendarScreenState
     setState(() => _saving = true);
     try {
       await _api.put(
-        '/sitters/me/availability',
+        '$_base/me/availability',
         body: {
           'availableDates':
               _available.map((d) => d.toIso8601String()).toList(),

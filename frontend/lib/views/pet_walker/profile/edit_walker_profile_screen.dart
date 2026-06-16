@@ -11,12 +11,22 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 import 'package:hopetsit/widgets/city_location_picker.dart';
+import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
 
 /// Dedicated "Edit profile" screen for walkers. Mirrors EditOwnerProfileScreen
 /// visually but with walker-specific bits: a 60-minute walk rate field and a
 /// single pickup preference toggle (no "at sitter" option).
 class EditWalkerProfileScreen extends StatelessWidget {
   const EditWalkerProfileScreen({super.key});
+
+  // v426 — toggle helper partagé par les chips multi-sélection.
+  void _toggle(List<String> list, String value) {
+    if (list.contains(value)) {
+      list.remove(value);
+    } else {
+      list.add(value);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +141,17 @@ class EditWalkerProfileScreen extends StatelessWidget {
                         }
                         return null;
                       },
+                    ),
+
+                    SizedBox(height: 20.h),
+
+                    // v426 — Date de naissance (collectée à l'inscription).
+                    CustomTextField(
+                      labelText: 'signup_field_dob'.tr,
+                      hintText: 'JJ/MM/AAAA',
+                      controller: controller.dobController,
+                      keyboardType: TextInputType.datetime,
+                      textInputAction: TextInputAction.next,
                     ),
 
                     SizedBox(height: 20.h),
@@ -440,6 +461,49 @@ class EditWalkerProfileScreen extends StatelessWidget {
                         }).toList(),
                       );
                     }),
+
+                    SizedBox(height: 24.h),
+
+                    // v426 — synchro inscription↔profil : animaux promenés,
+                    // expérience, rayon (mêmes options que le wizard 5 étapes).
+                    ProfileFieldLabel('signup_animals_walked'.tr),
+                    Obx(() => ProfileChoiceChips(
+                          accent: AppColors.walkerAccent,
+                          options: const [
+                            ['dog', 'pet_animal_dog'],
+                            ['cat', 'pet_animal_cat'],
+                            ['small', 'pet_animal_small'],
+                            ['nac', 'pet_animal_nac'],
+                          ].map((e) => [e[0], e[1].tr]).toList(),
+                          selected: controller.acceptedAnimals,
+                          onToggle: (v) => _toggle(controller.acceptedAnimals, v),
+                        )),
+
+                    SizedBox(height: 20.h),
+
+                    ProfileFieldLabel('signup_experience'.tr),
+                    Obx(() => ProfileChoiceChips(
+                          accent: AppColors.walkerAccent,
+                          options: const [
+                            ['passionate', 'signup_exp_passionate'],
+                            ['owner', 'signup_exp_owner'],
+                            ['shelter', 'signup_exp_shelter'],
+                            ['training_dog', 'signup_exp_training_dog'],
+                            ['ex_pro_walker', 'signup_exp_ex_pro_walker'],
+                            ['educator_dog', 'signup_exp_educator_dog'],
+                          ].map((e) => [e[0], e[1].tr]).toList(),
+                          selected: controller.experienceTags,
+                          onToggle: (v) => _toggle(controller.experienceTags, v),
+                        )),
+
+                    SizedBox(height: 20.h),
+
+                    ProfileFieldLabel('signup_field_radius'.tr),
+                    Obx(() => ProfileRadiusDropdown(
+                          accent: AppColors.walkerAccent,
+                          value: controller.coverageRadius.value,
+                          onChanged: (v) => controller.coverageRadius.value = v,
+                        )),
 
                     SizedBox(height: 24.h),
 

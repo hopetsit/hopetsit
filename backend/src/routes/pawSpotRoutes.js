@@ -56,22 +56,39 @@ function getPawSpotPricing(plan, currency = 'EUR') {
   return { plan, days, amount, currency: cur };
 }
 
-// ── Abonnement PawSpot actif ? (payé OU essai 7 j en cours) ────────────────
+// ── Abonnement PawSpot actif ? (payé OU essai 7 j OU bundle Paw Premium OU
+// staff) ───────────────────────────────────────────────────────────────────
+// v426 — Premium Staff + bundle Paw Premium. Avant, ce helper ne lisait que
+// pawspotExpiry → un staff (abos gratuits) ou un abonné Paw Premium (bundle =
+// premiumExpiry) était bloqué sur /directions et /rewards/redeem alors que le
+// gate de création POST / le laissait passer. On aligne : staff OU premiumExpiry
+// futur OU pawspotExpiry futur. 100 % additif.
 async function hasActivePawSpot(userId, role) {
   try {
+    const Model = modelForRole(role);
+    const me = await Model.findById(userId).select('isStaff').lean();
+    if (me && me.isStaff === true) return true;
     const sub = await UserSubscription.findOne({
       userId,
       userModel: userModelFromRole(role),
-    }).select('pawspotExpiry').lean();
-    return !!(sub?.pawspotExpiry && new Date(sub.pawspotExpiry) > new Date());
+    }).select('pawspotExpiry premiumExpiry').lean();
+    if (!sub) return false;
+    const now = new Date();
+    if (sub.pawspotExpiry && new Date(sub.pawspotExpiry) > now) return true;
+    if (sub.premiumExpiry && new Date(sub.premiumExpiry) > now) return true;
+    return false;
   } catch (_) {
     return false;
   }
 }
 
 // ── Itinéraire "Y aller" : inclus dans PawFollow / PawFamily ───────────────
+// v426 — Premium Staff : le staff a tous les abos gratuits → accès tracking.
 async function hasTrackingSubscription(userId, role) {
   try {
+    const Model = modelForRole(role);
+    const me = await Model.findById(userId).select('isStaff').lean();
+    if (me && me.isStaff === true) return true;
     const sub = await UserSubscription.findOne({
       userId,
       userModel: userModelFromRole(role),
@@ -267,7 +284,11 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
 // GET /pawspots/me/points — mes points + badge + statut abo + compteur spots.
 router.get('/me/points', requireAuth, async (req, res) => {
   try {
-    const points = await pawPoints.getPoints(req.user.id, req.user.role);
+    // v426 — expose aussi le solde DÉPENSABLE (spendable) : depuis le split
+    // lifetime/spendable, les récompenses cosmétiques se débitent sur le solde
+    // dépensable, pas sur le total à vie. `points` reste le total à vie (niveau).
+    const st = await pawPoints.getPawState(req.user.id, req.user.role);
+    const points = st.lifetime;
     const mySpots = await PawSpot.countDocuments({ creatorId: req.user.id });
     const subscribed = await hasActivePawSpot(req.user.id, req.user.role);
     const sub = await UserSubscription.findOne({
@@ -276,6 +297,8 @@ router.get('/me/points', requireAuth, async (req, res) => {
     }).select('pawspotExpiry pawspotTrialUsedAt').lean();
     res.json({
       points,
+      spendable: st.spendable,
+      lifetime: st.lifetime,
       badge: pawPoints.badgeFor(points),
       nextBadge: pawPoints.nextBadgeFor(points),
       isGoldCreator: pawPoints.isGoldCreator(points),
@@ -611,12 +634,22 @@ router.post('/rewards/redeem', requireAuth, async (req, res) => {
       });
     }
     const Model = modelForRole(req.user.role);
-    // Débit atomique : seulement si solde de points suffisant.
+    // v426 — débit sur le solde DÉPENSABLE (pawPointsSpendable), PAS sur le
+    // total à vie (pawPoints) qui détermine le niveau/badge et ne doit JAMAIS
+    // baisser (cf pawPointsService). Avant, dépenser une récompense cosmétique
+    // faisait perdre des points à vie → rétrogradation de niveau possible.
+    // Backfill paresseux : si pawPointsSpendable absent (anciens comptes), on
+    // l'initialise au total à vie (ils n'ont encore rien dépensé).
+    await Model.updateOne(
+      { _id: req.user.id, pawPointsSpendable: { $exists: false } },
+      [{ $set: { pawPointsSpendable: { $ifNull: ['$pawPoints', 0] } } }],
+    ).catch(() => {});
+    // Débit atomique : seulement si solde dépensable suffisant.
     const updated = await Model.findOneAndUpdate(
-      { _id: req.user.id, pawPoints: { $gte: cost } },
-      { $inc: { pawPoints: -cost } },
+      { _id: req.user.id, pawPointsSpendable: { $gte: cost } },
+      { $inc: { pawPointsSpendable: -cost } },
       { new: true },
-    ).select('pawPoints');
+    ).select('pawPointsSpendable');
     if (!updated) {
       return res.status(402).json({ error: 'Not enough PawPoints.', code: 'INSUFFICIENT_POINTS' });
     }
@@ -625,7 +658,7 @@ router.post('/rewards/redeem', requireAuth, async (req, res) => {
       const spot = await PawSpot.findOne({ _id: req.body?.spotId, creatorId: req.user.id });
       if (!spot) {
         // Rembourse si le spot n'existe pas / pas à lui.
-        await Model.findByIdAndUpdate(req.user.id, { $inc: { pawPoints: cost } });
+        await Model.findByIdAndUpdate(req.user.id, { $inc: { pawPointsSpendable: cost } });
         return res.status(404).json({ error: 'Spot not found (or not yours).' });
       }
       spot.featuredUntil = new Date(Date.now() + 7 * 86400000);
@@ -633,7 +666,7 @@ router.post('/rewards/redeem', requireAuth, async (req, res) => {
     } else if (reward === 'badge_color') {
       const color = String(req.body?.color || '').trim();
       if (!/^#?[0-9a-fA-F]{6}$/.test(color)) {
-        await Model.findByIdAndUpdate(req.user.id, { $inc: { pawPoints: cost } });
+        await Model.findByIdAndUpdate(req.user.id, { $inc: { pawPointsSpendable: cost } });
         return res.status(400).json({ error: 'color must be a hex like #FFAA00.' });
       }
       await Model.findByIdAndUpdate(req.user.id, {
@@ -646,7 +679,7 @@ router.post('/rewards/redeem', requireAuth, async (req, res) => {
       await Model.findByIdAndUpdate(req.user.id, { pawGoldFrame: true });
     }
 
-    res.json({ redeemed: reward, cost, pointsLeft: updated.pawPoints });
+    res.json({ redeemed: reward, cost, pointsLeft: updated.pawPointsSpendable });
   } catch (e) {
     logger.error('[pawspots redeem]', e);
     res.status(500).json({ error: e.message });

@@ -369,7 +369,8 @@ class WalkerProfileScreen extends StatelessWidget {
           context,
           emoji: '📅',
           label: 'profile_quick_calendar'.tr,
-          onTap: () => Get.to(() => const AvailabilityCalendarScreen()),
+          onTap: () =>
+              Get.to(() => const AvailabilityCalendarScreen(role: 'walker')),
         ),
         SizedBox(width: 8.w),
         _quickAction(

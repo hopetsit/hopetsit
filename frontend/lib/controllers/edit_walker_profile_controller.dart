@@ -58,6 +58,11 @@ class EditWalkerProfileController extends GetxController {
   final bioController = TextEditingController();
   final skillsController = TextEditingController();
   final languageController = TextEditingController();
+  // v426 — synchro inscription↔profil : champs collectés par le wizard 5 étapes.
+  final dobController = TextEditingController();
+  final RxList<String> acceptedAnimals = <String>[].obs;
+  final RxList<String> experienceTags = <String>[].obs;
+  final RxString coverageRadius = '15'.obs;
   // v18.6 — multi-select chips pour la langue, en cohérence avec sitter/owner.
   // Source de vérité : selectedLanguages. languageController.text reste
   // synchronisé (join `, `) pour l'API.
@@ -77,6 +82,11 @@ class EditWalkerProfileController extends GetxController {
   /// 90 et 120 min (promenade longue / demi-journee).
   final ninetyMinRateController = TextEditingController();
   final twoHourRateController = TextEditingController();
+
+  /// Additif — surcharge par animal supplémentaire + temps de réponse type.
+  /// Persistés via PATCH /walkers/me (updateMyWalkerProfile côté backend).
+  final extraPetRateController = TextEditingController();
+  final responseTimeController = TextEditingController();
 
   // Observable state
   final Rx<File?> profileImage = Rx<File?>(null);
@@ -116,10 +126,13 @@ class EditWalkerProfileController extends GetxController {
     bioController.dispose();
     skillsController.dispose();
     languageController.dispose();
+    dobController.dispose();
     halfHourRateController.dispose();
     hourlyRateController.dispose();
     ninetyMinRateController.dispose();
     twoHourRateController.dispose();
+    extraPetRateController.dispose();
+    responseTimeController.dispose();
     super.onClose();
   }
 
@@ -158,6 +171,14 @@ class EditWalkerProfileController extends GetxController {
         selectedLanguages.clear();
       }
       userCity.value = walker.city ?? '';
+
+      // v426 — synchro inscription↔profil : recharge les champs du wizard.
+      dobController.text = walker.dateOfBirth;
+      acceptedAnimals.value = walker.acceptedPetTypes.toList();
+      experienceTags.value = walker.experienceTags.toList();
+      if (walker.coverageRadiusKm > 0) {
+        coverageRadius.value = walker.coverageRadiusKm.toString();
+      }
 
       if (walker.latitude != null) userLatitude.value = walker.latitude;
       if (walker.longitude != null) userLongitude.value = walker.longitude;
@@ -200,6 +221,15 @@ class EditWalkerProfileController extends GetxController {
           ninetyMin != null ? ninetyMin.basePrice.toStringAsFixed(2) : '';
       twoHourRateController.text =
           oneTwentyMin != null ? oneTwentyMin.basePrice.toStringAsFixed(2) : '';
+
+      // Additif — surcharge par animal + temps de réponse depuis le profil.
+      extraPetRateController.text = walker.extraPetRate > 0
+          ? walker.extraPetRate.toStringAsFixed(
+              walker.extraPetRate == walker.extraPetRate.truncate() ? 0 : 2)
+          : '';
+      responseTimeController.text = walker.responseTimeMinutes > 0
+          ? walker.responseTimeMinutes.toString()
+          : '';
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load walker profile',
           error: error.message);
@@ -315,6 +345,13 @@ class EditWalkerProfileController extends GetxController {
       if (bio.isNotEmpty) payload['bio'] = bio;
       if (skills.isNotEmpty) payload['skills'] = skills;
       if (countryCode.isNotEmpty) payload['countryCode'] = countryCode;
+
+      // v426 — synchro inscription↔profil : champs additifs du wizard 5 étapes.
+      payload['dateOfBirth'] = dobController.text.trim();
+      payload['acceptedPetTypes'] = acceptedAnimals.toList();
+      payload['experienceTags'] = experienceTags.toList();
+      final radiusKm = int.tryParse(coverageRadius.value);
+      if (radiusKm != null && radiusKm > 0) payload['coverageRadiusKm'] = radiusKm;
 
       // Walker pickup preference — keep it as a nested object so the backend
       // can ignore gracefully if the field isn't modeled yet.
@@ -534,6 +571,25 @@ class EditWalkerProfileController extends GetxController {
       final sorted = byDuration.values.toList()
         ..sort((a, b) => a.durationMinutes.compareTo(b.durationMinutes));
       await _walkerRepository.updateMyWalkerRates(sorted);
+
+      // Additif — surcharge par animal + temps de réponse (PATCH /walkers/me).
+      // Envoyés séparément des walkRates car ce sont des champs profil walker.
+      final extraPetText = extraPetRateController.text
+          .trim()
+          .replaceAll(',', '.')
+          .replaceAll(RegExp(r'[^\d.]'), '');
+      final responseText =
+          responseTimeController.text.trim().replaceAll(RegExp(r'[^\d]'), '');
+      final extraPetParsed = double.tryParse(extraPetText);
+      final responseParsed = int.tryParse(responseText);
+      final profilePatch = <String, dynamic>{};
+      if (extraPetParsed != null) profilePatch['extraPetRate'] = extraPetParsed;
+      if (responseParsed != null) {
+        profilePatch['responseTimeMinutes'] = responseParsed;
+      }
+      if (profilePatch.isNotEmpty) {
+        await _walkerRepository.updateMyWalkerProfile(profilePatch);
+      }
 
       // v20.0.19 — publie le broadcast "rates changed" pour que sitter_homescreen
       // (walker feed aussi) recharge instant sans pull-to-refresh.

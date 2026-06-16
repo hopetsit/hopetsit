@@ -509,6 +509,22 @@ async function hasActivePawFollow(userId) {
   if (!userId) return false;
   const Model = mongoose.model('UserSubscription');
   const now = new Date();
+  // 0) v426 — Premium Staff : le staff a tous les abos gratuits (PawFollow
+  //    inclus) → il peut diffuser sa position et apparaître "PawFollow actif"
+  //    aux yeux des autres, sans posséder de doc UserSubscription. On balaie
+  //    les 3 collections de rôle (un id n'existe que dans une seule).
+  try {
+    for (const name of ['Owner', 'Sitter', 'Walker']) {
+      let RoleModel = null;
+      try { RoleModel = mongoose.model(name); } catch (_) { RoleModel = null; }
+      if (!RoleModel) continue;
+      const doc = await RoleModel.findById(String(userId)).select('isStaff').lean();
+      if (doc) {
+        if (doc.isStaff === true) return true;
+        break; // trouvé dans cette collection, pas staff → on continue le flux normal
+      }
+    }
+  } catch (_) { /* best-effort : on retombe sur la détection abo ci-dessous */ }
   // 1) Abo PROPRE actif : individuel (status active + currentPeriodEnd futur)
   //    OU titulaire d'un plan Famille actif (familyExpiry futur OU ancien
   //    plan='famille'). v23.1.283 — famille découplée de l'individuel.

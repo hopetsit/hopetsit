@@ -2218,6 +2218,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
     'chat_delete_message_error': 'Não foi possível apagar a mensagem. Tenta novamente.',
     'chat_message_deleted': 'Mensagem apagada',
     'my_rates_section_title': 'As minhas tarifas',
+    'rates_extra_pet_label': 'Animal adicional (€)',
+    'rates_response_time_label': 'Tempo de resposta típico (min)',
     'pet_age_behavior': 'Idade e comportamento',
     'currency_label': 'Moeda',
     'signup_photo_add': 'Adicionar foto',

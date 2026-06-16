@@ -133,6 +133,9 @@ const walkerSchema = new mongoose.Schema(
 
     // Pricing — per-walk duration.
     walkRates: { type: [walkRateEntrySchema], default: [] },
+    // Premium card — surcharge per extra animal (0 = not configured / hidden).
+    // Additif : alimente WalkerCard "+X€ / animal" et le détail public.
+    extraPetRate: { type: Number, default: 0, min: 0 },
 
     // Session v16.2 — pickup preferences. Walkers work at the owner's side by
     // default; this toggle lets a walker declare whether they pick up the dog

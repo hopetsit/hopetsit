@@ -96,6 +96,43 @@ async function resolveOwnFamilySub(user) {
     userId: user.id,
     ...familyActiveMatch(now),
   });
+
+  // v426 — Premium Staff : le staff a TOUS les abos gratuits (PawFollow,
+  // PawFamily, PawSpot…). S'il n'a aucune sub Famille active, on lui en
+  // provisionne une (familyExpiry très lointain) pour qu'il puisse être
+  // titulaire et inviter des membres, comme le fait /subscriptions/subscribe
+  // pour les abos individuels. Additif, idempotent.
+  if (!sub) {
+    try {
+      const Model = MODEL_BY_NAME[user.model];
+      const meDoc = Model
+        ? await Model.findById(user.id).select('isStaff').lean()
+        : null;
+      if (meDoc && meDoc.isStaff === true) {
+        let staffSub = await UserSubscription.findOne({
+          userId: user.id,
+          userModel: user.model,
+        });
+        if (!staffSub) {
+          staffSub = new UserSubscription({
+            userId: user.id,
+            userModel: user.model,
+          });
+        }
+        staffSub.familyExpiry = new Date('2099-12-31');
+        staffSub.status = 'active';
+        staffSub.familyMembers = staffSub.familyMembers || [];
+        await staffSub.save();
+        logger.info(
+          `[resolveOwnFamilySub] staff family self-provision → ${user.model}:${user.id}`,
+        );
+        return staffSub;
+      }
+    } catch (e) {
+      logger.warn('[resolveOwnFamilySub] staff self-provision failed', e);
+    }
+  }
+
   if (sub) {
     // v23.1.284 — migration-à-la-lecture : normalise une ancienne sub famille
     // (plan='famille'+currentPeriodEnd) vers familyExpiry pour que /me/benefits

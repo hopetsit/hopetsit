@@ -2806,6 +2806,8 @@ const Map<String, String> enUSTranslations = <String, String>{
     'chat_delete_message_error': 'Couldn\'t delete message. Please try again.',
     'chat_message_deleted': 'Message deleted',
     'my_rates_section_title': 'My rates',
+    'rates_extra_pet_label': 'Extra pet (€)',
+    'rates_response_time_label': 'Typical response time (min)',
     'pet_age_behavior': 'Age & behavior',
     'currency_label': 'Currency',
     'signup_photo_add': 'Add a photo',

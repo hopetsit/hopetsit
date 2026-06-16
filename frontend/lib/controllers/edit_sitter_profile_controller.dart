@@ -52,7 +52,16 @@ class EditSitterProfileController extends GetxController {
   final weeklyRateController = TextEditingController();
   final monthlyRateController = TextEditingController();
   final dailyRateController = TextEditingController();
+  // Additif — surcharge par animal supplémentaire + temps de réponse type.
+  final extraPetRateController = TextEditingController();
+  final responseTimeController = TextEditingController();
   final languageController = TextEditingController();
+  // v426 — synchro inscription↔profil : champs collectés par le wizard 5 étapes.
+  final dobController = TextEditingController();
+  final RxList<String> acceptedAnimals = <String>[].obs;
+  final RxList<String> selectedServices = <String>[].obs;
+  final RxList<String> experienceTags = <String>[].obs;
+  final RxString coverageRadius = '20'.obs;
 
   // Observable state
   final Rx<File?> profileImage = Rx<File?>(null);
@@ -106,7 +115,10 @@ class EditSitterProfileController extends GetxController {
     weeklyRateController.dispose();
     monthlyRateController.dispose();
     dailyRateController.dispose();
+    extraPetRateController.dispose();
+    responseTimeController.dispose();
     languageController.dispose();
+    dobController.dispose();
     super.onClose();
   }
 
@@ -180,6 +192,19 @@ class EditSitterProfileController extends GetxController {
       locationController.text = city;
       bioController.text = profileData['bio']?.toString() ?? '';
 
+      // v426 — synchro inscription↔profil : recharge les champs du wizard.
+      dobController.text = profileData['dateOfBirth']?.toString() ?? '';
+      acceptedAnimals.value =
+          (profileData['acceptedPetTypes'] as List?)?.map((e) => e.toString()).toList() ?? [];
+      experienceTags.value =
+          (profileData['experienceTags'] as List?)?.map((e) => e.toString()).toList() ?? [];
+      final svc = profileData['service'];
+      selectedServices.value = svc is List
+          ? svc.map((e) => e.toString()).toList()
+          : (svc is String && svc.isNotEmpty ? [svc] : []);
+      final radius = profileData['coverageRadiusKm'];
+      if (radius is num && radius > 0) coverageRadius.value = radius.toInt().toString();
+
       // Some backends may return skills/language as a List, which .toString()
       // turns into a bracketed string (e.g. [Pet Sitting]). To avoid the
       // bracket-wrapping bug when reopening this screen, normalize both fields
@@ -212,6 +237,10 @@ class EditSitterProfileController extends GetxController {
       weeklyRateController.text = fmtRate(profileData['weeklyRate']);
       monthlyRateController.text = fmtRate(profileData['monthlyRate']);
       dailyRateController.text = fmtRate(profileData['dailyRate']);
+      extraPetRateController.text = fmtRate(profileData['extraPetRate']);
+      final rtm = profileData['responseTimeMinutes'];
+      responseTimeController.text =
+          (rtm is num && rtm > 0) ? rtm.toInt().toString() : '';
 
       // Primary rates endpoint: GET /sitters/me/rates.
       try {
@@ -238,6 +267,14 @@ class EditSitterProfileController extends GetxController {
         if (fetchedMonthly != null) monthlyRateController.text = fmt(fetchedMonthly);
         final fetchedDaily = ratesData['dailyRate'];
         if (fetchedDaily != null) dailyRateController.text = fmt(fetchedDaily);
+        // Additif — surcharge par animal + temps de réponse depuis /me/rates.
+        final fetchedExtraPet = ratesData['extraPetRate'];
+        if (fetchedExtraPet != null) extraPetRateController.text = fmt(fetchedExtraPet);
+        final fetchedRtm = ratesData['responseTimeMinutes'];
+        if (fetchedRtm is num) {
+          responseTimeController.text =
+              fetchedRtm > 0 ? fetchedRtm.toInt().toString() : '';
+        }
       } catch (error) {
         AppLogger.logError('Failed to load sitter rates', error: error);
       }
@@ -459,6 +496,12 @@ class EditSitterProfileController extends GetxController {
             : null,
         hourlyRate: null,   // géré dans MyRatesScreen
         currency: null,     // géré dans MyRatesScreen
+        // v426 — synchro inscription↔profil : on persiste les champs du wizard.
+        dateOfBirth: dobController.text.trim(),
+        acceptedPetTypes: acceptedAnimals.toList(),
+        experienceTags: experienceTags.toList(),
+        service: selectedServices.toList(),
+        coverageRadiusKm: int.tryParse(coverageRadius.value),
       );
 
       // v20.0.19 — Ne plus appeler setMyRates depuis l'écran Modifier profil.
@@ -626,6 +669,16 @@ class EditSitterProfileController extends GetxController {
       final monthlyRate = double.tryParse(monthlyText) ?? 0;
       final hourlyRate = double.tryParse(hourlyText) ?? 0;
 
+      // Additif — surcharge par animal supplémentaire + temps de réponse type.
+      final extraPetText = extraPetRateController.text
+          .trim()
+          .replaceAll(',', '.')
+          .replaceAll(RegExp(r'[^\d.]'), '');
+      final responseText =
+          responseTimeController.text.trim().replaceAll(RegExp(r'[^\d]'), '');
+      final extraPetRate = double.tryParse(extraPetText) ?? 0;
+      final responseTimeMinutes = int.tryParse(responseText);
+
       if (dailyRate <= 0 && weeklyRate <= 0 && monthlyRate <= 0 && hourlyRate <= 0) {
         CustomSnackbar.showError(
           title: 'common_error'.tr,
@@ -662,6 +715,8 @@ class EditSitterProfileController extends GetxController {
         dailyRate: dailyRate,
         weeklyRate: weeklyRate,
         monthlyRate: monthlyRate,
+        extraPetRate: extraPetRate,
+        responseTimeMinutes: responseTimeMinutes,
       );
 
       // v20.0.19 — publie le broadcast "rates changed" pour que sitter_homescreen

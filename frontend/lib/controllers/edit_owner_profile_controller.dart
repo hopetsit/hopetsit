@@ -36,8 +36,12 @@ class EditOwnerProfileController extends GetxController {
   final addressController = TextEditingController();
   final locationController = TextEditingController();
   final bioController = TextEditingController();
-  final skillsController = TextEditingController();
   final languageController = TextEditingController();
+  // v426 — synchro inscription↔profil : champs collectés par le wizard owner
+  // (date de naissance + préférences de recherche : services + rayon).
+  final dobController = TextEditingController();
+  final RxList<String> searchServices = <String>[].obs;
+  final RxString searchRadius = '20'.obs;
 
   // Observable state
   final Rx<File?> profileImage = Rx<File?>(null);
@@ -55,10 +59,6 @@ class EditOwnerProfileController extends GetxController {
   final Rxn<double> userLongitude = Rxn<double>();
   final RxString userCity = ''.obs;
 
-  /// Sprint 5 step 2 / UI step 1 — owner service preferences.
-  final RxBool servicePrefAtOwner = true.obs;
-  final RxBool servicePrefAtSitter = false.obs;
-
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -75,8 +75,8 @@ class EditOwnerProfileController extends GetxController {
     addressController.dispose();
     locationController.dispose();
     bioController.dispose();
-    skillsController.dispose();
     languageController.dispose();
+    dobController.dispose();
     super.onClose();
   }
 
@@ -142,13 +142,14 @@ class EditOwnerProfileController extends GetxController {
       locationController.text = city;
       bioController.text = profileData['bio']?.toString() ?? '';
 
-      // Normalize skills/language: if API returns a List, join it to avoid
-      // bracketed strings like [Pet Sitting] / [[Pet Sitting]] on reopen.
-      final rawSkills = profileData['skills'];
-      if (rawSkills is List) {
-        skillsController.text = rawSkills.join(', ');
-      } else {
-        skillsController.text = rawSkills?.toString() ?? '';
+      // v426 — synchro inscription↔profil : recharge les champs du wizard owner.
+      dobController.text = profileData['dateOfBirth']?.toString() ?? '';
+      final sp = profileData['searchPreferences'];
+      if (sp is Map) {
+        searchServices.value =
+            (sp['services'] as List?)?.map((e) => e.toString()).toList() ?? [];
+        final r = sp['radiusKm'];
+        if (r is num && r > 0) searchRadius.value = r.toInt().toString();
       }
 
       final rawLanguage = profileData['language'];
@@ -170,12 +171,6 @@ class EditOwnerProfileController extends GetxController {
         currentAvatarUrl.value = profileData['profileImage'].toString();
       }
 
-      // Sprint 5 UI step 1 — load existing service preferences.
-      final prefs = profileData['servicePreferences'];
-      if (prefs is Map) {
-        servicePrefAtOwner.value = prefs['atOwner'] != false;
-        servicePrefAtSitter.value = prefs['atSitter'] == true;
-      }
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load profile', error: error.message);
       // Scoped fix : pas d'auto-logout UNIQUEMENT si l'utilisateur est
@@ -284,7 +279,6 @@ class EditOwnerProfileController extends GetxController {
       final address = addressController.text.trim();
       final language = languageController.text.trim();
       final bio = bioController.text.trim();
-      final skills = skillsController.text.trim();
       final countryCode = selectedCountryCode.value;
 
       if (address.isNotEmpty) {
@@ -296,17 +290,16 @@ class EditOwnerProfileController extends GetxController {
       if (bio.isNotEmpty) {
         payload['bio'] = bio;
       }
-      if (skills.isNotEmpty) {
-        payload['skills'] = skills;
-      }
       if (countryCode.isNotEmpty) {
         payload['countryCode'] = countryCode;
       }
 
-      // Sprint 5 UI step 1 — service preferences.
-      payload['servicePreferences'] = {
-        'atOwner': servicePrefAtOwner.value,
-        'atSitter': servicePrefAtSitter.value,
+      // v426 — synchro inscription↔profil : champs additifs du wizard owner.
+      payload['dateOfBirth'] = dobController.text.trim();
+      payload['searchPreferences'] = {
+        'services': searchServices.toList(),
+        'radiusKm': int.tryParse(searchRadius.value) ?? 20,
+        'preferredLanguage': language,
       };
 
       // Include location coordinates if available (same format as signup)

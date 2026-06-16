@@ -343,12 +343,44 @@ const updateMyWalkerProfile = async (req, res) => {
       'service',
       'location',
       'pickupPreferences',
+      // Additif — tarif par animal supplémentaire + temps de réponse + jours
+      // dispo + calendrier de dispo (alimente la WalkerCard premium et le
+      // détail public, comme côté sitter).
+      'extraPetRate',
+      'responseTimeMinutes',
+      'availableDays',
+      'availableDates',
+      'unavailableDates',
+      // v426 — synchro inscription↔profil : date de naissance + expérience
+      // collectées par le wizard 5 étapes, éditables depuis « Modifier le profil ».
+      'dateOfBirth',
+      'experienceTags',
     ];
     const update = {};
     for (const key of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, key)) {
         update[key] = req.body[key];
       }
+    }
+
+    // Additif — normalise les dates de dispo en UTC midnight (même convention
+    // que côté sitter) pour éviter les doublons par fuseau horaire.
+    const _toUtcMidnight = (value) => {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return null;
+      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    };
+    const _normalizeDateList = (list) =>
+      Array.isArray(list)
+        ? Array.from(
+            new Set(list.map(_toUtcMidnight).filter(Boolean).map((d) => d.toISOString())),
+          ).map((s) => new Date(s))
+        : [];
+    if (update.availableDates !== undefined) {
+      update.availableDates = _normalizeDateList(update.availableDates);
+    }
+    if (update.unavailableDates !== undefined) {
+      update.unavailableDates = _normalizeDateList(update.unavailableDates);
     }
 
     // Session v16.2 — normalise `location`. Frontend sends flat
@@ -434,13 +466,15 @@ const getMyWalkerRates = async (req, res) => {
     if (req.user?.role !== 'walker') {
       return res.status(403).json({ error: 'Walker role required.' });
     }
-    const walker = await Walker.findById(req.user.id).select('walkRates currency').lean();
+    const walker = await Walker.findById(req.user.id).select('walkRates currency extraPetRate responseTimeMinutes').lean();
     if (!walker) {
       return res.status(404).json({ error: 'Walker profile not found.' });
     }
     res.json({
       walkRates: walker.walkRates || [],
       currency: walker.currency || 'EUR',
+      extraPetRate: walker.extraPetRate || 0,
+      responseTimeMinutes: walker.responseTimeMinutes ?? null,
     });
   } catch (error) {
     logger.error('getMyWalkerRates error', error);
@@ -511,6 +545,96 @@ const updateMyWalkerRates = async (req, res) => {
   }
 };
 
+// ── Availability calendar (additif — parité avec le sitter) ──────────────────
+// Le walker partage le même écran AvailabilityCalendarScreen côté app ; il lui
+// faut donc ses propres endpoints /walkers/me/availability (les /sitters/me/*
+// renvoyaient un 403 pour un walker → calendrier silencieusement cassé).
+
+const _toUtcMidnightW = (value) => {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+};
+const _normalizeDateListW = (list) =>
+  Array.isArray(list)
+    ? Array.from(
+        new Set(list.map(_toUtcMidnightW).filter(Boolean).map((d) => d.toISOString())),
+      ).map((s) => new Date(s))
+    : [];
+
+const getMyWalkerAvailability = async (req, res) => {
+  try {
+    if (req.user?.role !== 'walker') {
+      return res.status(403).json({ error: 'Walker role required.' });
+    }
+    const walker = await Walker.findById(req.user.id)
+      .select('availableDates unavailableDates availableTimeSlots')
+      .lean();
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    res.json({
+      availableDates: walker.availableDates || [],
+      unavailableDates: walker.unavailableDates || [],
+      availableTimeSlots: walker.availableTimeSlots || [],
+    });
+  } catch (e) {
+    logger.error('getMyWalkerAvailability error', e);
+    res.status(500).json({ error: 'Unable to fetch availability.' });
+  }
+};
+
+const updateMyWalkerAvailability = async (req, res) => {
+  try {
+    if (req.user?.role !== 'walker') {
+      return res.status(403).json({ error: 'Walker role required.' });
+    }
+    const { availableDates, unavailableDates, availableTimeSlots } = req.body || {};
+    const update = {};
+    if (availableDates !== undefined) update.availableDates = _normalizeDateListW(availableDates);
+    if (unavailableDates !== undefined) update.unavailableDates = _normalizeDateListW(unavailableDates);
+    if (availableTimeSlots !== undefined && Array.isArray(availableTimeSlots)) {
+      update.availableTimeSlots = availableTimeSlots;
+    }
+    if (!Object.keys(update).length) {
+      return res.status(400).json({ error: 'availableDates, unavailableDates or availableTimeSlots required.' });
+    }
+    const walker = await Walker.findByIdAndUpdate(req.user.id, update, {
+      new: true,
+      runValidators: true,
+    })
+      .select('availableDates unavailableDates availableTimeSlots')
+      .lean();
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    res.json({
+      availableDates: walker.availableDates || [],
+      unavailableDates: walker.unavailableDates || [],
+      availableTimeSlots: walker.availableTimeSlots || [],
+    });
+  } catch (e) {
+    logger.error('updateMyWalkerAvailability error', e);
+    if (e.name === 'ValidationError') {
+      return res.status(400).json({ error: e.message });
+    }
+    res.status(500).json({ error: 'Unable to update availability.' });
+  }
+};
+
+const getWalkerAvailability = async (req, res) => {
+  try {
+    const walker = await Walker.findById(req.params.id)
+      .select('availableDates unavailableDates availableTimeSlots')
+      .lean();
+    if (!walker) return res.status(404).json({ error: 'Walker not found.' });
+    res.json({
+      availableDates: walker.availableDates || [],
+      unavailableDates: walker.unavailableDates || [],
+      availableTimeSlots: walker.availableTimeSlots || [],
+    });
+  } catch (e) {
+    logger.error('getWalkerAvailability error', e);
+    res.status(500).json({ error: 'Unable to fetch availability.' });
+  }
+};
+
 // ── Identity verification (session v3.2) ─────────────────────────────────────
 // Mirror of sitterController.submitIdentityVerification so walkers can also
 // upload an ID document that the admin dashboard then reviews via the same
@@ -575,6 +699,9 @@ module.exports = {
   updateMyWalkerProfile,
   getMyWalkerRates,
   updateMyWalkerRates,
+  getMyWalkerAvailability,
+  updateMyWalkerAvailability,
+  getWalkerAvailability,
   submitIdentityVerification,
   getMyIdentityVerification,
 };

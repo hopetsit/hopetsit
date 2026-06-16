@@ -2358,6 +2358,8 @@ const Map<String, String> esESTranslations = <String, String>{
     'chat_delete_message_error': 'No se pudo eliminar el mensaje. Inténtalo de nuevo.',
     'chat_message_deleted': 'Mensaje eliminado',
     'my_rates_section_title': 'Mis tarifas',
+    'rates_extra_pet_label': 'Mascota adicional (€)',
+    'rates_response_time_label': 'Tiempo de respuesta típico (min)',
     'pet_age_behavior': 'Edad y comportamiento',
     'currency_label': 'Moneda',
     'signup_photo_add': 'Añadir foto',

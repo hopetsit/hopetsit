@@ -2362,6 +2362,8 @@ const Map<String, String> itITTranslations = <String, String>{
     'chat_delete_message_error': 'Impossibile eliminare il messaggio. Riprova.',
     'chat_message_deleted': 'Messaggio eliminato',
     'my_rates_section_title': 'Le mie tariffe',
+    'rates_extra_pet_label': 'Animale aggiuntivo (€)',
+    'rates_response_time_label': 'Tempo di risposta tipico (min)',
     'pet_age_behavior': 'Età e comportamento',
     'currency_label': 'Valuta',
     'signup_photo_add': 'Aggiungi foto',

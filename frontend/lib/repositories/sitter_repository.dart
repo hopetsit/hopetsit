@@ -711,6 +711,12 @@ class SitterRepository {
     String? language,
     double? hourlyRate,
     String? currency,
+    // v426 — synchro inscription↔profil : champs additifs du wizard 5 étapes.
+    String? dateOfBirth,
+    List<String>? acceptedPetTypes,
+    List<String>? experienceTags,
+    List<String>? service,
+    int? coverageRadiusKm,
   }) async {
     final payload = <String, dynamic>{
       'name': name,
@@ -742,6 +748,23 @@ class SitterRepository {
     }
     if (countryCode != null && countryCode.isNotEmpty) {
       payload['countryCode'] = countryCode;
+    }
+    // v426 — synchro inscription↔profil. Le backend (PUT /sitters/me/profile)
+    // whiteliste désormais ces champs ; envoyés seulement s'ils sont fournis.
+    if (dateOfBirth != null) {
+      payload['dateOfBirth'] = dateOfBirth;
+    }
+    if (acceptedPetTypes != null) {
+      payload['acceptedPetTypes'] = acceptedPetTypes;
+    }
+    if (experienceTags != null) {
+      payload['experienceTags'] = experienceTags;
+    }
+    if (service != null) {
+      payload['service'] = service;
+    }
+    if (coverageRadiusKm != null) {
+      payload['coverageRadiusKm'] = coverageRadiusKm;
     }
 
     final response = await _apiClient.put(
@@ -818,11 +841,15 @@ class SitterRepository {
   }
 
   /// Sets current sitter rates using PUT /sitters/me/rates.
+  /// [extraPetRate] = surcharge per extra animal (optional, additive).
+  /// [responseTimeMinutes] = typical reply time in minutes (optional, additive).
   Future<Map<String, dynamic>> setMyRates({
     required double hourlyRate,
     required double dailyRate,
     required double weeklyRate,
     required double monthlyRate,
+    double? extraPetRate,
+    int? responseTimeMinutes,
   }) async {
     final response = await _apiClient.put(
       '${ApiEndpoints.sitters}/me/rates',
@@ -831,6 +858,8 @@ class SitterRepository {
         'dailyRate': dailyRate,
         'weeklyRate': weeklyRate,
         'monthlyRate': monthlyRate,
+        if (extraPetRate != null) 'extraPetRate': extraPetRate,
+        if (responseTimeMinutes != null) 'responseTimeMinutes': responseTimeMinutes,
       },
       requiresAuth: true,
     );

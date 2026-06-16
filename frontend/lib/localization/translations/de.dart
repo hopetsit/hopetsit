@@ -2385,6 +2385,8 @@ const Map<String, String> deDETranslations = <String, String>{
     'chat_delete_message_error': 'Nachricht konnte nicht gelöscht werden. Bitte erneut versuchen.',
     'chat_message_deleted': 'Nachricht gelöscht',
     'my_rates_section_title': 'Meine Tarife',
+    'rates_extra_pet_label': 'Zusätzliches Tier (€)',
+    'rates_response_time_label': 'Typische Antwortzeit (Min.)',
     'pet_age_behavior': 'Alter & Verhalten',
     'currency_label': 'Währung',
     'signup_photo_add': 'Foto hinzufügen',

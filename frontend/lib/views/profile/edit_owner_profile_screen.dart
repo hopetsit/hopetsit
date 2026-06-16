@@ -11,9 +11,19 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 import 'package:hopetsit/widgets/city_location_picker.dart';
+import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
 
 class EditOwnerProfileScreen extends StatelessWidget {
   const EditOwnerProfileScreen({super.key});
+
+  // v426 — toggle helper partagé par les chips multi-sélection.
+  void _toggle(List<String> list, String value) {
+    if (list.contains(value)) {
+      list.remove(value);
+    } else {
+      list.add(value);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +138,17 @@ class EditOwnerProfileScreen extends StatelessWidget {
                         }
                         return null;
                       },
+                    ),
+
+                    SizedBox(height: 20.h),
+
+                    // v426 — Date de naissance (collectée à l'inscription).
+                    CustomTextField(
+                      labelText: 'signup_field_dob'.tr,
+                      hintText: 'JJ/MM/AAAA',
+                      controller: controller.dobController,
+                      keyboardType: TextInputType.datetime,
+                      textInputAction: TextInputAction.next,
                     ),
 
                     SizedBox(height: 20.h),
@@ -352,16 +373,9 @@ class EditOwnerProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 20.h),
 
-                    // Skills Field
-                    CustomTextField(
-                      labelText: 'label_skills'.tr,
-                      hintText: 'hint_skills'.tr,
-                      controller: controller.skillsController,
-                      textInputAction: TextInputAction.next,
-                      maxLines: 3,
-                    ),
-
-                    SizedBox(height: 20.h),
+                    // v426 — champ « Compétences » RETIRÉ du profil owner : un
+                    // owner ne saisit pas de compétences à l'inscription (concept
+                    // réservé aux prestataires sitter/walker). Champ mort supprimé.
 
                     // Language Field
                     CustomTextField(
@@ -371,27 +385,33 @@ class EditOwnerProfileScreen extends StatelessWidget {
                       textInputAction: TextInputAction.done,
                     ),
 
+                    SizedBox(height: 24.h),
+
+                    // v426 — synchro inscription↔profil : « Ce que vous recherchez »
+                    // (services + rayon), collecté par le wizard owner. Remplace
+                    // les anciens toggles servicePreferences (atOwner/atSitter)
+                    // qui n'étaient plus collectés à l'inscription (champ mort).
+                    ProfileFieldLabel('signup_step_search'.tr),
+                    Obx(() => ProfileChoiceChips(
+                          accent: AppColors.primaryColor,
+                          options: const [
+                            ['walk', 'signup_service_walk'],
+                            ['daycare', 'signup_service_daycare'],
+                            ['boarding', 'signup_service_boarding'],
+                            ['visit', 'signup_service_visit'],
+                          ].map((e) => [e[0], e[1].tr]).toList(),
+                          selected: controller.searchServices,
+                          onToggle: (v) => _toggle(controller.searchServices, v),
+                        )),
+
                     SizedBox(height: 20.h),
 
-                    // Sprint 5 UI step 1 — service preferences toggles.
-                    Obx(
-                      () => SwitchListTile(
-                        title: Text('service_prefs_at_owner_label'.tr),
-                        value: controller.servicePrefAtOwner.value,
-                        activeThumbColor: AppColors.primaryColor,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (v) => controller.servicePrefAtOwner.value = v,
-                      ),
-                    ),
-                    Obx(
-                      () => SwitchListTile(
-                        title: Text('service_prefs_at_sitter_label'.tr),
-                        value: controller.servicePrefAtSitter.value,
-                        activeThumbColor: AppColors.primaryColor,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (v) => controller.servicePrefAtSitter.value = v,
-                      ),
-                    ),
+                    ProfileFieldLabel('signup_search_radius'.tr),
+                    Obx(() => ProfileRadiusDropdown(
+                          accent: AppColors.primaryColor,
+                          value: controller.searchRadius.value,
+                          onChanged: (v) => controller.searchRadius.value = v,
+                        )),
 
                     SizedBox(height: 40.h),
 

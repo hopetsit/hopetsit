@@ -12,6 +12,7 @@
 
 import 'package:get/get.dart';
 
+import 'package:hopetsit/controllers/pawspot_controller.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/controllers/user_controller.dart';
@@ -41,6 +42,18 @@ Future<void> refreshAfterPurchase() async {
   if (Get.isRegistered<SitterProfileController>()) {
     try {
       await Get.find<SitterProfileController>().loadMyProfile();
+    } catch (_) {/* best-effort */}
+  }
+
+  // 4) v426 — PawSpotController : flags premiumActive / followActive /
+  //    pawspotActive (lus depuis /users/me/benefits). Sans ça, après un achat
+  //    (ou une activation staff) les chips PawFollow/PawSpot de la PawMap et
+  //    la porte Premium des signalements (ReportPremiumHelper.isUnlocked, qui
+  //    lit PawSpotController.premiumActive) ne se mettaient à jour qu'au
+  //    prochain mouvement de caméra. Best-effort.
+  if (Get.isRegistered<PawSpotController>()) {
+    try {
+      await Get.find<PawSpotController>().refreshBenefits();
     } catch (_) {/* best-effort */}
   }
 

@@ -37,6 +37,12 @@ class WalkerModel {
 
   /// Walker-specific attributes.
   final List<String> acceptedPetTypes;
+  // v426 — synchro inscription↔profil : date de naissance + tags d'expérience
+  // + jours dispo collectés par le wizard 5 étapes (lecture seule pour les
+  // jours côté « Modifier le profil » ; édités dans le calendrier de dispo).
+  final String dateOfBirth;
+  final List<String> experienceTags;
+  final List<String> availableDays;
   final int maxPetsPerWalk;
   final bool hasInsurance;
   final DateTime? insuranceExpiresAt;
@@ -103,6 +109,9 @@ class WalkerModel {
     this.responseTimeMinutes = 0,
     this.defaultWalkDurationMinutes = 30,
     this.acceptedPetTypes = const [],
+    this.dateOfBirth = '',
+    this.experienceTags = const [],
+    this.availableDays = const [],
     this.maxPetsPerWalk = 1,
     this.hasInsurance = false,
     this.insuranceExpiresAt,
@@ -201,6 +210,13 @@ class WalkerModel {
           (json['defaultWalkDurationMinutes'] as num?)?.toInt() ?? 30,
       acceptedPetTypes: json['acceptedPetTypes'] is List
           ? (json['acceptedPetTypes'] as List).map((e) => e.toString()).toList()
+          : <String>[],
+      dateOfBirth: json['dateOfBirth'] as String? ?? '',
+      experienceTags: json['experienceTags'] is List
+          ? (json['experienceTags'] as List).map((e) => e.toString()).toList()
+          : <String>[],
+      availableDays: json['availableDays'] is List
+          ? (json['availableDays'] as List).map((e) => e.toString()).toList()
           : <String>[],
       maxPetsPerWalk: (json['maxPetsPerWalk'] as num?)?.toInt() ?? 1,
       hasInsurance: json['hasInsurance'] as bool? ?? false,

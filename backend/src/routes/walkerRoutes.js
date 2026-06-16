@@ -9,6 +9,9 @@ const {
   updateMyWalkerProfile,
   getMyWalkerRates,
   updateMyWalkerRates,
+  getMyWalkerAvailability,
+  updateMyWalkerAvailability,
+  getWalkerAvailability,
   submitIdentityVerification,
   getMyIdentityVerification,
 } = require('../controllers/walkerController');
@@ -53,6 +56,9 @@ router.get('/me', requireAuth, requireRole('walker'), getMyWalkerProfile);
 router.patch('/me', requireAuth, requireRole('walker'), updateMyWalkerProfile);
 router.get('/me/rates', requireAuth, requireRole('walker'), getMyWalkerRates);
 router.put('/me/rates', requireAuth, requireRole('walker'), updateMyWalkerRates);
+// Additif — calendrier de disponibilités walker (parité sitter ; déclaré avant /:id).
+router.get('/me/availability', requireAuth, requireRole('walker'), getMyWalkerAvailability);
+router.put('/me/availability', requireAuth, requireRole('walker'), updateMyWalkerAvailability);
 // v23.1 part 131 — Phase 6 audit P6-7 : manual KYC upload retiré.
 // Voir sitterRoutes pour le motif. 410 Gone signal explicite.
 router.post(
@@ -152,6 +158,8 @@ router.get('/me/earnings', requireAuth, requireRole('walker'), async (req, res) 
 // Public discovery.
 router.get('/nearby', findNearbyWalkers);
 router.get('/', listWalkers);
+// Additif — disponibilités publiques d'un walker (déclaré avant /:id).
+router.get('/:id/availability', getWalkerAvailability);
 router.get('/:id', getWalkerProfile);
 
 module.exports = router;

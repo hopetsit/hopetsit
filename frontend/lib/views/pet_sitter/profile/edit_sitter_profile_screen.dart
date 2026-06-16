@@ -11,9 +11,19 @@ import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 import 'package:hopetsit/widgets/city_location_picker.dart';
+import 'package:hopetsit/views/profile/widgets/profile_field_widgets.dart';
 
 class EditSitterProfileScreen extends StatelessWidget {
   const EditSitterProfileScreen({super.key});
+
+  // v426 — toggle helper partagé par les chips multi-sélection.
+  void _toggle(List<String> list, String value) {
+    if (list.contains(value)) {
+      list.remove(value);
+    } else {
+      list.add(value);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +138,17 @@ class EditSitterProfileScreen extends StatelessWidget {
                         }
                         return null;
                       },
+                    ),
+
+                    SizedBox(height: 20.h),
+
+                    // v426 — Date de naissance (collectée à l'inscription).
+                    CustomTextField(
+                      labelText: 'signup_field_dob'.tr,
+                      hintText: 'JJ/MM/AAAA',
+                      controller: controller.dobController,
+                      keyboardType: TextInputType.datetime,
+                      textInputAction: TextInputAction.next,
                     ),
 
                     SizedBox(height: 20.h),
@@ -417,6 +438,69 @@ class EditSitterProfileScreen extends StatelessWidget {
                         }).toList(),
                       );
                     }),
+
+                    SizedBox(height: 24.h),
+
+                    // v426 — synchro inscription↔profil : services proposés,
+                    // animaux acceptés, expérience, rayon (mêmes options que le
+                    // wizard 5 étapes, style chips cohérent).
+                    ProfileFieldLabel('signup_services_offered'.tr),
+                    Obx(() => ProfileChoiceChips(
+                          accent: AppColors.sitterAccent,
+                          options: const [
+                            ['sit_home', 'signup_sitsvc_at_mine'],
+                            ['sit_owner', 'signup_sitsvc_at_owner'],
+                            ['daycare', 'signup_sitsvc_daycare'],
+                            ['meds', 'signup_sitsvc_meds'],
+                            ['vet_transport', 'signup_sitsvc_vet_transport'],
+                          ].map((e) => [e[0], e[1].tr]).toList(),
+                          selected: controller.selectedServices,
+                          onToggle: (v) => _toggle(controller.selectedServices, v),
+                        )),
+
+                    SizedBox(height: 20.h),
+
+                    ProfileFieldLabel('signup_animals_accepted'.tr),
+                    Obx(() => ProfileChoiceChips(
+                          accent: AppColors.sitterAccent,
+                          options: const [
+                            ['dog', 'pet_animal_dog'],
+                            ['cat', 'pet_animal_cat'],
+                            ['rodent', 'pet_animal_rodent'],
+                            ['bird', 'pet_animal_bird'],
+                            ['reptile', 'pet_animal_reptile'],
+                            ['nac', 'pet_animal_nac'],
+                          ].map((e) => [e[0], e[1].tr]).toList(),
+                          selected: controller.acceptedAnimals,
+                          onToggle: (v) => _toggle(controller.acceptedAnimals, v),
+                        )),
+
+                    SizedBox(height: 20.h),
+
+                    ProfileFieldLabel('signup_experience'.tr),
+                    Obx(() => ProfileChoiceChips(
+                          accent: AppColors.sitterAccent,
+                          options: const [
+                            ['passionate', 'signup_exp_passionate'],
+                            ['owner', 'signup_exp_owner'],
+                            ['ex_sitter', 'signup_exp_ex_sitter'],
+                            ['training', 'signup_exp_training'],
+                            ['educator', 'signup_exp_educator'],
+                            ['vet_aux', 'signup_exp_vet_aux'],
+                            ['shelter', 'signup_exp_shelter'],
+                          ].map((e) => [e[0], e[1].tr]).toList(),
+                          selected: controller.experienceTags,
+                          onToggle: (v) => _toggle(controller.experienceTags, v),
+                        )),
+
+                    SizedBox(height: 20.h),
+
+                    ProfileFieldLabel('signup_field_radius'.tr),
+                    Obx(() => ProfileRadiusDropdown(
+                          accent: AppColors.sitterAccent,
+                          value: controller.coverageRadius.value,
+                          onChanged: (v) => controller.coverageRadius.value = v,
+                        )),
 
                     SizedBox(height: 40.h),
 

@@ -2770,6 +2770,8 @@ const Map<String, String> frFRTranslations = <String, String>{
     'chat_delete_message_error': 'Impossible de supprimer le message. Réessayez.',
     'chat_message_deleted': 'Message supprimé',
     'my_rates_section_title': 'Mes tarifs',
+    'rates_extra_pet_label': 'Animal supplémentaire (€)',
+    'rates_response_time_label': 'Temps de réponse type (min)',
     'pet_age_behavior': 'Âge & comportement',
     'currency_label': 'Devise',
     'signup_photo_add': 'Ajouter une photo',

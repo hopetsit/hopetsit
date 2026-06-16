@@ -316,6 +316,18 @@ const findNearbySitters = async (req, res) => {
         dailyRate: sitter.dailyRate || 0,
         weeklyRate: sitter.weeklyRate || 0,
         monthlyRate: sitter.monthlyRate || 0,
+        // Additif — la SitterCard premium lit ces champs (tarif/animal,
+        // temps de réponse, disponibilité, prestations, note, badge vérifié).
+        // Réponse hand-built → ils doivent être ajoutés explicitement ici.
+        extraPetRate: sitter.extraPetRate || 0,
+        responseTimeMinutes: sitter.responseTimeMinutes ?? null,
+        availableDates: Array.isArray(sitter.availableDates) ? sitter.availableDates : [],
+        unavailableDates: Array.isArray(sitter.unavailableDates) ? sitter.unavailableDates : [],
+        completedServicesCount: sitter.completedServicesCount || 0,
+        averageRating: sitter.averageRating || 0,
+        identityVerified:
+          sitter.kycStatus === 'verified' ||
+          sitter.identityVerification?.status === 'verified',
         bio: sitter.bio || '',
         location: {
           coordinates: displayCoords,
@@ -450,6 +462,10 @@ const getSitterProfile = async (req, res) => {
       dailyRate: sitter.dailyRate || 0,
       weeklyRate: sitter.weeklyRate || 0,
       monthlyRate: sitter.monthlyRate || 0,
+      // Additif — surcharge par animal supplémentaire (carte/détail public).
+      // ⚠️ Réponse hand-built → SANS cette ligne le champ disparaît de l'API
+      // publique (cf mémoire getSitterProfile).
+      extraPetRate: sitter.extraPetRate || 0,
       // Main profile image
       avatar: {
         url: sitter.avatar?.url || '',
@@ -489,6 +505,11 @@ const getSitterProfile = async (req, res) => {
       experienceTags: Array.isArray(sitter.experienceTags) ? sitter.experienceTags : [],
       acceptedPetTypes: Array.isArray(sitter.acceptedPetTypes) ? sitter.acceptedPetTypes : [],
       availableDays: Array.isArray(sitter.availableDays) ? sitter.availableDays : [],
+      // Additif — calendrier de disponibilités (carte = "Dispo aujourd'hui/demain").
+      // Hand-built → indispensable ici sinon la carte/détail public ne les voit pas.
+      availableDates: Array.isArray(sitter.availableDates) ? sitter.availableDates : [],
+      unavailableDates: Array.isArray(sitter.unavailableDates) ? sitter.unavailableDates : [],
+      availableTimeSlots: Array.isArray(sitter.availableTimeSlots) ? sitter.availableTimeSlots : [],
       coverageRadiusKm: sitter.coverageRadiusKm ?? 20,
       responseTimeMinutes: sitter.responseTimeMinutes ?? null,
       // v406 — préférences + 2FA (onglets Préférences/Sécurité). Hand-built →
@@ -536,6 +557,10 @@ const updateSitterPricing = async (req, res) => {
       dailyRate,
       weeklyRate,
       monthlyRate,
+      // Additif — surcharge par animal supplémentaire + temps de réponse type,
+      // tous deux édités depuis "Mes tarifs" (MyRatesScreen).
+      extraPetRate,
+      responseTimeMinutes,
     } = req.body || {};
 
     const sitter = await Sitter.findById(sitterId);
@@ -660,6 +685,28 @@ const updateSitterPricing = async (req, res) => {
       sitter.monthlyRate = value;
     }
 
+    // Additif — surcharge par animal supplémentaire.
+    if (extraPetRate !== undefined) {
+      const value = Number(extraPetRate);
+      if (!Number.isFinite(value) || value < 0) {
+        return res.status(400).json({ error: 'extraPetRate must be a non-negative number.' });
+      }
+      sitter.extraPetRate = value;
+    }
+
+    // Additif — temps de réponse type (minutes). null/0 = inconnu.
+    if (responseTimeMinutes !== undefined) {
+      if (responseTimeMinutes === null || responseTimeMinutes === '') {
+        sitter.responseTimeMinutes = null;
+      } else {
+        const value = Number(responseTimeMinutes);
+        if (!Number.isFinite(value) || value < 0) {
+          return res.status(400).json({ error: 'responseTimeMinutes must be a non-negative number.' });
+        }
+        sitter.responseTimeMinutes = Math.round(value);
+      }
+    }
+
     await sitter.save();
 
     // Get recommended ranges for validation feedback
@@ -779,6 +826,8 @@ const getSitterPricing = async (req, res) => {
       dailyRate: sitter.dailyRate || 0,
       weeklyRate: sitter.weeklyRate || 0,
       monthlyRate: sitter.monthlyRate || 0,
+      extraPetRate: sitter.extraPetRate || 0,
+      responseTimeMinutes: sitter.responseTimeMinutes ?? null,
       servicePricing: sitter.servicePricing,
       recommendedRanges,
       message: 'Sitter pricing information retrieved successfully.',
@@ -915,6 +964,13 @@ const updateSitterProfile = async (req, res) => {
       avatar,
       canServiceAtOwner,
       canServiceAtSitter,
+      // v426 — synchro inscription↔profil : champs additifs collectés par le
+      // wizard 5 étapes (date de naissance, animaux acceptés, expérience, rayon
+      // d'intervention). Édités désormais aussi depuis « Modifier le profil ».
+      dateOfBirth,
+      experienceTags,
+      acceptedPetTypes,
+      coverageRadiusKm,
     } = req.body || {};
 
     // Build update object with only provided fields
@@ -996,6 +1052,27 @@ const updateSitterProfile = async (req, res) => {
     // Update bio
     if (bio !== undefined) {
       updateData.bio = typeof bio === 'string' ? bio.trim() : '';
+    }
+
+    // v426 — synchro inscription↔profil : champs additifs du wizard 5 étapes.
+    if (dateOfBirth !== undefined) {
+      updateData.dateOfBirth = typeof dateOfBirth === 'string' ? dateOfBirth.trim() : '';
+    }
+    if (experienceTags !== undefined) {
+      const raw = Array.isArray(experienceTags) ? experienceTags : [];
+      updateData.experienceTags = raw
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter(Boolean);
+    }
+    if (acceptedPetTypes !== undefined) {
+      const raw = Array.isArray(acceptedPetTypes) ? acceptedPetTypes : [];
+      updateData.acceptedPetTypes = raw
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter(Boolean);
+    }
+    if (coverageRadiusKm !== undefined) {
+      const km = typeof coverageRadiusKm === 'number' ? coverageRadiusKm : parseInt(coverageRadiusKm, 10);
+      if (!isNaN(km) && km > 0) updateData.coverageRadiusKm = km;
     }
 
     // Update service (array)
@@ -1265,13 +1342,34 @@ const toUtcMidnight = (value) => {
 const normalizeDateList = (list) =>
   Array.isArray(list) ? Array.from(new Set(list.map(toUtcMidnight).filter(Boolean).map((d) => d.toISOString()))).map((s) => new Date(s)) : [];
 
+// Additif — normalise une liste de créneaux horaires hebdomadaires
+// { day, startHour, endHour }. Ignore silencieusement les entrées invalides.
+const VALID_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const normalizeTimeSlots = (list) => {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const s of list) {
+    if (!s || typeof s !== 'object') continue;
+    const day = typeof s.day === 'string' ? s.day.toLowerCase() : '';
+    const startHour = Number(s.startHour);
+    const endHour = Number(s.endHour);
+    if (!VALID_DAYS.includes(day)) continue;
+    if (!Number.isInteger(startHour) || startHour < 0 || startHour > 23) continue;
+    if (!Number.isInteger(endHour) || endHour < 1 || endHour > 24) continue;
+    if (endHour <= startHour) continue;
+    out.push({ day, startHour, endHour });
+  }
+  return out;
+};
+
 const getMyAvailability = async (req, res) => {
   try {
-    const sitter = await Sitter.findById(req.user.id).select('availableDates unavailableDates');
+    const sitter = await Sitter.findById(req.user.id).select('availableDates unavailableDates availableTimeSlots');
     if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
     res.json({
       availableDates: sitter.availableDates || [],
       unavailableDates: sitter.unavailableDates || [],
+      availableTimeSlots: sitter.availableTimeSlots || [],
     });
   } catch (e) {
     logger.error('getMyAvailability error', e);
@@ -1281,19 +1379,21 @@ const getMyAvailability = async (req, res) => {
 
 const updateMyAvailability = async (req, res) => {
   try {
-    const { availableDates, unavailableDates } = req.body || {};
+    const { availableDates, unavailableDates, availableTimeSlots } = req.body || {};
     const update = {};
     if (availableDates !== undefined) update.availableDates = normalizeDateList(availableDates);
     if (unavailableDates !== undefined) update.unavailableDates = normalizeDateList(unavailableDates);
+    if (availableTimeSlots !== undefined) update.availableTimeSlots = normalizeTimeSlots(availableTimeSlots);
     if (!Object.keys(update).length) {
-      return res.status(400).json({ error: 'availableDates or unavailableDates required.' });
+      return res.status(400).json({ error: 'availableDates, unavailableDates or availableTimeSlots required.' });
     }
     const sitter = await Sitter.findByIdAndUpdate(req.user.id, update, { new: true })
-      .select('availableDates unavailableDates');
+      .select('availableDates unavailableDates availableTimeSlots');
     if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
     res.json({
       availableDates: sitter.availableDates,
       unavailableDates: sitter.unavailableDates,
+      availableTimeSlots: sitter.availableTimeSlots || [],
     });
   } catch (e) {
     logger.error('updateMyAvailability error', e);
@@ -1303,11 +1403,12 @@ const updateMyAvailability = async (req, res) => {
 
 const getSitterAvailability = async (req, res) => {
   try {
-    const sitter = await Sitter.findById(req.params.id).select('availableDates unavailableDates');
+    const sitter = await Sitter.findById(req.params.id).select('availableDates unavailableDates availableTimeSlots');
     if (!sitter) return res.status(404).json({ error: 'Sitter not found.' });
     res.json({
       availableDates: sitter.availableDates || [],
       unavailableDates: sitter.unavailableDates || [],
+      availableTimeSlots: sitter.availableTimeSlots || [],
     });
   } catch (e) {
     logger.error('getSitterAvailability error', e);
