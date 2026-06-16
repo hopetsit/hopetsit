@@ -293,6 +293,10 @@ class EditPetController extends GetxController {
     var heightText = heightController.text.trim().replaceAll(',', '.');
     if (heightText.startsWith('.')) heightText = '0$heightText';
     final heightCleaned = heightText.replaceAll(RegExp(r'[^\d.]'), '');
+    // v425 — Daniel : "Mes animaux pas modifier". La hauteur était OBLIGATOIRE
+    // à l'édition alors que la création (wizard) ne la collecte pas → modifier
+    // un animal sans hauteur était IMPOSSIBLE (« hauteur requise »). Désormais
+    // optionnelle : on valide seulement qu'elle soit > 0 SI renseignée.
     if (heightCleaned.isNotEmpty) {
       final h = double.tryParse(heightCleaned);
       if (h != null && h <= 0) {
@@ -302,12 +306,6 @@ class EditPetController extends GetxController {
         );
         return false;
       }
-    } else if (heightText.isEmpty) {
-      CustomSnackbar.showError(
-        title: 'pet_validation_error'.tr,
-        message: 'snackbar_text_height_is_required',
-      );
-      return false;
     }
 
     isLoading.value = true;

@@ -311,6 +311,8 @@ const listPosts = async (req, res) => {
           name: owner?.name || '',
           email: owner?.email || '',
           avatar: owner?.avatar?.url || '',
+          // v420 — bio owner pour la section "À propos de moi" du détail d'annonce.
+          bio: owner?.bio || '',
         };
 
         // v23.1 part 116 — owner boost annotation. On lit les champs
@@ -377,6 +379,11 @@ const listPosts = async (req, res) => {
                 uploadedAt: photo.uploadedAt || null,
               }))
             : [],
+          // v420 — type + caractère de l'animal pour le détail d'annonce (maquette Daniel C).
+          category: pet.category || '',
+          characterTraits: Array.isArray(pet.characterTraits)
+            ? pet.characterTraits
+            : [],
         }));
 
         return {
@@ -439,6 +446,8 @@ const getMediaPosts = async (req, res) => {
           name: owner?.name || '',
           email: owner?.email || '',
           avatar: owner?.avatar?.url || '',
+          // v420 — bio owner pour la section "À propos de moi" du détail d'annonce.
+          bio: owner?.bio || '',
         };
         
         // Get all pets for this owner
@@ -453,6 +462,11 @@ const getMediaPosts = async (req, res) => {
                 publicId: photo.publicId || '',
                 uploadedAt: photo.uploadedAt || null,
               }))
+            : [],
+          // v420 — type + caractère de l'animal pour le détail d'annonce (maquette Daniel C).
+          category: pet.category || '',
+          characterTraits: Array.isArray(pet.characterTraits)
+            ? pet.characterTraits
             : [],
         }));
         
@@ -539,6 +553,8 @@ const getRequestPosts = async (req, res) => {
           name: owner?.name || '',
           email: owner?.email || '',
           avatar: owner?.avatar?.url || '',
+          // v420 — bio owner pour la section "À propos de moi" du détail d'annonce.
+          bio: owner?.bio || '',
         };
 
         // v23.1 part 120 — owner Boost annotation (boostExpiry/Tier).
@@ -594,6 +610,11 @@ const getRequestPosts = async (req, res) => {
                 publicId: photo.publicId || '',
                 uploadedAt: photo.uploadedAt || null,
               }))
+            : [],
+          // v420 — type + caractère de l'animal pour le détail d'annonce (maquette Daniel C).
+          category: pet.category || '',
+          characterTraits: Array.isArray(pet.characterTraits)
+            ? pet.characterTraits
             : [],
         }));
 

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hopetsit/models/post_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/post_price_estimator.dart';
@@ -61,6 +62,15 @@ class PetPostCard extends StatelessWidget {
   final bool ownerViewOfOwnPost;
   final String? reservedProviderRole;
 
+  /// v420 — maquette "Daniel C" : liste des animaux de l'annonce (nom +
+  /// nb de photos + caractère + type), pour la bande animaux et la carte
+  /// "Caractère des animaux". Null/vide ⇒ ces sections sont masquées.
+  final List<PostPet>? pets;
+
+  /// v420 — "À propos de moi" du propriétaire affiché sous la demande de
+  /// réservation. Null/vide ⇒ masqué.
+  final String? ownerBio;
+
   const PetPostCard({
     super.key,
     required this.userName,
@@ -93,6 +103,8 @@ class PetPostCard extends StatelessWidget {
     this.isReserved = false,
     this.ownerViewOfOwnPost = false,
     this.reservedProviderRole,
+    this.pets,
+    this.ownerBio,
     // v23.1 part 116 — Daniel : "sitter et walker aussi vois que lannonce
     // et booster et en haut". Quand isOwnerBoosted=true, on affiche un
     // ruban "🚀 Urgent" en haut de la card pour attirer l'œil.
@@ -103,6 +115,20 @@ class PetPostCard extends StatelessWidget {
   /// v23.1 part 116 — owner boost annotation (du backend listPosts).
   final bool isOwnerBoosted;
   final String? ownerBoostTier;
+
+  /// v425 — maquettes 221/223/224 : la carte prend la couleur du RÔLE qui la
+  /// regarde — orange (owner sur sa propre annonce), vert (promeneur), bleu
+  /// (pet-sitter). Avant tout était orange même côté walker/sitter.
+  Color get _accent {
+    switch (viewerRole) {
+      case 'walker':
+        return const Color(0xFF16A34A);
+      case 'sitter':
+        return const Color(0xFF2563EB);
+      default:
+        return AppColors.primaryColor;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -288,14 +314,27 @@ class PetPostCard extends StatelessWidget {
             ),
           ),
 
-          // Show media only when the post actually has media images.
+          // v425 — maquette 221 : grande photo bannière (1re photo) + badge
+          // "N photos", tap → galerie plein écran. Remplace l'ancienne grille.
           if (petImages.isNotEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: _buildImagesGrid(context),
+              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+              child: _buildHeroBanner(context),
             )
           else
             SizedBox(height: 4.h),
+
+          // v420/v425 — maquette : bande des animaux (avatar + nom + nb de
+          // photos + ›) puis carte "Caractère des animaux".
+          if (pets != null && pets!.isNotEmpty) ...[
+            SizedBox(height: 14.h),
+            _buildPetsStrip(context),
+          ],
+          if (_allTraits.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+              child: _buildCharacterCard(context),
+            ),
 
           if ((postBody ?? '').trim().isNotEmpty ||
               (petName ?? '').trim().isNotEmpty ||
@@ -332,48 +371,63 @@ class PetPostCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Section header — "Demande de réservation"
+                        // Section header — "Demande de réservation" + statut.
                         Row(
                           children: [
                             Container(
                               width: 4.w,
                               height: 14.h,
                               decoration: BoxDecoration(
-                                color: AppColors.primaryColor,
+                                color: _accent,
                                 borderRadius: BorderRadius.circular(2.r),
                               ),
                             ),
                             SizedBox(width: 8.w),
-                            InterText(
-                              text: 'post_card_reservation_request'.tr,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary(context),
+                            Expanded(
+                              child: InterText(
+                                text: 'post_card_reservation_request'.tr,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary(context),
+                              ),
                             ),
+                            _buildRequestStatusBadge(context),
                           ],
                         ),
                         SizedBox(height: 10.h),
-                        if ((petName ?? '').trim().isNotEmpty)
-                          _buildDetailRow(Icons.pets_outlined, petName!.trim()),
-                        if ((serviceTypes ?? '').trim().isNotEmpty)
-                          _buildDetailRow(
-                            Icons.volunteer_activism_outlined,
-                            _localizedServices(serviceTypes!.trim()),
-                          ),
+                        // Ordre maquette : Dates / Localisation / Nombre
+                        // d'animaux / Type d'animaux / Service / Animaux.
                         if ((dateRange ?? '').trim().isNotEmpty)
-                          _buildDetailRow(
-                            Icons.calendar_today_outlined,
-                            dateRange!.trim(),
-                          ),
+                          _buildReqRow(context, Icons.calendar_today_outlined,
+                              'post_field_dates'.tr, dateRange!.trim()),
                         if ((location ?? '').trim().isNotEmpty)
-                          _buildDetailRow(
-                            Icons.location_on_outlined,
-                            location!.trim(),
-                            isLast: true,
-                          ),
+                          _buildReqRow(context, Icons.location_on_outlined,
+                              'post_field_location'.tr, location!.trim()),
+                        if (pets != null && pets!.isNotEmpty)
+                          _buildReqRow(context, Icons.pets_outlined,
+                              'post_field_pet_count'.tr, '${pets!.length}'),
+                        if (_petTypesLabel.isNotEmpty)
+                          _buildReqRow(context, Icons.category_outlined,
+                              'post_field_pet_types'.tr, _petTypesLabel),
+                        if ((serviceTypes ?? '').trim().isNotEmpty)
+                          _buildReqRow(
+                              context,
+                              Icons.volunteer_activism_outlined,
+                              'post_field_service'.tr,
+                              _localizedServices(serviceTypes!.trim())),
+                        if ((pets == null || pets!.isEmpty) &&
+                            (petName ?? '').trim().isNotEmpty)
+                          _buildReqRow(context, Icons.pets_outlined,
+                              'post_field_animals'.tr, petName!.trim(),
+                              isLast: true),
                       ],
                     ),
                   ),
+                  // v420 — "À propos de moi" du propriétaire (maquette).
+                  if ((ownerBio ?? '').trim().isNotEmpty) ...[
+                    SizedBox(height: 10.h),
+                    _buildAboutOwner(context),
+                  ],
                   if (priceEstimate != null && !priceEstimate!.isZero) ...[
                     SizedBox(height: 10.h),
                     _buildPriceBlock(context, priceEstimate!),
@@ -524,6 +578,336 @@ class PetPostCard extends StatelessWidget {
     );
   }
 
+  // ── v420 — maquette "Daniel C" : helpers détail d'annonce ────────────────
+
+  /// Traits de caractère dédupliqués sur l'ensemble des animaux de l'annonce.
+  List<String> get _allTraits {
+    if (pets == null) return const <String>[];
+    final seen = <String>{};
+    final out = <String>[];
+    for (final p in pets!) {
+      for (final t in p.characterTraits) {
+        final k = t.trim();
+        if (k.isEmpty || seen.contains(k)) continue;
+        seen.add(k);
+        out.add(k);
+      }
+    }
+    return out;
+  }
+
+  /// Types d'animaux distincts (ex. "Chien, Chat").
+  String get _petTypesLabel {
+    if (pets == null || pets!.isEmpty) return '';
+    final seen = <String>{};
+    final labels = <String>[];
+    for (final p in pets!) {
+      final c = p.category.trim().toLowerCase();
+      if (c.isEmpty || seen.contains(c)) continue;
+      seen.add(c);
+      labels.add(_categoryLabel(c));
+    }
+    return labels.join(', ');
+  }
+
+  String _categoryLabel(String c) {
+    switch (c) {
+      case 'dog':
+        return 'pet_type_dog'.tr;
+      case 'cat':
+        return 'pet_type_cat'.tr;
+      case 'small':
+      case 'small_animal':
+        return 'pet_type_small'.tr;
+      case 'nac':
+        return 'pet_type_nac'.tr;
+      case 'bird':
+        return 'pet_type_bird'.tr;
+      default:
+        return c.isEmpty ? c : c[0].toUpperCase() + c.substring(1);
+    }
+  }
+
+  /// Bande des animaux concernés — lignes "avatar | 🐕 Nom • N photos ›"
+  /// (maquette 221). Couleur du nom = accent du rôle.
+  Widget _buildPetsStrip(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
+      child: Wrap(
+        spacing: 18.w,
+        runSpacing: 10.h,
+        children: pets!.map((p) {
+          final count = p.photos.length;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 18.r,
+                backgroundColor: _accent.withValues(alpha: 0.12),
+                backgroundImage: p.avatar.isNotEmpty
+                    ? CachedNetworkImageProvider(p.avatar, maxWidth: 150)
+                        as ImageProvider
+                    : null,
+                child: p.avatar.isEmpty
+                    ? Icon(Icons.pets, size: 16.sp, color: _accent)
+                    : null,
+              ),
+              SizedBox(width: 8.w),
+              Text(_speciesEmoji(p.category), style: TextStyle(fontSize: 13.sp)),
+              SizedBox(width: 4.w),
+              InterText(
+                text: p.petName,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w700,
+                color: _accent,
+              ),
+              SizedBox(width: 6.w),
+              InterText(
+                text: count <= 1
+                    ? '• $count ${'post_photos_count_one'.tr}'
+                    : '• $count ${'post_photos_count'.tr}',
+                fontSize: 11.sp,
+                color: AppColors.textSecondary(context),
+              ),
+              SizedBox(width: 2.w),
+              Icon(Icons.chevron_right_rounded,
+                  size: 16.sp, color: AppColors.greyColor),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// v425 — grande photo bannière (maquette 221) + badge "N photos".
+  Widget _buildHeroBanner(BuildContext context) {
+    final first = petImages.first;
+    return GestureDetector(
+      onTap: () => _openPhotoViewer(context, 0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16.r),
+        child: Stack(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 190.h,
+              child: isNetworkImage
+                  ? CachedNetworkImage(
+                      imageUrl: first,
+                      fit: BoxFit.cover,
+                      placeholder: (c, _) =>
+                          Container(color: AppColors.lightGreyColor),
+                      errorWidget: (c, _, __) => Container(
+                        color: AppColors.lightGreyColor,
+                        child: Icon(Icons.broken_image,
+                            color: AppColors.greyColor),
+                      ),
+                    )
+                  : Image.asset(first, fit: BoxFit.cover),
+            ),
+            if (petImages.length > 1)
+              Positioned(
+                right: 10.w,
+                top: 10.h,
+                child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(20.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.photo_camera_rounded,
+                          size: 13.sp, color: Colors.white),
+                      SizedBox(width: 5.w),
+                      InterText(
+                        text: '${petImages.length} ${'post_photos_count'.tr}',
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _speciesEmoji(String category) {
+    switch (category.trim().toLowerCase()) {
+      case 'dog':
+        return '🐕';
+      case 'cat':
+        return '🐈';
+      case 'bird':
+        return '🐦';
+      case 'small':
+      case 'small_animal':
+        return '🐹';
+      case 'nac':
+        return '🦎';
+      default:
+        return '🐾';
+    }
+  }
+
+  /// Carte "Caractère des animaux" — chips de traits.
+  Widget _buildCharacterCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.inputFill(context),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: AppColors.divider(context).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.favorite_rounded, size: 15.sp, color: _accent),
+              SizedBox(width: 8.w),
+              InterText(
+                text: 'post_character_section'.tr,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Wrap(
+            spacing: 6.w,
+            runSpacing: 6.h,
+            children: _allTraits
+                .map((t) => Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 10.w, vertical: 5.h),
+                      decoration: BoxDecoration(
+                        color: _accent.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(14.r),
+                        border: Border.all(
+                          color: _accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: InterText(
+                        text: 'pet_trait_$t'.tr,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600,
+                        color: _accent,
+                      ),
+                    ))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Section "À propos de moi" du propriétaire.
+  Widget _buildAboutOwner(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.inputFill(context),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: AppColors.divider(context).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_rounded, size: 15.sp, color: _accent),
+              SizedBox(width: 8.w),
+              InterText(
+                text: 'post_about_owner'.tr,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          InterText(
+            text: ownerBio!.trim(),
+            fontSize: 12.sp,
+            color: AppColors.textSecondary(context),
+            maxLines: 6,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Ligne label : valeur de la demande de réservation.
+  Widget _buildReqRow(BuildContext context, IconData icon, String label,
+      String value,
+      {bool isLast = false}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 8.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15.sp, color: AppColors.textSecondary(context)),
+          SizedBox(width: 8.w),
+          InterText(
+            text: '$label : ',
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary(context),
+          ),
+          Expanded(
+            child: InterText(
+              text: value,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Badge de statut de la demande ("En attente" tant que non réservée).
+  Widget _buildRequestStatusBadge(BuildContext context) {
+    if (isReserved) return const SizedBox.shrink();
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule_rounded,
+              size: 11.sp, color: const Color(0xFFB45309)),
+          SizedBox(width: 4.w),
+          InterText(
+            text: 'post_status_pending'.tr,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFFB45309),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// v23.1 — bouton action moderne : gradient subtil, ombre douce, état
   /// "actif" (liké/partagé) avec rempli plein couleur, "inactif" avec
   /// fond très clair et bordure légère. Animation tactile via InkWell.
@@ -645,43 +1029,6 @@ class PetPostCard extends StatelessWidget {
     return items.map(map).join(', ');
   }
 
-  Widget _buildDetailRow(IconData icon, String text, {bool isLast = false}) {
-    return Builder(
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: isLast ? 0 : 8.h),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 26.w,
-              height: 26.w,
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                icon,
-                size: 14.sp,
-                color: AppColors.primaryColor,
-              ),
-            ),
-            SizedBox(width: 10.w),
-            Expanded(
-              child: InterText(
-                text: text,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary(context),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// Session v17.1 — tiny "Reserved" pill rendered in the card header when
   /// the post has an active reservation. Colour matches the provider role
@@ -975,6 +1322,8 @@ class PetPostCard extends StatelessWidget {
     );
   }
 
+  // v425 — remplacé par _buildHeroBanner (maquette 221). Conservé au cas où.
+  // ignore: unused_element
   Widget _buildImagesGrid(BuildContext context) {
     final imageCount = petImages.length;
     final spacing = 4.w; // Consistent spacing

@@ -471,6 +471,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     userEmail: post.owner.email,
                     userAvatar: post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
                     petImages: post.images.map((img) => img.url).toList(),
+                    // v420 — maquette détail annonce : animaux + bio owner.
+                    pets: post.pets,
+                    ownerBio: post.owner.bio,
                     postBody: post.body,
                     serviceTypes: _serviceTypesDisplay(post.serviceTypes),
                     dateRange: _postDateRangeLabel(post),

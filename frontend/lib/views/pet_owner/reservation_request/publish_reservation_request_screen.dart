@@ -1,8 +1,10 @@
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/controllers/publish_reservation_request_controller.dart';
+import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/city_location_picker.dart';
@@ -10,6 +12,7 @@ import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart';
 import 'package:hopetsit/views/profile/my_pets_screen.dart';
+import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 
 class PublishReservationRequestScreen extends StatefulWidget {
   const PublishReservationRequestScreen({super.key});
@@ -73,25 +76,70 @@ class _PublishReservationRequestScreenState
                 _buildSectionCard(
                   icon: Icons.visibility_rounded,
                   title: 'publish_show_character'.tr,
-                  child: Obx(
-                    () => Row(
+                  child: Obx(() {
+                    // v420 — maquette : quand le toggle est ON, aperçu des
+                    // traits de caractère des animaux sélectionnés.
+                    final selectedPets = controller.myPets
+                        .where((p) => controller.selectedPetIds.contains(p.id))
+                        .toList();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: InterText(
-                            text: 'publish_show_character_hint'.tr,
-                            fontSize: 12.sp,
-                            color: AppColors.textSecondary(context),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InterText(
+                                text: 'publish_show_character_hint'.tr,
+                                fontSize: 12.sp,
+                                color: AppColors.textSecondary(context),
+                              ),
+                            ),
+                            Switch(
+                              value: controller.showAnimalCharacter.value,
+                              onChanged: (v) =>
+                                  controller.showAnimalCharacter.value = v,
+                              activeTrackColor: AppColors.primaryColor,
+                            ),
+                          ],
+                        ),
+                        if (controller.showAnimalCharacter.value) ...[
+                          SizedBox(height: 10.h),
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(12.w),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryColor
+                                  .withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(14.r),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                InterText(
+                                  text: 'publish_character_preview_label'.tr,
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryColor,
+                                ),
+                                SizedBox(height: 10.h),
+                                if (selectedPets.isEmpty)
+                                  InterText(
+                                    text: 'publish_character_no_pet_selected'.tr,
+                                    fontSize: 12.sp,
+                                    color: AppColors.greyColor,
+                                  )
+                                else
+                                  // Caractère groupé PAR animal (maquette 222).
+                                  ...selectedPets.map(
+                                    (p) => _characterPreviewForPet(p),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        Switch(
-                          value: controller.showAnimalCharacter.value,
-                          onChanged: (v) =>
-                              controller.showAnimalCharacter.value = v,
-                          activeTrackColor: AppColors.primaryColor,
-                        ),
+                        ],
                       ],
-                    ),
-                  ),
+                    );
+                  }),
                 ),
                 SizedBox(height: 16.h),
                 // v18.8 — ordre demandé : Animaux / Type de service / Dates.
@@ -310,7 +358,10 @@ class _PublishReservationRequestScreenState
         );
       }
 
-      // v23.1 — multi-pet selection via FilterChips (tap toggles in/out).
+      // v425 — maquette 222 : cartes premium (photo ronde + nom + race +
+      // flèche profil) à la place des FilterChips. Tap = sélectionne
+      // (bordure orange), la flèche ouvre la fiche animal. Multi-sélection
+      // 100% préservée (controller.selectPet / selectedPetIds).
       final selectedCount = controller.selectedPetIds.length;
       final countLabel = selectedCount == 0
           ? 'common_select'.tr
@@ -319,62 +370,246 @@ class _PublishReservationRequestScreenState
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              InterText(
-                text: 'label_pets'.tr,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w500,
-                color: AppColors.grey700Color,
-              ),
-              InterText(
-                text: countLabel,
-                fontSize: 12.sp,
-                color: selectedCount > 0
-                    ? AppColors.primaryColor
-                    : AppColors.greyColor,
-              ),
-            ],
+          InterText(
+            text: countLabel,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: selectedCount > 0
+                ? AppColors.primaryColor
+                : AppColors.greyColor,
           ),
-          SizedBox(height: 8.h),
-          Container(
-            padding: EdgeInsets.all(10.w),
-            decoration: BoxDecoration(
-              color: AppColors.inputFill(context),
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(
-                color: controller.petSelectionError.value
-                    ? AppColors.errorColor
-                    : AppColors.divider(context),
-                width: controller.petSelectionError.value ? 1.5 : 1,
-              ),
+          if (controller.petSelectionError.value) ...[
+            SizedBox(height: 4.h),
+            InterText(
+              text: 'publish_request_select_pet_required'.tr,
+              fontSize: 11.sp,
+              color: AppColors.errorColor,
             ),
-            child: Wrap(
-              spacing: 8.w,
-              runSpacing: 8.h,
+          ],
+          SizedBox(height: 10.h),
+          ...controller.myPets.map(_petSelectableCard),
+          SizedBox(height: 2.h),
+          _addAnimalButton(),
+        ],
+      );
+    });
+  }
+
+  /// v425 — carte animal sélectionnable (maquette 222).
+  Widget _petSelectableCard(PetModel p) {
+    final isSel = controller.selectedPetIds.contains(p.id);
+    final avatarUrl = p.avatar.url;
+    return Container(
+      margin: EdgeInsets.only(bottom: 10.h),
+      decoration: BoxDecoration(
+        color: isSel
+            ? AppColors.primaryColor.withValues(alpha: 0.06)
+            : AppColors.inputFill(context),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: isSel
+              ? AppColors.primaryColor
+              : AppColors.divider(context),
+          width: isSel ? 1.6 : 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16.r),
+          onTap: () => controller.selectPet(p.id),
+          child: Padding(
+            padding: EdgeInsets.all(12.w),
+            child: Row(
               children: [
-                ...controller.myPets.map((p) {
-                  final isSel = controller.selectedPetIds.contains(p.id);
-                  return FilterChip(
-                    label: Text('${p.petName} • ${p.breed}'),
-                    selected: isSel,
-                    onSelected: (_) => controller.selectPet(p.id),
-                    selectedColor: AppColors.primaryColor.withValues(alpha: 0.18),
-                    checkmarkColor: AppColors.primaryColor,
-                  );
-                }),
-                ActionChip(
-                  avatar: const Icon(Icons.add, size: 16),
-                  label: Text('publish_request_add_pet'.tr),
-                  onPressed: () => Get.to(() => const MyPetsScreen()),
+                Icon(
+                  isSel
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  size: 22.sp,
+                  color: isSel
+                      ? AppColors.primaryColor
+                      : AppColors.greyColor.withValues(alpha: 0.6),
+                ),
+                SizedBox(width: 10.w),
+                CircleAvatar(
+                  radius: 22.r,
+                  backgroundColor:
+                      AppColors.primaryColor.withValues(alpha: 0.12),
+                  backgroundImage: avatarUrl.isNotEmpty
+                      ? CachedNetworkImageProvider(avatarUrl, maxWidth: 150)
+                          as ImageProvider
+                      : null,
+                  child: avatarUrl.isEmpty
+                      ? Icon(Icons.pets,
+                          size: 20.sp, color: AppColors.primaryColor)
+                      : null,
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(_speciesEmoji(p.category),
+                              style: TextStyle(fontSize: 14.sp)),
+                          SizedBox(width: 5.w),
+                          Flexible(
+                            child: InterText(
+                              text: p.petName,
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (p.breed.isNotEmpty) ...[
+                        SizedBox(height: 2.h),
+                        InterText(
+                          text: p.breed,
+                          fontSize: 12.sp,
+                          color: AppColors.textSecondary(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // Flèche → ouvre la fiche animal (caractère géré là-bas).
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Get.to(() => PetProfileScreen(
+                        pet: p,
+                        accent: AppColors.primaryColor,
+                      )),
+                  child: Padding(
+                    padding: EdgeInsets.all(4.w),
+                    child: Icon(Icons.chevron_right_rounded,
+                        size: 22.sp, color: AppColors.greyColor),
+                  ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// v425 — bouton "Ajouter un animal" (maquette 222).
+  Widget _addAnimalButton() {
+    return GestureDetector(
+      onTap: () => Get.to(() => const MyPetsScreen()),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(vertical: 14.h),
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_rounded, size: 18.sp, color: AppColors.primaryColor),
+            SizedBox(width: 8.w),
+            InterText(
+              text: 'publish_request_add_pet'.tr,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _speciesEmoji(String category) {
+    switch (category.trim().toLowerCase()) {
+      case 'dog':
+        return '🐕';
+      case 'cat':
+        return '🐈';
+      case 'bird':
+        return '🐦';
+      case 'small':
+      case 'small_animal':
+        return '🐹';
+      case 'nac':
+        return '🦎';
+      default:
+        return '🐾';
+    }
+  }
+
+  /// v425 — aperçu du caractère d'UN animal (nom + chips de traits),
+  /// récupéré automatiquement depuis son profil (maquette 222).
+  Widget _characterPreviewForPet(PetModel p) {
+    final traits =
+        p.characterTraits.where((t) => t.trim().isNotEmpty).toList();
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(_speciesEmoji(p.category),
+                  style: TextStyle(fontSize: 14.sp)),
+              SizedBox(width: 6.w),
+              InterText(
+                text: p.petName,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary(context),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          if (traits.isEmpty)
+            InterText(
+              text: 'publish_character_preview_empty'.tr,
+              fontSize: 11.sp,
+              color: AppColors.greyColor,
+            )
+          else
+            Wrap(
+              spacing: 6.w,
+              runSpacing: 6.h,
+              children: traits
+                  .map((t) => Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 10.w, vertical: 5.h),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor
+                              .withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(14.r),
+                          border: Border.all(
+                            color:
+                                AppColors.primaryColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: InterText(
+                          text: 'pet_trait_$t'.tr,
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryColor,
+                        ),
+                      ))
+                  .toList(),
+            ),
         ],
-      );
-    });
+      ),
+    );
   }
 
   Widget _buildDatesSection() {

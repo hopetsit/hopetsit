@@ -13,10 +13,18 @@ class AuthRepository {
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
+    String? role,
   }) async {
     final response = await _apiClient.post(
       ApiEndpoints.authLogin,
-      body: {'email': email, 'password': password},
+      // v425 — `role` optionnel : pour un email multi-rôles (ex. déjà sitter
+      // puis inscrit promeneur), force la connexion sur CE rôle au lieu de
+      // l'ordre fixe owner>sitter>walker du backend.
+      body: {
+        'email': email,
+        'password': password,
+        if (role != null && role.isNotEmpty) 'role': role,
+      },
     );
 
     if (response is Map<String, dynamic>) {

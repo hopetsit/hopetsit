@@ -232,6 +232,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           userEmail: post.owner.email,
           userAvatar: post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
           petImages: const <String>[],
+          // v420 — maquette détail annonce : animaux + caractère + bio owner.
+          pets: post.pets,
+          ownerBio: post.owner.bio,
           postBody: post.body,
           petName: petName,
           serviceTypes: serviceTypesLabel.isEmpty ? null : serviceTypesLabel,
@@ -305,6 +308,9 @@ isOwnerBoosted: post.isOwnerBoosted ||
         userEmail: post.owner.email,
         userAvatar: post.owner.avatar.isNotEmpty ? post.owner.avatar : null,
         petImages: imageUrls,
+        // v420 — maquette détail annonce : animaux + caractère + bio owner.
+        pets: post.pets,
+        ownerBio: post.owner.bio,
         postBody: post.body,
         petName: post.pets.isNotEmpty ? post.pets.first.petName : null,
         serviceTypes: _serviceTypesDisplay(post.serviceTypes).isEmpty

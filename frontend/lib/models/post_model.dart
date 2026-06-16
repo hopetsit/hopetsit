@@ -388,11 +388,16 @@ class PostOwner {
   final String email;
   final String avatar;
 
+  /// v420 — "À propos de moi" du propriétaire, affiché sur le détail
+  /// d'annonce (maquette). Vide si non renseigné.
+  final String bio;
+
   PostOwner({
     required this.id,
     required this.name,
     required this.email,
     required this.avatar,
+    this.bio = '',
   });
 
   factory PostOwner.fromJson(Map<String, dynamic> json) {
@@ -401,6 +406,7 @@ class PostOwner {
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       avatar: json['avatar'] as String? ?? '',
+      bio: json['bio'] as String? ?? '',
     );
   }
 }
@@ -411,11 +417,18 @@ class PostPet {
   final String avatar;
   final List<PostImage> photos;
 
+  /// v420 — catégorie (dog/cat/...) + traits de caractère, affichés sur le
+  /// détail d'annonce (carte "Caractère des animaux" + ligne "Type d'animaux").
+  final String category;
+  final List<String> characterTraits;
+
   PostPet({
     required this.id,
     required this.petName,
     required this.avatar,
     required this.photos,
+    this.category = '',
+    this.characterTraits = const <String>[],
   });
 
   factory PostPet.fromJson(Map<String, dynamic> json) {
@@ -428,6 +441,12 @@ class PostPet {
               ?.map((e) => PostImage.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      category: json['category'] as String? ?? '',
+      characterTraits: (json['characterTraits'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .where((s) => s.trim().isNotEmpty)
+              .toList() ??
+          const <String>[],
     );
   }
 }

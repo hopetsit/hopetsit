@@ -35,6 +35,12 @@ class FriendMarkerService extends GetxService {
   /// plusieurs downloads du meme avatar en parallele.
   final Set<String> _loading = {};
 
+  /// v420 — Daniel : "la photo profil ne s'affiche pas sur la map, photo
+  /// grise". Cause possible : un échec réseau transitoire mettait en cache
+  /// le fallback gris DÉFINITIVEMENT (jamais re-téléchargé). On compte les
+  /// échecs par clé et on retente jusqu'à 3 fois avant de figer le fallback.
+  final Map<String, int> _failCount = {};
+
   /// Incrementee a chaque nouveau bitmap pret. Le PawMap _buildMarkers
   /// lit cette valeur via Obx -> rebuild auto quand un avatar finit
   /// de charger.
@@ -79,24 +85,42 @@ class FriendMarkerService extends GetxService {
   ) async {
     try {
       Uint8List? avatarBytes;
-      if (avatarUrl.isNotEmpty &&
+      final isHttp = avatarUrl.isNotEmpty &&
           (avatarUrl.startsWith('http://') ||
-              avatarUrl.startsWith('https://'))) {
+              avatarUrl.startsWith('https://'));
+      if (isHttp) {
         try {
           // Timeout 5s pour eviter de bloquer indefiniment si CDN down.
-          final resp = await http
-              .get(Uri.parse(avatarUrl))
-              .timeout(const Duration(seconds: 5));
-          if (resp.statusCode == 200) avatarBytes = resp.bodyBytes;
+          // v420 — User-Agent explicite : certains CDN refusent le UA Dart
+          // par defaut (403) → bytes null → photo grise. Un UA navigateur
+          // basique evite ce rejet.
+          final resp = await http.get(
+            Uri.parse(avatarUrl),
+            headers: const {'User-Agent': 'Mozilla/5.0 (HoPetSit)'},
+          ).timeout(const Duration(seconds: 8));
+          if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+            avatarBytes = resp.bodyBytes;
+          }
         } catch (_) {/* defensive — on fallback cercle initiales */}
       }
+      // v420 — echec reseau transitoire (URL valide mais download KO) : on
+      // NE cache PAS le fallback gris, on retente au prochain rebuild
+      // (jusqu'a 3 fois) au lieu de figer la photo grise pour toujours.
+      final downloadFailed = isHttp && avatarBytes == null;
       final bytes = await _paintMarker(
         avatarBytes: avatarBytes,
         role: role,
         isFamily: isFamily,
         isPremium: isPremium,
       );
-      _cache[key] = BitmapDescriptor.bytes(bytes);
+      final descriptor = BitmapDescriptor.bytes(bytes);
+      if (downloadFailed && (_failCount[key] ?? 0) < 3) {
+        _failCount[key] = (_failCount[key] ?? 0) + 1;
+        // pas de mise en cache → nouveau download au prochain build.
+      } else {
+        _cache[key] = descriptor;
+        _failCount.remove(key);
+      }
       rev.value++;
     } catch (e) {
       // Si meme le paint plante, on laisse le placeholder default.

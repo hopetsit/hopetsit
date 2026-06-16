@@ -144,6 +144,12 @@ class ProfileController extends GetxController {
         email.value = profileData.email;
         phoneNumber.value = profileData.mobile;
         profileImageUrl.value = profileData.avatar.url;
+        // v420 — Daniel : "photo profil grise sur la map" + "profil pas à
+        // jour dans les onglets". Cause : le profil PERSISTANT (GetStorage
+        // userProfile), lu par le marqueur PawMap et plusieurs écrans,
+        // n'était écrit qu'au login → jamais rafraîchi après modif/upload
+        // photo. On le resynchronise à chaque chargement du profil.
+        _persistFreshProfile(profileData);
       }
     } on ApiException catch (error) {
       AppLogger.logError('Failed to load profile', error: error.message);
@@ -156,6 +162,25 @@ class ProfileController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// v420 — resynchronise le profil PERSISTANT (GetStorage userProfile) avec
+  /// les données fraîches du backend, en gardant le format plat attendu par
+  /// les lecteurs existants (marqueur PawMap lit `avatar['url']` + `id`,
+  /// home/chat lisent name/email…). On ne touche qu'aux champs mutables.
+  void _persistFreshProfile(ProfileModel p) {
+    try {
+      final raw = _storage.read(StorageKeys.userProfile);
+      final map = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : <String, dynamic>{};
+      if (p.name.trim().isNotEmpty) map['name'] = p.name;
+      if (p.email.trim().isNotEmpty) map['email'] = p.email;
+      if (p.mobile.trim().isNotEmpty) map['mobile'] = p.mobile;
+      // avatar stocké en Map {url, publicId} (compat lecteurs existants).
+      map['avatar'] = p.avatar.toJson();
+      _storage.write(StorageKeys.userProfile, map);
+    } catch (_) {/* defensive — non bloquant */}
   }
 
   Future<void> loadBlockedUsers() async {

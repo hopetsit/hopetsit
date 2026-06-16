@@ -14,7 +14,7 @@
      → reload forcé (1 seule fois, garde-fou sessionStorage anti-boucle). -->
 <script>
 (function () {
-  var EMBEDDED = 'v420'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
+  var EMBEDDED = 'v426'; // ⚠️ garder synchro avec le badge "Build version" + ADMIN_BUILD backend
   try {
     fetch('/__build?cb=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -220,7 +220,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div>
       <span class="header-logo">🐾 HoPetSit</span>
       <span class="header-badge">ADMIN</span>
-      <span class="header-badge" style="background:#10B981" title="Build version">v420</span>
+      <span class="header-badge" style="background:#10B981" title="Build version">v426</span>
     </div>
     <div class="header-right">
       <span id="api-url-display" style="font-size:12px;color:var(--text-muted)"></span>

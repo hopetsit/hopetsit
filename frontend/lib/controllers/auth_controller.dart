@@ -128,8 +128,9 @@ class AuthController extends GetxController {
     super.onClose();
   }
 
-  Future<bool> login() async {
-    if (!(formKey.currentState?.validate() ?? false)) {
+  Future<bool> login({String? preferredRole, bool skipFormValidation = false}) async {
+    if (!skipFormValidation &&
+        !(formKey.currentState?.validate() ?? false)) {
       return false;
     }
 
@@ -140,6 +141,9 @@ class AuthController extends GetxController {
       final response = await _authRepository.login(
         email: emailController.text.trim(),
         password: passwordController.text,
+        // v425 — après une inscription, on connecte sur le rôle choisi
+        // (sinon un email déjà sitter ouvrirait sitter au lieu de walker).
+        role: preferredRole,
       );
 
       final token = _extractToken(response);

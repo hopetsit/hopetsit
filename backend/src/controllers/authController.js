@@ -507,13 +507,27 @@ const signup = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role: preferredRole } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const result = await findAccountByEmail(email);
+    // v425 — Daniel : "créé promeneur → ouvre sitter". findAccountByEmail
+    // résout le rôle par ordre FIXE owner>sitter>walker, donc un email
+    // multi-rôles se connecte toujours sur le rôle de plus haute priorité.
+    // Si le client précise `role` (ex. juste après inscription promeneur) ET
+    // qu'un compte existe pour CE rôle, on se connecte dessus en priorité.
+    let result = null;
+    if (preferredRole && VALID_ROLES.includes(preferredRole)) {
+      const Model =
+        preferredRole === 'owner' ? Owner : preferredRole === 'sitter' ? Sitter : Walker;
+      const account = await Model.findOne({ email: String(email).toLowerCase() });
+      if (account) result = { role: preferredRole, account };
+    }
+    if (!result) {
+      result = await findAccountByEmail(email);
+    }
 
     if (!result) {
       return res.status(401).json({ error: 'Invalid email or password.' });

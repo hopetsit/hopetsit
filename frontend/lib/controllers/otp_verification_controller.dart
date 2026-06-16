@@ -344,8 +344,24 @@ class OtpVerificationController extends GetxController {
       // Add a small delay to ensure the verification success snackbar is visible
       await Future.delayed(const Duration(milliseconds: 800));
 
-      // Retry login
-      final loginSuccess = await authController.login();
+      // v425 — Daniel : "j'ai créé promeneur, ça m'a ouvert sitter". Cause :
+      // le backend résout le rôle par ordre fixe owner>sitter>walker, donc un
+      // email DÉJÀ sitter qui s'inscrit promeneur se reconnecte en sitter. On
+      // force la connexion sur le rôle qui vient d'être créé (userType).
+      final signupRole = userType == 'pet_walker'
+          ? 'walker'
+          : userType == 'pet_sitter'
+              ? 'sitter'
+              : userType == 'pet_owner'
+                  ? 'owner'
+                  : null;
+
+      // Retry login (le formulaire de login n'est pas à l'écran pendant
+      // l'inscription → skipFormValidation).
+      final loginSuccess = await authController.login(
+        preferredRole: signupRole,
+        skipFormValidation: true,
+      );
 
       if (loginSuccess) {
         // Get the user role to navigate appropriately
