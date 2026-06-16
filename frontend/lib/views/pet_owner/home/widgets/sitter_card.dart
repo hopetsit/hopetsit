@@ -4,21 +4,18 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/sitter_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/boost_badge.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 
-/// Session v15-3 — compact pet-sitter card for the Owner's "Pet-sitters" tab.
+/// Premium pet-sitter card for the Owner's "Pet-sitters" tab.
 ///
-/// Visual parity with [WalkerCard]: small avatar, inline rating + city +
-/// distance, pill row for the sitter's rates (daily / weekly / monthly),
-/// optional "Estimation" line when the Owner has an active reservation post,
-/// and a full-width CTA. The segment control uses blue for sitters, so this
-/// card uses the same blue (0xFF1A73E8) for accents and CTA to tie the
-/// visual language together.
-///
-/// We keep the existing [ServiceProviderCard] untouched for other usages
-/// (booking detail, sitter application) — this card is only for the home
-/// browse list.
+/// Visual parity with [WalkerCard] — same premium layout, only the accent
+/// colour (blue for sitters) and the tariff labels differ. Built to match the
+/// premium mockups: avatar with online dot, name + verified + role chip,
+/// rating / city / distance, a right-hand stats column (services done,
+/// availability, response time), a bordered tariff group, an "À propos de moi"
+/// box and a full-width CTA.
 class SitterCard extends StatelessWidget {
   const SitterCard({
     super.key,
@@ -35,20 +32,17 @@ class SitterCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   /// Optional "block this sitter" action shown in the card's ⋮ menu.
-  /// Keeps feature parity with the legacy [ServiceProviderCard] when used
-  /// from the home browse list.
   final VoidCallback? onBlock;
 
-  /// Pre-computed estimate for the Owner's latest active post, rendered
-  /// under the rate pills. Null when the Owner has no active post.
+  /// Retained for constructor compatibility with the home screen. The premium
+  /// card no longer renders an estimate line, so these may be unused.
   final double? estimatedCost;
   final int? estimatedDays;
 
-  /// Sitter segment accent. Matches the blue of the home segmented control.
-  static const Color _sitterBlue = Color(0xFF1A73E8);
+  /// Sitter segment accent — premium mockup blue.
+  static const Color _sitterBlue = Color(0xFF2563EB);
 
-  /// Currency symbol helper. Keeps the card footprint small without
-  /// pulling in the full CurrencyHelper for just the display char.
+  /// Currency symbol helper — keeps the card footprint small.
   String _currencySymbol(String code) {
     switch (code.toUpperCase()) {
       case 'USD':
@@ -63,64 +57,70 @@ class SitterCard extends StatelessWidget {
     }
   }
 
+  /// Availability label derived from the sitter's calendar.
+  String _availabilityLabel() {
+    bool sameDay(DateTime a, DateTime b) =>
+        a.year == b.year && a.month == b.month && a.day == b.day;
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final today = sitter.availableDates.any((d) => sameDay(d, now));
+    if (today) return 'card_available_today'.tr;
+    final tmr = sitter.availableDates.any((d) => sameDay(d, tomorrow));
+    if (tmr) return 'card_available_tomorrow'.tr;
+    return 'card_available_on_request'.tr;
+  }
+
   @override
   Widget build(BuildContext context) {
     final avatarUrl = sitter.avatar.url;
-    final rating = sitter.averageRating > 0
-        ? sitter.averageRating
-        : sitter.rating;
+    final rating =
+        sitter.averageRating > 0 ? sitter.averageRating : sitter.rating;
     final city = sitter.displayCity;
     final distance = sitter.distanceKm;
     final currency = _currencySymbol(sitter.currency);
+    final bio = sitter.bio?.trim() ?? '';
 
-    // Daily rate — Session v15-3 derives one whenever possible so the Owner
-    // always sees a "Jour" pill, otherwise we'd only show Semaine+Mois on
-    // sitters who priced multi-day stays (very common).
-    //   1. dailyRate directly           — exact value
-    //   2. hourlyRate × 8               — derived
-    //   3. weeklyRate  / 7              — derived
-    //   4. monthlyRate / 30             — derived
-    double effectiveDaily = 0;
-    bool dailyIsDerived = false;
-    if (sitter.dailyRate > 0) {
-      effectiveDaily = sitter.dailyRate;
-    } else if (sitter.hourlyRate > 0) {
-      effectiveDaily = sitter.hourlyRate * 8;
-      dailyIsDerived = true;
-    } else if (sitter.weeklyRate > 0) {
-      effectiveDaily = sitter.weeklyRate / 7;
-      dailyIsDerived = true;
-    } else if (sitter.monthlyRate > 0) {
-      effectiveDaily = sitter.monthlyRate / 30;
-      dailyIsDerived = true;
-    }
-
-    final hasAnyRate = effectiveDaily > 0 ||
-        sitter.weeklyRate > 0 ||
-        sitter.monthlyRate > 0;
-
-    // v23.1.147 — cadre doré + glow pour les sitters avec boost actif payé.
-    // Demande Daniel : "lorsque l'option boost est payée je veux que la
-    // publication apparaisse avec le cadre boost sur les 3 profils".
     final bool isBoosted = sitter.isBoosted;
     const Color boostGold = Color(0xFFD4AF37);
+
+    // Tariff cells — only rates that are configured (> 0) are shown.
+    final cells = <_TariffCell>[
+      if (sitter.dailyRate > 0)
+        _TariffCell(
+          label: 'Tarif jour',
+          value: '${sitter.dailyRate.toStringAsFixed(0)}$currency',
+          sub: '+ de 10h',
+        ),
+      if (sitter.weeklyRate > 0)
+        _TariffCell(
+          label: 'Tarif semaine',
+          value: '${sitter.weeklyRate.toStringAsFixed(0)}$currency',
+          sub: '7 jours',
+        ),
+      if (sitter.monthlyRate > 0)
+        _TariffCell(
+          label: 'Tarif mois',
+          value: '${sitter.monthlyRate.toStringAsFixed(0)}$currency',
+          sub: '30 jours',
+        ),
+      if (sitter.extraPetRate > 0)
+        _TariffCell(
+          label: 'card_extra_pet'.tr,
+          value: '+ ${sitter.extraPetRate.toStringAsFixed(0)}$currency',
+          sub: '/ animal',
+        ),
+    ];
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: EdgeInsets.only(bottom: 14.h),
-        padding: EdgeInsets.all(14.w),
+        padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14.r),
-          border: isBoosted
-              ? Border.all(color: boostGold, width: 2.5)
-              : null,
+          borderRadius: BorderRadius.circular(20.r),
+          border: isBoosted ? Border.all(color: boostGold, width: 2.5) : null,
           boxShadow: [
-            // v23.1 part 250 — perf : blur du glow boost reduit 14→8. Un
-            // blurRadius eleve est cher a peindre par carte dans la liste
-            // scrollable sur GPU low-end. 8 reste visuellement un halo dore
-            // net. Le design (bordure + couleur) ne change pas.
             if (isBoosted)
               BoxShadow(
                 color: boostGold.withValues(alpha: 0.35),
@@ -137,146 +137,157 @@ class SitterCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: avatar + name (+ verified / top / boost) + rating/city/dist
+            _buildHeader(context, avatarUrl, rating, city, distance),
+            if (cells.isNotEmpty) ...[
+              SizedBox(height: 14.h),
+              _buildTariffGroup(context, cells),
+            ],
+            if (bio.isNotEmpty) ...[
+              SizedBox(height: 14.h),
+              _buildAboutBox(context, bio),
+            ],
+            SizedBox(height: 14.h),
+            _buildCta(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(
+    BuildContext context,
+    String avatarUrl,
+    double rating,
+    String city,
+    double? distance,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Avatar with green online dot.
+        Stack(
+          children: [
+            CircleAvatar(
+              radius: 30.r,
+              backgroundColor: AppColors.grey300Color,
+              backgroundImage: avatarUrl.isNotEmpty
+                  ? CachedNetworkImageProvider(avatarUrl, maxWidth: 180)
+                  : null,
+              child: avatarUrl.isEmpty
+                  ? Icon(Icons.pets_rounded, size: 26.sp, color: Colors.white)
+                  : null,
+            ),
+            Positioned(
+              right: 1.w,
+              bottom: 1.h,
+              child: Container(
+                width: 13.w,
+                height: 13.w,
+                decoration: BoxDecoration(
+                  color: AppColors.greenColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.card(context), width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(width: 12.w),
+        // Identity column.
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: InterText(
+                      text: sitter.name.isNotEmpty ? sitter.name : 'Sitter',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (sitter.identityVerified) ...[
+                    SizedBox(width: 5.w),
+                    VerifiedBadge(
+                      isVerified: true,
+                      tooltipText: 'profile_identity_verified'.tr,
+                    ),
+                  ],
+                ],
+              ),
+              SizedBox(height: 4.h),
+              _roleChip(),
+              SizedBox(height: 5.h),
+              Row(
+                children: [
+                  Icon(Icons.star_rounded,
+                      size: 15.sp, color: const Color(0xFFFFB300)),
+                  SizedBox(width: 3.w),
+                  InterText(
+                    text: rating.toStringAsFixed(1),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary(context),
+                  ),
+                  SizedBox(width: 3.w),
+                  Flexible(
+                    child: InterText(
+                      text: '(${sitter.reviewsCount} avis)',
+                      fontSize: 11.5,
+                      color: AppColors.textSecondary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              if (city.isNotEmpty) ...[
+                SizedBox(height: 3.h),
+                Row(
+                  children: [
+                    Icon(Icons.place_rounded,
+                        size: 14.sp, color: AppColors.textSecondary(context)),
+                    SizedBox(width: 3.w),
+                    Flexible(
+                      child: InterText(
+                        text: city,
+                        fontSize: 12,
+                        color: AppColors.textSecondary(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (distance != null) ...[
+                SizedBox(height: 3.h),
+                InterText(
+                  text: 'À ${distance.toStringAsFixed(1)} km de vous',
+                  fontSize: 11,
+                  color: AppColors.textSecondary(context),
+                ),
+              ],
+            ],
+          ),
+        ),
+        SizedBox(width: 8.w),
+        // Stats column + badges/menu.
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // v20.0.9 — Role-accent ring (sitter = blue) + soft halo
-                // so the provider type is readable at a glance on list cards.
-                Container(
-                  padding: EdgeInsets.all(2.w),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _sitterBlue, width: 2.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _sitterBlue.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 26.r,
-                    backgroundColor: AppColors.grey300Color,
-                    // v23.1 part 240 — maxWidth: 180 (HD = 52dp × 3 ratio + buffer).
-                    // Sans maxWidth, Flutter decode l'image originale (3000px+)
-                    // alors qu'on l'affiche en 52dp → memoire gaspilllee + lag.
-                    backgroundImage: avatarUrl.isNotEmpty
-                        ? CachedNetworkImageProvider(avatarUrl, maxWidth: 180)
-                        : null,
-                    child: avatarUrl.isEmpty
-                        ? Icon(Icons.pets_rounded,
-                            size: 24.sp, color: Colors.white)
-                        : null,
-                  ),
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              sitter.name.isNotEmpty ? sitter.name : 'Sitter',
-                              style: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary(context),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          // v23.1 part 251 — Daniel : "tout les profile on le
-                          // badge verifier a corriger". Le flag legacy `verified`
-                          // est true pour quasi tout le monde (actions admin/IBAN),
-                          // donc `|| verified` affichait le badge partout. On ne
-                          // garde QUE identityVerified (= kycStatus verified cote
-                          // backend v251).
-                          if (sitter.identityVerified) ...[
-                            SizedBox(width: 6.w),
-                            VerifiedBadge(
-                              isVerified: true,
-                              tooltipText: 'profile_identity_verified'.tr,
-                            ),
-                          ],
-                          if (sitter.isTopSitter) ...[
-                            SizedBox(width: 4.w),
-                            Text('🏆', style: TextStyle(fontSize: 12.sp)),
-                          ],
-                        ],
-                      ),
-                      SizedBox(height: 2.h),
-                      Row(
-                        children: [
-                          Icon(Icons.star_rounded,
-                              size: 14.sp, color: const Color(0xFFFFB300)),
-                          SizedBox(width: 2.w),
-                          Text(
-                            rating.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary(context),
-                            ),
-                          ),
-                          if (sitter.reviewsCount > 0) ...[
-                            SizedBox(width: 3.w),
-                            Text(
-                              '(${sitter.reviewsCount})',
-                              style: TextStyle(
-                                fontSize: 11.sp,
-                                color: AppColors.textSecondary(context),
-                              ),
-                            ),
-                          ],
-                          if (city.isNotEmpty) ...[
-                            SizedBox(width: 8.w),
-                            Icon(Icons.place_rounded,
-                                size: 14.sp,
-                                color: AppColors.textSecondary(context)),
-                            SizedBox(width: 2.w),
-                            Flexible(
-                              child: Text(
-                                city,
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  color: AppColors.textSecondary(context),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (distance != null) ...[
-                        SizedBox(height: 2.h),
-                        Text(
-                          'À ${distance.toStringAsFixed(1)} km',
-                          style: TextStyle(
-                            fontSize: 11.sp,
-                            color: AppColors.textSecondary(context),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // v23.1 part 253 — badge Boost harmonise sur les 3 cartes
-                // (sitter/walker/service_provider) : meme gradient flamme
-                // orange→rouge + 🔥 + label i18n 'boost_badge' (Boosté).
                 if (sitter.isBoosted) const BoostBadge(),
-                // ⋮ menu — only shown when onBlock is provided (home browse).
                 if (onBlock != null)
                   PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert,
-                      size: 18.sp,
-                      color: AppColors.textSecondary(context),
-                    ),
+                    icon: Icon(Icons.more_vert,
+                        size: 18.sp, color: AppColors.textSecondary(context)),
                     padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.r),
@@ -288,16 +299,13 @@ class SitterCard extends StatelessWidget {
                         child: Row(
                           children: [
                             Icon(Icons.block,
-                                size: 16.sp,
-                                color: AppColors.primaryColor),
+                                size: 16.sp, color: AppColors.primaryColor),
                             SizedBox(width: 8.w),
-                            Text(
-                              'service_card_block'.tr,
-                              style: TextStyle(
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primaryColor,
-                              ),
+                            InterText(
+                              text: 'service_card_block'.tr,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryColor,
                             ),
                           ],
                         ),
@@ -309,242 +317,199 @@ class SitterCard extends StatelessWidget {
                   ),
               ],
             ),
-
-            // v427 — maquette : stat "gardes réalisées".
-            if (sitter.completedServicesCount > 0) ...[
-              SizedBox(height: 10.h),
-              Row(
-                children: [
-                  Icon(Icons.verified_rounded, size: 14.sp, color: _sitterBlue),
-                  SizedBox(width: 5.w),
-                  Text(
-                    '${sitter.completedServicesCount} ${'card_keepings_done'.tr}',
-                    style: TextStyle(
-                      fontSize: 11.5.sp,
-                      color: AppColors.textSecondary(context),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-
-            SizedBox(height: 12.h),
-
-            // Rate pills — day / week / month. Sitters keep a daily minimum,
-            // so we skip "per hour" entirely (same decision as session v15).
-            if (hasAnyRate) ...[
-              Row(
-                children: [
-                  if (effectiveDaily > 0)
-                    Expanded(
-                      child: _ratePill(
-                        icon: Icons.today_rounded,
-                        label: 'Jour',
-                        // Prefix with ~ when the value is derived from
-                        // another tier, so the Owner knows it's approximate.
-                        value:
-                            '${dailyIsDerived ? '~' : ''}${effectiveDaily.toStringAsFixed(0)} $currency',
-                      ),
-                    ),
-                  if (effectiveDaily > 0 && sitter.weeklyRate > 0)
-                    SizedBox(width: 6.w),
-                  if (sitter.weeklyRate > 0)
-                    Expanded(
-                      child: _ratePill(
-                        icon: Icons.date_range_rounded,
-                        label: 'Semaine',
-                        value:
-                            '${sitter.weeklyRate.toStringAsFixed(0)} $currency',
-                      ),
-                    ),
-                  if (sitter.weeklyRate > 0 && sitter.monthlyRate > 0)
-                    SizedBox(width: 6.w),
-                  if (sitter.monthlyRate > 0)
-                    Expanded(
-                      child: _ratePill(
-                        icon: Icons.calendar_month_rounded,
-                        label: 'Mois',
-                        value:
-                            '${sitter.monthlyRate.toStringAsFixed(0)} $currency',
-                      ),
-                    ),
-                ],
-              ),
-              if (estimatedCost != null && estimatedDays != null) ...[
-                SizedBox(height: 8.h),
-                Row(
-                  children: [
-                    Icon(Icons.attach_money_rounded,
-                        size: 14.sp,
-                        color: AppColors.textSecondary(context)),
-                    SizedBox(width: 4.w),
-                    Flexible(
-                      child: Text(
-                        'sitter_card_estimate_days'.trParams({
-                          'days': estimatedDays.toString(),
-                          'amount': estimatedCost!.toStringAsFixed(0),
-                          'currency': currency,
-                        }),
-                        style: TextStyle(
-                          fontSize: 11.sp,
-                          color: AppColors.textSecondary(context),
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ] else ...[
-              Container(
-                padding:
-                    EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: _sitterBlue.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.schedule_rounded,
-                        size: 14.sp, color: _sitterBlue),
-                    SizedBox(width: 4.w),
-                    Text(
-                      'walker_card_rate_to_confirm'.tr,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w700,
-                        color: _sitterBlue,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            SizedBox(height: 12.h),
-
-            // v427 — maquette : "À propos de moi" encadré (bleu sitter).
-            if (sitter.bio != null && sitter.bio!.trim().isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(12.w),
-                decoration: BoxDecoration(
-                  color: _sitterBlue.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.person_outline_rounded,
-                            size: 14.sp, color: _sitterBlue),
-                        SizedBox(width: 6.w),
-                        Text(
-                          'post_about_owner'.tr,
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w700,
-                            color: _sitterBlue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 6.h),
-                    Text(
-                      sitter.bio!,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppColors.textSecondary(context),
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 12.h),
-            ],
-            // Full-width CTA — "Demander à cette personne" (owner → provider).
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onSendRequest,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _sitterBlue,
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24.r),
-                  ),
-                  elevation: 0,
-                ),
-                icon: Icon(Icons.send_rounded,
-                    size: 16.sp, color: Colors.white),
-                label: Text(
-                  'card_request_person'.tr,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+            SizedBox(height: 4.h),
+            _statRow(
+              context,
+              Icons.pets_rounded,
+              '${sitter.completedServicesCount} ${'card_keepings_done'.tr}',
             ),
+            SizedBox(height: 4.h),
+            _statRow(context, Icons.calendar_today_rounded, _availabilityLabel()),
+            if (sitter.responseTimeMinutes > 0) ...[
+              SizedBox(height: 4.h),
+              _statRow(
+                context,
+                Icons.schedule_rounded,
+                '${'card_response_in'.tr} ${sitter.responseTimeMinutes} min',
+              ),
+            ],
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _roleChip() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: _sitterBlue.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: InterText(
+        text: 'card_role_sitter'.tr,
+        fontSize: 10.5,
+        fontWeight: FontWeight.w700,
+        color: _sitterBlue,
       ),
     );
   }
 
-  /// Small rate chip — same visual weight as WalkerCard's pill, but blue.
-  Widget _ratePill({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
+  Widget _statRow(BuildContext context, IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13.sp, color: _sitterBlue),
+        SizedBox(width: 4.w),
+        Flexible(
+          child: InterText(
+            text: text,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTariffGroup(BuildContext context, List<_TariffCell> cells) {
+    final children = <Widget>[];
+    for (var i = 0; i < cells.length; i++) {
+      children.add(Expanded(child: _tariffCellWidget(context, cells[i])));
+      if (i != cells.length - 1) {
+        children.add(Container(
+          width: 0.8,
+          height: 42.h,
+          color: _sitterBlue.withValues(alpha: 0.25),
+        ));
+      }
+    }
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
+      padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 4.w),
       decoration: BoxDecoration(
-        color: _sitterBlue.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(
-            color: _sitterBlue.withValues(alpha: 0.25), width: 0.8),
+        color: _sitterBlue.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: _sitterBlue.withValues(alpha: 0.20), width: 1),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _tariffCellWidget(BuildContext context, _TariffCell cell) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14.sp, color: _sitterBlue),
-          SizedBox(width: 4.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 9.sp,
-                    color: _sitterBlue.withValues(alpha: 0.75),
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                    color: _sitterBlue,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+          InterText(
+            text: cell.label,
+            fontSize: 9.5,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 2.h),
+          InterText(
+            text: cell.value,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: _sitterBlue,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 1.h),
+          InterText(
+            text: cell.sub,
+            fontSize: 9,
+            color: AppColors.textSecondary(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
+
+  Widget _buildAboutBox(BuildContext context, String bio) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: _sitterBlue.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_outline_rounded, size: 14.sp, color: _sitterBlue),
+              SizedBox(width: 6.w),
+              InterText(
+                text: 'post_about_owner'.tr,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: _sitterBlue,
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          InterText(
+            text: bio,
+            fontSize: 12,
+            color: AppColors.textSecondary(context),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCta() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onSendRequest,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _sitterBlue,
+          padding: EdgeInsets.symmetric(vertical: 13.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24.r),
+          ),
+          elevation: 0,
+        ),
+        icon: Icon(Icons.send_rounded, size: 16.sp, color: Colors.white),
+        label: InterText(
+          text: 'card_request_sitter'.tr,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+/// Single tariff cell data holder for the bordered tariff group.
+class _TariffCell {
+  const _TariffCell({
+    required this.label,
+    required this.value,
+    required this.sub,
+  });
+
+  final String label;
+  final String value;
+  final String sub;
 }

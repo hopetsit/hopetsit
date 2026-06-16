@@ -21,6 +21,12 @@ class SitterModel {
   final double weeklyRate;
   final double monthlyRate;
 
+  /// Premium card — surcharge per extra pet (0 = not configured / hidden).
+  final double extraPetRate;
+
+  /// Premium card — typical reply time in minutes (0 = unknown / hidden).
+  final int responseTimeMinutes;
+
   /// Preferred unit to display in the UI: 'hour' | 'day' | 'week' | 'month'.
   final String defaultRateType;
 
@@ -90,6 +96,8 @@ class SitterModel {
     this.dailyRate = 0.0,
     this.weeklyRate = 0.0,
     this.monthlyRate = 0.0,
+    this.extraPetRate = 0.0,
+    this.responseTimeMinutes = 0,
     this.defaultRateType = 'hour',
     this.availableDates = const <DateTime>[],
     this.unavailableDates = const <DateTime>[],
@@ -167,6 +175,8 @@ class SitterModel {
       dailyRate: (json['dailyRate'] as num?)?.toDouble() ?? 0.0,
       weeklyRate: (json['weeklyRate'] as num?)?.toDouble() ?? 0.0,
       monthlyRate: (json['monthlyRate'] as num?)?.toDouble() ?? 0.0,
+      extraPetRate: (json['extraPetRate'] as num?)?.toDouble() ?? 0.0,
+      responseTimeMinutes: (json['responseTimeMinutes'] as num?)?.toInt() ?? 0,
       defaultRateType: (json['defaultRateType'] as String?) ?? 'hour',
       availableDates: ((json['availableDates'] as List?) ?? const [])
           .map((e) => DateTime.tryParse(e.toString()))

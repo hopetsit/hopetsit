@@ -26,6 +26,12 @@ class WalkerModel {
   /// Pricing — list of per-duration walk rates. Each entry is a WalkRate.
   final List<WalkRate> walkRates;
 
+  /// Premium card — surcharge per extra pet (0 = not configured / hidden).
+  final double extraPetRate;
+
+  /// Premium card — typical reply time in minutes (0 = unknown / hidden).
+  final int responseTimeMinutes;
+
   /// Preferred default duration in minutes (15 to 300, multiple of 15).
   final int defaultWalkDurationMinutes;
 
@@ -93,6 +99,8 @@ class WalkerModel {
     required this.feedback,
     required this.reviews,
     required this.walkRates,
+    this.extraPetRate = 0.0,
+    this.responseTimeMinutes = 0,
     this.defaultWalkDurationMinutes = 30,
     this.acceptedPetTypes = const [],
     this.maxPetsPerWalk = 1,
@@ -187,6 +195,8 @@ class WalkerModel {
       feedback: json['feedback'] as List<dynamic>? ?? [],
       reviews: json['reviews'] as List<dynamic>? ?? [],
       walkRates: walkRates,
+      extraPetRate: (json['extraPetRate'] as num?)?.toDouble() ?? 0.0,
+      responseTimeMinutes: (json['responseTimeMinutes'] as num?)?.toInt() ?? 0,
       defaultWalkDurationMinutes:
           (json['defaultWalkDurationMinutes'] as num?)?.toInt() ?? 30,
       acceptedPetTypes: json['acceptedPetTypes'] is List
