@@ -71,6 +71,11 @@ class PetPostCard extends StatelessWidget {
   /// réservation. Null/vide ⇒ masqué.
   final String? ownerBio;
 
+  /// v435 — Daniel : "Lieu de garde" choisi par l'owner ('at_owner' |
+  /// 'at_sitter' | 'both'). Affiché comme une case de la grille de
+  /// réservation. Null/vide ⇒ la case est masquée.
+  final String? serviceLocation;
+
   const PetPostCard({
     super.key,
     required this.userName,
@@ -105,6 +110,7 @@ class PetPostCard extends StatelessWidget {
     this.reservedProviderRole,
     this.pets,
     this.ownerBio,
+    this.serviceLocation,
     // v23.1 part 116 — Daniel : "sitter et walker aussi vois que lannonce
     // et booster et en haut". Quand isOwnerBoosted=true, on affiche un
     // ruban "🚀 Urgent" en haut de la card pour attirer l'œil.
@@ -350,10 +356,14 @@ class PetPostCard extends StatelessWidget {
                     width: double.infinity,
                     padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
                     decoration: BoxDecoration(
-                      color: AppColors.inputFill(context),
+                      // v435 — Daniel : la grille "Demande de réservation"
+                      // paraissait grise. On la teinte de l'accent du rôle
+                      // (orange pâle côté owner, vert walker / bleu sitter)
+                      // pour qu'elle ne lise plus comme un bloc neutre.
+                      color: _accent.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(14.r),
                       border: Border.all(
-                        color: AppColors.divider(context).withValues(alpha: 0.4),
+                        color: _accent.withValues(alpha: 0.20),
                         width: 1.w,
                       ),
                     ),
@@ -898,6 +908,11 @@ class PetPostCard extends StatelessWidget {
       add(Icons.volunteer_activism_rounded, 'post_field_service'.tr,
           _localizedServices(serviceTypes!.trim()));
     }
+    // v435 — Daniel : afficher le "Lieu de garde" choisi à la publication.
+    final svcLoc = _localizedServiceLocation((serviceLocation ?? '').trim());
+    if (svcLoc.isNotEmpty) {
+      add(Icons.home_rounded, 'post_field_service_location'.tr, svcLoc);
+    }
     add(Icons.notes_rounded, 'post_field_details'.tr,
         _localizePostBody((postBody ?? '').trim()));
     if ((pets == null || pets!.isEmpty) && (petName ?? '').trim().isNotEmpty) {
@@ -1106,6 +1121,21 @@ class PetPostCard extends StatelessWidget {
       }
     }
     return items.map(map).join(', ');
+  }
+
+  // v435 — mappe la valeur backend de serviceLocation vers un libellé court
+  // (Chez moi / Chez le sitter / Les deux). Valeur inconnue ⇒ '' (case masquée).
+  String _localizedServiceLocation(String raw) {
+    switch (raw.toLowerCase()) {
+      case 'at_owner':
+        return 'post_field_service_location_at_owner'.tr;
+      case 'at_sitter':
+        return 'post_field_service_location_at_sitter'.tr;
+      case 'both':
+        return 'post_field_service_location_both'.tr;
+      default:
+        return '';
+    }
   }
 
 

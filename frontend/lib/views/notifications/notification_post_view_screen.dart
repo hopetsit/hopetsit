@@ -117,6 +117,7 @@ class _NotificationPostViewScreenState
               // v420 — maquette détail annonce : animaux + bio owner.
               pets: post.pets,
               ownerBio: post.owner.bio,
+              serviceLocation: post.serviceLocation,
               postBody: post.body,
               petName: petName,
               serviceTypes: serviceTypesLabel.isEmpty

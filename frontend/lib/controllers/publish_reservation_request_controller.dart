@@ -413,6 +413,16 @@ class PublishReservationRequestController extends GetxController {
         ? houseSittingVenue.value
         : null;
 
+    // v435 — Daniel : "Lieu de garde" choisi par l'owner pour garderie /
+    // pet-sitting (at_owner / at_sitter / both). Avant, la valeur était
+    // sélectionnée dans le formulaire mais JAMAIS envoyée → l'annonce
+    // n'affichait jamais le lieu de garde. On le transmet désormais.
+    final svcLocation = shouldShowServiceLocation
+        ? (serviceLocation.value?.trim().isNotEmpty == true
+            ? serviceLocation.value
+            : null)
+        : null;
+
     isSubmitting.value = true;
     try {
       if (imageFiles.isEmpty) {
@@ -425,6 +435,7 @@ class PublishReservationRequestController extends GetxController {
           city: city,
           notes: notes,
           houseSittingVenue: venue,
+          serviceLocation: svcLocation,
           showAnimalCharacter: showAnimalCharacter.value,
         );
       } else {
@@ -437,6 +448,7 @@ class PublishReservationRequestController extends GetxController {
           city: city,
           notes: notes,
           houseSittingVenue: venue,
+          serviceLocation: svcLocation,
           showAnimalCharacter: showAnimalCharacter.value,
           imageFiles: imageFiles.toList(),
         );

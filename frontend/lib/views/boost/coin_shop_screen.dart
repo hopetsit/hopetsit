@@ -1626,7 +1626,6 @@ class _PawSpotTabState extends State<_PawSpotTab>
   bool _loading = true;
   bool _trialLoading = false;
   String? _purchasingPlan; // 'monthly' | 'yearly' pendant un achat
-  String? _redeemingReward; // 'badge_color' | 'gold_frame' | 'banner'
 
   /// Payload brut de GET /pawspots/me/points.
   Map<String, dynamic> _me = const {};
@@ -1885,131 +1884,10 @@ class _PawSpotTabState extends State<_PawSpotTab>
     }
   }
 
-  Future<void> _redeem(String reward, {String? color, String? bannerUrl}) async {
-    if (_redeemingReward != null) return;
-    setState(() => _redeemingReward = reward);
-    try {
-      final api = Get.find<ApiClient>();
-      await api.post(
-        '/pawspots/rewards/redeem',
-        body: {
-          'reward': reward,
-          if (color != null) 'color': color,
-          if (bannerUrl != null) 'bannerUrl': bannerUrl,
-        },
-        requiresAuth: true,
-      );
-      if (!mounted) return;
-      CustomSnackbar.showSuccess(
-        title: 'common_success'.tr,
-        message: 'pawspot_reward_redeemed'.tr,
-      );
-      await _loadPoints();
-    } on ApiException catch (e) {
-      // 402 INSUFFICIENT_POINTS / PAWSPOT_REQUIRED → message backend.
-      if (!mounted) return;
-      CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
-    } catch (e) {
-      if (!mounted) return;
-      CustomSnackbar.showError(
-        title: 'common_error'.tr,
-        message: e.toString(),
-      );
-    } finally {
-      if (mounted) setState(() => _redeemingReward = null);
-    }
-  }
-
-  /// Mini picker de 6 couleurs prédéfinies pour la récompense badge_color.
-  Future<void> _pickBadgeColor() async {
-    const swatches = <String>[
-      '#E8472A', // rouge HopeTSIT
-      '#F59E0B', // ambre
-      '#10B981', // émeraude
-      '#3B82F6', // bleu
-      '#8B5CF6', // violet
-      '#EC4899', // rose
-    ];
-    final picked = await Get.dialog<String>(
-      AlertDialog(
-        title: Text('pawspot_reward_badge_color'.tr),
-        content: Wrap(
-          spacing: 12.w,
-          runSpacing: 12.h,
-          children: swatches.map((hex) {
-            final color = Color(
-                0xFF000000 | int.parse(hex.substring(1), radix: 16));
-            return GestureDetector(
-              onTap: () => Get.back(result: hex),
-              child: Container(
-                width: 44.w,
-                height: 44.w,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('common_cancel'.tr),
-          ),
-        ],
-      ),
-    );
-    if (picked != null) {
-      await _redeem('badge_color', color: picked);
-    }
-  }
-
-  /// Dialog avec champ URL simple pour la récompense bannière.
-  Future<void> _askBannerUrl() async {
-    final controller = TextEditingController();
-    final url = await Get.dialog<String>(
-      AlertDialog(
-        title: Text('pawspot_reward_banner'.tr),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            hintText: 'https://…',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('common_cancel'.tr),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _gold,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('common_confirm'.tr),
-          ),
-        ],
-      ),
-    );
-    if (url != null && url.isNotEmpty) {
-      await _redeem('banner', bannerUrl: url);
-    }
-  }
+  // v435 — les anciennes récompenses hardcodées (_redeem/_pickBadgeColor/
+  // _askBannerUrl via /pawspots/rewards/redeem) ont été retirées : la carte
+  // Récompenses ouvre désormais le vrai catalogue PawPoints (cf _buildRewardsCard
+  // → showPawPointsRewardsSheet).
 
   // ── UI ────────────────────────────────────────────────────────────────────
 
@@ -2593,7 +2471,17 @@ class _PawSpotTabState extends State<_PawSpotTab>
   }
 
   /// g. Récompenses à points (abonnés uniquement).
+  /// v435 — Daniel : "la boutique PawSpot n'est pas à jour". Avant, cette
+  /// carte listait 3 récompenses HARDCODÉES (couleur de badge / cadre doré /
+  /// bannière) échangées via /pawspots/rewards/redeem — déconnectées du
+  /// catalogue PawPoints actuel (éditable par l'admin). On remplace par un
+  /// accès au VRAI catalogue PawPoints (/pawpoints/catalog + /pawpoints/me)
+  /// qui affiche le solde dépensable réel et permet d'échanger les
+  /// récompenses admin + abonnement. Mêmes flux que le classement PawSpot.
   Widget _buildRewardsCard(BuildContext context) {
+    // Solde dépensable réel (payload /pawspots/me/points expose pawPointsSpendable
+    // ; fallback sur points à vie si le champ n'est pas encore présent).
+    final spendable = (_me['pawPointsSpendable'] as num?)?.toInt() ?? _points;
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -2604,35 +2492,64 @@ class _PawSpotTabState extends State<_PawSpotTab>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: InterText(
+                  text: 'pawspot_rewards_title'.tr,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary(context),
+                ),
+              ),
+              // Solde dépensable réel.
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                decoration: BoxDecoration(
+                  color: _gold.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: InterText(
+                  text: '$spendable pts',
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w800,
+                  color: _gold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
           InterText(
-            text: 'pawspot_rewards_title'.tr,
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary(context),
+            text: 'pawspot_rewards_catalog_hint'.tr,
+            fontSize: 12.sp,
+            color: AppColors.greyText,
+            maxLines: 3,
           ),
           SizedBox(height: 12.h),
-          _rewardRow(
-            context,
-            reward: 'badge_color',
-            icon: Icons.palette_rounded,
-            label: 'pawspot_reward_badge_color'.tr,
-            onTap: _pickBadgeColor,
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => showPawPointsRewardsSheet(
+                context,
+                myPoints: spendable,
+                onChanged: _loadPoints,
+              ),
+              icon: const Text('🎁', style: TextStyle(fontSize: 16)),
+              label: Text(
+                'pawpoints_rewards_cta'.tr,
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14.r),
+                ),
+              ),
+            ),
           ),
-          _rewardRow(
-            context,
-            reward: 'gold_frame',
-            icon: Icons.filter_frames_rounded,
-            label: 'pawspot_reward_gold_frame'.tr,
-            onTap: () => _redeem('gold_frame'),
-          ),
-          _rewardRow(
-            context,
-            reward: 'banner',
-            icon: Icons.panorama_rounded,
-            label: 'pawspot_reward_banner'.tr,
-            onTap: _askBannerUrl,
-          ),
-          SizedBox(height: 4.h),
+          SizedBox(height: 10.h),
           // Mise en avant d'un spot : se fait depuis la fiche d'un de tes
           // spots sur la carte — simple ligne info ici.
           Row(
@@ -2652,55 +2569,6 @@ class _PawSpotTabState extends State<_PawSpotTab>
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _rewardRow(
-    BuildContext context, {
-    required String reward,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final isRedeeming = _redeemingReward == reward;
-    return Padding(
-      padding: EdgeInsets.only(bottom: 8.h),
-      child: GestureDetector(
-        onTap: _redeemingReward != null ? null : onTap,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-          decoration: BoxDecoration(
-            color: _gold.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: _gold.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 18.sp, color: _gold),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: InterText(
-                  text: label,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
-                ),
-              ),
-              isRedeeming
-                  ? SizedBox(
-                      width: 16.w,
-                      height: 16.w,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: _gold,
-                      ),
-                    )
-                  : Icon(Icons.arrow_forward_ios_rounded,
-                      size: 14.sp, color: _gold),
-            ],
-          ),
-        ),
       ),
     );
   }

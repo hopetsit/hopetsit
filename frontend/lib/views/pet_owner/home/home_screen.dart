@@ -23,6 +23,7 @@ import 'package:hopetsit/views/pet_owner/posts/edit_post_screen.dart';
 import 'package:hopetsit/views/pet_owner/reservation_request/publish_reservation_request_screen.dart';
 import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/active_benefits_row.dart';
+import 'package:hopetsit/widgets/city_location_picker.dart';
 import 'package:hopetsit/views/service_provider/send_request_screen.dart';
 import 'package:hopetsit/views/service_provider/service_provider_detail_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -55,6 +56,16 @@ class _HomeScreenState extends State<HomeScreen> {
   // v426 — tri client-side de la liste de prestataires (bouton "Trier" du
   // bloc recherche premium). Defaut : par distance (plus proche d'abord).
   HomeProviderSortOrder _providerSortOrder = HomeProviderSortOrder.distance;
+
+  // v435 — filtres client-side fonctionnels (Daniel : "Trier marche mais
+  // Animaux gardés et Disponibilité ouvrent juste 'Bientôt'").
+  //   _petTypeFilter      : 'dog' | 'cat' | 'small' | 'nac' | 'bird' | null(=tous)
+  //   _availabilityFilter : 'today' | 'week' | null(=tous)
+  // Le filtre s'applique sur la liste réactive du HomeController (même
+  // approche assignAll que le tri). Choisir "Tous" relance la recherche
+  // nearby pour restaurer l'ensemble complet.
+  String? _petTypeFilter;
+  String? _availabilityFilter;
 
   // v426 — refonte header recherche (maquettes 50/51) : la valeur du rayon
   // est portée par le HomeController (nearMeRadiusKm) ; on n'a plus besoin
@@ -331,7 +342,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Color get _accent => _isWalkerTab ? _kWalkerAccent : _kSitterAccent;
 
   /// Ville + pays de l'owner depuis le profil persistant (sinon "Ma position").
+  /// v435 — si une ville de recherche manuelle est fixée, elle prime sur le
+  /// profil (l'utilisateur a explicitement choisi de chercher ailleurs).
   String _ownerCityCountryLabel() {
+    final manual = _homeController.searchCity.value.trim();
+    if (manual.isNotEmpty) return manual;
     try {
       final profile =
           _storage.read(StorageKeys.userProfile) as Map<String, dynamic>?;
@@ -477,13 +492,9 @@ class _HomeScreenState extends State<HomeScreen> {
             flex: 5,
             child: InkWell(
               borderRadius: BorderRadius.circular(12.r),
-              onTap: () {
-                // Pas de city picker câblé sur cette page → feedback discret.
-                CustomSnackbar.showInfo(
-                  title: 'home_around_me'.tr,
-                  message: _ownerCityCountryLabel(),
-                );
-              },
+              // v435 — Daniel : permettre de CHANGER de ville depuis la carte
+              // "Autour de moi". Tap → bottomsheet picker de ville.
+              onTap: () => _showCityPickerSheet(context),
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 4.h),
                 child: Column(
@@ -628,15 +639,26 @@ class _HomeScreenState extends State<HomeScreen> {
         _isWalkerTab ? 'home_filter_walks'.tr : 'home_filter_kept_pets'.tr;
     final keptIcon =
         _isWalkerTab ? Icons.directions_walk_rounded : Icons.pets_rounded;
+    // v435 — la puce reflète si un filtre est actif (label dynamique + accent).
+    final petActive = _petTypeFilter != null;
+    final availActive = _availabilityFilter != null;
+    final keptDynamicLabel =
+        petActive ? '$keptLabel · ${_petTypeShortLabel(_petTypeFilter!)}' : keptLabel;
+    final availLabel = availActive
+        ? (_availabilityFilter == 'today'
+            ? 'home_avail_today'.tr
+            : 'home_avail_week'.tr)
+        : 'home_filter_availability'.tr;
     return Row(
       children: [
         Expanded(
           child: _filterChip(
             context,
             icon: keptIcon,
-            label: keptLabel,
+            label: keptDynamicLabel,
             showChevron: true,
-            onTap: () => _showComingSoonSheet(context, keptLabel),
+            accent: petActive ? accent : null,
+            onTap: () => _showPetTypeFilterSheet(context, keptLabel),
           ),
         ),
         SizedBox(width: 8.w),
@@ -644,10 +666,10 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _filterChip(
             context,
             icon: Icons.event_available_rounded,
-            label: 'home_filter_availability'.tr,
+            label: availLabel,
             showChevron: true,
-            onTap: () => _showComingSoonSheet(
-                context, 'home_filter_availability'.tr),
+            accent: availActive ? accent : null,
+            onTap: () => _showAvailabilityFilterSheet(context),
           ),
         ),
         SizedBox(width: 8.w),
@@ -675,7 +697,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     final fg = accent ?? AppColors.textPrimary(context);
     return Material(
-      color: AppColors.inputFill(context),
+      color: accent != null
+          ? accent.withValues(alpha: 0.08)
+          : AppColors.inputFill(context),
       borderRadius: BorderRadius.circular(12.r),
       child: InkWell(
         borderRadius: BorderRadius.circular(12.r),
@@ -684,7 +708,11 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: AppColors.divider(context), width: 1),
+            border: Border.all(
+                color: accent != null
+                    ? accent.withValues(alpha: 0.4)
+                    : AppColors.divider(context),
+                width: 1),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -870,46 +898,267 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Bottomsheet placeholder léger pour les filtres pas encore disponibles.
-  void _showComingSoonSheet(BuildContext context, String title) {
+  // v435 — libellé court d'un type d'animal pour la puce de filtre.
+  String _petTypeShortLabel(String key) {
+    switch (key) {
+      case 'dog':
+        return 'pet_type_dog'.tr;
+      case 'cat':
+        return 'pet_type_cat'.tr;
+      case 'small':
+        return 'pet_type_small'.tr;
+      case 'nac':
+        return 'pet_type_nac'.tr;
+      case 'bird':
+        return 'pet_type_bird'.tr;
+      default:
+        return key;
+    }
+  }
+
+  /// v435 — recharge la liste nearby complète (réinitialise les filtres en
+  /// les ré-appliquant ensuite sur la liste fraîche).
+  Future<void> _reloadProviders() async {
+    final r = _homeController.nearMeRadiusKm.value.round();
+    if (_isWalkerTab) {
+      await _homeController.loadNearbyWalkers(radiusKm: r);
+    } else {
+      await _homeController.loadNearbySitters(radiusKm: r);
+    }
+  }
+
+  /// v435 — applique les filtres actifs (type d'animal + disponibilité) sur la
+  /// liste réactive du HomeController, après l'avoir rechargée complète.
+  Future<void> _applyProviderFilters() async {
+    await _reloadProviders();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final weekEnd = today.add(const Duration(days: 7));
+
+    bool availMatch(List<DateTime> dates) {
+      if (_availabilityFilter == null) return true;
+      if (dates.isEmpty) return false;
+      for (final d in dates) {
+        final day = DateTime(d.year, d.month, d.day);
+        if (_availabilityFilter == 'today') {
+          if (day == today) return true;
+        } else {
+          if (!day.isBefore(today) && day.isBefore(weekEnd)) return true;
+        }
+      }
+      return false;
+    }
+
+    if (_isWalkerTab) {
+      // Walker a acceptedPetTypes → filtre type réel ; availableDates → dispo.
+      final filtered = _homeController.walkers.where((w) {
+        final typeOk = _petTypeFilter == null ||
+            w.acceptedPetTypes
+                .map((e) => e.toLowerCase())
+                .contains(_petTypeFilter);
+        return typeOk && availMatch(w.availableDates);
+      }).toList();
+      _homeController.walkers.assignAll(filtered);
+    } else {
+      // Sitter n'expose pas acceptedPetTypes côté client → le filtre type est
+      // un no-op (on ne masque personne) ; la dispo s'applique via availableDates.
+      final filtered = _homeController.sitters.where((s) {
+        return availMatch(s.availableDates);
+      }).toList();
+      _homeController.sitters.assignAll(filtered);
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// v435 — sheet "Animaux gardés / Promenades" : choix d'un type d'animal.
+  void _showPetTypeFilterSheet(BuildContext context, String title) {
+    final options = <Map<String, String>>[
+      {'key': '', 'label': 'home_filter_all'.tr},
+      {'key': 'dog', 'label': 'pet_type_dog'.tr},
+      {'key': 'cat', 'label': 'pet_type_cat'.tr},
+      {'key': 'small', 'label': 'pet_type_small'.tr},
+      {'key': 'nac', 'label': 'pet_type_nac'.tr},
+      {'key': 'bird', 'label': 'pet_type_bird'.tr},
+    ];
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: AppColors.card(ctx),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        padding: EdgeInsets.fromLTRB(
-            20.w, 14.h, 20.w, 24.h + MediaQuery.of(ctx).padding.bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36.w,
-                height: 4.h,
-                margin: EdgeInsets.only(bottom: 14.h),
-                decoration: BoxDecoration(
-                  color: AppColors.divider(ctx),
-                  borderRadius: BorderRadius.circular(2.r),
-                ),
+      builder: (ctx) => _filterSheetShell(
+        ctx,
+        title: title,
+        children: options.map((o) {
+          final key = o['key']!;
+          final selected =
+              (key.isEmpty && _petTypeFilter == null) || _petTypeFilter == key;
+          return _sortTile(
+            ctx,
+            icon: key.isEmpty ? Icons.clear_all_rounded : Icons.pets_rounded,
+            label: o['label']!,
+            selected: selected,
+            onTap: () {
+              Navigator.pop(ctx);
+              _petTypeFilter = key.isEmpty ? null : key;
+              _applyProviderFilters();
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// v435 — sheet "Disponibilité" : aujourd'hui / cette semaine / tous.
+  void _showAvailabilityFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _filterSheetShell(
+        ctx,
+        title: 'home_filter_availability'.tr,
+        children: [
+          _sortTile(
+            ctx,
+            icon: Icons.clear_all_rounded,
+            label: 'home_filter_all'.tr,
+            selected: _availabilityFilter == null,
+            onTap: () {
+              Navigator.pop(ctx);
+              _availabilityFilter = null;
+              _applyProviderFilters();
+            },
+          ),
+          _sortTile(
+            ctx,
+            icon: Icons.today_rounded,
+            label: 'home_avail_today'.tr,
+            selected: _availabilityFilter == 'today',
+            onTap: () {
+              Navigator.pop(ctx);
+              _availabilityFilter = 'today';
+              _applyProviderFilters();
+            },
+          ),
+          _sortTile(
+            ctx,
+            icon: Icons.date_range_rounded,
+            label: 'home_avail_week'.tr,
+            selected: _availabilityFilter == 'week',
+            onTap: () {
+              Navigator.pop(ctx);
+              _availabilityFilter = 'week';
+              _applyProviderFilters();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Coquille commune des bottomsheets de filtre (poignée + titre + items).
+  Widget _filterSheetShell(
+    BuildContext ctx, {
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card(ctx),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36.w,
+              height: 4.h,
+              margin: EdgeInsets.only(bottom: 14.h),
+              decoration: BoxDecoration(
+                color: AppColors.divider(ctx),
+                borderRadius: BorderRadius.circular(2.r),
               ),
             ),
-            PoppinsText(
-              text: title,
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary(ctx),
-            ),
-            SizedBox(height: 8.h),
-            InterText(
-              text: 'home_filter_coming_soon'.tr,
-              fontSize: 13.sp,
-              color: AppColors.textSecondary(ctx),
-            ),
-          ],
+          ),
+          PoppinsText(
+            text: title,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary(ctx),
+          ),
+          SizedBox(height: 8.h),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  /// v435 — sheet "Autour de moi" : champ ville avec autocomplétion (réutilise
+  /// CityLocationPicker) pour changer la ville de recherche, + bouton retour GPS.
+  void _showCityPickerSheet(BuildContext context) {
+    final cityController = TextEditingController(
+      text: _homeController.searchCity.value,
+    );
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.card(ctx),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+              20.w, 14.h, 20.w, 20.h + MediaQuery.of(ctx).padding.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 14.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.divider(ctx),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              PoppinsText(
+                text: 'home_change_city_title'.tr,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(ctx),
+              ),
+              SizedBox(height: 4.h),
+              InterText(
+                text: 'home_change_city_hint'.tr,
+                fontSize: 12.sp,
+                color: AppColors.textSecondary(ctx),
+              ),
+              SizedBox(height: 12.h),
+              CityLocationPicker(
+                cityController: cityController,
+                isGettingLocation: false,
+                onGetLocation: () {
+                  // Retour à la géoloc de l'appareil.
+                  Navigator.pop(ctx);
+                  _homeController.clearSearchCity();
+                  setState(() {});
+                },
+                detectedCity: _homeController.searchCity.value,
+                onLocationSelected: (city, lat, lng) {
+                  Navigator.pop(ctx);
+                  _homeController.setSearchCity(city, lat, lng);
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -975,6 +1224,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     // v420 — maquette détail annonce : animaux + bio owner.
                     pets: post.pets,
                     ownerBio: post.owner.bio,
+                    // v435 — lieu de garde affiché dans la grille.
+                    serviceLocation: post.serviceLocation,
                     postBody: post.body,
                     serviceTypes: _serviceTypesDisplay(post.serviceTypes),
                     dateRange: _postDateRangeLabel(post),

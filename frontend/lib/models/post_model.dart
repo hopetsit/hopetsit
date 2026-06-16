@@ -8,6 +8,9 @@ class PostModel {
   final DateTime? endDate;
   final List<String> serviceTypes;
   final String? houseSittingVenue;
+  /// Sprint 5 / v435 — lieu de garde choisi par l'owner :
+  /// 'at_owner' | 'at_sitter' | 'both'. Affiché sur la carte d'annonce.
+  final String? serviceLocation;
   final String? petId;
   final PostLocation? location;
   final String notes;
@@ -44,6 +47,7 @@ class PostModel {
     this.endDate,
     required this.serviceTypes,
     this.houseSittingVenue,
+    this.serviceLocation,
     this.petId,
     this.location,
     required this.notes,
@@ -128,6 +132,7 @@ class PostModel {
       endDate: parseDate(json['endDate']),
       serviceTypes: parseServiceTypes(json['serviceTypes']),
       houseSittingVenue: json['houseSittingVenue'] as String?,
+      serviceLocation: json['serviceLocation'] as String?,
       petId: json['petId'] as String?,
       location: parseLocation(json['location']),
       notes: json['notes'] as String? ?? '',
@@ -206,6 +211,7 @@ class PostModel {
       endDate: endDate,
       serviceTypes: serviceTypes,
       houseSittingVenue: houseSittingVenue,
+      serviceLocation: serviceLocation,
       petId: petId,
       location: location,
       notes: notes,

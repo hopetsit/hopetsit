@@ -182,7 +182,11 @@ class _PublishReservationRequestScreenState
                 SizedBox(height: 16.h),
                 _buildSectionCard(
                   icon: Icons.edit_note_rounded,
-                  title: 'publish_request_notes_label'.tr,
+                  // v435 — Daniel : la section "Notes supplémentaires"
+                  // s'affichait "Détails" sur l'annonce publiée. On unifie
+                  // le titre du formulaire sur la clé existante
+                  // post_field_details ("Détails") pour la cohérence.
+                  title: 'post_field_details'.tr,
                   child: CustomTextField(
                     labelText: '',
                     hintText: 'publish_request_notes_hint'.tr,

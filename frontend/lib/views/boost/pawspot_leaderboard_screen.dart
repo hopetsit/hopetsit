@@ -19,6 +19,29 @@ class PawspotLeaderboardScreen extends StatefulWidget {
       _PawspotLeaderboardScreenState();
 }
 
+/// v435 — Daniel : la boutique PawSpot affichait d'anciennes récompenses
+/// hardcodées (badge/cadre/bannière). Cette fonction ouvre le VRAI catalogue
+/// PawPoints (lu depuis /pawpoints/catalog + /pawpoints/me, éditable par
+/// l'admin sans rebuild) — la même feuille que le classement PawSpot.
+/// [myPoints] = solde dépensable connu de l'appelant (sert d'affichage
+/// initial avant que la feuille recharge /pawpoints/me).
+/// [onChanged] est appelé après un échange réussi pour rafraîchir l'appelant.
+Future<void> showPawPointsRewardsSheet(
+  BuildContext context, {
+  int myPoints = 0,
+  Future<void> Function()? onChanged,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _RewardsSheet(
+      myPoints: myPoints,
+      onChanged: onChanged ?? () async {},
+    ),
+  );
+}
+
 class _PawspotLeaderboardScreenState extends State<PawspotLeaderboardScreen> {
   static const Color _gold = Color(0xFFE8A00A);
   static const Color _goldLight = Color(0xFFFFD700);

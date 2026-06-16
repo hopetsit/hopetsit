@@ -1091,6 +1091,7 @@ class _SitterHomescreenState extends State<SitterHomescreen> {
                               // v420 — maquette détail annonce : animaux + bio.
                               pets: post.pets,
                               ownerBio: post.owner.bio,
+                              serviceLocation: post.serviceLocation,
                               postBody: post.body,
                               petName: petName,
                               serviceTypes: serviceTypesLabel.isEmpty

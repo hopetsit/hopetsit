@@ -235,6 +235,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           // v420 — maquette détail annonce : animaux + caractère + bio owner.
           pets: post.pets,
           ownerBio: post.owner.bio,
+          serviceLocation: post.serviceLocation,
           postBody: post.body,
           petName: petName,
           serviceTypes: serviceTypesLabel.isEmpty ? null : serviceTypesLabel,
@@ -311,6 +312,7 @@ isOwnerBoosted: post.isOwnerBoosted ||
         // v420 — maquette détail annonce : animaux + caractère + bio owner.
         pets: post.pets,
         ownerBio: post.owner.bio,
+        serviceLocation: post.serviceLocation,
         postBody: post.body,
         petName: post.pets.isNotEmpty ? post.pets.first.petName : null,
         serviceTypes: _serviceTypesDisplay(post.serviceTypes).isEmpty

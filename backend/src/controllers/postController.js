@@ -12,6 +12,26 @@ const logger = require('../utils/logger');
 
 const HOUSE_SITTING_VENUES = ['owners_home', 'sitters_home'];
 
+// v435 — Daniel : "ça me sort les 3 animaux". Bug : la sérialisation des
+// annonces renvoyait TOUS les animaux de l'owner (Pet.find({ ownerId })) pour
+// CHAQUE post, au lieu des seuls animaux SÉLECTIONNÉS pour ce post. On résout
+// désormais les animaux à partir de post.petIds (multi-pet) avec fallback sur
+// petId, puis fallback sur tous les animaux de l'owner UNIQUEMENT pour les
+// anciennes annonces sans petIds enregistrés (retrocompat).
+const resolvePostPets = async (post, ownerId) => {
+  const ids = [];
+  if (Array.isArray(post.petIds) && post.petIds.length > 0) {
+    ids.push(...post.petIds);
+  } else if (post.petId) {
+    ids.push(post.petId);
+  }
+  if (ids.length > 0) {
+    return Pet.find({ _id: { $in: ids } }).sort({ createdAt: -1 });
+  }
+  // Ancienne annonce sans pet sélectionné enregistré → fallback legacy.
+  return Pet.find({ ownerId }).sort({ createdAt: -1 });
+};
+
 const normalizeHouseSittingVenue = (value) => {
   if (value == null) return null;
   const normalized = String(value).trim().toLowerCase();
@@ -366,8 +386,9 @@ const listPosts = async (req, res) => {
               ? 'subscription'
               : null;
 
-        // Get all pets for this owner
-        const pets = await Pet.find({ ownerId: owner?._id || owner }).sort({ createdAt: -1 });
+        // v435 — uniquement les animaux SÉLECTIONNÉS pour ce post (fallback
+        // legacy = tous les animaux de l'owner si petIds absent). Cf resolvePostPets.
+        const pets = await resolvePostPets(post, owner?._id || owner);
         const petsData = pets.map((pet) => ({
           id: pet._id.toString(),
           petName: pet.petName || '',
@@ -453,8 +474,9 @@ const getMediaPosts = async (req, res) => {
           bio: owner?.bio || '',
         };
         
-        // Get all pets for this owner
-        const pets = await Pet.find({ ownerId: owner?._id || owner }).sort({ createdAt: -1 });
+        // v435 — uniquement les animaux SÉLECTIONNÉS pour ce post (fallback
+        // legacy = tous les animaux de l'owner si petIds absent). Cf resolvePostPets.
+        const pets = await resolvePostPets(post, owner?._id || owner);
         const petsData = pets.map((pet) => ({
           id: pet._id.toString(),
           petName: pet.petName || '',
@@ -604,8 +626,9 @@ const getRequestPosts = async (req, res) => {
               ? 'subscription'
               : null;
 
-        // Get all pets for this owner
-        const pets = await Pet.find({ ownerId: owner?._id || owner }).sort({ createdAt: -1 });
+        // v435 — uniquement les animaux SÉLECTIONNÉS pour ce post (fallback
+        // legacy = tous les animaux de l'owner si petIds absent). Cf resolvePostPets.
+        const pets = await resolvePostPets(post, owner?._id || owner);
         const petsData = pets.map((pet) => ({
           id: pet._id.toString(),
           petName: pet.petName || '',

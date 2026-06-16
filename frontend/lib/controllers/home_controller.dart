@@ -54,6 +54,35 @@ class HomeController extends GetxController {
   final RxBool offersNearMeEnabled = true.obs;
   final RxDouble nearMeRadiusKm = 50.0.obs;
 
+  // v435 — Daniel : "Autour de moi" doit permettre de CHANGER de ville.
+  // Quand l'utilisateur choisit une ville dans le picker, on stocke ici son
+  // libellé + ses coordonnées. Les loaders nearby utilisent alors ce point
+  // d'ancrage au lieu du GPS. Vide ⇒ comportement GPS d'origine inchangé.
+  final RxString searchCity = ''.obs;
+  final RxnDouble searchLat = RxnDouble();
+  final RxnDouble searchLng = RxnDouble();
+
+  /// Fixe une ville de recherche manuelle (depuis le picker "Autour de moi")
+  /// puis relance la recherche nearby sitters + walkers autour de ce point.
+  void setSearchCity(String city, double lat, double lng) {
+    searchCity.value = city.trim();
+    searchLat.value = lat;
+    searchLng.value = lng;
+    final r = nearMeRadiusKm.value.round();
+    loadNearbySitters(radiusKm: r);
+    loadNearbyWalkers(radiusKm: r);
+  }
+
+  /// Réinitialise la recherche sur la position GPS de l'appareil.
+  void clearSearchCity() {
+    searchCity.value = '';
+    searchLat.value = null;
+    searchLng.value = null;
+    final r = nearMeRadiusKm.value.round();
+    loadNearbySitters(radiusKm: r);
+    loadNearbyWalkers(radiusKm: r);
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -116,18 +145,26 @@ class HomeController extends GetxController {
   Future<void> loadNearbySitters({required int radiusKm}) async {
     isLoadingSitters.value = true;
     try {
-      final locationService = LocationService();
-      final position = await locationService.getCurrentLocation();
-      if (position == null) {
-        // Pas de GPS : on ne peut pas filtrer, mais on n'expose plus
-        // toute la base. Liste vide ; l'UI invite a activer la geoloc.
-        sitters.clear();
-        return;
+      // v435 — si une ville de recherche manuelle est fixée, on l'utilise
+      // comme point d'ancrage ; sinon on retombe sur le GPS de l'appareil.
+      double? lat = searchLat.value;
+      double? lng = searchLng.value;
+      if (lat == null || lng == null) {
+        final locationService = LocationService();
+        final position = await locationService.getCurrentLocation();
+        if (position == null) {
+          // Pas de GPS : on ne peut pas filtrer, mais on n'expose plus
+          // toute la base. Liste vide ; l'UI invite a activer la geoloc.
+          sitters.clear();
+          return;
+        }
+        lat = position.latitude;
+        lng = position.longitude;
       }
 
       final list = await _ownerRepository.getNearbySitters(
-        lat: position.latitude,
-        lng: position.longitude,
+        lat: lat,
+        lng: lng,
         radiusInMeters: radiusKm * 1000,
       );
       sitters.assignAll(list);
@@ -173,16 +210,23 @@ class HomeController extends GetxController {
   Future<void> loadNearbyWalkers({required int radiusKm}) async {
     isLoadingWalkers.value = true;
     try {
-      final locationService = LocationService();
-      final position = await locationService.getCurrentLocation();
-      if (position == null) {
-        walkers.clear();
-        return;
+      // v435 — ancrage sur la ville de recherche manuelle si définie, sinon GPS.
+      double? lat = searchLat.value;
+      double? lng = searchLng.value;
+      if (lat == null || lng == null) {
+        final locationService = LocationService();
+        final position = await locationService.getCurrentLocation();
+        if (position == null) {
+          walkers.clear();
+          return;
+        }
+        lat = position.latitude;
+        lng = position.longitude;
       }
 
       final list = await _walkerRepository.getNearbyWalkers(
-        lat: position.latitude,
-        lng: position.longitude,
+        lat: lat,
+        lng: lng,
         radiusInMeters: radiusKm * 1000,
       );
       walkers.assignAll(list);
