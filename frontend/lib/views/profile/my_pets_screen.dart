@@ -152,7 +152,7 @@ class MyPetsScreen extends StatelessWidget {
               itemCount: controller.pets.length,
               itemBuilder: (context, index) {
                 final pet = controller.pets[index];
-                return _buildPetCard(context, pet, index);
+                return _buildPetCardV2(context, pet, index);
               },
             ),
           );
@@ -173,6 +173,185 @@ class MyPetsScreen extends StatelessWidget {
     Color(0xFFEC4899), // rose
   ];
 
+  /// v427 — maquette « Mes animaux » : carte propre (photo gauche + infos +
+  /// badge À jour + métriques + puces espèce/sexe + chevron). Tap → fiche
+  /// (4 onglets) où l'on peut Modifier / Supprimer.
+  Widget _buildPetCardV2(BuildContext context, PetModel pet, int index) {
+    final imageUrl = pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
+    final accent = _petAccents[index % _petAccents.length];
+    final isUpToDate = pet.vaccinationStatus == 'up_to_date';
+
+    return GestureDetector(
+      onTap: () => Get.to(() => PetProfileScreen(
+            pet: pet,
+            accent: accent,
+            onDelete: () => _confirmAndDeletePet(context, pet.id),
+          )),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 16.h),
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(color: accent.withValues(alpha: 0.5), width: 1.6),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16.r),
+              child: SizedBox(
+                width: 88.w,
+                height: 88.w,
+                child: imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 300,
+                        placeholder: (c, _) =>
+                            Container(color: AppColors.lightGreyColor),
+                        errorWidget: (c, _, __) => Container(
+                          color: accent.withValues(alpha: 0.12),
+                          child: Icon(Icons.pets, color: accent, size: 30.sp),
+                        ),
+                      )
+                    : Container(
+                        color: accent.withValues(alpha: 0.12),
+                        child: Icon(Icons.pets, color: accent, size: 30.sp),
+                      ),
+              ),
+            ),
+            SizedBox(width: 14.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PoppinsText(
+                          text: pet.petName,
+                          fontSize: 17.sp,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isUpToDate) _aJourBadge(),
+                    ],
+                  ),
+                  if (pet.breed.isNotEmpty) ...[
+                    SizedBox(height: 2.h),
+                    InterText(
+                      text: pet.breed,
+                      fontSize: 13.sp,
+                      color: AppColors.greyText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  SizedBox(height: 8.h),
+                  Wrap(
+                    spacing: 14.w,
+                    runSpacing: 4.h,
+                    children: [
+                      if (pet.age.isNotEmpty)
+                        _petMetric(context, Icons.calendar_today_rounded,
+                            '${pet.age} ${'pet_age_unit'.tr}', accent),
+                      if (pet.weight.isNotEmpty)
+                        _petMetric(context, Icons.monitor_weight_outlined,
+                            '${pet.weight} kg', accent),
+                      if (pet.height.isNotEmpty)
+                        _petMetric(context, Icons.height_rounded,
+                            '${pet.height} cm', accent),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  Wrap(
+                    spacing: 6.w,
+                    runSpacing: 6.h,
+                    children: [
+                      _petChip('🐾 ${_localizedCategory(pet.category)}',
+                          accent.withValues(alpha: 0.12), accent),
+                      if (pet.gender == 'male')
+                        _petChip('♂ ${'pet_gender_male'.tr}',
+                            AppColors.inputFill(context), AppColors.greyText),
+                      if (pet.gender == 'female')
+                        _petChip('♀ ${'pet_gender_female'.tr}',
+                            AppColors.inputFill(context), AppColors.greyText),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 6.w),
+            Icon(Icons.chevron_right_rounded,
+                color: AppColors.greyColor, size: 22.sp),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _aJourBadge() => Container(
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle_rounded,
+                size: 12.sp, color: const Color(0xFF16A34A)),
+            SizedBox(width: 4.w),
+            InterText(
+              text: 'pet_up_to_date'.tr,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF16A34A),
+            ),
+          ],
+        ),
+      );
+
+  Widget _petMetric(
+          BuildContext context, IconData icon, String text, Color accent) =>
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13.sp, color: accent),
+          SizedBox(width: 4.w),
+          InterText(
+            text: text,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary(context),
+          ),
+        ],
+      );
+
+  Widget _petChip(String text, Color bg, Color fg) => Container(
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12.r)),
+        child: InterText(
+          text: text,
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      );
+
+  // ignore: unused_element
   Widget _buildPetCard(BuildContext context, PetModel pet, int index) {
     final imageUrl = pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
     final accent = _petAccents[index % _petAccents.length];

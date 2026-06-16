@@ -17,11 +17,16 @@ class PetProfileScreen extends StatelessWidget {
   final Color? accent;
   final bool editable;
 
+  /// v427 — callback Supprimer (maquette : menu ••• Modifier / Supprimer).
+  /// Null ⇒ option Supprimer masquée.
+  final VoidCallback? onDelete;
+
   const PetProfileScreen({
     super.key,
     required this.pet,
     this.accent,
     this.editable = true,
+    this.onDelete,
   });
 
   Color get _accent => accent ?? AppColors.primaryColor;
@@ -60,10 +65,40 @@ class PetProfileScreen extends StatelessWidget {
           ),
           actions: [
             if (editable)
-              IconButton(
+              PopupMenuButton<String>(
                 icon: Icon(Icons.more_horiz_rounded,
                     color: _accent, size: 24.sp),
-                onPressed: _openEdit,
+                onSelected: (v) {
+                  if (v == 'edit') {
+                    _openEdit();
+                  } else if (v == 'delete') {
+                    onDelete?.call();
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 18.sp, color: _accent),
+                        SizedBox(width: 10.w),
+                        Text('post_action_edit'.tr),
+                      ],
+                    ),
+                  ),
+                  if (onDelete != null)
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded,
+                              size: 18.sp, color: const Color(0xFFE53935)),
+                          SizedBox(width: 10.w),
+                          Text('post_action_delete'.tr),
+                        ],
+                      ),
+                    ),
+                ],
               ),
           ],
         ),
