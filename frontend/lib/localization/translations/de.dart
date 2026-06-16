@@ -1987,6 +1987,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'post_field_pet_count': 'Anzahl der Tiere',
       'post_field_pet_types': 'Tierart',
       'post_field_service': 'Service',
+      'post_field_details': 'Details',
       'post_field_animals': 'Tiere',
       'post_about_owner': 'Über mich',
       'card_request_person': 'Diese Person anfragen',

@@ -2426,6 +2426,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'post_field_pet_count': 'Number of pets',
       'post_field_pet_types': 'Pet type',
       'post_field_service': 'Service',
+      'post_field_details': 'Details',
       'post_field_animals': 'Pets',
       'post_about_owner': 'About me',
       'card_request_person': 'Request this person',

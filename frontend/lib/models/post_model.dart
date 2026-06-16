@@ -422,6 +422,10 @@ class PostPet {
   final String category;
   final List<String> characterTraits;
 
+  /// v429 — race + bio par animal (carte "Caractère des animaux", maquette 221).
+  final String breed;
+  final String bio;
+
   PostPet({
     required this.id,
     required this.petName,
@@ -429,6 +433,8 @@ class PostPet {
     required this.photos,
     this.category = '',
     this.characterTraits = const <String>[],
+    this.breed = '',
+    this.bio = '',
   });
 
   factory PostPet.fromJson(Map<String, dynamic> json) {
@@ -447,6 +453,8 @@ class PostPet {
               .where((s) => s.trim().isNotEmpty)
               .toList() ??
           const <String>[],
+      breed: json['breed'] as String? ?? '',
+      bio: json['bio'] as String? ?? '',
     );
   }
 }

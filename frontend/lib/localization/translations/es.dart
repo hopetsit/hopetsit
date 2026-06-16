@@ -1980,6 +1980,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'post_field_pet_count': 'Número de animales',
       'post_field_pet_types': 'Tipo de animal',
       'post_field_service': 'Servicio',
+      'post_field_details': 'Detalles',
       'post_field_animals': 'Animales',
       'post_about_owner': 'Sobre mí',
       'card_request_person': 'Solicitar a esta persona',

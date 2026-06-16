@@ -1964,6 +1964,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'post_field_pet_count': 'Numero di animali',
       'post_field_pet_types': 'Tipo di animale',
       'post_field_service': 'Servizio',
+      'post_field_details': 'Dettagli',
       'post_field_animals': 'Animali',
       'post_about_owner': 'Su di me',
       'card_request_person': 'Richiedi a questa persona',

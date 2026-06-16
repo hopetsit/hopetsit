@@ -384,6 +384,9 @@ const listPosts = async (req, res) => {
           characterTraits: Array.isArray(pet.characterTraits)
             ? pet.characterTraits
             : [],
+          // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
+          breed: pet.breed || '',
+          bio: pet.bio || '',
         }));
 
         return {
@@ -468,6 +471,9 @@ const getMediaPosts = async (req, res) => {
           characterTraits: Array.isArray(pet.characterTraits)
             ? pet.characterTraits
             : [],
+          // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
+          breed: pet.breed || '',
+          bio: pet.bio || '',
         }));
         
         return {
@@ -616,6 +622,9 @@ const getRequestPosts = async (req, res) => {
           characterTraits: Array.isArray(pet.characterTraits)
             ? pet.characterTraits
             : [],
+          // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
+          breed: pet.breed || '',
+          bio: pet.bio || '',
         }));
 
         return {

@@ -330,7 +330,7 @@ class PetPostCard extends StatelessWidget {
             SizedBox(height: 14.h),
             _buildPetsStrip(context),
           ],
-          if (_allTraits.isNotEmpty)
+          if (_hasCharacterData)
             Padding(
               padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
               child: _buildCharacterCard(context),
@@ -346,17 +346,6 @@ class PetPostCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if ((postBody ?? '').trim().isNotEmpty) ...[
-                    InterText(
-                      text: _localizePostBody(postBody!.trim()),
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary(context),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 10.h),
-                  ],
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
@@ -394,32 +383,8 @@ class PetPostCard extends StatelessWidget {
                             _buildRequestStatusBadge(context),
                           ],
                         ),
-                        SizedBox(height: 10.h),
-                        // Ordre maquette : Dates / Localisation / Nombre
-                        // d'animaux / Type d'animaux / Service / Animaux.
-                        if ((dateRange ?? '').trim().isNotEmpty)
-                          _buildReqRow(context, Icons.calendar_today_outlined,
-                              'post_field_dates'.tr, dateRange!.trim()),
-                        if ((location ?? '').trim().isNotEmpty)
-                          _buildReqRow(context, Icons.location_on_outlined,
-                              'post_field_location'.tr, location!.trim()),
-                        if (pets != null && pets!.isNotEmpty)
-                          _buildReqRow(context, Icons.pets_outlined,
-                              'post_field_pet_count'.tr, '${pets!.length}'),
-                        if (_petTypesLabel.isNotEmpty)
-                          _buildReqRow(context, Icons.category_outlined,
-                              'post_field_pet_types'.tr, _petTypesLabel),
-                        if ((serviceTypes ?? '').trim().isNotEmpty)
-                          _buildReqRow(
-                              context,
-                              Icons.volunteer_activism_outlined,
-                              'post_field_service'.tr,
-                              _localizedServices(serviceTypes!.trim())),
-                        if ((pets == null || pets!.isEmpty) &&
-                            (petName ?? '').trim().isNotEmpty)
-                          _buildReqRow(context, Icons.pets_outlined,
-                              'post_field_animals'.tr, petName!.trim(),
-                              isLast: true),
+                        SizedBox(height: 12.h),
+                        _buildReservationGrid(context),
                       ],
                     ),
                   ),
@@ -580,22 +545,6 @@ class PetPostCard extends StatelessWidget {
 
   // ── v420 — maquette "Daniel C" : helpers détail d'annonce ────────────────
 
-  /// Traits de caractère dédupliqués sur l'ensemble des animaux de l'annonce.
-  List<String> get _allTraits {
-    if (pets == null) return const <String>[];
-    final seen = <String>{};
-    final out = <String>[];
-    for (final p in pets!) {
-      for (final t in p.characterTraits) {
-        final k = t.trim();
-        if (k.isEmpty || seen.contains(k)) continue;
-        seen.add(k);
-        out.add(k);
-      }
-    }
-    return out;
-  }
-
   /// Types d'animaux distincts (ex. "Chien, Chat").
   String get _petTypesLabel {
     if (pets == null || pets!.isEmpty) return '';
@@ -658,8 +607,8 @@ class PetPostCard extends StatelessWidget {
               InterText(
                 text: p.petName,
                 fontSize: 13.sp,
-                fontWeight: FontWeight.w700,
-                color: _accent,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(context),
               ),
               SizedBox(width: 6.w),
               InterText(
@@ -667,7 +616,8 @@ class PetPostCard extends StatelessWidget {
                     ? '• $count ${'post_photos_count_one'.tr}'
                     : '• $count ${'post_photos_count'.tr}',
                 fontSize: 11.sp,
-                color: AppColors.textSecondary(context),
+                fontWeight: FontWeight.w600,
+                color: _accent,
               ),
               SizedBox(width: 2.w),
               Icon(Icons.chevron_right_rounded,
@@ -741,23 +691,76 @@ class PetPostCard extends StatelessWidget {
   String _speciesEmoji(String category) {
     switch (category.trim().toLowerCase()) {
       case 'dog':
+      case 'chien':
         return '🐕';
       case 'cat':
+      case 'chat':
         return '🐈';
       case 'bird':
+      case 'oiseau':
         return '🐦';
       case 'small':
       case 'small_animal':
+      case 'lapin':
+      case 'rongeur':
+      case 'petit':
         return '🐹';
       case 'nac':
+      case 'reptile':
         return '🦎';
       default:
         return '🐾';
     }
   }
 
-  /// Carte "Caractère des animaux" — chips de traits.
+  /// Animaux ayant des données de caractère (bio OU traits).
+  List<PostPet> get _petsWithCharacter =>
+      pets == null
+          ? const <PostPet>[]
+          : pets!
+              .where((p) =>
+                  p.bio.trim().isNotEmpty || p.characterTraits.isNotEmpty)
+              .toList();
+
+  bool get _hasCharacterData => _petsWithCharacter.isNotEmpty;
+
+  /// Carte "Caractère des animaux" — un bloc PAR animal (icône espèce + nom +
+  /// race + description), maquette 221. 2 animaux côte à côte, sinon empilés.
   Widget _buildCharacterCard(BuildContext context) {
+    final withChar = _petsWithCharacter;
+    Widget body;
+    if (withChar.length == 2) {
+      body = IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _petCharacterBlock(context, withChar[0])),
+            Container(
+              width: 1,
+              margin: EdgeInsets.symmetric(horizontal: 12.w),
+              color: AppColors.divider(context).withValues(alpha: 0.5),
+            ),
+            Expanded(child: _petCharacterBlock(context, withChar[1])),
+          ],
+        ),
+      );
+    } else {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < withChar.length; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 10.h),
+                child: Divider(
+                    height: 1,
+                    color: AppColors.divider(context).withValues(alpha: 0.5)),
+              ),
+            _petCharacterBlock(context, withChar[i]),
+          ],
+        ],
+      );
+    }
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
@@ -773,42 +776,65 @@ class PetPostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.favorite_rounded, size: 15.sp, color: _accent),
+              Icon(Icons.pets_rounded, size: 16.sp, color: _accent),
               SizedBox(width: 8.w),
               InterText(
                 text: 'post_character_section'.tr,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary(context),
               ),
             ],
           ),
-          SizedBox(height: 10.h),
-          Wrap(
-            spacing: 6.w,
-            runSpacing: 6.h,
-            children: _allTraits
-                .map((t) => Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 10.w, vertical: 5.h),
-                      decoration: BoxDecoration(
-                        color: _accent.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(14.r),
-                        border: Border.all(
-                          color: _accent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: InterText(
-                        text: 'pet_trait_$t'.tr,
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w600,
-                        color: _accent,
-                      ),
-                    ))
-                .toList(),
-          ),
+          SizedBox(height: 12.h),
+          body,
         ],
       ),
+    );
+  }
+
+  /// Bloc caractère d'UN animal : icône espèce + nom + race + description.
+  Widget _petCharacterBlock(BuildContext context, PostPet p) {
+    final desc = p.bio.trim().isNotEmpty
+        ? p.bio.trim()
+        : p.characterTraits.map((t) => 'pet_trait_$t'.tr).join(', ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(_speciesEmoji(p.category), style: TextStyle(fontSize: 18.sp)),
+            SizedBox(width: 6.w),
+            Flexible(
+              child: InterText(
+                text: p.petName,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        if (p.breed.isNotEmpty) ...[
+          SizedBox(height: 2.h),
+          InterText(
+            text: p.breed,
+            fontSize: 12.sp,
+            color: AppColors.greyText,
+          ),
+        ],
+        if (desc.isNotEmpty) ...[
+          SizedBox(height: 6.h),
+          InterText(
+            text: desc,
+            fontSize: 12.5.sp,
+            color: AppColors.textSecondary(context),
+            maxLines: 5,
+          ),
+        ],
+      ],
     );
   }
 
@@ -853,29 +879,82 @@ class PetPostCard extends StatelessWidget {
   }
 
   /// Ligne label : valeur de la demande de réservation.
-  Widget _buildReqRow(BuildContext context, IconData icon, String label,
-      String value,
-      {bool isLast = false}) {
+  /// Grille 3 colonnes de la demande de réservation (maquette 221) :
+  /// chaque case = pastille icône + libellé + valeur.
+  Widget _buildReservationGrid(BuildContext context) {
+    final cells = <Widget>[];
+    void add(IconData icon, String label, String value) {
+      if (value.trim().isEmpty) return;
+      cells.add(_resCell(context, icon, label, value.trim()));
+    }
+
+    add(Icons.calendar_today_rounded, 'post_field_dates'.tr, dateRange ?? '');
+    add(Icons.location_on_rounded, 'post_field_location'.tr, location ?? '');
+    if (pets != null && pets!.isNotEmpty) {
+      add(Icons.pets_rounded, 'post_field_pet_count'.tr, '${pets!.length}');
+    }
+    add(Icons.category_rounded, 'post_field_pet_types'.tr, _petTypesLabel);
+    if ((serviceTypes ?? '').trim().isNotEmpty) {
+      add(Icons.volunteer_activism_rounded, 'post_field_service'.tr,
+          _localizedServices(serviceTypes!.trim()));
+    }
+    add(Icons.notes_rounded, 'post_field_details'.tr,
+        _localizePostBody((postBody ?? '').trim()));
+    if ((pets == null || pets!.isEmpty) && (petName ?? '').trim().isNotEmpty) {
+      add(Icons.pets_rounded, 'post_field_animals'.tr, petName!.trim());
+    }
+
+    final rows = <Widget>[];
+    for (int i = 0; i < cells.length; i += 3) {
+      final end = (i + 3) > cells.length ? cells.length : (i + 3);
+      final chunk = cells.sublist(i, end);
+      rows.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int j = 0; j < 3; j++)
+                Expanded(
+                  child: j < chunk.length ? chunk[j] : const SizedBox(),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
+  }
+
+  Widget _resCell(
+      BuildContext context, IconData icon, String label, String value) {
     return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 8.h),
-      child: Row(
+      padding: EdgeInsets.fromLTRB(0, 6.h, 6.w, 6.h),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 15.sp, color: AppColors.textSecondary(context)),
-          SizedBox(width: 8.w),
-          InterText(
-            text: '$label : ',
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary(context),
-          ),
-          Expanded(
-            child: InterText(
-              text: value,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary(context),
+          Container(
+            width: 30.w,
+            height: 30.w,
+            decoration: BoxDecoration(
+              color: _accent.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
             ),
+            child: Icon(icon, size: 15.sp, color: _accent),
+          ),
+          SizedBox(height: 6.h),
+          InterText(
+            text: label,
+            fontSize: 10.5.sp,
+            color: AppColors.greyText,
+            maxLines: 2,
+          ),
+          SizedBox(height: 1.h),
+          InterText(
+            text: value,
+            fontSize: 11.5.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary(context),
+            maxLines: 3,
           ),
         ],
       ),

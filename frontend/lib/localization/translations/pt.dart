@@ -1839,6 +1839,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'post_field_pet_count': 'Número de animais',
       'post_field_pet_types': 'Tipo de animal',
       'post_field_service': 'Serviço',
+      'post_field_details': 'Detalhes',
       'post_field_animals': 'Animais',
       'post_about_owner': 'Sobre mim',
       'card_request_person': 'Pedir a esta pessoa',
