@@ -14,11 +14,27 @@ import 'package:hopetsit/widgets/custom_text_field.dart';
 import 'package:hopetsit/widgets/pet_extra_fields.dart';
 import 'package:hopetsit/widgets/rounded_text_button.dart' show CustomButton;
 
+/// v428 — écran UNIFIÉ « Modifier l'animal » (create + edit). Quand [petId] est
+/// vide → mode CRÉATION (POST), titre « Ajouter un animal » + bouton « Créer le
+/// profil ». Sinon → mode ÉDITION (PUT), titre « Modifier {nom} ».
 class EditPetScreen extends StatelessWidget {
   final String petId;
   final PetModel? petData;
 
-  const EditPetScreen({super.key, required this.petId, this.petData});
+  const EditPetScreen({super.key, this.petId = '', this.petData});
+
+  bool get _isCreate => petId.trim().isEmpty;
+
+  /// Titre dynamique : « Ajouter un animal » (création) ou « Modifier {nom} »
+  /// (édition). Le nom vient de [petData] (passé en argument) ; fallback sur le
+  /// titre générique si inconnu.
+  String _buildTitle(EditPetController controller) {
+    if (_isCreate) return 'pet_add_animal_title'.tr;
+    final name = (petData?.petName ?? controller.petNameController.text).trim();
+    return name.isNotEmpty
+        ? '${'post_action_edit'.tr} $name'
+        : 'edit_pet_profile_title'.tr;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +52,7 @@ class EditPetScreen extends StatelessWidget {
         iconTheme: IconThemeData(color: AppColors.primaryColor),
         leading: BackButton(),
         title: PoppinsText(
-          text: 'edit_pet_profile_title'.tr,
+          text: _buildTitle(controller),
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
@@ -483,7 +499,9 @@ class EditPetScreen extends StatelessWidget {
                       () => CustomButton(
                         title: controller.isLoading.value
                             ? 'edit_pet_updating_profile'.tr
-                            : 'edit_pet_update_profile_button'.tr,
+                            : (_isCreate
+                                ? 'pet_create_button'.tr
+                                : 'edit_pet_update_profile_button'.tr),
                         onTap: controller.isLoading.value
                             ? null
                             : () => controller

@@ -15,10 +15,14 @@ class EditPetController extends GetxController {
   final PetRepository _petRepository;
 
   EditPetController({
-    required this.petId,
+    this.petId = '',
     this.petData,
     PetRepository? petRepository,
   }) : _petRepository = petRepository ?? Get.find<PetRepository>();
+
+  /// v428 — true quand aucun petId fourni : l'écran sert de formulaire de
+  /// CRÉATION (POST) au lieu d'édition (PUT). Écran unifié create+edit.
+  bool get isCreate => petId.trim().isEmpty;
 
   // Form key and controllers
   final formKey = GlobalKey<FormState>();
@@ -84,9 +88,12 @@ class EditPetController extends GetxController {
     super.onInit();
     if (petData != null) {
       _populateFormFromPetData(petData!);
-    } else {
+    } else if (!isCreate) {
+      // Édition d'un animal dont les données ne sont pas passées en argument.
       loadPetData();
     }
+    // En création (isCreate && petData == null) : on garde le formulaire vide
+    // avec les valeurs par défaut (Dog / Up to Date).
   }
 
   @override
@@ -352,6 +359,48 @@ class EditPetController extends GetxController {
         ...enriched.toPayload(),
       };
 
+      if (isCreate) {
+        // ── CRÉATION (POST) ──────────────────────────────────────────────
+        final createResponse =
+            await _petRepository.createPetProfile(petData: petData);
+
+        // Extraction du petId nouvellement créé (fallbacks tolérants selon la
+        // forme de la réponse backend).
+        final newPetId = createResponse['pet']?['_id']?.toString() ??
+            createResponse['pet']?['id']?.toString() ??
+            createResponse['_id']?.toString() ??
+            createResponse['id']?.toString() ??
+            createResponse['data']?['pet']?['_id']?.toString() ??
+            createResponse['data']?['pet']?['id']?.toString() ??
+            createResponse['data']?['_id']?.toString() ??
+            createResponse['data']?['id']?.toString();
+
+        // Upload de l'avatar choisi à la création (best-effort, ne bloque pas).
+        if (petProfileImage.value != null &&
+            newPetId != null &&
+            newPetId.isNotEmpty) {
+          try {
+            await _petRepository.uploadPetCreationMedia(
+              petId: newPetId,
+              avatar: petProfileImage.value,
+            );
+          } catch (_) {
+            CustomSnackbar.showWarning(
+              title: 'common_error'.tr,
+              message:
+                  'snackbar_text_pet_profile_created_but_media_upload_failed_you_can_add_medi',
+            );
+          }
+        }
+
+        CustomSnackbar.showSuccess(
+          title: 'common_success'.tr,
+          message: 'snackbar_text_pet_profile_created_successfully',
+        );
+        return true;
+      }
+
+      // ── ÉDITION (PUT) ──────────────────────────────────────────────────
       await _petRepository.updatePet(petId: petId, petData: petData);
 
       if (petProfileImage.value != null) {
@@ -440,19 +489,19 @@ class EditPetController extends GetxController {
     final success = await validateAndUpdateProfile();
 
     if (success) {
-      await Future.delayed(const Duration(milliseconds: 800));
-      Get.back();
-
+      // v428 — écran unifié create+edit : on rafraîchit « Mes animaux » PUIS on
+      // revient une seule fois avec result:true (les appelants — Mes animaux,
+      // fiche animal — déclenchent un refresh sur ce résultat). Le précédent
+      // double Get.back() faisait sauter un écran en trop en mode création.
       if (Get.isRegistered<MyPetsController>()) {
         try {
-          final myPetsController = Get.find<MyPetsController>();
-          await myPetsController.refreshPets();
-        } catch (e) {
-          // Silently fail if controller not found
+          await Get.find<MyPetsController>().refreshPets();
+        } catch (_) {
+          // Silently fail if controller not found.
         }
       }
 
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 400));
       Get.back(result: true);
     }
   }

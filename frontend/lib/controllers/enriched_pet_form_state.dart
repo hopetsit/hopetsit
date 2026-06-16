@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 import 'package:hopetsit/models/pet_model.dart';
 
 /// v406 refonte — état de formulaire partagé pour les champs enrichis de la
-/// fiche animal (onglets À propos / Santé / Habitudes). Mutualisé entre
-/// create_pet_profile_controller et edit_pet_controller pour éviter la
-/// duplication. 100% additif : `toPayload()` n'envoie que des champs additifs
+/// fiche animal (onglets À propos / Santé / Habitudes). Utilisé par
+/// edit_pet_controller (écran unifié création + édition, v428+).
+/// 100% additif : `toPayload()` n'envoie que des champs additifs
 /// que le backend accepte déjà (Pet.js v405), donc aucun impact sur l'existant.
 class EnrichedPetFormState {
   // ── À propos ─────────────────────────────────────────────────────────────

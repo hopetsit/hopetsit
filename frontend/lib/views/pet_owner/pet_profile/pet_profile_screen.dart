@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/pet_species_color.dart';
+import 'package:hopetsit/views/pet_owner/pet_profile/pet_gallery_screen.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 
@@ -29,7 +31,8 @@ class PetProfileScreen extends StatelessWidget {
     this.onDelete,
   });
 
-  Color get _accent => accent ?? AppColors.primaryColor;
+  // v428 — accent par espèce (chien=orange, chat=bleu, …) si non fourni.
+  Color get _accent => accent ?? petSpeciesColor(pet.category);
 
   bool get _isUpToDate => pet.vaccinationStatus == 'up_to_date';
 
@@ -44,6 +47,11 @@ class PetProfileScreen extends StatelessWidget {
   }
 
   void _openEdit() => Get.to(() => EditPetScreen(petId: pet.id, petData: pet));
+
+  /// v428 — gestion des médias (photos/vidéos + photo principale) déléguée à
+  /// l'écran Galerie dédié.
+  void _openGallery() =>
+      Get.to(() => PetGalleryScreen(pet: pet, accent: _accent));
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +170,7 @@ class PetProfileScreen extends StatelessWidget {
                   right: 12.w,
                   bottom: 12.h,
                   child: GestureDetector(
-                    onTap: _openEdit,
+                    onTap: _openGallery,
                     child: Container(
                       padding:
                           EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
@@ -215,7 +223,7 @@ class PetProfileScreen extends StatelessWidget {
                         right: 2.w,
                         bottom: 2.h,
                         child: GestureDetector(
-                          onTap: _openEdit,
+                          onTap: _openGallery,
                           child: Container(
                             padding: EdgeInsets.all(5.w),
                             decoration: BoxDecoration(
@@ -542,7 +550,7 @@ class PetProfileScreen extends StatelessWidget {
         if (editable) ...[
           SizedBox(height: 14.h),
           GestureDetector(
-            onTap: _openEdit,
+            onTap: _openGallery,
             child: Container(
               padding: EdgeInsets.symmetric(vertical: 14.h),
               decoration: BoxDecoration(

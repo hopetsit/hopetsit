@@ -5,11 +5,12 @@ import 'package:hopetsit/controllers/sign_up_controller.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/repositories/auth_repository.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
-import 'package:hopetsit/views/pet_owner/pet_profile/create_pet_profile_screen.dart';
+import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/controllers/sitter_profile_controller.dart';
 import 'package:hopetsit/views/pet_sitter/bottom_wrapper/sitter_nav_wrapper.dart';
 import 'package:hopetsit/views/pet_walker/bottom_wrapper/walker_nav_wrapper.dart';
+import 'package:hopetsit/views/pet_owner/bottom_nav/bottom_nav_wrapper.dart';
 
 class ChooseServiceController extends GetxController {
   /// For backward compatibility, we keep a \"primary\" selected service,
@@ -417,20 +418,18 @@ class ChooseServiceController extends GetxController {
         // Walker dashboard.
         Get.offAll(() => const WalkerNavWrapper());
       } else {
-        // Pet owners go to create pet profile screen first.
-        // For multi-select, use the first selected service as the primary type.
+        // v428 — système unifié : les owners créent leur 1er animal via
+        // l'écran « Modifier l'animal » en mode CRÉATION (sans petId). À la
+        // fin de la création (result:true), on pose la home owner par-dessus.
         final primaryService = selectedServices.isNotEmpty
             ? selectedServices.first
             : null;
 
         if (primaryService != null) {
-          Get.to(
-            () => CreatePetProfileScreen(
-              userType: userType,
-              serviceType: primaryService,
-              fromSignup: true,
-            ),
-          );
+          final created = await Get.to(() => const EditPetScreen());
+          if (created == true) {
+            await Get.offAll(() => const BottomNavWrapper());
+          }
         } else {
           CustomSnackbar.showWarning(
             title: 'service_selection_required',

@@ -2,17 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
-import 'package:hopetsit/controllers/auth_controller.dart';
 import 'package:hopetsit/controllers/my_pets_controller.dart';
-import 'package:hopetsit/controllers/user_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/pet_model.dart';
-import 'package:hopetsit/repositories/auth_repository.dart' show AuthRepository;
-import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
-import 'package:hopetsit/utils/app_images.dart';
-import 'package:hopetsit/views/pet_owner/pet_profile/create_pet_profile_screen.dart';
+import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
@@ -26,12 +20,6 @@ class MyPetsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final MyPetsController controller = Get.put(MyPetsController());
-    final AuthController authController = Get.put(
-      AuthController(AuthRepository(ApiClient()), GetStorage()),
-    );
-    final UserController userController = Get.put(
-      UserController(UserRepository(ApiClient())),
-    );
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -52,14 +40,14 @@ class MyPetsScreen extends StatelessWidget {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             child: TextButton(
-              onPressed: () => Get.to(
-                () => CreatePetProfileScreen(
-                  userType: authController.userRole.value ?? '',
-                  serviceType: userController.profile.value?.service.isNotEmpty == true
-                      ? userController.profile.value!.service.first
-                      : '',
-                ),
-              ),
+              onPressed: () async {
+                // v428 — système unifié : « Ajouter un animal » ouvre l'écran
+                // « Modifier l'animal » en mode CRÉATION (sans petId).
+                final result = await Get.to(() => const EditPetScreen());
+                if (result == true && Get.isRegistered<MyPetsController>()) {
+                  await Get.find<MyPetsController>().refreshPets();
+                }
+              },
               child: PoppinsText(
                 text: 'my_pets_add_pet'.tr,
                 fontSize: 16.sp,
@@ -121,14 +109,15 @@ class MyPetsScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 16.h),
                   ElevatedButton.icon(
-                    onPressed: () => Get.to(
-                      () => CreatePetProfileScreen(
-                        userType: authController.userRole.value ?? '',
-                        serviceType: userController.profile.value?.service.isNotEmpty == true
-                            ? userController.profile.value!.service.first
-                            : '',
-                      ),
-                    ),
+                    onPressed: () async {
+                      // v428 — système unifié : création via EditPetScreen.
+                      final result =
+                          await Get.to(() => const EditPetScreen());
+                      if (result == true &&
+                          Get.isRegistered<MyPetsController>()) {
+                        await Get.find<MyPetsController>().refreshPets();
+                      }
+                    },
                     icon: const Icon(Icons.add_rounded),
                     label: Text('my_pets_add_pet'.tr),
                     style: ElevatedButton.styleFrom(
@@ -161,24 +150,14 @@ class MyPetsScreen extends StatelessWidget {
     );
   }
 
-  // v23.1.389 — Daniel : "qu'on distingue qu'on a plusieurs animaux, une
-  // autre couleur, design plus moderne". Chaque animal reçoit sa couleur
-  // d'accent (rotation sur 6 teintes) : bordure, badge, boutons.
-  static const List<Color> _petAccents = [
-    Color(0xFFE8472A), // orange HoPetSit
-    Color(0xFF7C3AED), // violet
-    Color(0xFFE8A00A), // doré
-    Color(0xFF14B8A6), // teal
-    Color(0xFF2563EB), // bleu
-    Color(0xFFEC4899), // rose
-  ];
-
   /// v427 — maquette « Mes animaux » : carte propre (photo gauche + infos +
   /// badge À jour + métriques + puces espèce/sexe + chevron). Tap → fiche
   /// (4 onglets) où l'on peut Modifier / Supprimer.
   Widget _buildPetCardV2(BuildContext context, PetModel pet, int index) {
     final imageUrl = pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
-    final accent = _petAccents[index % _petAccents.length];
+    // v428 — accent par espèce (chien=orange, chat=bleu, …) au lieu de la
+    // rotation d'index, pour une couleur stable et signifiante par animal.
+    final accent = petSpeciesColor(pet.category);
     final isUpToDate = pet.vaccinationStatus == 'up_to_date';
 
     return GestureDetector(
@@ -351,521 +330,6 @@ class MyPetsScreen extends StatelessWidget {
         ),
       );
 
-  // ignore: unused_element
-  Widget _buildPetCard(BuildContext context, PetModel pet, int index) {
-    final imageUrl = pet.avatar.url.isNotEmpty ? pet.avatar.url : null;
-    final accent = _petAccents[index % _petAccents.length];
-
-    return GestureDetector(
-      // v406 — tap sur la carte → fiche animal 4 onglets (lecture).
-      onTap: () => Get.to(() => PetProfileScreen(pet: pet, accent: accent)),
-      child: Container(
-      margin: EdgeInsets.only(bottom: 18.h),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: accent.withValues(alpha: 0.55), width: 1.8),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.18),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Hero Section with Pet Image
-          Container(
-            height: 140.h,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16.r),
-                topRight: Radius.circular(16.r),
-              ),
-              color: AppColors.lightGreyColor,
-            ),
-            child: Stack(
-              children: [
-                // Pet Image
-                ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16.r),
-                    topRight: Radius.circular(16.r),
-                  ),
-                  child: imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          width: double.infinity,
-                          height: 200.h,
-                          memCacheWidth: 800, // v235.
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) => Container(
-                            color: AppColors.lightGreyColor,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primaryColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: AppColors.lightGreyColor,
-                            child: Image.asset(
-                              AppImages.placeholderImage,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: AppColors.lightGreyColor,
-                          child: Center(
-                            child: Icon(
-                              Icons.pets,
-                              size: 40.sp,
-                              color: AppColors.greyColor,
-                            ),
-                          ),
-                        ),
-                ),
-                // Gradient overlay for better text readability
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 60.h,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(16.r),
-                        topRight: Radius.circular(16.r),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.6),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Pet Name and Category Badge
-                Positioned(
-                  bottom: 12.h,
-                  left: 16.w,
-                  right: 16.w,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PoppinsText(
-                              text: pet.petName,
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.whiteColor,
-                            ),
-                            SizedBox(height: 4.h),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 8.w,
-                                    vertical: 3.h,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: accent,
-                                    borderRadius: BorderRadius.circular(16.r),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.pets,
-                                        size: 12.sp,
-                                        color: AppColors.whiteColor,
-                                      ),
-                                      SizedBox(width: 4.w),
-                                      InterText(
-                                        text: _localizedCategory(pet.category),
-                                        fontSize: 11.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.whiteColor,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (pet.age.isNotEmpty) ...[
-                                  SizedBox(width: 6.w),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8.w,
-                                      vertical: 3.h,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.whiteColor.withValues(alpha: 
-                                        0.3,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16.r),
-                                    ),
-                                    child: InterText(
-                                      text: pet.age,
-                                      fontSize: 11.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.whiteColor,
-                                    ),
-                                  ),
-                                ],
-                                // v406 — badge sexe.
-                                if (pet.gender == 'male' ||
-                                    pet.gender == 'female') ...[
-                                  SizedBox(width: 6.w),
-                                  _miniBadge(
-                                    pet.gender == 'male' ? '♂' : '♀',
-                                    AppColors.whiteColor.withValues(alpha: 0.3),
-                                  ),
-                                ],
-                                // v406 — badge statut vaccination.
-                                if (pet.vaccinationStatus.isNotEmpty) ...[
-                                  SizedBox(width: 6.w),
-                                  _miniBadge(
-                                    pet.vaccinationStatus == 'up_to_date'
-                                        ? '💉 ${'pet_vax_up_to_date'.tr}'
-                                        : pet.vaccinationStatus == 'late'
-                                            ? '💉 ${'pet_vax_late'.tr}'
-                                            : '💉 ${'pet_vax_unknown'.tr}',
-                                    pet.vaccinationStatus == 'up_to_date'
-                                        ? const Color(0xCC16A34A)
-                                        : pet.vaccinationStatus == 'late'
-                                            ? const Color(0xCCE53935)
-                                            : AppColors.whiteColor
-                                                .withValues(alpha: 0.3),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Edit Button
-                      GestureDetector(
-                        onTap: () async {
-                          final result = await Get.to(
-                            () => EditPetScreen(petId: pet.id, petData: pet),
-                          );
-                          // Refresh pets list after editing if update was successful
-                          if (result == true) {
-                            final myPetsController =
-                                Get.find<MyPetsController>();
-                            await myPetsController.refreshPets();
-                          }
-                        },
-                        child: Container(
-                          padding: EdgeInsets.all(8.w),
-                          decoration: BoxDecoration(
-                            color: AppColors.whiteColor.withValues(alpha: 0.9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.edit,
-                            size: 18.sp,
-                            color: accent,
-                          ),
-                        ),
-                      ),
-                      // v23.1 — Delete (corbeille) button
-                      SizedBox(width: 8.w),
-                      GestureDetector(
-                        onTap: () => _confirmAndDeletePet(context, pet.id),
-                        child: Container(
-                          padding: EdgeInsets.all(8.w),
-                          decoration: BoxDecoration(
-                            color: AppColors.whiteColor.withValues(alpha: 0.9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.delete_outline,
-                            size: 18.sp,
-                            color: const Color(0xFFE53935),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Content Section
-          Padding(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Breed and Physical Details in one row
-                Row(
-                  children: [
-                    if (pet.breed.isNotEmpty) ...[
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.category,
-                              size: 14.sp,
-                              color: AppColors.primaryColor,
-                            ),
-                            SizedBox(width: 4.w),
-                            Flexible(
-                              child: InterText(
-                                text: pet.breed,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.greyText,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (pet.weight.isNotEmpty) ...[
-                      if (pet.breed.isNotEmpty) SizedBox(width: 12.w),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.monitor_weight,
-                              size: 14.sp,
-                              color: AppColors.primaryColor,
-                            ),
-                            SizedBox(width: 4.w),
-                            Flexible(
-                              child: InterText(
-                                text: '${pet.weight} kg',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.blackColor,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (pet.height.isNotEmpty) ...[
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.height,
-                              size: 14.sp,
-                              color: AppColors.primaryColor,
-                            ),
-                            SizedBox(width: 4.w),
-                            Flexible(
-                              child: InterText(
-                                text: '${pet.height} cm',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.blackColor,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                SizedBox(height: 12.h),
-
-                // Bio Section (compact)
-                if (pet.bio.isNotEmpty) ...[
-                  Container(
-                    padding: EdgeInsets.all(10.w),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightGrey.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: InterText(
-                      text: pet.bio,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.blackColor,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  SizedBox(height: 12.h),
-                ],
-
-                // Physical Details Section (compact horizontal)
-                if (pet.colour.isNotEmpty || pet.profileView.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      if (pet.colour.isNotEmpty) ...[
-                        Expanded(
-                          child: _buildCompactInfoItem(
-                            Icons.palette,
-                            'my_pets_color_label'.tr,
-                            pet.colour,
-                          ),
-                        ),
-                      ],
-                      if (pet.profileView.isNotEmpty) ...[
-                        if (pet.colour.isNotEmpty) SizedBox(width: 8.w),
-                        Expanded(
-                          child: _buildCompactInfoItem(
-                            Icons.visibility,
-                            'my_pets_profile_label'.tr,
-                            pet.profileView,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  SizedBox(height: 12.h),
-                ],
-
-                // Medical & Identification Section (compact)
-                if (pet.passportNumber.isNotEmpty ||
-                    pet.chipNumber.isNotEmpty ||
-                    pet.medicationAllergies.isNotEmpty ||
-                    pet.vaccinations.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      if (pet.passportNumber.isNotEmpty) ...[
-                        Expanded(
-                          child: _buildCompactInfoItem(
-                            Icons.article,
-                            'my_pets_passport_label'.tr,
-                            pet.passportNumber,
-                          ),
-                        ),
-                      ],
-                      if (pet.chipNumber.isNotEmpty) ...[
-                        if (pet.passportNumber.isNotEmpty) SizedBox(width: 8.w),
-                        Expanded(
-                          child: _buildCompactInfoItem(
-                            Icons.qr_code,
-                            'my_pets_chip_label'.tr,
-                            pet.chipNumber,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (pet.medicationAllergies.isNotEmpty) ...[
-                    SizedBox(height: 10.h),
-                    Container(
-                      padding: EdgeInsets.all(10.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.errorColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(
-                          color: AppColors.errorColor.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            size: 16.sp,
-                            color: AppColors.errorColor,
-                          ),
-                          SizedBox(width: 8.w),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                InterText(
-                                  text: 'my_pets_allergies_label'.tr,
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.errorColor,
-                                ),
-                                SizedBox(height: 2.h),
-                                InterText(
-                                  text: pet.medicationAllergies,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppColors.blackColor,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (pet.vaccinations.isNotEmpty) ...[
-                    SizedBox(height: 10.h),
-                    Wrap(
-                      spacing: 6.w,
-                      runSpacing: 6.h,
-                      children: pet.vaccinations.map((vaccination) {
-                        return Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 10.w,
-                            vertical: 5.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16.r),
-                            border: Border.all(
-                              color: AppColors.primaryColor.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                size: 12.sp,
-                                color: AppColors.primaryColor,
-                              ),
-                              SizedBox(width: 4.w),
-                              InterText(
-                                text: vaccination,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.primaryColor,
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
   // v19.1.5 — Localize user-entered category values. Some pets were created
   // with the category label in the user's previous locale (e.g. "Chien" when
   // they were in French). Map those known French/English values to the i18n
@@ -915,62 +379,6 @@ class MyPetsScreen extends StatelessWidget {
         return raw; // keep as-is if not recognized
     }
   }
-
-  // v406 — petit badge pilule (sexe / statut vaccination) sur le hero.
-  Widget _miniBadge(String text, Color bg) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16.r),
-      ),
-      child: InterText(
-        text: text,
-        fontSize: 11.sp,
-        fontWeight: FontWeight.w600,
-        color: AppColors.whiteColor,
-      ),
-    );
-  }
-
-  Widget _buildCompactInfoItem(IconData icon, String label, String value) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 14.sp, color: AppColors.primaryColor),
-          SizedBox(width: 6.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InterText(
-                  text: label,
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.greyText,
-                ),
-                SizedBox(height: 2.h),
-                InterText(
-                  text: value,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.blackColor,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 
@@ -1019,4 +427,3 @@ Future<void> _confirmAndDeletePet(BuildContext context, String petId) async {
     );
   }
 }
-
