@@ -1,13 +1,20 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:hopetsit/controllers/my_pets_controller.dart';
+import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/pet_model.dart';
+import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_gallery_screen.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
+import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
 /// v420 — refonte fiche animal À LA LETTRE (maquette « Profil de Helios ») :
 /// design CLAIR (fond blanc), bannière photo + avatar superposé + crayon +
@@ -48,10 +55,44 @@ class PetProfileScreen extends StatelessWidget {
 
   void _openEdit() => Get.to(() => EditPetScreen(petId: pet.id, petData: pet));
 
-  /// v428 — gestion des médias (photos/vidéos + photo principale) déléguée à
-  /// l'écran Galerie dédié.
+  /// v428 — gestion des médias (photos/vidéos) déléguée à l'écran Galerie.
+  /// (onglet Galerie → « Ajouter des photos »).
   void _openGallery() =>
       Get.to(() => PetGalleryScreen(pet: pet, accent: _accent));
+
+  /// v433 — Daniel : « modifier la photo de profil ouvre la galerie ». Le
+  /// crayon de l'avatar + « Changer la photo » ouvrent désormais le sélecteur
+  /// de PHOTO DE PROFIL dédié (pick → upload comme avatar), PAS la galerie.
+  Future<void> _changeProfilePhoto() async {
+    try {
+      final XFile? image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
+      );
+      if (image == null) return;
+      final repo = Get.find<PetRepository>();
+      await repo.uploadPetMedia(petId: pet.id, imageFile: File(image.path));
+      if (Get.isRegistered<MyPetsController>()) {
+        await Get.find<MyPetsController>().refreshPets();
+      }
+      CustomSnackbar.showSuccess(
+        title: 'common_success'.tr,
+        message: 'snackbar_text_image_uploaded_successfully',
+      );
+      // La fiche est en lecture (StatelessWidget) → on revient à la liste
+      // rafraîchie qui affiche la nouvelle photo de profil.
+      Get.back();
+    } on ApiException catch (e) {
+      CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
+    } catch (_) {
+      CustomSnackbar.showError(
+        title: 'common_error'.tr,
+        message: 'common_error_generic'.tr,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +211,7 @@ class PetProfileScreen extends StatelessWidget {
                   right: 12.w,
                   bottom: 12.h,
                   child: GestureDetector(
-                    onTap: _openGallery,
+                    onTap: _changeProfilePhoto,
                     child: Container(
                       padding:
                           EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
@@ -223,7 +264,7 @@ class PetProfileScreen extends StatelessWidget {
                         right: 2.w,
                         bottom: 2.h,
                         child: GestureDetector(
-                          onTap: _openGallery,
+                          onTap: _changeProfilePhoto,
                           child: Container(
                             padding: EdgeInsets.all(5.w),
                             decoration: BoxDecoration(
