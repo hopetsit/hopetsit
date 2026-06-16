@@ -310,17 +310,22 @@ class SitterCard extends StatelessWidget {
               ],
             ),
 
-            // Optional bio blurb (max 2 lines).
-            if (sitter.bio != null && sitter.bio!.trim().isNotEmpty) ...[
+            // v427 — maquette : stat "gardes réalisées".
+            if (sitter.completedServicesCount > 0) ...[
               SizedBox(height: 10.h),
-              Text(
-                sitter.bio!,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: AppColors.textSecondary(context),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Icon(Icons.verified_rounded, size: 14.sp, color: _sitterBlue),
+                  SizedBox(width: 5.w),
+                  Text(
+                    '${sitter.completedServicesCount} ${'card_keepings_done'.tr}',
+                    style: TextStyle(
+                      fontSize: 11.5.sp,
+                      color: AppColors.textSecondary(context),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ],
 
@@ -422,14 +427,56 @@ class SitterCard extends StatelessWidget {
 
             SizedBox(height: 12.h),
 
-            // Full-width CTA — same shape as WalkerCard's "Demander".
+            // v427 — maquette : "À propos de moi" encadré (bleu sitter).
+            if (sitter.bio != null && sitter.bio!.trim().isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: _sitterBlue.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.person_outline_rounded,
+                            size: 14.sp, color: _sitterBlue),
+                        SizedBox(width: 6.w),
+                        Text(
+                          'post_about_owner'.tr,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w700,
+                            color: _sitterBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6.h),
+                    Text(
+                      sitter.bio!,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12.h),
+            ],
+            // Full-width CTA — "Demander à cette personne" (owner → provider).
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: onSendRequest,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _sitterBlue,
-                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24.r),
                   ),
@@ -438,7 +485,7 @@ class SitterCard extends StatelessWidget {
                 icon: Icon(Icons.send_rounded,
                     size: 16.sp, color: Colors.white),
                 label: Text(
-                  'service_card_send_request'.tr,
+                  'card_request_person'.tr,
                   style: TextStyle(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,

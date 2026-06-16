@@ -212,16 +212,23 @@ class WalkerCard extends StatelessWidget {
                   const TopProviderBadge(),
               ],
             ),
-            if (walker.bio != null && walker.bio!.trim().isNotEmpty) ...[
+            // v427 — maquette : stat "promenades réalisées".
+            if (walker.completedWalksCount > 0) ...[
               SizedBox(height: 10.h),
-              Text(
-                walker.bio!,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: AppColors.textSecondary(context),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Icon(Icons.directions_walk_rounded,
+                      size: 14.sp, color: AppColors.greenColor),
+                  SizedBox(width: 5.w),
+                  Text(
+                    '${walker.completedWalksCount} ${'card_walks_done'.tr}',
+                    style: TextStyle(
+                      fontSize: 11.5.sp,
+                      color: AppColors.textSecondary(context),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ],
             SizedBox(height: 12.h),
@@ -294,6 +301,48 @@ class WalkerCard extends StatelessWidget {
                 ),
               ),
             ],
+            // v427 — maquette : "À propos de moi" encadré (vert promeneur).
+            if (walker.bio != null && walker.bio!.trim().isNotEmpty) ...[
+              SizedBox(height: 12.h),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: AppColors.greenColor.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.person_outline_rounded,
+                            size: 14.sp, color: AppColors.greenColor),
+                        SizedBox(width: 6.w),
+                        Text(
+                          'post_about_owner'.tr,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.greenColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6.h),
+                    Text(
+                      walker.bio!,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: AppColors.textSecondary(context),
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
             SizedBox(height: 12.h),
             SizedBox(
               width: double.infinity,
@@ -301,7 +350,7 @@ class WalkerCard extends StatelessWidget {
                 onPressed: onRequestWalk,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.greenColor,
-                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24.r),
                   ),
@@ -310,7 +359,7 @@ class WalkerCard extends StatelessWidget {
                 icon:
                     Icon(Icons.send_rounded, size: 16.sp, color: Colors.white),
                 label: Text(
-                  'walker_card_request_button'.tr,
+                  'card_request_person'.tr,
                   style: TextStyle(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
