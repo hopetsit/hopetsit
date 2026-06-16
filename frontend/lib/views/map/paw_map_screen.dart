@@ -26,7 +26,7 @@ import 'package:hopetsit/views/friends/friends_screen.dart';
 import 'package:hopetsit/views/friends/people_live_screen.dart';
 import 'package:hopetsit/views/map/alerts_screen.dart';
 import 'package:hopetsit/views/map/pawspot_sheets.dart';
-import 'package:hopetsit/views/map/report_category_grid_screen.dart';
+import 'package:hopetsit/views/map/widgets/create_report_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -3648,10 +3648,17 @@ class _PawMapScreenState extends State<PawMapScreen>
     // (icône seule) avec mini label dessous pour rester clair, plus petit que
     // l'ancien FAB étendu.
     Future<void> onTap() async {
-      // v418 — le bouton Signaler ouvre la grille des catégories (gratuit +
-      // premium), comme le flux « Signaler » de la maquette.
-      final created = await Get.to(() => const ReportCategoryGridScreen());
-      if (created == true) await _reloadAtCenter();
+      // Le bouton « Signaler » ouvre directement le NOUVEAU système
+      // (CreateReportSheet) — sections Gratuits + Premium dans un bottom
+      // sheet — au lieu de l'ancienne page grille. On dépose le report au
+      // centre courant (même point que le broadcast / la création de spot :
+      // _userPosition réel si dispo, sinon _currentCenter).
+      final point = _userPosition ?? _currentCenter;
+      final created = await CreateReportSheet.show(
+        context,
+        initialPoint: point,
+      );
+      if (created) await _reloadAtCenter();
     }
 
     return Column(

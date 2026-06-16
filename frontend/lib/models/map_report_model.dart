@@ -238,7 +238,11 @@ class ReportTypes {
       case poison:
         return '☠️';
       case strayPet:
-        return '🐕';
+        // Doublon corrigé : strayPet (Animal errant) affichait le MÊME 🐕 que
+        // aggressiveDog (Chien méchant) → dans la liste des signalements, le
+        // type « animal » semblait apparaître deux fois. On lui donne un emoji
+        // distinct (patte) pour le différencier visuellement.
+        return '🐾';
       case construction:
         return '🚧';
       // Session v3.4 — 7 nouveaux Premium.

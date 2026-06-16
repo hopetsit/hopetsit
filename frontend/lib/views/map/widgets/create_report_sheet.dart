@@ -3,9 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hopetsit/controllers/map_report_controller.dart';
-import 'package:hopetsit/controllers/subscription_controller.dart';
 import 'package:hopetsit/models/map_report_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/report_premium_helper.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 
@@ -63,15 +63,11 @@ class _CreateReportSheetState extends State<CreateReportSheet> {
     _selectedType = widget.preselectedType;
   }
 
-  /// Reads the current Premium status from the SubscriptionController. Returns
-  /// false when the controller isn't registered yet (fresh install / before
-  /// first status refresh), which is the safer default.
-  bool get _isPremium {
-    final c = Get.isRegistered<SubscriptionController>()
-        ? Get.find<SubscriptionController>()
-        : null;
-    return c?.isPremium ?? false;
-  }
+  /// Premium gate for the report flow. Source unique : [ReportPremiumHelper]
+  /// → débloqué si N'IMPORTE QUEL abo actif (SubscriptionController.isPremium
+  /// OU PawSpotController.premiumActive). Avant on ne lisait que
+  /// SubscriptionController, donc un utilisateur Paw Premium était bloqué.
+  bool get _isPremium => ReportPremiumHelper.isUnlocked;
 
   @override
   void dispose() {
