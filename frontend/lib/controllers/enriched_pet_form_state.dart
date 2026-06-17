@@ -43,6 +43,11 @@ class EnrichedPetFormState {
       TextEditingController();
   final TextEditingController currentTreatmentsController =
       TextEditingController();
+  // v444 — Daniel : « traitement en cours = option sélectionnable oui/non ET
+  // modifiable ». 'yes' → affiche le champ détail (currentTreatments) ;
+  // 'no' → pas de traitement (détail vidé à l'enregistrement). Dérivé du texte
+  // au chargement (texte non vide ⇒ 'yes').
+  final RxString treatmentOngoing = ''.obs;
   final TextEditingController bloodGroupController = TextEditingController();
   final TextEditingController insuranceNameController = TextEditingController();
   final TextEditingController insuranceNumberController =
@@ -151,6 +156,8 @@ class EnrichedPetFormState {
         dw.length >= 10 ? dw.substring(0, 10) : dw;
     dewormingFrequencyController.text = p.deworming.frequency;
     currentTreatmentsController.text = p.currentTreatments;
+    // v444 — yes/no dérivé : un détail non vide ⇒ traitement en cours.
+    treatmentOngoing.value = p.currentTreatments.trim().isNotEmpty ? 'yes' : 'no';
     bloodGroupController.text = p.bloodGroup;
     insuranceNameController.text = p.healthInsurance.name;
     insuranceNumberController.text = p.healthInsurance.number;
@@ -200,7 +207,11 @@ class EnrichedPetFormState {
           'lastDate': dewormingLastDateController.text.trim(),
         'frequency': dewormingFrequencyController.text.trim(),
       },
-      'currentTreatments': currentTreatmentsController.text.trim(),
+      // v444 — si « Non » sélectionné → pas de traitement (détail vidé) ;
+      // sinon on envoie le détail saisi.
+      'currentTreatments': treatmentOngoing.value == 'no'
+          ? ''
+          : currentTreatmentsController.text.trim(),
       'bloodGroup': bloodGroupController.text.trim(),
       'healthInsurance': {
         'name': insuranceNameController.text.trim(),

@@ -44,7 +44,7 @@ class SitterDetailController extends GetxController {
       AppLogger.logError('Failed to load sitter detail', error: error);
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'snackbar_text_failed_to_load_sitter_details_please_try_again',
+        message: 'snackbar_text_failed_to_load_sitter_details_please_try_again'.tr,
       );
     } finally {
       isLoading.value = false;

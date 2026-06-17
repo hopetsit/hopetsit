@@ -404,8 +404,7 @@ class SignupWizardScreen extends StatelessWidget {
             (v) => c.prefQuickReplies.value = v)),
         Obx(() => _switchRow('profile_pref_photos'.tr, c.prefPhotos.value,
             (v) => c.prefPhotos.value = v)),
-        Obx(() => _switchRow('profile_pref_pawmap_insurance'.tr, c.prefInsurance.value,
-            (v) => c.prefInsurance.value = v)),
+        // v445 — « Assurance PawMap » retirée du wizard (fonctionnalité morte).
         Obx(() => _switchRow('profile_pref_flexible_cancellation'.tr, c.prefFlexCancel.value,
             (v) => c.prefFlexCancel.value = v)),
         SizedBox(height: 14.h),

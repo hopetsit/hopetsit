@@ -82,22 +82,27 @@ class EditPetScreen extends StatelessWidget {
                             final imageFile = controller.petProfileImage.value;
                             final imageUrl = controller.currentAvatarUrl.value;
 
+                            // v444 — Daniel : « remplace le gris par du jaune, plus
+                            // moderne » sur la page de création animal. Avatar =
+                            // jaune doux + patte ambre au lieu du gris terne.
+                            const Color petPlaceholderBg = Color(0xFFFFF3C4);
+                            const Color petPlaceholderIcon = Color(0xFFE8A00A);
                             if (imageFile != null) {
                               return ClipOval(
                                 child: Container(
                                   width: 120.r,
                                   height: 120.r,
-                                  color: AppColors.grey300Color,
+                                  color: petPlaceholderBg,
                                   child: Image.file(
                                     imageFile,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
-                                        color: AppColors.grey300Color,
+                                        color: petPlaceholderBg,
                                         child: Icon(
                                           Icons.pets,
                                           size: 40.sp,
-                                          color: AppColors.greyColor,
+                                          color: petPlaceholderIcon,
                                         ),
                                       );
                                     },
@@ -109,7 +114,7 @@ class EditPetScreen extends StatelessWidget {
                             if (imageUrl.isNotEmpty) {
                               return CircleAvatar(
                                 radius: 60.r,
-                                backgroundColor: AppColors.grey300Color,
+                                backgroundColor: petPlaceholderBg,
                                 backgroundImage: CachedNetworkImageProvider(
                                   imageUrl,
                                 ),
@@ -119,11 +124,11 @@ class EditPetScreen extends StatelessWidget {
 
                             return CircleAvatar(
                               radius: 60.r,
-                              backgroundColor: AppColors.grey300Color,
+                              backgroundColor: petPlaceholderBg,
                               child: Icon(
                                 Icons.pets,
                                 size: 40.sp,
-                                color: AppColors.greyColor,
+                                color: petPlaceholderIcon,
                               ),
                             );
                           }),

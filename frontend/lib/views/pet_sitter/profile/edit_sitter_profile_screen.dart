@@ -449,7 +449,7 @@ class EditSitterProfileScreen extends StatelessWidget {
                             ['meds', 'signup_sitsvc_meds'],
                             ['vet_transport', 'signup_sitsvc_vet_transport'],
                           ].map((e) => [e[0], e[1].tr]).toList(),
-                          selected: controller.selectedServices,
+                          selected: controller.selectedServices.toList(), // v444: read RxList in Obx
                           onToggle: (v) => _toggle(controller.selectedServices, v),
                         )),
 
@@ -466,7 +466,7 @@ class EditSitterProfileScreen extends StatelessWidget {
                             ['reptile', 'pet_animal_reptile'],
                             ['nac', 'pet_animal_nac'],
                           ].map((e) => [e[0], e[1].tr]).toList(),
-                          selected: controller.acceptedAnimals,
+                          selected: controller.acceptedAnimals.toList(), // v444: read RxList in Obx
                           onToggle: (v) => _toggle(controller.acceptedAnimals, v),
                           emojiFor: petSpeciesEmoji,
                         )),
@@ -485,7 +485,7 @@ class EditSitterProfileScreen extends StatelessWidget {
                             ['vet_aux', 'signup_exp_vet_aux'],
                             ['shelter', 'signup_exp_shelter'],
                           ].map((e) => [e[0], e[1].tr]).toList(),
-                          selected: controller.experienceTags,
+                          selected: controller.experienceTags.toList(), // v444: read RxList in Obx
                           onToggle: (v) => _toggle(controller.experienceTags, v),
                         )),
 

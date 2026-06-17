@@ -230,39 +230,23 @@ class _ActiveBenefitsRowState extends State<ActiveBenefitsRow> {
       children.add(_badge(context, '🐾', days, const Color(0xFFE8A00A)));
     }
     if (children.isEmpty) return const SizedBox.shrink();
-    // v23.1.282 — Daniel : "plus aucun badge n'apparaît". RÉGRESSION v281 : la
-    // grille Column→Row(Expanded, stretch) cassait la mise en page dans le
-    // header (largeur lâche) → tout le sous-arbre des badges disparaissait.
-    // On revient à un Wrap (robuste, jamais de contrainte non bornée) mais on
-    // garde le « 2 par ligne » en fixant chaque cellule à ~la demi-largeur via
-    // LayoutBuilder. Les pilules gardent leur taille naturelle (Align à gauche)
-    // → grille propre 2 colonnes, sans risque de crash de layout.
+    // v444 — Daniel : « les petits badges du cadre orange/vert/bleu, mets-les
+    // HORIZONTAUX ». Avant : grille 2 colonnes (LayoutBuilder demi-largeur).
+    // Maintenant : une seule LIGNE horizontale, défilable si trop de badges
+    // pour la largeur du header (jamais de débordement ni de wrap en colonnes).
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6.h),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final maxW =
-              constraints.maxWidth.isFinite ? constraints.maxWidth : 320.w;
-          final cellW = ((maxW - 6.w) / 2).clamp(80.0, maxW);
-          return Wrap(
-            spacing: 6.w,
-            runSpacing: 6.h,
-            children: children
-                .map((b) => SizedBox(
-                      width: cellW,
-                      // v23.1.283 — Daniel : "le texte des badges sort un peu".
-                      // FittedBox(scaleDown) réduit la pilule pour qu'elle tienne
-                      // TOUJOURS dans la demi-largeur (aucun débordement), sans
-                      // couper le texte (pas d'ellipse).
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: b,
-                      ),
-                    ))
-                .toList(),
-          );
-        },
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < children.length; i++) ...[
+              if (i > 0) SizedBox(width: 6.w),
+              children[i],
+            ],
+          ],
+        ),
       ),
     );
   }

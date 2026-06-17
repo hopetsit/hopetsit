@@ -459,6 +459,26 @@ class EditWalkerProfileScreen extends StatelessWidget {
 
                     SizedBox(height: 24.h),
 
+                    // v444 — Daniel : « type de service walker manquant/bug dans
+                    // Modifier le profil ». Section AJOUTÉE (types de promenade),
+                    // persistée dans Walker.service. Widget chips au fond blanc
+                    // (corrigé v444) → plus de cadre gris.
+                    ProfileFieldLabel('walker_service_label'.tr),
+                    Obx(() => ProfileChoiceChips(
+                          accent: AppColors.walkerAccent,
+                          options: const [
+                            ['individual', 'walker_svc_individual'],
+                            ['group', 'walker_svc_group'],
+                            ['long', 'walker_svc_long'],
+                            ['visit', 'walker_svc_visit'],
+                          ].map((e) => [e[0], e[1].tr]).toList(),
+                          selected: controller.selectedServices.toList(), // v444: read RxList in Obx
+                          onToggle: (v) =>
+                              _toggle(controller.selectedServices, v),
+                        )),
+
+                    SizedBox(height: 20.h),
+
                     // v426 — synchro inscription↔profil : animaux promenés,
                     // expérience, rayon (mêmes options que le wizard 5 étapes).
                     ProfileFieldLabel('signup_animals_walked'.tr),
@@ -470,7 +490,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                             ['small', 'pet_animal_small'],
                             ['nac', 'pet_animal_nac'],
                           ].map((e) => [e[0], e[1].tr]).toList(),
-                          selected: controller.acceptedAnimals,
+                          selected: controller.acceptedAnimals.toList(), // v444: read RxList in Obx
                           onToggle: (v) => _toggle(controller.acceptedAnimals, v),
                           emojiFor: petSpeciesEmoji,
                         )),
@@ -488,7 +508,7 @@ class EditWalkerProfileScreen extends StatelessWidget {
                             ['ex_pro_walker', 'signup_exp_ex_pro_walker'],
                             ['educator_dog', 'signup_exp_educator_dog'],
                           ].map((e) => [e[0], e[1].tr]).toList(),
-                          selected: controller.experienceTags,
+                          selected: controller.experienceTags.toList(), // v444: read RxList in Obx
                           onToggle: (v) => _toggle(controller.experienceTags, v),
                         )),
 

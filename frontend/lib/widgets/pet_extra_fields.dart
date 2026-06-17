@@ -209,8 +209,17 @@ class PetExtraFields extends StatelessWidget {
             const SizedBox(height: 4),
             _tf(state.dewormingLastDateController, 'pet_deworming_last_date'.tr),
             _tf(state.dewormingFrequencyController, 'pet_deworming_frequency'.tr),
-            _tf(state.currentTreatmentsController, 'pet_current_treatments'.tr,
-                maxLines: 2),
+            // v444 — Daniel : « traitement en cours = oui/non sélectionnable ET
+            // modifiable ». Sélecteur Oui/Non ; si Oui → champ détail éditable.
+            _label('pet_treatment_ongoing'.tr),
+            _segmented(state.treatmentOngoing, [
+              MapEntry('yes', 'pet_yes'.tr),
+              MapEntry('no', 'pet_no'.tr),
+            ], allowEmpty: false),
+            Obx(() => state.treatmentOngoing.value == 'yes'
+                ? _tf(state.currentTreatmentsController,
+                    'pet_current_treatments'.tr, maxLines: 2)
+                : const SizedBox.shrink()),
             _tf(state.foodRestrictionsController, 'pet_food_restrictions'.tr,
                 maxLines: 2),
             _tf(state.bloodGroupController, 'pet_blood_group'.tr),

@@ -401,7 +401,10 @@ class EditOwnerProfileScreen extends StatelessWidget {
                             ['boarding', 'signup_service_boarding'],
                             ['visit', 'signup_service_visit'],
                           ].map((e) => [e[0], e[1].tr]).toList(),
-                          selected: controller.searchServices,
+                          // v444 fix — .toList() LIT la RxList DANS le builder
+                          // Obx (sinon Obx ne track aucun observable → throw →
+                          // ErrorWidget GRIS en release au lieu des puces).
+                          selected: controller.searchServices.toList(),
                           onToggle: (v) => _toggle(controller.searchServices, v),
                         )),
 

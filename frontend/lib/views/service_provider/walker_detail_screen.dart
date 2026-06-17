@@ -7,6 +7,7 @@ import 'package:hopetsit/repositories/walker_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
 
@@ -281,12 +282,15 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
           SizedBox(height: 12.h),
         ],
 
-        // Service info
-        if (w.service.isNotEmpty)
+        // Service info — v23.1 : libellés lisibles via service_type_translator
+        // (ex. 'dog_walking' → « Promenade ») + titre i18n « Services proposés ».
+        if (w.service.where((s) => s.trim().isNotEmpty).isNotEmpty)
           _section(
-            'Services',
+            'signup_services_offered'.tr,
             Icons.work_outline,
-            w.service.map((s) => s.replaceAll('_', ' ')).join(', '),
+            translateServiceTypes(
+              w.service.where((s) => s.trim().isNotEmpty).toList(),
+            ),
           ),
 
         SizedBox(height: 16.h),

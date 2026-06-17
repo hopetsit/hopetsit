@@ -86,11 +86,18 @@ class _WalkerRates extends StatelessWidget {
                     children: [
                       Icon(Icons.euro_rounded, color: accent, size: 18.sp),
                       SizedBox(width: 8.w),
-                      InterText(
-                        text: 'walker_currency_info'.tr,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary(context),
+                      // v445 — Daniel : « la phrase déborde ». Sans Expanded le
+                      // texte sortait du cadre (Row non borné). Expanded +
+                      // maxLines → le texte s'enroule proprement.
+                      Expanded(
+                        child: InterText(
+                          text: 'walker_currency_info'.tr,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textSecondary(context),
+                          maxLines: 3,
+                          overflow: TextOverflow.visible,
+                        ),
                       ),
                     ],
                   ),
@@ -115,14 +122,8 @@ class _WalkerRates extends StatelessWidget {
                   accent: accent,
                   errorText: 'walker_rate_invalid'.tr,
                 ),
-                SizedBox(height: 16.h),
-                _RateField(
-                  label: 'walker_rate_90min_label'.tr,
-                  hint: 'walker_rate_hint_22'.tr,
-                  controller: controller.ninetyMinRateController,
-                  accent: accent,
-                  errorText: 'walker_rate_invalid'.tr,
-                ),
+                // v445 — Daniel : tarifs walker = 30 min / 1 h / 2 h (le 90 min
+                // est retiré ; le contrôleur garde le champ pour compat données).
                 SizedBox(height: 16.h),
                 _RateField(
                   label: 'walker_rate_120min_label'.tr,

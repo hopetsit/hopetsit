@@ -62,6 +62,10 @@ class EditWalkerProfileController extends GetxController {
   final dobController = TextEditingController();
   final RxList<String> acceptedAnimals = <String>[].obs;
   final RxList<String> experienceTags = <String>[].obs;
+  // v444 — Daniel : « type de service walker manquant dans Modifier le profil ».
+  // Types de promenade proposés, persistés dans Walker.service (whitelisté côté
+  // backend). Chargés depuis walker.service, renvoyés dans payload['service'].
+  final RxList<String> selectedServices = <String>[].obs;
   final RxString coverageRadius = '15'.obs;
   // v18.6 — multi-select chips pour la langue, en cohérence avec sitter/owner.
   // Source de vérité : selectedLanguages. languageController.text reste
@@ -176,6 +180,7 @@ class EditWalkerProfileController extends GetxController {
       dobController.text = walker.dateOfBirth;
       acceptedAnimals.value = walker.acceptedPetTypes.toList();
       experienceTags.value = walker.experienceTags.toList();
+      selectedServices.value = walker.service.toList();
       if (walker.coverageRadiusKm > 0) {
         coverageRadius.value = walker.coverageRadiusKm.toString();
       }
@@ -350,6 +355,7 @@ class EditWalkerProfileController extends GetxController {
       payload['dateOfBirth'] = dobController.text.trim();
       payload['acceptedPetTypes'] = acceptedAnimals.toList();
       payload['experienceTags'] = experienceTags.toList();
+      payload['service'] = selectedServices.toList();
       final radiusKm = int.tryParse(coverageRadius.value);
       if (radiusKm != null && radiusKm > 0) payload['coverageRadiusKm'] = radiusKm;
 

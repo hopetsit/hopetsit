@@ -88,6 +88,13 @@ class EditPetController extends GetxController {
     super.onInit();
     if (petData != null) {
       _populateFormFromPetData(petData!);
+      // v445 — Daniel : « tous les onglets du profil animal doivent être
+      // MODIFIABLES après enregistrement ». GARANTIE : même quand un pet est
+      // passé en argument (affichage instantané), on RECHARGE en silence la
+      // fiche COMPLÈTE et fraîche via getPetById → le formulaire montre TOUJOURS
+      // 100 % des champs réellement enregistrés (À propos/Santé/Habitudes/
+      // Documents), jamais une fiche partielle/périmée → tout reste modifiable.
+      if (!isCreate) _refreshFullPetSilently();
     } else if (!isCreate) {
       // Édition d'un animal dont les données ne sont pas passées en argument.
       loadPetData();
@@ -159,6 +166,19 @@ class EditPetController extends GetxController {
       );
     } finally {
       isFetching.value = false;
+    }
+  }
+
+  /// v445 — recharge la fiche COMPLÈTE sans spinner (les champs sont déjà
+  /// affichés instantanément via [petData]) → met à jour TOUS les champs
+  /// enrichis avec les vraies valeurs serveur, pour garantir que tout est
+  /// visible et modifiable. Best-effort : garde l'affichage actuel si échec.
+  Future<void> _refreshFullPetSilently() async {
+    try {
+      final pet = await _petRepository.getPetById(petId);
+      _populateFormFromPetData(pet);
+    } catch (_) {
+      // On garde les données passées en argument si l'API échoue.
     }
   }
 

@@ -11,6 +11,7 @@ import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/utils/currency_helper.dart';
 import 'package:hopetsit/utils/app_images.dart';
 import 'package:hopetsit/utils/logger.dart';
+import 'package:hopetsit/utils/service_type_translator.dart';
 import 'package:hopetsit/views/pet_owner/chat/individual_chat_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/verified_badge.dart';
@@ -202,6 +203,11 @@ class _ServiceProviderDetailContent extends StatelessWidget {
 
                       // Skills Section
                       _buildSkillsSection(sitter, context),
+                      SizedBox(height: 24.h),
+
+                      // Services Offered Section (v23.1 — services proposés +
+                      // animaux acceptés, libellés i18n via service_type_translator).
+                      _buildServicesSection(sitter, context),
                       SizedBox(height: 24.h),
 
                       // Reviews Section
@@ -610,6 +616,86 @@ class _ServiceProviderDetailContent extends StatelessWidget {
         color: AppColors.textSecondary(context),
       ),
     );
+  }
+
+  // v23.1 — section « Services proposés » côté owner : liste les services du
+  // prestataire (sitter.service) avec libellés lisibles via le helper
+  // service_type_translator, + les animaux acceptés (acceptedPetTypes).
+  Widget _buildServicesSection(SitterModel sitter, BuildContext context) {
+    final services = sitter.service
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
+    final petTypes = sitter.acceptedPetTypes
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    // Rien à afficher : on masque la section entière.
+    if (services.isEmpty && petTypes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.work_outline,
+              size: 20.sp,
+              color: AppColors.primaryColor,
+            ),
+            SizedBox(width: 8.w),
+            PoppinsText(
+              text: 'signup_services_offered'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+            ),
+          ],
+        ),
+        SizedBox(height: 12.h),
+        if (services.isNotEmpty)
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: services
+                .map<Widget>(
+                  (s) => _buildSkillTag(translateServiceType(s), context),
+                )
+                .toList(),
+          ),
+        if (petTypes.isNotEmpty) ...[
+          SizedBox(height: 16.h),
+          PoppinsText(
+            text: 'signup_animals_accepted'.tr,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary(context),
+          ),
+          SizedBox(height: 8.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: petTypes
+                .map<Widget>(
+                  (p) => _buildSkillTag(_petTypeLabel(p), context),
+                )
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Mappe un code espèce (dog/cat/small/nac/bird) vers son libellé i18n, avec
+  // repli humanisé si le code est inconnu (jamais de clé brute à l'écran).
+  String _petTypeLabel(String code) {
+    final normalized = code.trim().toLowerCase();
+    final key = 'pet_type_$normalized';
+    final translated = key.tr;
+    if (translated != key) return translated;
+    if (normalized.isEmpty) return code;
+    return normalized[0].toUpperCase() + normalized.substring(1);
   }
 
   Widget _buildReviewsSection(sitter, BuildContext context) {
