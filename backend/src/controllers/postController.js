@@ -292,11 +292,27 @@ const createPost = async (req, res) => {
         }
 
         const recipients = await RecipientModel.find(filter)
-          .select('_id')
+          .select('_id oldId')
           .limit(50)
           .lean();
 
+        // v448 — AUDIT : ne PAS s'auto-notifier. 1 compte = 3 profils (owner +
+        // sitter + walker) ; si l'owner qui publie est aussi prestataire dans la
+        // même ville, son propre doc prestataire figurait dans la liste → il
+        // recevait une notif « nouvelle demande près de chez vous » pour sa
+        // PROPRE annonce. On exclut via les identifiants partagés entre docs.
+        const selfIds = new Set(
+          [ownerId, owner && owner.oldId, owner && owner._id]
+            .filter(Boolean)
+            .map((x) => x.toString()),
+        );
+
         for (const r of recipients) {
+          const rid = r._id ? r._id.toString() : '';
+          const roldId = r.oldId ? r.oldId.toString() : '';
+          if (selfIds.has(rid) || (roldId && selfIds.has(roldId))) {
+            continue; // c'est le doc prestataire de l'owner lui-même → skip
+          }
           sendNotification({
             userId: r._id.toString(),
             role: recipientRole,

@@ -43,7 +43,12 @@ class EditPetScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
+      // v448 — Daniel : « le fond de la page Modifier l'animal est gris, je veux
+      // jaune ». Fond jaune pâle en clair (cornsilk) ; on garde le fond système
+      // en sombre pour rester lisible.
+      backgroundColor: Get.isDarkMode
+          ? AppColors.scaffold(context)
+          : const Color(0xFFFFF8E1),
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
         elevation: 0,

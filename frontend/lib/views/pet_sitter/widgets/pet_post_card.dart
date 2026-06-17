@@ -236,7 +236,12 @@ class PetPostCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
-              color: AppColors.inputFill(context),
+              // v448 — Daniel : sur « Ma publication » (owner sur son propre
+              // post), le haut du cadre (avatar + boutons Modifier/Supprimer)
+              // passe du GRIS au JAUNE pâle. Les autres vues gardent le gris.
+              color: ownerViewOfOwnPost && !Get.isDarkMode
+                  ? const Color(0xFFFFF8E1)
+                  : AppColors.inputFill(context),
               borderRadius: BorderRadius.only(
                 topLeft: isOwnerBoosted ? Radius.zero : Radius.circular(19.r),
                 topRight: isOwnerBoosted ? Radius.zero : Radius.circular(19.r),
@@ -1495,7 +1500,7 @@ class PetPostCard extends StatelessWidget {
       }
       add(Icons.repeat_rounded, 'post_field_walk_frequency'.tr,
           _walkFrequencyLabel());
-      return _gridWithTime(cells);
+      return _gridWithTime(context, cells);
     }
 
     // v442 — maquette SITTER : grille Dates / Lieu / Animaux (compte) / Service.
@@ -1512,7 +1517,7 @@ class PetPostCard extends StatelessWidget {
       if (svcLoc.isNotEmpty) {
         add(Icons.home_rounded, 'post_field_service_location'.tr, svcLoc);
       }
-      return _gridWithTime(cells);
+      return _gridWithTime(context, cells);
     }
 
     // Owner / feed — grille générique historique (inchangée).
@@ -1536,42 +1541,27 @@ class PetPostCard extends StatelessWidget {
       add(Icons.pets_rounded, 'post_field_animals'.tr, petName!.trim());
     }
 
-    return _gridWithTime(cells);
+    return _gridWithTime(context, cells);
   }
 
-  /// v444 — Daniel : l'heure ne s'affiche plus SOUS « Service » (garderie) mais
-  /// sur une ligne dédiée APRÈS la grille (donc après « Détails ») : petite
-  /// horloge ORANGE + heure en horizontal. Affichée seulement si heure réelle.
-  Widget _gridWithTime(List<Widget> cells) {
+  /// v448 — Daniel : « l'icône heure n'a pas été rajoutée ». L'heure devient une
+  /// CASE de la grille (horloge ORANGE + « Heure » + « – HH:mm »), exactement
+  /// comme la case « Nombre d'animaux », au lieu d'une ligne séparée sous la
+  /// grille (qui passait inaperçue). Insérée juste après « Dates » (1re case).
+  /// Affichée seulement si une heure réelle existe (pas minuit).
+  Widget _gridWithTime(BuildContext context, List<Widget> cells) {
     final time = (serviceTime ?? '').trim();
-    final grid = _gridFromCells(cells);
-    if (time.isEmpty) return grid;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        grid,
-        SizedBox(height: 8.h),
-        Row(
-          children: [
-            Icon(Icons.schedule_rounded,
-                size: 15.sp, color: const Color(0xFFF59E0B)),
-            SizedBox(width: 6.w),
-            Flexible(
-              child: InterText(
-                // v446 — Daniel : icône + tiret + heure (style « nombre
-                // d'animaux ») → « 🕐 – 14:00 ».
-                text: '– $time',
-                fontSize: 12.5.sp,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFFF59E0B),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ],
+    if (time.isEmpty) return _gridFromCells(cells);
+    final timeCell = _resCell(
+      context,
+      Icons.schedule_rounded,
+      'post_field_time'.tr,
+      '– $time',
+      valueColor: const Color(0xFFF59E0B),
     );
+    final withTime = List<Widget>.from(cells);
+    withTime.insert(withTime.isEmpty ? 0 : 1, timeCell);
+    return _gridFromCells(withTime);
   }
 
   /// v442 — agence une liste de cases en grille 3 colonnes (factorisé pour les

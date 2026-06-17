@@ -162,7 +162,7 @@ class EditPetController extends GetxController {
     } catch (e) {
       CustomSnackbar.showError(
         title: 'common_error'.tr,
-        message: 'snackbar_text_failed_to_load_pet_data_please_try_again',
+        message: 'snackbar_text_failed_to_load_pet_data_please_try_again'.tr,
       );
     } finally {
       isFetching.value = false;
@@ -198,14 +198,16 @@ class EditPetController extends GetxController {
           petProfileImage.value = imageFile;
         } else {
           CustomSnackbar.showError(
-            title: 'snackbar_text_image_error',
-            message: 'snackbar_text_selected_image_file_is_not_accessible_please_try_again',
+            title: 'snackbar_text_image_error'.tr,
+            message:
+                'snackbar_text_selected_image_file_is_not_accessible_please_try_again'
+                    .tr,
           );
         }
       }
     } catch (error) {
       CustomSnackbar.showError(
-        title: 'snackbar_text_image_error',
+        title: 'snackbar_text_image_error'.tr,
         message: 'profile_image_pick_failed'.tr,
       );
     }
@@ -278,7 +280,7 @@ class EditPetController extends GetxController {
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: 'snackbar_text_image_uploaded_successfully',
+        message: 'snackbar_text_image_uploaded_successfully'.tr,
       );
 
       await loadPetData();
@@ -348,7 +350,11 @@ class EditPetController extends GetxController {
         'chipNumber': chipNumberController.text.trim(),
         'medicationAllergies': medicationAllergiesController.text.trim(),
         'category': selectedCategory.value?.toLowerCase(),
-        'vaccination': selectedVaccination.value?.toLowerCase(),
+        // v448 — n'envoie PAS de `vaccination` (legacy) vide : le backend la
+        // rejetait (« Vaccination details cannot be empty ») et bloquait toute
+        // édition. Le statut vaccinal réel passe par enriched.vaccinationStatus.
+        if ((selectedVaccination.value ?? '').trim().isNotEmpty)
+          'vaccination': selectedVaccination.value!.toLowerCase(),
         'bio': bioController.text.trim(),
         'colour': colourController.text.trim(),
         // Sprint 5 UI step 2 — enriched fields.
@@ -408,14 +414,15 @@ class EditPetController extends GetxController {
             CustomSnackbar.showWarning(
               title: 'common_error'.tr,
               message:
-                  'snackbar_text_pet_profile_created_but_media_upload_failed_you_can_add_medi',
+                  'snackbar_text_pet_profile_created_but_media_upload_failed_you_can_add_medi'
+                      .tr,
             );
           }
         }
 
         CustomSnackbar.showSuccess(
           title: 'common_success'.tr,
-          message: 'snackbar_text_pet_profile_created_successfully',
+          message: 'snackbar_text_pet_profile_created_successfully'.tr,
         );
         return true;
       }
@@ -441,7 +448,8 @@ class EditPetController extends GetxController {
             CustomSnackbar.showWarning(
               title: 'common_error'.tr,
               message:
-                  'snackbar_text_profile_updated_but_image_upload_failed_please_try_again',
+                  'snackbar_text_profile_updated_but_image_upload_failed_please_try_again'
+                      .tr,
             );
           }
         }
@@ -449,7 +457,7 @@ class EditPetController extends GetxController {
 
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: 'snackbar_text_pet_profile_updated_successfully',
+        message: 'snackbar_text_pet_profile_updated_successfully'.tr,
       );
 
       return true;

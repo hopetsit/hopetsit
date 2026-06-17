@@ -226,7 +226,15 @@ class PushNotificationService extends GetxService {
           } else if (bookingTypes.contains(rawType)) {
             nc.bumpUnreadBookingsImmediate();
           }
-          nc.bumpUnreadCountImmediate();
+          // v448 — AUDIT : la CLOCHE (unreadCount) ne doit compter QUE les
+          // notifications qui créent vraiment un doc Notification côté serveur.
+          // Les messages chat alimentent le badge CHAT (unreadChat) et NON la
+          // cloche → sinon la cloche sur-compte (« 5 » alors que la liste des
+          // notifications en a 0). On saute donc le bump cloche pour les types
+          // chat ; refreshUnreadCount() reste la vérité serveur au resume/ouverture.
+          if (!chatTypes.contains(rawType)) {
+            nc.bumpUnreadCountImmediate();
+          }
           // v23.1 part 123 — Daniel : "profil verifier par admin mais pas
           // de badge vérifié". Quand admin approuve à distance, refetch
           // /users/me/benefits pour que le banner KYC passe au vert.

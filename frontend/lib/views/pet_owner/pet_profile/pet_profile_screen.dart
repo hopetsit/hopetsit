@@ -137,11 +137,13 @@ class PetProfileScreen extends StatelessWidget {
       }
       CustomSnackbar.showSuccess(
         title: 'common_success'.tr,
-        message: 'snackbar_text_image_uploaded_successfully',
+        message: 'snackbar_text_image_uploaded_successfully'.tr,
       );
-      // La fiche est en lecture (StatelessWidget) → on revient à la liste
-      // rafraîchie qui affiche la nouvelle photo de profil.
-      Get.back();
+      // v448 — Daniel : « le stylo orange ne change pas la photo ». Avant,
+      // Get.back() FERMAIT la fiche → la nouvelle photo n'apparaissait pas. On
+      // RECHARGE la fiche avec le pet frais → la photo de profil s'affiche
+      // immédiatement, sans quitter l'écran.
+      await _reopenFresh();
     } on ApiException catch (e) {
       CustomSnackbar.showError(title: 'common_error'.tr, message: e.message);
     } catch (_) {
@@ -158,25 +160,10 @@ class PetProfileScreen extends StatelessWidget {
       length: 4,
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
-        // v444 — Daniel : « dans les 3 onglets je peux rien faire, je dois
-        // pouvoir tout modifier ». Bouton « Modifier » flottant visible sur
-        // TOUS les onglets (À propos / Santé / Habitudes / Galerie) → ouvre le
-        // formulaire complet (EditPetScreen, toutes les sections éditables).
-        floatingActionButton: editable
-            ? FloatingActionButton.extended(
-                onPressed: _openEdit,
-                backgroundColor: _accent,
-                foregroundColor: Colors.white,
-                icon: Icon(Icons.edit_rounded, size: 18.sp),
-                label: InterText(
-                  // v445 — Daniel : c'est un animal, pas une annonce.
-                  text: 'pet_edit_animal'.tr,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              )
-            : null,
+        // v448 — Daniel : le bouton « Modifier l'animal » passe EN HAUT, à droite
+        // du nom + badge « À jour » (voir _header) au lieu d'un FAB flottant.
+        // L'en-tête est fixe (au-dessus des onglets) → le bouton reste toujours
+        // visible sur les 4 onglets.
         appBar: AppBar(
           backgroundColor: AppColors.appBar(context),
           elevation: 0,
@@ -370,14 +357,23 @@ class PetProfileScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  PoppinsText(
-                    text: pet.petName,
-                    fontSize: 22.sp,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary(context),
+                  // v448 — Daniel : nom + badge « À jour » à gauche, bouton
+                  // « Modifier l'animal » EN HAUT À DROITE de la ligne.
+                  Flexible(
+                    child: PoppinsText(
+                      text: pet.petName,
+                      fontSize: 22.sp,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary(context),
+                    ),
                   ),
                   SizedBox(width: 8.w),
                   if (_isUpToDate) _upToDateBadge(),
+                  const Spacer(),
+                  if (editable) ...[
+                    SizedBox(width: 8.w),
+                    _topEditButton(),
+                  ],
                 ],
               ),
               SizedBox(height: 4.h),
@@ -460,13 +456,39 @@ class PetProfileScreen extends StatelessWidget {
         ),
       );
 
+  // v448 — Daniel : bouton « Modifier l'animal » en haut à droite du nom
+  // (remplace le FAB). Pastille pleine couleur de l'espèce + icône stylo.
+  Widget _topEditButton() => GestureDetector(
+        onTap: _openEdit,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
+          decoration: BoxDecoration(
+            color: _accent,
+            borderRadius: BorderRadius.circular(20.r),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.edit_rounded, color: Colors.white, size: 15.sp),
+              SizedBox(width: 6.w),
+              InterText(
+                text: 'pet_edit_animal'.tr,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ],
+          ),
+        ),
+      );
+
   // ── ABOUT ─────────────────────────────────────────────────────────────────
   Widget _aboutTab(BuildContext context) {
     final sexLabel = _genderLabel(pet.gender);
     final hasChar = pet.characterTraits.isNotEmpty;
     final hasCompat = !pet.compatibilities.isEmpty;
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
       children: [
         // ❤️ Présentation (bio libre).
         if (pet.bio.isNotEmpty)
@@ -511,7 +533,7 @@ class PetProfileScreen extends StatelessWidget {
   // ── HEALTH ──────────────────────────────────────────────────────────────
   Widget _healthTab(BuildContext context) {
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
       children: [
         // 🏥 Vaccins + Puce + Stérilisé regroupés.
         _section('pet_section_health'.tr,
@@ -682,7 +704,7 @@ class PetProfileScreen extends StatelessWidget {
     final tags = pet.habits.tags;
     if (rows.isEmpty && tags.isEmpty) return _empty('pet_no_info'.tr);
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
       children: [
         // v443 — habitudes COCHABLES affichées en chips en tête de l'onglet.
         if (tags.isNotEmpty)
@@ -712,7 +734,7 @@ class PetProfileScreen extends StatelessWidget {
       }
     }
     return ListView(
-      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 24.h), // v448: plus de FAB (bouton Modifier en haut)
       children: [
         InterText(
           text: 'pet_gallery_title'.tr,

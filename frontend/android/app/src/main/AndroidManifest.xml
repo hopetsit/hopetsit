@@ -129,6 +129,16 @@
             android:foregroundServiceType="location"
             tools:node="merge" />
 
+        <!-- v448 — AUDIT NOTIFICATIONS : canal FCM par défaut pour les pushes
+             reçus quand l'app est en ARRIÈRE-PLAN / FERMÉE. Sans ce meta-data,
+             Android route ces notifications sur un canal auto de FAIBLE
+             importance → pas de bannière "heads-up" ni de son. On pointe sur le
+             canal haute importance "hopetsit_default_channel" déjà créé par
+             flutter_local_notifications (push_notification_service.dart). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="hopetsit_default_channel" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

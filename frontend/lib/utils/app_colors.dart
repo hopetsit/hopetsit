@@ -13,9 +13,11 @@ class AppColors {
   static const Color hintColor = Color(0xFF535862);
   static const lightGreyColor = Color(0xFFD9D9D9);
   static const textFieldBorder = Color(0xFFD5D7DA);
-  static const lightGrey = Color(0xFFF4F3EE);
+  // v448 — Daniel : « tous les fonds gris CLAIR → jaune clair, toute l'app en
+  // profondeur ». Ces 2 fonds gris clair passent en jaune doux.
+  static const lightGrey = Color(0xFFFFF8E1); // jaune doux (ex 0xFFF4F3EE gris)
   static const greyText = Color(0xFF707070);
-  static const chatFieldColor = Color(0xFFF3F2EF);
+  static const chatFieldColor = Color(0xFFFFF3D2); // jaune doux (ex 0xFFF3F2EF)
   static const greenColor = Color(0xFF008000);
   // Role accents — used on SignUp cards and per-role profile screens.
   // v23.1.346 — audit codes couleur (Daniel) : canon = sitter 0xFF2563EB.
@@ -67,8 +69,17 @@ class AppColors {
   static const Color dividerDark = Color(0xFF333333);
 
   // ── Modern light palette ──
-  static const Color scaffoldLight = Color(0xFFF7F7F8);
+  // v448 — Daniel : « tous les fonds gris clair de l'app → jaune clair, en
+  // profondeur ». Le fond de PAGE (scaffold) et le FILL des champs/zones
+  // internes passent en jaune doux. Les CARTES restent BLANCHES (cardLight) →
+  // page jaune pâle + cartes blanches = chaleureux ET lisible. Comme
+  // scaffold()/inputFill() routent par ces constantes, le changement est
+  // app-wide (1 source = toutes les pages). Le mode SOMBRE est inchangé.
+  static const Color scaffoldLight = Color(0xFFFFF8E1); // jaune doux (ex gris F7F7F8)
   static const Color cardLight = Color(0xFFFFFFFF);
+  // Fill des inputs / zones internes : un cran plus soutenu que le scaffold
+  // pour rester distinct sur une page jaune comme sur une carte blanche.
+  static const Color inputFillLight = Color(0xFFFFF3D2);
 
   // Gradient
   static const LinearGradient linearGradient = LinearGradient(
@@ -107,7 +118,7 @@ class AppColors {
 
   /// Chat field / input background
   static Color inputFill(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2A2A2A) : scaffoldLight;
+      _isDark(context) ? const Color(0xFF2A2A2A) : inputFillLight;
 
   /// Subtle shadow that works in dark mode (invisible) and light mode.
   ///

@@ -166,6 +166,28 @@ const emitChatMessage = (conversation, event, payload) => {
   }
 };
 
+// v448 — AUDIT MESSAGERIE : présence en ligne pour le gating des emails.
+// Un utilisateur est « en ligne » (= app ouverte/connectée) s'il a au moins un
+// socket dans l'une de ses 3 rooms de rôle. On teste les 3 rôles car le même
+// userId peut être connecté sous owner/sitter/walker. Sert à n'envoyer l'email
+// QUE si le destinataire est HORS LIGNE (règle produit : push + in-app en
+// direct, email seulement en secours). Best-effort : en cas d'erreur ou d'io
+// absent → false (hors ligne) → l'email part (on ne rate jamais un email par
+// excès de prudence).
+const isUserOnline = async (userId) => {
+  if (!ioInstance || !userId) return false;
+  const uid = String(userId);
+  try {
+    for (const r of ['owner', 'sitter', 'walker']) {
+      const sockets = await ioInstance.in(userRoom(r, uid)).fetchSockets();
+      if (sockets && sockets.length > 0) return true;
+    }
+  } catch (_) {
+    return false;
+  }
+  return false;
+};
+
 module.exports = {
   setSocketServer,
   getSocketServer,
@@ -173,6 +195,7 @@ module.exports = {
   emitToUser,
   emitToWalk,
   emitChatMessage,
+  isUserOnline,
   userRoom,
   walkRoom,
 };

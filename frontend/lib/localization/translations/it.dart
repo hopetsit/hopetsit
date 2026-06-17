@@ -1808,6 +1808,7 @@ const Map<String, String> itITTranslations = <String, String>{
           'Something went wrong. Please try again.',
       'profile_unblock_success': 'User unblocked successfully',
       'profile_upload_failed': 'Upload Failed',
+      'profile_update_failed': 'Aggiornamento del profilo non riuscito',
       'profile_upload_failed_generic':
           'Something went wrong. Please try again.',
       'profile_user_not_found': 'User not found',
@@ -1997,6 +1998,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'post_field_pet_count': 'Numero di animali',
       'post_field_pet_types': 'Tipo di animale',
       'post_field_service': 'Servizio',
+      'post_field_time': 'Ora',
       'post_field_details': 'Dettagli',
       'post_field_service_location': 'Luogo di custodia',
       'post_field_service_location_at_owner': 'Da me',

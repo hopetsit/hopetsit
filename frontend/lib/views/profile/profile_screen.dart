@@ -639,11 +639,15 @@ class ProfileScreen extends StatelessWidget {
     const allRoles = ['owner', 'sitter', 'walker'];
     final otherRoles = allRoles.where((r) => r != currentRole).toList();
 
-    return Column(
+    // v448 — Daniel : les 2 boutons « Passer en … » CÔTE À CÔTE, plus compacts,
+    // police lisible (au lieu de l'un sous l'autre, pleine largeur).
+    return Row(
       children: [
         for (int i = 0; i < otherRoles.length; i++) ...[
-          _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
-          if (i < otherRoles.length - 1) SizedBox(height: 12.h),
+          Expanded(
+            child: _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
+          ),
+          if (i < otherRoles.length - 1) SizedBox(width: 10.w),
         ],
       ],
     );
@@ -674,62 +678,41 @@ class ProfileScreen extends StatelessWidget {
     }
 
     final newRoleText = roleLabelKey.tr;
-    final switchDescription = 'profile_switch_role_card_description'.trParams({
-      'role': newRoleText,
-    });
 
     return GestureDetector(
       onTap: () => _showSwitchRoleDialog(context, targetRole: targetRole),
       child: Builder(
         builder: (context) => Container(
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 12.h),
           decoration: BoxDecoration(
             color: AppColors.card(context),
             borderRadius: BorderRadius.circular(14.r),
             boxShadow: AppColors.cardShadow(context),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Colored icon chip on the left.
+              // Colored icon chip on the left (compact).
               Container(
-                width: 42.w,
-                height: 42.w,
+                width: 36.w,
+                height: 36.w,
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12.r),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(Icons.pets_rounded, size: 22.sp, color: accentColor),
+                child: Icon(Icons.pets_rounded, size: 18.sp, color: accentColor),
               ),
-              SizedBox(width: 14.w),
+              SizedBox(width: 9.w),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InterText(
-                      text: 'profile_switch_role_card_title'.trParams({
-                        'role': newRoleText,
-                      }),
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                      color: accentColor,
-                    ),
-                    SizedBox(height: 3.h),
-                    InterText(
-                      text: switchDescription,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.greyText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                child: InterText(
+                  text: 'profile_switch_role_card_title'.trParams({
+                    'role': newRoleText,
+                  }),
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                  color: accentColor,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16.sp,
-                color: accentColor,
               ),
             ],
           ),

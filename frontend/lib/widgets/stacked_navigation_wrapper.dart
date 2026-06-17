@@ -107,11 +107,14 @@ class _StackedNavigationWrapperState extends State<StackedNavigationWrapper> {
               if (Get.isRegistered<SitterChatController>()) {
                 Get.find<SitterChatController>().reloadConversations();
               }
-              // v23.1 part 63 — Bug H : reset the chat unread badge when
-              // the user opens the chat tab. The counter will get bumped
-              // again on the next incoming message via the socket listener.
+              // v448 — AUDIT MESSAGERIE : NE PLUS forcer le badge à 0 ici.
+              // Mettre 0 localement alors que le serveur garde des conversations
+              // non lues = le badge « revient » au prochain resync/reconnexion.
+              // On resynchronise sur le VRAI total serveur (le badge ne descend
+              // que lorsque les conversations sont réellement ouvertes/lues).
+              // Aligné sur custom_navigation_bar.dart (fix v444).
               if (Get.isRegistered<NotificationsController>()) {
-                Get.find<NotificationsController>().unreadChat.value = 0;
+                Get.find<NotificationsController>().syncChatBadgeFromServer();
               }
             }
           },

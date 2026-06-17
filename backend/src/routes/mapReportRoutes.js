@@ -47,6 +47,36 @@ async function resolvePremium(req) {
   const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
   const sub = await UserSubscription.findOne({ userId, userModel });
   const now = new Date();
+
+  // v448 — Daniel : « les signalements premium ne s'affichent pas sur la carte ».
+  // CAUSE RACINE : ce gate ne reconnaissait PAS le compte STAFF (ni l'email
+  // staff), contrairement à /users/me/benefits et chatAccess.js. Résultat : le
+  // staff (qui a pourtant tous les abos gratuits) était traité comme NON-premium
+  // → POST d'un type premium renvoyait 402 (jamais créé) ET /nearby filtrait les
+  // pins premium. On honore donc l'override staff ici aussi.
+  let isStaff = false;
+  try {
+    const Model = require('../models/' + userModel);
+    const me = await Model.findById(userId).select('isStaff email').lean();
+    const HARDCODED_STAFF_EMAILS = new Set([
+      'dadaciao84@gmail.com',
+      'hopetsit@gmail.com',
+    ]);
+    const envStaffEmails = String(process.env.STAFF_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const emailLower = String(me?.email || '').toLowerCase();
+    isStaff =
+      me?.isStaff === true ||
+      HARDCODED_STAFF_EMAILS.has(emailLower) ||
+      envStaffEmails.includes(emailLower);
+  } catch (_) {
+    /* défensif : on retombe sur la logique abonnement ci-dessous */
+  }
+  if (isStaff) {
+    return { isPremium: true, sub };
+  }
   // v23.1.283 — Premium = abo individuel actif OU plan FAMILLE actif
   // (familyExpiry découplé OU ancien plan='famille'). Évite que les titulaires
   // famille (currentPeriodEnd=null après découplage) perdent le premium.

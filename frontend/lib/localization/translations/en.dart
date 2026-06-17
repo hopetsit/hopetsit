@@ -2087,6 +2087,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'profile_image_pick_failed': 'Failed to pick image. Please try again.',
       'profile_picture_update_success': 'Profile picture updated successfully',
       'profile_upload_failed': 'Upload Failed',
+      'profile_update_failed': 'Profile update failed',
       'profile_upload_failed_generic':
           'Something went wrong. Please try again.',
 
@@ -2462,6 +2463,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'post_field_pet_count': 'Number of pets',
       'post_field_pet_types': 'Pet type',
       'post_field_service': 'Service',
+      'post_field_time': 'Time',
       'post_field_details': 'Details',
       'post_field_service_location': 'Care location',
       'post_field_service_location_at_owner': 'At my place',

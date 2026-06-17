@@ -343,18 +343,17 @@ class SitterChatController extends GetxController {
           _updateLastMessage(newMessage.message);
         }
       } else {
-        // v23.1 part 35 — fix Daniel : increment unreadChat badge quand le
-        // message arrive pour une autre conversation que celle ouverte.
+        // v448 — AUDIT MESSAGERIE : NE PLUS incrémenter unreadChat ici. C'est
+        // exactement le double-comptage « 1 puis 5 » que v444 avait retiré de
+        // chat_controller.dart mais qui était RESTÉ ici (sitter/walker) : le
+        // badge était bumpé À LA FOIS par NotificationsController._onSocketMessageNew
+        // (dédupé par id de message) ET par ce ++ brut (sans dédup), souvent
+        // plusieurs fois car message:new est diffusé aux 3 rooms de rôle.
+        // Source unique de vérité = NotificationsController. On se contente de
+        // déclencher un resync débouncé sur le vrai total serveur.
         try {
-          final senderId =
-              messageData['senderId']?.toString() ??
-              messageData['message']?['senderId']?.toString() ??
-              messageData['sentMessage']?['senderId']?.toString() ??
-              '';
-          if (senderId.isNotEmpty && senderId != userId) {
-            if (Get.isRegistered<NotificationsController>()) {
-              Get.find<NotificationsController>().unreadChat.value++;
-            }
+          if (Get.isRegistered<NotificationsController>()) {
+            Get.find<NotificationsController>().scheduleChatBadgeResync();
           }
         } catch (_) { /* noop */ }
       }

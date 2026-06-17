@@ -559,11 +559,26 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       debugPrint("Google Login Error: $e");
-      // v22.5 — DEBUG : afficher la VRAIE erreur dans le toast.
-      CustomSnackbar.showError(
-        title: 'Google Login Error',
-        message: e.toString(),
-      );
+      // v448 — Daniel (screenshot) : pop-up rouge « Google Login Error …
+      // canceled, [16] ». Le code 16 / "canceled" = l'utilisateur a FERMÉ le
+      // sélecteur Google de lui-même → ce n'est PAS une erreur, on n'affiche
+      // RIEN. Pour les VRAIES erreurs : message propre TRADUIT (fini
+      // l'exception technique brute + le titre anglais codé en dur). Le titre
+      // et le message sont traduits par CustomSnackbar (._t → .tr).
+      final raw = e.toString().toLowerCase();
+      final isCanceled = raw.contains('canceled') ||
+          raw.contains('cancelled') ||
+          raw.contains('[16]') ||
+          raw.contains('code 16') ||
+          raw.contains('aborted') ||
+          raw.contains('sign_in_canceled') ||
+          raw.contains('signinexceptioncode.canceled');
+      if (!isCanceled) {
+        CustomSnackbar.showError(
+          title: 'auth_google_signin_title',
+          message: 'auth_google_signin_failed',
+        );
+      }
     } finally {
       // v23.1 part 200 — clear Google flag + sync shim
       isGoogleLoginLoading.value = false;
@@ -740,10 +755,20 @@ class AuthController extends GetxController {
         message: 'auth_apple_signin_failed_generic',
       );
     } catch (e) {
-      CustomSnackbar.showError(
-        title: 'auth_apple_signin_failed',
-        message: 'common_error_generic',
-      );
+      // v448 — idem Google : si l'utilisateur ANNULE la feuille Apple
+      // (canceled / code 1001 iOS), ce n'est PAS une erreur → on n'affiche
+      // rien. Vraie erreur seulement → message propre traduit.
+      final raw = e.toString().toLowerCase();
+      final isCanceled = raw.contains('cancel') ||
+          raw.contains('aborted') ||
+          raw.contains('[16]') ||
+          raw.contains('1001');
+      if (!isCanceled) {
+        CustomSnackbar.showError(
+          title: 'auth_apple_signin_failed',
+          message: 'common_error_generic',
+        );
+      }
     } finally {
       // v23.1 part 200 — clear Apple flag + sync shim
       isAppleLoginLoading.value = false;

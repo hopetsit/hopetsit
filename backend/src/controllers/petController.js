@@ -639,9 +639,11 @@ const updatePetProfile = async (req, res) => {
     if (updateData.category !== undefined && !updateData.category) {
       return res.status(400).json({ error: 'Pet category cannot be empty.' });
     }
-    if (updateData.vaccination !== undefined && !updateData.vaccination) {
-      return res.status(400).json({ error: 'Vaccination details cannot be empty.' });
-    }
+    // v448 — Daniel : « Update Failed: Vaccination details cannot be empty »
+    // bloquait TOUTE édition d'animal. Le champ legacy `vaccination` (string)
+    // n'est plus saisi (la fiche utilise `vaccinationStatus`) → souvent vide.
+    // On NE bloque plus sur ce champ legacy : une chaîne vide est tolérée.
+    // (petName et category restent obligatoires ci-dessus.)
 
     // Update the pet
     const updatedPet = await Pet.findOneAndUpdate(
@@ -754,21 +756,29 @@ const updatePetMedia = async (req, res) => {
             uploadedAt: new Date(),
           };
 
-          // Delete old media from Cloudinary if replacing
-          if (detectedMediaType === 'avatar' && pet.avatar?.publicId) {
-            try {
-              const cloudinary = require('cloudinary').v2;
-              await cloudinary.uploader.destroy(pet.avatar.publicId);
-            } catch (deleteError) {
-              logger.error('Error deleting old avatar:', deleteError);
+          // v448 — Daniel : « le stylo orange ne change pas la photo de profil ».
+          // Cause : l'avatar n'était posé QUE si pet.avatar.publicId existait
+          // déjà → sur un animal sans avatar, le fichier était uploadé mais
+          // jamais assigné. On pose TOUJOURS l'avatar ; on supprime l'ancien
+          // seulement s'il existe.
+          if (detectedMediaType === 'avatar') {
+            if (pet.avatar?.publicId) {
+              try {
+                const cloudinary = require('cloudinary').v2;
+                await cloudinary.uploader.destroy(pet.avatar.publicId);
+              } catch (deleteError) {
+                logger.error('Error deleting old avatar:', deleteError);
+              }
             }
             pet.avatar = mediaEntry;
-          } else if (detectedMediaType === 'passportImage' && pet.passportImage?.publicId) {
-            try {
-              const cloudinary = require('cloudinary').v2;
-              await cloudinary.uploader.destroy(pet.passportImage.publicId);
-            } catch (deleteError) {
-              logger.error('Error deleting old passport image:', deleteError);
+          } else if (detectedMediaType === 'passportImage') {
+            if (pet.passportImage?.publicId) {
+              try {
+                const cloudinary = require('cloudinary').v2;
+                await cloudinary.uploader.destroy(pet.passportImage.publicId);
+              } catch (deleteError) {
+                logger.error('Error deleting old passport image:', deleteError);
+              }
             }
             pet.passportImage = mediaEntry;
           } else if (detectedMediaType === 'photo') {
@@ -876,15 +886,26 @@ const deletePet = async (req, res) => {
     }
     // Check for active bookings referencing this pet.
     const Booking = require('../models/Booking');
-    const activeBooking = await Booking.findOne({
+    // v448 — Daniel : « je peux pas supprimer alors que j'ai pas d'annonce, c'est
+    // un vieux profil ». On ne bloque QUE sur des réservations VRAIMENT actives :
+    // statut en cours ET service non terminé. Une vieille réservation payée mais
+    // dont la date est passée ne bloque plus la suppression.
+    const blocking = await Booking.find({
       petIds: pet._id,
       status: { $in: ['pending', 'accepted', 'agreed', 'mutually_accepted', 'paid'] },
-    }).select('_id status').lean();
-    if (activeBooking) {
+    }).select('_id status endDate startDate date').lean();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const stillActive = blocking.find((b) => {
+      const end = String(b.endDate || b.date || b.startDate || '').slice(0, 10);
+      // Pas de date connue → prudence (on bloque) ; sinon actif si la fin est
+      // aujourd'hui ou dans le futur.
+      return !end || end >= todayStr;
+    });
+    if (stillActive) {
       return res.status(409).json({
         error: 'Cannot delete a pet with active bookings.',
         code: 'PET_HAS_ACTIVE_BOOKINGS',
-        details: `Cet animal est lié à une réservation ${activeBooking.status}. Annule la réservation avant de supprimer le profil.`,
+        details: `Cet animal est lié à une réservation ${stillActive.status} en cours. Annule la réservation avant de supprimer le profil.`,
       });
     }
     await pet.deleteOne();

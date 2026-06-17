@@ -387,13 +387,16 @@ class WalkerProfileScreen extends StatelessWidget {
     );
   }
 
-  /// v446 — bouton rectangle arrondi GRIS (Expanded) : emoji + label sur 1 ligne.
+  /// v448 — Daniel : « walker les boutons vers pâle ». Rectangle arrondi VERT
+  /// PÂLE (au lieu de gris), texte/emoji vert promeneur ; emoji + label 1 ligne.
   Widget _wideAction(
     BuildContext context, {
     required String emoji,
     required String label,
     required VoidCallback onTap,
   }) {
+    const walkerGreen = Color(0xFF16A34A);
+    final labelColor = Get.isDarkMode ? AppColors.textPrimary(context) : walkerGreen;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -401,9 +404,17 @@ class WalkerProfileScreen extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 10.w),
           decoration: BoxDecoration(
             color: Get.isDarkMode
-                ? const Color(0xFF2A2A2A)
-                : const Color(0xFFEDEDF0),
+                ? const Color(0xFF1F2A22)
+                : const Color(0xFFE6F6EC),
             borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(
+              // vert promeneur translucide (≈0.30 clair / ≈0.35 sombre) en ARGB
+              // const → pas de withOpacity déprécié.
+              color: Get.isDarkMode
+                  ? const Color(0x5916A34A)
+                  : const Color(0x4D16A34A),
+              width: 1.1,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -415,7 +426,7 @@ class WalkerProfileScreen extends StatelessWidget {
                   text: label,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary(context),
+                  color: labelColor,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -436,11 +447,15 @@ class WalkerProfileScreen extends StatelessWidget {
     final currentRole = authController.userRole.value;
     const allRoles = ['owner', 'sitter', 'walker'];
     final otherRoles = allRoles.where((r) => r != currentRole).toList();
-    return Column(
+    // v448 — Daniel : les 2 boutons « Passer en … » CÔTE À CÔTE, plus compacts,
+    // police lisible (au lieu de l'un sous l'autre, pleine largeur).
+    return Row(
       children: [
         for (int i = 0; i < otherRoles.length; i++) ...[
-          _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
-          if (i < otherRoles.length - 1) SizedBox(height: 12.h),
+          Expanded(
+            child: _buildSwitchRoleCard(context, targetRole: otherRoles[i]),
+          ),
+          if (i < otherRoles.length - 1) SizedBox(width: 10.w),
         ],
       ],
     );
@@ -472,7 +487,7 @@ class WalkerProfileScreen extends StatelessWidget {
     return GestureDetector(
       onTap: () => _confirmSwitchRole(context, targetRole, roleLabel),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 12.h),
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14.r),
@@ -480,37 +495,27 @@ class WalkerProfileScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Colored icon chip on the left.
+            // Colored icon chip on the left (compact).
             Container(
-              width: 42.w,
-              height: 42.w,
+              width: 36.w,
+              height: 36.w,
               decoration: BoxDecoration(
                 color: accentColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12.r),
+                borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.pets_rounded, size: 22.sp, color: accentColor),
+              child: Icon(Icons.pets_rounded, size: 18.sp, color: accentColor),
             ),
-            SizedBox(width: 14.w),
+            SizedBox(width: 9.w),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InterText(
-                    text: 'switch_role_to'.trParams({'role': roleLabel}),
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: accentColor,
-                  ),
-                  SizedBox(height: 3.h),
-                  InterText(
-                    text: 'switch_role_subtitle'.trParams({'role': targetRole}),
-                    fontSize: 12.sp,
-                    color: AppColors.greyText,
-                  ),
-                ],
+              child: InterText(
+                text: 'switch_role_to'.trParams({'role': roleLabel}),
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: accentColor,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16.sp, color: accentColor),
           ],
         ),
       ),

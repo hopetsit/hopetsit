@@ -172,6 +172,12 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// prestataires ne sont pas affectés.
   final RxBool _showLiveLayer = true.obs;
 
+  /// v448 — Daniel : « selon son abonnement, on peut couper l'affichage manuel
+  /// on/off ». Couche Paw Premium = les halos OR des membres Paw Premium. ON
+  /// par défaut quand l'abonnement Premium est actif ; le switch PawPremium de
+  /// la rangée rapide la coupe/rallume manuellement (sans toucher à l'abo).
+  final RxBool _showPremiumLayer = true.obs;
+
   /// v23.1.360 — mode VISEUR « Taguer un lieu » : pin rose fixe au centre,
   /// on déplace la carte dessous puis Valider → sheet de création à cette
   /// position exacte (Daniel : "je ne peux pas sélectionner l'endroit").
@@ -1381,13 +1387,19 @@ class _PawMapScreenState extends State<PawMapScreen>
           <String>{};
       // v23.1.398 — membres Paw Premium → grand halo OR (au lieu du violet
       // famille). Champ isPremium poussé par GET /friends/family/members.
-      final premiumMemberIds = friendCtl?.familyMembers
-              .where((m) => m['isPremium'] == true)
-              .map((m) =>
-                  ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
-              .where((id) => id.isNotEmpty)
-              .toSet() ??
-          <String>{};
+      // v448 — Daniel : si la couche Premium est coupée manuellement
+      // (_showPremiumLayer OFF), on n'applique plus l'or → membres en violet.
+      final premiumMemberIds = !_showPremiumLayer.value
+          ? <String>{}
+          : (friendCtl?.familyMembers
+                  .where((m) => m['isPremium'] == true)
+                  .map((m) => ((m['id'] ?? m['userId'] ?? '')
+                      .toString())
+                      .trim()
+                      .toLowerCase())
+                  .where((id) => id.isNotEmpty)
+                  .toSet() ??
+              <String>{});
       // v23.1 part 225 — Index userId → role (lowercase) tire de la
       // liste d'amis acceptes pour pouvoir override la couleur halo
       // selon le metier de l'ami qui broadcast.
@@ -1535,6 +1547,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       _showPawSpots.value ? 1 : 0,
       // v23.1.356 — switch PawFollow (couche live ON/OFF).
       _showLiveLayer.value ? 1 : 0,
+      // v448 — switch PawPremium (halos OR membres Premium ON/OFF).
+      _showPremiumLayer.value ? 1 : 0,
       // v23.1.373 — Daniel : "baignade pack traduction" — après un
       // changement de langue en cours de session, les InfoWindows gardaient
       // l'ancien libellé (cache marqueurs aveugle à la locale). La locale
@@ -1805,11 +1819,18 @@ class _PawMapScreenState extends State<PawMapScreen>
       // famille, pas de couronne ». Set des membres Premium (champ isPremium
       // poussé par GET /friends/family/members) → couronne 👑 + anneau OR
       // sur LEUR marqueur, prioritaire sur le violet famille.
-      final premiumMemberIds = _friendController.familyMembers
-          .where((m) => m['isPremium'] == true)
-          .map((m) => ((m['id'] ?? m['userId'] ?? '').toString()).trim().toLowerCase())
-          .where((id) => id.isNotEmpty)
-          .toSet();
+      // v448 — couche Premium coupée manuellement (_showPremiumLayer OFF) →
+      // set vide → pas d'or/couronne (membres en violet famille).
+      final premiumMemberIds = !_showPremiumLayer.value
+          ? <String>{}
+          : _friendController.familyMembers
+              .where((m) => m['isPremium'] == true)
+              .map((m) => ((m['id'] ?? m['userId'] ?? '')
+                  .toString())
+                  .trim()
+                  .toLowerCase())
+              .where((id) => id.isNotEmpty)
+              .toSet();
       // v23.1.297 — Daniel : "compter famille ET amis". Le backend pousse
       // désormais aussi la position des membres famille (mapSocket). Lookup
       // id->map pour dessiner leur pin même s'ils ne sont PAS aussi des amis
@@ -3170,19 +3191,23 @@ class _PawMapScreenState extends State<PawMapScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // v448 — Daniel : « réduis la police pour voir mes membres »
+                    // (cartes Mon cercle / Mes signalements). Police plus petite
+                    // + 2 lignes → le libellé entier reste visible, pas coupé.
                     InterText(
                       text: title,
-                      fontSize: 13.sp,
+                      fontSize: 11.5.sp,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary(context),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    SizedBox(height: 1.h),
                     InterText(
                       text: subtitle,
-                      fontSize: 10.sp,
+                      fontSize: 8.5.sp,
                       color: AppColors.greyText,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -3717,8 +3742,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                     assetIcon: 'assets/images/pawfollow_logo.png',
                     accent: const Color(0xFF7C3AED),
                     subscribed: followSub,
-                    // v449 — ON = abo PawFollow/PawFamily (ou Premium) actif.
-                    value: followSub,
+                    // v448 — ON = abo actif ET couche live affichée. Abonné, on
+                    // peut couper/rallumer l'affichage manuellement.
+                    value: followSub && _showLiveLayer.value,
                     onChanged: (_) => unawaited(_togglePawFollow()),
                   ),
                 ),
@@ -3732,9 +3758,10 @@ class _PawMapScreenState extends State<PawMapScreen>
                     coinIcon: true,
                     accent: const Color(0xFFE8A00A),
                     subscribed: spotSub,
-                    // v449 — ON = abo PawSpot (ou Premium) actif. Pas
-                    // d'activation locale sans abo ; OFF→ON route en boutique.
-                    value: spotSub,
+                    // v448 — ON = abo actif ET couche spots affichée. Abonné,
+                    // on/off manuel de la couche ; OFF→ON sans abo route en
+                    // boutique.
+                    value: spotSub && _showPawSpots.value,
                     onChanged: (_) => unawaited(_togglePawSpot()),
                   ),
                 ),
@@ -3746,8 +3773,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                     assetIcon: 'assets/images/pawpremium_logo.png',
                     accent: const Color(0xFFE8A00A),
                     subscribed: premiumOn,
-                    // ON = abonnement Paw Premium activé.
-                    value: premiumOn,
+                    // v448 — ON = abo Premium actif ET couche premium affichée.
+                    // Abonné, on/off manuel des halos OR Premium.
+                    value: premiumOn && _showPremiumLayer.value,
                     onChanged: (_) => unawaited(_togglePawPremium()),
                   ),
                 ),
@@ -3993,12 +4021,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// d'activation locale. Au retour on re-vérifie les benefits.
   Future<void> _togglePawFollow() async {
     if (_pawSpotController.followActive.value) {
-      // Abo actif : la couche live reste affichée ; on rappelle où la gérer.
-      _showLiveLayer.value = true;
-      CustomSnackbar.showInfo(
-        title: 'pawmap_premium_on_title'.tr,
-        message: 'pawmap_premium_on_msg'.tr,
-      );
+      // v448 — Daniel : abonné, on/off MANUEL de la couche live (mon cercle +
+      // halos amis/famille). Le switch suit désormais cet état.
+      _showLiveLayer.value = !_showLiveLayer.value;
+      if (mounted) setState(() {});
       return;
     }
     CustomSnackbar.showWarning(
@@ -4017,17 +4043,17 @@ class _PawMapScreenState extends State<PawMapScreen>
   Future<void> _togglePawSpot() async {
     final active = _pawSpotController.pawspotActive.value;
     if (active) {
-      // Abo actif : on (ré)active la couche spots pour qu'ils s'affichent et
-      // que la légende + « Voir les spots » apparaissent.
-      if (!_showPawSpots.value) {
+      // v448 — Daniel : abonné, on/off MANUEL de la couche spots. ON → on
+      // (ré)affiche les spots + légende ; OFF → on masque (mémorisé).
+      if (_showPawSpots.value) {
+        _showPawSpots.value = false;
+        GetStorage().write('pawspot_layer_on', false);
+      } else {
         _showPawSpots.value = true;
         GetStorage().write('pawspot_layer_on', true);
         await _pawSpotController.loadNearby(_currentCenter);
       }
-      CustomSnackbar.showInfo(
-        title: 'pawmap_premium_on_title'.tr,
-        message: 'pawmap_premium_on_msg'.tr,
-      );
+      if (mounted) setState(() {});
       return;
     }
     // Pas abonné → boutique PawSpot ; au retour, si l'abo vient d'être pris,
@@ -4052,11 +4078,10 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// boutique (CoinShop onglet 3) ; au retour on re-vérifie les benefits.
   Future<void> _togglePawPremium() async {
     if (_pawSpotController.premiumActive.value) {
-      // Déjà abonné : on rappelle où gérer l'abonnement (pas d'OFF local).
-      CustomSnackbar.showInfo(
-        title: 'pawmap_premium_on_title'.tr,
-        message: 'pawmap_premium_on_msg'.tr,
-      );
+      // v448 — Daniel : abonné, on/off MANUEL des halos OR Paw Premium (les
+      // membres Premium repassent en violet famille quand la couche est OFF).
+      _showPremiumLayer.value = !_showPremiumLayer.value;
+      if (mounted) setState(() {});
       return;
     }
     CustomSnackbar.showWarning(

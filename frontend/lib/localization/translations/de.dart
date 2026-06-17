@@ -1831,6 +1831,7 @@ const Map<String, String> deDETranslations = <String, String>{
           'Something went wrong. Please try again.',
       'profile_unblock_success': 'User unblocked successfully',
       'profile_upload_failed': 'Upload Failed',
+      'profile_update_failed': 'Profilaktualisierung fehlgeschlagen',
       'profile_upload_failed_generic':
           'Something went wrong. Please try again.',
       'profile_user_not_found': 'User not found',
@@ -2020,6 +2021,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'post_field_pet_count': 'Anzahl der Tiere',
       'post_field_pet_types': 'Tierart',
       'post_field_service': 'Service',
+      'post_field_time': 'Uhrzeit',
       'post_field_details': 'Details',
       'post_field_service_location': 'Betreuungsort',
       'post_field_service_location_at_owner': 'Bei mir',

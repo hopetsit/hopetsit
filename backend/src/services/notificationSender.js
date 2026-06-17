@@ -8,7 +8,15 @@ const { sendEmail } = require('./emailService');
 const { render } = require('../utils/i18nTemplate');
 const firebaseAdmin = require('../config/firebaseAdmin');
 const { decrypt } = require('../utils/encryption');
-const { emitToUser } = require('../sockets/emitter');
+const { emitToUser, isUserOnline } = require('../sockets/emitter');
+
+// v448 — AUDIT MESSAGERIE : types pour lesquels l'email n'est envoyé QUE si le
+// destinataire est HORS LIGNE (règle produit « email uniquement si hors ligne »).
+// On cible les MESSAGES (haut volume + cause des emails 10-20 min de retard et
+// du « email reçu alors que je suis dans le chat »). Les emails TRANSACTIONNELS
+// (paiement, KYC, retrait, payout, avis...) ne sont PAS gatés → toujours envoyés
+// (ce sont des reçus importants). Comparaison en minuscules.
+const PRESENCE_GATED_EMAIL_TYPES = new Set(['new_message']);
 const logger = require('../utils/logger');
 
 const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt'];
@@ -325,6 +333,26 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
     emitToUser(role, userId, 'notification.new', socketPayload);
   } catch (_) { /* noop */ }
 
+  // v448 — gating email hors-ligne pour les types à fort volume (messages).
+  // Si le destinataire a un socket connecté (app ouverte), il voit déjà la
+  // notif en direct → on n'envoie PAS l'email (évite le spam + le retard
+  // Gmail). Best-effort : en cas de doute, l'email part.
+  let sendEmailNow = Boolean(email);
+  if (sendEmailNow &&
+      PRESENCE_GATED_EMAIL_TYPES.has(String(type).toLowerCase())) {
+    try {
+      const online = await isUserOnline(userId);
+      if (online) {
+        sendEmailNow = false;
+        logger.info(
+          `[notif.email.skip] recipient ONLINE → email suppressed type=${type} role=${role} userId=${userId}`,
+        );
+      }
+    } catch (_) {
+      /* doute → on laisse partir l'email */
+    }
+  }
+
   const results = await Promise.allSettled([
     Promise.resolve(inAppCreated),
     // v23.1.317 — Daniel : "notifs pas en doublon". CAUSE : le payload FCM ne
@@ -344,7 +372,7 @@ const sendNotification = async ({ userId, role, type, data = {}, actor = null })
       },
       { userId, role },
     ),
-    email ? sendEmail(email, emailSubject, body, emailBody) : Promise.resolve({ skipped: true }),
+    sendEmailNow ? sendEmail(email, emailSubject, body, emailBody) : Promise.resolve({ skipped: true }),
   ]);
 
   // v23.1 part 48 — log success/failure per channel so the Render log

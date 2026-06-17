@@ -348,6 +348,24 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
       for (final b in bookings) {
         if ((b.paymentStatus ?? '').toLowerCase() != 'paid') continue;
         if (b.confirmationStatus != 'awaiting_confirmation') continue;
+        // v448 — AUDIT : anti-zombie. (1) Une résa annulée/remboursée ne doit
+        // jamais demander « Confirme la fin ». (2) Borne d'ancienneté : si la
+        // date de service est passée de plus de 30 jours, on n'affiche plus la
+        // bannière (vieux profil/test bloqué en awaiting_confirmation qui
+        // ressortait à CHAQUE reconnexion, et non masquable).
+        final st = b.status.toLowerCase();
+        if (st == 'cancelled' ||
+            st == 'refunded' ||
+            st == 'rejected' ||
+            st == 'expired') {
+          continue;
+        }
+        final svcMs = DateTime.tryParse(b.date)?.millisecondsSinceEpoch;
+        if (svcMs != null &&
+            (DateTime.now().millisecondsSinceEpoch - svcMs) >
+                30 * 24 * 60 * 60 * 1000) {
+          continue;
+        }
         final providerName = b.sitter.name.trim().isNotEmpty
             ? b.sitter.name
             : 'role_sitter'.tr;
@@ -503,6 +521,15 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         final endAt = _serviceEndAt(b);
         // v23.1.357 — Daniel : 5 min avant la fin (et plus 30).
         if (endAt != null && endAt.difference(svcNow).inMinutes > 5) continue;
+        // v448 — AUDIT : anti-zombie. La branche start a sa borne svcMaxAgeMs
+        // (7 j) mais PAS celle-ci → un booking bloqué en in_progress (sans
+        // heure de fin) affichait « Confirme la fin » indéfiniment. On borne
+        // sur la fin (ou le début à défaut) : > 7 jours passé = on n'affiche plus.
+        final endRef = endAt ?? _serviceStartAt(b);
+        if (endRef != null &&
+            svcNow.difference(endRef).inMilliseconds > svcMaxAgeMs) {
+          continue;
+        }
         return _QuickAction(
           kind: _Kind.serviceAction,
           color: svcAccent,
@@ -2542,6 +2569,11 @@ class _HomeQuickActionBarState extends State<HomeQuickActionBar>
         title: 'common_error'.tr,
         message: e.toString(),
       );
+    } finally {
+      // v448 — AUDIT : sans ce reset, _isResponding restait à true après le
+      // 1er tap → accepter/refuser depuis la bande ne marchait qu'UNE fois
+      // par session (le debounce double-tap bloquait tous les taps suivants).
+      _isResponding = false;
     }
   }
 

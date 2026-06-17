@@ -193,11 +193,22 @@ const handleAirwallexWebhook = async (req, res) => {
         // silently skipped — no Airwallex Payout, no creditWallet, no
         // sitterPayoutCompleted notif. Setting status='paid' here mirrors
         // what PayPal already does and unblocks the rest of the chain.
+        // v448 — AUDIT : anti-doublon notification. Le chemin SYNC (/confirm)
+        // et CE webhook peuvent tous deux marquer payé pour le même paiement
+        // (déclencheurs différents → ProcessedWebhook ne dédoublonne que la
+        // même livraison d'event). On mémorise si la résa était DÉJÀ payée
+        // AVANT : si oui, ce webhook est un retard/retry → on NE renvoie PAS
+        // les notifications « Paiement reçu/effectué » (sinon push+email en
+        // double). Le crédit wallet reste, lui, idempotent (dédup bookingId).
+        const wasAlreadyPaid = booking.paymentStatus === 'paid';
         booking.status = 'paid';
         booking.paymentStatus = 'paid';
-        booking.paidAt = new Date();
+        booking.paidAt = booking.paidAt || new Date();
         await booking.save();
-        logger.info(`✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})`);
+        logger.info(
+          `✅ [airwallex.webhook] booking ${booking._id} marked as paid (PI ${piId})` +
+          (wasAlreadyPaid ? ' [already paid → notifs suppressed]' : ''),
+        );
 
         // v23.1 part 68 — Daniel correction : "ancinne publication sefface
         // apres le booking FINI" (pas payé). On ne ferme PAS le post au
@@ -254,7 +265,11 @@ const handleAirwallexWebhook = async (req, res) => {
         }
 
         // v23.1 — push FCM + email + bell to BOTH parties on payment success.
-        try {
+        // v448 — AUDIT anti-doublon : on n'envoie ces notifs QUE si CE webhook
+        // vient de faire la transition vers payé (wasAlreadyPaid=false). Si la
+        // résa était déjà payée (chemin sync /confirm passé avant), on saute →
+        // plus de « Paiement reçu » en double (push + email).
+        if (!wasAlreadyPaid) try {
           const { sendNotification } = require('../services/notificationSender');
           const providerRole2 = booking.walkerId ? 'walker' : 'sitter';
           const providerId2 = booking.walkerId
@@ -375,7 +390,7 @@ const handleAirwallexWebhook = async (req, res) => {
               senderRole: 'system',
               $or: [
                 { 'metadata.bookingId': booking._id.toString() },
-                { 'metadata.kind': 'payment_confirmed', 'metadata.intentId': paymentIntentId },
+                { 'metadata.kind': 'payment_confirmed', 'metadata.intentId': piId },
               ],
             }).lean();
             const skipSystemMessages = Boolean(existingSystemMsg);
@@ -425,7 +440,7 @@ const handleAirwallexWebhook = async (req, res) => {
                 metadata: {
                   kind: 'payment_confirmed',
                   bookingId: booking._id.toString(),
-                  intentId: paymentIntentId,
+                  intentId: piId,
                 },
               });
 
@@ -441,7 +456,7 @@ const handleAirwallexWebhook = async (req, res) => {
                 metadata: {
                   kind: 'rendezvous_prompt',
                   bookingId: booking._id.toString(),
-                  intentId: paymentIntentId,
+                  intentId: piId,
                 },
               });
             }

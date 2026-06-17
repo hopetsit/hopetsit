@@ -517,14 +517,34 @@ class NotificationsController extends GetxController with WidgetsBindingObserver
     try {
       final chatRepo = ChatRepository(Get.find<ApiClient>());
       final convs = await chatRepo.getChatList();
+      // v448 — AUDIT MESSAGERIE : DÉDUP par interlocuteur AVANT de sommer. Le
+      // backend peut renvoyer 2 conversations pour la même personne (un fil
+      // réservation + un fil amis) ; la liste de chat n'en AFFICHE qu'une (la
+      // plus récente, via _dedupByOtherParty). Sans dédup ici, le badge
+      // additionnait aussi l'unread du fil CACHÉ → « badge N alors que 0 visible »
+      // impossible à faire descendre. On ne compte donc que le fil visible par
+      // personne (même clé que la liste).
+      int ts(Map m) {
+        final v = m['lastMessageAt'] ?? m['lastMessageTime'] ?? m['updatedAt'];
+        if (v is int) return v;
+        return DateTime.tryParse(v?.toString() ?? '')?.millisecondsSinceEpoch ?? 0;
+      }
+
+      final byKey = <String, Map<String, dynamic>>{};
+      for (final it in convs) {
+        final op = it['otherParty'];
+        final otherId =
+            (op is Map ? (op['id'] ?? op['_id']) : null)?.toString() ?? '';
+        final key = otherId.isNotEmpty
+            ? 'u:$otherId'
+            : 'c:${(it['_id'] ?? it['id'] ?? '').toString()}';
+        final existing = byKey[key];
+        if (existing == null || ts(it) >= ts(existing)) byKey[key] = it;
+      }
       int total = 0;
-      for (final c in convs) {
+      for (final c in byKey.values) {
         final u = c['unreadCount'];
-        if (u is int) {
-          total += u;
-        } else if (u is num) {
-          total += u.toInt();
-        }
+        if (u is num) total += u.toInt();
       }
       if (total < 0) total = 0;
       unreadChat.value = total;

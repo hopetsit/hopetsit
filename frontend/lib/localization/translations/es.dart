@@ -1824,6 +1824,7 @@ const Map<String, String> esESTranslations = <String, String>{
           'Something went wrong. Please try again.',
       'profile_unblock_success': 'User unblocked successfully',
       'profile_upload_failed': 'Upload Failed',
+      'profile_update_failed': 'Error al actualizar el perfil',
       'profile_upload_failed_generic':
           'Something went wrong. Please try again.',
       'profile_user_not_found': 'User not found',
@@ -2013,6 +2014,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'post_field_pet_count': 'Número de animales',
       'post_field_pet_types': 'Tipo de animal',
       'post_field_service': 'Servicio',
+      'post_field_time': 'Hora',
       'post_field_details': 'Detalles',
       'post_field_service_location': 'Lugar de cuidado',
       'post_field_service_location_at_owner': 'En mi casa',

@@ -2220,6 +2220,7 @@ const Map<String, String> frFRTranslations = <String, String>{
           'Something went wrong. Please try again.',
       'profile_unblock_success': 'User unblocked successfully',
       'profile_upload_failed': 'Upload Failed',
+      'profile_update_failed': 'Échec de la mise à jour du profil',
       'profile_upload_failed_generic':
           'Something went wrong. Please try again.',
       'profile_user_not_found': 'User not found',
@@ -2413,6 +2414,7 @@ const Map<String, String> frFRTranslations = <String, String>{
       'post_field_pet_count': 'Nombre d’animaux',
       'post_field_pet_types': 'Type d’animaux',
       'post_field_service': 'Service',
+      'post_field_time': 'Heure',
       'post_field_details': 'Détails',
       'post_field_service_location': 'Lieu de garde',
       'post_field_service_location_at_owner': 'Chez moi',
