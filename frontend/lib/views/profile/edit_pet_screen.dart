@@ -30,8 +30,9 @@ class EditPetScreen extends StatelessWidget {
   String _buildTitle(EditPetController controller) {
     if (_isCreate) return 'pet_add_animal_title'.tr;
     final name = (petData?.petName ?? controller.petNameController.text).trim();
+    // v445 — Daniel : « met Modifier l'animal » (pas « l'annonce »).
     return name.isNotEmpty
-        ? '${'post_action_edit'.tr} $name'
+        ? '${'pet_edit_animal'.tr} $name'
         : 'edit_pet_profile_title'.tr;
   }
 
@@ -78,7 +79,11 @@ class EditPetScreen extends StatelessWidget {
                     Center(
                       child: Stack(
                         children: [
-                          Obx(() {
+                          // v445 — Daniel : cliquer sur la PHOTO (pas seulement
+                          // le petit stylo orange) permet aussi de la changer.
+                          GestureDetector(
+                            onTap: () => controller.pickPetProfileImage(),
+                            child: Obx(() {
                             final imageFile = controller.petProfileImage.value;
                             final imageUrl = controller.currentAvatarUrl.value;
 
@@ -131,7 +136,7 @@ class EditPetScreen extends StatelessWidget {
                                 color: petPlaceholderIcon,
                               ),
                             );
-                          }),
+                          })),
                           Positioned(
                             bottom: 0,
                             right: 2,

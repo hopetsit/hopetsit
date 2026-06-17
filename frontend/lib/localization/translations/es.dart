@@ -3226,6 +3226,7 @@ const Map<String, String> esESTranslations = <String, String>{
   'pet_no_info': 'Sin información',
   'pet_gallery_empty': 'Sin fotos',
   'pet_add_animal_title': 'Añadir un animal',
+  'pet_edit_animal': 'Editar mascota',
   'pet_create_button': 'Crear perfil',
   'pet_add_photo': 'Añadir una foto',
   'pet_add_video': 'Añadir un vídeo',

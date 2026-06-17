@@ -3102,6 +3102,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
   'pet_no_info': 'Sem informação',
   'pet_gallery_empty': 'Sem fotos',
   'pet_add_animal_title': 'Adicionar um animal',
+  'pet_edit_animal': 'Editar animal',
   'pet_create_button': 'Criar perfil',
   'pet_add_photo': 'Adicionar uma foto',
   'pet_add_video': 'Adicionar um vídeo',

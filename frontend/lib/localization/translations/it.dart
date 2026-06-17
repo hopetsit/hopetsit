@@ -3264,6 +3264,7 @@ const Map<String, String> itITTranslations = <String, String>{
   'pet_no_info': 'Nessuna informazione',
   'pet_gallery_empty': 'Nessuna foto',
   'pet_add_animal_title': 'Aggiungi un animale',
+  'pet_edit_animal': 'Modifica animale',
   'pet_create_button': 'Crea profilo',
   'pet_add_photo': 'Aggiungi una foto',
   'pet_add_video': 'Aggiungi un video',

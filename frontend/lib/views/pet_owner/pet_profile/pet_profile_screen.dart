@@ -169,7 +169,8 @@ class PetProfileScreen extends StatelessWidget {
                 foregroundColor: Colors.white,
                 icon: Icon(Icons.edit_rounded, size: 18.sp),
                 label: InterText(
-                  text: 'post_action_edit'.tr,
+                  // v445 — Daniel : c'est un animal, pas une annonce.
+                  text: 'pet_edit_animal'.tr,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
@@ -465,7 +466,7 @@ class PetProfileScreen extends StatelessWidget {
     final hasChar = pet.characterTraits.isNotEmpty;
     final hasCompat = !pet.compatibilities.isEmpty;
     return ListView(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
       children: [
         // ❤️ Présentation (bio libre).
         if (pet.bio.isNotEmpty)
@@ -510,7 +511,7 @@ class PetProfileScreen extends StatelessWidget {
   // ── HEALTH ──────────────────────────────────────────────────────────────
   Widget _healthTab(BuildContext context) {
     return ListView(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
       children: [
         // 🏥 Vaccins + Puce + Stérilisé regroupés.
         _section('pet_section_health'.tr,
@@ -538,9 +539,14 @@ class PetProfileScreen extends StatelessWidget {
           ]),
         _section('pet_current_treatments'.tr,
             icon: Icons.healing_rounded, [
-          _paragraph(pet.currentTreatments.isEmpty
-              ? 'pet_no_treatment'.tr
-              : pet.currentTreatments),
+          // v445 — Daniel : affichage PROPRE Oui/Non du traitement en cours
+          // (pastille verte/grise) + le détail seulement s'il y en a un.
+          _yesNoRow('pet_treatment_ongoing'.tr,
+              pet.currentTreatments.trim().isNotEmpty),
+          if (pet.currentTreatments.trim().isNotEmpty) ...[
+            SizedBox(height: 8.h),
+            _paragraph(pet.currentTreatments),
+          ],
         ]),
         if (pet.medicationAllergies.isNotEmpty)
           _section('my_pets_allergies_label'.tr,
@@ -676,7 +682,7 @@ class PetProfileScreen extends StatelessWidget {
     final tags = pet.habits.tags;
     if (rows.isEmpty && tags.isEmpty) return _empty('pet_no_info'.tr);
     return ListView(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
       children: [
         // v443 — habitudes COCHABLES affichées en chips en tête de l'onglet.
         if (tags.isNotEmpty)
@@ -706,7 +712,7 @@ class PetProfileScreen extends StatelessWidget {
       }
     }
     return ListView(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.fromLTRB(16.w, 16.w, 16.w, 96.h), // v445: marge basse pour le FAB Modifier
       children: [
         InterText(
           text: 'pet_gallery_title'.tr,
@@ -998,7 +1004,9 @@ class PetProfileScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: danger
               ? AppColors.errorColor.withValues(alpha: 0.08)
-              : AppColors.lightGrey.withValues(alpha: 0.5),
+              // v445 — Daniel : « remplace le fond gris par du jaune » (plus
+              // moderne/propre) ; le rouge danger (allergies) reste inchangé.
+              : const Color(0xFFFFF8E1),
           borderRadius: BorderRadius.circular(10.r),
         ),
         child: InterText(

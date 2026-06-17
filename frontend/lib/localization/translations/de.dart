@@ -3269,6 +3269,7 @@ const Map<String, String> deDETranslations = <String, String>{
   'pet_no_info': 'Keine Angaben',
   'pet_gallery_empty': 'Keine Fotos',
   'pet_add_animal_title': 'Tier hinzufügen',
+  'pet_edit_animal': 'Tier bearbeiten',
   'pet_create_button': 'Profil erstellen',
   'pet_add_photo': 'Foto hinzufügen',
   'pet_add_video': 'Video hinzufügen',

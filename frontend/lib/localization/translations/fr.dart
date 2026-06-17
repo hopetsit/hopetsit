@@ -3284,6 +3284,7 @@ const Map<String, String> frFRTranslations = <String, String>{
   'pet_no_info': 'Aucune information',
   'pet_gallery_empty': 'Aucune photo',
   'pet_add_animal_title': 'Ajouter un animal',
+  'pet_edit_animal': 'Modifier l’animal',
   'pet_create_button': 'Créer le profil',
   'pet_add_photo': 'Ajouter une photo',
   'pet_add_video': 'Ajouter une vidéo',
