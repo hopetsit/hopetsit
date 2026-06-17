@@ -723,9 +723,23 @@ router.get('/', requireAuth, async (req, res) => {
     const enriched = await Promise.all(
       friendships.map((f) => enrichFriendship(f, user.id, viewerHasPawFollow)),
     );
-    // v23.1.201 — on garde les orphelins (other.deleted) pour permettre
-    // l'unfriend depuis l'UI. Frontend les affiche en "Utilisateur supprimé".
-    res.json({ friends: enriched });
+    // v451 — Daniel : « les anciens amis au profil supprimé restaient dans ma
+    // liste — quand on supprime un compte, tout doit disparaître ». On NE garde
+    // donc plus les orphelins (other.deleted) : on PURGE l'amitié vers un compte
+    // supprimé et on l'exclut de la liste (auto-nettoyage, plus besoin
+    // d'« unfriend » manuel). [Remplace le placeholder « Utilisateur supprimé »
+    // de v23.1.201.]
+    const alive = enriched.filter((e) => !(e.other && e.other.deleted === true));
+    const orphanIds = enriched
+      .filter((e) => e.other && e.other.deleted === true)
+      .map((e) => e.id);
+    if (orphanIds.length) {
+      try {
+        await Friendship.deleteMany({ _id: { $in: orphanIds } });
+        logger.info(`[friends/list] pruned ${orphanIds.length} orphan friendship(s) (deleted accounts)`);
+      } catch (_) {/* best-effort */}
+    }
+    res.json({ friends: alive });
   } catch (e) {
     logger.error('[friends/list]', e);
     res.status(500).json({ error: e.message });
@@ -1701,12 +1715,66 @@ router.get('/family/members', requireAuth, async (req, res) => {
           // v23.1.280 — tier PawSpot actif du membre → anneau doré/bleu sur
           // l'avatar dans l'onglet Famille de l'app (parité _FriendTile).
           pawSpotTier: mini?.pawSpotTier || null,
-          // v23.1.398 — Paw Premium actif → couronne 👑 + anneau OR sur la
-          // carte (prioritaire sur le violet famille).
+          // v23.1.398 — Paw Premium actif → couronne 👑 + anneau OR sur la carte.
           isPremium: premiumSet.has(String(m.userId)),
+          // v451 — email pour la résolution premium CROSS-RÔLE (cf ci-dessous).
+          _email: (mini?.email || '').toLowerCase(),
+          // v451 — Daniel : « la famille garde le profil supprimé ». mini==null
+          // = compte supprimé → on marque pour l'exclure de la liste (auto-clean).
+          _deleted: !mini,
         };
       }),
     );
+
+    // v451 — Daniel : « mon frère est Paw Premium, lui se voit Premium mais moi
+    // je le vois en promeneur ». RACINE multi-profil (1 compte = 3 docs rôle aux
+    // _id différents) : la famille stocke l'id d'UN rôle (ex. promeneur) mais le
+    // premiumExpiry du frère peut être sur un AUTRE doc rôle (ex. owner) →
+    // premiumSet (par userId) le rate. On résout donc le premium AUSSI par EMAIL
+    // sur les 3 collections de rôle (couvre les comptes frères même si la sync
+    // inter-rôles n'a pas tourné).
+    try {
+      const emails = [...new Set(enriched.map((e) => e._email).filter(Boolean))];
+      if (emails.length) {
+        const idToEmail = new Map();
+        for (const RM of [Owner, Sitter, Walker]) {
+          // eslint-disable-next-line no-await-in-loop
+          const docs = await RM.find({ email: { $in: emails } }).select('_id email').lean();
+          for (const d of docs) idToEmail.set(String(d._id), (d.email || '').toLowerCase());
+        }
+        const sibIds = [...idToEmail.keys()];
+        const premiumEmails = new Set();
+        if (sibIds.length) {
+          const sibSubs = await UserSubscription.find({
+            userId: { $in: sibIds },
+            premiumExpiry: { $gt: now },
+          }).select('userId').lean();
+          for (const s of sibSubs) {
+            const em = idToEmail.get(String(s.userId));
+            if (em) premiumEmails.add(em);
+          }
+        }
+        for (const e of enriched) {
+          if (!e.isPremium && e._email && premiumEmails.has(e._email)) e.isPremium = true;
+        }
+      }
+    } catch (_) {/* best-effort */}
+    for (const e of enriched) delete e._email;
+
+    // v451 — exclut les membres dont le compte a été supprimé + purge ces
+    // entrées des familyMembers (best-effort) pour qu'elles ne réapparaissent
+    // jamais (« quand on supprime, tout disparaît »).
+    const aliveMembers = enriched.filter((m) => !m._deleted);
+    const deletedMemberIds = enriched.filter((m) => m._deleted).map((m) => m.id);
+    if (deletedMemberIds.length) {
+      try {
+        await UserSubscription.updateMany(
+          { 'familyMembers.userId': { $in: deletedMemberIds } },
+          { $pull: { familyMembers: { userId: { $in: deletedMemberIds } } } },
+        );
+      } catch (_) {/* best-effort */}
+    }
+    for (const e of aliveMembers) delete e._deleted;
 
     // remainingSlots compte les actives de la sub que JE detiens.
     const ownActiveCount = ownSub
@@ -1717,7 +1785,7 @@ router.get('/family/members', requireAuth, async (req, res) => {
       hasActiveFamilyPlan,
       isHolder,
       holder,
-      members: enriched,
+      members: aliveMembers,
       remainingSlots: ownSub ? Math.max(0, 5 - ownActiveCount) : 0,
     });
   } catch (e) {

@@ -274,6 +274,19 @@ const calculateAge = (dob) => {
   }
 };
 
+// v451 — Daniel : « l'âge du chien ne se met pas à jour » + affichage « 0m ans ».
+// RACINES : (1) l'app édite l'âge en NOMBRE D'ANNÉES (champ `age`) mais le PUT
+// ne le persistait pas (absent de la whitelist) → jamais sauvegardé ;
+// (2) la sérialisation renvoyait toujours l'âge DÉRIVÉ de la date de naissance
+// (calculateAge(dob) = « 0m »/« 2y ») que l'app suffixait de « ans » → « 0m ans ».
+// On privilégie désormais l'âge explicite (années) ; sinon on dérive de dob.
+const serializeAge = (pet) => {
+  if (!pet) return '';
+  const n = Number(pet.age);
+  if (pet.age != null && Number.isFinite(n) && n > 0) return String(n);
+  return calculateAge(pet.dob) || pet.dob || '';
+};
+
 const parseVaccinations = (vaccinationStr) => {
   if (!vaccinationStr || typeof vaccinationStr !== 'string') return [];
   
@@ -318,7 +331,7 @@ const getPetById = async (req, res) => {
       id: pet._id.toString(),
       petName: pet.petName || '',
       breed: pet.breed || '',
-      age: age || pet.dob || '',
+      age: serializeAge(pet),
       weight: pet.weight || '',
       height: pet.height || '',
       color: pet.colour || '',
@@ -466,7 +479,7 @@ const getMyPets = async (req, res) => {
 
       return {
         ...sanitizePet(pet),
-        age: age || pet.dob || '',
+        age: serializeAge(pet),
         vaccinations: vaccinations,
       };
     });
@@ -503,7 +516,7 @@ const getAllPets = async (req, res) => {
 
       return {
         ...sanitizePet(pet),
-        age: age || pet.dob || '',
+        age: serializeAge(pet),
         vaccinations: vaccinations,
         owner: ownerData,
       };
@@ -563,6 +576,15 @@ const updatePetProfile = async (req, res) => {
     }
     if (normalizedData.dob !== undefined) {
       updateData.dob = normalizedData.dob.trim();
+    }
+    // v451 — Daniel : « l'âge ne se met pas à jour ». L'app envoie l'âge en
+    // NOMBRE D'ANNÉES (champ `age`) mais il n'était PAS dans la whitelist →
+    // jamais persisté. On le sauvegarde désormais (Number, 0–60).
+    if (normalizedData.age !== undefined && normalizedData.age !== null && normalizedData.age !== '') {
+      const a = Number(normalizedData.age);
+      if (Number.isFinite(a) && a >= 0 && a <= 60) {
+        updateData.age = a;
+      }
     }
     if (normalizedData.weight !== undefined) {
       updateData.weight = normalizedData.weight.trim();
@@ -662,7 +684,7 @@ const updatePetProfile = async (req, res) => {
 
     const petResponse = {
       ...sanitizePet(updatedPet),
-      age: age || updatedPet.dob || '',
+      age: serializeAge(updatedPet),
       vaccinations: vaccinations,
     };
 
@@ -840,7 +862,7 @@ const updatePetMedia = async (req, res) => {
 
     const petResponse = {
       ...sanitizePet(pet),
-      age: age || pet.dob || '',
+      age: serializeAge(pet),
       vaccinations: vaccinations,
     };
 

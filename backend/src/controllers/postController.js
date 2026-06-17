@@ -635,13 +635,16 @@ const getRequestPosts = async (req, res) => {
         const allowed = [];
         if (viewer.canServiceAtOwner) allowed.push('at_owner');
         if (viewer.canServiceAtSitter) allowed.push('at_sitter');
-        // 'both' is always acceptable when at least one side matches, which is always true
-        // unless the sitter has disabled both (in which case we return nothing).
-        if (allowed.length === 0) {
-          return res.json({ posts: [] });
+        // v451 — Daniel : « sur le web, sitter/walker ne voient pas les
+        // annonces ». RACINE : quand le sitter n'a PAS configuré
+        // canServiceAtOwner/canServiceAtSitter (tous deux faux/undefined), on
+        // renvoyait une liste VIDE → aucune annonce. On traite désormais
+        // « non configuré » comme « accepte les deux » (on n'applique le filtre
+        // de lieu QUE si le sitter a explicitement choisi au moins un côté).
+        if (allowed.length > 0) {
+          allowed.push('both');
+          filter.serviceLocation = { $in: allowed };
         }
-        allowed.push('both');
-        filter.serviceLocation = { $in: allowed };
       }
       // Session avril 2026 — walking requests are walker-exclusive. Any
       // post whose serviceTypes array contains 'dog_walking' is removed
@@ -849,11 +852,11 @@ const getNearbyRequestPosts = async (req, res) => {
         const allowed = [];
         if (viewer.canServiceAtOwner) allowed.push('at_owner');
         if (viewer.canServiceAtSitter) allowed.push('at_sitter');
-        if (allowed.length === 0) {
-          return res.json({ posts: [], count: 0, radiusKm: maxDistanceKm });
+        // v451 — non configuré = « accepte les deux » (avant : liste vide).
+        if (allowed.length > 0) {
+          allowed.push('both');
+          filter.serviceLocation = { $in: allowed };
         }
-        allowed.push('both');
-        filter.serviceLocation = { $in: allowed };
       }
       // Walking requests are walker-exclusive — hide them from sitter map.
       filter.serviceTypes = { $nin: ['dog_walking'] };

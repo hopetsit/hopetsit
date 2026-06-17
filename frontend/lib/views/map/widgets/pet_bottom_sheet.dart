@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 import 'package:hopetsit/models/pet_map_item.dart';
 import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -94,7 +95,7 @@ Widget petBottomSheet(
                     ),
                     child: Center(
                       child: InterText(
-                        text: 'View Profile',
+                        text: 'common_view_profile'.tr,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w500,
                         color: AppColors.primaryColor,

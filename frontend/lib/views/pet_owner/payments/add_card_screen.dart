@@ -28,7 +28,7 @@ class AddCardScreen extends StatelessWidget {
         backgroundColor: AppColors.appBar(context),
         elevation: 0,
         title: PoppinsText(
-          text: 'Ajouter une carte',
+          text: 'add_card_title'.tr,
           fontSize: 18.sp,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary(context),
@@ -44,7 +44,7 @@ class AddCardScreen extends StatelessWidget {
                   size: 48.sp, color: AppColors.textSecondary(context)),
               SizedBox(height: 16.h),
               PoppinsText(
-                text: 'Carte enregistrée automatiquement',
+                text: 'add_card_auto_saved'.tr,
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary(context),

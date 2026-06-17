@@ -82,7 +82,7 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
           : _error != null
               ? _buildError()
               : _walker == null
-                  ? const Center(child: Text('Walker introuvable'))
+                  ? Center(child: Text('walker_not_found'.tr))
                   : _buildContent(),
     );
   }
@@ -98,7 +98,7 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
                 color: const Color(0xFFE53935), size: 48.sp),
             SizedBox(height: 12.h),
             InterText(
-              text: 'Impossible de charger le profil du promeneur.',
+              text: 'walker_load_error'.tr,
               fontSize: 14.sp,
               textAlign: TextAlign.center,
               color: AppColors.textSecondary(context),
@@ -107,8 +107,8 @@ class _WalkerDetailScreenState extends State<WalkerDetailScreen> {
             ElevatedButton(
               onPressed: _loadWalker,
               style: ElevatedButton.styleFrom(backgroundColor: _walkerAccent),
-              child: const Text('Réessayer',
-                  style: TextStyle(color: Colors.white)),
+              child: Text('common_retry'.tr,
+                  style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),

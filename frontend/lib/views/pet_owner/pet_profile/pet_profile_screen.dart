@@ -10,6 +10,7 @@ import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/repositories/pet_repository.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/pet_age_format.dart';
 import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_gallery_screen.dart';
 import 'package:hopetsit/views/profile/edit_pet_screen.dart';
@@ -368,7 +369,7 @@ class PetProfileScreen extends StatelessWidget {
                   InterText(
                     text: [
                       if (pet.breed.isNotEmpty) pet.breed,
-                      if (pet.age.isNotEmpty) '${pet.age} ${'pet_age_unit'.tr}',
+                      if (pet.age.isNotEmpty) petAgeDisplay(pet.age),
                     ].join(' • '),
                     fontSize: 13.sp,
                     color: AppColors.greyText,
@@ -480,7 +481,7 @@ class PetProfileScreen extends StatelessWidget {
         // 📏 Caractéristiques.
         _section('pet_characteristics'.tr, icon: Icons.straighten_rounded, [
           if (pet.breed.isNotEmpty) _kv('pet_breed'.tr, pet.breed),
-          if (pet.age.isNotEmpty) _kv('pet_age'.tr, '${pet.age} ${'pet_age_unit'.tr}'),
+          if (pet.age.isNotEmpty) _kv('pet_age'.tr, petAgeDisplay(pet.age)),
           if (sexLabel.isNotEmpty) _kv('pet_sex'.tr, sexLabel),
           if (pet.weight.isNotEmpty) _kv('pet_weight'.tr, '${pet.weight} kg'),
           if (pet.height.isNotEmpty) _kv('pet_height'.tr, '${pet.height} cm'),

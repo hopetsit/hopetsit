@@ -733,7 +733,7 @@ class _PublishReservationRequestScreenState
             ),
             SizedBox(height: 14.h),
             InterText(
-              text: 'Heure de fin (même jour)',
+              text: 'publish_end_time_same_day'.tr,
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary(context),

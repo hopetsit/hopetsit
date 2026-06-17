@@ -662,7 +662,7 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
                 Icon(Icons.credit_card_rounded, color: accent, size: 20.sp),
                 SizedBox(width: 8.w),
                 PoppinsText(
-                  text: 'Mes cartes enregistrées (${_savedCards.length})',
+                  text: '${'saved_cards_title'.tr} (${_savedCards.length})',
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary(context),
@@ -686,7 +686,7 @@ class _AirwallexPaymentScreenState extends State<AirwallexPaymentScreen> {
                         )),
                     SizedBox(width: 10.w),
                     InterText(
-                      text: 'Payer avec une nouvelle carte',
+                      text: 'pay_with_new_card'.tr,
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary(context),

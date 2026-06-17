@@ -6,6 +6,7 @@ import 'package:hopetsit/controllers/my_pets_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/models/pet_model.dart';
 import 'package:hopetsit/utils/app_colors.dart';
+import 'package:hopetsit/utils/pet_age_format.dart';
 import 'package:hopetsit/utils/pet_species_color.dart';
 import 'package:hopetsit/views/pet_owner/pet_profile/pet_profile_screen.dart';
 import 'package:hopetsit/widgets/app_text.dart';
@@ -244,7 +245,7 @@ class MyPetsScreen extends StatelessWidget {
                     children: [
                       if (pet.age.isNotEmpty)
                         _petMetric(context, Icons.calendar_today_rounded,
-                            '${pet.age} ${'pet_age_unit'.tr}', accent),
+                            petAgeDisplay(pet.age), accent),
                       if (pet.weight.isNotEmpty)
                         _petMetric(context, Icons.monitor_weight_outlined,
                             '${pet.weight} kg', accent),

@@ -100,9 +100,15 @@ const PROFANITY_WORDS = PROFANITY.filter((w) => !_isPhrase(w));
 const PROFANITY_PHRASES = PROFANITY.filter(_isPhrase);
 
 // Construit une regex de détection des insultes (sur la version dé-leetée).
+// v451 — Daniel : « PawSpot sort des étoiles alors qu'il n'y a rien à
+// censurer ». RACINE : la regex matchait en SOUS-CHAÎNE → des racines courtes
+// (« cu » PT, « pue » FR, « bite », « pue »…) censuraient des mots espagnols
+// INNOCENTS (« pueblo », « ocupado », « cuidado »…). Comme la censure se fait
+// déjà TOKEN PAR TOKEN (chaque token = un mot isolé), on ANCRE la regex pour
+// exiger une correspondance sur le MOT ENTIER (^…$) — fini les faux positifs.
 const PROFANITY_RE = new RegExp(
-  '(' + PROFANITY_WORDS.map((w) => escapeRe(deLeet(w))).join('|') + ')',
-  'gi',
+  '^(?:' + PROFANITY_WORDS.map((w) => escapeRe(deLeet(w))).join('|') + ')$',
+  'i',
 );
 // Regex plein-texte pour les phrases (insensible à la casse).
 const PROFANITY_PHRASE_RE = PROFANITY_PHRASES.length
@@ -125,7 +131,7 @@ function setExtraWords(words) {
   const wordsOnly = list.filter((w) => !_isPhrase(w));
   const phrases = list.filter(_isPhrase);
   EXTRA_RE = wordsOnly.length
-    ? new RegExp('(' + wordsOnly.map((w) => escapeRe(deLeet(w))).join('|') + ')', 'gi')
+    ? new RegExp('^(?:' + wordsOnly.map((w) => escapeRe(deLeet(w))).join('|') + ')$', 'i')
     : null;
   EXTRA_PHRASE_RE = phrases.length
     ? new RegExp('(' + phrases.map((w) => escapeRe(w)).join('|') + ')', 'gi')

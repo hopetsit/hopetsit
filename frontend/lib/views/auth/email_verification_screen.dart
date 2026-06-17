@@ -77,7 +77,7 @@ class EmailVerificationScreen extends StatelessWidget {
                 // Title
                 SizedBox(height: 30.h),
                 PoppinsText(
-                  text: 'Email Verification',
+                  text: 'email_verif_title'.tr,
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary(context),
@@ -87,7 +87,7 @@ class EmailVerificationScreen extends StatelessWidget {
 
                 // Instructions
                 InterText(
-                  text: 'Enter verification code send on',
+                  text: 'email_verif_enter_code'.tr,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
                   color: AppColors.textPrimary(context),
@@ -124,7 +124,7 @@ class EmailVerificationScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       InterText(
-                        text: 'Resent code in: ',
+                        text: 'email_verif_resend_in'.tr,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
                         color: AppColors.textPrimary(context),

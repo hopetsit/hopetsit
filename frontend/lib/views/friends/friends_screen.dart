@@ -895,7 +895,7 @@ class _OutgoingTile extends StatelessWidget {
                   color: AppColors.textPrimary(context),
                 ),
                 InterText(
-                  text: 'En attente…',
+                  text: 'friends_pending'.tr,
                   fontSize: 11.sp,
                   color: AppColors.greyText,
                 ),

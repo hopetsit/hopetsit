@@ -805,7 +805,7 @@ class _PersonaWebViewScreenState extends State<_PersonaWebViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vérification d\'identité'),
+        title: Text('kyc_identity_title'.tr),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),

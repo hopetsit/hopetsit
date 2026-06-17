@@ -65,7 +65,7 @@ class SignUpAsScreen extends StatelessWidget {
                 SizedBox(height: 8.h),
                 Center(
                   child: InterText(
-                    text: 'Choisis ton type de compte pour commencer.',
+                    text: 'signup_as_subtitle'.tr,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
                     color: AppColors.textSecondary(context),

@@ -285,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   icon: const Icon(Icons.add_rounded, color: Colors.white),
                   label: InterText(
-                    text: 'Publier une promenade',
+                    text: 'home_publish_walk'.tr,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
