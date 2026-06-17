@@ -322,5 +322,11 @@
     "body": "Deine Buchung beginnt in weniger als 72 Std. Mach dich bereit – du bestätigst den Servicebeginn in deinen Buchungen.",
     "emailSubject": "Dein Service beginnt in 72 Std — HoPetSit",
     "emailBody": "<p>Deine Buchung beginnt in weniger als 72 Stunden. Öffne die HoPetSit-App, um die Details zu sehen.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p>"
+  },
+  "lost_pet_sighting": {
+    "title": "Jemand hat dein Tier gesehen! 🐾",
+    "body": "Gute Nachrichten: Ein HoPetSit-Mitglied hat gemeldet, dein vermisstes Tier gesehen zu haben. Öffne die Paw Map, um zu sehen wo.",
+    "emailSubject": "Jemand hat dein vermisstes Tier gesehen — HoPetSit",
+    "emailBody": "<p>Gute Nachrichten: Ein HoPetSit-Mitglied hat gemeldet, dein vermisstes Tier gesehen zu haben. Öffne die Paw Map, um den Ort zu sehen.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EC407A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Auf der Paw Map ansehen</a></p>"
   }
 }

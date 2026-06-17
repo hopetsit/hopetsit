@@ -322,5 +322,11 @@
     "body": "La tua prenotazione inizia tra meno di 72h. Preparati: potrai confermare l'inizio del servizio nelle tue prenotazioni.",
     "emailSubject": "Il tuo servizio inizia tra 72h — HoPetSit",
     "emailBody": "<p>La tua prenotazione inizia tra meno di 72 ore. Apri l'app HoPetSit per vedere i dettagli.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi prenotazione</a></p>"
+  },
+  "lost_pet_sighting": {
+    "title": "Qualcuno ha visto il tuo animale! 🐾",
+    "body": "Buone notizie: un membro HoPetSit ha segnalato di aver visto il tuo animale smarrito. Apri la Paw Map per vedere dove.",
+    "emailSubject": "Qualcuno ha visto il tuo animale smarrito — HoPetSit",
+    "emailBody": "<p>Buone notizie: un membro HoPetSit ha segnalato di aver visto il tuo animale smarrito. Apri la Paw Map per vedere la posizione.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#EC407A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Vedi sulla Paw Map</a></p>"
   }
 }

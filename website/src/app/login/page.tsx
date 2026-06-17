@@ -23,7 +23,13 @@ export default function LoginPage() {
     const cleanEmail = email.trim().toLowerCase();
     try {
       await login(cleanEmail, password);
-      router.push("/dashboard");
+      // v23.1.452 — retour vers la page demandée (ex. la Paw Map) après login.
+      // On lit `redirect` côté navigateur dans le handler pour éviter l'erreur
+      // de build Next "useSearchParams must be wrapped in Suspense". On
+      // n'accepte que les chemins internes (commençant par "/") par sécurité.
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      router.push(redirect && redirect.startsWith("/") ? redirect : "/dashboard");
     } catch (e) {
       // v402 — compte non vérifié : le backend renvoie 403 et renvoie un
       // nouveau code par email → on bascule sur la page de vérification.

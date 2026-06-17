@@ -4,6 +4,7 @@ import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { DownloadAppBanner } from "@/components/DownloadAppBanner";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -110,6 +111,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <LanguageProvider>
           <Header />
+          {/* v23.1.452 — bannière de téléchargement site-wide (desktop : barre
+              fine en flux sous le Header ; mobile : bouton flottant). */}
+          <DownloadAppBanner />
           <main>{children}</main>
           <Footer />
         </LanguageProvider>

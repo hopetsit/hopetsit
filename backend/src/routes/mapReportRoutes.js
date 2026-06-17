@@ -400,11 +400,25 @@ router.post('/', requireAuth, attachPremium, async (req, res) => {
 });
 
 // ── POST /:id/confirm — extend life by 12h (Premium) ───────────────────────
-router.post('/:id/confirm', requireAuth, requirePremium, async (req, res) => {
+// v452 — Daniel : « aider pour un animal perdu » doit être CÂBLÉ et GRATUIT
+// pour tout le monde. On passe en `attachPremium` (n'bloque pas) puis on
+// exige Premium UNIQUEMENT pour les autres types (prolonger un signalement =
+// perk Premium). Pour `lost_pet`, n'importe qui peut confirmer « J'ai vu cet
+// animal » → +1 sighting, alerte prolongée, et le propriétaire est PRÉVENU.
+router.post('/:id/confirm', requireAuth, attachPremium, async (req, res) => {
   try {
     const report = await MapReport.findById(req.params.id);
     if (!report || report.hidden) {
       return res.status(404).json({ error: 'Report not found.' });
+    }
+
+    // Aider un animal perdu = gratuit. Les autres types restent Premium.
+    if (report.type !== 'lost_pet' && !req.isPremium) {
+      return res.status(402).json({
+        error: 'Premium subscription required.',
+        code: 'PREMIUM_REQUIRED',
+        upgradeUrl: '/subscriptions/plans',
+      });
     }
 
     const userModel = ROLE_TO_MODEL_NAME[req.user.role] || 'Owner';
@@ -435,6 +449,28 @@ router.post('/:id/confirm', requireAuth, requirePremium, async (req, res) => {
       ));
       report.expiresAt = extended;
       await report.save();
+
+      // v452 — animal perdu : prévenir le PROPRIÉTAIRE (le reporter) qu'un
+      // membre a aperçu son animal (bell + push + email). Best-effort, ne
+      // bloque jamais la réponse. On ne se notifie pas soi-même.
+      if (
+        report.type === 'lost_pet' &&
+        String(report.reporterId) !== String(req.user.id)
+      ) {
+        try {
+          const { sendNotification } = require('../services/notificationSender');
+          sendNotification({
+            userId: report.reporterId,
+            role: String(report.reporterModel || 'Owner').toLowerCase(),
+            type: 'lost_pet_sighting',
+            data: {
+              reportId: String(report._id),
+              city: report.location && report.location.city ? report.location.city : '',
+            },
+            actor: { role: req.user.role, id: req.user.id },
+          }).catch(() => {});
+        } catch (_) {/* non-critique */}
+      }
     }
 
     res.json({

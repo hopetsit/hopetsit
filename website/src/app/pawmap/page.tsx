@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import PawSpotGoldCoin from "@/components/PawSpotGoldCoin";
+import { PawMapCTA } from "@/components/PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 type Plan = {
@@ -127,21 +128,19 @@ export default function PawMapPage() {
       <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-ink-muted">{t("pawmap_sub")}</p>
       <p className="mt-3 text-center text-sm font-semibold text-walker-dark">{t("pawmap_categories")}</p>
 
-      {/* v23.1 part 146 — CTA vers la carte interactive (auth required). */}
-      {/* v23.1 part 243 round 3 — second CTA vers /friends/live. */}
-      {/* v23.1 carte unique — /friends/live fusionnée dans /map : le second
-          CTA pointe désormais aussi vers la carte unique. */}
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link
-          href="/map"
-          className="inline-flex items-center gap-2 rounded-full bg-walker px-6 py-3 text-sm font-semibold text-white shadow-cta hover:bg-walker-dark"
-        >
-          <span>🗺️</span>
-          <span>{t("pawmap_open_interactive")}</span>
-          <span>→</span>
-        </Link>
-        {/* v23.1.358 — Daniel : "efface amis en direct" — CTA supprimé,
-            la couche amis vit dans la carte unique (chip PawFollow). */}
+      {/* v23.1.452 — Daniel : message marketing Paw Map juste sous le titre. */}
+      <div className="mx-auto mt-5 max-w-md space-y-1 text-center text-sm text-ink-muted">
+        <p>{t("pawmap_msg_countries")}</p>
+        <p>{t("pawmap_msg_live")}</p>
+        <p>{t("pawmap_msg_places")}</p>
+        <p>{t("pawmap_msg_platforms")}</p>
+      </div>
+
+      {/* v23.1.452 — Daniel : CTA Paw Map phare (orange #FF6A00) vers la carte
+          interactive (login requis → redirect /map). Remplace l'ancien bouton
+          vert. La couche amis vit dans la carte unique (chip PawFollow). */}
+      <div className="mt-7 flex flex-wrap justify-center gap-3">
+        <PawMapCTA size="hero" />
       </div>
 
       <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3">

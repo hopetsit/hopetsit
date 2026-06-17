@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogoWithText } from "./Logo";
 import { LangSwitcher } from "./LangSwitcher";
+import { PawMapCTA } from "./PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/useAuth";
 import { clearAuth } from "@/lib/api";
@@ -58,6 +59,10 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* v23.1.452 — Daniel : la Paw Map est LE bouton phare, visible sur
+              chaque page quel que soit l'état de connexion. On le place en tête
+              du cluster droit pour qu'il soit l'élément le plus visible. */}
+          <PawMapCTA size="compact" />
           <LangSwitcher />
 
           {/* Until we've read localStorage, render a placeholder of the same
@@ -123,6 +128,10 @@ export function Header() {
 
       {open && (
         <nav className="border-t border-ink/5 bg-white px-4 py-2 md:hidden">
+          {/* v23.1.452 — Paw Map en tête du menu mobile, toujours visible. */}
+          <div className="px-2 py-2.5" onClick={() => setOpen(false)}>
+            <PawMapCTA size="compact" className="w-full" />
+          </div>
           {links.map((l) => (
             <Link
               key={l.href}

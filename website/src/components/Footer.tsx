@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LogoWithText } from "./Logo";
+import { PawMapCTA } from "./PawMapCTA";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 // v402 — réseaux sociaux officiels HoPetSit (fournis par Daniel).
@@ -92,6 +93,11 @@ export function Footer() {
                 contact@hopetsit.com
               </a>
             </p>
+            {/* v23.1.452 — Daniel : CTA Paw Map (fonctionnalité phare) dans le
+                footer, présent sur chaque page. */}
+            <div className="mt-5">
+              <PawMapCTA size="compact" />
+            </div>
             {/* v402 — réseaux sociaux HoPetSit (Daniel). */}
             <div className="mt-4 flex items-center gap-3">
               {SOCIALS.map((s) => (
