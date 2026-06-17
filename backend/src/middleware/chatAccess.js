@@ -146,17 +146,17 @@ const requirePaidBooking = async (req, res, next) => {
         }
 
         // v23.1 part 228 — fallback ultra-permissif : ANY UserSubscription
-        // doc active du user (peu importe userModel/plan) → bypass. Cas :
-        // sub doc ancien sans champ userModel correctement set, ou plan
-        // 'family'/'famille' enum mismatch v175.
+        // doc active du user (peu importe userModel/plan) → bypass.
+        // v450 — Daniel : « PawSpot doit aussi débloquer le chat ». L'ancien
+        // check ne regardait QUE currentPeriodEnd → un abo PawSpot SEUL
+        // (pawspotExpiry) prenait 403. On détecte désormais par DATE sur les
+        // 4 timers (currentPeriodEnd / familyExpiry / pawspotExpiry /
+        // premiumExpiry) via hasAnyActiveSubscription.
         try {
-          const anyActiveSub = await UserSubscription.findOne({
-            userId,
-            status: 'active',
-            currentPeriodEnd: { $gt: new Date() },
-          }).select('plan planType status currentPeriodEnd').lean();
+          const { hasAnyActiveSubscription } = require('../models/UserSubscription');
+          const anyActiveSub = await hasAnyActiveSubscription(userId);
           if (anyActiveSub) {
-            log403Decision('BYPASS_ANY_SUB', { plan: anyActiveSub.plan });
+            log403Decision('BYPASS_ANY_SUB');
             return next();
           }
         } catch (e) {

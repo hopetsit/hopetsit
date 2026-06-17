@@ -371,6 +371,10 @@ class _RewardsSheetState extends State<_RewardsSheet> {
   Set<String> _claimed = {};
   // /catalog
   List<Map<String, dynamic>> _subRewards = const [];
+  // v450 — Daniel : « vérifie que les récompenses fonctionnent ». Les
+  // récompenses créées dans l'admin (PawReward) arrivent dans cat['rewards']
+  // mais n'étaient jamais lues → invisibles dans l'app. On les charge ici.
+  List<Map<String, dynamic>> _customRewards = const [];
 
   @override
   void initState() {
@@ -393,6 +397,7 @@ class _RewardsSheetState extends State<_RewardsSheet> {
       setState(() {
         if (cat is Map) {
           _subRewards = _list(cat['subscriptionRewards']);
+          _customRewards = _list(cat['rewards']);
         }
         if (me is Map) {
           _lifetime = (me['lifetime'] as num?)?.toInt() ?? 0;
@@ -515,6 +520,14 @@ class _RewardsSheetState extends State<_RewardsSheet> {
           'pawpoints_sub_rewards_sub'.tr),
       SizedBox(height: 10.h),
       ..._subRewards.map((r) => _subRewardRow(context, r)),
+      // v450 — récompenses créées dans l'admin (PawReward). Affichées + échangeables.
+      if (_customRewards.isNotEmpty) ...[
+        SizedBox(height: 22.h),
+        _sectionTitle(context, 'pawpoints_rewards_title'.tr,
+            'pawpoints_rewards_sub'.tr),
+        SizedBox(height: 10.h),
+        ..._customRewards.map((r) => _customRewardRow(context, r)),
+      ],
       SizedBox(height: 22.h),
       _sectionTitle(context, 'pawpoints_levels_title'.tr,
           'pawpoints_levels_sub'.tr),
@@ -842,6 +855,112 @@ class _RewardsSheetState extends State<_RewardsSheet> {
                   : InterText(
                       text: claimed
                           ? 'pawpoints_used'.tr
+                          : affordable
+                              ? 'pawpoints_redeem'.tr
+                              : 'pawpoints_locked'.tr,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // v450 — ligne récompense admin custom (PawReward). Même style que les
+  // récompenses abonnement ; échange via le même POST /pawpoints/redeem/:id
+  // (id = ObjectId). soldOut → bouton désactivé.
+  Widget _customRewardRow(BuildContext context, Map<String, dynamic> r) {
+    final cost = (r['cost'] as num?)?.toInt() ?? 0;
+    final icon = (r['icon'] ?? '🎁').toString();
+    final title = (r['title'] ?? '').toString();
+    final valueLabel = (r['valueLabel'] ?? '').toString();
+    final soldOut = r['soldOut'] == true;
+    final affordable = _spendable >= cost;
+    final busy = _busyId == (r['id'] ?? '').toString();
+    return Container(
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.all(10.w),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14.r),
+        boxShadow: AppColors.cardShadow(context),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42.w,
+            height: 42.w,
+            decoration: BoxDecoration(
+              color: _gold.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(child: Text(icon, style: TextStyle(fontSize: 20.sp))),
+          ),
+          SizedBox(width: 8.w),
+          Flexible(
+            flex: 0,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PoppinsText(
+                  text: '$cost',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary(context),
+                ),
+                InterText(text: 'pts', fontSize: 9.sp, color: AppColors.greyText),
+              ],
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InterText(
+                  text: title,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (valueLabel.isNotEmpty)
+                  InterText(
+                    text: valueLabel,
+                    fontSize: 9.sp,
+                    color: AppColors.greyText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(width: 6.w),
+          SizedBox(
+            height: 30.h,
+            child: ElevatedButton(
+              onPressed: (soldOut || !affordable || busy) ? null : () => _redeem(r),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                disabledBackgroundColor: AppColors.greyText.withValues(alpha: 0.3),
+                padding: EdgeInsets.symmetric(horizontal: 10.w),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r)),
+              ),
+              child: busy
+                  ? SizedBox(
+                      width: 14.w,
+                      height: 14.w,
+                      child: const CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : InterText(
+                      text: soldOut
+                          ? 'pawpoints_sold_out'.tr
                           : affordable
                               ? 'pawpoints_redeem'.tr
                               : 'pawpoints_locked'.tr,

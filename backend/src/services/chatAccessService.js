@@ -69,12 +69,12 @@ async function getChatAccess(userId, userModelOrRole) {
     iHavePawFollow = await hasActivePawFollow(userId);
   } catch (_) {/* defensive */}
   try {
-    const found = await UserSubscription.findOne({
-      userId,
-      status: 'active',
-      currentPeriodEnd: { $gt: now },
-    }).select('status').lean();
-    anyActiveSub = !!found;
+    // v450 — Daniel : PawSpot (pawspotExpiry) doit aussi débloquer le chat.
+    // L'ancien check ne regardait que currentPeriodEnd → un abo PawSpot SEUL
+    // ratait. On détecte par DATE sur les 4 timers (PawFollow / PawFamily /
+    // PawSpot / Premium) via le helper partagé.
+    const { hasAnyActiveSubscription } = require('../models/UserSubscription');
+    anyActiveSub = await hasAnyActiveSubscription(userId);
   } catch (_) {/* defensive */}
 
   const [sub, addon] = await Promise.all([

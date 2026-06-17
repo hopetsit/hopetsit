@@ -560,6 +560,35 @@ async function hasActivePawFollow(userId) {
   return !!asMember;
 }
 
+// v450 — Daniel : « vérifie qu'acheter PawFollow OU PawSpot OU PawFamily OU
+// PawPremium débloque le chat ». RACINE du trou : les gates chat (middleware +
+// service) détectaient l'abo via `currentPeriodEnd` (PawFollow/Premium) et
+// `hasActivePawFollow` (PawFollow + familyExpiry) — mais JAMAIS `pawspotExpiry`.
+// Donc un abonné PawSpot SEUL prenait 403. Ce helper centralise la détection
+// « un abo (n'importe lequel) est actif » par DATE sur les 4 timers, pour que
+// les 2 gates partagent la même vérité (fini la divergence répétée).
+//   currentPeriodEnd → PawFollow (solo/monthly/yearly) + Premium
+//   familyExpiry     → PawFamily (+ ancien plan='famille')
+//   pawspotExpiry    → PawSpot communautaire
+//   premiumExpiry    → Paw Premium (extras)
+async function hasAnyActiveSubscription(userId) {
+  if (!userId) return false;
+  const Model = mongoose.model('UserSubscription');
+  const now = new Date();
+  const found = await Model.findOne({
+    userId: String(userId),
+    $or: [
+      { currentPeriodEnd: { $gt: now } },
+      { familyExpiry: { $gt: now } },
+      { pawspotExpiry: { $gt: now } },
+      { premiumExpiry: { $gt: now } },
+    ],
+  })
+    .select('_id')
+    .lean();
+  return !!found;
+}
+
 // v23.1.297 — Daniel : "jai 5 amis/famille en direct et le cercle compte 2 ;
 // il faut compter famille ET amis". Le fanout position (mapSocket) ne se basait
 // QUE sur Friendship → un membre famille qui n'est pas aussi un ami accepté
@@ -614,6 +643,8 @@ module.exports.PREMIUM_PRICING = PREMIUM_PRICING;
 module.exports.PREMIUM_FEATURES_DEFAULT = PREMIUM_FEATURES_DEFAULT;
 module.exports.isInSameFamily = isInSameFamily;
 module.exports.hasActivePawFollow = hasActivePawFollow;
+// v450 — détection « n'importe quel abo actif » (4 timers) pour les gates chat.
+module.exports.hasAnyActiveSubscription = hasAnyActiveSubscription;
 // v23.1.297 — fanout position famille (mapSocket "Mon cercle").
 module.exports.listFamilyMembers = listFamilyMembers;
 // v23.1.283 — découplage famille / individuel.

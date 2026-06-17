@@ -649,6 +649,17 @@ export const t: Bundle = {
     pp_perk_legendary_status: "Legendary status",
     pp_perk_pink_crown:       "Pink crown",
     pp_perk_ultimate:         "Ultimate perks",
+    // custom rewards (admin)
+    pp_rewards_custom_title:  "Rewards",
+    pp_rewards_custom_sub:    "Trade your points for rewards.",
+    pp_sold_out:              "Sold out",
+    // promo code (boutique)
+    promo_title:              "Promo code",
+    promo_placeholder:        "Enter your code",
+    promo_apply:              "Apply",
+    promo_ok_sub:             "Subscription activated",
+    promo_ok_discount:        "Discount applied, valid on your next subscription purchase",
+    promo_invalid:            "Invalid code",
 
     // ── Bookings (réservations) — service confirmation + reviews ──
     bookings_title:              "My bookings",
@@ -1308,6 +1319,17 @@ export const t: Bundle = {
     pp_perk_legendary_status: "Statut Légendaire",
     pp_perk_pink_crown:       "Couronne rose",
     pp_perk_ultimate:         "Avantages ultimes",
+    // custom rewards (admin)
+    pp_rewards_custom_title:  "Récompenses",
+    pp_rewards_custom_sub:    "Échange tes points contre des récompenses.",
+    pp_sold_out:              "Épuisé",
+    // promo code (boutique)
+    promo_title:              "Code promo",
+    promo_placeholder:        "Entrez votre code",
+    promo_apply:              "Appliquer",
+    promo_ok_sub:             "Abonnement activé",
+    promo_ok_discount:        "Réduction appliquée, valable à votre prochain achat d'abonnement",
+    promo_invalid:            "Code invalide",
 
     // ── Réservations — confirmation de service + avis ──
     bookings_title:              "Mes réservations",
@@ -1851,6 +1873,17 @@ export const t: Bundle = {
     pp_perk_legendary_status: "Estatus Legendario",
     pp_perk_pink_crown:       "Corona rosa",
     pp_perk_ultimate:         "Ventajas supremas",
+    // custom rewards (admin)
+    pp_rewards_custom_title:  "Recompensas",
+    pp_rewards_custom_sub:    "Canjea tus puntos por recompensas.",
+    pp_sold_out:              "Agotado",
+    // promo code (boutique)
+    promo_title:              "Código promocional",
+    promo_placeholder:        "Introduce tu código",
+    promo_apply:              "Aplicar",
+    promo_ok_sub:             "Suscripción activada",
+    promo_ok_discount:        "Descuento aplicado, válido en tu próxima compra de suscripción",
+    promo_invalid:            "Código no válido",
 
     // ── Reservas — confirmación de servicio + reseñas ──
     bookings_title:              "Mis reservas",
@@ -2393,6 +2426,17 @@ export const t: Bundle = {
     pp_perk_legendary_status: "Legendärer Status",
     pp_perk_pink_crown:       "Rosa Krone",
     pp_perk_ultimate:         "Ultimative Vorteile",
+    // custom rewards (admin)
+    pp_rewards_custom_title:  "Prämien",
+    pp_rewards_custom_sub:    "Tausche deine Punkte gegen Prämien.",
+    pp_sold_out:              "Ausverkauft",
+    // promo code (boutique)
+    promo_title:              "Promo-Code",
+    promo_placeholder:        "Gib deinen Code ein",
+    promo_apply:              "Anwenden",
+    promo_ok_sub:             "Abo aktiviert",
+    promo_ok_discount:        "Rabatt angewendet, gültig bei deinem nächsten Abo-Kauf",
+    promo_invalid:            "Ungültiger Code",
 
     // ── Buchungen — Servicebestätigung + Bewertungen ──
     bookings_title:              "Meine Buchungen",
@@ -2935,6 +2979,17 @@ export const t: Bundle = {
     pp_perk_legendary_status: "Status Leggendario",
     pp_perk_pink_crown:       "Corona rosa",
     pp_perk_ultimate:         "Vantaggi supremi",
+    // custom rewards (admin)
+    pp_rewards_custom_title:  "Premi",
+    pp_rewards_custom_sub:    "Scambia i tuoi punti con dei premi.",
+    pp_sold_out:              "Esaurito",
+    // promo code (boutique)
+    promo_title:              "Codice promo",
+    promo_placeholder:        "Inserisci il tuo codice",
+    promo_apply:              "Applica",
+    promo_ok_sub:             "Abbonamento attivato",
+    promo_ok_discount:        "Sconto applicato, valido al tuo prossimo acquisto di abbonamento",
+    promo_invalid:            "Codice non valido",
 
     // ── Prenotazioni — conferma servizio + recensioni ──
     bookings_title:              "Le mie prenotazioni",
@@ -3477,6 +3532,17 @@ export const t: Bundle = {
     pp_perk_legendary_status: "Estatuto Lendário",
     pp_perk_pink_crown:       "Coroa rosa",
     pp_perk_ultimate:         "Vantagens supremas",
+    // custom rewards (admin)
+    pp_rewards_custom_title:  "Recompensas",
+    pp_rewards_custom_sub:    "Troca os teus pontos por recompensas.",
+    pp_sold_out:              "Esgotado",
+    // promo code (boutique)
+    promo_title:              "Código promocional",
+    promo_placeholder:        "Introduz o teu código",
+    promo_apply:              "Aplicar",
+    promo_ok_sub:             "Subscrição ativada",
+    promo_ok_discount:        "Desconto aplicado, válido na tua próxima compra de subscrição",
+    promo_invalid:            "Código inválido",
 
     // ── Reservas — confirmação de serviço + avaliações ──
     bookings_title:              "As minhas reservas",

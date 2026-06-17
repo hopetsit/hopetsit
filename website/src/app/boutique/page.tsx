@@ -35,6 +35,7 @@ import {
   PaymentIntentResponse,
   purchaseBoost,
   purchaseMapBoost,
+  redeemPromo,
   resumeSubscription,
   subscribeToPlan,
   SubscriptionPlan,
@@ -66,6 +67,11 @@ export default function BoutiquePage() {
   const [section, setSection] = useState<Section>("premium");
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+
+  // v450 — code promo (réductions / abonnement offert, géré côté admin).
+  const [promoCode, setPromoCode] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     const u = getStoredUser();
@@ -216,6 +222,38 @@ export default function BoutiquePage() {
     }
   }
 
+  // v450 — applique un code promo. free_subscription est accordé immédiatement ;
+  // percent_discount s'appliquera automatiquement au prochain achat d'abonnement.
+  async function handleApplyPromo() {
+    const code = promoCode.trim();
+    if (!code || promoBusy) return;
+    setPromoBusy(true);
+    setPromoMsg(null);
+    try {
+      const res = await redeemPromo(code);
+      const type = res.reward?.rewardType;
+      setPromoMsg({
+        ok: true,
+        text: type === "free_subscription" ? t("promo_ok_sub") : t("promo_ok_discount"),
+      });
+      setPromoCode("");
+      if (type === "free_subscription") {
+        try {
+          setSubStatus(await getSubscriptionStatus());
+        } catch {
+          /* l'abo est activé côté backend même si le refresh échoue */
+        }
+      }
+    } catch (e) {
+      setPromoMsg({
+        ok: false,
+        text: e instanceof Error ? e.message : t("promo_invalid"),
+      });
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+
   async function handleResumeSubscription() {
     setCancelling(true);
     try {
@@ -277,6 +315,36 @@ export default function BoutiquePage() {
         </span>
         <span className="shrink-0 text-amber-600">→</span>
       </Link>
+
+      {/* v450 — Code promo : réduction ou abonnement offert (géré côté admin). */}
+      <div className="mt-5 rounded-2xl border border-ink/10 bg-white p-4 shadow-card">
+        <p className="text-sm font-extrabold text-ink">{t("promo_title")}</p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleApplyPromo();
+            }}
+            placeholder={t("promo_placeholder")}
+            className="min-w-0 flex-1 rounded-full border border-ink/15 px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-amber-400"
+          />
+          <button
+            type="button"
+            onClick={handleApplyPromo}
+            disabled={promoBusy || !promoCode.trim()}
+            className="shrink-0 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+          >
+            {promoBusy ? "…" : t("promo_apply")}
+          </button>
+        </div>
+        {promoMsg && (
+          <p className={`mt-3 text-sm ${promoMsg.ok ? "text-emerald-700" : "text-red-700"}`}>
+            {promoMsg.text}
+          </p>
+        )}
+      </div>
 
       {/* Tabs sections — ordre Daniel : PawBoost · PawFollow · PawSpot · Premium */}
       <div className="mt-6 inline-flex flex-wrap gap-2 rounded-full bg-ink/5 p-1">

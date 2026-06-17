@@ -2060,6 +2060,44 @@ export async function redeemPawReward(
   });
 }
 
+// ─── Codes promo ──────────────────────────────────────────────────────────
+// Vérifie un code promo (sans le consommer). Le backend renvoie le détail.
+export type PromoCheck = {
+  valid: boolean;
+  rewardType?: string;
+  plan?: string;
+  intervalDays?: number;
+  boostTier?: string;
+  discountPercent?: number;
+  campaign?: string;
+};
+export async function checkPromo(code: string): Promise<PromoCheck> {
+  return await request("/promo/check", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+// Échange un code promo (consomme la redemption). free_subscription est accordé
+// immédiatement ; percent_discount s'applique au prochain /subscriptions/subscribe.
+export type PromoRedeem = {
+  ok: boolean;
+  reward?: {
+    rewardType?: string;
+    plan?: string;
+    intervalDays?: number;
+    boostTier?: string;
+    discountPercent?: number;
+    campaign?: string;
+  };
+};
+export async function redeemPromo(code: string): Promise<PromoRedeem> {
+  return await request("/promo/redeem", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
 export async function subscribeToPlan(
   // v23.1.387 — + family_yearly, premium_monthly, premium_yearly.
   plan: string,

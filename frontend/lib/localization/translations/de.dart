@@ -3032,6 +3032,7 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawpoints_legend_sub': 'Ein einzigartiger Status im Profil + die exklusivsten Vorteile.',
       'pawpoints_legend_remaining': 'Noch @pts Pkt.',
       'pawpoints_rewards_title': 'Prämien',
+      'pawpoints_rewards_sub': 'Tausche deine Punkte gegen Belohnungen',
       'pawpoints_how_to_earn': 'So sammelst du Punkte',
       'pawpoints_rewards_empty': 'Prämien bald verfügbar',
       'pawpoints_not_enough': 'Nicht genug PawPoints',

@@ -321,6 +321,43 @@ router.post('/subscribe', requireAuth, async (req, res) => {
       logger.warn(`[subscription] pawpoints discount check failed: ${e.message}`);
     }
 
+    // v450 — Daniel : « vérifie que les promotions fonctionnent ». RACINE :
+    // un code promo `percent_discount` était bien validé + sa redemption
+    // enregistrée, mais la réduction n'était JAMAIS appliquée à l'achat
+    // (seuls parrainage + réductions PawPoints l'étaient). On consomme ici la
+    // 1re redemption `percent_discount` non encore consommée qui s'applique à
+    // CE plan (ou tous plans), et on réduit le montant. Une seule réduction à
+    // la fois (pas d'empilage avec parrainage/PawPoints).
+    let promoDiscountApplied = 0;
+    try {
+      if (!referralDiscountApplied && !pawDiscountApplied) {
+        const PromoCodeRedemption = require('../models/PromoCodeRedemption');
+        const pendingPromos = await PromoCodeRedemption.find({
+          userId,
+          'reward.kind': 'percent_discount',
+          discountConsumedAt: null,
+        }).sort({ createdAt: 1 });
+        const match = pendingPromos.find((r) => {
+          const p = r.reward && r.reward.plan;
+          return !p || p === 'any' || p === plan
+            || (plan === 'family' && p === 'famille')
+            || (plan === 'famille' && p === 'family');
+        });
+        if (match) {
+          const pct = Number(match.reward.discountPercent) || 0;
+          if (pct > 0) {
+            pricing.amount = Math.round(pricing.amount * (1 - pct / 100) * 100) / 100;
+            promoDiscountApplied = pct;
+            match.discountConsumedAt = new Date();
+            await match.save();
+            logger.info(`[subscription] code promo -${pct}% appliqué pour ${role} ${userId} (${match.code}) → ${pricing.amount} ${pricing.currency}`);
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn(`[subscription] promo discount check failed: ${e.message}`);
+    }
+
     const amountCents = Math.round(pricing.amount * 100);
 
     // ─── v23.1 part 84 — pay-with-wallet (walker/sitter only)

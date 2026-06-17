@@ -2865,6 +2865,7 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawpoints_legend_sub': 'Um estatuto único no perfil + as vantagens mais exclusivas.',
       'pawpoints_legend_remaining': 'Faltam @pts pts',
       'pawpoints_rewards_title': 'Recompensas',
+      'pawpoints_rewards_sub': 'Troca os teus pontos por recompensas',
       'pawpoints_how_to_earn': 'Como ganhar pontos',
       'pawpoints_rewards_empty': 'Recompensas em breve',
       'pawpoints_not_enough': 'PawPoints insuficientes',

@@ -2996,6 +2996,7 @@ const Map<String, String> esESTranslations = <String, String>{
       'pawpoints_legend_sub': 'Un estatus único en tu perfil + las ventajas más exclusivas.',
       'pawpoints_legend_remaining': 'Faltan @pts pts',
       'pawpoints_rewards_title': 'Recompensas',
+      'pawpoints_rewards_sub': 'Canjea tus puntos por recompensas',
       'pawpoints_how_to_earn': 'Cómo ganar puntos',
       'pawpoints_rewards_empty': 'Las recompensas llegan pronto',
       'pawpoints_not_enough': 'PawPoints insuficientes',

@@ -197,6 +197,45 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
     if (newBalance === null) {
       return res.status(400).json({ error: 'Pas assez de PawPoints.', code: 'INSUFFICIENT' });
     }
+
+    // v450 — Daniel : « vérifie que les récompenses fonctionnent ». RACINE :
+    // une récompense admin custom de type `subscription`/`boost` débitait les
+    // points mais ne créait qu'une redemption `pending` JAMAIS honorée
+    // automatiquement → l'utilisateur perdait ses points pour rien. On
+    // OCTROIE désormais immédiatement (comme les récompenses abo intégrées) :
+    //   subscription → grantFreePeriod (jours d'abo offerts)
+    //   boost        → prolonge boostExpiry du user
+    //   discount/badge/goodie → reste 'pending' (réduction consommée à l'achat
+    //   ou remise/goodie traités à la main par l'admin).
+    let applied = 'pending';
+    try {
+      if (reward.kind === 'subscription' && reward.plan) {
+        await grantFreePeriod({
+          userId: req.user.id,
+          role,
+          plan: reward.plan,
+          days: Number(reward.intervalDays) || 30,
+        });
+        applied = 'fulfilled';
+      } else if (reward.kind === 'boost') {
+        const now = new Date();
+        const u = await Model.findById(req.user.id).select('boostExpiry boostTier');
+        if (u) {
+          const base = u.boostExpiry && new Date(u.boostExpiry) > now
+            ? new Date(u.boostExpiry) : now;
+          u.boostExpiry = new Date(base.getTime() + (Number(reward.intervalDays) || 7) * 86400000);
+          if (reward.boostTier) u.boostTier = reward.boostTier;
+          await u.save();
+          applied = 'fulfilled';
+        }
+      }
+    } catch (e) {
+      // Octroi échoué → on rembourse les points dépensés.
+      logger.error('[pawpoints/redeem] admin reward grant failed, refunding', e);
+      await Model.updateOne({ _id: req.user.id }, { $inc: { pawPointsSpendable: reward.cost } }).catch(() => {});
+      return res.status(500).json({ error: 'Échec de l\'application, points remboursés.' });
+    }
+
     reward.redeemedCount = (reward.redeemedCount || 0) + 1;
     await reward.save();
     const me = await Model.findById(req.user.id).select('name email').lean();
@@ -204,15 +243,15 @@ router.post('/redeem/:id', requireAuth, async (req, res) => {
       rewardId: reward._id, title: reward.title, cost: reward.cost,
       userId: req.user.id, userModel, role,
       userName: me?.name || '', userEmail: me?.email || '',
-      status: 'pending',
+      status: applied,
       snapshot: {
         kind: reward.kind, plan: reward.plan, intervalDays: reward.intervalDays,
         boostTier: reward.boostTier, valueLabel: reward.valueLabel,
       },
     });
-    logger.info(`🎁 [pawpoints] redeem "${reward.title}" (-${reward.cost}) → ${role}:${req.user.id}`);
+    logger.info(`🎁 [pawpoints] redeem "${reward.title}" (-${reward.cost}) → ${role}:${req.user.id} (${applied})`);
     return res.json({
-      ok: true, newBalance, applied: 'pending',
+      ok: true, newBalance, applied,
       redemptionId: String(redemption._id),
       reward: { id: String(reward._id), title: reward.title, cost: reward.cost },
     });

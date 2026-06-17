@@ -11,6 +11,7 @@ import {
   PawCatalog,
   MyPawPoints,
   PawSubReward,
+  PawReward,
   ApiError,
 } from "@/lib/api";
 
@@ -101,6 +102,35 @@ export default function PawPointsPage() {
           ? t("pp_redeem_fulfilled")
           : t("pp_redeem_queued"),
       );
+      await refresh();
+    } catch (e) {
+      setMsg(e instanceof ApiError ? e.message : t("pp_redeem_error"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // v450 — récompenses personnalisées (admin). Même flux d'échange que les
+  // récompenses d'abonnement : redeemPawReward(id) avec l'ObjectId de la PawReward.
+  async function onRedeemCustom(r: PawReward) {
+    if (!loggedIn) {
+      window.location.href = "/login";
+      return;
+    }
+    if (r.soldOut) {
+      setMsg(t("pp_sold_out"));
+      return;
+    }
+    if ((mine?.spendable ?? 0) < r.cost) {
+      setMsg(t("pp_not_enough").replace("{pts}", fmt(r.cost - (mine?.spendable ?? 0))));
+      return;
+    }
+    if (!confirm(t("pp_redeem_confirm").replace("{cost}", fmt(r.cost)).replace("{label}", r.title))) return;
+    setBusyId(r.id);
+    setMsg(null);
+    try {
+      const res = await redeemPawReward(r.id);
+      setMsg(res.applied === "fulfilled" ? t("pp_redeem_fulfilled") : t("pp_redeem_queued"));
       await refresh();
     } catch (e) {
       setMsg(e instanceof ApiError ? e.message : t("pp_redeem_error"));
@@ -232,6 +262,55 @@ export default function PawPointsPage() {
           })}
         </div>
       </section>
+
+      {/* v450 — Récompenses personnalisées (admin). Affichées seulement s'il y en a. */}
+      {!!catalog?.rewards?.length && (
+        <section className="mt-12">
+          <h2 className="font-display text-2xl font-extrabold">{t("pp_rewards_custom_title")}</h2>
+          <p className="mt-1 text-sm text-ink-muted">{t("pp_rewards_custom_sub")}</p>
+          <div className="mt-5 space-y-3">
+            {catalog.rewards.map((r) => {
+              const affordable = (mine?.spendable ?? 0) >= r.cost;
+              const disabled = busyId === r.id || r.soldOut || (loggedIn && !affordable);
+              return (
+                <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-ink/5 bg-white p-4 shadow-card">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-50 text-2xl">{r.icon || "🎁"}</span>
+                  <div className="w-24 shrink-0">
+                    <div className="text-base font-extrabold text-ink">{fmt(r.cost)}</div>
+                    <div className="text-xs text-ink-muted">pts</div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-ink">{r.title}</div>
+                    <div className="truncate text-xs text-ink-muted">{r.valueLabel || r.description}</div>
+                  </div>
+                  <button
+                    disabled={disabled}
+                    onClick={() => onRedeemCustom(r)}
+                    className={
+                      "shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed " +
+                      (r.soldOut
+                        ? "bg-ink/10 text-ink-muted"
+                        : loggedIn && !affordable
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-amber-500 text-white hover:brightness-110")
+                    }
+                  >
+                    {r.soldOut
+                      ? t("pp_sold_out")
+                      : busyId === r.id
+                        ? "…"
+                        : loggedIn
+                          ? affordable
+                            ? t("pp_btn_redeem")
+                            : t("pp_btn_not_enough")
+                          : t("pp_btn_login")}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Niveaux & paliers exclusifs */}
       <section className="mt-12">

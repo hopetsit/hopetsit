@@ -3029,6 +3029,7 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawpoints_legend_sub': 'Uno status unico sul profilo + i vantaggi più esclusivi.',
       'pawpoints_legend_remaining': 'Mancano @pts pt',
       'pawpoints_rewards_title': 'Ricompense',
+      'pawpoints_rewards_sub': 'Scambia i tuoi punti con ricompense',
       'pawpoints_how_to_earn': 'Come guadagnare punti',
       'pawpoints_rewards_empty': 'Ricompense in arrivo',
       'pawpoints_not_enough': 'PawPoints insufficienti',

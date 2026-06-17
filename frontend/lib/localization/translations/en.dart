@@ -194,6 +194,7 @@ const Map<String, String> enUSTranslations = <String, String>{
       'pawpoints_legend_sub': 'A unique status on your profile + the most exclusive perks.',
       'pawpoints_legend_remaining': '@pts pts to go',
       'pawpoints_rewards_title': 'Rewards',
+      'pawpoints_rewards_sub': 'Redeem your points for rewards',
       'pawpoints_how_to_earn': 'How to earn points',
       'pawpoints_rewards_empty': 'Rewards coming soon',
       'pawpoints_not_enough': 'Not enough PawPoints',

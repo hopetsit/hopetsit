@@ -212,9 +212,15 @@ class SubscriptionController extends GetxController {
         throw Exception('Failed to create subscription payment intent.');
       }
 
-      // 3. Resolve display amount for the chosen plan+currency.
+      // 3. Resolve display amount. v450 — Daniel : « vérifie que les
+      // promotions fonctionnent ». Le backend applique désormais la réduction
+      // (code promo % / récompense PawPoints / parrainage) au montant du
+      // PaymentIntent et renvoie ce montant RÉDUIT dans `amount`. On l'utilise
+      // pour que la feuille de paiement affiche ET débite le bon montant
+      // (avant : on affichait planRow.amount = plein tarif).
       final planRow = plans.firstWhereOrNull((p) => p.plan == plan);
-      final displayAmount = planRow?.amount ?? 0;
+      final backendAmount = (piData['amount'] as num?)?.toDouble();
+      final displayAmount = backendAmount ?? planRow?.amount ?? 0;
 
       // v21.1.1 — Stripe purgé. Pure Airwallex.
       AppLogger.logInfo('[subscription] AIRWALLEX flow ($displayAmount $currency)');
