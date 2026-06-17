@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -179,12 +178,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// la rangée rapide la coupe/rallume manuellement (sans toucher à l'abo).
   final RxBool _showPremiumLayer = true.obs;
 
-  /// v451 — Daniel : « carte agrandie pour l'utiliser en marchant / en voiture ».
-  /// Mode plein écran : on masque les contrôles du haut (bannière+cartes+filtres)
-  /// et la carte prend toute la hauteur, avec une barre compacte (toggle suivre
-  /// en direct + bouton réduire) en surimpression.
-  final RxBool _mapExpanded = false.obs;
-
   /// v23.1.360 — mode VISEUR « Taguer un lieu » : pin rose fixe au centre,
   /// on déplace la carte dessous puis Valider → sheet de création à cette
   /// position exacte (Daniel : "je ne peux pas sélectionner l'endroit").
@@ -207,14 +200,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   Set<Polyline> _routePolylines = {};
   int? _routeDistanceMeters;
   bool _directionsLoading = false;
-
-  /// v452 — guidage Paw Map : empreinte animée qui AVANCE le long de
-  /// l'itinéraire (Daniel : « petite empreinte animée avançant sur le chemin »).
-  /// Hors cache de marqueurs (bouge à chaque tick sans tout réinvalider).
-  Timer? _routeAnimTimer;
-  List<LatLng> _routeAnimPoints = const [];
-  int _routeAnimIdx = 0;
-  LatLng? _routeAnimPos;
 
   /// Debounce the `onCameraIdle` callback so panning/zooming quickly doesn't
   /// fire 5+ POI/report requests in a row. 500 ms is short enough to feel
@@ -740,7 +725,6 @@ class _PawMapScreenState extends State<PawMapScreen>
     WidgetsBinding.instance.removeObserver(this);
     _reloadDebounce?.cancel();
     _haloTimer?.cancel();
-    _routeAnimTimer?.cancel();
     _followWorker?.dispose();
     _myFollowWorker?.dispose();
     // v414 — Daniel : "qd l'app se ferme le direct s'éteint, je veux qu'il
@@ -1170,12 +1154,6 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
-    // v452 — Daniel : viseur « point rouge au centre ». L'emplacement choisi
-    // SUIT le centre de la carte que l'utilisateur déplace sous le repère
-    // rouge fixe (placement précis, façon Uber). Plus de pin à faire glisser.
-    if (_pickingSpotPos.value || _pickingReportPos.value) {
-      _pickedSpotPos = pos.target;
-    }
   }
 
   /// Debounced wrapper for `_reloadAtCenter()`. Cancels any pending reload
@@ -1606,51 +1584,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       _cachedMarkers = _buildMarkers();
       _cachedMarkersKey = key;
     }
-    // v452 — empreinte animée le long de l'itinéraire : marqueur unique ajouté
-    // PAR-DESSUS le cache (ne réinvalide pas tout le set à chaque tick).
-    if (_routeAnimPos != null) {
-      return {
-        ..._cachedMarkers!,
-        Marker(
-          markerId: const MarkerId('route_paw_progress'),
-          position: _routeAnimPos!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueOrange),
-          anchor: const Offset(0.5, 0.5),
-          flat: true,
-        ),
-      };
-    }
     return _cachedMarkers!;
-  }
-
-  /// v452 — anime l'empreinte le long des points de l'itinéraire + petite
-  /// vibration au départ (guidage discret, pas un GPS bavard).
-  void _startRouteAnimation(List<LatLng> points) {
-    _routeAnimTimer?.cancel();
-    _routeAnimPoints = points;
-    _routeAnimIdx = 0;
-    if (points.isEmpty) {
-      _routeAnimPos = null;
-      return;
-    }
-    _routeAnimPos = points.first;
-    HapticFeedback.lightImpact();
-    _routeAnimTimer = Timer.periodic(const Duration(milliseconds: 450), (t) {
-      if (!mounted || _routeAnimPoints.isEmpty) {
-        t.cancel();
-        return;
-      }
-      _routeAnimIdx = (_routeAnimIdx + 1) % _routeAnimPoints.length;
-      setState(() => _routeAnimPos = _routeAnimPoints[_routeAnimIdx]);
-    });
-  }
-
-  void _stopRouteAnimation() {
-    _routeAnimTimer?.cancel();
-    _routeAnimTimer = null;
-    _routeAnimPoints = const [];
-    _routeAnimPos = null;
   }
 
   Set<Marker> _buildMarkers() {
@@ -1794,10 +1728,24 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       }
     }
-    // v452 — Daniel : plus de marqueur draggable au sol pour le placement.
-    // Le repère est désormais un POINT ROUGE FIXE au centre de l'écran
-    // (overlay `_buildCenterReticle`) ; l'utilisateur déplace la carte SOUS
-    // ce repère, et la position choisie suit le centre (`_onCameraMove`).
+    // v23.1.363 — mode viseur : VRAI marqueur rose ancré au sol, déplacé
+    // au TAP sur la carte ou par DRAG du pin (précision maximale).
+    // v449 — partagé entre viseur SPOT (rose) et viseur SIGNALEMENT (rouge).
+    if ((_pickingSpotPos.value || _pickingReportPos.value) &&
+        _pickedSpotPos != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('spot_picker'),
+          position: _pickedSpotPos!,
+          draggable: true,
+          onDragEnd: (p) => setState(() => _pickedSpotPos = p),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            _pickingReportPos.value ? 0 /* rouge */ : 330 /* rose */,
+          ),
+          zIndexInt: 20,
+        ),
+      );
+    }
     // v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
     // Marqueur emoji du type (fond couleur type) ; spot GOLDEN → empreinte
     // 🐾 sur fond doré avec anneau plus épais. Tap → sheet détail.
@@ -2227,21 +2175,25 @@ class _PawMapScreenState extends State<PawMapScreen>
       ),
       body: Column(
         children: [
-          // v451 — Daniel : mode « carte agrandie ». Quand actif, on masque
-          // TOUS les contrôles du haut (bannière + 4 cartes + filtres/toggles)
-          // pour que la carte prenne toute la place (usage en marchant/voiture).
-          // La bannière « Tu es en direct » est désormais à MI-LARGEUR, avec un
-          // bouton « Agrandir la carte » à côté.
-          Obx(() => _mapExpanded.value
-              ? const SizedBox.shrink()
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildLiveBannerRow(),
-                    _buildQuickActionsRow(),
-                    _buildCategoryFilterBar(),
-                  ],
-                )),
+          // v21.1.1 — Banner "Live actif" : visible quand l'user broadcast
+          // sa position. Met en valeur PawFollow + permet stop rapide.
+          _buildLiveBroadcastBanner(),
+
+          // v23.1.184 — Daniel : "je veux que tu reorganise la paw map
+          // dans ce style" (mockup avec 4 grosses cartes colorees Suivre
+          // / Famille & Amis / Alertes / Signaler). Remplace les anciens
+          // _buildQuickSignalRow + _buildEmergencyRow qui faisaient
+          // doublon avec le FAB et chargeaient l'ecran.
+          _buildQuickActionsRow(),
+
+          // v23.1.363 — Daniel : Signalements/Mon cercle fusionnés sur LA
+          // MÊME ligne que Lieux/Tous/Rien (voir _buildCategoryFilterBar).
+
+          // v23.1.285 — Daniel : "améliore le menu de la pawmap comme la photo".
+          // Filtre catégories POI : bouton « Lieux (N) » + bouton « Tous », qui
+          // ouvre une checklist 2 colonnes repliable (au lieu des puces qui
+          // défilaient horizontalement et qu'on ne voyait pas en entier).
+          _buildCategoryFilterBar(),
 
           // Map
           Expanded(
@@ -2442,16 +2394,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                 Positioned(
                   top: 12.h,
                   right: 12.w,
-                  // v451 — masqué en mode carte agrandie (« laisse uniquement le
-                  // rond Signaler »). Le zoom reste possible au pincement.
-                  child: Obx(() => _mapExpanded.value
-                      ? const SizedBox.shrink()
-                      : _buildMapControlsStack()),
+                  child: _buildMapControlsStack(),
                 ),
-
-                // v451 — barre compacte (toggle direct + réduire) en mode
-                // carte agrandie. No-op si non agrandie.
-                _buildExpandedOverlayBar(),
 
                 // v23.1 part 67 — Daniel : "2 boutons qui se chevauchent".
                 // Le Signaler FAB et le bouton géoloc étaient tous les deux
@@ -2467,34 +2411,8 @@ class _PawMapScreenState extends State<PawMapScreen>
                 Positioned(
                   left: 12.w,
                   bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
-                  // v451 — en mode carte agrandie : on garde le rond Signaler et,
-                  // si abo PawSpot/PawFamily/PawPremium actif, on AJOUTE un rond
-                  // « Tag spot » AU-DESSUS (Daniel).
-                  child: Obx(() {
-                    final canTag = _mapExpanded.value &&
-                        (_pawSpotController.pawspotActive.value ||
-                            _pawSpotController.premiumActive.value ||
-                            _pawSpotController.followActive.value);
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (canTag) ...[
-                          _buildTagSpotFab(),
-                          SizedBox(height: 12.h),
-                        ],
-                        _buildReportFab(),
-                      ],
-                    );
-                  }),
+                  child: _buildReportFab(),
                 ),
-
-                // v452 — Daniel : POINT ROUGE FIXE au centre (placement
-                // précis). Visible pour les DEUX viseurs (Paw Spot ET
-                // Signalement). La carte bouge SOUS le repère ; à Valider, le
-                // point rouge disparaît et seul l'emoji définitif reste.
-                Obx(() => (_pickingSpotPos.value || _pickingReportPos.value)
-                    ? _buildCenterReticle()
-                    : const SizedBox.shrink()),
 
                 // v23.1.360 — mode VISEUR « Taguer un lieu » : pin central
                 // fixe + bandeau Valider/Annuler (Daniel : "je ne peux pas
@@ -2520,10 +2438,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                     left: 72.w,
                     right: 12.w,
                     bottom: 12.h + MediaQuery.of(context).viewPadding.bottom,
-                    // v451 — masquée en mode carte agrandie.
-                    child: Obx(() => _mapExpanded.value
-                        ? const SizedBox.shrink()
-                        : _buildAroundYouCard()),
+                    child: _buildAroundYouCard(),
                   )
                 else
                   Positioned(
@@ -2875,8 +2790,9 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Positioned.fill(
       child: Stack(
         children: [
-          // v452 — placement par POINT ROUGE FIXE au centre (cf
-          // `_buildCenterReticle`) ; la carte bouge dessous. Bulle d'aide.
+          // v23.1.363 — le faux pin central est remplacé par un VRAI
+          // marqueur rose ancré au sol (tap sur la carte / drag du pin).
+          // Bulle d'aide.
           Positioned(
             top: 10.h,
             left: 24.w,
@@ -2940,7 +2856,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14.r),
                     onTap: () {
-                      final at = _pickedSpotPos ?? _currentCenter;
+                      final at = _pickedSpotPos;
                       _pickingSpotPos.value = false;
                       unawaited(_openPawSpotCreate(at: at));
                     },
@@ -3643,126 +3559,6 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// vif a gauche (pastille couleur ronde + icone blanche dessus), label
   /// en gras a droite, ombre douce + halo coloré soft.
   /// pour que le user comprenne qu'il est visible par ses amis.
-  /// v451 — rangée « Tu es en direct » (mi-largeur) + bouton « Agrandir la
-  /// carte ». Daniel : pouvoir agrandir la carte (usage en marchant / voiture).
-  Widget _buildLiveBannerRow() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: _buildLiveBroadcastBanner()),
-          SizedBox(width: 8.w),
-          GestureDetector(
-            onTap: () => _mapExpanded.value = true,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12.w),
-              constraints: BoxConstraints(minWidth: 92.w),
-              decoration: BoxDecoration(
-                color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(16.r),
-                border: Border.all(
-                    color: AppColors.primaryColor.withValues(alpha: 0.35),
-                    width: 1.2),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.fullscreen_rounded,
-                      color: AppColors.primaryColor, size: 22.sp),
-                  SizedBox(height: 2.h),
-                  InterText(
-                    text: 'pawmap_expand_map'.tr,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryColor,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// v451 — barre compacte en surimpression quand la carte est agrandie :
-  /// toggle « suivre en direct » + bouton « Réduire la carte ».
-  Widget _buildExpandedOverlayBar() {
-    return Obx(() {
-      if (!_mapExpanded.value) return const SizedBox.shrink();
-      final on = _liveMap.broadcasting.value;
-      return Positioned(
-        top: 8.h,
-        left: 12.w,
-        // laisse la place au pill de contrôles (+/-/géoloc) en haut à droite.
-        right: 66.w,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 9.w,
-                height: 9.w,
-                decoration: BoxDecoration(
-                  color: on ? const Color(0xFF16A34A) : AppColors.greyText,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: InterText(
-                  text: on
-                      ? 'pawmap_live_banner_title'.tr
-                      : 'pawmap_live_share_off'.tr,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary(context),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Switch(
-                value: on,
-                onChanged: (_) => _toggleBroadcast(),
-                activeThumbColor: Colors.white,
-                activeTrackColor: const Color(0xFF16A34A),
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: AppColors.greyText.withValues(alpha: 0.4),
-              ),
-              SizedBox(width: 4.w),
-              GestureDetector(
-                onTap: () => _mapExpanded.value = false,
-                child: Container(
-                  padding: EdgeInsets.all(7.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.fullscreen_exit_rounded,
-                      color: AppColors.primaryColor, size: 20.sp),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    });
-  }
-
   Widget _buildLiveBroadcastBanner() {
     // v418 — maquette Daniel : bannière verte TOUJOURS visible avec interrupteur
     // ON/OFF (« Tu es en direct / Tes amis & ta famille voient ta position »).
@@ -3771,9 +3567,7 @@ class _PawMapScreenState extends State<PawMapScreen>
     return Obx(() {
       final on = _liveMap.broadcasting.value;
       return Container(
-        // v451 — marge gérée par _buildLiveBannerRow (bannière à mi-largeur +
-        // bouton « Agrandir la carte » à côté).
-        margin: EdgeInsets.zero,
+        margin: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 0),
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         decoration: BoxDecoration(
           gradient: on
@@ -3906,50 +3700,6 @@ class _PawMapScreenState extends State<PawMapScreen>
             text: 'pawmap_btn_send'.tr,
             fontSize: 10.sp,
             color: const Color(0xFFDC2626),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// v451 — FAB rond « Tag spot » (mode carte agrandie, abonné). Doré, au-dessus
-  /// du rond Signaler → lance le viseur « Taguer un lieu » (PawSpot).
-  Widget _buildTagSpotFab() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 48.w,
-          height: 48.w,
-          child: FloatingActionButton(
-            heroTag: 'tagSpotFab',
-            backgroundColor: const Color(0xFFE8A00A),
-            elevation: 6,
-            shape: const CircleBorder(),
-            onPressed: _startSpotPicking,
-            child: Icon(Icons.add_location_alt_rounded,
-                color: Colors.white, size: 22.sp),
-          ),
-        ),
-        SizedBox(height: 4.h),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: InterText(
-            text: 'pawmap_tag_spot_btn'.tr,
-            fontSize: 10.sp,
-            color: const Color(0xFFE8A00A),
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -4262,61 +4012,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                     color: Colors.white,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// v452 — Daniel : POINT ROUGE FIXE au centre de l'écran pour le placement
-  /// d'un Paw Spot ou d'un Signalement. L'utilisateur déplace la CARTE sous
-  /// le repère ; l'emplacement choisi suit le centre (cf `_onCameraMove`). Le
-  /// repère est purement visuel (`IgnorePointer`) et n'apparaît jamais sur la
-  /// carte une fois enregistré — à Valider, seul l'emoji définitif reste.
-  Widget _buildCenterReticle() {
-    return IgnorePointer(
-      child: Center(
-        // Léger décalage vers le haut pour compenser le bandeau du bas et
-        // garder le point dans la zone visible confortable.
-        child: Padding(
-          padding: EdgeInsets.only(bottom: 28.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Halo + point rouge plein cerclé de blanc (très visible).
-              Container(
-                width: 26.w,
-                height: 26.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFDC2626).withValues(alpha: 0.18),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 16.w,
-                    height: 16.w,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFDC2626),
-                      border: Border.all(color: Colors.white, width: 2.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.30),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // Fine aiguille pointant le sol exact sous le point.
-              Container(
-                width: 2.2.w,
-                height: 12.h,
-                color: const Color(0xFFDC2626),
               ),
             ],
           ),
@@ -4787,8 +4482,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         };
         _routeDistanceMeters = route.distanceMeters;
       });
-      // v452 — lance l'empreinte animée le long du trajet + vibration départ.
-      _startRouteAnimation(route.points);
       // Caméra : englobe tout le trajet.
       double minLat = route.points.first.latitude;
       double maxLat = minLat;
@@ -4834,7 +4527,6 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   /// Efface l'itinéraire en cours (bouton du bandeau).
   void _clearRoute() {
-    _stopRouteAnimation();
     setState(() {
       _routePolylines = {};
       _routeDistanceMeters = null;
@@ -4849,12 +4541,6 @@ class _PawMapScreenState extends State<PawMapScreen>
         : meters >= 1000
             ? '${(meters / 1000).toStringAsFixed(1)} km'
             : '$meters m';
-    // v452 — effet « Waze » Premium : pendant un itinéraire, on signale
-    // discrètement les PawSpot autour (abo PawSpot/Premium requis).
-    final premiumNearby = (_pawSpotController.premiumActive.value ||
-            _pawSpotController.pawspotActive.value) &&
-        _pawSpotController.spots.isNotEmpty;
-    final nearbyCount = _pawSpotController.spots.length;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
       decoration: BoxDecoration(
@@ -4872,50 +4558,34 @@ class _PawMapScreenState extends State<PawMapScreen>
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (premiumNearby) ...[
-            InterText(
-              text: '🐾 ${'pawmap_premium_spots_nearby'.trParams({'n': '$nearbyCount'})}',
-              fontSize: 10.5.sp,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFFE8A00A),
-              maxLines: 1,
-            ),
-            SizedBox(height: 5.h),
-          ],
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.directions_walk_rounded,
-                  size: 16.sp, color: const Color(0xFFEF4324)),
-              SizedBox(width: 6.w),
-              InterText(
-                text: distanceLabel,
-                fontSize: 13.sp,
+          Icon(Icons.directions_walk_rounded,
+              size: 16.sp, color: const Color(0xFFEF4324)),
+          SizedBox(width: 6.w),
+          InterText(
+            text: distanceLabel,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF1F2937),
+          ),
+          SizedBox(width: 12.w),
+          GestureDetector(
+            onTap: _clearRoute,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+              child: InterText(
+                text: 'directions_clear'.tr,
+                fontSize: 11.sp,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1F2937),
+                color: const Color(0xFFEF4324),
               ),
-              SizedBox(width: 12.w),
-              GestureDetector(
-                onTap: _clearRoute,
-                child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4324).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14.r),
-                  ),
-                  child: InterText(
-                    text: 'directions_clear'.tr,
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFFEF4324),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -5022,10 +4692,6 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   // ─── Report details sheet ────────────────────────────────────────────────
   void _showReportBottomSheet(MapReport report) {
-    // v452 — Daniel : « aider pour un animal perdu ». Pour un signalement
-    // d'animal perdu, l'action principale devient « J'ai vu cet animal »
-    // (gratuit pour tous) : ça prolonge l'alerte ET prévient le propriétaire.
-    final bool isLost = report.type == ReportTypes.lostPet;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.card(context),
@@ -5083,32 +4749,6 @@ class _PawMapScreenState extends State<PawMapScreen>
                   ),
                 ),
               ],
-              if (isLost) ...[
-                SizedBox(height: 12.h),
-                Container(
-                  padding: EdgeInsets.all(10.w),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEC407A).withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(10.r),
-                    border: Border.all(
-                        color: const Color(0xFFEC407A).withValues(alpha: 0.30)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('🐾', style: TextStyle(fontSize: 16.sp)),
-                      SizedBox(width: 8.w),
-                      Expanded(
-                        child: InterText(
-                          text: 'pawmap_lost_help_hint'.tr,
-                          fontSize: 12.sp,
-                          color: AppColors.textPrimary(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               SizedBox(height: 12.h),
               Row(
                 children: [
@@ -5126,65 +4766,31 @@ class _PawMapScreenState extends State<PawMapScreen>
               Row(
                 children: [
                   Expanded(
-                    // v452 — pour un animal perdu : bouton plein « J'ai vu cet
-                    // animal » (rose, action d'aide gratuite et prioritaire).
-                    flex: isLost ? 2 : 1,
-                    child: isLost
-                        ? ElevatedButton.icon(
-                            onPressed: () async {
-                              final ok =
-                                  await _reportController.confirm(report.id);
-                              if (!mounted || !sheetContext.mounted) return;
-                              Navigator.of(sheetContext).pop();
-                              if (ok) {
-                                CustomSnackbar.showSuccess(
-                                  title: 'pawmap_snack_thanks_title'.tr,
-                                  message: 'pawmap_lost_seen_thanks'.tr,
-                                );
-                              }
-                            },
-                            icon: Icon(Icons.pets, size: 16.sp),
-                            label: InterText(
-                              text: 'pawmap_lost_seen_btn'.tr,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFEC407A),
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: 12.h),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.r),
-                              ),
-                            ),
-                          )
-                        : OutlinedButton.icon(
-                            onPressed: () async {
-                              final ok =
-                                  await _reportController.confirm(report.id);
-                              if (!mounted || !sheetContext.mounted) return;
-                              Navigator.of(sheetContext).pop();
-                              if (ok) {
-                                CustomSnackbar.showSuccess(
-                                  title: 'pawmap_snack_thanks_title'.tr,
-                                  message: 'pawmap_snack_extended_msg'.tr,
-                                );
-                              }
-                            },
-                            icon: Icon(Icons.check_circle_outline, size: 16.sp),
-                            label: InterText(
-                              text: 'pawmap_btn_confirm_extend'.tr,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 12.h),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.r),
-                              ),
-                            ),
-                          ),
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final ok = await _reportController.confirm(report.id);
+                        if (!mounted || !sheetContext.mounted) return;
+                        Navigator.of(sheetContext).pop();
+                        if (ok) {
+                          CustomSnackbar.showSuccess(
+                            title: 'pawmap_snack_thanks_title'.tr,
+                            message: 'pawmap_snack_extended_msg'.tr,
+                          );
+                        }
+                      },
+                      icon: Icon(Icons.check_circle_outline, size: 16.sp),
+                      label: InterText(
+                        text: 'pawmap_btn_confirm_extend'.tr,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                      ),
+                    ),
                   ),
                   SizedBox(width: 10.w),
                   Expanded(
