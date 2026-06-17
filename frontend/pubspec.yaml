@@ -1,7 +1,7 @@
 name: hopetsit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 23.1.453+453
+version: 23.1.454+454
 
 environment:
   sdk: ^3.9.2
@@ -76,6 +76,16 @@ dependencies:
   # arrière-plan sur iOS aussi (UIBackgroundModes>location déjà dans Info.plist).
   geolocator_apple: ^2.3.13
   google_maps_flutter: ^2.14.0
+  # v454 — Daniel : « la PawMap a disparu » (carte blanche, fond qui transparaît,
+  # le widget carte ne se peint PAS) alors que la carte du site web marche → ce
+  # n'est PAS la clé/facturation mais le RENDU natif Android (Texture Layer
+  # Hybrid Composition par défaut) qui rend blanc sur beaucoup d'appareils,
+  # surtout après un resize (notre mode « agrandir la carte »). On force la
+  # composition hybride fiable via `useAndroidViewSurface = true` dans main().
+  # Déclarés en deps directes (versions résolues figées) pour pouvoir importer
+  # l'impl Android sans warning `depend_on_referenced_packages`.
+  google_maps_flutter_android: 2.18.12
+  google_maps_flutter_platform_interface: 2.14.1
   geocoding: ^4.0.0
   google_places_flutter: ^2.1.1
   # v18.8 — deep link handler pour hopetsit://pay/:bookingId envoyé

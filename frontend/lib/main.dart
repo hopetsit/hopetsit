@@ -10,6 +10,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:hopetsit/firebase_options.dart';
 import 'package:hopetsit/helper/dependency_injection.dart';
 import 'package:hopetsit/services/deep_link_service.dart';
@@ -30,6 +32,18 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // v454 — Daniel : « la PawMap a disparu » (carte blanche, le fond du scaffold
+  // transparaît) sur l'app alors que la carte du SITE WEB marche → ce n'est ni
+  // la clé ni la facturation Google, mais le rendu natif Android. Par défaut,
+  // google_maps_flutter utilise le « Texture Layer Hybrid Composition » qui rend
+  // BLANC sur de nombreux appareils (surtout après un resize de la vue, ce que
+  // déclenche notre mode « agrandir la carte »). On force la composition hybride
+  // historique, fiable partout. Coût : un léger surcoût mémoire, négligeable.
+  final mapsImpl = GoogleMapsFlutterPlatform.instance;
+  if (mapsImpl is GoogleMapsFlutterAndroid) {
+    mapsImpl.useAndroidViewSurface = true;
+  }
 
   // v23.1 part 231 — Daniel : "app lag sur Oppo / petits ecrans".
   // FIX SYSTEM-WIDE n°1 : reduire le cache d'images Flutter.
