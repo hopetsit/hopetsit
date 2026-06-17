@@ -1154,6 +1154,12 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   void _onCameraMove(CameraPosition pos) {
     _currentCenter = pos.target;
+    // v456 — viseur « point rouge au centre » : l'emplacement choisi SUIT le
+    // centre de la carte que l'utilisateur déplace sous le repère rouge fixe
+    // (placement précis, façon Uber). Plus de pin à faire glisser.
+    if (_pickingSpotPos.value || _pickingReportPos.value) {
+      _pickedSpotPos = pos.target;
+    }
   }
 
   /// Debounced wrapper for `_reloadAtCenter()`. Cancels any pending reload
@@ -1728,24 +1734,10 @@ class _PawMapScreenState extends State<PawMapScreen>
         );
       }
     }
-    // v23.1.363 — mode viseur : VRAI marqueur rose ancré au sol, déplacé
-    // au TAP sur la carte ou par DRAG du pin (précision maximale).
-    // v449 — partagé entre viseur SPOT (rose) et viseur SIGNALEMENT (rouge).
-    if ((_pickingSpotPos.value || _pickingReportPos.value) &&
-        _pickedSpotPos != null) {
-      markers.add(
-        Marker(
-          markerId: const MarkerId('spot_picker'),
-          position: _pickedSpotPos!,
-          draggable: true,
-          onDragEnd: (p) => setState(() => _pickedSpotPos = p),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            _pickingReportPos.value ? 0 /* rouge */ : 330 /* rose */,
-          ),
-          zIndexInt: 20,
-        ),
-      );
-    }
+    // v456 — Daniel : plus de marqueur draggable au sol pour le placement.
+    // Le repère est un POINT ROUGE FIXE au centre de l'écran (overlay
+    // `_buildCenterReticle`) ; l'utilisateur déplace la carte SOUS ce repère,
+    // et la position choisie suit le centre (`_onCameraMove`).
     // v23.1.353 — refonte PawSpot : couche des spots communautaires 🐾.
     // Marqueur emoji du type (fond couleur type) ; spot GOLDEN → empreinte
     // 🐾 sur fond doré avec anneau plus épais. Tap → sheet détail.
@@ -2414,9 +2406,15 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: _buildReportFab(),
                 ),
 
-                // v23.1.360 — mode VISEUR « Taguer un lieu » : pin central
-                // fixe + bandeau Valider/Annuler (Daniel : "je ne peux pas
-                // sélectionner l'endroit"). La carte bouge SOUS le pin.
+                // v456 — POINT ROUGE FIXE au centre (placement précis), pour
+                // les DEUX viseurs (Paw Spot ET Signalement). La carte bouge
+                // SOUS le repère ; à Valider il disparaît et seul l'emoji reste.
+                Obx(() => (_pickingSpotPos.value || _pickingReportPos.value)
+                    ? _buildCenterReticle()
+                    : const SizedBox.shrink()),
+
+                // v23.1.360 — mode VISEUR « Taguer un lieu » : bandeau
+                // Valider/Annuler. La carte bouge SOUS le repère central.
                 Obx(() => _pickingSpotPos.value
                     ? _buildSpotPickerOverlay()
                     : const SizedBox.shrink()),
@@ -2856,7 +2854,7 @@ class _PawMapScreenState extends State<PawMapScreen>
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14.r),
                     onTap: () {
-                      final at = _pickedSpotPos;
+                      final at = _pickedSpotPos ?? _currentCenter;
                       _pickingSpotPos.value = false;
                       unawaited(_openPawSpotCreate(at: at));
                     },
@@ -4020,6 +4018,57 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+  /// v456 — POINT ROUGE FIXE au centre de l'écran pour placer un Paw Spot ou
+  /// un Signalement. L'utilisateur déplace la CARTE sous le repère ;
+  /// l'emplacement choisi suit le centre (`_onCameraMove`). Purement visuel
+  /// (`IgnorePointer`) : il n'apparaît jamais sur la carte une fois enregistré
+  /// — à Valider, seul l'emoji définitif reste.
+  Widget _buildCenterReticle() {
+    return IgnorePointer(
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 28.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 26.w,
+                height: 26.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFDC2626).withValues(alpha: 0.18),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 16.w,
+                    height: 16.w,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFDC2626),
+                      border: Border.all(color: Colors.white, width: 2.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.30),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                width: 2.2.w,
+                height: 12.h,
+                color: const Color(0xFFDC2626),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Chip avec Switch compact (PawFollow / PawSpot), pleine largeur
   /// (maquette : fond blanc, bordure couleur, couronne 👑 si abonné).
   Widget _quickSwitchChip({
@@ -4692,6 +4741,10 @@ class _PawMapScreenState extends State<PawMapScreen>
 
   // ─── Report details sheet ────────────────────────────────────────────────
   void _showReportBottomSheet(MapReport report) {
+    // v456 — Daniel : « aider pour un animal perdu ». Pour un signalement
+    // d'animal perdu, l'action principale devient « J'ai vu cet animal »
+    // (gratuit pour tous) : ça prolonge l'alerte ET prévient le propriétaire.
+    final bool isLost = report.type == ReportTypes.lostPet;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.card(context),
@@ -4749,6 +4802,32 @@ class _PawMapScreenState extends State<PawMapScreen>
                   ),
                 ),
               ],
+              if (isLost) ...[
+                SizedBox(height: 12.h),
+                Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEC407A).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10.r),
+                    border: Border.all(
+                        color: const Color(0xFFEC407A).withValues(alpha: 0.30)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('🐾', style: TextStyle(fontSize: 16.sp)),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: InterText(
+                          text: 'pawmap_lost_help_hint'.tr,
+                          fontSize: 12.sp,
+                          color: AppColors.textPrimary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               SizedBox(height: 12.h),
               Row(
                 children: [
@@ -4766,31 +4845,65 @@ class _PawMapScreenState extends State<PawMapScreen>
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final ok = await _reportController.confirm(report.id);
-                        if (!mounted || !sheetContext.mounted) return;
-                        Navigator.of(sheetContext).pop();
-                        if (ok) {
-                          CustomSnackbar.showSuccess(
-                            title: 'pawmap_snack_thanks_title'.tr,
-                            message: 'pawmap_snack_extended_msg'.tr,
-                          );
-                        }
-                      },
-                      icon: Icon(Icons.check_circle_outline, size: 16.sp),
-                      label: InterText(
-                        text: 'pawmap_btn_confirm_extend'.tr,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                    ),
+                    // v456 — animal perdu : bouton plein « J'ai vu cet animal »
+                    // (rose, action d'aide gratuite et prioritaire).
+                    flex: isLost ? 2 : 1,
+                    child: isLost
+                        ? ElevatedButton.icon(
+                            onPressed: () async {
+                              final ok =
+                                  await _reportController.confirm(report.id);
+                              if (!mounted || !sheetContext.mounted) return;
+                              Navigator.of(sheetContext).pop();
+                              if (ok) {
+                                CustomSnackbar.showSuccess(
+                                  title: 'pawmap_snack_thanks_title'.tr,
+                                  message: 'pawmap_lost_seen_thanks'.tr,
+                                );
+                              }
+                            },
+                            icon: Icon(Icons.pets, size: 16.sp),
+                            label: InterText(
+                              text: 'pawmap_lost_seen_btn'.tr,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEC407A),
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                            ),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: () async {
+                              final ok =
+                                  await _reportController.confirm(report.id);
+                              if (!mounted || !sheetContext.mounted) return;
+                              Navigator.of(sheetContext).pop();
+                              if (ok) {
+                                CustomSnackbar.showSuccess(
+                                  title: 'pawmap_snack_thanks_title'.tr,
+                                  message: 'pawmap_snack_extended_msg'.tr,
+                                );
+                              }
+                            },
+                            icon: Icon(Icons.check_circle_outline, size: 16.sp),
+                            label: InterText(
+                              text: 'pawmap_btn_confirm_extend'.tr,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                            ),
+                          ),
                   ),
                   SizedBox(width: 10.w),
                   Expanded(
