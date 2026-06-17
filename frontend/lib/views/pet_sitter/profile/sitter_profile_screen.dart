@@ -555,13 +555,8 @@ class SitterProfileScreen extends StatelessWidget {
           _sitterAccent,
           () => Get.to(() => const MyRatesScreen(role: 'sitter')),
         ),
-        _buildSettingsTile(
-          'profile_choose_service'.tr,
-          'sitter_choose_service_subtitle'.tr,
-          Icons.work_outline_rounded,
-          _sitterAccent,
-          controller.navigateToChooseService,
-        ),
+        // v450 — Daniel : « Choisir un service » retiré (services dans Modifier
+        // le profil).
         _buildSettingsTile(
           'profile_pawmap'.tr,
           'sitter_pawmap_subtitle'.tr,

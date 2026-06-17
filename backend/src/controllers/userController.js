@@ -570,6 +570,16 @@ const deleteAccount = async (req, res) => {
       await Friendship.deleteMany({
         $or: [{ requesterId: userId }, { addresseeId: userId }],
       });
+      // v450 — Daniel : « les utilisateurs supprimés restent en amis et sur la
+      // map ». Friendship est bien purgée ci-dessus (donc plus ami), MAIS le
+      // compte supprimé restait MEMBRE des familles PawFollow des AUTRES :
+      // listFamilyMembers le renvoyait encore → marqueur fallback 🐕 + liste
+      // famille. On le retire donc de TOUS les familyMembers (titulaires tiers)
+      // — couvre membres acceptés ET invitations en attente.
+      await UserSubscription.updateMany(
+        { 'familyMembers.userId': userId },
+        { $pull: { familyMembers: { userId } } },
+      );
       await Notification.deleteMany({
         $or: [
           { recipientId: userId, recipientModel: roleModel },

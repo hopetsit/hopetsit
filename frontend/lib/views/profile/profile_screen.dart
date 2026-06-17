@@ -458,13 +458,8 @@ class ProfileScreen extends StatelessWidget {
           AppColors.primaryColor,
           () => Get.to(() => const SavedCardsScreen()),
         ),
-        _buildSettingsTile(
-          'profile_choose_service'.tr,
-          'profile_choose_service_subtitle'.tr,
-          Icons.work_outline_rounded,
-          AppColors.primaryColor,
-          controller.navigateToChooseService,
-        ),
+        // v450 — Daniel : « enlève "Choisir un service" des 3 profils, les
+        // services sont désormais dans Modifier le profil ». Tuile retirée.
         _buildSettingsTile(
           'profile_pawmap'.tr,
           'profile_pawmap_subtitle'.tr,

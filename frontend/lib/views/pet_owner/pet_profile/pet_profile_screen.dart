@@ -323,25 +323,8 @@ class PetProfileScreen extends StatelessWidget {
                             : null,
                       ),
                     ),
-                    if (editable)
-                      Positioned(
-                        right: 2.w,
-                        bottom: 2.h,
-                        child: GestureDetector(
-                          onTap: _changeProfilePhoto,
-                          child: Container(
-                            padding: EdgeInsets.all(5.w),
-                            decoration: BoxDecoration(
-                              color: _accent,
-                              shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: Colors.white, width: 1.5),
-                            ),
-                            child: Icon(Icons.edit,
-                                color: Colors.white, size: 12.sp),
-                          ),
-                        ),
-                      ),
+                    // v450 — Daniel : crayon orange retiré de l'avatar de la
+                    // fiche animal. La photo se modifie dans « Modifier l'animal ».
                   ],
                 ),
               ),

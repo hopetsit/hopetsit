@@ -633,7 +633,29 @@ async function listFamilyMembers(userId) {
     }
   } catch (_) {/* best-effort : on renvoie ce qu'on a */}
 
-  return Array.from(out.values());
+  // v450 — Daniel : « les comptes supprimés restent sur la map ». Même après
+  // avoir retiré l'utilisateur supprimé des familyMembers au delete, d'anciens
+  // orphelins (supprimés avant ce correctif) pouvaient rester dans une famille
+  // et réapparaître en marqueur fallback. On exclut donc tout co-membre dont
+  // le compte n'existe plus (doc absent dans Owner/Sitter/Walker).
+  const candidates = Array.from(out.values());
+  try {
+    const Models = {
+      owner: require('./Owner'),
+      sitter: require('./Sitter'),
+      walker: require('./Walker'),
+    };
+    const alive = [];
+    for (const c of candidates) {
+      const M = Models[c.role] || Models.owner;
+      // eslint-disable-next-line no-await-in-loop
+      const exists = await M.exists({ _id: c.userId });
+      if (exists) alive.push(c);
+    }
+    return alive;
+  } catch (_) {
+    return candidates;
+  }
 }
 
 module.exports = mongoose.model('UserSubscription', userSubscriptionSchema);
