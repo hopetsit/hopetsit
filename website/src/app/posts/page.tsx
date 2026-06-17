@@ -121,8 +121,15 @@ function PostCard({
   isOwner: boolean;
   onDeleted: () => void;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const router = useRouter();
+  // v450 — Daniel : dates/heures de la publication suivent la LANGUE choisie
+  // (avant : locale du navigateur → ex. site en FR mais date « 6/17/2026 »
+  // façon US, perçu comme une erreur de traduction).
+  const dtLocale =
+    { fr: "fr-FR", en: "en-GB", es: "es-ES", de: "de-DE", it: "it-IT", pt: "pt-PT" }[
+      lang as string
+    ] || "fr-FR";
 
   const id = postId(post);
   const ownerObj =
@@ -211,8 +218,28 @@ function PostCard({
 
   const dateRange = [post.startDate, post.endDate]
     .filter(Boolean)
-    .map((d) => new Date(d as string).toLocaleDateString())
+    .map((d) => new Date(d as string).toLocaleDateString(dtLocale))
     .join(" → ");
+
+  // v450 — Daniel : « il manque l'heure ». Le backend ne renvoie pas de champ
+  // `timeSlot` (le Post n'a pas de champ heure dédié) : l'horaire est porté par
+  // la PARTIE HEURE de startDate/endDate (comme l'app via
+  // PostDateLabel.timeLabel). On la dérive donc ici. On masque 00:00 (= aucune
+  // heure réellement saisie). `post.timeSlot` reste prioritaire s'il existe.
+  const fmtTime = (d?: string) => {
+    if (!d) return "";
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return "";
+    if (dt.getHours() === 0 && dt.getMinutes() === 0) return "";
+    return dt.toLocaleTimeString(dtLocale, { hour: "2-digit", minute: "2-digit" });
+  };
+  const startTime = fmtTime(post.startDate);
+  const endTime = fmtTime(post.endDate);
+  const timeLabel =
+    post.timeSlot ||
+    (startTime && endTime && startTime !== endTime
+      ? `${startTime} → ${endTime}`
+      : startTime || endTime);
 
   // Lieu de garde : combine serviceLocation (at_owner/at_sitter/both) et le
   // legacy houseSittingVenue (owners_home/sitters_home).
@@ -304,7 +331,7 @@ function PostCard({
           {locationLabel && <ResCell icon="📍" label={t("posts_field_location")} value={locationLabel} />}
           {animalsSummary && <ResCell icon="🐾" label={t("posts_field_animals")} value={animalsSummary} />}
           {serviceLabels && <ResCell icon="🛎️" label={t("posts_field_service")} value={serviceLabels} />}
-          {post.timeSlot && <ResCell icon="🕑" label={t("posts_field_time")} value={post.timeSlot} />}
+          {timeLabel && <ResCell icon="🕑" label={t("posts_field_time")} value={timeLabel} />}
           {post.notes && <ResCell icon="📝" label={t("posts_field_details")} value={post.notes} />}
         </div>
       </div>
