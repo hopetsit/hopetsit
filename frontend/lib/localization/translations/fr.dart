@@ -1612,6 +1612,8 @@ const Map<String, String> frFRTranslations = <String, String>{
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': 'Signalements 48h',
       'pawmap_filter_reports': 'Signalements',
+      'pawmap_report_pick_hint': 'Placez le signalement : touchez la carte pour ajuster l\'endroit.',
+      'pawmap_report_pick_confirm': 'Signaler ici',
       'pawmap_filter_friends': 'Mon cercle',
       'pawmap_filter_requests': 'Demandes',
       'pawmap_filter_lost': 'Perdu',

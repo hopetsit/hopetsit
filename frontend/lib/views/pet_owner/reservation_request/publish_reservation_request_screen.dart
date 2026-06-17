@@ -208,17 +208,17 @@ class _PublishReservationRequestScreenState
                     radius: 16,
                   ),
                 ),
-                // v441 — section photos masquée en mode édition : la mise à
-                // jour d'annonce ne ré-uploade pas les médias (les photos
-                // existantes sont conservées telles quelles côté backend).
-                if (!controller.isEditMode) ...[
-                  SizedBox(height: 16.h),
-                  _buildSectionCard(
-                    icon: Icons.photo_library_rounded,
-                    title: 'publish_request_images_label'.tr,
-                    child: _buildImagesSection(),
-                  ),
-                ],
+                // v449 — Daniel : « modifier l'annonce MÊME les photos ». La
+                // section photos est maintenant affichée AUSSI en mode édition
+                // (avant masquée car l'update ne ré-uploadait pas). Les nouvelles
+                // photos s'AJOUTENT à l'annonce via POST /posts/:id/media
+                // (addPostMedia) ; les anciennes restent.
+                SizedBox(height: 16.h),
+                _buildSectionCard(
+                  icon: Icons.photo_library_rounded,
+                  title: 'publish_request_images_label'.tr,
+                  child: _buildImagesSection(),
+                ),
                 SizedBox(height: 24.h),
                 Obx(
                   () => CustomButton(

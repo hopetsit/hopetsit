@@ -18,6 +18,7 @@ import Link from "next/link";
 import {
   BoostTier,
   confirmBoost,
+  confirmBookingPayment,
   confirmMapBoost,
   confirmSubscription,
 } from "@/lib/api";
@@ -38,6 +39,7 @@ export default function PayDonePage() {
   const [intentId, setIntentId] = useState<string>("");
   const [purpose, setPurpose] = useState<Purpose>("");
   const [planOrTier, setPlanOrTier] = useState<string>("");
+  const [bookingId, setBookingId] = useState<string>("");
   const [currency, setCurrency] = useState<string>("EUR");
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -63,15 +65,23 @@ export default function PayDonePage() {
     setPlanOrTier(
       url.searchParams.get("plan") || url.searchParams.get("tier") || "",
     );
+    // Paiement d'une réservation : l'id du booking est relayé sous `booking`.
+    setBookingId(url.searchParams.get("booking") || "");
     setCurrency(url.searchParams.get("currency") || "EUR");
   }, []);
 
   // v23.1 part 146 — auto-confirmation backend.
-  // Quand status=success ET on a un purpose/plan/intent → on appelle
-  // l'endpoint /confirm pour activer la subscription/boost côté DB.
+  // Quand status=success ET on a un purpose/intent → on appelle l'endpoint
+  // /confirm pour activer la subscription/boost (ou marquer la réservation
+  // payée) côté DB. Les achats abo/boost ont besoin du plan/tier ; le booking
+  // n'a besoin que de l'intentId + l'id de la réservation.
   useEffect(() => {
-    if (status !== "success" || !purpose || !intentId || !planOrTier) return;
-    if (purpose === "booking") return; // bookings ont leur propre webhook backend
+    if (status !== "success" || !purpose || !intentId) return;
+    if (purpose === "booking") {
+      if (!bookingId) return;
+    } else if (!planOrTier) {
+      return;
+    }
     if (confirming || confirmed) return;
 
     setConfirming(true);
@@ -79,7 +89,12 @@ export default function PayDonePage() {
 
     (async () => {
       try {
-        if (purpose === "subscription") {
+        if (purpose === "booking") {
+          // POST /bookings/:id/confirm-payment/:paymentIntentId — le backend
+          // retrieve le PI Airwallex et marque la réservation payée si SUCCEEDED
+          // (idempotent avec le webhook).
+          await confirmBookingPayment(bookingId, intentId);
+        } else if (purpose === "subscription") {
           await confirmSubscription(planOrTier, intentId, currency);
         } else if (purpose === "boost") {
           await confirmBoost(planOrTier as BoostTier, intentId, currency);
@@ -104,10 +119,14 @@ export default function PayDonePage() {
         setConfirming(false);
       }
     })();
-  }, [status, purpose, intentId, planOrTier, currency, confirming, confirmed]);
+  }, [status, purpose, intentId, planOrTier, bookingId, currency, confirming, confirmed]);
 
   const isOk = status === "success";
-  const purposeLabel = purpose && purpose !== "booking" ? PURPOSE_LABEL[purpose] : null;
+  const purposeLabel = purpose ? PURPOSE_LABEL[purpose] : null;
+  const isBooking = purpose === "booking";
+  // Où renvoyer l'utilisateur après l'achat (booking → /bookings).
+  const primaryHref = isBooking ? "/bookings" : "/boutique";
+  const primaryLabel = isBooking ? "Mes réservations" : "Retour à la boutique";
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center px-6 text-center">
@@ -179,10 +198,10 @@ export default function PayDonePage() {
       <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
         {purposeLabel && (
           <Link
-            href="/boutique"
+            href={primaryHref}
             className="rounded-full bg-owner px-6 py-2.5 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark"
           >
-            Retour à la boutique
+            {primaryLabel}
           </Link>
         )}
         <Link

@@ -14,6 +14,7 @@ const {
   deleteComment,
   deletePost,
   updatePost,
+  addPostMedia,
 } = require('../controllers/postController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { attachOwnerFromToken } = require('../middleware/ownerContext');
@@ -358,6 +359,8 @@ router.delete('/:id', requireAuth, requireRole('owner'), deletePost);
 // Edit own post - owner only, whitelisted fields
 router.put('/:id', requireAuth, requireRole('owner'), updatePost);
 router.patch('/:id', requireAuth, requireRole('owner'), updatePost);
+// v449 — ajouter des photos à une annonce existante (écran Modifier).
+router.post('/:id/media', requireAuth, requireRole('owner'), postMediaUpload, addPostMedia);
 
 /**
  * @swagger

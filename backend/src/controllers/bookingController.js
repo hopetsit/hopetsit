@@ -1837,7 +1837,15 @@ const selfCancelWithRefund = async (req, res) => {
         .json({ error: 'You do not have permission to cancel this booking.' });
     }
 
-    if (booking.status !== 'paid') {
+    // v449 — Daniel : « annuler avant 72h ne marche pas ». Cause : un booking
+    // PAYÉ peut avoir status='agreed' (paiement via un chemin qui pose
+    // paymentStatus/paidAt sans flipper status='paid') → ce garde le rejetait
+    // en 409. On accepte aussi paymentStatus==='paid' (ou paidAt présent).
+    const isPaidForCancel =
+      booking.status === 'paid' ||
+      booking.paymentStatus === 'paid' ||
+      !!booking.paidAt;
+    if (!isPaidForCancel) {
       return res.status(409).json({
         error: `Only paid bookings can be self‑cancelled (current status: ${booking.status}).`,
       });
@@ -5532,6 +5540,71 @@ const processServiceStartReminders = async () => {
   return { sent };
 };
 
+// v449 — Daniel : « la 1re confirmation du prestataire doit apparaître avec une
+// NOTIFICATION 72h avant le début du service (pas seulement une fois payé) ».
+const SERVICE_START_T72H_MS = 72 * 60 * 60 * 1000;
+
+/**
+ * Tick scheduler : pour chaque réservation PAYÉE non démarrée dont le début est
+ * dans le FUTUR et à <= 72h, on envoie UNE fois au prestataire la notif
+ * 'service_start_t72h' (push + mail + cloche) → il sait que le service approche
+ * et peut préparer sa 1re confirmation. Réclamation atomique anti-doublon.
+ */
+const processServiceStartT72hReminders = async () => {
+  const now = new Date();
+  let sent = 0;
+  try {
+    const horizon = new Date(now.getTime() + SERVICE_START_T72H_MS);
+    const candidates = await Booking.find({
+      paymentStatus: 'paid',
+      status: 'paid',
+      confirmationStatus: 'awaiting_start',
+      serviceStartedAt: null,
+      startServiceT72hReminderSentAt: null,
+    }).limit(200);
+
+    for (const booking of candidates) {
+      try {
+        const startAt = resolveBookingStartDate(booking);
+        if (!startAt) continue;
+        // Fenêtre : début dans le FUTUR (> maintenant) ET à 72h ou moins.
+        if (startAt.getTime() <= now.getTime()) continue;
+        if (startAt.getTime() > horizon.getTime()) continue;
+        const claimed = await Booking.findOneAndUpdate(
+          { _id: booking._id, startServiceT72hReminderSentAt: null },
+          { $set: { startServiceT72hReminderSentAt: now } },
+          { new: true },
+        );
+        if (!claimed) continue;
+        const provider = _resolveConfirmProvider(booking);
+        if (!provider.id || !provider.role) continue;
+        const { sendNotification } = require('../services/notificationSender');
+        const buildEmailLink = require('../utils/emailLinkBuilder').buildEmailLink;
+        await sendNotification({
+          userId: provider.id,
+          role: provider.role,
+          type: 'service_start_t72h',
+          data: {
+            bookingId: String(booking._id),
+            providerRole: provider.role,
+            emailLink: buildEmailLink('booking', { bookingId: String(booking._id) }),
+          },
+          actor: { role: 'owner', id: booking.ownerId ? String(booking.ownerId) : null },
+        });
+        sent += 1;
+      } catch (e) {
+        logger.warn(`[serviceStartT72h] failed for booking ${booking._id}: ${e?.message || e}`);
+      }
+    }
+  } catch (e) {
+    logger.error('[serviceStartT72h] outer error', e);
+  }
+  if (sent > 0) {
+    logger.info(`🐾 [serviceStartT72h] sent ${sent} T-72h reminder(s).`);
+  }
+  return { sent };
+};
+
 /**
  * v23.1.354 — Daniel : "la 2e confirmation du sitter/walker sort sur le
  * bandeau pas de suite après la 1re, mais 5 min avant la fin du service,
@@ -5758,6 +5831,7 @@ module.exports = {
   startService,
   completeService,
   processServiceStartReminders,
+  processServiceStartT72hReminders,
   processServiceEndReminders,
   confirmService,
   disputeService,

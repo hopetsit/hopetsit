@@ -64,13 +64,18 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
           widget.booking.pricing?.resolvedBaseAmount ??
           widget.booking.basePrice ??
           widget.totalPrice;
+      // v449 — Daniel : « le bouton Détails ne marche pas ». Cause : _basePrice!
+      // (null-check) plantait l'écran quand aucune source de prix n'était
+      // dispo (résa côté owner, sitter en otherParty sans hourlyRate). On
+      // sécurise avec des valeurs par défaut (0.0) — l'écran s'ouvre toujours.
+      final safeBase = _basePrice ?? 0.0;
       _platformFee =
           widget.booking.pricing?.platformFee ??
-          _calculatePlatformFee(_basePrice!);
+          _calculatePlatformFee(safeBase);
       _finalTotal =
           widget.booking.pricing?.totalPrice ??
           widget.booking.totalAmount ??
-          _calculateFinalTotal(_basePrice!, _platformFee!);
+          _calculateFinalTotal(safeBase, _platformFee ?? 0.0);
       _currency =
           widget.booking.pricing?.currency ?? widget.booking.sitter.currency;
       _agreementStartDate = null;
@@ -164,13 +169,18 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
           widget.booking.pricing?.resolvedBaseAmount ??
           widget.booking.basePrice ??
           widget.booking.sitter.hourlyRate;
+      // v449 — Daniel : « le bouton Détails ne marche pas ». Cause : _basePrice!
+      // (null-check) plantait l'écran quand aucune source de prix n'était
+      // dispo (résa côté owner, sitter en otherParty sans hourlyRate). On
+      // sécurise avec des valeurs par défaut (0.0) — l'écran s'ouvre toujours.
+      final safeBase = _basePrice ?? 0.0;
       _platformFee =
           widget.booking.pricing?.platformFee ??
-          _calculatePlatformFee(_basePrice!);
+          _calculatePlatformFee(safeBase);
       _finalTotal =
           widget.booking.pricing?.totalPrice ??
           widget.booking.totalAmount ??
-          _calculateFinalTotal(_basePrice!, _platformFee!);
+          _calculateFinalTotal(safeBase, _platformFee ?? 0.0);
       _currency =
           widget.booking.pricing?.currency ?? widget.booking.sitter.currency;
       _agreementStartDate = null;
@@ -184,13 +194,18 @@ class _BookingAgreementScreenState extends State<BookingAgreementScreen> {
           widget.booking.pricing?.resolvedBaseAmount ??
           widget.booking.basePrice ??
           widget.booking.sitter.hourlyRate;
+      // v449 — Daniel : « le bouton Détails ne marche pas ». Cause : _basePrice!
+      // (null-check) plantait l'écran quand aucune source de prix n'était
+      // dispo (résa côté owner, sitter en otherParty sans hourlyRate). On
+      // sécurise avec des valeurs par défaut (0.0) — l'écran s'ouvre toujours.
+      final safeBase = _basePrice ?? 0.0;
       _platformFee =
           widget.booking.pricing?.platformFee ??
-          _calculatePlatformFee(_basePrice!);
+          _calculatePlatformFee(safeBase);
       _finalTotal =
           widget.booking.pricing?.totalPrice ??
           widget.booking.totalAmount ??
-          _calculateFinalTotal(_basePrice!, _platformFee!);
+          _calculateFinalTotal(safeBase, _platformFee ?? 0.0);
       _currency =
           widget.booking.pricing?.currency ?? widget.booking.sitter.currency;
       _agreementStartDate = null;

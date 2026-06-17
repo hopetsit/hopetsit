@@ -53,7 +53,9 @@ Widget sitterBottomSheet(
                         ),
                         if (sitter.identityVerified) ...[
                           SizedBox(width: 4.w),
-                          Icon(Icons.verified, color: Colors.blue, size: 18.sp),
+                          // v449 — vérifié = VERT + plus gros (gaté KYC payé).
+                          Icon(Icons.verified,
+                              color: const Color(0xFF16A34A), size: 20.sp),
                         ],
                       ],
                     ),

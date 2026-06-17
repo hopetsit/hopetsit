@@ -554,6 +554,18 @@ class PublishReservationRequestController extends GetxController {
           showAnimalCharacter: showAnimalCharacter.value,
         );
 
+        // v449 — Daniel : « modifier l'annonce MÊME les photos ». Si l'owner a
+        // ajouté de nouvelles photos en édition, on les envoie (elles s'ajoutent
+        // aux existantes). Best-effort : un échec photo ne casse pas la MAJ des
+        // autres champs déjà enregistrés.
+        if (imageFiles.isNotEmpty) {
+          try {
+            await _postRepository.addPostMedia(editPostId, imageFiles.toList());
+          } catch (e) {
+            AppLogger.logError('addPostMedia (edit) failed', error: e);
+          }
+        }
+
         await _refreshFeedsAfterPublish();
 
         CustomSnackbar.showSuccess(

@@ -72,18 +72,27 @@ class SignupWizardScreen extends StatelessWidget {
           },
         ),
       ),
+      // v449 — Daniel : « quand on écrit on voit mal, fais page pleine ».
+      // resizeToAvoidBottomInset=true (défaut) + on MASQUE le gros en-tête
+      // (logo + titre + sous-titre) dès que le clavier est ouvert → les champs
+      // récupèrent toute la hauteur et sont tous lisibles ; padding bas généreux
+      // pour que le dernier champ ne passe pas sous le bouton « Suivant ».
       body: SafeArea(
         child: Obx(() {
           final step = c.currentStep.value;
+          final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
           return Column(
             children: [
-              _header(context),
-              SizedBox(height: 14.h),
+              if (!keyboardOpen) ...[
+                _header(context),
+                SizedBox(height: 14.h),
+              ] else
+                SizedBox(height: 8.h),
               _progressBar(step),
-              SizedBox(height: 18.h),
+              SizedBox(height: keyboardOpen ? 12.h : 18.h),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
                   child: _stepBody(context, c, step),
                 ),
               ),

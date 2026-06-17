@@ -463,6 +463,11 @@ class PostPet {
   final String breed;
   final String bio;
 
+  /// v449 — Daniel : poids/taille manquaient quand walker/sitter ouvrent la
+  /// fiche animal depuis l'annonce (N/D + « 0m »). Portés par le PostPet.
+  final String weight;
+  final String height;
+
   /// v442 — âge (en années) + sexe ('male' | 'female' | '') de l'animal, pour
   /// la bande animaux du détail d'annonce prestataire (« 4 ans », chip « Mâle »).
   final int? age;
@@ -484,6 +489,8 @@ class PostPet {
     this.characterTraits = const <String>[],
     this.breed = '',
     this.bio = '',
+    this.weight = '',
+    this.height = '',
     this.age,
     this.sex = '',
     this.compatibilities = const PetCompatibilities(),
@@ -510,6 +517,8 @@ class PostPet {
           const <String>[],
       breed: json['breed'] as String? ?? '',
       bio: json['bio'] as String? ?? '',
+      weight: json['weight'] as String? ?? '',
+      height: json['height'] as String? ?? '',
       age: json['age'] is num ? (json['age'] as num).toInt() : null,
       sex: (json['sex'] ?? json['gender'] ?? '').toString(),
       compatibilities: PetCompatibilities.fromJson(

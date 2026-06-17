@@ -459,6 +459,112 @@ export async function deleteMyIban(): Promise<void> {
   await request(ibanPath(), { method: "DELETE" });
 }
 
+// ─── Disponibilités (sitter / walker only) ──────────────────────────────────
+// Calendrier de disponibilités, mêmes champs que l'app mobile :
+//   availableDates[]      → dates ponctuellement disponibles (ISO)
+//   unavailableDates[]    → dates explicitement bloquées (ISO)
+//   availableTimeSlots[]  → créneaux hebdo récurrents { day, startHour, endHour }
+//
+// Les routes sont montées sous /sitters/me/availability et
+// /walkers/me/availability (au PLURIEL — contrairement à l'IBAN qui est sous
+// /sitter et /walker au singulier). On dérive le bon préfixe depuis le rôle.
+
+// Créneau horaire hebdomadaire récurrent (parité app + backend).
+export type AvailabilityTimeSlot = {
+  day:
+    | "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday"
+    | "sunday";
+  startHour: number; // 0-23
+  endHour: number; // 1-24, > startHour
+};
+
+export type Availability = {
+  availableDates: string[];
+  unavailableDates: string[];
+  availableTimeSlots: AvailabilityTimeSlot[];
+};
+
+function availabilityPath(): string {
+  const u = getStoredUser();
+  if (u?.role === "walker") return "/walkers/me/availability";
+  return "/sitters/me/availability"; // fallback aussi pour sitter
+}
+
+// Le backend renvoie availableDates/unavailableDates en objets Date sérialisés
+// (ISO strings). On normalise en string[] pour le front.
+function normalizeAvailability(raw: {
+  availableDates?: unknown[];
+  unavailableDates?: unknown[];
+  availableTimeSlots?: AvailabilityTimeSlot[];
+}): Availability {
+  const toIso = (list?: unknown[]): string[] =>
+    Array.isArray(list)
+      ? list
+          .map((d) => (d instanceof Date ? d.toISOString() : String(d)))
+          .filter(Boolean)
+      : [];
+  return {
+    availableDates: toIso(raw.availableDates),
+    unavailableDates: toIso(raw.unavailableDates),
+    availableTimeSlots: Array.isArray(raw.availableTimeSlots)
+      ? raw.availableTimeSlots
+      : [],
+  };
+}
+
+export async function getMyAvailability(): Promise<Availability> {
+  const raw = await request<{
+    availableDates?: unknown[];
+    unavailableDates?: unknown[];
+    availableTimeSlots?: AvailabilityTimeSlot[];
+  }>(availabilityPath());
+  return normalizeAvailability(raw);
+}
+
+export async function updateMyAvailability(input: {
+  availableDates?: string[];
+  unavailableDates?: string[];
+  availableTimeSlots?: AvailabilityTimeSlot[];
+}): Promise<Availability> {
+  const raw = await request<{
+    availableDates?: unknown[];
+    unavailableDates?: unknown[];
+    availableTimeSlots?: AvailabilityTimeSlot[];
+  }>(availabilityPath(), {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  return normalizeAvailability(raw);
+}
+
+// Disponibilités PUBLIQUES d'un prestataire (vue owner avant réservation).
+// GET /sitters/:id/availability ou /walkers/:id/availability (sans auth).
+export async function getProviderAvailability(
+  type: "sitter" | "walker",
+  id: string,
+): Promise<Availability> {
+  try {
+    const raw = await request<{
+      availableDates?: unknown[];
+      unavailableDates?: unknown[];
+      availableTimeSlots?: AvailabilityTimeSlot[];
+    }>(`/${type}s/${id}/availability`);
+    return normalizeAvailability(raw);
+  } catch (e) {
+    // Défensif : un prestataire sans calendrier configuré ne doit pas casser
+    // l'écran de réservation. On renvoie des listes vides (aucun blocage).
+    if (e instanceof ApiError && (e.status === 404 || e.status === 401)) {
+      return { availableDates: [], unavailableDates: [], availableTimeSlots: [] };
+    }
+    throw e;
+  }
+}
+
 // ─── Pets (v23.1 part 146) ──────────────────────────────────────────────────
 
 export type Pet = {
@@ -593,6 +699,11 @@ export type ProviderProfile = {
   // distinct du boost payé. Présents dans la réponse /sitters /walkers.
   isTopSitter?: boolean;
   isTopWalker?: boolean;
+  // Disponibilités (mêmes champs que l'app). Parfois inclus dans la réponse
+  // /sitters/:id ; sinon récupérées via getProviderAvailability().
+  availableDates?: string[];
+  unavailableDates?: string[];
+  availableTimeSlots?: AvailabilityTimeSlot[];
 };
 
 export type Pagination = {
@@ -973,6 +1084,85 @@ export async function respondToBooking(
     body: JSON.stringify({ action }),
   });
   return raw.booking;
+}
+
+// ─── Paiement d'une réservation depuis le SITE (parité app) ──────────────────
+// Jusqu'ici le paiement d'un booking était délégué à l'app mobile. On expose
+// désormais les mêmes endpoints que l'app pour permettre à l'owner de payer
+// une réservation acceptée/convenue directement sur le web :
+//   POST /bookings/:id/create-payment-intent        → Airwallex (HPP via /pay)
+//   POST /bookings/:id/paypal/create-order           → PayPal (approveUrl)
+//   POST /bookings/:id/paypal/capture/:orderId       → capture PayPal
+//   POST /bookings/:id/confirm-payment/:paymentIntentId → confirme côté backend
+
+// Réponse de POST /bookings/:id/create-payment-intent (Airwallex). Le backend
+// renvoie le couple intentId + clientSecret consommé par le pont HPP /pay.
+export type BookingPaymentIntent = {
+  paymentIntentId: string;
+  clientSecret: string;
+  amount?: number;
+  currency?: string;
+  commissionAmount?: number;
+  netSitterAmount?: number;
+  // Carte sauvegardée confirmée côté serveur → on peut sauter l'HPP.
+  serverConfirmed?: boolean;
+  nextActionUrl?: string | null;
+  savedCardError?: string | null;
+  booking?: Booking;
+  message?: string;
+};
+
+/** Crée (ou réutilise) le PaymentIntent Airwallex d'une réservation. */
+export async function createBookingPaymentIntent(
+  bookingId: string,
+): Promise<BookingPaymentIntent> {
+  return await request<BookingPaymentIntent>(
+    `/bookings/${bookingId}/create-payment-intent`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+/** Confirme le paiement d'une réservation après retour Airwallex (HPP). */
+export async function confirmBookingPayment(
+  bookingId: string,
+  paymentIntentId: string,
+): Promise<{ booking?: Booking; paymentIntent?: Record<string, unknown> }> {
+  return await request(
+    `/bookings/${bookingId}/confirm-payment/${encodeURIComponent(paymentIntentId)}`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+// Réponse de POST /bookings/:id/paypal/create-order. `approveUrl` (alias
+// `approvalUrl`) est l'URL PayPal vers laquelle rediriger l'owner.
+export type BookingPaypalOrder = {
+  orderId: string;
+  status?: string;
+  approveUrl?: string | null;
+  approvalUrl?: string | null;
+  booking?: Booking;
+  message?: string;
+};
+
+/** Crée (ou réutilise) une commande PayPal pour une réservation. */
+export async function createBookingPaypalOrder(
+  bookingId: string,
+): Promise<BookingPaypalOrder> {
+  return await request<BookingPaypalOrder>(
+    `/bookings/${bookingId}/paypal/create-order`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+/** Capture une commande PayPal approuvée → marque la réservation payée. */
+export async function captureBookingPaypalPayment(
+  bookingId: string,
+  orderId: string,
+): Promise<{ orderId: string; status?: string; booking?: Booking; message?: string }> {
+  return await request(
+    `/bookings/${bookingId}/paypal/capture/${encodeURIComponent(orderId)}`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
 }
 
 // ─── Confirmation de service (v23.1.259 — parité app) ───────────────────────

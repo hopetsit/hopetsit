@@ -1347,6 +1347,8 @@ const Map<String, String> deDETranslations = <String, String>{
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': '48-Std.-Meldungen',
       'pawmap_filter_reports': 'Meldungen',
+      'pawmap_report_pick_hint': 'Meldung platzieren: tippe auf die Karte, um den Ort anzupassen.',
+      'pawmap_report_pick_confirm': 'Hier melden',
       'pawmap_filter_friends': 'Mein Kreis',
       'pawmap_filter_requests': 'Anfragen',
       'pawmap_filter_lost': 'Verloren',

@@ -33,15 +33,19 @@ class VerifiedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!isVerified) return const SizedBox.shrink();
-    final iconSize = large ? 16.sp : 14.sp;
+    // v449 — Daniel : le badge vérifié un peu PLUS GROS + VERT (plus bleu), et
+    // UNIQUEMENT sur les profils qui ont payé la vérification (3€) → géré par
+    // `isVerified` que l'appelant doit câbler sur le VRAI flag (kycStatus ==
+    // 'verified'), pas en dur.
+    final iconSize = large ? 20.sp : 17.sp;
     final padding = large
-        ? EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h)
-        : EdgeInsets.symmetric(horizontal: 6.w, vertical: 3.h);
+        ? EdgeInsets.symmetric(horizontal: 11.w, vertical: 6.h)
+        : EdgeInsets.symmetric(horizontal: 7.w, vertical: 4.h);
 
-    // Palette bleu confiance Material — gradient profond -> clair pour
-    // un rendu premium. Compatible dark mode (le badge reste lisible).
-    const c1 = Color(0xFF1565C0); // Blue 800
-    const c2 = Color(0xFF1E88E5); // Blue 600
+    // Palette VERTE confiance (green 700 -> 500) — gradient premium, lisible en
+    // dark mode.
+    const c1 = Color(0xFF15803D); // Green 700
+    const c2 = Color(0xFF22C55E); // Green 500
 
     final widget = Container(
       padding: padding,
@@ -75,7 +79,7 @@ class VerifiedBadge extends StatelessWidget {
               // Existe en fr/en/es/de/it/pt.
               'kyc_badge_verified'.tr,
               style: TextStyle(
-                fontSize: 11.sp,
+                fontSize: 12.5.sp,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,
                 letterSpacing: 0.2,

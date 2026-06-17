@@ -296,9 +296,11 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                   Tooltip(
                                     message: 'profile_identity_verified'.tr,
                                     child: Icon(
+                                      // v449 — vérifié = VERT + plus gros (gaté
+                                      // sur identityVerified = KYC payé 3€).
                                       Icons.verified,
-                                      color: Colors.blue,
-                                      size: 16.sp,
+                                      color: const Color(0xFF16A34A),
+                                      size: 18.sp,
                                     ),
                                   ),
                                 ],
@@ -771,7 +773,7 @@ class _ServiceProviderCardState extends State<ServiceProviderCard> {
                                 if (widget.identityVerified) ...[
                                   SizedBox(width: 4.w),
                                   Icon(Icons.verified,
-                                      color: Colors.blue, size: 14.sp),
+                                      color: const Color(0xFF16A34A), size: 16.sp),
                                 ],
                                 if (widget.isTopSitter) ...[
                                   SizedBox(width: 4.w),

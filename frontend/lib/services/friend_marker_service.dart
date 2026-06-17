@@ -239,15 +239,15 @@ class FriendMarkerService extends GetxService {
     return byteData!.buffer.asUint8List();
   }
 
-  /// Fallback dans le cercle photo quand on n'a pas d'avatar valide :
-  /// fond gris clair + icone "?" gros au centre. Reste reconnaissable
-  /// meme sur petit zoom.
+  /// Fallback dans le cercle photo quand on n'a pas d'avatar valide.
+  /// v449 — Daniel : « si pas de photo → emoji CHIEN, pas du gris ». Fond BLANC
+  /// (l'anneau couleur du rôle peint en dessous reste visible) + emoji 🐕.
   void _paintFallback(Canvas canvas, double cx, double cy, double radius) {
-    final bgPaint = Paint()..color = const Color(0xFFE2E8F0);
+    final bgPaint = Paint()..color = const Color(0xFFFFFFFF);
     canvas.drawCircle(Offset(cx, cy), radius, bgPaint);
     final tp = TextPainter(
       text: const TextSpan(
-        text: '👤',
+        text: '🐕',
         // v23.1.350 — mis à l'échelle avec le marqueur 120→96 px.
         style: TextStyle(fontSize: 45),
       ),

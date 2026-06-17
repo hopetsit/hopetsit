@@ -1164,6 +1164,8 @@ const Map<String, String> ptPTTranslations = <String, String>{
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': 'Sinalizações 48h',
       'pawmap_filter_reports': 'Sinalizações',
+      'pawmap_report_pick_hint': 'Posicione o relatório: toque no mapa para ajustar o local.',
+      'pawmap_report_pick_confirm': 'Relatar aqui',
       'pawmap_filter_friends': 'O meu círculo',
       'pawmap_filter_requests': 'Pedidos',
       'pawmap_filter_lost': 'Perdido',

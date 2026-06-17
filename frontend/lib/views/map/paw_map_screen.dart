@@ -183,6 +183,13 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// position exacte (Daniel : "je ne peux pas sélectionner l'endroit").
   final RxBool _pickingSpotPos = false.obs;
 
+  /// v449 — Daniel : « mieux régler l'endroit du signalement, comme Taguer un
+  /// lieu mais plus express ». Mode viseur SIGNALEMENT : pin déplaçable (tap sur
+  /// la carte) + une seule action « Signaler ici » → ouvre la feuille au point
+  /// choisi. Réutilise `_pickedSpotPos` pour stocker le point (un seul viseur
+  /// actif à la fois).
+  final RxBool _pickingReportPos = false.obs;
+
   /// v23.1.363 — position choisie en TAPANT la carte pendant le mode viseur
   /// (marqueur réel ancré au sol — bien plus précis que le centre écran).
   LatLng? _pickedSpotPos;
@@ -1273,23 +1280,11 @@ class _PawMapScreenState extends State<PawMapScreen>
     // PawSpot = désormais les spots communautaires 🐾 (couche dédiée).
     // On garde : halo user, anneau ROLE des providers, halos amis/famille.
 
-    // v23.1.353 — mini halo statique par POI affiché (radius 18 m, couleur
-    // catégorie) : matérialise la zone du lieu sans pulser (perf).
-    if (_showPois.value) {
-      for (final poi in _poiController.visiblePois) {
-        final catColor = _colorForPoi(poi.category);
-        circles.add(
-          Circle(
-            circleId: CircleId('poi_halo_${poi.id}'),
-            center: LatLng(poi.latitude, poi.longitude),
-            radius: 18,
-            fillColor: catColor.withValues(alpha: 0.15),
-            strokeColor: catColor.withValues(alpha: 0.5),
-            strokeWidth: 1,
-          ),
-        );
-      }
-    }
+    // v449 — Daniel : « je vois encore des halos ». Le halo statique sous
+    // chaque POI (cercle teinté de la catégorie) est RETIRÉ : le marqueur
+    // emoji du POI porte déjà son anneau de couleur, le halo au sol faisait
+    // doublon et donnait l'impression d'un « halo » résiduel. (Les halos
+    // amis/famille/utilisateur restent, eux, volontaires.)
 
     // v23.1.276 — Daniel : "unifie les halos des utilisateurs pour que tout
     // soit plus fluide et compréhensible". Avant, un `return` ici (owner-only)
@@ -1556,6 +1551,8 @@ class _PawMapScreenState extends State<PawMapScreen>
       Get.locale?.languageCode ?? '',
       // v23.1.363 — mode viseur (pin de placement tap/drag).
       _pickingSpotPos.value ? 1 : 0,
+      // v449 — viseur signalement (même pin, couleur rouge).
+      _pickingReportPos.value ? 1 : 0,
       _pickedSpotPos == null
           ? ''
           : '${_pickedSpotPos!.latitude.toStringAsFixed(5)},${_pickedSpotPos!.longitude.toStringAsFixed(5)}',
@@ -1733,14 +1730,18 @@ class _PawMapScreenState extends State<PawMapScreen>
     }
     // v23.1.363 — mode viseur : VRAI marqueur rose ancré au sol, déplacé
     // au TAP sur la carte ou par DRAG du pin (précision maximale).
-    if (_pickingSpotPos.value && _pickedSpotPos != null) {
+    // v449 — partagé entre viseur SPOT (rose) et viseur SIGNALEMENT (rouge).
+    if ((_pickingSpotPos.value || _pickingReportPos.value) &&
+        _pickedSpotPos != null) {
       markers.add(
         Marker(
           markerId: const MarkerId('spot_picker'),
           position: _pickedSpotPos!,
           draggable: true,
           onDragEnd: (p) => setState(() => _pickedSpotPos = p),
-          icon: BitmapDescriptor.defaultMarkerWithHue(330),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            _pickingReportPos.value ? 0 /* rouge */ : 330 /* rose */,
+          ),
           zIndexInt: 20,
         ),
       );
@@ -2272,7 +2273,9 @@ class _PawMapScreenState extends State<PawMapScreen>
                       // pin du futur spot exactement là (Daniel : "je ne
                       // peux pas bien choisir ma position").
                       onTap: (latLng) {
-                        if (_pickingSpotPos.value) {
+                        // v449 — viseur spot OU signalement : taper la carte
+                        // déplace le pin du futur spot/signalement.
+                        if (_pickingSpotPos.value || _pickingReportPos.value) {
                           setState(() => _pickedSpotPos = latLng);
                         }
                       },
@@ -2416,6 +2419,11 @@ class _PawMapScreenState extends State<PawMapScreen>
                 // sélectionner l'endroit"). La carte bouge SOUS le pin.
                 Obx(() => _pickingSpotPos.value
                     ? _buildSpotPickerOverlay()
+                    : const SizedBox.shrink()),
+
+                // v449 — viseur SIGNALEMENT (express) : bandeau « Signaler ici ».
+                Obx(() => _pickingReportPos.value
+                    ? _buildReportPickerOverlay()
                     : const SizedBox.shrink()),
 
                 // v23.1.187 — Daniel mockup : carte "Autour de vous" flottante
@@ -3648,18 +3656,13 @@ class _PawMapScreenState extends State<PawMapScreen>
     // v418 — Daniel : bouton « Signaler » compact en bas à gauche. FAB rond
     // (icône seule) avec mini label dessous pour rester clair, plus petit que
     // l'ancien FAB étendu.
-    Future<void> onTap() async {
-      // Le bouton « Signaler » ouvre directement le NOUVEAU système
-      // (CreateReportSheet) — sections Gratuits + Premium dans un bottom
-      // sheet — au lieu de l'ancienne page grille. On dépose le report au
-      // centre courant (même point que le broadcast / la création de spot :
-      // _userPosition réel si dispo, sinon _currentCenter).
-      final point = _userPosition ?? _currentCenter;
-      final created = await CreateReportSheet.show(
-        context,
-        initialPoint: point,
-      );
-      if (created) await _reloadAtCenter();
+    void onTap() {
+      // v449 — Daniel : « mieux régler l'endroit du signalement, comme Taguer
+      // un lieu mais plus express ». Au lieu de déposer direct au centre, on
+      // entre en mode VISEUR : pin rouge déplaçable + bandeau « Signaler ici »
+      // (un seul tap pour valider). La feuille de signalement s'ouvre ensuite
+      // au point choisi.
+      _startReportPicking();
     }
 
     return Column(
@@ -3905,6 +3908,92 @@ class _PawMapScreenState extends State<PawMapScreen>
     if (mounted) setState(() {});
   }
 
+  /// v449 — Daniel : viseur SIGNALEMENT express. Pin (rouge) déplaçable au
+  /// centre, tap sur la carte pour ajuster ; bandeau « Signaler ici » → ouvre
+  /// la feuille de signalement au point choisi. Plus rapide que Taguer un lieu
+  /// (une seule action de validation).
+  void _startReportPicking() {
+    _pickedSpotPos = _userPosition ?? _currentCenter;
+    _pickingReportPos.value = true;
+    if (mounted) setState(() {});
+  }
+
+  /// Bandeau bas du viseur signalement : hint + bouton « Signaler ici » + ✕.
+  Widget _buildReportPickerOverlay() {
+    return Positioned(
+      left: 12.w,
+      right: 12.w,
+      bottom: 24.h + MediaQuery.of(context).viewPadding.bottom,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16.r),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.place_rounded,
+                  color: const Color(0xFFDC2626), size: 20.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: InterText(
+                  text: 'pawmap_report_pick_hint'.tr,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                  maxLines: 2,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              GestureDetector(
+                onTap: () {
+                  _pickingReportPos.value = false;
+                  if (mounted) setState(() {});
+                },
+                child: Icon(Icons.close_rounded,
+                    color: AppColors.greyText, size: 22.sp),
+              ),
+              SizedBox(width: 10.w),
+              GestureDetector(
+                onTap: () async {
+                  final at = _pickedSpotPos ?? _userPosition ?? _currentCenter;
+                  _pickingReportPos.value = false;
+                  if (mounted) setState(() {});
+                  final created =
+                      await CreateReportSheet.show(context, initialPoint: at);
+                  if (created) await _reloadAtCenter();
+                },
+                child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: InterText(
+                    text: 'pawmap_report_pick_confirm'.tr,
+                    fontSize: 12.5.sp,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Chip avec Switch compact (PawFollow / PawSpot), pleine largeur
   /// (maquette : fond blanc, bordure couleur, couronne 👑 si abonné).
   Widget _quickSwitchChip({
@@ -4078,9 +4167,23 @@ class _PawMapScreenState extends State<PawMapScreen>
   /// boutique (CoinShop onglet 3) ; au retour on re-vérifie les benefits.
   Future<void> _togglePawPremium() async {
     if (_pawSpotController.premiumActive.value) {
-      // v448 — Daniel : abonné, on/off MANUEL des halos OR Paw Premium (les
-      // membres Premium repassent en violet famille quand la couche est OFF).
-      _showPremiumLayer.value = !_showPremiumLayer.value;
+      // v449 — Daniel : « PawPremium = PawFollow + PawSpot ». Le switch
+      // PawPremium PILOTE les deux couches : ON → couche live (PawFollow) ET
+      // couche spots (PawSpot) ON ; OFF → les deux OFF. (Plus juste les halos
+      // OR.) Premium débloque déjà les deux abos, donc c'est cohérent.
+      final on = !_showPremiumLayer.value;
+      _showPremiumLayer.value = on;
+      _showLiveLayer.value = on;
+      if (on) {
+        if (!_showPawSpots.value) {
+          _showPawSpots.value = true;
+          GetStorage().write('pawspot_layer_on', true);
+          await _pawSpotController.loadNearby(_currentCenter);
+        }
+      } else {
+        _showPawSpots.value = false;
+        GetStorage().write('pawspot_layer_on', false);
+      }
       if (mounted) setState(() {});
       return;
     }

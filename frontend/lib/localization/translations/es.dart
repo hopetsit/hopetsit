@@ -1235,6 +1235,8 @@ const Map<String, String> esESTranslations = <String, String>{
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': 'Señalamientos 48h',
       'pawmap_filter_reports': 'Avisos',
+      'pawmap_report_pick_hint': 'Coloca el reporte: toca el mapa para ajustar el lugar.',
+      'pawmap_report_pick_confirm': 'Reportar aquí',
       'pawmap_filter_friends': 'Mi círculo',
       'pawmap_filter_requests': 'Solicitudes',
       'pawmap_filter_lost': 'Perdido',

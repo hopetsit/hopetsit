@@ -1366,6 +1366,8 @@ const Map<String, String> itITTranslations = <String, String>{
       'pawmap_filter_pois': 'POIs',
       'pawmap_filter_reports_48h': 'Segnalazioni 48h',
       'pawmap_filter_reports': 'Segnalazioni',
+      'pawmap_report_pick_hint': 'Posiziona la segnalazione: tocca la mappa per regolare il punto.',
+      'pawmap_report_pick_confirm': 'Segnala qui',
       'pawmap_filter_friends': 'La mia cerchia',
       'pawmap_filter_requests': 'Richieste',
       'pawmap_filter_lost': 'Smarrito',

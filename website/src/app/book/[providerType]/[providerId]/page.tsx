@@ -21,6 +21,7 @@ import {
   createBooking,
   getMyPets,
   getProvider,
+  getProviderAvailability,
   getStoredUser,
   Pet,
   ProviderProfile,
@@ -61,6 +62,9 @@ export default function BookPage() {
   const [duration, setDuration] = useState(60);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [description, setDescription] = useState("");
+  // Dates explicitement bloquées par le prestataire (YYYY-MM-DD) — l'owner ne
+  // peut pas réserver ces jours-là.
+  const [blockedDates, setBlockedDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const u = getStoredUser();
@@ -74,9 +78,10 @@ export default function BookPage() {
     }
     (async () => {
       try {
-        const [p, myPets] = await Promise.all([
+        const [p, myPets, availability] = await Promise.all([
           getProvider(providerType, providerId),
           getMyPets(),
+          getProviderAvailability(providerType, providerId).catch(() => null),
         ]);
         if (!p) {
           setError("Profil introuvable.");
@@ -87,6 +92,16 @@ export default function BookPage() {
         if (myPets.length === 1) {
           setSelectedPetIds([myPets[0].id]);
         }
+        // Normalise les dates bloquées en YYYY-MM-DD pour comparer à l'input.
+        const blocked = new Set<string>(
+          (availability?.unavailableDates || [])
+            .map((iso) => {
+              const d = new Date(iso);
+              return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+            })
+            .filter(Boolean),
+        );
+        setBlockedDates(blocked);
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
           router.replace("/login");
@@ -109,6 +124,12 @@ export default function BookPage() {
     e.preventDefault();
     if (!provider || selectedPetIds.length === 0) {
       setError("Sélectionne au moins un animal.");
+      return;
+    }
+    // Bloque la soumission si la date choisie a été marquée indisponible par
+    // le prestataire (double sécurité avec la validation à la sélection).
+    if (serviceDate && blockedDates.has(serviceDate)) {
+      setError(t("book_date_unavailable"));
       return;
     }
     setCreating(true);
@@ -379,8 +400,22 @@ export default function BookPage() {
                 onChange={(e) => setServiceDate(e.target.value)}
                 required
                 min={new Date().toISOString().split("T")[0]}
-                className="w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:border-walker focus:outline-none focus:ring-2 focus:ring-walker/20"
+                className={`w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                  serviceDate && blockedDates.has(serviceDate)
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-500/20"
+                    : "border-ink/15 focus:border-walker focus:ring-walker/20"
+                }`}
               />
+              {serviceDate && blockedDates.has(serviceDate) && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  ⚠️ {t("book_date_unavailable")}
+                </p>
+              )}
+              {blockedDates.size > 0 && (
+                <p className="mt-1 text-[11px] text-ink-soft">
+                  {t("book_unavailable_hint")}
+                </p>
+              )}
             </Field>
             <Field label="Heure">
               <input
@@ -420,7 +455,11 @@ export default function BookPage() {
 
           <button
             type="submit"
-            disabled={creating || selectedPetIds.length === 0}
+            disabled={
+              creating ||
+              selectedPetIds.length === 0 ||
+              (!!serviceDate && blockedDates.has(serviceDate))
+            }
             className={`w-full rounded-full bg-${color} px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60`}
           >
             {creating ? "Envoi…" : `Envoyer la demande à ${provider.name}`}

@@ -316,5 +316,11 @@
     "body": "O teu serviço termina em 5 minutos. Toca em «✅ Devolvi o animal» para confirmar o fim do serviço.",
     "emailSubject": "Confirma o fim do serviço — HoPetSit",
     "emailBody": "<p>O teu serviço termina em cerca de 5 minutos! Abre a app HoPetSit e toca em <b>✅ Devolvi o animal</b> para confirmar o fim do serviço (o pagamento é libertado após a confirmação do dono).</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver a reserva</a></p><p style=\"color:#666;font-size:12px;\">Se o botão não funcionar, copia e cola este link: {{emailLink}}</p>"
+  },
+  "service_start_t72h": {
+    "title": "Serviço em 72h 🐾",
+    "body": "A tua reserva começa em menos de 72h. Prepara-te: poderás confirmar o início do serviço nas tuas reservas.",
+    "emailSubject": "O teu serviço começa em 72h — HoPetSit",
+    "emailBody": "<p>A tua reserva começa em menos de 72 horas. Abre a app HoPetSit para ver os detalhes.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Ver reserva</a></p>"
   }
 }

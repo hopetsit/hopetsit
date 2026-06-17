@@ -316,5 +316,11 @@
     "body": "Dein Service endet in 5 Minuten. Tippe auf „✅ Tier zurückgegeben“, um das Ende des Services zu bestätigen.",
     "emailSubject": "Bestätige das Service-Ende — HoPetSit",
     "emailBody": "<p>Dein Service endet in etwa 5 Minuten! Öffne die HoPetSit-App und tippe auf <b>✅ Tier zurückgegeben</b>, um das Ende des Services zu bestätigen (die Zahlung wird nach der Bestätigung des Besitzers freigegeben).</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p><p style=\"color:#666;font-size:12px;\">Falls der Button nicht funktioniert, kopiere diesen Link: {{emailLink}}</p>"
+  },
+  "service_start_t72h": {
+    "title": "Service in 72 Std 🐾",
+    "body": "Deine Buchung beginnt in weniger als 72 Std. Mach dich bereit – du bestätigst den Servicebeginn in deinen Buchungen.",
+    "emailSubject": "Dein Service beginnt in 72 Std — HoPetSit",
+    "emailBody": "<p>Deine Buchung beginnt in weniger als 72 Stunden. Öffne die HoPetSit-App, um die Details zu sehen.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">Buchung ansehen</a></p>"
   }
 }

@@ -917,6 +917,17 @@ const googleAuth = async (req, res) => {
         hourlyRate: hourlyRateFromRequest ?? 0,
         weeklyRate: weeklyRateFromRequest ?? 0,
         monthlyRate: monthlyRateFromRequest ?? 0,
+        // v449 — Daniel : « temps de réponse rempli à l'inscription ne s'affiche
+        // pas ». L'inscription Google/Apple droppait responseTimeMinutes +
+        // extraPetRate (seul le signup email/mdp les persistait). Ajoutés ici.
+        ...(Number.isFinite(Number(user?.extraPetRate ?? user?.additionalAnimalFee)) &&
+          Number(user?.extraPetRate ?? user?.additionalAnimalFee) >= 0
+            ? { extraPetRate: Number(user.extraPetRate ?? user.additionalAnimalFee) }
+            : {}),
+        ...(Number.isFinite(Number(user?.responseTimeMinutes)) &&
+          Number(user.responseTimeMinutes) > 0
+            ? { responseTimeMinutes: Math.round(Number(user.responseTimeMinutes)) }
+            : {}),
         rating: 0,
         reviewsCount: 0,
         feedback: [],
@@ -967,6 +978,16 @@ const googleAuth = async (req, res) => {
           user.defaultWalkDurationMinutes % 15 === 0
             ? user.defaultWalkDurationMinutes
             : 30,
+        // v449 — idem sitter : l'inscription Google/Apple droppait
+        // responseTimeMinutes + extraPetRate. Ajoutés (gardés si fournis).
+        ...(Number.isFinite(Number(user?.extraPetRate ?? user?.additionalAnimalFee)) &&
+          Number(user?.extraPetRate ?? user?.additionalAnimalFee) >= 0
+            ? { extraPetRate: Number(user.extraPetRate ?? user.additionalAnimalFee) }
+            : {}),
+        ...(Number.isFinite(Number(user?.responseTimeMinutes)) &&
+          Number(user.responseTimeMinutes) > 0
+            ? { responseTimeMinutes: Math.round(Number(user.responseTimeMinutes)) }
+            : {}),
         rating: 0,
         reviewsCount: 0,
         feedback: [],
@@ -1216,6 +1237,17 @@ const appleAuth = async (req, res) => {
         hourlyRate: hourlyRateFromRequest ?? 0,
         weeklyRate: weeklyRateFromRequest ?? 0,
         monthlyRate: monthlyRateFromRequest ?? 0,
+        // v449 — Daniel : « temps de réponse rempli à l'inscription ne s'affiche
+        // pas ». L'inscription Google/Apple droppait responseTimeMinutes +
+        // extraPetRate (seul le signup email/mdp les persistait). Ajoutés ici.
+        ...(Number.isFinite(Number(user?.extraPetRate ?? user?.additionalAnimalFee)) &&
+          Number(user?.extraPetRate ?? user?.additionalAnimalFee) >= 0
+            ? { extraPetRate: Number(user.extraPetRate ?? user.additionalAnimalFee) }
+            : {}),
+        ...(Number.isFinite(Number(user?.responseTimeMinutes)) &&
+          Number(user.responseTimeMinutes) > 0
+            ? { responseTimeMinutes: Math.round(Number(user.responseTimeMinutes)) }
+            : {}),
         rating: 0,
         reviewsCount: 0,
         feedback: [],
@@ -1266,6 +1298,16 @@ const appleAuth = async (req, res) => {
           user.defaultWalkDurationMinutes % 15 === 0
             ? user.defaultWalkDurationMinutes
             : 30,
+        // v449 — idem sitter : l'inscription Google/Apple droppait
+        // responseTimeMinutes + extraPetRate. Ajoutés (gardés si fournis).
+        ...(Number.isFinite(Number(user?.extraPetRate ?? user?.additionalAnimalFee)) &&
+          Number(user?.extraPetRate ?? user?.additionalAnimalFee) >= 0
+            ? { extraPetRate: Number(user.extraPetRate ?? user.additionalAnimalFee) }
+            : {}),
+        ...(Number.isFinite(Number(user?.responseTimeMinutes)) &&
+          Number(user.responseTimeMinutes) > 0
+            ? { responseTimeMinutes: Math.round(Number(user.responseTimeMinutes)) }
+            : {}),
         rating: 0,
         reviewsCount: 0,
         feedback: [],

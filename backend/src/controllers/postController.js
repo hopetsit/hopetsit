@@ -454,6 +454,11 @@ const listPosts = async (req, res) => {
           // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
           breed: pet.breed || '',
           bio: pet.bio || '',
+          // v449 — Daniel : poids/taille manquaient quand walker/sitter ouvrent
+          // la fiche animal depuis l'annonce (affichait N/D + « 0m »). Ajoutés
+          // (comme getPetById) → synchro avec le profil/inscription.
+          weight: pet.weight || '',
+          height: pet.height || '',
           // v442 — âge + sexe pour la bande animaux du détail d'annonce
           // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
           age: typeof pet.age === 'number' ? pet.age : null,
@@ -563,6 +568,11 @@ const getMediaPosts = async (req, res) => {
           // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
           breed: pet.breed || '',
           bio: pet.bio || '',
+          // v449 — Daniel : poids/taille manquaient quand walker/sitter ouvrent
+          // la fiche animal depuis l'annonce (affichait N/D + « 0m »). Ajoutés
+          // (comme getPetById) → synchro avec le profil/inscription.
+          weight: pet.weight || '',
+          height: pet.height || '',
           // v442 — âge + sexe pour la bande animaux du détail d'annonce
           // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
           age: typeof pet.age === 'number' ? pet.age : null,
@@ -735,6 +745,11 @@ const getRequestPosts = async (req, res) => {
           // v429 — race + bio pour la carte "Caractère des animaux" (maquette 221).
           breed: pet.breed || '',
           bio: pet.bio || '',
+          // v449 — Daniel : poids/taille manquaient quand walker/sitter ouvrent
+          // la fiche animal depuis l'annonce (affichait N/D + « 0m »). Ajoutés
+          // (comme getPetById) → synchro avec le profil/inscription.
+          weight: pet.weight || '',
+          height: pet.height || '',
           // v442 — âge + sexe pour la bande animaux du détail d'annonce
           // prestataire (« 4 ans », chip « Mâle »). gender enum male/female/null.
           age: typeof pet.age === 'number' ? pet.age : null,
@@ -1631,6 +1646,84 @@ const updatePost = async (req, res) => {
 };
 
 /**
+ * v449 — Daniel : « modifier l'annonce MÊME les photos ». Endpoint dédié pour
+ * AJOUTER des photos à une annonce existante depuis l'écran d'édition (le PATCH
+ * /posts/:id reste JSON pour les champs). Upload Cloudinary + modération, puis
+ * append aux images existantes (l'édition n'efface pas les anciennes).
+ * POST /posts/:id/media  (multipart, champ "image"), owner only, non payé.
+ */
+const addPostMedia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ownerId = req.user?.id;
+    if (!ownerId) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    if (req.user?.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners can edit posts.' });
+    }
+    const post = await Post.findById(id);
+    if (!post) return res.status(404).json({ error: 'Post not found.' });
+    if (post.ownerId.toString() !== ownerId.toString()) {
+      return res.status(403).json({ error: 'You can only edit your own posts.' });
+    }
+    if (await isPostPaidLocked(post)) {
+      return res.status(409).json({
+        error: 'This reservation is already paid and can no longer be edited.',
+        code: 'POST_PAID_LOCKED',
+      });
+    }
+    if (!req.files || Object.keys(req.files).length === 0) {
+      return res.status(400).json({ error: 'No image provided.' });
+    }
+    const allowedImg = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const uploadFolder = `petsinsta/posts/${ownerId}`;
+    const { rejectIfUnsafe } = require('../services/contentModerationService');
+    const newImages = [];
+    for (const files of Object.values(req.files)) {
+      for (const file of files) {
+        if (!allowedImg.includes(file.mimetype)) continue; // images uniquement
+        const dataUri = bufferToDataUri(file);
+        const uploadResult = await uploadMedia({
+          file: dataUri,
+          folder: uploadFolder,
+          resourceType: 'image',
+        });
+        try {
+          await rejectIfUnsafe(uploadResult);
+        } catch (modErr) {
+          if (modErr.code === 'CONTENT_REJECTED') {
+            return res.status(422).json({
+              error: modErr.message,
+              code: modErr.code,
+              details: modErr.details,
+            });
+          }
+          throw modErr;
+        }
+        newImages.push({
+          url: uploadResult.url,
+          publicId: uploadResult.publicId,
+          uploadedAt: new Date(),
+        });
+      }
+    }
+    if (newImages.length > 0) {
+      post.images = [...(post.images || []), ...newImages];
+      await post.save();
+    }
+    await post.populate('ownerId');
+    return res.json({ message: 'Media added.', post: sanitizePost(post) });
+  } catch (error) {
+    logger.error('Add post media error', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'Invalid post id.' });
+    }
+    return res.status(500).json({ error: 'Unable to add media. Please try again later.' });
+  }
+};
+
+/**
  * v16.3h — Fetch a single post by ID. Used by the mobile client when a
  * notification payload carries a postId that is not currently in the user's
  * feed cache (e.g. a like notification for a post that belongs to another
@@ -1688,6 +1781,9 @@ const getPostById = async (req, res) => {
         : [],
       breed: pet.breed || '',
       bio: pet.bio || '',
+      // v449 — poids/taille (cf 3 autres maps) → fiche animal côté prestataire.
+      weight: pet.weight || '',
+      height: pet.height || '',
       age: typeof pet.age === 'number' ? pet.age : null,
       sex: pet.gender || '',
       compatibilities: {
@@ -1730,4 +1826,5 @@ module.exports = {
   deleteComment,
   deletePost,
   updatePost,
+  addPostMedia,
 };

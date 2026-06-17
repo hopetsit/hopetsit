@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/post_model.dart';
@@ -244,5 +246,25 @@ class PostRepository {
     }
 
     throw ApiException('Unexpected update post response.', details: response);
+  }
+
+  /// v449 — Daniel : « modifier l'annonce MÊME les photos ». Ajoute des photos
+  /// à une annonce existante (POST /posts/:id/media, multipart champ "image").
+  /// Les photos sont AJOUTÉES aux existantes (pas de remplacement).
+  Future<Map<String, dynamic>> addPostMedia(
+    String postId,
+    List<File> imageFiles,
+  ) async {
+    if (imageFiles.isEmpty) return <String, dynamic>{};
+    final response = await _apiClient.postMultipart(
+      '/posts/$postId/media',
+      files: imageFiles,
+      fileFieldName: 'image',
+      fields: const <String, String>{},
+      requiresAuth: true,
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw ApiException('Unexpected add post media response.', details: response);
   }
 }

@@ -16,6 +16,7 @@ import {
   AuthUser,
   Booking,
   BookingStatus,
+  createBookingPaymentIntent,
   getMyBookings,
   getStoredUser,
   respondToBooking,
@@ -42,6 +43,7 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
 
   useEffect(() => {
     const u = getStoredUser();
@@ -92,6 +94,37 @@ export default function BookingsPage() {
       alert(e instanceof Error ? e.message : "Failed to respond");
     } finally {
       setRespondingId(null);
+    }
+  }
+
+  // Paiement d'une réservation depuis le site (parité app). On crée le
+  // PaymentIntent Airwallex puis on route vers le pont HPP /pay, qui revient
+  // sur /pay/done?purpose=booking pour confirmer côté backend.
+  async function handlePay(booking: Booking) {
+    setPayingId(booking.id);
+    setError(null);
+    try {
+      const intent = await createBookingPaymentIntent(booking.id);
+      if (!intent.clientSecret || !intent.paymentIntentId) {
+        throw new Error(intent.savedCardError || "Paiement indisponible.");
+      }
+      const currency = (
+        intent.currency ||
+        booking.pricing?.currency ||
+        booking.currency ||
+        "EUR"
+      ).toUpperCase();
+      const qs = new URLSearchParams({
+        intent: intent.paymentIntentId,
+        secret: intent.clientSecret,
+        currency,
+        purpose: "booking",
+        booking: booking.id,
+      });
+      router.push(`/pay?${qs.toString()}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Échec du paiement");
+      setPayingId(null);
     }
   }
 
@@ -163,8 +196,10 @@ export default function BookingsPage() {
               role={user?.role || "owner"}
               isOwner={isOwner}
               responding={respondingId === booking.id}
+              paying={payingId === booking.id}
               onAccept={() => handleRespond(booking.id, "accept")}
               onReject={() => handleRespond(booking.id, "reject")}
+              onPay={() => handlePay(booking)}
               onServiceChanged={refresh}
             />
           ))}
@@ -179,16 +214,20 @@ function BookingCard({
   role,
   isOwner,
   responding,
+  paying,
   onAccept,
   onReject,
+  onPay,
   onServiceChanged,
 }: {
   booking: Booking;
   role: AuthRole;
   isOwner: boolean;
   responding: boolean;
+  paying: boolean;
   onAccept: () => void;
   onReject: () => void;
+  onPay: () => void;
   onServiceChanged: () => void;
 }) {
   const { t } = useT();
@@ -198,6 +237,12 @@ function BookingCard({
     color: meta?.color || "bg-slate-100 text-slate-700",
   };
   const showActions = !isOwner && booking.status === "pending";
+  // Owner peut payer une réservation convenue/acceptée tant qu'elle n'est pas
+  // déjà payée (statuts alignés sur createBookingPaymentIntent backend).
+  const canPay =
+    isOwner &&
+    (booking.status === "agreed" || booking.status === "accepted") &&
+    (booking.paymentStatus || "").toLowerCase() !== "paid";
   // Le backend renvoie `otherParty` (contrepartie agrégée) sur /bookings/my.
   const counterpart =
     booking.otherParty?.name ||
@@ -287,6 +332,24 @@ function BookingCard({
           >
             {t("bookings_reject")}
           </button>
+        </div>
+      )}
+
+      {canPay && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={onPay}
+            disabled={paying}
+            className="w-full rounded-full bg-owner px-4 py-2.5 text-sm font-semibold text-white shadow-cta hover:bg-owner-dark disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {paying
+              ? "…"
+              : `💳 ${t("bookings_pay")}${price > 0 ? ` · ${price} ${currency}` : ""}`}
+          </button>
+          <p className="mt-1.5 text-center text-[11px] text-ink-soft">
+            {t("bookings_pay_secure")}
+          </p>
         </div>
       )}
 

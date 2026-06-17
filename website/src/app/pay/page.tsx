@@ -87,12 +87,17 @@ export default function PayPage() {
     const purpose = params.get("purpose") || "";        // booking | subscription | boost | mapboost
     const planParam = params.get("plan") || "";          // monthly | yearly | family
     const tierParam = params.get("tier") || "";          // bronze | silver | gold | platinum
+    // v23.1 — paiement d'une réservation : l'id du booking est distinct de
+    // l'intentId (qui sert de référence Airwallex). On le relaie sous `booking`
+    // pour que /pay/done puisse appeler confirm-payment/:bookingId/:intentId.
+    const bookingParam = params.get("booking") || params.get("id") || "";
     const extraParams = new URLSearchParams();
     if (purpose) extraParams.set("purpose", purpose);
     if (planParam) extraParams.set("plan", planParam);
     if (tierParam) extraParams.set("tier", tierParam);
     if (currency) extraParams.set("currency", currency);
     if (intentId) extraParams.set("id", intentId);
+    if (purpose === "booking" && bookingParam) extraParams.set("booking", bookingParam);
     const extra = extraParams.toString();
     const extraQs = extra ? `&${extra}` : "";
 

@@ -316,5 +316,11 @@
     "body": "Your service ends in 5 minutes. Tap “✅ I returned the pet” to confirm the end of service.",
     "emailSubject": "Confirm the end of service — HoPetSit",
     "emailBody": "<p>Your service ends in about 5 minutes! Open the HoPetSit app and tap <b>✅ I returned the pet</b> to confirm the end of service (payment is released after the owner's confirmation).</p><p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p><p style=\"color:#666;font-size:12px;\">If the button doesn't work, copy-paste this link: {{emailLink}}</p>"
+  },
+  "service_start_t72h": {
+    "title": "Service in 72h 🐾",
+    "body": "Your booking starts in under 72h. Get ready — you'll confirm the service start in your bookings.",
+    "emailSubject": "Your service starts in 72h — HoPetSit",
+    "emailBody": "<p>Your booking starts in less than 72 hours. Open the HoPetSit app to see the details and get ready.</p> <p><a href=\"{{emailLink}}\" style=\"display:inline-block;padding:12px 24px;background:#16A34A;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:700;font-family:sans-serif;\">View booking</a></p>"
   }
 }

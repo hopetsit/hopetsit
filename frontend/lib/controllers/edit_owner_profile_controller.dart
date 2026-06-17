@@ -363,6 +363,17 @@ class EditOwnerProfileController extends GetxController {
       // Reload profile to get updated avatar URL
       await loadProfileData();
 
+      // v449 — Daniel : photo profil pas synchro (bande accueil / onglet « Mon
+      // profil » / inscription). On rafraîchit ProfileController : son
+      // _persistFreshProfile RÉÉCRIT user_profile (lu par le marqueur map et la
+      // cohérence globale) ET met à jour l'onglet profil + l'en-tête. Sans ça,
+      // seule la page d'édition voyait la nouvelle photo.
+      try {
+        if (Get.isRegistered<ProfileController>()) {
+          await Get.find<ProfileController>().loadMyProfile();
+        }
+      } catch (_) {/* best-effort */}
+
       CustomSnackbar.showSuccess(
         title: 'common_success',
         message: 'profile_picture_update_success',

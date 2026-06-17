@@ -5,6 +5,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:hopetsit/controllers/edit_sitter_profile_controller.dart'
     show providerRatesVersion;
+import 'package:hopetsit/controllers/profile_controller.dart';
 import 'package:hopetsit/data/network/api_client.dart';
 import 'package:hopetsit/data/network/api_exception.dart';
 import 'package:hopetsit/models/walker_model.dart';
@@ -295,6 +296,14 @@ class EditWalkerProfileController extends GetxController {
     try {
       await repo.updateProfilePicture(imageFile);
       await loadProfileData();
+      // v449 — Daniel : photo profil pas synchro. On rafraîchit ProfileController
+      // (l'onglet « Mon profil » walker le lit + _persistFreshProfile réécrit
+      // user_profile) → photo cohérente partout, pas seulement sur l'édition.
+      try {
+        if (Get.isRegistered<ProfileController>()) {
+          await Get.find<ProfileController>().loadMyProfile();
+        }
+      } catch (_) {/* best-effort */}
       CustomSnackbar.showSuccess(
         title: 'common_success',
         message: 'profile_picture_update_success',

@@ -886,9 +886,8 @@ class PetPostCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: _accent,
                 ),
-                SizedBox(width: 2.w),
-                Icon(Icons.chevron_right_rounded,
-                    size: 16.sp, color: AppColors.greyColor),
+                // v449 — Daniel : enlever la petite flèche (chevron) à côté de
+                // « Nom • N photo » sur la publication.
               ],
             ),
           );
@@ -1557,7 +1556,8 @@ class PetPostCard extends StatelessWidget {
       Icons.schedule_rounded,
       'post_field_time'.tr,
       '– $time',
-      valueColor: const Color(0xFFF59E0B),
+      // v449 — Daniel : la valeur de l'heure en NOIR gras (comme Dates /
+      // Localisation), plus en jaune. L'icône horloge garde l'accent du rôle.
     );
     final withTime = List<Widget>.from(cells);
     withTime.insert(withTime.isEmpty ? 0 : 1, timeCell);
