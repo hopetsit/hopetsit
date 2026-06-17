@@ -873,8 +873,8 @@ class _PublishReservationRequestScreenState
               height: 48.h,
               padding: EdgeInsets.symmetric(horizontal: 14.w),
               decoration: BoxDecoration(
-                // v448 — gris clair → jaune doux (cohérent app-wide).
-                color: AppColors.inputFillLight,
+                // v449 — fill teinté par rôle (owner orange pâle).
+                color: AppColors.inputFillLightForRole(),
                 borderRadius: BorderRadius.circular(12.r),
                 border: Border.all(
                   color: isTimePlaceholder ? AppColors.grey300Color : AppColors.primaryColor.withValues(alpha: 0.3),

@@ -240,11 +240,11 @@ class MyApp extends StatelessWidget {
                 onSurfaceVariant: AppColors.grey700Color,
               ),
               primaryColor: AppColors.primaryColor,
-              // v23.1 part 32 — REVERT scaffoldLight (gris #F7F7F8) qui était
-              // le réglage de la version qui marchait (commit 0d21cb7).
-              // L'avoir changé en white avait introduit le rectangle gris
-              // bizarre autour de la tab Accueil (selon analyse diff).
-              scaffoldBackgroundColor: AppColors.scaffoldLight,
+              // v449 — fallback global teinté par RÔLE (owner orange pâle /
+              // sitter bleu pâle / walker vert pâle). Les pages posent leur
+              // propre AppColors.scaffold(context) ; ceci ne sert que de
+              // fallback quand un Scaffold n'en pose pas.
+              scaffoldBackgroundColor: AppColors.scaffoldLightForRole(),
               appBarTheme: const AppBarTheme(
                 backgroundColor: AppColors.whiteColor,
                 elevation: 0,

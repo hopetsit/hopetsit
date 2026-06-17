@@ -202,6 +202,17 @@ class DeepLinkService {
     //   hopetsit://notifications           → écran notifications
     // v23.1 part 146 — 5e chemin :
     //   hopetsit://auth?ott=<token>        → bridge session web → app
+    // v449 — lien canonique des emails : `https://hopetsit.com/open`
+    // (ou `hopetsit://open`). Objectif voulu par Daniel : « email → app si
+    // installée ; sinon /download. Ne route PAS vers une conversation
+    // précise ». Côté app, le simple fait d'avoir intercepté le lien suffit :
+    // l'app est ouverte (ou ramenée au premier plan). Si l'utilisateur n'est
+    // pas connecté, le splash/auth affiche le login puis l'accueil — flux
+    // standard. On NE navigue donc nulle part : no-op gracieux.
+    if (first == 'open' || first == 'app') {
+      AppLogger.logInfo('DeepLink /open — app ouverte (aucune navigation).');
+      return;
+    }
     if (first == 'pay') {
       // v23.1 part 125 — bookingId DOIT être un ObjectId 24 hex. Sinon
       // on log et on ignore (anti Intent Redirection).

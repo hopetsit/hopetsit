@@ -13,6 +13,7 @@ import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/address_share_card.dart';
+import 'package:hopetsit/widgets/phone_share_card.dart';
 import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/translate_message_button.dart';
 
@@ -238,6 +239,79 @@ class _SitterIndividualChatScreenState
         message: isMissingAddress
             ? 'address_share_no_profile_msg'.tr
             : raw,
+      );
+    }
+  }
+
+  /// v449 — Daniel : « améliore le partage de mon numéro sur les 3 profils ».
+  /// Confirmation explicite (le numéro devient visible par l'interlocuteur),
+  /// puis POST /conversations/:id/share-phone (role-agnostic) + feedback.
+  Future<void> _onSharePhoneTap() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: AppColors.card(dctx),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18.r),
+        ),
+        title: InterText(
+          text: 'phone_share_confirm_title'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(dctx),
+        ),
+        content: InterText(
+          text: 'phone_share_confirm_msg'.tr,
+          fontSize: 13.sp,
+          color: AppColors.textSecondary(dctx),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(false),
+            child: InterText(
+              text: 'common_cancel'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(dctx),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+            onPressed: () => Navigator.of(dctx).pop(true),
+            child: InterText(
+              text: 'chat_share_phone_button'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final repo = Get.find<ChatRepository>();
+      await repo.sharePhone(conversationId: widget.conversationId);
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'phone_share_sent_title'.tr,
+        message: 'phone_share_sent_msg'.tr,
+      );
+      await chatController.loadChatMessages(widget.conversationId);
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString().replaceAll('ApiException:', '').trim();
+      final isMissing = raw.toLowerCase().contains('no phone');
+      CustomSnackbar.showError(
+        title: isMissing
+            ? 'phone_share_no_profile_title'.tr
+            : 'common_error'.tr,
+        message: isMissing ? 'phone_share_no_profile_msg'.tr : raw,
       );
     }
   }
@@ -487,6 +561,13 @@ class _SitterIndividualChatScreenState
         city: message.addressShareCity,
         lat: message.addressShareLat,
         lng: message.addressShareLng,
+        isFromCurrentUser: message.isFromCurrentUser,
+      );
+    }
+    // v449 — carte « Numéro de téléphone » partagé (3 rôles).
+    if (message.isPhoneShare) {
+      return PhoneShareCard(
+        phone: message.phoneShareNumber,
         isFromCurrentUser: message.isFromCurrentUser,
       );
     }
@@ -832,11 +913,11 @@ class _SitterIndividualChatScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Sprint 3 step 6 — Share my phone (sitter only, post-payment).
+          // v449 — Partager mon numéro (3 rôles) avec confirmation explicite.
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
-              onPressed: () => controller.sharePhone(),
+              onPressed: _onSharePhoneTap,
               icon: Icon(Icons.phone, size: 18.sp, color: AppColors.primaryColor),
               label: Text(
                 'chat_share_phone_button'.tr,

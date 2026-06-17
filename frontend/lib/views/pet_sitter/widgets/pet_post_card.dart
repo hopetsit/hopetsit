@@ -236,11 +236,11 @@ class PetPostCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
-              // v448 — Daniel : sur « Ma publication » (owner sur son propre
-              // post), le haut du cadre (avatar + boutons Modifier/Supprimer)
-              // passe du GRIS au JAUNE pâle. Les autres vues gardent le gris.
+              // v449 — sur « Ma publication » (owner sur son propre post), le
+              // haut du cadre passe au ORANGE pâle (couleur du rôle owner) au
+              // lieu du jaune. Les autres vues gardent le fill neutre.
               color: ownerViewOfOwnPost && !Get.isDarkMode
-                  ? const Color(0xFFFFF8E1)
+                  ? AppColors.scaffoldOwnerLight
                   : AppColors.inputFill(context),
               borderRadius: BorderRadius.only(
                 topLeft: isOwnerBoosted ? Radius.zero : Radius.circular(19.r),
@@ -1378,12 +1378,12 @@ class PetPostCard extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
       decoration: BoxDecoration(
-        // v444 — Daniel (répété) : cadre owner « À propos de moi » CLAIREMENT
-        // jaune (le 0xFFFFF8E1 crème quasi-blanc se lisait encore gris).
-        color: const Color(0xFFFFF3C4),
+        // v449 — cadre owner « À propos de moi » en ORANGE pâle (couleur du
+        // rôle owner) au lieu du jaune.
+        color: AppColors.scaffoldOwnerLight,
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(
-          color: const Color(0xFFF6C343).withValues(alpha: 0.85),
+          color: AppColors.ownerAccent.withValues(alpha: 0.35),
         ),
       ),
       child: Column(

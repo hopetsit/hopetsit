@@ -44,6 +44,10 @@ class SignupWizardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // v449 — teinte la page d'inscription par RÔLE (owner orange / sitter bleu
+    // / walker vert) AVANT toute auth. Une fois connecté, le rôle réel reprend
+    // la main (le override n'est qu'un fallback), donc aucune fuite.
+    AppColors.activeRoleOverride = userType;
     final c = _ctrl();
     // S'assure que l'AuthController est dispo (parité avec sign_up_screen).
     if (!Get.isRegistered<AuthController>()) {

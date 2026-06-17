@@ -21,6 +21,7 @@ import 'package:hopetsit/views/pet_owner/chat/tracking_request_sheet.dart';
 import 'package:hopetsit/widgets/app_text.dart';
 import 'package:hopetsit/widgets/custom_snackbar_widget.dart';
 import 'package:hopetsit/widgets/address_share_card.dart';
+import 'package:hopetsit/widgets/phone_share_card.dart';
 import 'package:hopetsit/widgets/pawfollow_request_card.dart';
 import 'package:hopetsit/widgets/report_dialog.dart';
 import 'package:hopetsit/widgets/translate_message_button.dart';
@@ -448,6 +449,82 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     }
   }
 
+  /// v449 — Daniel : « améliore le partage de mon numéro sur les 3 profils ».
+  /// Confirmation explicite, puis POST /conversations/:id/share-phone
+  /// (role-agnostic) + feedback. Mirror de _onShareAddressTap.
+  Future<void> _onSharePhoneTap() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: AppColors.card(dctx),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18.r),
+        ),
+        title: InterText(
+          text: 'phone_share_confirm_title'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(dctx),
+        ),
+        content: InterText(
+          text: 'phone_share_confirm_msg'.tr,
+          fontSize: 13.sp,
+          color: AppColors.textSecondary(dctx),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(false),
+            child: InterText(
+              text: 'common_cancel'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(dctx),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+            onPressed: () => Navigator.of(dctx).pop(true),
+            child: InterText(
+              text: 'chat_share_phone_button'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final repo = Get.find<ChatRepository>();
+      await repo.sharePhone(conversationId: widget.conversationId);
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        title: 'phone_share_sent_title'.tr,
+        message: 'phone_share_sent_msg'.tr,
+      );
+      await chatController.loadChatMessages(
+        widget.conversationId,
+        contactName: widget.contactName,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString().replaceAll('ApiException:', '').trim();
+      final isMissing = raw.toLowerCase().contains('no phone');
+      CustomSnackbar.showError(
+        title: isMissing
+            ? 'phone_share_no_profile_title'.tr
+            : 'common_error'.tr,
+        message: isMissing ? 'phone_share_no_profile_msg'.tr : raw,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -512,6 +589,29 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         //   204 NO_LOCATION_YET → snackbar "Provider hasn't shared yet"
         //   404 / 409 → "no active booking" snackbar
         actions: [
+          // v449 — Daniel : « partager mon numéro sur les 3 profils ». Mini-pill
+          // téléphone à côté du partage d'adresse. Tap = confirmation puis
+          // POST share-phone.
+          Padding(
+            padding: EdgeInsets.only(right: 4.w),
+            child: GestureDetector(
+              onTap: _onSharePhoneTap,
+              child: Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4324).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFEF4324).withValues(alpha: 0.40),
+                    width: 1.2,
+                  ),
+                ),
+                child: Icon(Icons.phone_rounded,
+                    size: 18.sp, color: const Color(0xFFEF4324)),
+              ),
+            ),
+          ),
           // v23.1 part 240 — Daniel : "sur les 3 profile rajoute partager
           // mon adresse pour rdv fais un truc styler". Icone home oranger
           // en mini-pill a cote du bouton "Suivre" pour ne pas casser
@@ -703,6 +803,13 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         city: message.addressShareCity,
         lat: message.addressShareLat,
         lng: message.addressShareLng,
+        isFromCurrentUser: message.isFromCurrentUser,
+      );
+    }
+    // v449 — carte « Numéro de téléphone » partagé (3 rôles).
+    if (message.isPhoneShare) {
+      return PhoneShareCard(
+        phone: message.phoneShareNumber,
         isFromCurrentUser: message.isFromCurrentUser,
       );
     }

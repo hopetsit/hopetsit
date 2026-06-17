@@ -49,7 +49,25 @@ const BASE_URL = (process.env.WEBSITE_URL || 'https://hopetsit.com').replace(
   '',
 );
 
-const buildEmailLink = (type, params = {}) => {
+// v449 — Daniel : « tous les boutons des emails : ouvrir l'app si installée,
+// sinon rediriger vers /download. Jamais une page vide ou ancienne. Logique
+// simple et fiable. Ne route PAS vers une conversation précise. »
+//
+// On centralise sur UN lien canonique `${BASE_URL}/open` :
+//   - App installée → l'OS intercepte l'App Link / Universal Link et ouvre
+//     l'app (qui affiche l'accueil, ou le login puis l'accueil si déconnecté).
+//   - App NON installée → le navigateur charge la page web `/open` qui
+//     redirige immédiatement vers `/download`.
+// Ce comportement « 1 lien, 2 issues » est plus fiable que d'envoyer des
+// routes web profondes (qui pouvaient tomber sur une page vide/ancienne).
+const APP_OPEN_LINK = `${BASE_URL}/open`;
+
+const buildEmailLink = (/* type, params */) => APP_OPEN_LINK;
+
+// Ancienne logique de routage profond, conservée pour référence / réusage
+// éventuel hors-email. NON utilisée par les emails depuis v449.
+// eslint-disable-next-line no-unused-vars
+const buildDeepLink = (type, params = {}) => {
   const p = params || {};
   switch ((type || '').toLowerCase()) {
     case 'booking':

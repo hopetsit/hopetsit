@@ -59,6 +59,14 @@ class SitterChatMessage {
     }
   }
   bool get isPawfollowRequest => type == 'pawfollow_request';
+  // v449 — type 'phone_share' = carte « Numéro de téléphone » partagé via
+  // POST /conversations/:id/share-phone (3 rôles). Le numéro est dans `body`
+  // (= message) et dupliqué dans metadata.phone. Parité avec ChatMessage.
+  bool get isPhoneShare => type == 'phone_share';
+  String get phoneShareNumber {
+    final m = (metadata['phone'] ?? '').toString();
+    return m.isNotEmpty ? m : message;
+  }
   // v23.1 part 240 — type 'address_share' (cf chat_controller.dart pour
   // explication detaillee). Parite SitterChatMessage/ChatMessage.
   bool get isAddressShare => type == 'address_share';

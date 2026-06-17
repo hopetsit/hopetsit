@@ -610,42 +610,87 @@ router.post(
   require('../controllers/bookingController').requestLiveTrackingByConversation,
 );
 
-// Sprint 3 step 6 — sitter shares their phone number as a special message.
-// Post-payment only (gated by requirePaidBooking).
+// Sprint 3 step 6 — partage du numéro de téléphone dans le chat.
+// v449 — Daniel : « améliore le partage de mon numéro sur les 3 profils ».
+// Auparavant SITTER UNIQUEMENT + gated requirePaidBooking. Désormais
+// role-agnostic (owner / sitter / walker), exactement comme share-address :
+// le chat est déjà verrouillé en amont (paiement OU abonnement), donc on
+// laisse l'expéditeur partager son numéro librement. On lit son numéro
+// depuis le bon Model selon son rôle et on crée un message type
+// 'phone_share' (rendu en carte stylée + bouton Appeler côté app).
 const Sitter = require('../models/Sitter');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 router.post(
   '/:id/share-phone',
   requireAuth,
-  requireRole('sitter'),
-  requirePaidBooking,
+  requireRole('owner', 'sitter', 'walker'),
   async (req, res) => {
     try {
       const conversation = await Conversation.findById(req.params.id);
       if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
-      if (conversation.sitterId.toString() !== req.user.id) {
-        return res.status(403).json({ error: 'Only the conversation sitter can share their phone.' });
+
+      const myId = String(req.user.id);
+      const myRole = String(req.user.role || '').toLowerCase();
+
+      // Vérifie que l'expéditeur est bien un participant de la conversation.
+      const idStr = (v) => v ? (v._id ? v._id.toString() : v.toString()) : null;
+      let isParticipant = false;
+      if (conversation.friendChat === true && Array.isArray(conversation.participants)) {
+        isParticipant = conversation.participants.some((p) => idStr(p.userId) === myId);
+      } else {
+        isParticipant =
+          idStr(conversation.ownerId) === myId ||
+          idStr(conversation.sitterId) === myId ||
+          idStr(conversation.walkerId) === myId;
       }
-      const sitter = await Sitter.findById(req.user.id).select('mobile countryCode');
-      if (!sitter || !sitter.mobile) {
+      if (!isParticipant) {
+        return res.status(403).json({ error: 'Not a chat participant.' });
+      }
+
+      // Lit le numéro depuis le profil de l'expéditeur (3 modèles supportés).
+      const ModelByRole = { owner: Owner, sitter: Sitter, walker: Walker };
+      const SenderModel = ModelByRole[myRole];
+      if (!SenderModel) {
+        return res.status(400).json({ error: 'Unsupported sender role.' });
+      }
+      const senderDoc = await SenderModel.findById(myId)
+        .select('mobile countryCode')
+        .lean();
+      if (!senderDoc || !senderDoc.mobile) {
         return res.status(400).json({ error: 'No phone number on profile to share.' });
       }
-      const phone = [sitter.countryCode, sitter.mobile].filter(Boolean).join(' ').trim();
+      const phone = [senderDoc.countryCode, senderDoc.mobile]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
       const message = await Message.create({
         conversationId: conversation._id,
-        senderRole: 'sitter',
-        senderId: conversation.sitterId,
+        senderRole: myRole,
+        senderId: myId,
         body: phone,
         attachments: [],
         type: 'phone_share',
+        metadata: { phone },
       });
+
       conversation.lastMessage = phone;
       conversation.lastMessageAt = new Date();
-      conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
+      if (myRole === 'owner') {
+        if (conversation.sitterId) {
+          conversation.sitterUnreadCount = (conversation.sitterUnreadCount || 0) + 1;
+        }
+        if (conversation.walkerId) {
+          conversation.walkerUnreadCount = (conversation.walkerUnreadCount || 0) + 1;
+        }
+      } else if (myRole === 'sitter' || myRole === 'walker') {
+        conversation.ownerUnreadCount = (conversation.ownerUnreadCount || 0) + 1;
+      }
       await conversation.save();
       // v23.1.255 — broadcast temps réel (il MANQUAIT totalement → le
       // partage de téléphone n'apparaissait pas avant de rouvrir le chat).
+      // emitChatMessage = room conversation + user-rooms des 3 participants.
       try {
         const { emitChatMessage } = require('../sockets/emitter');
         emitChatMessage(conversation, 'message:new', {

@@ -64,6 +64,14 @@ class ChatMessage {
     }
   }
   bool get isPawfollowRequest => type == 'pawfollow_request';
+  // v449 — type 'phone_share' = carte « Numéro de téléphone » partagé via
+  // POST /conversations/:id/share-phone (3 rôles). Le numéro est dans `body`
+  // (= message) et dupliqué dans metadata.phone.
+  bool get isPhoneShare => type == 'phone_share';
+  String get phoneShareNumber {
+    final m = (metadata['phone'] ?? '').toString();
+    return m.isNotEmpty ? m : message;
+  }
   // v23.1 part 240 — type 'address_share' = card "Adresse pour RDV"
   // envoyee via POST /conversations/:id/share-address. metadata contient
   // { address, city, lat, lng } pour rendre une carte stylee dans le chat.

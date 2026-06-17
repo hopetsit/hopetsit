@@ -43,12 +43,9 @@ class EditPetScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      // v448 — Daniel : « le fond de la page Modifier l'animal est gris, je veux
-      // jaune ». Fond jaune pâle en clair (cornsilk) ; on garde le fond système
-      // en sombre pour rester lisible.
-      backgroundColor: Get.isDarkMode
-          ? AppColors.scaffold(context)
-          : const Color(0xFFFFF8E1),
+      // v449 — fond pâle teinté par RÔLE (au lieu du jaune v448).
+      // AppColors.scaffold() gère déjà le rôle + le mode sombre.
+      backgroundColor: AppColors.scaffold(context),
       appBar: AppBar(
         backgroundColor: AppColors.appBar(context),
         elevation: 0,
@@ -92,11 +89,12 @@ class EditPetScreen extends StatelessWidget {
                             final imageFile = controller.petProfileImage.value;
                             final imageUrl = controller.currentAvatarUrl.value;
 
-                            // v444 — Daniel : « remplace le gris par du jaune, plus
-                            // moderne » sur la page de création animal. Avatar =
-                            // jaune doux + patte ambre au lieu du gris terne.
-                            const Color petPlaceholderBg = Color(0xFFFFF3C4);
-                            const Color petPlaceholderIcon = Color(0xFFE8A00A);
+                            // v449 — avatar placeholder teinté par RÔLE (au lieu
+                            // du jaune v444) : fond pâle + patte à l'accent du rôle.
+                            final Color petPlaceholderBg =
+                                AppColors.inputFillLightForRole();
+                            final Color petPlaceholderIcon =
+                                AppColors.activeRoleAccent();
                             if (imageFile != null) {
                               return ClipOval(
                                 child: Container(

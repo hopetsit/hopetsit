@@ -317,35 +317,47 @@ class ProfileScreen extends StatelessWidget {
 
   /// Quick action cards row for owner.
   Widget _buildQuickActions(ProfileController controller) {
-    // v446 — Daniel : owner = UN SEUL grand bouton rectangle ORANGE « Modifier
-    // mon animal » (les 3 petites cartes Mes animaux / Historique / Boost sont
-    // retirées). Ouvre l'édition des animaux (navigateToEditPetProfile).
+    // v446 — owner = UN SEUL grand bouton rectangle « Modifier mon animal ».
+    // v449 — Daniel : bouton ORANGE PÂLE (au lieu du plein orange), cohérent
+    // avec le pâle par rôle des boutons sitter/walker.
     return Builder(
-      builder: (context) => GestureDetector(
-        onTap: controller.navigateToEditPetProfile,
-        child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(vertical: 16.h),
-          decoration: BoxDecoration(
-            color: AppColors.primaryColor,
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: AppColors.cardShadow(context),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.pets_rounded, color: Colors.white, size: 20.sp),
-              SizedBox(width: 10.w),
-              InterText(
-                text: 'pet_edit_animal'.tr,
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+      builder: (context) {
+        final labelColor =
+            Get.isDarkMode ? AppColors.textPrimary(context) : AppColors.ownerAccent;
+        return GestureDetector(
+          onTap: controller.navigateToEditPetProfile,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(vertical: 16.h),
+            decoration: BoxDecoration(
+              color: Get.isDarkMode
+                  ? const Color(0xFF2A211F)
+                  : AppColors.scaffoldOwnerLight,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(
+                color: Get.isDarkMode
+                    ? const Color(0x59EF4324)
+                    : const Color(0x4DEF4324),
+                width: 1.1,
               ),
-            ],
+              boxShadow: AppColors.cardShadow(context),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.pets_rounded, color: labelColor, size: 20.sp),
+                SizedBox(width: 10.w),
+                InterText(
+                  text: 'pet_edit_animal'.tr,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                  color: labelColor,
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

@@ -17,6 +17,7 @@ import 'package:hopetsit/views/auth/sign_up_as.dart';
 import 'package:hopetsit/repositories/user_repository.dart';
 import 'package:hopetsit/services/push_notification_service.dart';
 import 'package:hopetsit/services/socket_service.dart';
+import 'package:hopetsit/utils/app_colors.dart';
 import 'package:hopetsit/controllers/sitter_chat_controller.dart';
 import 'package:hopetsit/utils/storage_keys.dart';
 import 'package:hopetsit/utils/app_constants.dart';
@@ -1437,6 +1438,9 @@ class AuthController extends GetxController {
     await _storage.remove(StorageKeys.authToken);
     await _storage.remove(StorageKeys.userProfile);
     await _storage.remove(StorageKeys.userRole);
+    // v449 — purge le tint de rôle (sinon le thème resterait teinté du
+    // dernier rôle après déconnexion).
+    AppColors.activeRoleOverride = null;
     // Code promo "% de réduction" appliqué : compte-spécifique → on purge au
     // logout pour ne pas le réutiliser sur un autre compte.
     await _storage.remove(StorageKeys.redeemedPromoDiscount);

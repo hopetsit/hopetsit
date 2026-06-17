@@ -198,11 +198,12 @@ class _OwnerProfileViewScreenState extends State<OwnerProfileViewScreen> {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
       decoration: BoxDecoration(
-        // Cohérent avec « À propos de moi » de la carte annonce (jaune clair).
-        color: const Color(0xFFFFF8E1),
+        // v449 — carte « À propos » de l'OWNER : orange pâle (couleur du rôle
+        // owner) au lieu du jaune.
+        color: AppColors.scaffoldOwnerLight,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: const Color(0xFFF6C343).withValues(alpha: 0.5),
+          color: AppColors.ownerAccent.withValues(alpha: 0.35),
         ),
       ),
       child: Column(

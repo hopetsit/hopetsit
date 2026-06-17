@@ -1026,9 +1026,9 @@ class PetProfileScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: danger
               ? AppColors.errorColor.withValues(alpha: 0.08)
-              // v445 — Daniel : « remplace le fond gris par du jaune » (plus
-              // moderne/propre) ; le rouge danger (allergies) reste inchangé.
-              : const Color(0xFFFFF8E1),
+              // v449 — fond pâle teinté par RÔLE (au lieu du jaune v445) ; le
+              // rouge danger (allergies) reste inchangé.
+              : AppColors.scaffoldLightForRole(),
           borderRadius: BorderRadius.circular(10.r),
         ),
         child: InterText(

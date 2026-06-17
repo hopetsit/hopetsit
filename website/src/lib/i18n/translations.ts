@@ -316,6 +316,7 @@ export const t: Bundle = {
 
     // Download
     dl_title:           "Get HoPetSit on your phone",
+    open_app_title: "Opening HoPetSit…", open_app_sub: "If the app doesn't open automatically, download it.", open_app_download: "Download the app",
     dl_sub:             "Coming soon on Google Play and the App Store.",
     dl_apk:             "Download Android APK",
     dl_play:            "Soon on Google Play",
@@ -983,6 +984,7 @@ export const t: Bundle = {
     common_error_generic: "Une erreur est survenue. Réessaye.",
 
     dl_title:           "Téléchargez HoPetSit sur votre téléphone",
+    open_app_title: "Ouverture de HoPetSit…", open_app_sub: "Si l'application ne s'ouvre pas automatiquement, téléchargez-la.", open_app_download: "Télécharger l'application",
     dl_sub:             "Bientôt sur Google Play et l'App Store.",
     dl_apk:             "Télécharger l'APK Android",
     dl_play:            "Bientôt sur Google Play",
@@ -1578,6 +1580,7 @@ export const t: Bundle = {
     dash_premium_sub: "PawFollow + PawSpot + exclusivos · 7,99 €/mes — Ahorra un 33%",
     dash_card_invoices_title: "Mis facturas", dash_card_invoices_sub: "Descargar en PDF", common_error_generic: "Ha ocurrido un error. Inténtalo de nuevo.",
     dl_title: "Descarga HoPetSit en tu móvil", dl_sub: "Próximamente en Google Play y la App Store.",
+    open_app_title: "Abriendo HoPetSit…", open_app_sub: "Si la aplicación no se abre automáticamente, descárgala.", open_app_download: "Descargar la aplicación",
     dl_apk: "Descargar APK Android", dl_play: "Pronto en Google Play", dl_app_store: "Pronto en App Store",
     pawmap_title: "PawMap — Europa pet-friendly de un vistazo",
     pawmap_sub: "Veterinarios, parques caninos, playas, puntos de agua, educadores, peluqueros, hoteles y restaurantes. Comunidad y curado en 29 países.",
@@ -2120,6 +2123,7 @@ export const t: Bundle = {
     dash_premium_sub: "PawFollow + PawSpot + Exklusives · 7,99 €/Monat — Spare 33%",
     dash_card_invoices_title: "Meine Rechnungen", dash_card_invoices_sub: "Als PDF herunterladen", common_error_generic: "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     dl_title: "Lade HoPetSit auf dein Handy", dl_sub: "Bald im Google Play Store und App Store.",
+    open_app_title: "HoPetSit wird geöffnet…", open_app_sub: "Wenn die App nicht automatisch öffnet, lade sie herunter.", open_app_download: "App herunterladen",
     dl_apk: "Android APK herunterladen", dl_play: "Bald im Google Play", dl_app_store: "Bald im App Store",
     pawmap_title: "PawMap — haustierfreundliches Europa auf einen Blick",
     pawmap_sub: "Tierärzte, Hundeparks, Strände, Wasserstellen, Trainer, Pflege, Hotels und Restaurants. Crowd-sourced und kuratiert in 29 Ländern.",
@@ -2661,6 +2665,7 @@ export const t: Bundle = {
     dash_premium_sub: "PawFollow + PawSpot + esclusivi · 7,99 €/mese — Risparmia il 33%",
     dash_card_invoices_title: "Le mie fatture", dash_card_invoices_sub: "Scarica in PDF", common_error_generic: "Si è verificato un errore. Riprova.",
     dl_title: "Scarica HoPetSit sul telefono", dl_sub: "Presto su Google Play e App Store.",
+    open_app_title: "Apertura di HoPetSit…", open_app_sub: "Se l'app non si apre automaticamente, scaricala.", open_app_download: "Scarica l'app",
     dl_apk: "Scarica APK Android", dl_play: "Presto su Google Play", dl_app_store: "Presto su App Store",
     pawmap_title: "PawMap — l'Europa pet-friendly a colpo d'occhio",
     pawmap_sub: "Veterinari, aree cani, spiagge, fontanelle, educatori, toelettatori, hotel e ristoranti. Comunità e cura su 29 paesi.",
@@ -3202,6 +3207,7 @@ export const t: Bundle = {
     dash_premium_sub: "PawFollow + PawSpot + exclusivos · 7,99 €/mês — Poupa 33%",
     dash_card_invoices_title: "As minhas faturas", dash_card_invoices_sub: "Descarregar em PDF", common_error_generic: "Ocorreu um erro. Tenta novamente.",
     dl_title: "Descarrega o HoPetSit no telemóvel", dl_sub: "Brevemente na Google Play e App Store.",
+    open_app_title: "A abrir o HoPetSit…", open_app_sub: "Se a aplicação não abrir automaticamente, descarrega-a.", open_app_download: "Descarregar a aplicação",
     dl_apk: "Descarregar APK Android", dl_play: "Em breve no Google Play", dl_app_store: "Em breve na App Store",
     pawmap_title: "PawMap — a Europa pet-friendly num só olhar",
     pawmap_sub: "Veterinários, parques caninos, praias, pontos de água, treinadores, tosadores, hotéis e restaurantes. Comunidade e curadoria em 29 países.",

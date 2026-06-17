@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 
 class AppColors {
   static const Color primaryColor = Color(0xFFEF4324);
@@ -13,11 +14,11 @@ class AppColors {
   static const Color hintColor = Color(0xFF535862);
   static const lightGreyColor = Color(0xFFD9D9D9);
   static const textFieldBorder = Color(0xFFD5D7DA);
-  // v448 — Daniel : « tous les fonds gris CLAIR → jaune clair, toute l'app en
-  // profondeur ». Ces 2 fonds gris clair passent en jaune doux.
-  static const lightGrey = Color(0xFFFFF8E1); // jaune doux (ex 0xFFF4F3EE gris)
+  // v449 — léger gris neutre (revert du jaune v448 ; le fond de page est
+  // désormais teinté par RÔLE, cf scaffold()).
+  static const lightGrey = Color(0xFFF1F2F4);
   static const greyText = Color(0xFF707070);
-  static const chatFieldColor = Color(0xFFFFF3D2); // jaune doux (ex 0xFFF3F2EF)
+  static const chatFieldColor = Color(0xFFF1F2F4);
   static const greenColor = Color(0xFF008000);
   // Role accents — used on SignUp cards and per-role profile screens.
   // v23.1.346 — audit codes couleur (Daniel) : canon = sitter 0xFF2563EB.
@@ -48,6 +49,9 @@ class AppColors {
     }
   }
 
+  /// v449 — accent du rôle COURANT (résolu via user_role / profil / override).
+  static Color activeRoleAccent() => roleAccent(_activeRole());
+
   // Session v15-4 — Map Boost theme palette. Distinct from Boost (red) and
   // Premium (orange) so the user immediately sees Map Boost = "carte".
   // Blue for the entry tiers + gold for the premium tiers.
@@ -69,17 +73,51 @@ class AppColors {
   static const Color dividerDark = Color(0xFF333333);
 
   // ── Modern light palette ──
-  // v448 — Daniel : « tous les fonds gris clair de l'app → jaune clair, en
-  // profondeur ». Le fond de PAGE (scaffold) et le FILL des champs/zones
-  // internes passent en jaune doux. Les CARTES restent BLANCHES (cardLight) →
-  // page jaune pâle + cartes blanches = chaleureux ET lisible. Comme
-  // scaffold()/inputFill() routent par ces constantes, le changement est
-  // app-wide (1 source = toutes les pages). Le mode SOMBRE est inchangé.
-  static const Color scaffoldLight = Color(0xFFFFF8E1); // jaune doux (ex gris F7F7F8)
+  // v449 — Daniel : « au lieu du jaune, couleur PAR RÔLE depuis l'inscription
+  // jusqu'aux pages de l'app : owner orange pâle, sitter bleu pâle, walker vert
+  // pâle ». Le fond de PAGE (scaffold) + le FILL des champs sont teintés selon
+  // le rôle courant. Cartes restent BLANCHES. Mode SOMBRE inchangé.
   static const Color cardLight = Color(0xFFFFFFFF);
-  // Fill des inputs / zones internes : un cran plus soutenu que le scaffold
-  // pour rester distinct sur une page jaune comme sur une carte blanche.
-  static const Color inputFillLight = Color(0xFFFFF3D2);
+
+  // Fonds de page pâles par rôle.
+  static const Color scaffoldOwnerLight = Color(0xFFFFF1EC); // orange pâle
+  static const Color scaffoldSitterLight = Color(0xFFEAF2FD); // bleu pâle
+  static const Color scaffoldWalkerLight = Color(0xFFEAF7EE); // vert pâle
+  // Fill des inputs : un cran plus soutenu que le scaffold (par rôle).
+  static const Color inputFillOwnerLight = Color(0xFFFCE4DC);
+  static const Color inputFillSitterLight = Color(0xFFDDEAFB);
+  static const Color inputFillWalkerLight = Color(0xFFDCEFE3);
+
+  /// v449 — override de rôle posé par le wizard d'inscription (qui connaît le
+  /// rôle AVANT toute auth). Sert UNIQUEMENT de fallback : une fois connecté,
+  /// le rôle réel (user_role / user_profile.role) gagne, donc pas de fuite.
+  /// Effacé au boot, au login (OTP) et au logout.
+  static String? activeRoleOverride;
+
+  static String _normalizeRole(String? raw) {
+    final r = (raw ?? '').toLowerCase();
+    if (r.contains('sitter')) return 'sitter';
+    if (r.contains('walker')) return 'walker';
+    if (r.contains('owner')) return 'owner';
+    return '';
+  }
+
+  static String _activeRole() {
+    try {
+      final box = GetStorage();
+      // 1) Rôle canonique mutable (mis à jour à chaque bascule de profil).
+      final byRole = _normalizeRole(box.read<String>('user_role'));
+      if (byRole.isNotEmpty) return byRole;
+      // 2) Rôle embarqué dans le profil stocké.
+      final p = box.read<Map>('user_profile');
+      final byProfile = _normalizeRole((p?['role'] ?? '').toString());
+      if (byProfile.isNotEmpty) return byProfile;
+    } catch (_) {/* défensif */}
+    // 3) Override d'inscription (avant auth), sinon owner.
+    final ov = _normalizeRole(activeRoleOverride);
+    if (ov.isNotEmpty) return ov;
+    return 'owner';
+  }
 
   // Gradient
   static const LinearGradient linearGradient = LinearGradient(
@@ -92,9 +130,34 @@ class AppColors {
   static bool _isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
 
-  /// Scaffold / page background
+  /// Fond de page pâle pour le rôle courant (mode clair). Public : sert aussi
+  /// de fallback global dans le thème (main.dart).
+  static Color scaffoldLightForRole() {
+    switch (_activeRole()) {
+      case 'sitter':
+        return scaffoldSitterLight;
+      case 'walker':
+        return scaffoldWalkerLight;
+      default:
+        return scaffoldOwnerLight;
+    }
+  }
+
+  /// Fill des inputs pâle pour le rôle courant (mode clair).
+  static Color inputFillLightForRole() {
+    switch (_activeRole()) {
+      case 'sitter':
+        return inputFillSitterLight;
+      case 'walker':
+        return inputFillWalkerLight;
+      default:
+        return inputFillOwnerLight;
+    }
+  }
+
+  /// Scaffold / page background — teinté par RÔLE en mode clair (v449).
   static Color scaffold(BuildContext context) =>
-      _isDark(context) ? backgroundDark : scaffoldLight;
+      _isDark(context) ? backgroundDark : scaffoldLightForRole();
 
   /// AppBar background
   static Color appBar(BuildContext context) =>
@@ -116,9 +179,9 @@ class AppColors {
   static Color divider(BuildContext context) =>
       _isDark(context) ? dividerDark : grey300Color;
 
-  /// Chat field / input background
+  /// Chat field / input background — teinté par RÔLE en mode clair (v449).
   static Color inputFill(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2A2A2A) : inputFillLight;
+      _isDark(context) ? const Color(0xFF2A2A2A) : inputFillLightForRole();
 
   /// Subtle shadow that works in dark mode (invisible) and light mode.
   ///

@@ -108,6 +108,12 @@
                 <data android:pathPrefix="/bookings" />
                 <data android:pathPrefix="/notifications" />
                 <data android:pathPrefix="/auth" />
+                <!-- v449 — lien canonique des emails : « ouvrir l'app si
+                     installée, sinon /download ». App installée → Android
+                     ouvre l'app ici (autoVerify). Sinon le navigateur charge
+                     la page web /open qui redirige vers /download. -->
+                <data android:pathPrefix="/open" />
+                <data android:pathPrefix="/app" />
             </intent-filter>
         </activity>
         <!-- Google Maps API Key -->

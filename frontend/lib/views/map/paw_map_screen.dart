@@ -3736,6 +3736,32 @@ class _PawMapScreenState extends State<PawMapScreen>
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // v449 — Daniel : petit ℹ️ qui rappelle que ON/OFF n'agit que sur
+            // l'AFFICHAGE de la carte (l'abonnement reste actif).
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: _showPawMapToggleInfo,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 4.h, right: 2.w),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 14.sp, color: AppColors.textSecondary(context)),
+                      SizedBox(width: 4.w),
+                      InterText(
+                        text: 'pawmap_toggle_info_chip'.tr,
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             Row(
               children: [
                 Expanded(
@@ -4104,25 +4130,122 @@ class _PawMapScreenState extends State<PawMapScreen>
     );
   }
 
+  /// v449 — Daniel : « si l'utilisateur n'a pas d'abonnement et clique sur ON,
+  /// n'active PAS le toggle ; ouvre la page d'abonnement via une popup
+  /// "Abonnement requis" → boutons "Voir les offres" + "Plus tard" ». Cette
+  /// popup remplace l'ancien snackbar + navigation automatique. Retourne true
+  /// si l'utilisateur a choisi de voir les offres (et est passé en boutique).
+  Future<bool> _promptSubscriptionRequired(int shopTab) async {
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: AppColors.card(dctx),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18.r),
+        ),
+        title: PoppinsText(
+          text: 'pawmap_sub_required_title'.tr,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary(dctx),
+        ),
+        content: InterText(
+          text: 'pawmap_sub_required_msg'.tr,
+          fontSize: 13.sp,
+          color: AppColors.textSecondary(dctx),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(false),
+            child: InterText(
+              text: 'pawmap_later'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary(dctx),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+            onPressed: () => Navigator.of(dctx).pop(true),
+            child: InterText(
+              text: 'pawmap_see_offers'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (go != true) return false;
+    await Get.to(() => CoinShopScreen(initialTab: shopTab));
+    await _pawSpotController.refreshBenefits();
+    if (mounted) setState(() {});
+    return true;
+  }
+
+  /// v449 — infobulle ℹ️ : « le bouton ON/OFF agit uniquement sur l'affichage
+  /// de la carte ; l'abonnement reste actif même désactivé ».
+  void _showPawMapToggleInfo() {
+    showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: AppColors.card(dctx),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18.r),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline_rounded,
+                color: AppColors.primaryColor, size: 20.sp),
+            SizedBox(width: 8.w),
+            PoppinsText(
+              text: 'pawmap_toggle_info_title'.tr,
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(dctx),
+            ),
+          ],
+        ),
+        content: InterText(
+          text: 'pawmap_toggle_info'.tr,
+          fontSize: 13.sp,
+          color: AppColors.textSecondary(dctx),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(),
+            child: InterText(
+              text: 'common_ok'.tr,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// v449 — toggle PawFollow. Le switch reflète l'ABONNEMENT réel
-  /// (followActive = PawFollow/PawFamily/Premium). Déjà abonné → info ; pas
-  /// abonné → onglet PawFollow de la boutique (CoinShop onglet 1), JAMAIS
-  /// d'activation locale. Au retour on re-vérifie les benefits.
+  /// (followActive = PawFollow/PawFamily/Premium). Déjà abonné → on/off de
+  /// l'AFFICHAGE seulement (abo intact) ; pas abonné → popup « Abonnement
+  /// requis » (jamais d'activation locale).
   Future<void> _togglePawFollow() async {
     if (_pawSpotController.followActive.value) {
       // v448 — Daniel : abonné, on/off MANUEL de la couche live (mon cercle +
-      // halos amis/famille). Le switch suit désormais cet état.
+      // halos amis/famille). Le switch suit désormais cet état. L'ABONNEMENT
+      // n'est pas touché — c'est uniquement l'affichage carte.
       _showLiveLayer.value = !_showLiveLayer.value;
       if (mounted) setState(() {});
       return;
     }
-    CustomSnackbar.showWarning(
-      title: 'pawspot_subscribe_required'.tr,
-      message: 'pawspot_shop_subtitle'.tr,
-    );
-    await Get.to(() => const CoinShopScreen(initialTab: 1));
-    await _pawSpotController.refreshBenefits();
-    if (mounted) setState(() {});
+    await _promptSubscriptionRequired(1);
   }
 
   /// v449 — toggle PawSpot. Le switch reflète l'ABONNEMENT réel
@@ -4145,15 +4268,10 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (mounted) setState(() {});
       return;
     }
-    // Pas abonné → boutique PawSpot ; au retour, si l'abo vient d'être pris,
-    // on allume la couche.
-    CustomSnackbar.showWarning(
-      title: 'pawspot_subscribe_required'.tr,
-      message: 'pawspot_shop_subtitle'.tr,
-    );
-    await Get.to(() => const CoinShopScreen(initialTab: 2));
-    final nowActive = await _pawSpotController.refreshBenefits();
-    if (nowActive && mounted) {
+    // Pas abonné → popup « Abonnement requis » ; au retour, si l'abo vient
+    // d'être pris, on allume la couche.
+    final went = await _promptSubscriptionRequired(2);
+    if (went && _pawSpotController.pawspotActive.value && mounted) {
       _showPawSpots.value = true;
       GetStorage().write('pawspot_layer_on', true);
       await _pawSpotController.loadNearby(_currentCenter);
@@ -4187,13 +4305,7 @@ class _PawMapScreenState extends State<PawMapScreen>
       if (mounted) setState(() {});
       return;
     }
-    CustomSnackbar.showWarning(
-      title: 'pawspot_subscribe_required'.tr,
-      message: 'pawspot_shop_subtitle'.tr,
-    );
-    await Get.to(() => const CoinShopScreen(initialTab: 3));
-    await _pawSpotController.refreshBenefits();
-    if (mounted) setState(() {});
+    await _promptSubscriptionRequired(3);
   }
 
   /// Bouton d'action pleine largeur de la grille rapide (Taguer / Voir).

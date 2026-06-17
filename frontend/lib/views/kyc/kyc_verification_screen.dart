@@ -577,7 +577,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.scaffoldLight,
+        color: AppColors.scaffoldLightForRole(),
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Column(

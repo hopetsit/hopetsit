@@ -368,9 +368,9 @@ class SitterProfileScreen extends StatelessWidget {
   /// la fonte emoji du device garantit le même bounding box pour
   /// tous les caractères. Impossible d'être déformé.
   Widget _buildSitterQuickActions(SitterProfileController controller, Color accent, Color accentLight) {
-    // v446 — Daniel : juste 2 boutons rectangle arrondi BLEUS — Calendrier
-    // (gauche) + Mon portefeuille (droite). Boost via la carte PawBoost plus
-    // bas ; l'IBAN reste accessible via Mon portefeuille (retrait).
+    // v446 — Daniel : 2 boutons rectangle arrondi — Calendrier (gauche) +
+    // Mon portefeuille (droite). v449 — Daniel : passés en BLEU PÂLE (au lieu
+    // du plein bleu), cohérent avec le pâle par rôle owner/walker.
     return Row(
       children: [
         _sitterWideAction('📅', 'profile_my_availability'.tr, accent,
@@ -382,38 +382,51 @@ class SitterProfileScreen extends StatelessWidget {
     );
   }
 
-  /// v446 — bouton rectangle arrondi BLEU (Expanded) : emoji + label, texte
-  /// blanc, sur une seule ligne (remplace les anciennes cartes carrées).
+  /// v449 — bouton rectangle arrondi BLEU PÂLE (Expanded) : emoji + label
+  /// bleu sitter, fond bleu pâle + bordure bleue translucide, 1 ligne.
   Widget _sitterWideAction(
       String emoji, String label, Color accent, VoidCallback onTap) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Builder(
-          builder: (context) => Container(
-            padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 10.w),
-            decoration: BoxDecoration(
-              color: accent,
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(emoji, style: TextStyle(fontSize: 18.sp)),
-                SizedBox(width: 8.w),
-                Flexible(
-                  child: InterText(
-                    text: label,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+          builder: (context) {
+            final labelColor =
+                Get.isDarkMode ? AppColors.textPrimary(context) : accent;
+            return Container(
+              padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 10.w),
+              decoration: BoxDecoration(
+                color: Get.isDarkMode
+                    ? const Color(0xFF1C2530)
+                    : AppColors.scaffoldSitterLight,
+                borderRadius: BorderRadius.circular(16.r),
+                border: Border.all(
+                  // bleu sitter translucide (≈0.30 clair / ≈0.35 sombre) en ARGB
+                  color: Get.isDarkMode
+                      ? const Color(0x592563EB)
+                      : const Color(0x4D2563EB),
+                  width: 1.1,
                 ),
-              ],
-            ),
-          ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(emoji, style: TextStyle(fontSize: 18.sp)),
+                  SizedBox(width: 8.w),
+                  Flexible(
+                    child: InterText(
+                      text: label,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: labelColor,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

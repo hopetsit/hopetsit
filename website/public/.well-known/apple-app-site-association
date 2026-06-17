@@ -19,7 +19,9 @@
           { "/": "/notifications", "comment": "Notifications screen deep link" },
           { "/": "/invite/*", "comment": "Friend invitation deep link" },
           { "/": "/post/*", "comment": "Post share deep link" },
-          { "/": "/auth/*", "comment": "Session bridge from web to app" }
+          { "/": "/auth/*", "comment": "Session bridge from web to app" },
+          { "/": "/open", "comment": "Canonical email link: open app or /download" },
+          { "/": "/app", "comment": "Canonical email link alias" }
         ]
       }
     ]
